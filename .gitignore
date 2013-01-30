@@ -11,3 +11,16 @@
 *.lai
 *.la
 *.a
+
+build
+CMakeCache.txt
+msg_gen
+bin
+lib
+*~
+*cfg/cpp/*
+.project
+.cproject
+.settings
+doc
+*.cfgc

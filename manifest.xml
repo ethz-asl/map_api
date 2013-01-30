@@ -1,0 +1,22 @@
+<package>
+  <description brief="aslam_posegraph">
+
+     sm_pose_graph
+
+  </description>
+  <author>Paul Furgale</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/aslam_posegraph</url>
+
+  <depend package="sm_common"/>
+  <depend package="sm_kinematics"/>
+  <depend package="sm_eigen"/>
+  <depend package="sm_boost"/>
+  
+  <depend package="sm_python"/>
+  <export>
+    <python path="${prefix}/src"/>
+  </export>
+
+</package>
