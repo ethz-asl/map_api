@@ -17,6 +17,8 @@
   <depend package="sm_python"/>
   <export>
     <python path="${prefix}/src"/>
+    <cpp cflags="`pkg-config --cflags eigen3` -I${prefix}/include"
+         lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -laslam_posegraph" />
   </export>
 
 </package>
