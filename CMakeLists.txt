@@ -113,7 +113,7 @@ target_link_libraries(6DoFposegraph
   ${catkin_LIBRARIES}
 )
 
-add_definitions(--std=c++0x -g)
+add_definitions(--std=c++0x)
 
 #############
 ## Install ##
