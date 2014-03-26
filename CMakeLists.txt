@@ -7,10 +7,8 @@ include(ExternalProject)
 
 set(VERSION 0.0.0)
 
-# TODO(tcies) resolve dependencies here already? If so, how?
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/bin)
 
-ExternalProject_Add(aslam_map_manager
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src
-  INSTALL_COMMAND ""
-)
-
+add_subdirectory(src)
