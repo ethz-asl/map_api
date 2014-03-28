@@ -12,7 +12,7 @@ catkin_package(
     LIBRARIES ${PROJECT_NAME}
     CFG_EXTRAS FindGLog.cmake FindGFlags.cmake FindGTest.cmake FindZeroMQ.cmake
 )
-
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/bin)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
 ################
