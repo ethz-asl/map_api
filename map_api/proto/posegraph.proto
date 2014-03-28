@@ -1,0 +1,17 @@
+package map_api.posegraph.proto;
+
+message Frame {
+  required double time = 1;
+  required string dataFormat = 2;
+  required bytes dataRef = 3;
+  repeated string incoming = 4;
+  repeated string outgoing = 5;
+}
+
+message Edge {
+  required bytes from = 1;
+  required bytes to = 2;
+  repeated double transform = 3;
+  repeated double covMat = 4;
+  required double confidence = 5;
+}
