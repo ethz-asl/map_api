@@ -1,65 +1,34 @@
-cmake_minimum_required(VERSION 2.4.6)
-include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
+cmake_minimum_required(VERSION 2.8.3)
+project(aslam_posegraph)
 
-# Set the build type.  Options are:
-#  Coverage       : w/ debug symbols, w/o optimization, w/ code-coverage
-#  Debug          : w/ debug symbols, w/o optimization
-#  Release        : w/o debug symbols, w/ optimization
-#  RelWithDebInfo : w/ debug symbols, w/ optimization
-#  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
-#set(ROS_BUILD_TYPE RelWithDebInfo)
+set(CMAKE_BUILD_TYPE Release)
 
-rosbuild_init()
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake/)
 
-#set the default path for built executables to the "bin" directory
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
-#set the default path for built libraries to the "lib" directory
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
-
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../cmake)
+find_package(catkin REQUIRED roscpp)
 find_package(Eigen REQUIRED)
-include_directories(${EIGEN_INCLUDE_DIRS})
-add_definitions(${EIGEN_DEFINITIONS})
+find_package(GLog REQUIRED)
 
+include_directories(include ${Eigen_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
 
-#uncomment if you have defined messages
-#rosbuild_genmsg()
-#uncomment if you have defined services
-#rosbuild_gensrv()
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wno-unused-parameter")
+if (CMAKE_COMPILER_IS_GNUCC)
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+else()
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+endif()
 
-#common commands for building c++ executables and libraries
-
-#target_link_libraries(${PROJECT_NAME} another_library)
-#rosbuild_add_executable(example examples/example.cpp)
-#target_link_libraries(example ${PROJECT_NAME})
-
-rosbuild_add_library(${PROJECT_NAME} 
-  src/Vertex.cpp
-  src/Edge.cpp
-  src/PoseGraph.cpp
-  )
-
-rosbuild_add_boost_directories()
-rosbuild_link_boost(${PROJECT_NAME} system filesystem)
-
-# Avoid clash with tr1::tuple: https://code.google.com/p/googletest/source/browse/trunk/README?r=589#257
-add_definitions(-DGTEST_USE_OWN_TR1_TUPLE=0)
-
-rosbuild_add_gtest(${PROJECT_NAME}_tests
-  test/test_main.cpp
-  test/PoseGraphTests.cpp
+catkin_package(
+    DEPENDS eigen GLog
+    CATKIN_DEPENDS roscpp
+    INCLUDE_DIRS include ${Eigen_INCLUDE_DIRS}
+    LIBRARIES ${PROJECT_NAME}
+    CFG_EXTRAS export_flags.cmake FindGLog.cmake
 )
 
-target_link_libraries(${PROJECT_NAME}_tests ${PROJECT_NAME})
+#add_library(${PROJECT_NAME} )
+#target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${GLOG_LIBRARY})
 
-# Use this handy cmake function
-rosbuild_find_ros_package(numpy_eigen)
-include(${numpy_eigen_PACKAGE_PATH}/cmake/add_python_export_library.cmake)
-# This functions take TARGET_NAME PYTHON_MODULE_DIRECTORY sourceFile1 [sourceFile2 ...]
-add_python_export_library(${PROJECT_NAME}_python src/${PROJECT_NAME}
-  src/module.cpp
-  src/python/Vertex.cpp
-  src/python/Edge.cpp
-  src/python/PoseGraph.cpp
-)
-target_link_libraries(${PROJECT_NAME}_python ${PROJECT_NAME})
+#catkin_add_gtest(test_ src/test/test_.cc)
+#target_link_libraries(test_ pthread ${PROJECT_NAME} ${GLOG_LIBRARY})
+
