@@ -5,14 +5,6 @@ include(ExternalProject)
 
 find_package(catkin REQUIRED COMPONENTS)
 
-catkin_package(
-    DEPENDS eigen GLog GFlags Protobuf
-    CATKIN_DEPENDS 
-    INCLUDE_DIRS include ${Eigen_INCLUDE_DIRS} ${GLOG_INCLUDE_DIRS} ${GFLAGS_INCLUDE_DIRS}
-    LIBRARIES ${PROJECT_NAME}
-    CFG_EXTRAS FindGLog.cmake FindGFlags.cmake FindGTest.cmake
-)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/bin)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
 ################
@@ -31,6 +23,20 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 file (GLOB_RECURSE PROTO_DEFNS proto/*.proto)
 PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 LIST(APPEND LINK_WITH ${PROTOBUF_LIBRARIES})
+
+######################
+# CATKIN DECLARATION #
+######################
+
+catkin_package(
+    DEPENDS eigen GLog GFlags Protobuf
+    CATKIN_DEPENDS 
+    INCLUDE_DIRS include
+    LIBRARIES ${PROJECT_NAME}
+    CFG_EXTRAS FindGLog.cmake FindGFlags.cmake
+)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/bin)
+
 
 #############
 # LIBRARIES #
