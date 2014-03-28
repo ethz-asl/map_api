@@ -23,7 +23,7 @@ endif()
 catkin_package(
     DEPENDS eigen GLog GFlags lemon
     CATKIN_DEPENDS roscpp
-    INCLUDE_DIRS include ${Eigen_INCLUDE_DIRS}
+    INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include ${Eigen_INCLUDE_DIRS}
     LIBRARIES ${PROJECT_NAME}
     CFG_EXTRAS export_flags.cmake FindGLog.cmake
 )
