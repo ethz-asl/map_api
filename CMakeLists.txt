@@ -38,7 +38,5 @@ add_executable(lemon_test src/lemon-test.cc)
 target_link_libraries(lemon_test ${catkin_LIBRARIES} ${GLOG_LIBRARY} ${PROJECT_NAME})
 add_dependencies(lemon_test lemon)
 
-
-#catkin_add_gtest(test_ src/test/test_.cc)
-#target_link_libraries(test_ pthread ${PROJECT_NAME} ${GLOG_LIBRARY})
-
+catkin_add_gtest(test_posegraph test/test_main.cpp test/test_posegraph.cc)
+target_link_libraries(test_posegraph ${PROJECT_NAME} pthread ${PROJECT_NAME} ${GLOG_LIBRARY})
