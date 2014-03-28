@@ -5,13 +5,12 @@ include(ExternalProject)
 
 find_package(catkin REQUIRED COMPONENTS map_api)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 
 ################
 # DEPENDENCIES #
 ################
-find_package(GLog REQUIRED)
-find_package(GFlags REQUIRED)
+# Finding GLog and GFlags is provided by map_api
 LIST(APPEND LINK_WITH ${GLOG_LIBRARIES} ${GFLAGS_LIBRARIES} ${catkin_LIBRARIES})
 
 ############

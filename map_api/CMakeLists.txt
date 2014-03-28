@@ -37,7 +37,6 @@ catkin_package(
 )
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/bin)
 
-
 #############
 # LIBRARIES #
 #############
