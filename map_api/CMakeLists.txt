@@ -6,11 +6,11 @@ include(ExternalProject)
 find_package(catkin REQUIRED COMPONENTS)
 
 catkin_package(
-    DEPENDS eigen
+    DEPENDS eigen GLog GFlags Protobuf
     CATKIN_DEPENDS 
     INCLUDE_DIRS include ${Eigen_INCLUDE_DIRS} ${GLOG_INCLUDE_DIRS} ${GFLAGS_INCLUDE_DIRS}
     LIBRARIES ${PROJECT_NAME}
-    CFG_EXTRAS FindGLog.cmake FindGFlags.cmake FindGTest.cmake FindZeroMQ.cmake
+    CFG_EXTRAS FindGLog.cmake FindGFlags.cmake FindGTest.cmake
 )
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/bin)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
@@ -45,7 +45,6 @@ include_directories(include ${catkin_INCLUDE_DIRS}
 SET(CORE_SOURCE src/hash.cc
                 src/map-api-core.cc
                 src/map-api-hub.cc
-                #src/map-manager.cc
                 src/table-insert-query.cc
                 src/table-interface.cc
                 src/posegraph/edge.cc
