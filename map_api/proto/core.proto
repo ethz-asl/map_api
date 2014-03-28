@@ -1,0 +1,60 @@
+package map_api.proto;
+
+// is there a smarter way to describe types in protobuf?
+message TableFieldDescriptor {
+  enum Type { INT32 = 1; INT64 = 2; DOUBLE = 3; STRING = 4; BLOB = 5; 
+    HASH128 = 6;}
+	required string name = 1;
+	required Type type = 2;
+}
+
+message TableDescriptor {
+	required string name = 1;
+	repeated TableFieldDescriptor fields = 2;
+}
+
+message TableList {
+	repeated TableDescriptor tables = 1;
+}
+
+message TableField {
+	required TableFieldDescriptor nameType = 1;
+	optional bytes blobValue = 2;
+	optional double doubleValue = 3;
+	optional int32 intValue = 4;
+	optional int64 longValue = 5;
+	optional string stringValue = 6; 
+}
+
+//==============================
+// NODE TO NODE QUERY MESSAGES
+//==============================
+// don't forget adding to NodeQueryUnion, see bottom
+
+message ListTablesQuery {
+}
+
+message CreateTableQuery {
+	required TableDescriptor description = 1;
+}
+
+message TableInsertQuery {
+	required string target = 1;
+	repeated TableField fieldQueries = 2;
+}
+
+message Hello {
+  required string from = 1;
+}
+
+// insert here all types of queries that can be sent to the node
+message NodeQueryUnion {
+	enum Type { LIST_TABLES = 1; CREATE_TABLE = 2; TABLE_INSERT = 3; HELLO = 4;}
+	
+	required Type type = 1;
+	
+	optional ListTablesQuery listTablesQuery = 2;
+	optional CreateTableQuery createTableQuery = 3;
+	optional TableInsertQuery tableInsertQuery = 4;
+	optional Hello hello = 5;
+}
