@@ -10,7 +10,7 @@
 
 #include <glog/logging.h>
 
-#include <edge-table.h>
+#include <map_api_posegraph/edge-table.h>
 #include "core.pb.h"
 
 namespace map_api {

@@ -5,7 +5,7 @@
  *      Author: titus
  */
 
-#include <edge.h>
+#include <map_api_posegraph/edge.h>
 
 namespace map_api {
 namespace posegraph {

@@ -33,6 +33,7 @@ catkin_package(
     CATKIN_DEPENDS 
     INCLUDE_DIRS include ${CMAKE_CURRENT_BINARY_DIR}
     LIBRARIES ${PROJECT_NAME}
+    CFG_EXTRAS FindGFlags.cmake FindGLog.cmake
 )
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/bin)
 
@@ -48,10 +49,10 @@ include_directories(include ${catkin_INCLUDE_DIRS}
 
 # Core Library available to all applications
 SET(CORE_SOURCE src/hash.cc
-                src/map-api-core.cc
-                src/map-api-hub.cc
-                src/table-insert-query.cc
-                src/table-interface.cc)
+                 src/map-api-core.cc
+                 src/map-api-hub.cc
+                 src/table-insert-query.cc
+                 src/table-interface.cc)
                 
 add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_HDRS} ${PROTO_SRCS})
 add_dependencies(${PROJECT_NAME} ${BUILD_DEPEND})

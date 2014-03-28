@@ -5,7 +5,7 @@
  *      Author: titus
  */
 
-#include <frame.h>
+#include <map_api_posegraph/frame.h>
 
 namespace map_api {
 namespace posegraph {

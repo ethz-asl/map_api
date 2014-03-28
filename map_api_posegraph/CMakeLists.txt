@@ -44,12 +44,11 @@ include_directories(include ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS})
 
 # Core Library available to all applications
 SET(PG_SOURCE src/edge.cc
-                src/edge-table.cc
-                src/frame.cc
-                src/frame-table.cc)
+               src/edge-table.cc
+               src/frame.cc
+               src/frame-table.cc)
                 
 add_library(${PROJECT_NAME} ${PG_SOURCE} ${PROTO_HDRS} ${PROTO_SRCS})
-message(${PROJECT_NAME} ${BUILD_DEPEND})
 target_link_libraries(${PROJECT_NAME} ${LINK_WITH})
 
 ##########
