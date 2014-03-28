@@ -15,10 +15,10 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "map-api/posegraph/edge-table.h"
-#include "map-api/posegraph/edge.h"
-#include "map-api/posegraph/frame-table.h"
-#include "map-api/posegraph/frame.h"
+#include "edge-table.h"
+#include "edge.h"
+#include "frame-table.h"
+#include "frame.h"
 
 // mission file flag
 DEFINE_string(mission_file, "",

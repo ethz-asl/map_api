@@ -1,21 +1,21 @@
 /*
- * edge.cc
+ * frame.cpp
  *
  *  Created on: Mar 17, 2014
  *      Author: titus
  */
 
-#include <map-api/posegraph/edge.h>
+#include <frame.h>
 
 namespace map_api {
 namespace posegraph {
 
-Edge::Edge() {
+Frame::Frame() {
   // TODO Auto-generated constructor stub
 
 }
 
-Edge::~Edge() {
+Frame::~Frame() {
   // TODO Auto-generated destructor stub
 }
 

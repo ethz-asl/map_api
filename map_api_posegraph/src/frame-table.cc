@@ -7,7 +7,7 @@
 
 #include <glog/logging.h>
 
-#include <map-api/posegraph/frame-table.h>
+#include <frame-table.h>
 
 namespace map_api {
 namespace posegraph {

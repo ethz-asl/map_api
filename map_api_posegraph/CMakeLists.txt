@@ -1,19 +1,18 @@
 cmake_minimum_required (VERSION 2.8)
-project(map_api)
+project(map_api_posegraph)
 
 include(ExternalProject)
 
-find_package(catkin REQUIRED COMPONENTS)
+find_package(catkin REQUIRED COMPONENTS map_api)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
 ################
 # DEPENDENCIES #
 ################
-include(${PROJECT_SOURCE_DIR}/cmake/dependencies.cmake)
 find_package(GLog REQUIRED)
 find_package(GFlags REQUIRED)
-LIST(APPEND LINK_WITH ${GLOG_LIBRARIES} ${GFLAGS_LIBRARIES})
+LIST(APPEND LINK_WITH ${GLOG_LIBRARIES} ${GFLAGS_LIBRARIES} ${catkin_LIBRARIES})
 
 ############
 # PROTOBUF #
@@ -30,38 +29,40 @@ LIST(APPEND LINK_WITH ${PROTOBUF_LIBRARIES})
 
 catkin_package(
     DEPENDS eigen GLog GFlags Protobuf
-    CATKIN_DEPENDS 
-    INCLUDE_DIRS include ${CMAKE_CURRENT_BINARY_DIR}
+    CATKIN_DEPENDS map_api
+    INCLUDE_DIRS include ${Eigen_INCLUDE_DIRS} ${GLOG_INCLUDE_DIRS} ${GFLAGS_INCLUDE_DIRS}
     LIBRARIES ${PROJECT_NAME}
 )
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/bin)
-
 
 #############
 # LIBRARIES #
 #############
 add_definitions(--std=c++0x -Wall)
 
-include_directories(include ${catkin_INCLUDE_DIRS}
-                    ${ZEROMQ_INCLUDE_DIRS} ${POCO_INCLUDE_DIRS}
-                    ${Eigen_INCLUDE_DIRS})
+include_directories(include ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS})
 
 # Core Library available to all applications
-SET(CORE_SOURCE src/hash.cc
-                src/map-api-core.cc
-                src/map-api-hub.cc
-                src/table-insert-query.cc
-                src/table-interface.cc)
+SET(PG_SOURCE src/edge.cc
+                src/edge-table.cc
+                src/frame.cc
+                src/frame-table.cc)
                 
-add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_HDRS} ${PROTO_SRCS})
-add_dependencies(${PROJECT_NAME} ${BUILD_DEPEND})
+add_library(${PROJECT_NAME} ${PG_SOURCE} ${PROTO_HDRS} ${PROTO_SRCS})
+message(${PROJECT_NAME} ${BUILD_DEPEND})
 target_link_libraries(${PROJECT_NAME} ${LINK_WITH})
 
 ##########
 # GTESTS #
 ##########
 
-catkin_add_gtest(test_simple_test test/test_main.cpp test/simple_test.cpp)
-target_link_libraries(test_simple_test ${PROJECT_NAME} ${LINK_WITH})
+#catkin_add_gtest(test_simple_test test/test_main.cpp test/simple_test.cpp)
+#target_link_libraries(test_simple_test ${PROJECT_NAME} ${LINK_WITH})
 
 ## TODO(tcies): Add more tests here.
+
+#########
+# DEMOS #
+#########
+add_executable(single-posegraph-client demo/single-posegraph-client.cc)
+target_link_libraries(single-posegraph-client ${PROJECT_NAME})
