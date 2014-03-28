@@ -57,8 +57,6 @@ add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_HDRS} ${PROTO_SRCS})
 add_dependencies(${PROJECT_NAME} ${BUILD_DEPEND})
 target_link_libraries(${PROJECT_NAME} ${LINK_WITH})
 
-message(LINK_WITH ${LINK_WITH})
-
 ##########
 # GTESTS #
 ##########
