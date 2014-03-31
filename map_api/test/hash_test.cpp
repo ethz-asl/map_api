@@ -12,19 +12,19 @@ using namespace map_api;
 
 TEST(Hash, invalid) {
   Hash result;
-  EXPECT_EQ(result.isValid(), false);
+  EXPECT_FALSE(result.isValid());
 }
 
 TEST(Hash, valid) {
   Hash result("test");
-  EXPECT_EQ(result.isValid(), true);
-  EXPECT_EQ(result.getString().length(), 32);
+  EXPECT_TRUE(result.isValid());
+  EXPECT_EQ(result.getString().length(), 32u);
 }
 
 TEST(Hash, rudimentaryDiff) {
   Hash a("Do I contain punctuation?");
   Hash b("Do I contain punctuation");
-  EXPECT_EQ(a.isValid(), true);
-  EXPECT_EQ(b.isValid(), true);
+  EXPECT_TRUE(a.isValid());
+  EXPECT_TRUE(b.isValid());
   EXPECT_NE(a.getString(), b.getString());
 }
