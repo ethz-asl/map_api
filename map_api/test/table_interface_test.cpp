@@ -51,77 +51,6 @@ TEST(TableInterFace, initEmpty){
   EXPECT_DEATH(fieldOf((*structure)["not a field"], *structure),"^");
 }
 
-/*
- *
- * SORRY FOR THE DEAD CODE. WILL CLEAN UP EVENTUALLY!
- *
- *
-#define CRUD_FIELD_TEST_SUITE(TYPE_LOWER_CASE, TYPE_UPPER_CASE, TYPE_CPP, \
-                              PROTOBUF_SET, PROTOBUF_GET, PROTOBUF_TYPE_ENUM, \
-                              TABLE_CLASS) \
-class TABLE_CLASS : public TestTable{ \
- public: \
-  virtual bool init(){ \
-    setup(strcat( #TYPE_LOWER_CASE , "_field_test_table")); \
-    return true; \
-  } \
-  Hash insert(const TYPE_CPP &value){ \
-    std::shared_ptr<TableInsertQuery> query = getTemplate(); \
-    (*query)["test_field"]->PROTOBUF_SET(value); \
-    return insertQuery(*query); \
-  } \
-  std::string get(const Hash &id){ \
-    std::shared_ptr<TableInsertQuery> row = getRow(id); \
-    if (!static_cast<bool>(row)){ \
-      LOG(FATAL) << "Row looked for not found."; \
-    } \
-    return (*row)["test_field"]->PROTOBUF_GET(); \
-  } \
-  bool update(const Hash &id, const TYPE_CPP &newValue){ \
-    std::shared_ptr<TableInsertQuery> row = getRow(id); \
-    if (!static_cast<bool>(row)){ \
-      LOG(FATAL) << "Row looked for not found."; \
-    } \
-    (*row)["test_field"]->PROTOBUF_SET(newValue); \
-    return updateQuery(id, *row); \
-  } \
- protected: \
-  virtual bool define(){ \
-    addField("test_field", PROTOBUF_TYPE_ENUM); \
-    return true; \
-  } \
-}; \
-\
-TEST(TableInterface, stringFieldInit){ \
-  StringFieldTestTable table; \
-  table.init(); \
-  std::shared_ptr<TableInsertQuery> structure = table.templateForward(); \
-  EXPECT_EQ(structure->fieldqueries_size(), 3); \
-  EXPECT_TRUE(fieldOf((*structure)["test_field"], *structure)); \
-} \
-\
-TEST(TableInterface, stringFieldCreateRead){ \
-  StringFieldTestTable table; \
-  table.init(); \
-  Hash createTest = table.insert("Create test"); \
-  EXPECT_EQ(table.get(createTest), "Create test"); \
-} \
-\
-TEST(TableInterface, stringFieldUpdateRead){ \
-  StringFieldTestTable table; \
-  table.init(); \
-  Hash updateTest = table.insert("Update test initial content"); \
-  EXPECT_EQ(table.get(updateTest), "Update test initial content"); \
-  EXPECT_TRUE(table.update(updateTest,"Update test updated content")); \
-  EXPECT_EQ(table.get(updateTest), "Update test updated content"); \
-}
-
-CRUD_FIELD_TEST_SUITE(string, String, std::string, set_stringvalue, stringvalue,
-                      proto::TableFieldDescriptor_Type_STRING,
-                      StringFieldTestTable)
- */
-
-
 // TODO (tcies) this might be useful elsewhere?
 template <typename T>
 struct TemplatedField{
@@ -195,6 +124,7 @@ TYPED_TEST(FieldTest, Init){
   table.cleanup();
 }
 
+/* FIXME(tcies) make the following work as templated tests
 TEST(TableInterface, stringFieldCreateRead){
   FieldTestTable<std::string> table;
   table.init();
@@ -212,6 +142,7 @@ TEST(TableInterface, stringFieldUpdateRead){
   EXPECT_EQ(table.get(updateTest), "Update test updated content");
   table.cleanup();
 }
+*/
 
 // TODO(simon) any idea on how to elegantly do the last 3 tests for all
 // kinds of fields (string, double, int, blob etc...
