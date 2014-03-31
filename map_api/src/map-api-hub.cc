@@ -42,10 +42,17 @@ bool MapApiHub::init(const std::string &ipPort){
 
   // 2. connect to servers already on network (discovery from file)
   std::ifstream discovery(FAKE_DISCOVERY, std::ios::in);
+  bool isAlreadyRegistered = false;
   peerLock_.writeLock();
   for (std::string other; getline(discovery,other);){
     if (other.compare("") == 0) continue;
-    LOG(INFO) << "Found peer " << other << ", connecting..." << std::endl;
+    if (other.compare(ipPort) == 0){
+      LOG(INFO) << "Found registration of self from previous dead run, will "\
+          "not register...";
+      isAlreadyRegistered = true;
+      continue;
+    }
+    LOG(INFO) << "Found peer " << other << ", connecting...";
     auto it = peers_.insert(std::unique_ptr<zmq::socket_t>(
         new zmq::socket_t(*context_, ZMQ_REQ))).first;
     (*it)->connect(("tcp://" + other).c_str());
@@ -54,9 +61,11 @@ bool MapApiHub::init(const std::string &ipPort){
   discovery.close();
 
   // 3. put own socket into discovery file
-  std::ofstream report(FAKE_DISCOVERY, std::ios::out | std::ios::app);
-  report << ipPort << std::endl;
-  report.close();
+  if (!isAlreadyRegistered){
+    std::ofstream report(FAKE_DISCOVERY, std::ios::out | std::ios::app);
+    report << ipPort << std::endl;
+    report.close();
+  }
 
   // 4. notify peers of self
   peerLock_.readLock();
