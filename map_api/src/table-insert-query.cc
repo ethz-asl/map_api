@@ -22,7 +22,7 @@ bool TableInsertQuery::index() {
 proto::TableField* TableInsertQuery::operator[](std::string field){
   fieldMap::iterator find = fields_.find(field);
   if (find == fields_.end()){
-    LOG(FATAL) << "Attempted to set inexistent field." << std::endl;
+    LOG(FATAL) << "Attempted to access inexistent field." << std::endl;
   }
   return this->mutable_fieldqueries(find->second);
 }

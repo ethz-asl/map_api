@@ -60,7 +60,7 @@ void addFrame(const double timestamp,
 void plotAllEdges(){
   fprintf(gnuplot, "plot '-' w l\n");
   for (const map_api::posegraph::Edge& edge : edges){
-    fprintf(gnuplot, "%lf %lf\n",edge.transform(3), edge.transform(7));
+    fprintf(gnuplot, "%f %f\n",edge.transform(3), edge.transform(7));
   }
   fprintf(gnuplot, "e\n");
   fflush(gnuplot);

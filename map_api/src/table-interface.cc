@@ -45,6 +45,7 @@ bool TableInterface::addField(std::string name,
 }
 
 bool TableInterface::setup(std::string name){
+  // TODO(tcies) check whether string safe for SQL, e.g. no hyphens
   set_name(name);
   // Define table fields
   // enforced fields id (hash) and owner
@@ -115,6 +116,7 @@ bool TableInterface::createQuery(){
 
   stat << ");";
 
+  LOG(INFO) << stat.toString();
   stat.execute();
 
   return true;

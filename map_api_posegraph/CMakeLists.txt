@@ -37,7 +37,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/bin)
 #############
 # LIBRARIES #
 #############
-add_definitions(--std=c++0x -Wall)
+add_definitions(--std=c++0x -Wall -Wextra -pedantic)
 
 include_directories(include ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS})
 

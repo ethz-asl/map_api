@@ -20,6 +20,7 @@ class TableInterface : public proto::TableDescriptor {
  public:
   /**
    * Init routine, must be implemented by derived class, defines table name.
+   * TODO(tcies) enforce? isInitialized?
    */
   virtual bool init() = 0;
 
@@ -30,8 +31,8 @@ class TableInterface : public proto::TableDescriptor {
    */
   bool setup(std::string name);
   /**
-   * Function to be implemented by derivations: Define table by populating
-   * TableDescriptor protobuf message.
+   * Function to be implemented by derivations: Define table by repeated
+   * calls to addField()
    */
   virtual bool define();
   /**
