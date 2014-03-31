@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package>
+  <name>map_api_posegraph</name>
+  <version>0.0.0</version>
+  <description>The aslam map api posegraph package</description>
+
+  <maintainer email="stephane.magnenat@mavt.ethz.ch">Stéphane Magnenat
+  </maintainer>
+  <maintainer email="slynen@ethz.ch">Simon Lynen</maintainer>
+  <maintainer email="dev@titus-c.ch">Titus Cieslewski</maintainer>
+
+
+  <license>Apache 2.0</license>
+
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>map_api</build_depend>
+  <run_depend>map_api</run_depend>
+
+  <export>
+  </export>
+</package>

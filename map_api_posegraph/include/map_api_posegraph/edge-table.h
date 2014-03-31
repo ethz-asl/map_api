@@ -12,8 +12,8 @@
 
 #include "map-api/table-interface.h"
 #include "map-api/hash.h"
-#include "map-api/posegraph/edge.h"
-#include <map-api/posegraph/frame-table.h>
+#include "map_api_posegraph/edge.h"
+#include "map_api_posegraph/frame-table.h"
 
 namespace map_api {
 namespace posegraph {

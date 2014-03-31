@@ -15,20 +15,17 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "map-api/posegraph/edge-table.h"
-#include "map-api/posegraph/edge.h"
-#include "map-api/posegraph/frame-table.h"
-#include "map-api/posegraph/frame.h"
+#include "map_api_posegraph/edge-table.h"
+#include "map_api_posegraph/edge.h"
+#include "map_api_posegraph/frame-table.h"
+#include "map_api_posegraph/frame.h"
 
-// mission file flag
 DEFINE_string(mission_file, "",
               "The csv file specifying the mission to process");
 
-// global frame, edge table
 map_api::posegraph::EdgeTable edgeTable;
 map_api::posegraph::FrameTable frameTable;
 
-// only for visualization purposes
 std::vector<map_api::posegraph::Edge> edges;
 FILE* gnuplot;
 
