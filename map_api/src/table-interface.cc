@@ -109,8 +109,7 @@ bool TableInterface::createQuery(){
         break;
       }
       default:
-        LOG(FATAL) << "Type of field supplied to create query unknown" <<
-        std::endl;
+        LOG(FATAL) << "Type of field supplied to create query unknown";
     }
   }
 
@@ -281,15 +280,14 @@ bool TableInterface::updateQuery(const Hash& id,
         break;
       }
       default:{
-        LOG(FATAL) << "Type of field supplied to update query unknown" <<
-            std::endl;
+        LOG(FATAL) << "Type of field supplied to update query unknown";
       }
     }
   }
-  stat << "WHERE ID=:id", Poco::Data::use(id.getString());
+  stat << "WHERE ID LIKE :id", Poco::Data::use(id.getString());
 
   stat.execute();
-  return true;
+  return stat.done();
 }
 
 }

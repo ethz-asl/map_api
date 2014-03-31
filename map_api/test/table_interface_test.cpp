@@ -65,6 +65,14 @@ class StringFieldTestTable : public TestTable{
     }
     return (*row)["test_field"]->stringvalue();
   }
+  bool update(const Hash &id, const std::string &newValue){
+    std::shared_ptr<TableInsertQuery> row = getRow(id);
+    if (!static_cast<bool>(row)){
+      LOG(FATAL) << "Row looked for not found.";
+    }
+    (*row)["test_field"]->set_stringvalue(newValue);
+    return updateQuery(id, *row);
+  }
  protected:
   virtual bool define(){
     addField("test_field", proto::TableFieldDescriptor_Type_STRING);
@@ -83,12 +91,17 @@ TEST(TableInterface, stringFieldInit){
 TEST(TableInterface, stringFieldCreateRead){
   StringFieldTestTable table;
   table.init();
-  Hash createTest = table.insert("Test");
-  EXPECT_EQ(table.get(createTest), "Test");
+  Hash createTest = table.insert("Create test");
+  EXPECT_EQ(table.get(createTest), "Create test");
 }
 
 TEST(TableInterface, stringFieldUpdateRead){
-  // TODO(tcies) implement update check
+  StringFieldTestTable table;
+  table.init();
+  Hash updateTest = table.insert("Update test initial content");
+  EXPECT_EQ(table.get(updateTest), "Update test initial content");
+  EXPECT_TRUE(table.update(updateTest,"Update test updated content"));
+  EXPECT_EQ(table.get(updateTest), "Update test updated content");
 }
 
 // TODO(simon) any idea on how to elegantly do the last 3 tests for all
