@@ -64,6 +64,11 @@ class TableInterface : public proto::TableDescriptor {
    *                                                                        UUU
    */
   bool updateQuery(const Hash& id, const TableInsertQuery& query);
+  /**
+   * Shared pointer to database session TODO(tcies) can this be set private
+   * yet accessed from a test table?
+   */
+  std::shared_ptr<Poco::Data::Session> ses_;
 
 
  private:
@@ -76,11 +81,6 @@ class TableInterface : public proto::TableDescriptor {
    * Parse and execute SQL query necessary to create the database
    */
   bool createQuery();
-
-  /**
-   * Shared pointer to database session
-   */
-  std::shared_ptr<Poco::Data::Session> ses_;
 };
 
 }

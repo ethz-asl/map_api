@@ -7,6 +7,9 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <Poco/Data/Common.h>
+#include <Poco/Data/Statement.h>
+
 #include <map-api/table-interface.h>
 
 using namespace map_api;
@@ -23,6 +26,9 @@ class TestTable : public TableInterface{
  protected:
   virtual bool define(){
     return true;
+  }
+  std::shared_ptr<Poco::Data::Session> sessionForward(){
+    return std::shared_ptr<Poco::Data::Session>(ses_);
   }
 };
 
@@ -45,63 +51,166 @@ TEST(TableInterFace, initEmpty){
   EXPECT_DEATH(fieldOf((*structure)["not a field"], *structure),"^");
 }
 
+/*
+ *
+ * SORRY FOR THE DEAD CODE. WILL CLEAN UP EVENTUALLY!
+ *
+ *
+#define CRUD_FIELD_TEST_SUITE(TYPE_LOWER_CASE, TYPE_UPPER_CASE, TYPE_CPP, \
+                              PROTOBUF_SET, PROTOBUF_GET, PROTOBUF_TYPE_ENUM, \
+                              TABLE_CLASS) \
+class TABLE_CLASS : public TestTable{ \
+ public: \
+  virtual bool init(){ \
+    setup(strcat( #TYPE_LOWER_CASE , "_field_test_table")); \
+    return true; \
+  } \
+  Hash insert(const TYPE_CPP &value){ \
+    std::shared_ptr<TableInsertQuery> query = getTemplate(); \
+    (*query)["test_field"]->PROTOBUF_SET(value); \
+    return insertQuery(*query); \
+  } \
+  std::string get(const Hash &id){ \
+    std::shared_ptr<TableInsertQuery> row = getRow(id); \
+    if (!static_cast<bool>(row)){ \
+      LOG(FATAL) << "Row looked for not found."; \
+    } \
+    return (*row)["test_field"]->PROTOBUF_GET(); \
+  } \
+  bool update(const Hash &id, const TYPE_CPP &newValue){ \
+    std::shared_ptr<TableInsertQuery> row = getRow(id); \
+    if (!static_cast<bool>(row)){ \
+      LOG(FATAL) << "Row looked for not found."; \
+    } \
+    (*row)["test_field"]->PROTOBUF_SET(newValue); \
+    return updateQuery(id, *row); \
+  } \
+ protected: \
+  virtual bool define(){ \
+    addField("test_field", PROTOBUF_TYPE_ENUM); \
+    return true; \
+  } \
+}; \
+\
+TEST(TableInterface, stringFieldInit){ \
+  StringFieldTestTable table; \
+  table.init(); \
+  std::shared_ptr<TableInsertQuery> structure = table.templateForward(); \
+  EXPECT_EQ(structure->fieldqueries_size(), 3); \
+  EXPECT_TRUE(fieldOf((*structure)["test_field"], *structure)); \
+} \
+\
+TEST(TableInterface, stringFieldCreateRead){ \
+  StringFieldTestTable table; \
+  table.init(); \
+  Hash createTest = table.insert("Create test"); \
+  EXPECT_EQ(table.get(createTest), "Create test"); \
+} \
+\
+TEST(TableInterface, stringFieldUpdateRead){ \
+  StringFieldTestTable table; \
+  table.init(); \
+  Hash updateTest = table.insert("Update test initial content"); \
+  EXPECT_EQ(table.get(updateTest), "Update test initial content"); \
+  EXPECT_TRUE(table.update(updateTest,"Update test updated content")); \
+  EXPECT_EQ(table.get(updateTest), "Update test updated content"); \
+}
 
-// TODO(tcies) preprocessor magic to cover all field types?
-class StringFieldTestTable : public TestTable{
+CRUD_FIELD_TEST_SUITE(string, String, std::string, set_stringvalue, stringvalue,
+                      proto::TableFieldDescriptor_Type_STRING,
+                      StringFieldTestTable)
+ */
+
+
+// TODO (tcies) this might be useful elsewhere?
+template <typename T>
+struct TemplatedField{
+  static void set(map_api::proto::TableField* field, const T& value);
+  static T get(map_api::proto::TableField* field);
+  static map_api::proto::TableFieldDescriptor_Type protobufEnum();
+};
+template<>
+struct TemplatedField<std::string>{
+  static void set(map_api::proto::TableField* field, const std::string& value){
+    field->set_stringvalue(value);
+  }
+  static std::string get(map_api::proto::TableField* field){
+    return field->stringvalue();
+  }
+  static map_api::proto::TableFieldDescriptor_Type protobufEnum(){
+    return map_api::proto::TableFieldDescriptor_Type_STRING;
+  }
+};
+
+template <typename T>
+class FieldTestTable : public TestTable{
  public:
   virtual bool init(){
-    setup("string_field_test_table");
+    setup("field_test_table");
     return true;
   }
-  Hash insert(const std::string &value){
+  void cleanup(){
+    *(sessionForward()) << "DROP TABLE IF EXISTS field_test_table" <<
+        Poco::Data::now;
+  }
+  Hash insert(const T &value){
     std::shared_ptr<TableInsertQuery> query = getTemplate();
-    (*query)["test_field"]->set_stringvalue(value);
+    TemplatedField<T>::set((*query)["test_field"], value);
     return insertQuery(*query);
   }
-  std::string get(const Hash &id){
+  const T& get(const Hash &id){
     std::shared_ptr<TableInsertQuery> row = getRow(id);
     if (!static_cast<bool>(row)){
       LOG(FATAL) << "Row looked for not found.";
     }
-    return (*row)["test_field"]->stringvalue();
+    return TemplatedField<T>::get((*row)["test_field"]);
   }
-  bool update(const Hash &id, const std::string &newValue){
+  bool update(const Hash &id, const T& newValue){
     std::shared_ptr<TableInsertQuery> row = getRow(id);
     if (!static_cast<bool>(row)){
       LOG(FATAL) << "Row looked for not found.";
     }
-    (*row)["test_field"]->set_stringvalue(newValue);
+    TemplatedField<T>::set((*row)["test_field"], newValue);
     return updateQuery(id, *row);
   }
  protected:
   virtual bool define(){
-    addField("test_field", proto::TableFieldDescriptor_Type_STRING);
+    addField("test_field", TemplatedField<T>::protobufEnum());
     return true;
   }
 };
 
-TEST(TableInterface, stringFieldInit){
-  StringFieldTestTable table;
+template <typename T>
+class FieldTest : public ::testing::Test{
+};
+typedef ::testing::Types<std::string> MyTypes;
+TYPED_TEST_CASE(FieldTest, MyTypes);
+
+TYPED_TEST(FieldTest, Init){
+  FieldTestTable<TypeParam> table;
   table.init();
   std::shared_ptr<TableInsertQuery> structure = table.templateForward();
   EXPECT_EQ(structure->fieldqueries_size(), 3);
   EXPECT_TRUE(fieldOf((*structure)["test_field"], *structure));
+  table.cleanup();
 }
 
 TEST(TableInterface, stringFieldCreateRead){
-  StringFieldTestTable table;
+  FieldTestTable<std::string> table;
   table.init();
   Hash createTest = table.insert("Create test");
   EXPECT_EQ(table.get(createTest), "Create test");
+  table.cleanup();
 }
 
 TEST(TableInterface, stringFieldUpdateRead){
-  StringFieldTestTable table;
+  FieldTestTable<std::string> table;
   table.init();
   Hash updateTest = table.insert("Update test initial content");
   EXPECT_EQ(table.get(updateTest), "Update test initial content");
   EXPECT_TRUE(table.update(updateTest,"Update test updated content"));
   EXPECT_EQ(table.get(updateTest), "Update test updated content");
+  table.cleanup();
 }
 
 // TODO(simon) any idea on how to elegantly do the last 3 tests for all
