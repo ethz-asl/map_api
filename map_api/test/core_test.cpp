@@ -13,16 +13,16 @@ using namespace map_api;
 
 TEST(MapApiCore, uninitialized) {
   MapApiCore &instance = MapApiCore::getInstance();
-  EXPECT_EQ(instance.isInitialized(), false);
+  EXPECT_FALSE(instance.isInitialized());
 }
 
 TEST(MapApiCore, validInit) {
   MapApiCore &instance = MapApiCore::getInstance();
   instance.init("127.0.0.1:5050");
-  EXPECT_EQ(instance.isInitialized(), true);
+  EXPECT_TRUE(instance.isInitialized());
 }
 
 TEST(MapApiCore, invalidInit) {
   MapApiCore &instance = MapApiCore::getInstance();
-  EXPECT_DEATH(instance.init("wtf"), "^");
+  EXPECT_DEATH(instance.init("not an IP:port string"), "^");
 }

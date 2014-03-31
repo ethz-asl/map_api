@@ -26,15 +26,22 @@ class TestTable : public TableInterface{
   }
 };
 
+bool fieldOf(proto::TableField *a, const TableInsertQuery &query){
+  for (int i=0; i<query.fieldqueries_size(); ++i){
+    if (a == &query.fieldqueries(i))
+      return true;
+  }
+  return false;
+}
+
 TEST(TableInterFace, initEmpty){
   TestTable table;
   table.init();
   std::shared_ptr<TableInsertQuery> structure = table.templateForward();
   EXPECT_EQ(structure->fieldqueries_size(), 2);
-  // expecting no death:
-  (*structure)["ID"];
-  (*structure)["owner"];
-  EXPECT_DEATH((*structure)["garbage"],"^");
+  EXPECT_TRUE(fieldOf((*structure)["ID"], *structure));
+  EXPECT_TRUE(fieldOf((*structure)["owner"], *structure));
+  EXPECT_DEATH(fieldOf((*structure)["not a field"], *structure),"^");
 }
 
 
@@ -66,8 +73,7 @@ TEST(TableInterface, stringFieldInit){
   table.init();
   std::shared_ptr<TableInsertQuery> structure = table.templateForward();
   EXPECT_EQ(structure->fieldqueries_size(), 3);
-  // expecting no death:
-  (*structure)["test_field"];
+  EXPECT_TRUE(fieldOf((*structure)["test_field"], *structure));
 }
 
 TEST(TableInterface, stringFieldCreateRead){
