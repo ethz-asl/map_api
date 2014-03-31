@@ -61,10 +61,8 @@ target_link_libraries(${PROJECT_NAME} ${LINK_WITH})
 # GTESTS #
 ##########
 
-catkin_add_gtest(test_simple_test test/test_main.cpp test/simple_test.cpp)
-target_link_libraries(test_simple_test ${PROJECT_NAME} ${LINK_WITH})
-
-## TODO(tcies): Add more tests here.
+catkin_add_gtest(test_hash_test test/test_main.cpp test/hash_test.cpp)
+target_link_libraries(test_hash_test ${PROJECT_NAME} ${LINK_WITH})
 
 #########
 # DEMOS #
