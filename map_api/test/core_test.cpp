@@ -7,7 +7,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "map-api/map-api-core.h"
+#include <map-api/map-api-core.h>
 
 using namespace map_api;
 

@@ -7,7 +7,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "map-api/table-interface.h"
+#include <map-api/table-interface.h>
 
 using namespace map_api;
 
@@ -27,7 +27,7 @@ class TestTable : public TableInterface{
 };
 
 bool fieldOf(proto::TableField *a, const TableInsertQuery &query){
-  for (int i=0; i<query.fieldqueries_size(); ++i){
+  for (int i = 0; i < query.fieldqueries_size(); ++i){
     if (a == &query.fieldqueries(i))
       return true;
   }
@@ -60,6 +60,9 @@ class StringFieldTestTable : public TestTable{
   }
   std::string get(const Hash &id){
     std::shared_ptr<TableInsertQuery> row = getRow(id);
+    if (!static_cast<bool>(row)){
+      LOG(FATAL) << "Row looked for not found.";
+    }
     return (*row)["test_field"]->stringvalue();
   }
  protected:
@@ -85,7 +88,7 @@ TEST(TableInterface, stringFieldCreateRead){
 }
 
 TEST(TableInterface, stringFieldUpdateRead){
-  // TODO(tcies)
+  // TODO(tcies) implement update check
 }
 
 // TODO(simon) any idea on how to elegantly do the last 3 tests for all

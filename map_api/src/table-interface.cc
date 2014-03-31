@@ -244,6 +244,7 @@ std::shared_ptr<TableInsertQuery> TableInterface::getRow(
   }
 
   query->index(); // FIXME (titus) just index if not indexed or so...
+  // TODO(tcies) return NULL if empty result
   return query;
 }
 
