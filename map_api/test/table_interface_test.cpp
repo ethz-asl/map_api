@@ -38,6 +38,7 @@ TEST(TableInterFace, initEmpty){
   TestTable table;
   table.init();
   std::shared_ptr<TableInsertQuery> structure = table.templateForward();
+  ASSERT_TRUE(static_cast<bool>(structure));
   EXPECT_EQ(structure->fieldqueries_size(), 2);
   EXPECT_TRUE(fieldOf((*structure)["ID"], *structure));
   EXPECT_TRUE(fieldOf((*structure)["owner"], *structure));
