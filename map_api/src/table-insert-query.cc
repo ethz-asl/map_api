@@ -19,12 +19,13 @@ bool TableInsertQuery::index() {
   return true;
 }
 
-proto::TableField* TableInsertQuery::operator[](std::string field){
+TableField& TableInsertQuery::operator[](std::string field){
   fieldMap::iterator find = fields_.find(field);
   if (find == fields_.end()){
     LOG(FATAL) << "Attempted to access inexistent field.";
   }
-  return this->mutable_fieldqueries(find->second);
+  return static_cast<TableField&>(
+      *this->mutable_fieldqueries(find->second));
 }
 
 } /* namespace map_api */

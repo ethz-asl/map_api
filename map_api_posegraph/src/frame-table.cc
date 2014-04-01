@@ -24,7 +24,7 @@ bool FrameTable::define(){
 
 map_api::Hash FrameTable::insertFrame(const Frame &frame){
   std::shared_ptr<map_api::TableInsertQuery> query = getTemplate();
-  (*query)["data"]->set_blobvalue(frame.SerializeAsString());
+  (*query)["data"].set_blobvalue(frame.SerializeAsString());
   // commit
   return insertQuery(*query);
 }
@@ -32,14 +32,14 @@ map_api::Hash FrameTable::insertFrame(const Frame &frame){
 std::shared_ptr<Frame> FrameTable::get(const map_api::Hash &id){
   std::shared_ptr<map_api::TableInsertQuery> result = getRow(id);
   std::shared_ptr<Frame> ret(new Frame());
-  ret->ParseFromString((*result)["data"]->blobvalue());
+  ret->ParseFromString((*result)["data"].blobvalue());
   return ret;
 }
 
 // TODO(tcies) many similarities with insert... meldable?
 bool FrameTable::update(const map_api::Hash& hash, const Frame& frame){
   std::shared_ptr<map_api::TableInsertQuery> query = getTemplate();
-  (*query)["data"]->set_blobvalue(frame.SerializeAsString());
+  (*query)["data"].set_blobvalue(frame.SerializeAsString());
   // commit
   return updateQuery(hash, *query);
 }

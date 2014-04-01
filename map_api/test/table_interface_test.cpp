@@ -32,9 +32,9 @@ class TestTable : public TableInterface{
   }
 };
 
-bool fieldOf(proto::TableField *a, const TableInsertQuery &query){
+bool fieldOf(proto::TableField& a, const TableInsertQuery& query){
   for (int i = 0; i < query.fieldqueries_size(); ++i){
-    if (a == &query.fieldqueries(i))
+    if (&a == &query.fieldqueries(i))
       return true;
   }
   return false;
@@ -108,13 +108,15 @@ class FieldTestTable : public TestTable{
     return true;
   }
   void cleanup(){
+    /*
     *(sessionForward()) << "DROP TABLE IF EXISTS field_test_table" <<
         Poco::Data::now;
     LOG(INFO) << "Table field_test_table dropped";
+    */
   }
   Hash insert(const FieldType &value){
     std::shared_ptr<TableInsertQuery> query = getTemplate();
-    TemplatedField<FieldType>::set((*query)["test_field"], value);
+    (*query)["test_field"].set<FieldType>(value);
     return insertQuery(*query);
   }
   FieldType get(const Hash &id){
@@ -123,7 +125,7 @@ class FieldTestTable : public TestTable{
       LOG(ERROR) << "Row " << id.getString() << " not found.";
       return FieldType();
     }
-    return TemplatedField<FieldType>::get((*row)["test_field"]);
+    return (*row)["test_field"].get<FieldType>();
   }
   bool update(const Hash &id, const FieldType& newValue){
     std::shared_ptr<TableInsertQuery> row = getRow(id);
@@ -131,7 +133,7 @@ class FieldTestTable : public TestTable{
       LOG(ERROR) << "Row " << id.getString() << " not found.";
       return false;
     }
-    TemplatedField<FieldType>::set((*row)["test_field"], newValue);
+    (*row)["test_field"].set<FieldType>(newValue);
     return updateQuery(id, *row);
   }
  protected:
@@ -162,10 +164,10 @@ template <>
 class FieldTest<std::string> : public ::testing::Test{
  protected:
   std::string sample_data_1(){
-    return "Test string 1";
+    return "Test_string_1";
   }
   std::string sample_data_2(){
-    return "Test string 2";
+    return "Test_string_2";
   }
 };
 
@@ -186,7 +188,7 @@ class FieldTest<double> : public ::testing::Test{
  *************************
  */
 
-typedef ::testing::Types<std::string, double> MyTypes;
+typedef ::testing::Types<std::string> MyTypes;
 TYPED_TEST_CASE(FieldTest, MyTypes);
 
 TYPED_TEST(FieldTest, Init){
