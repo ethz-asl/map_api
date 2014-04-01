@@ -45,6 +45,7 @@ bool TableInterface::addField(std::string name,
 }
 
 bool TableInterface::setup(std::string name){
+  // TODO(tcies) Test before initialized or RAII
   // TODO(tcies) check whether string safe for SQL, e.g. no hyphens
   set_name(name);
   // Define table fields
@@ -59,7 +60,7 @@ bool TableInterface::setup(std::string name){
     MapApiCore::getInstance().init(FLAGS_ipPort);
   }
   // connect to database & create table
-  ses_ = MapApiCore::getInstance().getSession();
+  session_ = MapApiCore::getInstance().getSession();
   createQuery();
 
   // Sync with cluster TODO(tcies)
@@ -83,7 +84,7 @@ std::shared_ptr<TableInsertQuery> TableInterface::getTemplate() const{
 }
 
 bool TableInterface::createQuery(){
-  Poco::Data::Statement stat(*ses_);
+  Poco::Data::Statement stat(*session_);
   stat << "CREATE TABLE IF NOT EXISTS " << name() << " (";
 
   // parse fields from descriptor as database fields
@@ -127,7 +128,7 @@ map_api::Hash TableInterface::insertQuery(TableInsertQuery& query){
   query["ID"]->set_stringvalue(idHash.getString());
 
   // assemble SQLite statement
-  Poco::Data::Statement stat(*ses_);
+  Poco::Data::Statement stat(*session_);
   // NB: sqlite placeholders work only for column values
   stat << "INSERT INTO " << name() << " ";
 
@@ -197,7 +198,7 @@ map_api::Hash TableInterface::insertQuery(TableInsertQuery& query){
 std::shared_ptr<TableInsertQuery> TableInterface::getRow(
     const map_api::Hash &id) const{
   std::shared_ptr<TableInsertQuery> query = getTemplate();
-  Poco::Data::Statement stat(*ses_);
+  Poco::Data::Statement stat(*session_);
   stat << "SELECT ";
 
   // because protobuf won't supply mutable pointers to numeric values, we can't
@@ -250,7 +251,7 @@ std::shared_ptr<TableInsertQuery> TableInterface::getRow(
 bool TableInterface::updateQuery(const Hash& id,
                                  const TableInsertQuery& query){
   // TODO(tcies) all concurrency handling, owner locking, etc... comes here
-  Poco::Data::Statement stat(*ses_);
+  Poco::Data::Statement stat(*session_);
   stat << "UPDATE " << name() << " SET ";
   // TODO(discuss) I don't like the redundancy of this code, but it's always
   // slightly different... not sure if any abstraction would be worth?

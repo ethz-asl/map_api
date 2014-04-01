@@ -28,7 +28,7 @@ class TestTable : public TableInterface{
     return true;
   }
   std::shared_ptr<Poco::Data::Session> sessionForward(){
-    return std::shared_ptr<Poco::Data::Session>(ses_);
+    return std::shared_ptr<Poco::Data::Session>(session_);
   }
 };
 
@@ -58,12 +58,14 @@ TEST(TableInterFace, initEmpty){
  */
 
 // TODO (tcies) this might be useful elsewhere?
-template <typename T>
+template <typename FieldType>
 struct TemplatedField{
-  static void set(map_api::proto::TableField* field, const T& value);
-  const static T& get(map_api::proto::TableField* field);
+  static void set(map_api::proto::TableField* field,
+                  const FieldType& value);
+  const static FieldType& get(map_api::proto::TableField* field);
   static map_api::proto::TableFieldDescriptor_Type protobufEnum();
 };
+
 template<>
 struct TemplatedField<std::string>{
   static void set(map_api::proto::TableField* field,
@@ -84,7 +86,7 @@ struct TemplatedField<std::string>{
  **********************************************************
  */
 
-template <typename T>
+template <typename FieldType>
 class FieldTestTable : public TestTable{
  public:
   virtual bool init(){
@@ -96,29 +98,31 @@ class FieldTestTable : public TestTable{
         Poco::Data::now;
     LOG(INFO) << "Table field_test_table dropped";
   }
-  Hash insert(const T &value){
+  Hash insert(const FieldType &value){
     std::shared_ptr<TableInsertQuery> query = getTemplate();
-    TemplatedField<T>::set((*query)["test_field"], value);
+    TemplatedField<FieldType>::set((*query)["test_field"], value);
     return insertQuery(*query);
   }
-  T get(const Hash &id){
+  FieldType get(const Hash &id){
     std::shared_ptr<TableInsertQuery> row = getRow(id);
     if (!static_cast<bool>(row)){
-      LOG(FATAL) << "Row looked for not found.";
+      LOG(ERROR) << "Row " << id.getString() << " not found.";
+      return FieldType();
     }
-    return TemplatedField<T>::get((*row)["test_field"]);
+    return TemplatedField<FieldType>::get((*row)["test_field"]);
   }
-  bool update(const Hash &id, const T& newValue){
+  bool update(const Hash &id, const FieldType& newValue){
     std::shared_ptr<TableInsertQuery> row = getRow(id);
     if (!static_cast<bool>(row)){
-      LOG(FATAL) << "Row looked for not found.";
+      LOG(ERROR) << "Row " << id.getString() << " not found.";
+      return false;
     }
-    TemplatedField<T>::set((*row)["test_field"], newValue);
+    TemplatedField<FieldType>::set((*row)["test_field"], newValue);
     return updateQuery(id, *row);
   }
  protected:
   virtual bool define(){
-    addField("test_field", TemplatedField<T>::protobufEnum());
+    addField("test_field", TemplatedField<FieldType>::protobufEnum());
     return true;
   }
 };
@@ -130,11 +134,14 @@ class FieldTestTable : public TestTable{
  */
 
 
-template <typename T>
+template <typename TestedType>
 class FieldTest : public ::testing::Test{
  protected:
-  const T sample_data_1();
-  const T sample_data_2();
+  /**
+   * Sample data for tests. MUST BE NON-DEFAULT!
+   */
+  const TestedType sample_data_1();
+  const TestedType sample_data_2();
 };
 
 template <>
@@ -166,12 +173,37 @@ TYPED_TEST(FieldTest, Init){
   table.cleanup();
 }
 
+TYPED_TEST(FieldTest, CreateBeforeInit){
+  FieldTestTable<TypeParam> table;
+  EXPECT_DEATH(table.insert(this->sample_data_1()),"^");
+}
+
+TYPED_TEST(FieldTest, ReadBeforeInit){
+  FieldTestTable<TypeParam> table;
+  // TODO(tcies) not very meaningful as long as get dies anyways...
+  EXPECT_DEATH(table.get(Hash("Give me any hash")),"^");
+}
+
 TYPED_TEST(FieldTest, CreateRead){
   FieldTestTable<TypeParam> table;
   table.init();
   Hash createTest = table.insert(this->sample_data_1());
   EXPECT_EQ(table.get(createTest), this->sample_data_1());
   table.cleanup();
+}
+
+TYPED_TEST(FieldTest, ReadInexistent){
+  FieldTestTable<TypeParam> table;
+  table.init();
+  EXPECT_EQ(table.get(Hash("Give me any hash")), TypeParam());
+  table.cleanup();
+}
+
+TYPED_TEST(FieldTest, UpdateBeforeInit){
+  FieldTestTable<TypeParam> table;
+  // TODO(tcies) not very meaningful either
+  EXPECT_DEATH(table.update(Hash("Give me any hash"),
+                            this->sample_data_1()),"^");
 }
 
 TYPED_TEST(FieldTest, UpdateRead){

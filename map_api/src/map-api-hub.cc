@@ -42,14 +42,14 @@ bool MapApiHub::init(const std::string &ipPort){
 
   // 2. connect to servers already on network (discovery from file)
   std::ifstream discovery(FAKE_DISCOVERY, std::ios::in);
-  bool isAlreadyRegistered = false;
+  bool is_already_registered = false;
   peerLock_.writeLock();
   for (std::string other; getline(discovery,other);){
     if (other.compare("") == 0) continue;
     if (other.compare(ipPort) == 0){
       LOG(INFO) << "Found registration of self from previous dead run, will "\
           "not register...";
-      isAlreadyRegistered = true;
+      is_already_registered = true;
       continue;
     }
     LOG(INFO) << "Found peer " << other << ", connecting...";
@@ -61,7 +61,7 @@ bool MapApiHub::init(const std::string &ipPort){
   discovery.close();
 
   // 3. put own socket into discovery file
-  if (!isAlreadyRegistered){
+  if (!is_already_registered){
     std::ofstream report(FAKE_DISCOVERY, std::ios::out | std::ios::app);
     report << ipPort << std::endl;
     report.close();

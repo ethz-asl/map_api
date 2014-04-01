@@ -68,8 +68,7 @@ class TableInterface : public proto::TableDescriptor {
    * Shared pointer to database session TODO(tcies) can this be set private
    * yet accessed from a test table?
    */
-  std::shared_ptr<Poco::Data::Session> ses_;
-
+  std::shared_ptr<Poco::Data::Session> session_;
 
  private:
   /**
