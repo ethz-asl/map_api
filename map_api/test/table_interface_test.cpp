@@ -62,7 +62,7 @@ template <typename FieldType>
 struct TemplatedField{
   static void set(map_api::proto::TableField* field,
                   const FieldType& value);
-  const static FieldType& get(map_api::proto::TableField* field);
+  static FieldType get(map_api::proto::TableField* field);
   static map_api::proto::TableFieldDescriptor_Type protobufEnum();
 };
 
@@ -72,11 +72,25 @@ struct TemplatedField<std::string>{
                   const std::string& value){
     field->set_stringvalue(value);
   }
-  const static std::string& get(map_api::proto::TableField* field){
+  static std::string get(map_api::proto::TableField* field){
     return std::string(field->stringvalue());
   }
   static map_api::proto::TableFieldDescriptor_Type protobufEnum(){
     return map_api::proto::TableFieldDescriptor_Type_STRING;
+  }
+};
+
+template<>
+struct TemplatedField<double>{
+  static void set(map_api::proto::TableField* field,
+                  const double& value){
+    field->set_doublevalue(value);
+  }
+  static double get(map_api::proto::TableField* field){
+    return field->doublevalue();
+  }
+  static map_api::proto::TableFieldDescriptor_Type protobufEnum(){
+    return map_api::proto::TableFieldDescriptor_Type_DOUBLE;
   }
 };
 
@@ -140,18 +154,29 @@ class FieldTest : public ::testing::Test{
   /**
    * Sample data for tests. MUST BE NON-DEFAULT!
    */
-  const TestedType sample_data_1();
-  const TestedType sample_data_2();
+  TestedType sample_data_1();
+  TestedType sample_data_2();
 };
 
 template <>
 class FieldTest<std::string> : public ::testing::Test{
  protected:
-  const std::string sample_data_1(){
+  std::string sample_data_1(){
     return "Test string 1";
   }
-  const std::string sample_data_2(){
+  std::string sample_data_2(){
     return "Test string 2";
+  }
+};
+
+template <>
+class FieldTest<double> : public ::testing::Test{
+ protected:
+  double sample_data_1(){
+    return 3.14;
+  }
+  double sample_data_2(){
+    return 2.72;
   }
 };
 
@@ -161,7 +186,7 @@ class FieldTest<std::string> : public ::testing::Test{
  *************************
  */
 
-typedef ::testing::Types<std::string> MyTypes;
+typedef ::testing::Types<std::string, double> MyTypes;
 TYPED_TEST_CASE(FieldTest, MyTypes);
 
 TYPED_TEST(FieldTest, Init){
@@ -189,6 +214,13 @@ TYPED_TEST(FieldTest, CreateRead){
   Hash createTest = table.insert(this->sample_data_1());
   EXPECT_EQ(table.get(createTest), this->sample_data_1());
   table.cleanup();
+}
+
+TYPED_TEST(FieldTest, CreateTwice){
+  FieldTestTable<TypeParam> table;
+  table.init();
+  // TODO(tcies) cleanup doesn't seem to work
+  EXPECT_DEATH(table.insert(this->sample_data_1()),"^");
 }
 
 TYPED_TEST(FieldTest, ReadInexistent){

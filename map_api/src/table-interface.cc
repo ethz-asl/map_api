@@ -189,7 +189,12 @@ map_api::Hash TableInterface::insertQuery(TableInsertQuery& query){
   }
   stat << ");";
 
-  stat.execute();
+  try {
+    stat.execute();
+  }
+  catch(std::exception &e){
+    LOG(FATAL) << "Insert failed with exception " << e.what();
+  }
 
   // TODO (tcies) trigger subscribers
   return idHash;
