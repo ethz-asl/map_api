@@ -50,6 +50,7 @@ include_directories(include ${catkin_INCLUDE_DIRS}
 SET(CORE_SOURCE src/hash.cc
                  src/map-api-core.cc
                  src/map-api-hub.cc
+                 src/table-field.cc
                  src/table-insert-query.cc
                  src/table-interface.cc)
                 
