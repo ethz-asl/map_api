@@ -180,7 +180,6 @@ TYPED_TEST(FieldTest, CreateBeforeInit){
 
 TYPED_TEST(FieldTest, ReadBeforeInit){
   FieldTestTable<TypeParam> table;
-  // TODO(tcies) not very meaningful as long as get dies anyways...
   EXPECT_DEATH(table.get(Hash("Give me any hash")),"^");
 }
 
@@ -201,7 +200,6 @@ TYPED_TEST(FieldTest, ReadInexistent){
 
 TYPED_TEST(FieldTest, UpdateBeforeInit){
   FieldTestTable<TypeParam> table;
-  // TODO(tcies) not very meaningful either
   EXPECT_DEATH(table.update(Hash("Give me any hash"),
                             this->sample_data_1()),"^");
 }
