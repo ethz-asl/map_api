@@ -118,12 +118,12 @@ map_api::Hash TableInterface::insertQuery(TableInsertQuery& query){
   stat << "INSERT INTO " << name() << " ";
 
   stat << "(";
-  for (int i=0; i<query.fieldqueries_size(); ++i){
-    if (i>0){
+  for (int i = 0; i < query.fieldqueries_size(); ++i){
+    if (i > 0){
       stat << ", ";
     }
-    const TableField& field = static_cast<const TableField&>(
-        query.fieldqueries(i));
+    const TableField& field =
+        static_cast<const TableField&>(query.fieldqueries(i));
     stat << field.nametype().name();
   }
   stat << ") VALUES ( ";
@@ -131,16 +131,15 @@ map_api::Hash TableInterface::insertQuery(TableInsertQuery& query){
     if (i>0){
       stat << " , ";
     }
-    const TableField& field = static_cast<const TableField&>(
-        query.fieldqueries(i));
+    const TableField& field =
+        static_cast<const TableField&>(query.fieldqueries(i));
     field.insertPlaceHolder(stat);
   }
   stat << " );";
 
   try {
     stat.execute();
-  }
-  catch(std::exception &e){
+  } catch(std::exception &e){
     LOG(FATAL) << "Insert failed with exception " << e.what();
   }
 
@@ -192,10 +191,9 @@ std::shared_ptr<TableInsertQuery> TableInterface::getRow(
 
   try{
     stat.execute();
-  }
-  catch (std::exception& e){
+  } catch (std::exception& e){
     LOG(ERROR) << "Row " << id.getString() << " not found!";
-  return std::shared_ptr<TableInsertQuery>();
+    return std::shared_ptr<TableInsertQuery>();
   }
 
   // write values that couldn't be written directly

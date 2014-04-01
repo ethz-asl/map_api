@@ -66,18 +66,16 @@ Poco::Data::Statement& TableField::insertPlaceHolder(
 
 template <>
 void TableField::set<std::string>(const std::string& value){
-  if (nametype().type() != proto::TableFieldDescriptor_Type_STRING){
-    LOG(FATAL) << "Trying to set non-string field to string";
-  }
+  CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_STRING) <<
+        "Trying to set non-string field to string";
   set_stringvalue(value);
 }
 
 
 template <>
 std::string TableField::get<std::string>() const{
-  if (nametype().type() != proto::TableFieldDescriptor_Type_STRING){
-    LOG(FATAL) << "Trying to get string from non-string field";
-  }
+  CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_STRING) <<
+      "Trying to get string from non-string field";
   return stringvalue();
 }
 

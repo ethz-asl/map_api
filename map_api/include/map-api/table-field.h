@@ -10,7 +10,7 @@
 
 #include <Poco/Data/Statement.h>
 
-#include <core.pb.h>
+#include "core.pb.h"
 
 namespace map_api {
 
