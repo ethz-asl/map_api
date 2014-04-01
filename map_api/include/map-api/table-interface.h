@@ -20,6 +20,7 @@ class TableInterface : public proto::TableDescriptor {
  public:
   /**
    * Init routine, must be implemented by derived class, defines table name.
+   * TODO(tcies) enforce? isInitialized?
    */
   virtual bool init() = 0;
 
@@ -30,8 +31,8 @@ class TableInterface : public proto::TableDescriptor {
    */
   bool setup(std::string name);
   /**
-   * Function to be implemented by derivations: Define table by populating
-   * TableDescriptor protobuf message.
+   * Function to be implemented by derivations: Define table by repeated
+   * calls to addField()
    */
   virtual bool define();
   /**
@@ -63,7 +64,11 @@ class TableInterface : public proto::TableDescriptor {
    *                                                                        UUU
    */
   bool updateQuery(const Hash& id, const TableInsertQuery& query);
-
+  /**
+   * Shared pointer to database session TODO(tcies) can this be set private
+   * yet accessed from a test table?
+   */
+  std::shared_ptr<Poco::Data::Session> session_;
 
  private:
   /**
@@ -75,11 +80,6 @@ class TableInterface : public proto::TableDescriptor {
    * Parse and execute SQL query necessary to create the database
    */
   bool createQuery();
-
-  /**
-   * Shared pointer to database session
-   */
-  std::shared_ptr<Poco::Data::Session> ses_;
 };
 
 }
