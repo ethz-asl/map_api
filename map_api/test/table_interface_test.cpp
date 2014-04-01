@@ -51,25 +51,38 @@ TEST(TableInterFace, initEmpty){
   EXPECT_DEATH(fieldOf((*structure)["not a field"], *structure),"^");
 }
 
+/**
+ *********************************************
+ * TEMPLATED ACCESS TO TYPE-DEPENDENT PROTOBUF
+ *********************************************
+ */
+
 // TODO (tcies) this might be useful elsewhere?
 template <typename T>
 struct TemplatedField{
   static void set(map_api::proto::TableField* field, const T& value);
-  static T get(map_api::proto::TableField* field);
+  const static T& get(map_api::proto::TableField* field);
   static map_api::proto::TableFieldDescriptor_Type protobufEnum();
 };
 template<>
 struct TemplatedField<std::string>{
-  static void set(map_api::proto::TableField* field, const std::string& value){
+  static void set(map_api::proto::TableField* field,
+                  const std::string& value){
     field->set_stringvalue(value);
   }
-  static std::string get(map_api::proto::TableField* field){
-    return field->stringvalue();
+  const static std::string& get(map_api::proto::TableField* field){
+    return std::string(field->stringvalue());
   }
   static map_api::proto::TableFieldDescriptor_Type protobufEnum(){
     return map_api::proto::TableFieldDescriptor_Type_STRING;
   }
 };
+
+/**
+ **********************************************************
+ * TEMPLATED TABLE WITH A SINGLE FIELD OF THE TEMPLATE TYPE
+ **********************************************************
+ */
 
 template <typename T>
 class FieldTestTable : public TestTable{
@@ -81,13 +94,14 @@ class FieldTestTable : public TestTable{
   void cleanup(){
     *(sessionForward()) << "DROP TABLE IF EXISTS field_test_table" <<
         Poco::Data::now;
+    LOG(INFO) << "Table field_test_table dropped";
   }
   Hash insert(const T &value){
     std::shared_ptr<TableInsertQuery> query = getTemplate();
     TemplatedField<T>::set((*query)["test_field"], value);
     return insertQuery(*query);
   }
-  const T& get(const Hash &id){
+  T get(const Hash &id){
     std::shared_ptr<TableInsertQuery> row = getRow(id);
     if (!static_cast<bool>(row)){
       LOG(FATAL) << "Row looked for not found.";
@@ -109,9 +123,37 @@ class FieldTestTable : public TestTable{
   }
 };
 
+/**
+ **************************************
+ * FIXTURES FOR TYPED TABLE FIELD TESTS
+ **************************************
+ */
+
+
 template <typename T>
 class FieldTest : public ::testing::Test{
+ protected:
+  const T sample_data_1();
+  const T sample_data_2();
 };
+
+template <>
+class FieldTest<std::string> : public ::testing::Test{
+ protected:
+  const std::string sample_data_1(){
+    return "Test string 1";
+  }
+  const std::string sample_data_2(){
+    return "Test string 2";
+  }
+};
+
+/**
+ *************************
+ * TYPED TABLE FIELD TESTS
+ *************************
+ */
+
 typedef ::testing::Types<std::string> MyTypes;
 TYPED_TEST_CASE(FieldTest, MyTypes);
 
@@ -124,25 +166,21 @@ TYPED_TEST(FieldTest, Init){
   table.cleanup();
 }
 
-/* FIXME(tcies) make the following work as templated tests
-TEST(TableInterface, stringFieldCreateRead){
-  FieldTestTable<std::string> table;
+TYPED_TEST(FieldTest, CreateRead){
+  FieldTestTable<TypeParam> table;
   table.init();
-  Hash createTest = table.insert("Create test");
-  EXPECT_EQ(table.get(createTest), "Create test");
+  Hash createTest = table.insert(this->sample_data_1());
+  EXPECT_EQ(table.get(createTest), this->sample_data_1());
   table.cleanup();
 }
 
-TEST(TableInterface, stringFieldUpdateRead){
-  FieldTestTable<std::string> table;
+TYPED_TEST(FieldTest, UpdateRead){
+  FieldTestTable<TypeParam> table;
   table.init();
-  Hash updateTest = table.insert("Update test initial content");
-  EXPECT_EQ(table.get(updateTest), "Update test initial content");
-  EXPECT_TRUE(table.update(updateTest,"Update test updated content"));
-  EXPECT_EQ(table.get(updateTest), "Update test updated content");
+  Hash updateTest = table.insert(this->sample_data_2());
+  EXPECT_EQ(table.get(updateTest), this->sample_data_2());
+  EXPECT_TRUE(table.update(updateTest, this->sample_data_1()));
+  EXPECT_EQ(table.get(updateTest), this->sample_data_1());
   table.cleanup();
 }
-*/
 
-// TODO(simon) any idea on how to elegantly do the last 3 tests for all
-// kinds of fields (string, double, int, blob etc...
