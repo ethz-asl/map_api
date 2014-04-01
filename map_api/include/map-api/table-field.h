@@ -35,6 +35,11 @@ class TableField : public proto::TableField{
    */
   template <typename FieldType>
   FieldType get() const;
+  /**
+   * Gets protocol buffer enum for type
+   */
+  template <typename FieldType>
+  static map_api::proto::TableFieldDescriptor_Type protobufEnum();
 };
 
 } /* namespace map_api */

@@ -52,49 +52,6 @@ TEST(TableInterFace, initEmpty){
 }
 
 /**
- *********************************************
- * TEMPLATED ACCESS TO TYPE-DEPENDENT PROTOBUF
- *********************************************
- */
-
-// TODO (tcies) this might be useful elsewhere?
-template <typename FieldType>
-struct TemplatedField{
-  static void set(map_api::proto::TableField* field,
-                  const FieldType& value);
-  static FieldType get(map_api::proto::TableField* field);
-  static map_api::proto::TableFieldDescriptor_Type protobufEnum();
-};
-
-template<>
-struct TemplatedField<std::string>{
-  static void set(map_api::proto::TableField* field,
-                  const std::string& value){
-    field->set_stringvalue(value);
-  }
-  static std::string get(map_api::proto::TableField* field){
-    return std::string(field->stringvalue());
-  }
-  static map_api::proto::TableFieldDescriptor_Type protobufEnum(){
-    return map_api::proto::TableFieldDescriptor_Type_STRING;
-  }
-};
-
-template<>
-struct TemplatedField<double>{
-  static void set(map_api::proto::TableField* field,
-                  const double& value){
-    field->set_doublevalue(value);
-  }
-  static double get(map_api::proto::TableField* field){
-    return field->doublevalue();
-  }
-  static map_api::proto::TableFieldDescriptor_Type protobufEnum(){
-    return map_api::proto::TableFieldDescriptor_Type_DOUBLE;
-  }
-};
-
-/**
  **********************************************************
  * TEMPLATED TABLE WITH A SINGLE FIELD OF THE TEMPLATE TYPE
  **********************************************************
@@ -108,11 +65,11 @@ class FieldTestTable : public TestTable{
     return true;
   }
   void cleanup(){
-    /*
+    *(sessionForward()) << "DELETE FROM field_test_table; VACUUM;" <<
+                Poco::Data::now;
     *(sessionForward()) << "DROP TABLE IF EXISTS field_test_table" <<
         Poco::Data::now;
     LOG(INFO) << "Table field_test_table dropped";
-    */
   }
   Hash insert(const FieldType &value){
     std::shared_ptr<TableInsertQuery> query = getTemplate();
@@ -138,7 +95,7 @@ class FieldTestTable : public TestTable{
   }
  protected:
   virtual bool define(){
-    addField("test_field", TemplatedField<FieldType>::protobufEnum());
+    addField("test_field", TableField::protobufEnum<FieldType>());
     return true;
   }
 };
@@ -148,8 +105,6 @@ class FieldTestTable : public TestTable{
  * FIXTURES FOR TYPED TABLE FIELD TESTS
  **************************************
  */
-
-
 template <typename TestedType>
 class FieldTest : public ::testing::Test{
  protected:
@@ -221,7 +176,8 @@ TYPED_TEST(FieldTest, CreateRead){
 TYPED_TEST(FieldTest, CreateTwice){
   FieldTestTable<TypeParam> table;
   table.init();
-  // TODO(tcies) cleanup doesn't seem to work
+  // TODO(tcies) handle insert conflicts differently.
+  // Something is dishy about the expect death...
   EXPECT_DEATH(table.insert(this->sample_data_1()),"^");
 }
 
@@ -241,10 +197,10 @@ TYPED_TEST(FieldTest, UpdateBeforeInit){
 TYPED_TEST(FieldTest, UpdateRead){
   FieldTestTable<TypeParam> table;
   table.init();
-  Hash updateTest = table.insert(this->sample_data_2());
-  EXPECT_EQ(table.get(updateTest), this->sample_data_2());
-  EXPECT_TRUE(table.update(updateTest, this->sample_data_1()));
+  Hash updateTest = table.insert(this->sample_data_1());
   EXPECT_EQ(table.get(updateTest), this->sample_data_1());
+  EXPECT_TRUE(table.update(updateTest, this->sample_data_2()));
+  EXPECT_EQ(table.get(updateTest), this->sample_data_2());
   table.cleanup();
 }
 

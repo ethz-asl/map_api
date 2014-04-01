@@ -79,4 +79,11 @@ std::string TableField::get<std::string>() const{
   return stringvalue();
 }
 
+
+template <>
+map_api::proto::TableFieldDescriptor_Type
+TableField::protobufEnum<std::string>(){
+  return proto::TableFieldDescriptor_Type_STRING;
+}
+
 } /* namespace map_api */
