@@ -63,7 +63,7 @@ target_link_libraries(${PROJECT_NAME} ${LINK_WITH})
 ##########
 
 catkin_add_gtest(test_table_interface_test test/test_main.cpp
-  test/table_interface_test.cpp)
+  test/table_interface_test.cpp WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
 target_link_libraries(test_table_interface_test ${PROJECT_NAME} ${LINK_WITH})
 
 catkin_add_gtest(test_hash_test test/test_main.cpp test/hash_test.cpp)

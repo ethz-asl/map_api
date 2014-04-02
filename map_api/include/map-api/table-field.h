@@ -42,6 +42,15 @@ class TableField : public proto::TableField{
   static map_api::proto::TableFieldDescriptor_Type protobufEnum();
 };
 
+class testBlob : public map_api::proto::TableField{
+ public:
+  inline bool operator == (const testBlob& other) const{
+    if (!this->has_nametype())
+      return !other.has_nametype();
+    return nametype().name() == other.nametype().name();
+  }
+};
+
 } /* namespace map_api */
 
 #endif /* TABLE_FIELD_H_ */

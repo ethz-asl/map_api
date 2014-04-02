@@ -100,7 +100,7 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
     LOG(FATAL) << "Server bind failed with exception \"" << e.what() << "\", "\
         "ipPort string was " << ipPort;
   }
-  int to = 1000;
+  int to = 100;
   server.setsockopt(ZMQ_RCVTIMEO,&to,sizeof(to));
   LOG(INFO) << "Server launched..." << std::endl;
 

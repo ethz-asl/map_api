@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include <Poco/Data/Common.h>
+#include <Poco/Data/BLOB.h>
 #include <Poco/Data/Statement.h>
 
 #include <map-api/table-interface.h>
@@ -123,7 +124,6 @@ class FieldTest<std::string> : public ::testing::Test{
     return "Test_string_2";
   }
 };
-
 template <>
 class FieldTest<double> : public ::testing::Test{
  protected:
@@ -131,7 +131,59 @@ class FieldTest<double> : public ::testing::Test{
     return 3.14;
   }
   double sample_data_2(){
-    return 2.72;
+    return -3.14;
+  }
+};
+template <>
+class FieldTest<int32_t> : public ::testing::Test{
+ protected:
+  int32_t sample_data_1(){
+    return 42;
+  }
+  int32_t sample_data_2(){
+    return -42;
+  }
+};
+template <>
+class FieldTest<map_api::Hash> : public ::testing::Test{
+ protected:
+  map_api::Hash sample_data_1(){
+    return map_api::Hash("One hash");
+  }
+  map_api::Hash sample_data_2(){
+    return map_api::Hash("Another hash");
+  }
+};
+template <>
+class FieldTest<int64_t> : public ::testing::Test{
+ protected:
+  int64_t sample_data_1(){
+    return 9223372036854775807;
+  }
+  int64_t sample_data_2(){
+    return -9223372036854775807;
+  }
+};
+template <>
+class FieldTest<testBlob> : public ::testing::Test{
+ protected:
+  testBlob sample_data_1(){
+    testBlob field;
+    *field.mutable_nametype() = map_api::proto::TableFieldDescriptor();
+    field.mutable_nametype()->set_name("A name");
+    field.mutable_nametype()->
+        set_type(map_api::proto::TableFieldDescriptor_Type_DOUBLE);
+    field.set_doublevalue(3.14);
+    return field;
+  }
+  testBlob sample_data_2(){
+    testBlob field;
+    *field.mutable_nametype() = map_api::proto::TableFieldDescriptor();
+    field.mutable_nametype()->set_name("Another name");
+    field.mutable_nametype()->
+        set_type(map_api::proto::TableFieldDescriptor_Type_INT32);
+    field.set_doublevalue(42);
+    return field;
   }
 };
 
@@ -141,7 +193,8 @@ class FieldTest<double> : public ::testing::Test{
  *************************
  */
 
-typedef ::testing::Types<std::string> MyTypes;
+typedef ::testing::Types<std::string, int32_t, double, map_api::Hash,
+    int64_t, testBlob> MyTypes;
 TYPED_TEST_CASE(FieldTest, MyTypes);
 
 TYPED_TEST(FieldTest, Init){
