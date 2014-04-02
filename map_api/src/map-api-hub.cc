@@ -93,7 +93,13 @@ MapApiHub &MapApiHub::getInstance(){
 void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
   zmq::socket_t server(*(self->context_), ZMQ_REP);
   // server only lives in this thread
-  server.bind(("tcp://"+ipPort).c_str());
+  try {
+    server.bind(("tcp://"+ipPort).c_str());
+  }
+  catch (const std::exception &e){
+    LOG(FATAL) << "Server bind failed with exception \"" << e.what() << "\", "\
+        "ipPort string was " << ipPort;
+  }
   int to = 1000;
   server.setsockopt(ZMQ_RCVTIMEO,&to,sizeof(to));
   LOG(INFO) << "Server launched..." << std::endl;

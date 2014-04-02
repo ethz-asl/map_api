@@ -12,19 +12,26 @@
 namespace map_api {
 
 bool TableInsertQuery::index() {
-  for (int i=0; i<this->fieldqueries_size(); ++i){
+  for (int i = 0; i < this->fieldqueries_size(); ++i){
     fields_[this->fieldqueries(i).nametype().name()] =
         i;
   }
   return true;
 }
 
-proto::TableField* TableInsertQuery::operator[](std::string field){
+TableField& TableInsertQuery::operator[](const std::string& field){
   fieldMap::iterator find = fields_.find(field);
-  if (find == fields_.end()){
-    LOG(FATAL) << "Attempted to access inexistent field.";
-  }
-  return this->mutable_fieldqueries(find->second);
+  CHECK(find != fields_.end()) << "Attempted to access inexistent field.";
+  return static_cast<TableField&>(
+      *this->mutable_fieldqueries(find->second));
+}
+
+const TableField& TableInsertQuery::operator[](
+    const std::string& field) const{
+  fieldMap::const_iterator find = fields_.find(field);
+  CHECK(find != fields_.end()) << "Attempted to access inexistent field.";
+  return static_cast<const TableField&>(
+      this->fieldqueries(find->second));
 }
 
 } /* namespace map_api */

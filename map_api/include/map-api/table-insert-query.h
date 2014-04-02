@@ -10,6 +10,7 @@
 
 #include <map>
 
+#include <map-api/table-field.h>
 #include "core.pb.h"
 
 namespace map_api {
@@ -17,7 +18,8 @@ namespace map_api {
 class TableInsertQuery : public proto::TableInsertQuery {
  public:
   bool index();
-  proto::TableField* operator[](std::string field);
+  TableField& operator[](const std::string& field);
+  const TableField& operator[](const std::string& field) const;
  private:
   /**
    * A map of fields for more intuitive access.

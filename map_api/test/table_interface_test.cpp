@@ -32,9 +32,9 @@ class TestTable : public TableInterface{
   }
 };
 
-bool fieldOf(proto::TableField *a, const TableInsertQuery &query){
+bool fieldOf(proto::TableField& a, const TableInsertQuery& query){
   for (int i = 0; i < query.fieldqueries_size(); ++i){
-    if (a == &query.fieldqueries(i))
+    if (&a == &query.fieldqueries(i))
       return true;
   }
   return false;
@@ -52,35 +52,6 @@ TEST(TableInterFace, initEmpty){
 }
 
 /**
- *********************************************
- * TEMPLATED ACCESS TO TYPE-DEPENDENT PROTOBUF
- *********************************************
- */
-
-// TODO (tcies) this might be useful elsewhere?
-template <typename FieldType>
-struct TemplatedField{
-  static void set(map_api::proto::TableField* field,
-                  const FieldType& value);
-  const static FieldType& get(map_api::proto::TableField* field);
-  static map_api::proto::TableFieldDescriptor_Type protobufEnum();
-};
-
-template<>
-struct TemplatedField<std::string>{
-  static void set(map_api::proto::TableField* field,
-                  const std::string& value){
-    field->set_stringvalue(value);
-  }
-  const static std::string& get(map_api::proto::TableField* field){
-    return std::string(field->stringvalue());
-  }
-  static map_api::proto::TableFieldDescriptor_Type protobufEnum(){
-    return map_api::proto::TableFieldDescriptor_Type_STRING;
-  }
-};
-
-/**
  **********************************************************
  * TEMPLATED TABLE WITH A SINGLE FIELD OF THE TEMPLATE TYPE
  **********************************************************
@@ -94,13 +65,15 @@ class FieldTestTable : public TestTable{
     return true;
   }
   void cleanup(){
+    *(sessionForward()) << "DELETE FROM field_test_table; VACUUM;" <<
+                Poco::Data::now;
     *(sessionForward()) << "DROP TABLE IF EXISTS field_test_table" <<
         Poco::Data::now;
     LOG(INFO) << "Table field_test_table dropped";
   }
   Hash insert(const FieldType &value){
     std::shared_ptr<TableInsertQuery> query = getTemplate();
-    TemplatedField<FieldType>::set((*query)["test_field"], value);
+    (*query)["test_field"].set<FieldType>(value);
     return insertQuery(*query);
   }
   FieldType get(const Hash &id){
@@ -109,7 +82,7 @@ class FieldTestTable : public TestTable{
       LOG(ERROR) << "Row " << id.getString() << " not found.";
       return FieldType();
     }
-    return TemplatedField<FieldType>::get((*row)["test_field"]);
+    return (*row)["test_field"].get<FieldType>();
   }
   bool update(const Hash &id, const FieldType& newValue){
     std::shared_ptr<TableInsertQuery> row = getRow(id);
@@ -117,12 +90,12 @@ class FieldTestTable : public TestTable{
       LOG(ERROR) << "Row " << id.getString() << " not found.";
       return false;
     }
-    TemplatedField<FieldType>::set((*row)["test_field"], newValue);
+    (*row)["test_field"].set<FieldType>(newValue);
     return updateQuery(id, *row);
   }
  protected:
   virtual bool define(){
-    addField("test_field", TemplatedField<FieldType>::protobufEnum());
+    addField("test_field", TableField::protobufEnum<FieldType>());
     return true;
   }
 };
@@ -132,26 +105,35 @@ class FieldTestTable : public TestTable{
  * FIXTURES FOR TYPED TABLE FIELD TESTS
  **************************************
  */
-
-
 template <typename TestedType>
 class FieldTest : public ::testing::Test{
  protected:
   /**
    * Sample data for tests. MUST BE NON-DEFAULT!
    */
-  const TestedType sample_data_1();
-  const TestedType sample_data_2();
+  TestedType sample_data_1();
+  TestedType sample_data_2();
 };
 
 template <>
 class FieldTest<std::string> : public ::testing::Test{
  protected:
-  const std::string sample_data_1(){
-    return "Test string 1";
+  std::string sample_data_1(){
+    return "Test_string_1";
   }
-  const std::string sample_data_2(){
-    return "Test string 2";
+  std::string sample_data_2(){
+    return "Test_string_2";
+  }
+};
+
+template <>
+class FieldTest<double> : public ::testing::Test{
+ protected:
+  double sample_data_1(){
+    return 3.14;
+  }
+  double sample_data_2(){
+    return 2.72;
   }
 };
 
@@ -191,6 +173,14 @@ TYPED_TEST(FieldTest, CreateRead){
   table.cleanup();
 }
 
+TYPED_TEST(FieldTest, CreateTwice){
+  FieldTestTable<TypeParam> table;
+  table.init();
+  // TODO(tcies) handle insert conflicts differently (don't die)
+  // FIXME(tcies) this should succeed... cleanup issues
+  EXPECT_DEATH(table.insert(this->sample_data_1()),"^");
+}
+
 TYPED_TEST(FieldTest, ReadInexistent){
   FieldTestTable<TypeParam> table;
   table.init();
@@ -207,6 +197,7 @@ TYPED_TEST(FieldTest, UpdateBeforeInit){
 TYPED_TEST(FieldTest, UpdateRead){
   FieldTestTable<TypeParam> table;
   table.init();
+  // FIXME(tcies) fails when starting with sample data 1 (insert conflict)
   Hash updateTest = table.insert(this->sample_data_2());
   EXPECT_EQ(table.get(updateTest), this->sample_data_2());
   EXPECT_TRUE(table.update(updateTest, this->sample_data_1()));
