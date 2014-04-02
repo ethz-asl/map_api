@@ -65,9 +65,7 @@ class FieldTestTable : public TestTable{
     return true;
   }
   void cleanup(){
-    *(sessionForward()) << "DELETE FROM field_test_table; VACUUM;" <<
-                Poco::Data::now;
-    *(sessionForward()) << "DROP TABLE IF EXISTS field_test_table" <<
+    *(sessionForward()) << "DROP TABLE IF EXISTS field_test_table",
         Poco::Data::now;
     LOG(INFO) << "Table field_test_table dropped";
   }
@@ -176,8 +174,7 @@ TYPED_TEST(FieldTest, CreateRead){
 TYPED_TEST(FieldTest, CreateTwice){
   FieldTestTable<TypeParam> table;
   table.init();
-  // TODO(tcies) handle insert conflicts differently (don't die)
-  // FIXME(tcies) this should succeed... cleanup issues
+  table.insert(this->sample_data_1());
   EXPECT_DEATH(table.insert(this->sample_data_1()),"^");
 }
 
@@ -197,11 +194,10 @@ TYPED_TEST(FieldTest, UpdateBeforeInit){
 TYPED_TEST(FieldTest, UpdateRead){
   FieldTestTable<TypeParam> table;
   table.init();
-  // FIXME(tcies) fails when starting with sample data 1 (insert conflict)
-  Hash updateTest = table.insert(this->sample_data_2());
-  EXPECT_EQ(table.get(updateTest), this->sample_data_2());
-  EXPECT_TRUE(table.update(updateTest, this->sample_data_1()));
+  Hash updateTest = table.insert(this->sample_data_1());
   EXPECT_EQ(table.get(updateTest), this->sample_data_1());
+  EXPECT_TRUE(table.update(updateTest, this->sample_data_2()));
+  EXPECT_EQ(table.get(updateTest), this->sample_data_2());
   table.cleanup();
 }
 
