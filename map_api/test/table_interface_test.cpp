@@ -194,7 +194,6 @@ TYPED_TEST(FieldTest, UpdateBeforeInit){
 TYPED_TEST(FieldTest, UpdateRead){
   FieldTestTable<TypeParam> table;
   table.init();
-  // FIXME(tcies) fails when starting with sample data 1 (insert conflict)
   Hash updateTest = table.insert(this->sample_data_1());
   EXPECT_EQ(table.get(updateTest), this->sample_data_1());
   EXPECT_TRUE(table.update(updateTest, this->sample_data_2()));
