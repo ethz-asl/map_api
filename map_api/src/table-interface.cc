@@ -25,8 +25,8 @@ DEFINE_string(ipPort, "127.0.0.1:5050", "Define node ip and port");
 
 namespace map_api {
 
-bool TableInterface::define(){
-  return true;
+const Hash& TableInterface::getOwner() const{
+  return owner_;
 }
 
 bool TableInterface::addField(std::string name,
@@ -52,11 +52,11 @@ bool TableInterface::setup(std::string name){
   // Define table fields
   // enforced fields id (hash) and owner
   addField("ID",proto::TableFieldDescriptor_Type_HASH128);
-  addField("owner",proto::TableFieldDescriptor_Type_STRING);
+  addField("owner",proto::TableFieldDescriptor_Type_HASH128);
   // user-defined fields
   define();
 
-  // start up core if not running yet
+  // start up core if not running yet TODO(tcies) do this in the core
   if (!MapApiCore::getInstance().isInitialized()) {
     MapApiCore::getInstance().init(FLAGS_ipPort);
   }
@@ -117,7 +117,8 @@ bool TableInterface::createQuery(){
 map_api::Hash TableInterface::insertQuery(TableInsertQuery& query){
   // set ID (TODO(tcies): set owner as well)
   map_api::Hash idHash(query.SerializeAsString());
-  query["ID"].set_stringvalue(idHash.getString());
+  query["ID"].set(idHash);
+  query["owner"].set(owner_);
 
   // assemble SQLite statement
   Poco::Data::Statement stat(*session_);

@@ -24,12 +24,12 @@ class TestTable : public TableInterface{
   std::shared_ptr<TableInsertQuery> templateForward() const{
     return getTemplate();
   }
+  std::shared_ptr<Poco::Data::Session> sessionForward(){
+    return std::shared_ptr<Poco::Data::Session>(session_);
+  }
  protected:
   virtual bool define(){
     return true;
-  }
-  std::shared_ptr<Poco::Data::Session> sessionForward(){
-    return std::shared_ptr<Poco::Data::Session>(session_);
   }
 };
 
@@ -82,6 +82,14 @@ class FieldTestTable : public TestTable{
       return FieldType();
     }
     return (*row)["test_field"].get<FieldType>();
+  }
+  Hash owner(const Hash &id){
+    std::shared_ptr<TableInsertQuery> row = getRow(id);
+    if (!static_cast<bool>(row)){
+      LOG(ERROR) << "Row " << id.getString() << " not found.";
+      return Hash();
+    }
+    return (*row)["owner"].get<Hash>();
   }
   bool update(const Hash &id, const FieldType& newValue){
     std::shared_ptr<TableInsertQuery> row = getRow(id);
@@ -220,6 +228,7 @@ TYPED_TEST(FieldTest, CreateRead){
   FieldTestTable<TypeParam> table;
   table.init();
   Hash createTest = table.insert(this->sample_data_1());
+  EXPECT_EQ(table.getOwner(), table.owner(createTest));
   EXPECT_EQ(table.get(createTest), this->sample_data_1());
   table.cleanup();
 }

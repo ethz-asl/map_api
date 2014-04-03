@@ -62,6 +62,7 @@ class Transaction {
    */
   std::stack<JournalEntry> journal_;
   Hash owner_;
+  std::shared_ptr<Poco::Data::Session> session_;
 };
 
 } /* namespace map_api */

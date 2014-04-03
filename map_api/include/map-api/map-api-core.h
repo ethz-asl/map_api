@@ -21,6 +21,7 @@ class MapApiCore {
  public:
   /**
    * Get singleton instance of Map Api Core
+   * TODO(tcies) just make all functions static...
    */
   static MapApiCore& getInstance();
   /**
@@ -51,6 +52,7 @@ class MapApiCore {
    */
   std::shared_ptr<Poco::Data::Session> getSession();
   friend class TableInterface;
+  friend class Transaction;
   /**
    * Session of local database
    */
