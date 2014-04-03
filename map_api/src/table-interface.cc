@@ -157,6 +157,8 @@ std::shared_ptr<TableInsertQuery> TableInterface::getRow(
   // pass them as reference to the into() binding of Poco::Data; they have to
   // be assigned a posteriori - this is done through this map
   std::map<std::string, double> doublePostApply;
+  std::map<std::string, int32_t> intPostApply;
+  std::map<std::string, int64_t> longPostApply;
 
   for (int i=0; i<query->fieldqueries_size(); ++i){
     if (i>0){
@@ -172,6 +174,14 @@ std::shared_ptr<TableInsertQuery> TableInterface::getRow(
       }
       case (proto::TableFieldDescriptor_Type_DOUBLE):{
         stat, Poco::Data::into(doublePostApply[field.nametype().name()]);
+        break;
+      }
+      case (proto::TableFieldDescriptor_Type_INT32):{
+        stat, Poco::Data::into(intPostApply[field.nametype().name()]);
+        break;
+      }
+      case (proto::TableFieldDescriptor_Type_INT64):{
+        stat, Poco::Data::into(longPostApply[field.nametype().name()]);
         break;
       }
       case (proto::TableFieldDescriptor_Type_STRING): // Fallthrough intended
@@ -200,6 +210,12 @@ std::shared_ptr<TableInsertQuery> TableInterface::getRow(
   for (std::pair<std::string, double> fieldDouble : doublePostApply){
     (*query)[fieldDouble.first].set_doublevalue(fieldDouble.second);
   }
+  for (std::pair<std::string, int> fieldInt : intPostApply){
+    (*query)[fieldInt.first].set_intvalue(fieldInt.second);
+  }
+  for (std::pair<std::string, long> fieldLong : longPostApply){
+    (*query)[fieldLong.first].set_longvalue(fieldLong.second);
+  }
 
   query->index(); // FIXME (titus) just index if not indexed or so...
   // TODO(tcies) return NULL if empty result
@@ -211,37 +227,14 @@ bool TableInterface::updateQuery(const Hash& id,
   // TODO(tcies) all concurrency handling, owner locking, etc... comes here
   Poco::Data::Statement stat(*session_);
   stat << "UPDATE " << name() << " SET ";
-  // TODO(discuss) I don't like the redundancy of this code, but it's always
-  // slightly different... not sure if any abstraction would be worth?
   for (int i=0; i<query.fieldqueries_size(); ++i){
     if (i>0){
       stat << ", ";
     }
-    const proto::TableField& field = query.fieldqueries(i);
+    const TableField& field =
+        static_cast<const TableField&>(query.fieldqueries(i));
     stat << field.nametype().name() << "=";
-    switch(field.nametype().type()){
-      case (proto::TableFieldDescriptor_Type_BLOB):{
-        // TODO(tcies) not using poco blobs as in insert, as they don't fix the
-        // issue of sometimes problematic insertions anyways
-        stat << ":" << field.nametype().name() << " ",
-            Poco::Data::use(field.blobvalue());
-        break;
-      }
-      case (proto::TableFieldDescriptor_Type_DOUBLE):{
-        stat << ":" << field.nametype().name() << " ",
-            Poco::Data::use(field.doublevalue());
-        break;
-      }
-      case (proto::TableFieldDescriptor_Type_STRING): // Fallthrough intended
-      case (proto::TableFieldDescriptor_Type_HASH128):{
-        stat << ":" << field.nametype().name() << " ",
-            Poco::Data::use(field.stringvalue());
-        break;
-      }
-      default:{
-        LOG(FATAL) << "Type of field supplied to update query unknown";
-      }
-    }
+    field.insertPlaceHolder(stat);
   }
   stat << "WHERE ID LIKE :id", Poco::Data::use(id.getString());
 
