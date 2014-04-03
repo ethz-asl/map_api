@@ -9,6 +9,7 @@
 
 #include <glog/logging.h>
 #include <Poco/MD5Engine.h>
+#include <Poco/RandomStream.h>
 
 namespace map_api {
 
@@ -47,6 +48,18 @@ Hash Hash::cast(const std::string& hex){
 
 bool Hash::operator==(const Hash& other) const{
   return hexHash_ == other.hexHash_;
+}
+
+Hash Hash::randomHash(){
+  // FIXME(tcies) is this thread safe?
+  static Poco::RandomInputStream ri;
+  std::string rs;
+  ri >> rs;
+  Hash ret;
+  Poco::MD5Engine hasher;
+  hasher.update(rs);
+  ret.hexHash_ = Poco::DigestEngine::digestToHex(hasher.digest());
+  return ret;
 }
 
 } /* namespace map_api */

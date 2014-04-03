@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <memory>
+#include <map>
 
 #include <Poco/Data/Common.h>
 #include <gflags/gflags.h>
@@ -80,6 +81,12 @@ class TableInterface : public proto::TableDescriptor {
    * Parse and execute SQL query necessary to create the database
    */
   bool createQuery();
+  /**
+   * On one hand, the cache is used to test concurrency concepts with a single
+   * process. On the other hand, it can be used for access speedup later on.
+   */
+  std::map<Hash, TableInsertQuery> cache_;
+  Hash owner_;
 };
 
 }

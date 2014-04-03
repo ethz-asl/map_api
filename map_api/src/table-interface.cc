@@ -60,7 +60,14 @@ bool TableInterface::setup(std::string name){
   if (!MapApiCore::getInstance().isInitialized()) {
     MapApiCore::getInstance().init(FLAGS_ipPort);
   }
+
+  // choose owner ID TODO(tcies) this is temporary
+  // TODO(tcies) make shareable across table interfaces
+  owner_ = Hash::randomHash();
+  LOG(INFO) << "Table interface with owner " << owner_.getString();
+
   // connect to database & create table
+  // TODO(tcies) register in master table
   session_ = MapApiCore::getInstance().getSession();
   createQuery();
 
