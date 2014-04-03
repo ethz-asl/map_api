@@ -46,7 +46,7 @@ TEST(TableInterFace, initEmpty){
   table.init();
   std::shared_ptr<TableInsertQuery> structure = table.templateForward();
   ASSERT_TRUE(static_cast<bool>(structure));
-  EXPECT_EQ(structure->fieldqueries_size(), 2);
+  EXPECT_EQ(structure->fieldqueries_size(), 3);
   EXPECT_TRUE(fieldOf((*structure)["ID"], *structure));
   EXPECT_TRUE(fieldOf((*structure)["owner"], *structure));
   EXPECT_DEATH(fieldOf((*structure)["not a field"], *structure),"^");
@@ -209,7 +209,8 @@ TYPED_TEST(FieldTest, Init){
   FieldTestTable<TypeParam> table;
   table.init();
   std::shared_ptr<TableInsertQuery> structure = table.templateForward();
-  EXPECT_EQ(structure->fieldqueries_size(), 3);
+  //TODO(tcies) 4 is hardcoded, kind of hacky...
+  EXPECT_EQ(structure->fieldqueries_size(), 4);
   EXPECT_TRUE(fieldOf((*structure)["test_field"], *structure));
   table.cleanup();
 }

@@ -8,6 +8,7 @@
 #include <map-api/transaction.h>
 
 #include <gflags/gflags.h>
+#include <glog/logging.h>
 
 #include <map-api/map-api-core.h>
 
@@ -15,7 +16,8 @@ DECLARE_string(ipPort);
 
 namespace map_api {
 
-Transaction::Transaction(const Hash& owner) : owner_(owner){
+Transaction::Transaction(const Hash& owner) : owner_(owner),
+    active_(false){
 }
 
 bool Transaction::begin(){
@@ -25,42 +27,102 @@ bool Transaction::begin(){
     MapApiCore::getInstance().init(FLAGS_ipPort);
   }
   session_ = MapApiCore::getInstance().getSession();
+  active_ = true;
   return true;
 }
 
 bool Transaction::commit(){
   // unlock all committed rows
+  active_ = false;
   return true;
 }
 
 bool Transaction::abort(){
   // roll back journal
+  active_ = false;
   return true;
 }
 
-bool Transaction::addInsertQuery(
-    std::shared_ptr<const TableInsertQuery> query){
+bool Transaction::addInsertQuery(const SharedQueryPointer& query){
+  // invalid old state pointer means insert
+  this->commonOperations(SharedQueryPointer(),query);
+
+  // SQL transaction: Makes insert & locking atomic. We could have all
+  // statements of a map_api::Transaction wrapped in an SQL transaction
+  // but then we couldn't test the Transaction functionality we will need
+  // for a distributed system anyways
+  *session_ << "BEGIN TRANSACTION; ", Poco::Data::now;
+
+  // assemble SQLite statement
+  Poco::Data::Statement stat(*session_);
+  // NB: sqlite placeholders work only for column values
+  stat << "INSERT INTO " << query->target() << " ";
+
+  stat << "(";
+  for (int i = 0; i < query->fieldqueries_size(); ++i){
+    if (i > 0){
+      stat << ", ";
+    }
+    const TableField& field =
+        static_cast<const TableField&>(query->fieldqueries(i));
+    stat << field.nametype().name();
+  }
+  stat << ") VALUES ( ";
+  for (int i=0; i<query->fieldqueries_size(); ++i){
+    if (i>0){
+      stat << " , ";
+    }
+    const TableField& field =
+        static_cast<const TableField&>(query->fieldqueries(i));
+    field.insertPlaceHolder(stat);
+  }
+  stat << " ); ";
+
+  try {
+    stat.execute();
+  } catch(std::exception &e){
+    LOG(FATAL) << "Insert failed with exception " << e.what();
+  }
+
+  *session_ << "COMMIT TRANSACTION; ", Poco::Data::now;
+
+  system("cp database.db ~/temp");
+
+  // TODO (tcies) trigger subscribers
   return true;
 }
 
-bool Transaction::addUpdateQuery(
-    std::shared_ptr<const TableInsertQuery> groundState,
-    std::shared_ptr<const TableInsertQuery> update){
+bool Transaction::addUpdateQuery(const SharedQueryPointer& oldState,
+                                 const SharedQueryPointer& newState){
   return true;
 }
 
-std::shared_ptr<TableInsertQuery> Transaction::addSelectQuery(
+Transaction::SharedQueryPointer Transaction::addSelectQuery(
     const std::string& table, const Hash& id){
-  return std::shared_ptr<TableInsertQuery>();
+  return SharedQueryPointer();
 }
 
-std::shared_ptr<std::vector<std::string> >
+std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
 Transaction::requiredTableFields(){
-  std::shared_ptr<std::vector<std::string> > fields =
-      std::shared_ptr<std::vector<std::string> >(
-          new std::vector<std::string>);
-  fields->push_back("locked_by");
+  std::shared_ptr<std::vector<proto::TableFieldDescriptor> > fields =
+      std::shared_ptr<std::vector<proto::TableFieldDescriptor> >(
+          new std::vector<proto::TableFieldDescriptor>);
+  fields->push_back(proto::TableFieldDescriptor());
+  fields->back().set_name("locked_by");
+  fields->back().set_type(proto::TableFieldDescriptor_Type_HASH128);
   return fields;
+}
+
+bool Transaction::commonOperations(const SharedQueryPointer& oldState,
+                                   const SharedQueryPointer& newState){
+  // check if active
+  CHECK(active_) <<
+      "Attempted to add insert query to uninitialized transaction";
+  // prepare lock for new state (check will be done within SQL transaction)
+  (*newState)["locked_by"].set(owner_);
+  // register operation in journal
+  journal_.push(JournalEntry(oldState, newState));
+  return true;
 }
 
 } /* namespace map_api */

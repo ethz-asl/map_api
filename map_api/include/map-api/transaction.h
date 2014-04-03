@@ -18,6 +18,7 @@ namespace map_api {
 
 class Transaction {
  public:
+  typedef std::shared_ptr<TableInsertQuery> SharedQueryPointer;
   /**
    * Exception-free initialization.
    */
@@ -31,31 +32,38 @@ class Transaction {
   /**
    * Passing shared pointer so we can be more flexible with the journal.
    */
-  bool addInsertQuery(std::shared_ptr<const TableInsertQuery> query);
+  bool addInsertQuery(const SharedQueryPointer& query);
   /**
    * Transaction fails if global state differs from groundState before updating
    */
-  bool addUpdateQuery(
-      std::shared_ptr<const TableInsertQuery> groundState,
-      std::shared_ptr<const TableInsertQuery> update);
+  bool addUpdateQuery(const SharedQueryPointer& oldState,
+                      const SharedQueryPointer& newState);
   /**
    * Does a select query need to be in a transaction? What would rollback mean?
    * Cache invalidation of some sort?
    */
-  std::shared_ptr<TableInsertQuery> addSelectQuery(
+  SharedQueryPointer addSelectQuery(
       const std::string& table, const Hash& id);
   /**
    * Define own fields for database tables, such as for locks.
    */
-  static std::shared_ptr<std::vector<std::string> >
+  static std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
   requiredTableFields();
  private:
   /**
+   * Common operations for insert/update query
+   */
+  bool commonOperations(const SharedQueryPointer& oldState,
+      const SharedQueryPointer& newState);
+  /**
    * Journal entry
    */
-  typedef struct{
-    std::shared_ptr<const TableInsertQuery> oldState;
-    std::shared_ptr<const TableInsertQuery> newState;
+  typedef struct JournalEntry{
+    SharedQueryPointer oldState;
+    SharedQueryPointer newState;
+    JournalEntry(){}
+    JournalEntry(const SharedQueryPointer& o,
+                 const SharedQueryPointer& n) : oldState(o), newState(n) {}
   }JournalEntry;
   /**
    * Journal: stack, as the latest changes need to be rolled back first.
@@ -63,6 +71,7 @@ class Transaction {
   std::stack<JournalEntry> journal_;
   Hash owner_;
   std::shared_ptr<Poco::Data::Session> session_;
+  bool active_;
 };
 
 } /* namespace map_api */

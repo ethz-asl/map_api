@@ -7,6 +7,8 @@
 
 #include <map-api/hash.h>
 
+#include <mutex>
+
 #include <glog/logging.h>
 #include <Poco/MD5Engine.h>
 #include <Poco/RandomStream.h>
@@ -51,10 +53,12 @@ bool Hash::operator==(const Hash& other) const{
 }
 
 Hash Hash::randomHash(){
-  // FIXME(tcies) is this thread safe?
+  static std::mutex rngMutex;
+  rngMutex.lock();
   static Poco::RandomInputStream ri;
   std::string rs;
   ri >> rs;
+  rngMutex.unlock();
   Hash ret;
   Poco::MD5Engine hasher;
   hasher.update(rs);

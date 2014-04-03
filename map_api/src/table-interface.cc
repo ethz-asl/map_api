@@ -19,6 +19,7 @@
 
 #include "map-api/map-api-core.h"
 #include "map-api/table-field.h"
+#include "map-api/transaction.h"
 #include "core.pb.h"
 
 DEFINE_string(ipPort, "127.0.0.1:5050", "Define node ip and port");
@@ -53,6 +54,13 @@ bool TableInterface::setup(std::string name){
   // enforced fields id (hash) and owner
   addField("ID",proto::TableFieldDescriptor_Type_HASH128);
   addField("owner",proto::TableFieldDescriptor_Type_HASH128);
+  // transaction-enforced fields
+  std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
+  transactionFields(Transaction::requiredTableFields());
+  for (const proto::TableFieldDescriptor& descriptor :
+      *transactionFields){
+    addField(descriptor.name(), descriptor.type());
+  }
   // user-defined fields
   define();
 
@@ -114,44 +122,19 @@ bool TableInterface::createQuery(){
   return true;
 }
 
+// TODO(tcies) pass by reference to shared pointer
 map_api::Hash TableInterface::insertQuery(TableInsertQuery& query){
   // set ID (TODO(tcies): set owner as well)
   map_api::Hash idHash(query.SerializeAsString());
   query["ID"].set(idHash);
   query["owner"].set(owner_);
 
-  // assemble SQLite statement
-  Poco::Data::Statement stat(*session_);
-  // NB: sqlite placeholders work only for column values
-  stat << "INSERT INTO " << name() << " ";
-
-  stat << "(";
-  for (int i = 0; i < query.fieldqueries_size(); ++i){
-    if (i > 0){
-      stat << ", ";
-    }
-    const TableField& field =
-        static_cast<const TableField&>(query.fieldqueries(i));
-    stat << field.nametype().name();
-  }
-  stat << ") VALUES ( ";
-  for (int i=0; i<query.fieldqueries_size(); ++i){
-    if (i>0){
-      stat << " , ";
-    }
-    const TableField& field =
-        static_cast<const TableField&>(query.fieldqueries(i));
-    field.insertPlaceHolder(stat);
-  }
-  stat << " );";
-
-  try {
-    stat.execute();
-  } catch(std::exception &e){
-    LOG(FATAL) << "Insert failed with exception " << e.what();
-  }
-
-  // TODO (tcies) trigger subscribers
+  Transaction transaction(owner_);
+  // TODO(tcies) all the checks...
+  transaction.begin();
+  transaction.addInsertQuery(
+      Transaction::SharedQueryPointer(new TableInsertQuery(query)));
+  transaction.commit();
   return idHash;
 }
 
