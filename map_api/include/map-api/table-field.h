@@ -44,7 +44,7 @@ class TableField : public proto::TableField{
 
 class testBlob : public map_api::proto::TableField{
  public:
-  inline bool operator == (const testBlob& other) const{
+  inline bool operator==(const testBlob& other) const{
     if (!this->has_nametype())
       return !other.has_nametype();
     return nametype().name() == other.nametype().name();

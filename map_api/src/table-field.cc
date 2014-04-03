@@ -149,8 +149,7 @@ int64_t TableField::get<int64_t>() const{
   return longvalue();
 }
 template <>
-testBlob TableField::get<testBlob>()
-const{
+testBlob TableField::get<testBlob>() const{
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
       "Trying to get blob from non-blob field";
   testBlob field;
