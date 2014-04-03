@@ -21,7 +21,7 @@ class MapApiCore {
  public:
   /**
    * Get singleton instance of Map Api Core
-   * TODO(tcies) just make all functions static...
+   * TODO(tcies) just make all functions static (thread-safety!)...
    */
   static MapApiCore& getInstance();
   /**

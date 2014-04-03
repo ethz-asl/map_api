@@ -62,8 +62,9 @@ class Transaction {
     SharedQueryPointer oldState;
     SharedQueryPointer newState;
     JournalEntry(){}
-    JournalEntry(const SharedQueryPointer& o,
-                 const SharedQueryPointer& n) : oldState(o), newState(n) {}
+    JournalEntry(const SharedQueryPointer& old_state,
+                 const SharedQueryPointer& new_state) : oldState(old_state),
+                     newState(new_state) {}
   }JournalEntry;
   /**
    * Journal: stack, as the latest changes need to be rolled back first.

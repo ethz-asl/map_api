@@ -135,6 +135,7 @@ map_api::Hash TableInterface::insertQuery(TableInsertQuery& query){
   transaction.addInsertQuery(
       Transaction::SharedQueryPointer(new TableInsertQuery(query)));
   transaction.commit();
+  // TODO(tcies) check if aborted
   return idHash;
 }
 

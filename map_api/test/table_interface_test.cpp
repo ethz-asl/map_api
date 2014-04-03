@@ -209,7 +209,6 @@ TYPED_TEST(FieldTest, Init){
   FieldTestTable<TypeParam> table;
   table.init();
   std::shared_ptr<TableInsertQuery> structure = table.templateForward();
-  //TODO(tcies) 4 is hardcoded, kind of hacky...
   EXPECT_EQ(structure->fieldqueries_size(), 4);
   EXPECT_TRUE(fieldOf((*structure)["test_field"], *structure));
   table.cleanup();

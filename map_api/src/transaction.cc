@@ -45,7 +45,7 @@ bool Transaction::abort(){
 
 bool Transaction::addInsertQuery(const SharedQueryPointer& query){
   // invalid old state pointer means insert
-  this->commonOperations(SharedQueryPointer(),query);
+  this->commonOperations(SharedQueryPointer(), query);
 
   // SQL transaction: Makes insert & locking atomic. We could have all
   // statements of a map_api::Transaction wrapped in an SQL transaction
@@ -68,8 +68,8 @@ bool Transaction::addInsertQuery(const SharedQueryPointer& query){
     stat << field.nametype().name();
   }
   stat << ") VALUES ( ";
-  for (int i=0; i<query->fieldqueries_size(); ++i){
-    if (i>0){
+  for (int i = 0; i < query->fieldqueries_size(); ++i){
+    if (i > 0){
       stat << " , ";
     }
     const TableField& field =
@@ -104,9 +104,8 @@ Transaction::SharedQueryPointer Transaction::addSelectQuery(
 
 std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
 Transaction::requiredTableFields(){
-  std::shared_ptr<std::vector<proto::TableFieldDescriptor> > fields =
-      std::shared_ptr<std::vector<proto::TableFieldDescriptor> >(
-          new std::vector<proto::TableFieldDescriptor>);
+  std::shared_ptr<std::vector<proto::TableFieldDescriptor> > fields(
+      new std::vector<proto::TableFieldDescriptor>);
   fields->push_back(proto::TableFieldDescriptor());
   fields->back().set_name("locked_by");
   fields->back().set_type(proto::TableFieldDescriptor_Type_HASH128);
@@ -115,12 +114,10 @@ Transaction::requiredTableFields(){
 
 bool Transaction::commonOperations(const SharedQueryPointer& oldState,
                                    const SharedQueryPointer& newState){
-  // check if active
   CHECK(active_) <<
       "Attempted to add insert query to uninitialized transaction";
-  // prepare lock for new state (check will be done within SQL transaction)
   (*newState)["locked_by"].set(owner_);
-  // register operation in journal
+  // check will be done within SQL transaction
   journal_.push(JournalEntry(oldState, newState));
   return true;
 }
