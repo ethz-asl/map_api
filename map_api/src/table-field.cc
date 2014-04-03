@@ -51,8 +51,6 @@ Poco::Data::Statement& TableField::insertPlaceHolder(
     }
     case (proto::TableFieldDescriptor_Type_DOUBLE): {
       stat << doublevalue();
-      // FIXME(tcies) why doesn't this work?
-      // stat << "?", Poco::Data::use(doublevalue());
       break;
     }
     case (proto::TableFieldDescriptor_Type_HASH128): {
@@ -61,15 +59,10 @@ Poco::Data::Statement& TableField::insertPlaceHolder(
     }
     case (proto::TableFieldDescriptor_Type_INT32): {
       stat << intvalue();
-      // FIXME(tcies) why doesn't this work?
-      // return stat << "?",  Poco::Data::use(intvalue());
       break;
     }
     case (proto::TableFieldDescriptor_Type_INT64): {
       stat << longvalue();
-      // FIXME(tcies) why doesn't this work?
-      // return stat << "?",  Poco::Data::use(longvalue());
-      break;
       break;
     }
     case (proto::TableFieldDescriptor_Type_STRING): {

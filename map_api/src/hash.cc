@@ -45,7 +45,7 @@ Hash Hash::cast(const std::string& hex){
   return ret;
 }
 
-bool Hash::operator ==(const Hash& other) const{
+bool Hash::operator==(const Hash& other) const{
   return hexHash_ == other.hexHash_;
 }
 

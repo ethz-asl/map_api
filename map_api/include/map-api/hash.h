@@ -40,7 +40,7 @@ class Hash {
    */
   static Hash cast(const std::string& hex);
 
-  bool operator == (const Hash& other) const;
+  bool operator==(const Hash& other) const;
 
  private:
   /**
