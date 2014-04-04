@@ -40,6 +40,10 @@ class MapApiCore {
    * Check if initialized
    */
   bool isInitialized() const;
+  /**
+   * Makes the server thread re-enter, disconnects from database
+   */
+  void kill();
 
  private:
   /**
