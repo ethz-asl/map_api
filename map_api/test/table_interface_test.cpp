@@ -21,7 +21,7 @@ class TestTable : public TableInterface{
     setup("test_table");
     return true;
   }
-  std::shared_ptr<TableInsertQuery> templateForward() const{
+  std::shared_ptr<Revision> templateForward() const{
     return getTemplate();
   }
   std::shared_ptr<Poco::Data::Session> sessionForward(){
@@ -33,7 +33,7 @@ class TestTable : public TableInterface{
   }
 };
 
-bool fieldOf(proto::TableField& a, const TableInsertQuery& query){
+bool fieldOf(proto::TableField& a, const Revision& query){
   for (int i = 0; i < query.fieldqueries_size(); ++i){
     if (&a == &query.fieldqueries(i))
       return true;
@@ -44,7 +44,7 @@ bool fieldOf(proto::TableField& a, const TableInsertQuery& query){
 TEST(TableInterFace, initEmpty){
   TestTable table;
   table.init();
-  std::shared_ptr<TableInsertQuery> structure = table.templateForward();
+  std::shared_ptr<Revision> structure = table.templateForward();
   ASSERT_TRUE(static_cast<bool>(structure));
   EXPECT_EQ(structure->fieldqueries_size(), 3);
   EXPECT_TRUE(fieldOf((*structure)["ID"], *structure));
@@ -71,12 +71,12 @@ class FieldTestTable : public TestTable{
     LOG(INFO) << "Table field_test_table dropped";
   }
   Hash insert(const FieldType &value){
-    std::shared_ptr<TableInsertQuery> query = getTemplate();
+    std::shared_ptr<Revision> query = getTemplate();
     (*query)["test_field"].set<FieldType>(value);
     return insertQuery(*query);
   }
   FieldType get(const Hash &id){
-    std::shared_ptr<TableInsertQuery> row = getRow(id);
+    std::shared_ptr<Revision> row = getRow(id);
     if (!static_cast<bool>(row)){
       LOG(ERROR) << "Row " << id.getString() << " not found.";
       return FieldType();
@@ -84,7 +84,7 @@ class FieldTestTable : public TestTable{
     return (*row)["test_field"].get<FieldType>();
   }
   Hash owner(const Hash &id){
-    std::shared_ptr<TableInsertQuery> row = getRow(id);
+    std::shared_ptr<Revision> row = getRow(id);
     if (!static_cast<bool>(row)){
       LOG(ERROR) << "Row " << id.getString() << " not found.";
       return Hash();
@@ -92,7 +92,7 @@ class FieldTestTable : public TestTable{
     return (*row)["owner"].get<Hash>();
   }
   bool update(const Hash &id, const FieldType& newValue){
-    std::shared_ptr<TableInsertQuery> row = getRow(id);
+    std::shared_ptr<Revision> row = getRow(id);
     if (!static_cast<bool>(row)){
       LOG(ERROR) << "Row " << id.getString() << " not found.";
       return false;
@@ -208,7 +208,7 @@ TYPED_TEST_CASE(FieldTest, MyTypes);
 TYPED_TEST(FieldTest, Init){
   FieldTestTable<TypeParam> table;
   table.init();
-  std::shared_ptr<TableInsertQuery> structure = table.templateForward();
+  std::shared_ptr<Revision> structure = table.templateForward();
   EXPECT_EQ(structure->fieldqueries_size(), 4);
   EXPECT_TRUE(fieldOf((*structure)["test_field"], *structure));
   table.cleanup();

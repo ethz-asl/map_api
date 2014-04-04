@@ -17,7 +17,7 @@ DECLARE_string(ipPort);
 namespace map_api {
 
 Transaction::Transaction(const Hash& owner) : owner_(owner),
-    active_(false){
+    active_(false), aborted_(false){
 }
 
 bool Transaction::begin(){
@@ -32,20 +32,26 @@ bool Transaction::begin(){
 }
 
 bool Transaction::commit(){
+  if (notifyAbortedOrInactive()){
+    return false;
+  }
   // unlock all committed rows
   active_ = false;
   return true;
 }
 
 bool Transaction::abort(){
+  if (notifyAbortedOrInactive()){
+    return false;
+  }
   // roll back journal
   active_ = false;
   return true;
 }
 
-bool Transaction::addInsertQuery(const SharedQueryPointer& query){
-  // invalid old state pointer means insert
-  this->commonOperations(SharedQueryPointer(), query);
+bool Transaction::addInsertQuery(const SharedRevisionPointer& query){
+  // invalid old state pointer means insert in journal entry
+  this->commonOperations(SharedRevisionPointer(), query);
 
   // SQL transaction: Makes insert & locking atomic. We could have all
   // statements of a map_api::Transaction wrapped in an SQL transaction
@@ -56,7 +62,7 @@ bool Transaction::addInsertQuery(const SharedQueryPointer& query){
   // assemble SQLite statement
   Poco::Data::Statement stat(*session_);
   // NB: sqlite placeholders work only for column values
-  stat << "INSERT INTO " << query->target() << " ";
+  stat << "INSERT INTO " << query->table() << " ";
 
   stat << "(";
   for (int i = 0; i < query->fieldqueries_size(); ++i){
@@ -92,14 +98,17 @@ bool Transaction::addInsertQuery(const SharedQueryPointer& query){
   return true;
 }
 
-bool Transaction::addUpdateQuery(const SharedQueryPointer& oldState,
-                                 const SharedQueryPointer& newState){
+bool Transaction::addUpdateQuery(const SharedRevisionPointer& oldState,
+                                 const SharedRevisionPointer& newState){
   return true;
 }
 
-Transaction::SharedQueryPointer Transaction::addSelectQuery(
+Transaction::SharedRevisionPointer Transaction::addSelectQuery(
     const std::string& table, const Hash& id){
-  return SharedQueryPointer();
+  if (notifyAbortedOrInactive()){
+    return SharedRevisionPointer();
+  }
+  return SharedRevisionPointer();
 }
 
 std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
@@ -112,14 +121,27 @@ Transaction::requiredTableFields(){
   return fields;
 }
 
-bool Transaction::commonOperations(const SharedQueryPointer& oldState,
-                                   const SharedQueryPointer& newState){
-  CHECK(active_) <<
-      "Attempted to add insert query to uninitialized transaction";
+bool Transaction::commonOperations(const SharedRevisionPointer& oldState,
+                                   const SharedRevisionPointer& newState){
+  if (notifyAbortedOrInactive()){
+    return false;
+  }
   (*newState)["locked_by"].set(owner_);
   // check will be done within SQL transaction
   journal_.push(JournalEntry(oldState, newState));
   return true;
+}
+
+bool Transaction::notifyAbortedOrInactive(){
+  if (!active_){
+    LOG(ERROR) << "Transaction has not been initialized";
+    return true;
+  }
+  if (aborted_){
+    LOG(ERROR) << "Transaction has previously been aborted";
+    return true;
+  }
+  return false;
 }
 
 } /* namespace map_api */
