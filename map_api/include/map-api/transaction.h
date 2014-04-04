@@ -56,6 +56,10 @@ class Transaction {
   bool commonOperations(const SharedQueryPointer& oldState,
       const SharedQueryPointer& newState);
   /**
+   * Make public?
+   */
+  bool notifyAbortedOrInactive();
+  /**
    * Journal entry
    */
   typedef struct JournalEntry{
@@ -73,6 +77,7 @@ class Transaction {
   Hash owner_;
   std::shared_ptr<Poco::Data::Session> session_;
   bool active_;
+  bool aborted_;
 };
 
 } /* namespace map_api */

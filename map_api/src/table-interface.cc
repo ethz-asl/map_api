@@ -105,8 +105,9 @@ bool TableInterface::createQuery(){
   for (int i=0; i<this->fields_size(); ++i){
     const proto::TableFieldDescriptor &fieldDescriptor = this->fields(i);
     TableField field;
-    // TODO(tcies) The following is specified in protobuf but not available
-    // are we using an outdated version of protobuf?
+    // The following is specified in protobuf but not available.
+    // We are using an outdated version of protobuf.
+    // Consider upgrading once overwhelmingly necessary.
     // field.set_allocated_nametype(&fieldDescriptor);
     *field.mutable_nametype() = fieldDescriptor;
     if (i != 0){
