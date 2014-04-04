@@ -55,6 +55,7 @@ class MapApiCore {
    * Returns a shared pointer to the database session
    */
   std::shared_ptr<Poco::Data::Session> getSession();
+  friend class WriteOnlyTableInterface;
   friend class TableInterface;
   friend class Transaction;
   /**
