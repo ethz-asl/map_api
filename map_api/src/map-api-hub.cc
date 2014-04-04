@@ -41,7 +41,7 @@ bool MapApiHub::init(const std::string &ipPort){
     listenerStatus_.wait(lock);
   }
   if (!listenerConnected_){
-    context_ = std::unique_ptr<zmq::context_t>();
+    context_.reset();
     return false;
   }
 
@@ -59,8 +59,7 @@ bool MapApiHub::init(const std::string &ipPort){
     }
     LOG(INFO) << "Found peer " << other << ", connecting...";
     std::shared_ptr<zmq::socket_t> newPeer =
-        std::shared_ptr<zmq::socket_t>(
-            new zmq::socket_t(*context_, ZMQ_REQ));
+        std::make_shared<zmq::socket_t>(zmq::socket_t(*context_, ZMQ_REQ));
     try {
       newPeer->connect(("tcp://" + other).c_str());
     } catch (const std::exception& e){
@@ -108,7 +107,7 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
   {
     std::unique_lock<std::mutex> lock(self->condVarMutex_);
     // server only lives in this thread
-    LOG(INFO) << "Bind to " << ipPort;
+    VLOG(3) << "Bind to " << ipPort;
     try {
       server.bind(("tcp://" + ipPort).c_str());
       self->listenerConnected_ = true;

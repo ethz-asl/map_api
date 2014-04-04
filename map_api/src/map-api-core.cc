@@ -22,6 +22,8 @@ MapApiCore::MapApiCore() : hub_(MapApiHub::getInstance()),
 
 bool MapApiCore::init(const std::string &ipPort) {
   if (!hub_.init(ipPort)){
+    LOG(ERROR) << "Map Api core init failed, could not connect to socket " <<
+        ipPort;
     return false;
   }
   // TODO(titus) SigAbrt handler?
@@ -46,7 +48,7 @@ bool MapApiCore::isInitialized() const{
 
 void MapApiCore::kill(){
   hub_.kill();
-  dbSess_ =  std::shared_ptr<Poco::Data::Session>();
+  dbSess_.reset();
   initialized_ = false;
 }
 
