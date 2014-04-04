@@ -84,12 +84,12 @@ bool TableInterface::setup(std::string name){
   return true;
 }
 
-std::shared_ptr<TableInsertQuery> TableInterface::getTemplate() const{
-  std::shared_ptr<TableInsertQuery> ret =
-      std::shared_ptr<TableInsertQuery>(
-          new TableInsertQuery);
+std::shared_ptr<Revision> TableInterface::getTemplate() const{
+  std::shared_ptr<Revision> ret =
+      std::shared_ptr<Revision>(
+          new Revision);
   // add own name
-  ret->set_target(name());
+  ret->set_table(name());
   // add editable fields
   for (int i=0; i<this->fields_size(); ++i){
     *(ret->add_fieldqueries()->mutable_nametype()) = this->fields(i);
@@ -124,7 +124,7 @@ bool TableInterface::createQuery(){
 }
 
 // TODO(tcies) pass by reference to shared pointer
-map_api::Hash TableInterface::insertQuery(TableInsertQuery& query){
+map_api::Hash TableInterface::insertQuery(Revision& query){
   // set ID (TODO(tcies): set owner as well)
   map_api::Hash idHash(query.SerializeAsString());
   query["ID"].set(idHash);
@@ -134,15 +134,15 @@ map_api::Hash TableInterface::insertQuery(TableInsertQuery& query){
   // TODO(tcies) all the checks...
   transaction.begin();
   transaction.addInsertQuery(
-      Transaction::SharedQueryPointer(new TableInsertQuery(query)));
+      Transaction::SharedRevisionPointer(new Revision(query)));
   transaction.commit();
   // TODO(tcies) check if aborted
   return idHash;
 }
 
-std::shared_ptr<TableInsertQuery> TableInterface::getRow(
+std::shared_ptr<Revision> TableInterface::getRow(
     const map_api::Hash &id) const{
-  std::shared_ptr<TableInsertQuery> query = getTemplate();
+  std::shared_ptr<Revision> query = getTemplate();
   Poco::Data::Statement stat(*session_);
   stat << "SELECT ";
 
@@ -196,7 +196,7 @@ std::shared_ptr<TableInsertQuery> TableInterface::getRow(
     stat.execute();
   } catch (std::exception& e){
     LOG(ERROR) << "Row " << id.getString() << " not found!";
-    return std::shared_ptr<TableInsertQuery>();
+    return std::shared_ptr<Revision>();
   }
 
   // write values that couldn't be written directly
@@ -216,7 +216,7 @@ std::shared_ptr<TableInsertQuery> TableInterface::getRow(
 }
 
 bool TableInterface::updateQuery(const Hash& id,
-                                 const TableInsertQuery& query){
+                                 const Revision& query){
   // TODO(tcies) all concurrency handling, owner locking, etc... comes here
   Poco::Data::Statement stat(*session_);
   stat << "UPDATE " << name() << " SET ";

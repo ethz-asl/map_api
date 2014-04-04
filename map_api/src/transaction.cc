@@ -49,9 +49,9 @@ bool Transaction::abort(){
   return true;
 }
 
-bool Transaction::addInsertQuery(const SharedQueryPointer& query){
+bool Transaction::addInsertQuery(const SharedRevisionPointer& query){
   // invalid old state pointer means insert in journal entry
-  this->commonOperations(SharedQueryPointer(), query);
+  this->commonOperations(SharedRevisionPointer(), query);
 
   // SQL transaction: Makes insert & locking atomic. We could have all
   // statements of a map_api::Transaction wrapped in an SQL transaction
@@ -62,7 +62,7 @@ bool Transaction::addInsertQuery(const SharedQueryPointer& query){
   // assemble SQLite statement
   Poco::Data::Statement stat(*session_);
   // NB: sqlite placeholders work only for column values
-  stat << "INSERT INTO " << query->target() << " ";
+  stat << "INSERT INTO " << query->table() << " ";
 
   stat << "(";
   for (int i = 0; i < query->fieldqueries_size(); ++i){
@@ -98,17 +98,17 @@ bool Transaction::addInsertQuery(const SharedQueryPointer& query){
   return true;
 }
 
-bool Transaction::addUpdateQuery(const SharedQueryPointer& oldState,
-                                 const SharedQueryPointer& newState){
+bool Transaction::addUpdateQuery(const SharedRevisionPointer& oldState,
+                                 const SharedRevisionPointer& newState){
   return true;
 }
 
-Transaction::SharedQueryPointer Transaction::addSelectQuery(
+Transaction::SharedRevisionPointer Transaction::addSelectQuery(
     const std::string& table, const Hash& id){
   if (notifyAbortedOrInactive()){
-    return SharedQueryPointer();
+    return SharedRevisionPointer();
   }
-  return SharedQueryPointer();
+  return SharedRevisionPointer();
 }
 
 std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
@@ -121,8 +121,8 @@ Transaction::requiredTableFields(){
   return fields;
 }
 
-bool Transaction::commonOperations(const SharedQueryPointer& oldState,
-                                   const SharedQueryPointer& newState){
+bool Transaction::commonOperations(const SharedRevisionPointer& oldState,
+                                   const SharedRevisionPointer& newState){
   if (notifyAbortedOrInactive()){
     return false;
   }
