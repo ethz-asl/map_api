@@ -26,6 +26,11 @@ message TableField {
 	optional string stringValue = 6; 
 }
 
+message Revision {
+  required string target = 1;
+  repeated TableField fieldQueries = 2;
+}
+
 //==============================
 // NODE TO NODE QUERY MESSAGES
 //==============================
@@ -36,11 +41,6 @@ message ListTablesQuery {
 
 message CreateTableQuery {
 	required TableDescriptor description = 1;
-}
-
-message TableInsertQuery {
-	required string target = 1;
-	repeated TableField fieldQueries = 2;
 }
 
 message Hello {
@@ -55,6 +55,6 @@ message NodeQueryUnion {
 	
 	optional ListTablesQuery listTablesQuery = 2;
 	optional CreateTableQuery createTableQuery = 3;
-	optional TableInsertQuery tableInsertQuery = 4;
+	optional Revision revision = 4;
 	optional Hello hello = 5;
 }
