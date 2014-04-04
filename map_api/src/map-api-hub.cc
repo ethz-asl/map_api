@@ -110,7 +110,7 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
     // server only lives in this thread
     LOG(INFO) << "Bind to " << ipPort;
     try {
-      server.bind(("tcp://"+ipPort).c_str());
+      server.bind(("tcp://" + ipPort).c_str());
       self->listenerConnected_ = true;
       lock.unlock();
       self->listenerStatus_.notify_one();
@@ -125,8 +125,8 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
     }
   }
   int timeOutMs = 100;
-  server.setsockopt(ZMQ_RCVTIMEO,&timeOutMs,sizeof(timeOutMs));
-  LOG(INFO) << "Server launched..." << std::endl;
+  server.setsockopt(ZMQ_RCVTIMEO, &timeOutMs, sizeof(timeOutMs));
+  LOG(INFO) << "Server launched...";
 
   while (true){
     zmq::message_t message;
@@ -148,7 +148,7 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
       // A new node says Hello: Connect to its publisher
       case proto::NodeQueryUnion_Type_HELLO:{
         LOG(INFO) << "Peer " << query.hello().from() << " says hello, let's "\
-            "connect to it..." << std::endl;
+            "connect to it...";
         // lock peer set lock so we can write without a race condition
         self->peerLock_.writeLock();
         auto it = self->peers_.insert(std::unique_ptr<zmq::socket_t>(
@@ -161,12 +161,11 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
 
       // Not recognized:
       default:{
-        LOG(ERROR) << "Message " << query.type() << " not recognized"
-            << std::endl;
+        LOG(ERROR) << "Message " << query.type() << " not recognized";
       }
     }
   }
-  server.unbind(("tcp://"+ipPort).c_str());
+  server.unbind(("tcp://" + ipPort).c_str());
   LOG(INFO) << "Listener terminated\n";
 }
 
