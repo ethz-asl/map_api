@@ -5,8 +5,8 @@
  *      Author: titus
  */
 
-#ifndef TABLE_INSERT_QUERY_H_
-#define TABLE_INSERT_QUERY_H_
+#ifndef REVISION_H_
+#define REVISION_H_
 
 #include <map>
 
@@ -15,7 +15,7 @@
 
 namespace map_api {
 
-class TableInsertQuery : public proto::TableInsertQuery {
+class Revision : public proto::Revision {
  public:
   bool index();
   TableField& operator[](const std::string& field);
@@ -30,4 +30,4 @@ class TableInsertQuery : public proto::TableInsertQuery {
 
 } /* namespace map_api */
 
-#endif /* TABLE_INSERT_QUERY_H_ */
+#endif /* REVISION_H_ */

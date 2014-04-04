@@ -28,7 +28,7 @@ bool EdgeTable::define(){
 
 map_api::Hash EdgeTable::insertEdge(const Edge &edge,
                                     FrameTable &frameTable){
-  std::shared_ptr<map_api::TableInsertQuery> query = getTemplate();
+  std::shared_ptr<map_api::Revision> query = getTemplate();
   (*query)["data"].set_blobvalue(edge.SerializeAsString());
   // commit
   map_api::Hash result = insertQuery(*query);

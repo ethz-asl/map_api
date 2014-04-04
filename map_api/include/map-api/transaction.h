@@ -12,13 +12,13 @@
 #include <memory>
 
 #include "map-api/hash.h"
-#include "map-api/table-insert-query.h"
+#include "map-api/revision.h"
 
 namespace map_api {
 
 class Transaction {
  public:
-  typedef std::shared_ptr<TableInsertQuery> SharedQueryPointer;
+  typedef std::shared_ptr<Revision> SharedRevisionPointer;
   /**
    * Exception-free initialization.
    */
@@ -32,17 +32,17 @@ class Transaction {
   /**
    * Passing shared pointer so we can be more flexible with the journal.
    */
-  bool addInsertQuery(const SharedQueryPointer& query);
+  bool addInsertQuery(const SharedRevisionPointer& query);
   /**
    * Transaction fails if global state differs from groundState before updating
    */
-  bool addUpdateQuery(const SharedQueryPointer& oldState,
-                      const SharedQueryPointer& newState);
+  bool addUpdateQuery(const SharedRevisionPointer& oldState,
+                      const SharedRevisionPointer& newState);
   /**
    * Does a select query need to be in a transaction? What would rollback mean?
    * Cache invalidation of some sort?
    */
-  SharedQueryPointer addSelectQuery(
+  SharedRevisionPointer addSelectQuery(
       const std::string& table, const Hash& id);
   /**
    * Define own fields for database tables, such as for locks.
@@ -53,18 +53,18 @@ class Transaction {
   /**
    * Common operations for insert/update query
    */
-  bool commonOperations(const SharedQueryPointer& oldState,
-      const SharedQueryPointer& newState);
+  bool commonOperations(const SharedRevisionPointer& oldState,
+      const SharedRevisionPointer& newState);
   bool notifyAbortedOrInactive();
   /**
    * Journal entry
    */
   typedef struct JournalEntry{
-    SharedQueryPointer oldState;
-    SharedQueryPointer newState;
+    SharedRevisionPointer oldState;
+    SharedRevisionPointer newState;
     JournalEntry(){}
-    JournalEntry(const SharedQueryPointer& old_state,
-                 const SharedQueryPointer& new_state) : oldState(old_state),
+    JournalEntry(const SharedRevisionPointer& old_state,
+                 const SharedRevisionPointer& new_state) : oldState(old_state),
                      newState(new_state) {}
   }JournalEntry;
   /**

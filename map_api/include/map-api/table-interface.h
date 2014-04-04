@@ -9,7 +9,7 @@
 #include <gflags/gflags.h>
 
 #include "map-api/hash.h"
-#include "map-api/table-insert-query.h"
+#include "map-api/revision.h"
 #include "core.pb.h"
 
 namespace map_api {
@@ -41,7 +41,7 @@ class TableInterface : public proto::TableDescriptor {
   /**
    * Returns a table row template
    */
-  std::shared_ptr<TableInsertQuery> getTemplate() const;
+  std::shared_ptr<Revision> getTemplate() const;
   /**
    * Function to be called at definition:  Adds field to table
    */
@@ -52,21 +52,21 @@ class TableInterface : public proto::TableDescriptor {
    *                                                                       C
    *                                                                        CCCC
    */
-  Hash insertQuery(TableInsertQuery& query);
+  Hash insertQuery(Revision& query);
   /**                                                                      RRRR
    *                                                                       R   R
    * Fetches row by ID and returns it as filled TableInsertQuery           RRRR
    *                                                                       R  R
    *                                                                       R   R
    */
-  std::shared_ptr<TableInsertQuery> getRow(const Hash& id) const;
+  std::shared_ptr<Revision> getRow(const Hash& id) const;
   /**                                                                      U   U
    *                                                                       U   U
    * Takes hash ID and TableInsertQuery as argument and updates the row of U   U
    * the given ID with the query                                           U   U
    *                                                                        UUU
    */
-  bool updateQuery(const Hash& id, const TableInsertQuery& query);
+  bool updateQuery(const Hash& id, const Revision& query);
   /**
    * Shared pointer to database session TODO(tcies) can this be set private
    * yet accessed from a test table?
@@ -87,7 +87,7 @@ class TableInterface : public proto::TableDescriptor {
    * On one hand, the cache is used to test concurrency concepts with a single
    * process. On the other hand, it can be used for access speedup later on.
    */
-  std::map<Hash, TableInsertQuery> cache_;
+  std::map<Hash, Revision> cache_;
   Hash owner_;
 };
 
