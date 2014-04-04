@@ -17,7 +17,7 @@ DECLARE_string(ipPort);
 namespace map_api {
 
 Transaction::Transaction(const Hash& owner) : owner_(owner),
-    active_(false){
+    active_(false), aborted_(false){
 }
 
 bool Transaction::begin(){
@@ -32,19 +32,25 @@ bool Transaction::begin(){
 }
 
 bool Transaction::commit(){
+  if (notifyAbortedOrInactive()){
+    return false;
+  }
   // unlock all committed rows
   active_ = false;
   return true;
 }
 
 bool Transaction::abort(){
+  if (notifyAbortedOrInactive()){
+    return false;
+  }
   // roll back journal
   active_ = false;
   return true;
 }
 
 bool Transaction::addInsertQuery(const SharedQueryPointer& query){
-  // invalid old state pointer means insert
+  // invalid old state pointer means insert in journal entry
   this->commonOperations(SharedQueryPointer(), query);
 
   // SQL transaction: Makes insert & locking atomic. We could have all
@@ -99,6 +105,9 @@ bool Transaction::addUpdateQuery(const SharedQueryPointer& oldState,
 
 Transaction::SharedQueryPointer Transaction::addSelectQuery(
     const std::string& table, const Hash& id){
+  if (notifyAbortedOrInactive()){
+    return SharedQueryPointer();
+  }
   return SharedQueryPointer();
 }
 
@@ -114,12 +123,25 @@ Transaction::requiredTableFields(){
 
 bool Transaction::commonOperations(const SharedQueryPointer& oldState,
                                    const SharedQueryPointer& newState){
-  CHECK(active_) <<
-      "Attempted to add insert query to uninitialized transaction";
+  if (notifyAbortedOrInactive()){
+    return false;
+  }
   (*newState)["locked_by"].set(owner_);
   // check will be done within SQL transaction
   journal_.push(JournalEntry(oldState, newState));
   return true;
+}
+
+bool Transaction::notifyAbortedOrInactive(){
+  if (!active_){
+    LOG(ERROR) << "Transaction has not been initialized";
+    return true;
+  }
+  if (aborted_){
+    LOG(ERROR) << "Transaction has previously been aborted";
+    return true;
+  }
+  return false;
 }
 
 } /* namespace map_api */
