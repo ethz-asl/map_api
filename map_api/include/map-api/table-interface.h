@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <memory>
+#include <map>
 
 #include <Poco/Data/Common.h>
 #include <gflags/gflags.h>
@@ -24,6 +25,8 @@ class TableInterface : public proto::TableDescriptor {
    */
   virtual bool init() = 0;
 
+  const Hash& getOwner() const;
+
  protected:
   /**
    * Setup: Load table definition and match with table definition in
@@ -34,7 +37,7 @@ class TableInterface : public proto::TableDescriptor {
    * Function to be implemented by derivations: Define table by repeated
    * calls to addField()
    */
-  virtual bool define();
+  virtual bool define() = 0;
   /**
    * Returns a table row template
    */
@@ -80,6 +83,12 @@ class TableInterface : public proto::TableDescriptor {
    * Parse and execute SQL query necessary to create the database
    */
   bool createQuery();
+  /**
+   * On one hand, the cache is used to test concurrency concepts with a single
+   * process. On the other hand, it can be used for access speedup later on.
+   */
+  std::map<Hash, TableInsertQuery> cache_;
+  Hash owner_;
 };
 
 }

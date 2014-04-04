@@ -12,6 +12,8 @@
 #include <string>
 #include <memory>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 #include <set>
 
 #include <zmq.hpp>
@@ -32,10 +34,11 @@ class MapApiHub {
    * Initialize hub with given IP and port
    */
   bool init(const std::string &ipPort);
-  /**
-   * Destructor
-   */
   ~MapApiHub();
+  /**
+   * Re-enter server thread, unbind
+   */
+  void kill();
  private:
   /**
    * Constructor: Performs discovery, fetches metadata and loads into database
@@ -46,7 +49,10 @@ class MapApiHub {
    */
   static void listenThread(MapApiHub *self, const std::string &ipPort);
   std::thread listener_;
-  bool terminate_;
+  std::mutex condVarMutex_;
+  std::condition_variable listenerStatus_;
+  volatile bool listenerConnected_;
+  volatile bool terminate_;
   /**
    * Context and list of peers
    */

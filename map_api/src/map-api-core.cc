@@ -21,15 +21,18 @@ MapApiCore::MapApiCore() : hub_(MapApiHub::getInstance()),
     initialized_(false){}
 
 bool MapApiCore::init(const std::string &ipPort) {
-  // 1. Connect to database TODO(titus) SigAbrt handler?
+  if (!hub_.init(ipPort)){
+    LOG(ERROR) << "Map Api core init failed, could not connect to socket " <<
+        ipPort;
+    return false;
+  }
+  // TODO(titus) SigAbrt handler?
   Poco::Data::SQLite::Connector::registerConnector();
   dbSess_ = std::shared_ptr<Poco::Data::Session>(
       new Poco::Data::Session("SQLite", "database.db"));
   LOG(INFO)<< "Connected to database..." << std::endl;
 
   // TODO(tcies) metatable
-
-  hub_.init(ipPort);
 
   initialized_ = true;
   return true;
@@ -41,6 +44,12 @@ std::shared_ptr<Poco::Data::Session> MapApiCore::getSession(){
 
 bool MapApiCore::isInitialized() const{
   return initialized_;
+}
+
+void MapApiCore::kill(){
+  hub_.kill();
+  dbSess_.reset();
+  initialized_ = false;
 }
 
 }

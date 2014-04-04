@@ -52,7 +52,8 @@ SET(CORE_SOURCE src/hash.cc
                  src/map-api-hub.cc
                  src/table-field.cc
                  src/table-insert-query.cc
-                 src/table-interface.cc)
+                 src/table-interface.cc
+                 src/transaction.cc)
                 
 add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_HDRS} ${PROTO_SRCS})
 add_dependencies(${PROJECT_NAME} ${BUILD_DEPEND})

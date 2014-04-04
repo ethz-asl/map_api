@@ -24,12 +24,12 @@ class TestTable : public TableInterface{
   std::shared_ptr<TableInsertQuery> templateForward() const{
     return getTemplate();
   }
+  std::shared_ptr<Poco::Data::Session> sessionForward(){
+    return std::shared_ptr<Poco::Data::Session>(session_);
+  }
  protected:
   virtual bool define(){
     return true;
-  }
-  std::shared_ptr<Poco::Data::Session> sessionForward(){
-    return std::shared_ptr<Poco::Data::Session>(session_);
   }
 };
 
@@ -46,7 +46,7 @@ TEST(TableInterFace, initEmpty){
   table.init();
   std::shared_ptr<TableInsertQuery> structure = table.templateForward();
   ASSERT_TRUE(static_cast<bool>(structure));
-  EXPECT_EQ(structure->fieldqueries_size(), 2);
+  EXPECT_EQ(structure->fieldqueries_size(), 3);
   EXPECT_TRUE(fieldOf((*structure)["ID"], *structure));
   EXPECT_TRUE(fieldOf((*structure)["owner"], *structure));
   EXPECT_DEATH(fieldOf((*structure)["not a field"], *structure),"^");
@@ -82,6 +82,14 @@ class FieldTestTable : public TestTable{
       return FieldType();
     }
     return (*row)["test_field"].get<FieldType>();
+  }
+  Hash owner(const Hash &id){
+    std::shared_ptr<TableInsertQuery> row = getRow(id);
+    if (!static_cast<bool>(row)){
+      LOG(ERROR) << "Row " << id.getString() << " not found.";
+      return Hash();
+    }
+    return (*row)["owner"].get<Hash>();
   }
   bool update(const Hash &id, const FieldType& newValue){
     std::shared_ptr<TableInsertQuery> row = getRow(id);
@@ -201,7 +209,7 @@ TYPED_TEST(FieldTest, Init){
   FieldTestTable<TypeParam> table;
   table.init();
   std::shared_ptr<TableInsertQuery> structure = table.templateForward();
-  EXPECT_EQ(structure->fieldqueries_size(), 3);
+  EXPECT_EQ(structure->fieldqueries_size(), 4);
   EXPECT_TRUE(fieldOf((*structure)["test_field"], *structure));
   table.cleanup();
 }
@@ -220,6 +228,7 @@ TYPED_TEST(FieldTest, CreateRead){
   FieldTestTable<TypeParam> table;
   table.init();
   Hash createTest = table.insert(this->sample_data_1());
+  EXPECT_EQ(table.getOwner(), table.owner(createTest));
   EXPECT_EQ(table.get(createTest), this->sample_data_1());
   table.cleanup();
 }

@@ -21,6 +21,7 @@ class MapApiCore {
  public:
   /**
    * Get singleton instance of Map Api Core
+   * TODO(tcies) just make all functions static (thread-safety!)...
    */
   static MapApiCore& getInstance();
   /**
@@ -39,6 +40,10 @@ class MapApiCore {
    * Check if initialized
    */
   bool isInitialized() const;
+  /**
+   * Makes the server thread re-enter, disconnects from database
+   */
+  void kill();
 
  private:
   /**
@@ -51,6 +56,7 @@ class MapApiCore {
    */
   std::shared_ptr<Poco::Data::Session> getSession();
   friend class TableInterface;
+  friend class Transaction;
   /**
    * Session of local database
    */

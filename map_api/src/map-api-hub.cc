@@ -26,11 +26,7 @@ MapApiHub::MapApiHub() : terminate_(false) {
 }
 
 MapApiHub::~MapApiHub(){
-  std::ofstream cleanDiscovery(FAKE_DISCOVERY, std::ios::out);
-  cleanDiscovery << std::endl;
-  cleanDiscovery.close();
-  terminate_ = true;
-  listener_.join();
+  kill();
 }
 
 bool MapApiHub::init(const std::string &ipPort){
@@ -38,7 +34,16 @@ bool MapApiHub::init(const std::string &ipPort){
 
   // 1. create own server
   context_ = std::unique_ptr<zmq::context_t>(new zmq::context_t());
+  listenerConnected_ = false;
   listener_ = std::thread(listenThread, this, ipPort);
+  {
+    std::unique_lock<std::mutex> lock(condVarMutex_);
+    listenerStatus_.wait(lock);
+  }
+  if (!listenerConnected_){
+    context_.reset();
+    return false;
+  }
 
   // 2. connect to servers already on network (discovery from file)
   std::ifstream discovery(FAKE_DISCOVERY, std::ios::in);
@@ -53,9 +58,16 @@ bool MapApiHub::init(const std::string &ipPort){
       continue;
     }
     LOG(INFO) << "Found peer " << other << ", connecting...";
-    auto it = peers_.insert(std::unique_ptr<zmq::socket_t>(
-        new zmq::socket_t(*context_, ZMQ_REQ))).first;
-    (*it)->connect(("tcp://" + other).c_str());
+    std::shared_ptr<zmq::socket_t> newPeer =
+        std::make_shared<zmq::socket_t>(zmq::socket_t(*context_, ZMQ_REQ));
+    try {
+      newPeer->connect(("tcp://" + other).c_str());
+    } catch (const std::exception& e){
+      LOG(WARNING) << "Attempted to connect to invalid socket " << other <<
+          ", discarding...";
+      continue;
+    }
+    peers_.insert(newPeer);
   }
   peerLock_.unlock();
   discovery.close();
@@ -92,17 +104,28 @@ MapApiHub &MapApiHub::getInstance(){
 
 void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
   zmq::socket_t server(*(self->context_), ZMQ_REP);
-  // server only lives in this thread
-  try {
-    server.bind(("tcp://"+ipPort).c_str());
+  {
+    std::unique_lock<std::mutex> lock(self->condVarMutex_);
+    // server only lives in this thread
+    VLOG(3) << "Bind to " << ipPort;
+    try {
+      server.bind(("tcp://" + ipPort).c_str());
+      self->listenerConnected_ = true;
+      lock.unlock();
+      self->listenerStatus_.notify_one();
+    }
+    catch (const std::exception &e){
+      LOG(ERROR) << "Server bind failed with exception \"" << e.what() <<
+          "\", ipPort string was " << ipPort;
+      self->listenerConnected_ = false;
+      lock.unlock();
+      self->listenerStatus_.notify_one();
+      return;
+    }
   }
-  catch (const std::exception &e){
-    LOG(FATAL) << "Server bind failed with exception \"" << e.what() << "\", "\
-        "ipPort string was " << ipPort;
-  }
-  int to = 100;
-  server.setsockopt(ZMQ_RCVTIMEO,&to,sizeof(to));
-  LOG(INFO) << "Server launched..." << std::endl;
+  int timeOutMs = 100;
+  server.setsockopt(ZMQ_RCVTIMEO, &timeOutMs, sizeof(timeOutMs));
+  LOG(INFO) << "Server launched...";
 
   while (true){
     zmq::message_t message;
@@ -124,7 +147,7 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
       // A new node says Hello: Connect to its publisher
       case proto::NodeQueryUnion_Type_HELLO:{
         LOG(INFO) << "Peer " << query.hello().from() << " says hello, let's "\
-            "connect to it..." << std::endl;
+            "connect to it...";
         // lock peer set lock so we can write without a race condition
         self->peerLock_.writeLock();
         auto it = self->peers_.insert(std::unique_ptr<zmq::socket_t>(
@@ -137,11 +160,27 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
 
       // Not recognized:
       default:{
-        LOG(ERROR) << "Message " << query.type() << " not recognized"
-        << std::endl;
+        LOG(ERROR) << "Message " << query.type() << " not recognized";
       }
     }
   }
+  server.unbind(("tcp://" + ipPort).c_str());
   LOG(INFO) << "Listener terminated\n";
 }
+
+void MapApiHub::kill(){
+  // unbind and re-enter server
+  terminate_ = true;
+  listener_.join();
+  // disconnect from peers
+  peerLock_.writeLock();
+  peers_.clear();
+  peerLock_.unlock();
+  // destroy context
+  context_ = std::unique_ptr<zmq::context_t>();
+  // clean discovery file
+  // TODO(tcies) now only remove own registry
+  std::ofstream cleanDiscovery(FAKE_DISCOVERY, std::ios::trunc);
+}
+
 }
