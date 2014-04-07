@@ -53,7 +53,8 @@ SET(CORE_SOURCE src/hash.cc
                  src/revision.cc
                  src/table-field.cc
                  src/table-interface.cc
-                 src/transaction.cc)
+                 src/transaction.cc
+                 src/write-only-table-interface.cc)
                 
 add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_HDRS} ${PROTO_SRCS})
 add_dependencies(${PROJECT_NAME} ${BUILD_DEPEND})
