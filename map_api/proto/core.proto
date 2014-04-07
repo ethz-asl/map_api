@@ -27,7 +27,7 @@ message TableField {
 }
 
 message Revision {
-  required string target = 1;
+  required string table = 1;
   repeated TableField fieldQueries = 2;
 }
 

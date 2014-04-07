@@ -55,9 +55,6 @@ class Transaction {
    */
   bool commonOperations(const SharedRevisionPointer& oldState,
       const SharedRevisionPointer& newState);
-  /**
-   * Make public?
-   */
   bool notifyAbortedOrInactive();
   /**
    * Journal entry

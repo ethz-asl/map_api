@@ -30,6 +30,11 @@ class WriteOnlyTableInterface : public proto::TableDescriptor {
    */
   virtual bool init() = 0;
 
+  /**
+   * TODO(tcies) might drop notion of owner for write-only tables - it's
+   * probably not really absolutely required, unlike in updatable tables, where
+   * it's needed to lock.
+   */
   const Hash& getOwner() const;
 
  protected:

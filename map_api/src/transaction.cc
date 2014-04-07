@@ -62,7 +62,7 @@ bool Transaction::addInsertQuery(const SharedRevisionPointer& query){
   // assemble SQLite statement
   Poco::Data::Statement stat(*session_);
   // NB: sqlite placeholders work only for column values
-  stat << "INSERT INTO " << query->target() << " ";
+  stat << "INSERT INTO " << query->table() << " ";
 
   stat << "(";
   for (int i = 0; i < query->fieldqueries_size(); ++i){

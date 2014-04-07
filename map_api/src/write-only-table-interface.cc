@@ -89,7 +89,7 @@ std::shared_ptr<Revision> WriteOnlyTableInterface::getTemplate() const{
       std::shared_ptr<Revision>(
           new Revision);
   // add own name
-  ret->set_target(name());
+  ret->set_table(name());
   // add editable fields
   for (int i=0; i<this->fields_size(); ++i){
     *(ret->add_fieldqueries()->mutable_nametype()) = this->fields(i);

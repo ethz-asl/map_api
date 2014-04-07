@@ -1,0 +1,55 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{todonotes}
+\usepackage{a4wide}
+
+\title{Map API design document}
+\author{Titus Cieslewski}
+\date{Spring 2014}
+
+\setlength{\parindent}{0mm}
+\setlength{\parskip}{3mm}
+
+\begin{document}
+
+\maketitle
+
+\section{Overview}
+
+The Map API should provide a mean for robots to collaborate on maps on a large
+scale. It is designed with collaboration on a pose graph in mind, but pose
+graph and the backend are separated, allowing using the Map API for other
+map-related tasks.
+
+The envisioned long-term goal is to develop a Peer-to-peer database system
+(PDBS) geared towards mapping purposes.
+
+\section{Application-to-database mapping, create and read}
+
+Applications acces the Map API by extending a table interface class. What
+fields the application would want to use is to be defined in the virutal
+method {\tt define()}, using calls to {\tt addField()}.
+
+Two types of table interfaces can be chosen: Table interfaces that allow
+updating items and table interfaces that don't. They expose the following
+protected methods:
+
+\begin{itemize} \itemsep0em
+  \item {\tt std::shared\_ptr$<$Revision$>$ getTemplate()}
+  \item {\tt std::shared\_ptr$<$Revision$>$ getRow(const map\_api::Hash \&id)}
+  \item {\tt map\_api::Hash insertQuery(Revision\& query)}
+\end{itemize}
+
+Objects are inserted into the database by first calling {\tt getTemplate()},
+populating the obtained revision with the data to be inserted, then sending
+the filled revision to {\tt insertQuery()}. The function returns a look-up
+hash which can be then used to retrieve the data from the database again by
+suppying the hash to {\tt getRow()}.
+
+\section{Updating items: Transactions}
+
+\subsection{Transaction walkthrough}
+
+\subsection{Revision history}
+
+\end{document}

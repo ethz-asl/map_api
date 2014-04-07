@@ -65,6 +65,7 @@ bool TableInterface::setup(std::string name){
   return true;
 }
 
+
 bool TableInterface::updateQuery(const Hash& id,
                                  const Revision& query){
   // TODO(tcies) all concurrency handling, owner locking, etc... comes here
