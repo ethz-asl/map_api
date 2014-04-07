@@ -18,12 +18,12 @@ typedef void* TimeStamp;
 
 class History : public WriteOnlyTableInterface {
   /**
-   * Define the table of which the history is to be kept in this table.
+   * Define the table of which the history is to be kept.
    * Will create a table with the name <table.name()>_history.
    * Owner is used later to verify that owner locks affected rows when pushing
    * a revision to the revision history
    */
-  History(const TableInterface& table);
+  explicit History(const TableInterface& table);
   /**
    * Takes the table name taken from constructor to set up table interface
    */
