@@ -10,11 +10,9 @@
 
 #include <map-api/table-interface.h>
 
+#include <Poco/DateTime.h>
+
 namespace map_api {
-
-// TODO(tcies) appropriate timestamp type, own class
-typedef void* TimeStamp;
-
 
 class History : public WriteOnlyTableInterface {
   /**
@@ -45,7 +43,7 @@ class History : public WriteOnlyTableInterface {
    * Returns shared pointer of revision at requested time.
    */
   std::shared_ptr<Revision> revisionAt(const Hash& rowId,
-                                       const TimeStamp& time);
+                                       const Poco::DateTime& time);
   /**
    * Directly inserts the new revision into the history at the current time
    * after verifying the lock holder of the row is the same as the owner
