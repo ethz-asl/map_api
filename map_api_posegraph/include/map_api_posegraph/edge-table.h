@@ -10,7 +10,7 @@
 
 #include <memory>
 
-#include "map-api/table-interface.h"
+#include "map-api/cru-table-interface.h"
 #include "map-api/hash.h"
 #include "map_api_posegraph/edge.h"
 #include "map_api_posegraph/frame-table.h"
@@ -18,7 +18,7 @@
 namespace map_api {
 namespace posegraph {
 
-class EdgeTable : public map_api::TableInterface {
+class EdgeTable : public map_api::CRUTableInterface {
  public:
   virtual bool init();
   /**

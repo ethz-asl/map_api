@@ -8,20 +8,20 @@
 #ifndef HISTORY_H_
 #define HISTORY_H_
 
-#include <map-api/table-interface.h>
+#include <map-api/cru-table-interface.h>
 
 #include <Poco/DateTime.h>
 
 namespace map_api {
 
-class History : public WriteOnlyTableInterface {
+class History : public CRTableInterface {
   /**
    * Define the table of which the history is to be kept.
    * Will create a table with the name <table.name()>_history.
    * Owner is used later to verify that owner locks affected rows when pushing
    * a revision to the revision history
    */
-  explicit History(const TableInterface& table);
+  explicit History(const CRUTableInterface& table);
   /**
    * Takes the table name taken from constructor to set up table interface
    */

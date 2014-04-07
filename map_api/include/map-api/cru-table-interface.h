@@ -10,7 +10,7 @@
 
 #include "map-api/hash.h"
 #include "map-api/revision.h"
-#include "map-api/write-only-table-interface.h"
+#include "map-api/cr-table-interface.h"
 #include "core.pb.h"
 
 namespace map_api {
@@ -18,7 +18,7 @@ namespace map_api {
 /**
  * Provides interface to map api tables.
  */
-class TableInterface : public WriteOnlyTableInterface{
+class CRUTableInterface : public CRTableInterface{
  public:
   virtual bool init() = 0;
  protected:

@@ -5,7 +5,7 @@
  *      Author: titus
  */
 
-#include <map-api/write-only-table-interface.h>
+#include <map-api/cru-table-interface.h>
 
 #include <cstdio>
 #include <map>
@@ -26,11 +26,11 @@ DEFINE_string(ipPort, "127.0.0.1:5050", "Define node ip and port");
 
 namespace map_api {
 
-const Hash& WriteOnlyTableInterface::getOwner() const{
+const Hash& CRTableInterface::getOwner() const{
   return owner_;
 }
 
-bool WriteOnlyTableInterface::addField(std::string name,
+bool CRTableInterface::addField(std::string name,
                               proto::TableFieldDescriptor_Type type){
   // make sure the field has not been defined yet
   for (int i=0; i<fields_size(); ++i){
@@ -46,7 +46,7 @@ bool WriteOnlyTableInterface::addField(std::string name,
   return true;
 }
 
-bool WriteOnlyTableInterface::setup(const std::string& name){
+bool CRTableInterface::setup(const std::string& name){
   // TODO(tcies) Test before initialized or RAII
   // TODO(tcies) check whether string safe for SQL, e.g. no hyphens
   set_name(name);
@@ -84,7 +84,7 @@ bool WriteOnlyTableInterface::setup(const std::string& name){
   return true;
 }
 
-std::shared_ptr<Revision> WriteOnlyTableInterface::getTemplate() const{
+std::shared_ptr<Revision> CRTableInterface::getTemplate() const{
   std::shared_ptr<Revision> ret =
       std::shared_ptr<Revision>(
           new Revision);
@@ -98,7 +98,7 @@ std::shared_ptr<Revision> WriteOnlyTableInterface::getTemplate() const{
   return ret;
 }
 
-bool WriteOnlyTableInterface::createQuery(){
+bool CRTableInterface::createQuery(){
   Poco::Data::Statement stat(*session_);
   stat << "CREATE TABLE IF NOT EXISTS " << name() << " (";
   // parse fields from descriptor as database fields
@@ -124,7 +124,7 @@ bool WriteOnlyTableInterface::createQuery(){
 }
 
 // TODO(tcies) pass by reference to shared pointer
-map_api::Hash WriteOnlyTableInterface::insertQuery(Revision& query){
+map_api::Hash CRTableInterface::insertQuery(Revision& query){
   // set ID (TODO(tcies): set owner as well)
   map_api::Hash idHash(query.SerializeAsString());
   query["ID"].set(idHash);
@@ -140,7 +140,7 @@ map_api::Hash WriteOnlyTableInterface::insertQuery(Revision& query){
   return idHash;
 }
 
-std::shared_ptr<Revision> WriteOnlyTableInterface::getRow(
+std::shared_ptr<Revision> CRTableInterface::getRow(
     const map_api::Hash &id) const{
   std::shared_ptr<Revision> query = getTemplate();
   Poco::Data::Statement stat(*session_);

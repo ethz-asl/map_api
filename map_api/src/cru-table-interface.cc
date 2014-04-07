@@ -5,7 +5,7 @@
  *      Author: titus
  */
 
-#include "map-api/table-interface.h"
+#include "map-api/cru-table-interface.h"
 
 #include <cstdio>
 #include <map>
@@ -26,7 +26,7 @@ DECLARE_string(ipPort);
 
 namespace map_api {
 
-bool TableInterface::setup(const std::string &name){
+bool CRUTableInterface::setup(const std::string &name){
   // TODO(tcies) outsource tasks common with write-only table interface
   // TODO(tcies) Test before initialized or RAII
   // TODO(tcies) check whether string safe for SQL, e.g. no hyphens
@@ -66,7 +66,7 @@ bool TableInterface::setup(const std::string &name){
 }
 
 
-bool TableInterface::updateQuery(const Hash& id,
+bool CRUTableInterface::updateQuery(const Hash& id,
                                  const Revision& query){
   // TODO(tcies) all concurrency handling, owner locking, etc... comes here
   Poco::Data::Statement stat(*session_);

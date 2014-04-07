@@ -17,12 +17,12 @@
 
 #include "map-api/hash.h"
 #include "map-api/revision.h"
-#include "map-api/write-only-table-interface.h"
+#include "map-api/cr-table-interface.h"
 #include "core.pb.h"
 
 namespace map_api {
 
-class WriteOnlyTableInterface : public proto::TableDescriptor {
+class CRTableInterface : public proto::TableDescriptor {
  public:
   /**
    * Init routine, must be implemented by derived class, defines table name.
@@ -77,7 +77,7 @@ class WriteOnlyTableInterface : public proto::TableDescriptor {
   std::shared_ptr<Poco::Data::Session> session_;
 
  private:
-  friend class TableInterface;
+  friend class CRUTableInterface;
   /**
    * Synchronize with cluster: Check if table already present in cluster
    * metatable, add user to distributed table
