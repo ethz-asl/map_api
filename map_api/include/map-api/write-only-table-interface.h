@@ -42,7 +42,7 @@ class WriteOnlyTableInterface : public proto::TableDescriptor {
    * Setup: Load table definition and match with table definition in
    * cluster.
    */
-  virtual bool setup(std::string name);
+  virtual bool setup(const std::string& name);
   /**
    * Function to be implemented by derivations: Define table by repeated
    * calls to addField()

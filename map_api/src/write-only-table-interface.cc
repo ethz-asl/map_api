@@ -46,7 +46,7 @@ bool WriteOnlyTableInterface::addField(std::string name,
   return true;
 }
 
-bool WriteOnlyTableInterface::setup(std::string name){
+bool WriteOnlyTableInterface::setup(const std::string& name){
   // TODO(tcies) Test before initialized or RAII
   // TODO(tcies) check whether string safe for SQL, e.g. no hyphens
   set_name(name);

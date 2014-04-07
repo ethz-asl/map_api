@@ -26,7 +26,7 @@ class TableInterface : public WriteOnlyTableInterface{
    * Setup: Load table definition and match with table definition in
    * cluster.
    */
-  virtual bool setup(std::string name);
+  virtual bool setup(const std::string& name);
   virtual bool define() = 0;
   /**                                                                      U   U
    *                                                                       U   U

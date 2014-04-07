@@ -26,7 +26,7 @@ DECLARE_string(ipPort);
 
 namespace map_api {
 
-bool TableInterface::setup(std::string name){
+bool TableInterface::setup(const std::string &name){
   // TODO(tcies) outsource tasks common with write-only table interface
   // TODO(tcies) Test before initialized or RAII
   // TODO(tcies) check whether string safe for SQL, e.g. no hyphens
