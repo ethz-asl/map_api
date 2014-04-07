@@ -47,12 +47,14 @@ include_directories(include ${catkin_INCLUDE_DIRS}
                     ${Eigen_INCLUDE_DIRS})
 
 # Core Library available to all applications
-SET(CORE_SOURCE src/hash.cc
+SET(CORE_SOURCE  src/cr-table-interface.cc
+                 src/cru-table-interface.cc
+                 src/hash.cc
+                 src/history.cc
                  src/map-api-core.cc
                  src/map-api-hub.cc
                  src/revision.cc
                  src/table-field.cc
-                 src/table-interface.cc
                  src/transaction.cc)
                 
 add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_HDRS} ${PROTO_SRCS})

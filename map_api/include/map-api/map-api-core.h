@@ -5,7 +5,7 @@
 
 #include <Poco/Data/Common.h>
 
-#include "map-api/table-interface.h"
+#include "map-api/cru-table-interface.h"
 #include "map-api/map-api-hub.h"
 #include "core.pb.h"
 
@@ -31,7 +31,7 @@ class MapApiCore {
   /**
    * Get interface to given table by table name
    */
-  std::shared_ptr<TableInterface> getTable(const std::string &name);
+  std::shared_ptr<CRUTableInterface> getTable(const std::string &name);
   /**
    * Initializer
    */
@@ -55,7 +55,8 @@ class MapApiCore {
    * Returns a shared pointer to the database session
    */
   std::shared_ptr<Poco::Data::Session> getSession();
-  friend class TableInterface;
+  friend class CRTableInterface;
+  friend class CRUTableInterface;
   friend class Transaction;
   /**
    * Session of local database

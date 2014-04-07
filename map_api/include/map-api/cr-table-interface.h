@@ -1,5 +1,12 @@
-#ifndef TABLE_INTERFACE_H
-#define TABLE_INTERFACE_H
+/*
+ * write-only-table-interface.h
+ *
+ *  Created on: Apr 4, 2014
+ *      Author: titus
+ */
+
+#ifndef WRITE_ONLY_TABLE_INTERFACE_H_
+#define WRITE_ONLY_TABLE_INTERFACE_H_
 
 #include <vector>
 #include <memory>
@@ -10,14 +17,12 @@
 
 #include "map-api/hash.h"
 #include "map-api/revision.h"
+#include "map-api/cr-table-interface.h"
 #include "core.pb.h"
 
 namespace map_api {
 
-/**
- * Provides interface to map api tables.
- */
-class TableInterface : public proto::TableDescriptor {
+class CRTableInterface : public proto::TableDescriptor {
  public:
   /**
    * Init routine, must be implemented by derived class, defines table name.
@@ -25,6 +30,11 @@ class TableInterface : public proto::TableDescriptor {
    */
   virtual bool init() = 0;
 
+  /**
+   * TODO(tcies) might drop notion of owner for write-only tables - it's
+   * probably not really absolutely required, unlike in updatable tables, where
+   * it's needed to lock.
+   */
   const Hash& getOwner() const;
 
  protected:
@@ -32,7 +42,7 @@ class TableInterface : public proto::TableDescriptor {
    * Setup: Load table definition and match with table definition in
    * cluster.
    */
-  bool setup(std::string name);
+  virtual bool setup(const std::string& name);
   /**
    * Function to be implemented by derivations: Define table by repeated
    * calls to addField()
@@ -60,13 +70,6 @@ class TableInterface : public proto::TableDescriptor {
    *                                                                       R   R
    */
   std::shared_ptr<Revision> getRow(const Hash& id) const;
-  /**                                                                      U   U
-   *                                                                       U   U
-   * Takes hash ID and TableInsertQuery as argument and updates the row of U   U
-   * the given ID with the query                                           U   U
-   *                                                                        UUU
-   */
-  bool updateQuery(const Hash& id, const Revision& query);
   /**
    * Shared pointer to database session TODO(tcies) can this be set private
    * yet accessed from a test table?
@@ -74,6 +77,7 @@ class TableInterface : public proto::TableDescriptor {
   std::shared_ptr<Poco::Data::Session> session_;
 
  private:
+  friend class CRUTableInterface;
   /**
    * Synchronize with cluster: Check if table already present in cluster
    * metatable, add user to distributed table
@@ -89,8 +93,9 @@ class TableInterface : public proto::TableDescriptor {
    */
   std::map<Hash, Revision> cache_;
   Hash owner_;
+
 };
 
-}
+} /* namespace map_api */
 
-#endif  // TABLE_INTERFACE_H
+#endif /* WRITE_ONLY_TABLE_INTERFACE_H_ */

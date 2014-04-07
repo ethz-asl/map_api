@@ -8,14 +8,14 @@
 #ifndef FRAME_TABLE_H_
 #define FRAME_TABLE_H_
 
-#include "map-api/table-interface.h"
+#include "map-api/cru-table-interface.h"
 #include "map_api_posegraph/frame.h"
 
 namespace map_api {
 namespace posegraph {
 
 // TODO(tcies) implement generic class for blob tables?
-class FrameTable : public map_api::TableInterface {
+class FrameTable : public map_api::CRUTableInterface {
  public:
   virtual bool init();
   map_api::Hash insertFrame(const Frame& frame);

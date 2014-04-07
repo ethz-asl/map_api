@@ -1,0 +1,89 @@
+/*
+ * TableInterface.cpp
+ *
+ *  Created on: Mar 6, 2014
+ *      Author: titus
+ */
+
+#include "map-api/cru-table-interface.h"
+
+#include <cstdio>
+#include <map>
+
+#include <Poco/Data/Common.h>
+#include <Poco/Data/Statement.h>
+#include <Poco/Data/SQLite/Connector.h>
+#include <Poco/Data/BLOB.h>
+#include <glog/logging.h>
+#include <gflags/gflags.h>
+
+#include "map-api/map-api-core.h"
+#include "map-api/table-field.h"
+#include "map-api/transaction.h"
+#include "core.pb.h"
+
+DECLARE_string(ipPort);
+
+namespace map_api {
+
+bool CRUTableInterface::setup(const std::string &name){
+  // TODO(tcies) outsource tasks common with write-only table interface
+  // TODO(tcies) Test before initialized or RAII
+  // TODO(tcies) check whether string safe for SQL, e.g. no hyphens
+  set_name(name);
+  // Define table fields
+  // enforced fields id (hash) and owner
+  addField("ID",proto::TableFieldDescriptor_Type_HASH128);
+  addField("owner",proto::TableFieldDescriptor_Type_HASH128);
+  // transaction-enforced fields
+  std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
+  transactionFields(Transaction::requiredTableFields());
+  for (const proto::TableFieldDescriptor& descriptor :
+      *transactionFields){
+    addField(descriptor.name(), descriptor.type());
+  }
+  // user-defined fields
+  define();
+
+  // start up core if not running yet TODO(tcies) do this in the core
+  if (!MapApiCore::getInstance().isInitialized()) {
+    MapApiCore::getInstance().init(FLAGS_ipPort);
+  }
+
+  // choose owner ID TODO(tcies) this is temporary
+  // TODO(tcies) make shareable across table interfaces
+  owner_ = Hash::randomHash();
+  LOG(INFO) << "Table interface with owner " << owner_.getString();
+
+  // connect to database & create table
+  // TODO(tcies) register in master table
+  session_ = MapApiCore::getInstance().getSession();
+  createQuery();
+
+  // Sync with cluster TODO(tcies)
+  // sync();
+  return true;
+}
+
+
+bool CRUTableInterface::updateQuery(const Hash& id,
+                                 const Revision& query){
+  // TODO(tcies) all concurrency handling, owner locking, etc... comes here
+  Poco::Data::Statement stat(*session_);
+  stat << "UPDATE " << name() << " SET ";
+  for (int i=0; i<query.fieldqueries_size(); ++i){
+    if (i>0){
+      stat << ", ";
+    }
+    const TableField& field =
+        static_cast<const TableField&>(query.fieldqueries(i));
+    stat << field.nametype().name() << "=";
+    field.insertPlaceHolder(stat);
+  }
+  stat << "WHERE ID LIKE :id", Poco::Data::use(id.getString());
+
+  stat.execute();
+  return stat.done();
+}
+
+}
