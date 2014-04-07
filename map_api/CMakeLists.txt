@@ -48,6 +48,7 @@ include_directories(include ${catkin_INCLUDE_DIRS}
 
 # Core Library available to all applications
 SET(CORE_SOURCE src/hash.cc
+                 src/history.cc
                  src/map-api-core.cc
                  src/map-api-hub.cc
                  src/revision.cc
