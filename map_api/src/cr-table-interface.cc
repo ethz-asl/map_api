@@ -1,11 +1,11 @@
 /*
- * TableInterface.cpp
+ * write-only-table-interface.cc
  *
- *  Created on: Mar 6, 2014
+ *  Created on: Apr 4, 2014
  *      Author: titus
  */
 
-#include "map-api/table-interface.h"
+#include <map-api/cru-table-interface.h>
 
 #include <cstdio>
 #include <map>
@@ -26,11 +26,11 @@ DEFINE_string(ipPort, "127.0.0.1:5050", "Define node ip and port");
 
 namespace map_api {
 
-const Hash& TableInterface::getOwner() const{
+const Hash& CRTableInterface::getOwner() const{
   return owner_;
 }
 
-bool TableInterface::addField(std::string name,
+bool CRTableInterface::addField(std::string name,
                               proto::TableFieldDescriptor_Type type){
   // make sure the field has not been defined yet
   for (int i=0; i<fields_size(); ++i){
@@ -46,7 +46,7 @@ bool TableInterface::addField(std::string name,
   return true;
 }
 
-bool TableInterface::setup(std::string name){
+bool CRTableInterface::setup(const std::string& name){
   // TODO(tcies) Test before initialized or RAII
   // TODO(tcies) check whether string safe for SQL, e.g. no hyphens
   set_name(name);
@@ -84,7 +84,7 @@ bool TableInterface::setup(std::string name){
   return true;
 }
 
-std::shared_ptr<Revision> TableInterface::getTemplate() const{
+std::shared_ptr<Revision> CRTableInterface::getTemplate() const{
   std::shared_ptr<Revision> ret =
       std::shared_ptr<Revision>(
           new Revision);
@@ -98,7 +98,7 @@ std::shared_ptr<Revision> TableInterface::getTemplate() const{
   return ret;
 }
 
-bool TableInterface::createQuery(){
+bool CRTableInterface::createQuery(){
   Poco::Data::Statement stat(*session_);
   stat << "CREATE TABLE IF NOT EXISTS " << name() << " (";
   // parse fields from descriptor as database fields
@@ -124,7 +124,7 @@ bool TableInterface::createQuery(){
 }
 
 // TODO(tcies) pass by reference to shared pointer
-map_api::Hash TableInterface::insertQuery(Revision& query){
+map_api::Hash CRTableInterface::insertQuery(Revision& query){
   // set ID (TODO(tcies): set owner as well)
   map_api::Hash idHash(query.SerializeAsString());
   query["ID"].set(idHash);
@@ -140,7 +140,7 @@ map_api::Hash TableInterface::insertQuery(Revision& query){
   return idHash;
 }
 
-std::shared_ptr<Revision> TableInterface::getRow(
+std::shared_ptr<Revision> CRTableInterface::getRow(
     const map_api::Hash &id) const{
   std::shared_ptr<Revision> query = getTemplate();
   Poco::Data::Statement stat(*session_);
@@ -215,24 +215,4 @@ std::shared_ptr<Revision> TableInterface::getRow(
   return query;
 }
 
-bool TableInterface::updateQuery(const Hash& id,
-                                 const Revision& query){
-  // TODO(tcies) all concurrency handling, owner locking, etc... comes here
-  Poco::Data::Statement stat(*session_);
-  stat << "UPDATE " << name() << " SET ";
-  for (int i=0; i<query.fieldqueries_size(); ++i){
-    if (i>0){
-      stat << ", ";
-    }
-    const TableField& field =
-        static_cast<const TableField&>(query.fieldqueries(i));
-    stat << field.nametype().name() << "=";
-    field.insertPlaceHolder(stat);
-  }
-  stat << "WHERE ID LIKE :id", Poco::Data::use(id.getString());
-
-  stat.execute();
-  return stat.done();
-}
-
-}
+} /* namespace map_api */

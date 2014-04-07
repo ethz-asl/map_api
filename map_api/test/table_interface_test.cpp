@@ -11,11 +11,11 @@
 #include <Poco/Data/BLOB.h>
 #include <Poco/Data/Statement.h>
 
-#include <map-api/table-interface.h>
+#include <map-api/cru-table-interface.h>
 
 using namespace map_api;
 
-class TestTable : public TableInterface{
+class TestTable : public CRUTableInterface{
  public:
   virtual bool init(){
     setup("test_table");
