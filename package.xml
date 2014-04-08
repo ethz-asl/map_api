@@ -15,8 +15,10 @@
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>ceres</build_depend>
   <build_depend>eigen</build_depend>
+  <build_depend>kindr_catkin</build_depend>
   <run_depend>ceres</run_depend>
   <run_depend>eigen</run_depend>
+  <run_depend>kindr_catkin</run_depend>
 
 
   <export>
