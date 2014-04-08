@@ -9,12 +9,13 @@
 #define HISTORY_H_
 
 #include <map-api/cru-table-interface.h>
-
-#include <Poco/DateTime.h>
+#include <map-api/time.h>
 
 namespace map_api {
 
 class History : public CRTableInterface {
+  friend class CRUTableInterface;
+ private:
   /**
    * Define the table of which the history is to be kept.
    * Will create a table with the name <table.name()>_history.
@@ -31,7 +32,7 @@ class History : public CRTableInterface {
    * - ID (implicit)
    * - rowID: Hash Identifier of the row that the given revision is a revision
    * of
-   * - timestamp: ns-resolution timestamp of the revision
+   * - previous: A history item always refers to its previous revision.
    * - newState: serialized protobuf revision of the updated state
    *
    * TODO(discuss) updateable tables will not contain the actual revision
@@ -41,19 +42,17 @@ class History : public CRTableInterface {
   virtual bool define();
   /**
    * Returns shared pointer of revision at requested time.
+   * TODO(tcies) well yes... will we need this really?
    */
   std::shared_ptr<Revision> revisionAt(const Hash& rowId,
-                                       const Poco::DateTime& time);
+                                       const Time& time);
   /**
-   * Directly inserts the new revision into the history at the current time
-   * after verifying the lock holder of the row is the same as the owner
-   * declared in the constructor. This shall be called exclusively from the
-   * commit() function of the transaction.
-   * TODO(discuss) should I make this private and friend class Transaction? Then
-   * again, the user of this class shouldn't be anyone else but TableInterface
-   * and Transaction.
+   * Inserts revision into history. Proper linking is responsibility of
+   * CRUTableInterface / Transaction
    */
-  bool submit(const Hash& rowId, const Revision& revision);
+  Hash insert(const Revision& revision, const Hash& previous);
+
+  const CRUTableInterface& table_;
 };
 
 } /* namespace map_api */

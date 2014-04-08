@@ -54,6 +54,7 @@ class CRTableInterface : public proto::TableDescriptor {
   std::shared_ptr<Revision> getTemplate() const;
   /**
    * Function to be called at definition:  Adds field to table
+   * TODO(tcies) templated implementation? Would hide proto.
    */
   bool addField(std::string name, proto::TableFieldDescriptor_Type type);
   /**                                                                       CCCC
