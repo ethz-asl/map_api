@@ -4,13 +4,16 @@ project(ceres_error_terms)
 find_package(catkin REQUIRED COMPONENTS
   ceres
   roscpp
-  eigen REQUIRED
+  kindr_catkin
+  REQUIRED
 )
 
-find_package( Kindr REQUIRED )
+find_package(Eigen REQUIRED)
+
+add_definitions(--std=c++0x)
 
 catkin_package(
-  CATKIN_DEPENDS ceres
+  CATKIN_DEPENDS ceres kindr_catkin
   DEPENDS eigen
 )
 
@@ -22,7 +25,6 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${Eigen_INCLUDE_DIRS}
-  ${Kindr_INCLUDE_DIRS}
 )
 add_definitions(${EIGEN_DEFINITIONS})
 
@@ -31,9 +33,6 @@ add_definitions(${EIGEN_DEFINITIONS})
 #target_link_libraries(${PROJECT_NAME}
 #  ${catkin_LIBRARIES}
 #)
-
-add_definitions(--std=c++0x)
-
 
 #############
 ## Testing ##
