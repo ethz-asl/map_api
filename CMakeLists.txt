@@ -30,7 +30,7 @@ catkin_package(
 
 include_directories(${LEMON_INCLUDE_DIRS})
 
-add_library(${PROJECT_NAME} src/edge.cc)
+add_library(${PROJECT_NAME} src/edge.cc src/pose-graph.cc)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${GLOG_LIBRARY})
 add_dependencies(${PROJECT_NAME} lemon)
 
