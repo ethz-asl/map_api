@@ -4,8 +4,7 @@ project(ceres_error_terms)
 find_package(catkin REQUIRED COMPONENTS
   ceres
   roscpp
-  kindr_catkin
-  REQUIRED
+  kindr
 )
 
 find_package(Eigen REQUIRED)
@@ -13,8 +12,8 @@ find_package(Eigen REQUIRED)
 add_definitions(--std=c++0x)
 
 catkin_package(
-  CATKIN_DEPENDS ceres kindr_catkin
-  DEPENDS eigen
+  DEPENDS 
+  CATKIN_DEPENDS ceres kindr
 )
 
 ###########
