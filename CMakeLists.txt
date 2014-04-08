@@ -1,12 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(ceres_error_terms)
-
-find_package(catkin REQUIRED COMPONENTS
-  ceres
-  roscpp
-  kindr
-)
-
+find_package(catkin REQUIRED COMPONENTS ceres roscpp kindr)
 find_package(Eigen REQUIRED)
 
 add_definitions(--std=c++0x)
@@ -38,7 +32,6 @@ add_definitions(${EIGEN_DEFINITIONS})
 #############
 
 catkin_add_gtest(test_relaxation test/PosegraphRelaxationTest.cpp)
-add_dependencies(test_relaxation ceres)
 
 # currently the library is header-only
 target_link_libraries(test_relaxation ${catkin_LIBRARIES})
