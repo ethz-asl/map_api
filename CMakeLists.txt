@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(ceres_error_terms)
-find_package(catkin REQUIRED COMPONENTS ceres roscpp kindr)
+find_package(catkin REQUIRED COMPONENTS roscpp kindr)
 find_package(Eigen REQUIRED)
 
 add_definitions(--std=c++0x)
