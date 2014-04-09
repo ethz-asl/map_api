@@ -27,9 +27,25 @@ Hash History::insert(const Revision& revision, const Hash& previous){
   std::shared_ptr<Revision> query = getTemplate();
   (*query)["rowId"].set(revision["ID"].get<Hash>());
   (*query)["previous"].set(previous);
-  (*query)["revision"].set(revision.SerializeAsString());
+  (*query)["revision"].set(revision);
   (*query)["time"].set(Time());
   return insertQuery(*query);
+}
+
+std::shared_ptr<Revision> History::revisionAt(const Hash& id,
+                                              const Time& time){
+  typedef std::shared_ptr<Revision> RevisionPtr;
+  RevisionPtr i = getRow(id);
+  if (!i){
+    return RevisionPtr();
+  }
+  while ((*i)["time"].get<Time>() > time){
+    i = getRow((*i)["previous"].get<Hash>());
+    if (!i){
+      return RevisionPtr();
+    }
+  }
+  return std::make_shared<Revision>((*i)["time"].get<Revision>());
 }
 
 } /* namespace map_api */

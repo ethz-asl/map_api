@@ -14,6 +14,7 @@
 
 #include <map-api/hash.h>
 #include <map-api/time.h>
+#include <map-api/revision.h>
 
 namespace map_api {
 
@@ -81,6 +82,9 @@ Poco::Data::Statement& TableField::insertPlaceHolder(
  * FUNCTIONS IMPLEMENTED WITH TEMPLATES
  */
 
+/**
+ * SET
+ */
 template <>
 void TableField::set<std::string>(const std::string& value){
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_STRING) <<
@@ -118,12 +122,21 @@ void TableField::set<Time>(const Time& value){
   set_longvalue(value.serialize());
 }
 template <>
+void TableField::set<Revision>(const Revision& value){
+  CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
+      "Trying to set non-revision field to revision";
+  set_blobvalue(value.SerializeAsString());
+}
+template <>
 void TableField::set<testBlob>(const testBlob& value){
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
       "Trying to set non-blob field to blob";
   set_blobvalue(value.SerializeAsString());
 }
 
+/**
+ * GET
+ */
 
 template <>
 std::string TableField::get<std::string>() const{
@@ -162,14 +175,25 @@ Time TableField::get<Time>() const{
   return Time(longvalue());
 }
 template <>
+Revision TableField::get<Revision>() const{
+  CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
+      "Trying to get revision from non-revision field";
+  Revision field;
+  CHECK(field.ParseFromString(blobvalue())) << "Failed to parse Revision";
+  return field;
+}
+template <>
 testBlob TableField::get<testBlob>() const{
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
       "Trying to get blob from non-blob field";
   testBlob field;
-  field.ParseFromString(blobvalue());
+  CHECK(field.ParseFromString(blobvalue())) << "Failed to parse testBlob";
   return field;
 }
 
+/**
+ * PROTOBUFENUM
+ */
 
 template <>
 map_api::proto::TableFieldDescriptor_Type

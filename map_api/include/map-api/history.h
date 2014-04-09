@@ -31,19 +31,18 @@ class History : public CRTableInterface {
    * History table fields:
    * - ID (implicit)
    * - rowID: Hash Identifier of the row that the given revision is a revision
-   * of
+   * of TODO(tcies) isn't this redundant?
    * - previous: A history item always refers to its previous revision.
-   * - newState: serialized protobuf revision of the updated state
-   *
-   * TODO(discuss) updateable tables will not contain the actual revision
-   * but only a reference to the latest entry in the history table, which then
-   * contains the actual data
+   * - revision: serialized protobuf revision of the updated state
+   * - time: time of revision
    */
   virtual bool define();
   /**
-   * Returns shared pointer of revision at requested time.
+   * Returns shared pointer of latest revision at requested time. Supplied id is
+   * reference to any revision. If that revision is older than the supplied
+   * time, it is the one that is returned.
    */
-  std::shared_ptr<Revision> revisionAt(const Hash& rowId,
+  std::shared_ptr<Revision> revisionAt(const Hash& id,
                                        const Time& time);
   /**
    * Inserts revision into history. Proper linking is responsibility of
