@@ -52,8 +52,8 @@ bool CRTableInterface::setup(const std::string& name){
   set_name(name);
   // Define table fields
   // enforced fields id (hash) and owner
-  addField("ID",proto::TableFieldDescriptor_Type_HASH128);
-  addField("owner",proto::TableFieldDescriptor_Type_HASH128);
+  addField<Hash>("ID");
+  addField<Hash>("owner");
   // transaction-enforced fields
   std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
   transactionFields(Transaction::requiredTableFields());

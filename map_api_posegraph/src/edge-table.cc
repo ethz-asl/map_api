@@ -5,15 +5,40 @@
  *      Author: titus
  */
 
+#include <map_api_posegraph/edge-table.h>
+
 #include <memory>
 #include <vector>
 
 #include <glog/logging.h>
+#include <map-api/table-field.h>
 
-#include <map_api_posegraph/edge-table.h>
 #include "core.pb.h"
 
 namespace map_api {
+
+//TODO(tcies) in definitive version of map api posegraph: Move these to
+// separate file, e.g. table-field-extension.cc (?)
+template <>
+void TableField::set<posegraph::Edge>(const posegraph::Edge& value){
+  CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
+      "Trying to set non-edge field to edge";
+  set_blobvalue(value.SerializeAsString());
+}
+template <>
+posegraph::Edge TableField::get<posegraph::Edge>() const{
+  CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
+      "Trying to get edge from non-edge field";
+  posegraph::Edge field;
+  CHECK(field.ParseFromString(blobvalue())) << "Failed to parse Edge";
+  return field;
+}
+template <>
+map_api::proto::TableFieldDescriptor_Type
+TableField::protobufEnum<posegraph::Edge>(){
+  return proto::TableFieldDescriptor_Type_BLOB;
+}
+
 namespace posegraph {
 
 bool EdgeTable::init(){
@@ -21,7 +46,7 @@ bool EdgeTable::init(){
 }
 
 bool EdgeTable::define(){
-  if (!addField("data",map_api::proto::TableFieldDescriptor_Type_BLOB))
+  if (!addField<Edge>("data"))
     return false;
   return true;
 }

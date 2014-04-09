@@ -10,6 +10,8 @@
 #include <sstream>
 
 #include <Poco/Data/Common.h>
+#include <Poco/Data/BLOB.h>
+
 #include <glog/logging.h>
 
 #include <map-api/hash.h>
@@ -48,7 +50,7 @@ Poco::Data::Statement& TableField::insertPlaceHolder(
   stat << " ";
   switch (nametype().type()){
     case (proto::TableFieldDescriptor_Type_BLOB):{
-      stat << "?", Poco::Data::use(blobvalue());
+      stat << "?", Poco::Data::use(Poco::Data::BLOB(blobvalue()));
       break;
     }
     case (proto::TableFieldDescriptor_Type_DOUBLE): {
@@ -224,6 +226,11 @@ template <>
 map_api::proto::TableFieldDescriptor_Type
 TableField::protobufEnum<Time>(){
   return proto::TableFieldDescriptor_Type_INT64;
+}
+template <>
+map_api::proto::TableFieldDescriptor_Type
+TableField::protobufEnum<Revision>(){
+  return proto::TableFieldDescriptor_Type_BLOB;
 }
 template <>
 map_api::proto::TableFieldDescriptor_Type

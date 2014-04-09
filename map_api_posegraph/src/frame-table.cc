@@ -10,6 +10,29 @@
 #include <map_api_posegraph/frame-table.h>
 
 namespace map_api {
+
+//TODO(tcies) in definitive version of map api posegraph: Move these to
+// separate file, e.g. table-field-extension.cc (?)
+template <>
+void TableField::set<posegraph::Frame>(const posegraph::Frame& value){
+  CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
+      "Trying to set non-frame field to frame";
+  set_blobvalue(value.SerializeAsString());
+}
+template <>
+posegraph::Frame TableField::get<posegraph::Frame>() const{
+  CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
+      "Trying to get frame from non-frame field";
+  posegraph::Frame field;
+  CHECK(field.ParseFromString(blobvalue())) << "Failed to parse frame";
+  return field;
+}
+template <>
+map_api::proto::TableFieldDescriptor_Type
+TableField::protobufEnum<posegraph::Frame>(){
+  return proto::TableFieldDescriptor_Type_BLOB;
+}
+
 namespace posegraph {
 
 bool FrameTable::init(){
@@ -17,7 +40,7 @@ bool FrameTable::init(){
 }
 
 bool FrameTable::define(){
-  if (!addField("data",map_api::proto::TableFieldDescriptor_Type_BLOB))
+  if (!addField<Frame>("data"))
     return false;
   return true;
 }

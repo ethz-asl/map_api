@@ -100,11 +100,14 @@ class FieldTestTable : public TestTable{
       return false;
     }
     (*row)["test_field"].set<FieldType>(newValue);
-    return updateQuery(id, *row);
+    LOG(INFO) << "Will update";
+    updateQuery(id, *row);
+    LOG(INFO) << "Updated";
+    return true;
   }
  protected:
   virtual bool define(){
-    addField("test_field", TableField::protobufEnum<FieldType>());
+    addField<FieldType>("test_field");
     return true;
   }
 };
