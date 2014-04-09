@@ -12,6 +12,7 @@
 #include <Poco/Data/Statement.h>
 
 #include <map-api/cru-table-interface.h>
+#include <map-api/time.h>
 
 using namespace map_api;
 
@@ -75,13 +76,14 @@ class FieldTestTable : public TestTable{
     (*query)["test_field"].set<FieldType>(value);
     return insertQuery(*query);
   }
-  FieldType get(const Hash &id){
+  bool get(const Hash &id, FieldType& value){
     std::shared_ptr<Revision> row = getRow(id);
     if (!static_cast<bool>(row)){
       LOG(ERROR) << "Row " << id.getString() << " not found.";
-      return FieldType();
+      return false;
     }
-    return (*row)["test_field"].get<FieldType>();
+    value = (*row)["test_field"].get<FieldType>();
+    return true;
   }
   Hash owner(const Hash &id){
     std::shared_ptr<Revision> row = getRow(id);
@@ -173,6 +175,16 @@ class FieldTest<int64_t> : public ::testing::Test{
   }
 };
 template <>
+class FieldTest<map_api::Time> : public ::testing::Test{
+ protected:
+  Time sample_data_1(){
+    return Time(9223372036854775807);
+  }
+  Time sample_data_2(){
+    return Time(9223372036854775);
+  }
+};
+template <>
 class FieldTest<testBlob> : public ::testing::Test{
  protected:
   testBlob sample_data_1(){
@@ -202,7 +214,7 @@ class FieldTest<testBlob> : public ::testing::Test{
  */
 
 typedef ::testing::Types<std::string, int32_t, double, map_api::Hash,
-    int64_t, testBlob> MyTypes;
+    int64_t, map_api::Time, testBlob> MyTypes;
 TYPED_TEST_CASE(FieldTest, MyTypes);
 
 TYPED_TEST(FieldTest, Init){
@@ -221,7 +233,8 @@ TYPED_TEST(FieldTest, CreateBeforeInit){
 
 TYPED_TEST(FieldTest, ReadBeforeInit){
   FieldTestTable<TypeParam> table;
-  EXPECT_DEATH(table.get(Hash("Give me any hash")),"^");
+  TypeParam value;
+  EXPECT_DEATH(table.get(Hash("Give me any hash"), value),"^");
 }
 
 TYPED_TEST(FieldTest, CreateRead){
@@ -229,7 +242,9 @@ TYPED_TEST(FieldTest, CreateRead){
   table.init();
   Hash createTest = table.insert(this->sample_data_1());
   EXPECT_EQ(table.getOwner(), table.owner(createTest));
-  EXPECT_EQ(table.get(createTest), this->sample_data_1());
+  TypeParam readValue;
+  EXPECT_TRUE(table.get(createTest, readValue));
+  EXPECT_EQ(readValue, this->sample_data_1());
   table.cleanup();
 }
 
@@ -243,7 +258,8 @@ TYPED_TEST(FieldTest, CreateTwice){
 TYPED_TEST(FieldTest, ReadInexistent){
   FieldTestTable<TypeParam> table;
   table.init();
-  EXPECT_EQ(table.get(Hash("Give me any hash")), TypeParam());
+  TypeParam value;
+  EXPECT_FALSE(table.get(Hash("Give me any hash"), value));
   table.cleanup();
 }
 
@@ -256,10 +272,13 @@ TYPED_TEST(FieldTest, UpdateBeforeInit){
 TYPED_TEST(FieldTest, UpdateRead){
   FieldTestTable<TypeParam> table;
   table.init();
+  TypeParam readValue;
   Hash updateTest = table.insert(this->sample_data_1());
-  EXPECT_EQ(table.get(updateTest), this->sample_data_1());
+  EXPECT_TRUE(table.get(updateTest, readValue));
+  EXPECT_EQ(readValue, this->sample_data_1());
   EXPECT_TRUE(table.update(updateTest, this->sample_data_2()));
-  EXPECT_EQ(table.get(updateTest), this->sample_data_2());
+  EXPECT_TRUE(table.get(updateTest, readValue));
+  EXPECT_EQ(readValue, this->sample_data_2());
   table.cleanup();
 }
 

@@ -13,6 +13,7 @@
 #include <glog/logging.h>
 
 #include <map-api/hash.h>
+#include <map-api/time.h>
 
 namespace map_api {
 
@@ -111,6 +112,12 @@ void TableField::set<int64_t>(const int64_t& value){
   set_longvalue(value);
 }
 template <>
+void TableField::set<Time>(const Time& value){
+  CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_INT64) <<
+      "Trying to set non-time field to time";
+  set_longvalue(value.serialize());
+}
+template <>
 void TableField::set<testBlob>(const testBlob& value){
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
       "Trying to set non-blob field to blob";
@@ -137,7 +144,7 @@ int32_t TableField::get<int32_t>() const{
   return intvalue();
 }
 template <>
-map_api::Hash TableField::get<map_api::Hash>() const{
+map_api::Hash TableField::get<Hash>() const{
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_HASH128) <<
       "Trying to get hash from non-hash field";
   return map_api::Hash::cast(stringvalue());
@@ -147,6 +154,12 @@ int64_t TableField::get<int64_t>() const{
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_INT64) <<
       "Trying to get 64-integer from non-64-integer field";
   return longvalue();
+}
+template <>
+Time TableField::get<Time>() const{
+  CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_INT64) <<
+      "Trying to get time from non-time field";
+  return Time(longvalue());
 }
 template <>
 testBlob TableField::get<testBlob>() const{
@@ -181,6 +194,11 @@ TableField::protobufEnum<map_api::Hash>(){
 template <>
 map_api::proto::TableFieldDescriptor_Type
 TableField::protobufEnum<int64_t>(){
+  return proto::TableFieldDescriptor_Type_INT64;
+}
+template <>
+map_api::proto::TableFieldDescriptor_Type
+TableField::protobufEnum<Time>(){
   return proto::TableFieldDescriptor_Type_INT64;
 }
 template <>

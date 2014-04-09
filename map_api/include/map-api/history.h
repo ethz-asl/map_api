@@ -42,7 +42,6 @@ class History : public CRTableInterface {
   virtual bool define();
   /**
    * Returns shared pointer of revision at requested time.
-   * TODO(tcies) well yes... will we need this really?
    */
   std::shared_ptr<Revision> revisionAt(const Hash& rowId,
                                        const Time& time);

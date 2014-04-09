@@ -19,6 +19,7 @@ bool History::define(){
   addField("rowId",proto::TableFieldDescriptor_Type_HASH128);
   addField("previous",proto::TableFieldDescriptor_Type_HASH128);
   addField("revision",proto::TableFieldDescriptor_Type_STRING);
+  addField("time",TableField::protobufEnum<Time>());
   return true;
 }
 
@@ -27,6 +28,7 @@ Hash History::insert(const Revision& revision, const Hash& previous){
   (*query)["rowId"].set(revision["ID"].get<Hash>());
   (*query)["previous"].set(previous);
   (*query)["revision"].set(revision.SerializeAsString());
+  (*query)["time"].set(Time());
   return insertQuery(*query);
 }
 

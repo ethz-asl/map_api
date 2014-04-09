@@ -31,7 +31,7 @@ const Hash& CRTableInterface::getOwner() const{
 }
 
 bool CRTableInterface::addField(std::string name,
-                              proto::TableFieldDescriptor_Type type){
+                                proto::TableFieldDescriptor_Type type){
   // make sure the field has not been defined yet
   for (int i=0; i<fields_size(); ++i){
     if (fields(i).name().compare(name) == 0){
@@ -179,7 +179,10 @@ std::shared_ptr<Revision> CRTableInterface::getRow(
       }
       case (proto::TableFieldDescriptor_Type_STRING): // Fallthrough intended
       case (proto::TableFieldDescriptor_Type_HASH128):{
-        stat, Poco::Data::into(*field.mutable_stringvalue());
+        // default string value allows us to see whether a query failed by
+        // looking at the ID
+        stat, Poco::Data::into(*field.mutable_stringvalue(),
+                               std::string(""));
         break;
       }
       default:{
@@ -195,7 +198,12 @@ std::shared_ptr<Revision> CRTableInterface::getRow(
   try{
     stat.execute();
   } catch (std::exception& e){
-    LOG(ERROR) << "Row " << id.getString() << " not found!";
+    LOG(ERROR) << "Statement failed transaction: " << stat.toString();
+    return std::shared_ptr<Revision>();
+  }
+
+  // indication of empty result
+  if ((*query)["ID"].get<Hash>().getString() == ""){
     return std::shared_ptr<Revision>();
   }
 
