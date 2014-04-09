@@ -28,7 +28,8 @@ The envisioned long-term goal is to develop a Peer-to-peer database system
 
 Applications acces the Map API by extending a table interface class. What
 fields the application would want to use is to be defined in the virutal
-method {\tt define()}, using calls to {\tt addField()}.
+method {\tt define()}, using calls to {\tt addField()}. \todo{tcies:
+specify involved transactions}
 
 Two types of table interfaces can be chosen: Table interfaces that allow
 updating items (CRU tables) and table interfaces that don't (CR tables). 
@@ -95,16 +96,19 @@ automatically wrapped in a transaction, just like in SQL.
 \subsection{Transaction walkthrough}
 
 \begin{enumerate} \itemsep0em
-  \item When a transaction is initialized, the timestamp is taken. This
-    represents the global view of the user.
-  \item Queries to the API are queued, not journaled and executed as in SQL.
-    This reduces overhead in case of conflict.
+  \item When a transaction is initialized, the timestamp is taken. This allows
+    for the transaction to hold a view on the database as it is at this
+    particular instant.
+  \item Write queries to the API are queued, not journaled and executed as in 
+    SQL. This reduces overhead in case of conflict. Read queries are executed
+    directly, but the returned revisions are always the latest revisions before
+    the transaction view timestamp.
   \item When the transaction is filed for commit, locks on the modified objects
     are first acquired. A deadlock-avoiding mechanism has not yet been
     specified.
   \item All modified objects are checked for conflict. In case of conflict,
-    the application may specify a conflict handler. If it fails, the 
-    transaction is aborted.
+    the transaction is aborted, but the application may retrieve the queue of
+    queries in order to handle the conflict and attempt to re-apply.
   \item If the conflict handler succeeds or there are no conflicts, the 
     queries are executed and the locks are released.
 \end{enumerate}
@@ -116,13 +120,11 @@ automatically wrapped in a transaction, just like in SQL.
     already present in the local database. It is in general assumed that insert
     conflicts don't happen \todo{tcies: We probably should switch to 
     time-seeded randomized hashes}
-  \item {\bf Read queries} I'm afraid I don't see the point of wrapping
-    those in transactions, unless we start supporting upsert patterns, which we
-    don't for now. \todo{tcies: Discuss other use cases?}
+  \item {\bf Read queries} always return the latest revision from before the
+    beginning of the transaction. \todo{Way to notify about outdated data?}
   \item {\bf Update queries} When update queries are queued, the latest
     revision before the update is referenced. If there exists a later revision 
-    at commit time, there is a conflict. \todo{tcies: Wait, what do we need the
-    time for, again?}
+    at commit time, there is a conflict.
 \end{itemize}
 
 \end{document}
