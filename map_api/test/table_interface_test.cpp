@@ -71,12 +71,12 @@ class FieldTestTable : public TestTable{
         Poco::Data::now;
     LOG(INFO) << "Table field_test_table dropped";
   }
-  Hash insert(const FieldType &value){
+  Hash insert(const FieldType& value){
     std::shared_ptr<Revision> query = getTemplate();
     (*query)["test_field"].set<FieldType>(value);
     return insertQuery(*query);
   }
-  bool get(const Hash &id, FieldType& value){
+  bool get(const Hash& id, FieldType& value){
     std::shared_ptr<Revision> row = getRow(id);
     if (!static_cast<bool>(row)){
       LOG(ERROR) << "Row " << id.getString() << " not found.";
@@ -85,7 +85,7 @@ class FieldTestTable : public TestTable{
     value = (*row)["test_field"].get<FieldType>();
     return true;
   }
-  Hash owner(const Hash &id){
+  Hash owner(const Hash& id){
     std::shared_ptr<Revision> row = getRow(id);
     if (!static_cast<bool>(row)){
       LOG(ERROR) << "Row " << id.getString() << " not found.";
@@ -93,7 +93,7 @@ class FieldTestTable : public TestTable{
     }
     return (*row)["owner"].get<Hash>();
   }
-  bool update(const Hash &id, const FieldType& newValue){
+  bool update(const Hash& id, const FieldType& newValue){
     std::shared_ptr<Revision> row = getRow(id);
     if (!static_cast<bool>(row)){
       LOG(ERROR) << "Row " << id.getString() << " not found.";

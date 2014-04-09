@@ -35,17 +35,18 @@ Hash History::insert(const Revision& revision, const Hash& previous){
 std::shared_ptr<Revision> History::revisionAt(const Hash& id,
                                               const Time& time){
   typedef std::shared_ptr<Revision> RevisionPtr;
-  RevisionPtr i = getRow(id);
-  if (!i){
+  RevisionPtr revisionIterator = getRow(id);
+  if (!revisionIterator){
     return RevisionPtr();
   }
-  while ((*i)["time"].get<Time>() > time){
-    i = getRow((*i)["previous"].get<Hash>());
-    if (!i){
+  while ((*revisionIterator)["time"].get<Time>() > time){
+    revisionIterator = getRow((*revisionIterator)["previous"].get<Hash>());
+    if (!revisionIterator){
       return RevisionPtr();
     }
   }
-  return std::make_shared<Revision>((*i)["time"].get<Revision>());
+  return std::make_shared<Revision>(
+      (*revisionIterator)["time"].get<Revision>());
 }
 
 } /* namespace map_api */
