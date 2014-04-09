@@ -23,11 +23,11 @@ bool History::define(){
 }
 
 Hash History::insert(const Revision& revision, const Hash& previous){
-  std::shared_ptr<Revision> query = this->getTemplate();
+  std::shared_ptr<Revision> query = getTemplate();
   (*query)["rowId"].set(revision["ID"].get<Hash>());
   (*query)["previous"].set(previous);
   (*query)["revision"].set(revision.SerializeAsString());
-  return this->insertQuery(*query);
+  return insertQuery(*query);
 }
 
 } /* namespace map_api */

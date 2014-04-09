@@ -13,11 +13,8 @@
 namespace map_api {
 
 class Time : public Poco::DateTime{
-
 };
 
-}
-
-
+} // namespace map_api
 
 #endif /* TIME_H_ */
