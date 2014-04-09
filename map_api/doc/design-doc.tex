@@ -91,7 +91,8 @@ with {\tt \_history}.
 Queries to the Map API are handled by transactions, as previously specified in
 the Map Manager API by Stéphane. The user can choose to make queries one by one
 or to bundle them into transactions. In the former case the query is
-automatically wrapped in a transaction, just like in SQL.
+automatically wrapped in a transaction, just like in SQL. \todo{tcies: Respec 
+this in new pull request, too many changes (insert queries above and all...)}
 
 \subsection{Transaction walkthrough}
 
@@ -103,9 +104,8 @@ automatically wrapped in a transaction, just like in SQL.
     SQL. This reduces overhead in case of conflict. Read queries are executed
     directly, but the returned revisions are always the latest revisions before
     the transaction view timestamp.
-  \item When the transaction is filed for commit, locks on the modified objects
-    are first acquired. A deadlock-avoiding mechanism has not yet been
-    specified.
+  \item When the transaction is filed for commit, a global lock for the
+    database is acquired \todo{tcies: per-item locks, deadlock prevention}
   \item All modified objects are checked for conflict. In case of conflict,
     the transaction is aborted, but the application may retrieve the queue of
     queries in order to handle the conflict and attempt to re-apply.
