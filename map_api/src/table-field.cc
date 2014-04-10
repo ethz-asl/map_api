@@ -8,6 +8,7 @@
 #include <map-api/table-field.h>
 
 #include <sstream>
+#include <vector>
 
 #include <Poco/Data/Common.h>
 #include <Poco/Data/BLOB.h>
@@ -23,7 +24,7 @@ namespace map_api {
 /**
  * FUNCTIONS IMPLEMENTED WITH SWITCH STATEMENTS
  */
-const std::string TableField::sqlType() const{
+const std::string TableField::sqlType() const {
   if (!nametype().has_type()){
     LOG(FATAL) << "Trying to get SQL type from field of undefined type";
     return "";
@@ -41,16 +42,23 @@ const std::string TableField::sqlType() const{
   }
 }
 
-Poco::Data::Statement& TableField::insertPlaceHolder(
-    Poco::Data::Statement& stat) const{
-  if (!nametype().has_type()){
+std::shared_ptr<Poco::Data::BLOB> TableField::insertPlaceHolder(
+    Poco::Data::Statement& stat) const {
+  std::shared_ptr<Poco::Data::BLOB> blobPointer;
+    if (!nametype().has_type()){
     LOG(FATAL) << "Trying to insert placeholder of undefined type";
-    return stat;
+    return blobPointer;
   }
   stat << " ";
   switch (nametype().type()){
     case (proto::TableFieldDescriptor_Type_BLOB):{
-      stat << "?", Poco::Data::use(Poco::Data::BLOB(blobvalue()));
+      testBlob test;
+      if (test.ParseFromString(blobvalue())){
+        LOG(INFO) << test.DebugString();
+      }
+      blobPointer = std::make_shared<Poco::Data::BLOB>(
+          Poco::Data::BLOB(blobvalue()));
+      stat << "?", Poco::Data::use(*blobPointer);
       break;
     }
     case (proto::TableFieldDescriptor_Type_DOUBLE): {
@@ -75,9 +83,10 @@ Poco::Data::Statement& TableField::insertPlaceHolder(
     }
     default:
       LOG(FATAL) << "Field type not handled";
-      return stat;
+      return blobPointer;
   }
-  return stat << " ";
+  stat << " ";
+  return blobPointer;
 }
 
 /**
@@ -88,49 +97,49 @@ Poco::Data::Statement& TableField::insertPlaceHolder(
  * SET
  */
 template <>
-void TableField::set<std::string>(const std::string& value){
+void TableField::set<std::string>(const std::string& value) {
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_STRING) <<
       "Trying to set non-string field to string";
   set_stringvalue(value);
 }
 template <>
-void TableField::set<double>(const double& value){
+void TableField::set<double>(const double& value) {
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_DOUBLE) <<
       "Trying to set non-double field to double";
   set_doublevalue(value);
 }
 template <>
-void TableField::set<int32_t>(const int32_t& value){
+void TableField::set<int32_t>(const int32_t& value) {
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_INT32) <<
       "Trying to set non-32-integer field to 32-integer";
   set_intvalue(value);
 }
 template <>
-void TableField::set<map_api::Hash>(const map_api::Hash& value){
+void TableField::set<map_api::Hash>(const map_api::Hash& value) {
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_HASH128) <<
       "Trying to set non-hash field to hash";
   set_stringvalue(value.getString());
 }
 template <>
-void TableField::set<int64_t>(const int64_t& value){
+void TableField::set<int64_t>(const int64_t& value) {
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_INT64) <<
       "Trying to set non-64-integer field to 64-integer";
   set_longvalue(value);
 }
 template <>
-void TableField::set<Time>(const Time& value){
+void TableField::set<Time>(const Time& value) {
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_INT64) <<
       "Trying to set non-time field to time";
   set_longvalue(value.serialize());
 }
 template <>
-void TableField::set<Revision>(const Revision& value){
+void TableField::set<Revision>(const Revision& value) {
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
       "Trying to set non-revision field to revision";
   set_blobvalue(value.SerializeAsString());
 }
 template <>
-void TableField::set<testBlob>(const testBlob& value){
+void TableField::set<testBlob>(const testBlob& value) {
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
       "Trying to set non-blob field to blob";
   set_blobvalue(value.SerializeAsString());
@@ -141,55 +150,59 @@ void TableField::set<testBlob>(const testBlob& value){
  */
 
 template <>
-std::string TableField::get<std::string>() const{
+std::string TableField::get<std::string>() const {
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_STRING) <<
       "Trying to get string from non-string field";
   return stringvalue();
 }
 template <>
-double TableField::get<double>() const{
+double TableField::get<double>() const {
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_DOUBLE) <<
       "Trying to get double from non-double field";
   return doublevalue();
 }
 template <>
-int32_t TableField::get<int32_t>() const{
+int32_t TableField::get<int32_t>() const {
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_INT32) <<
       "Trying to get 32-integer from non-32-integer field";
   return intvalue();
 }
 template <>
-map_api::Hash TableField::get<Hash>() const{
+map_api::Hash TableField::get<Hash>() const {
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_HASH128) <<
       "Trying to get hash from non-hash field";
   return map_api::Hash::cast(stringvalue());
 }
 template <>
-int64_t TableField::get<int64_t>() const{
+int64_t TableField::get<int64_t>() const {
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_INT64) <<
       "Trying to get 64-integer from non-64-integer field";
   return longvalue();
 }
 template <>
-Time TableField::get<Time>() const{
+Time TableField::get<Time>() const {
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_INT64) <<
       "Trying to get time from non-time field";
   return Time(longvalue());
 }
 template <>
-Revision TableField::get<Revision>() const{
+Revision TableField::get<Revision>() const {
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
       "Trying to get revision from non-revision field";
   Revision field;
-  CHECK(field.ParseFromString(blobvalue())) << "Failed to parse Revision";
+  bool parsed = field.ParseFromString(blobvalue());
+  CHECK(parsed) << "Failed to parse revision";
   return field;
 }
 template <>
-testBlob TableField::get<testBlob>() const{
+testBlob TableField::get<testBlob>() const {
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
       "Trying to get blob from non-blob field";
   testBlob field;
-  CHECK(field.ParseFromString(blobvalue())) << "Failed to parse testBlob";
+  LOG(INFO) << "Parsing";
+  bool parsed = field.ParseFromString(blobvalue());
+  LOG(INFO) << "Parsed";
+  CHECK(parsed) << "Failed to parse testBlob";
   return field;
 }
 
@@ -199,42 +212,42 @@ testBlob TableField::get<testBlob>() const{
 
 template <>
 map_api::proto::TableFieldDescriptor_Type
-TableField::protobufEnum<std::string>(){
+TableField::protobufEnum<std::string>() {
   return proto::TableFieldDescriptor_Type_STRING;
 }
 template <>
 map_api::proto::TableFieldDescriptor_Type
-TableField::protobufEnum<double>(){
+TableField::protobufEnum<double>() {
   return proto::TableFieldDescriptor_Type_DOUBLE;
 }
 template <>
 map_api::proto::TableFieldDescriptor_Type
-TableField::protobufEnum<int32_t>(){
+TableField::protobufEnum<int32_t>() {
   return proto::TableFieldDescriptor_Type_INT32;
 }
 template <>
 map_api::proto::TableFieldDescriptor_Type
-TableField::protobufEnum<map_api::Hash>(){
+TableField::protobufEnum<map_api::Hash>() {
   return proto::TableFieldDescriptor_Type_HASH128;
 }
 template <>
 map_api::proto::TableFieldDescriptor_Type
-TableField::protobufEnum<int64_t>(){
+TableField::protobufEnum<int64_t>() {
   return proto::TableFieldDescriptor_Type_INT64;
 }
 template <>
 map_api::proto::TableFieldDescriptor_Type
-TableField::protobufEnum<Time>(){
+TableField::protobufEnum<map_api::Time>() {
   return proto::TableFieldDescriptor_Type_INT64;
 }
-template <>
+template<>
 map_api::proto::TableFieldDescriptor_Type
-TableField::protobufEnum<Revision>(){
+TableField::protobufEnum<map_api::Revision>() {
   return proto::TableFieldDescriptor_Type_BLOB;
 }
 template <>
 map_api::proto::TableFieldDescriptor_Type
-TableField::protobufEnum<testBlob>(){
+TableField::protobufEnum<testBlob>() {
   return proto::TableFieldDescriptor_Type_BLOB;
 }
 

@@ -24,7 +24,8 @@ posegraph::Frame TableField::get<posegraph::Frame>() const{
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
       "Trying to get frame from non-frame field";
   posegraph::Frame field;
-  CHECK(field.ParseFromString(blobvalue())) << "Failed to parse frame";
+  bool parsed = field.ParseFromString(blobvalue());
+  CHECK(parsed) << "Failed to parse Frame";
   return field;
 }
 template <>

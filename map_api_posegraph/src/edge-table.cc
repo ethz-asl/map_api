@@ -30,7 +30,8 @@ posegraph::Edge TableField::get<posegraph::Edge>() const{
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
       "Trying to get edge from non-edge field";
   posegraph::Edge field;
-  CHECK(field.ParseFromString(blobvalue())) << "Failed to parse Edge";
+  bool parsed = field.ParseFromString(blobvalue());
+  CHECK(parsed) << "Failed to parse Edge";
   return field;
 }
 template <>
