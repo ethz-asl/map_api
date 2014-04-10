@@ -8,12 +8,19 @@
 #ifndef TABLE_FIELD_H_
 #define TABLE_FIELD_H_
 
+#include <memory>
+
 #include <Poco/Data/Statement.h>
+#include <Poco/Data/BLOB.h>
 
 #include "core.pb.h"
 
 namespace map_api {
 
+/**
+ * IMPORTANT: May only introduce methods, but not properties, as subject to
+ * static cast from proto::TableField
+ */
 class TableField : public proto::TableField{
  public:
   /**
@@ -21,12 +28,14 @@ class TableField : public proto::TableField{
    */
   const std::string sqlType() const;
   /**
-   * Insert placeholder in SQLite insert statements
+   * Insert placeholder in SQLite insert statements. Returns blob shared pointer
+   * for dynamically created blob objects
    */
-  Poco::Data::Statement& insertPlaceHolder(Poco::Data::Statement& stat)
+  std::shared_ptr<Poco::Data::BLOB>
+  insertPlaceHolder(Poco::Data::Statement& stat)
   const;
   /**
-   * Sets field according to type.
+   * Sets field according to type. TODO(tcies) macros
    */
   template <typename FieldType>
   void set(const FieldType& value);

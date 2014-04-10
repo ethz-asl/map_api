@@ -53,7 +53,7 @@ bool CRUTableInterface::setup(const std::string &name){
   // choose owner ID TODO(tcies) this is temporary
   // TODO(tcies) make shareable across table interfaces
   owner_ = Hash::randomHash();
-  LOG(INFO) << "Table interface with owner " << owner_.getString();
+  VLOG(3) << "Table interface with owner " << owner_.getString();
 
   // connect to database & create table
   // TODO(tcies) register in master table
@@ -69,6 +69,10 @@ bool CRUTableInterface::setup(const std::string &name){
 bool CRUTableInterface::updateQuery(const Hash& id,
                                  const Revision& query){
   // TODO(tcies) all concurrency handling, owner locking, etc... comes here
+
+  // Bag for blobs that need to stay in scope until statement is executed
+  std::vector<std::shared_ptr<Poco::Data::BLOB> > blobBag;
+
   Poco::Data::Statement stat(*session_);
   stat << "UPDATE " << name() << " SET ";
   for (int i=0; i<query.fieldqueries_size(); ++i){
@@ -78,7 +82,7 @@ bool CRUTableInterface::updateQuery(const Hash& id,
     const TableField& field =
         static_cast<const TableField&>(query.fieldqueries(i));
     stat << field.nametype().name() << "=";
-    field.insertPlaceHolder(stat);
+    blobBag.push_back(field.insertPlaceHolder(stat));
   }
   stat << "WHERE ID LIKE :id", Poco::Data::use(id.getString());
 
