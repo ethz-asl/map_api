@@ -104,7 +104,7 @@ class FieldTestTable : public TestTable{
   }
  protected:
   virtual bool define(){
-    addField("test_field", TableField::protobufEnum<FieldType>());
+    addField<FieldType>("test_field");
     return true;
   }
 };
@@ -193,7 +193,7 @@ class FieldTest<testBlob> : public ::testing::Test{
     field.mutable_nametype()->set_name("A name");
     field.mutable_nametype()->
         set_type(map_api::proto::TableFieldDescriptor_Type_DOUBLE);
-    field.set_doublevalue(3.14);
+    field.set_doublevalue(3);
     return field;
   }
   testBlob sample_data_2(){
@@ -213,8 +213,8 @@ class FieldTest<testBlob> : public ::testing::Test{
  *************************
  */
 
-typedef ::testing::Types<std::string, int32_t, double, map_api::Hash,
-    int64_t, map_api::Time, testBlob> MyTypes;
+typedef ::testing::Types<testBlob, std::string, int32_t, double,
+    map_api::Hash, int64_t, map_api::Time> MyTypes;
 TYPED_TEST_CASE(FieldTest, MyTypes);
 
 TYPED_TEST(FieldTest, Init){

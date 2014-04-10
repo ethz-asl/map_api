@@ -16,10 +16,10 @@ bool History::init(){
 }
 
 bool History::define(){
-  addField("rowId",proto::TableFieldDescriptor_Type_HASH128);
-  addField("previous",proto::TableFieldDescriptor_Type_HASH128);
-  addField("revision",proto::TableFieldDescriptor_Type_STRING);
-  addField("time",TableField::protobufEnum<Time>());
+  addField<Hash>("rowId");
+  addField<Hash>("previous");
+  addField<Revision>("revision");
+  addField<Time>("time");
   return true;
 }
 
