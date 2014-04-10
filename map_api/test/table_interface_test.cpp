@@ -100,8 +100,7 @@ class FieldTestTable : public TestTable{
       return false;
     }
     (*row)["test_field"].set<FieldType>(newValue);
-    updateQuery(id, *row);
-    return true;
+    return updateQuery(id, *row);
   }
  protected:
   virtual bool define(){

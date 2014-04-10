@@ -52,10 +52,6 @@ std::shared_ptr<Poco::Data::BLOB> TableField::insertPlaceHolder(
   stat << " ";
   switch (nametype().type()){
     case (proto::TableFieldDescriptor_Type_BLOB):{
-      testBlob test;
-      if (test.ParseFromString(blobvalue())){
-        LOG(INFO) << test.DebugString();
-      }
       blobPointer = std::make_shared<Poco::Data::BLOB>(
           Poco::Data::BLOB(blobvalue()));
       stat << "?", Poco::Data::use(*blobPointer);
@@ -199,9 +195,7 @@ testBlob TableField::get<testBlob>() const {
   CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
       "Trying to get blob from non-blob field";
   testBlob field;
-  LOG(INFO) << "Parsing";
   bool parsed = field.ParseFromString(blobvalue());
-  LOG(INFO) << "Parsed";
   CHECK(parsed) << "Failed to parse testBlob";
   return field;
 }
