@@ -29,7 +29,7 @@ class TableField : public proto::TableField{
   const std::string sqlType() const;
   /**
    * Insert placeholder in SQLite insert statements. Returns blob shared pointer
-   * for dynimcally created blob objects
+   * for dynamically created blob objects
    */
   std::shared_ptr<Poco::Data::BLOB>
   insertPlaceHolder(Poco::Data::Statement& stat)
