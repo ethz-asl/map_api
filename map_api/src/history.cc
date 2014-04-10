@@ -16,9 +16,10 @@ bool History::init(){
 }
 
 bool History::define(){
-  addField("rowId",proto::TableFieldDescriptor_Type_HASH128);
-  addField("previous",proto::TableFieldDescriptor_Type_HASH128);
-  addField("revision",proto::TableFieldDescriptor_Type_STRING);
+  addField<Hash>("rowId");
+  addField<Hash>("previous");
+  addField<Revision>("revision");
+  addField<Time>("time");
   return true;
 }
 
@@ -26,8 +27,26 @@ Hash History::insert(const Revision& revision, const Hash& previous){
   std::shared_ptr<Revision> query = getTemplate();
   (*query)["rowId"].set(revision["ID"].get<Hash>());
   (*query)["previous"].set(previous);
-  (*query)["revision"].set(revision.SerializeAsString());
+  (*query)["revision"].set(revision);
+  (*query)["time"].set(Time());
   return insertQuery(*query);
+}
+
+std::shared_ptr<Revision> History::revisionAt(const Hash& id,
+                                              const Time& time){
+  typedef std::shared_ptr<Revision> RevisionPtr;
+  RevisionPtr revisionIterator = getRow(id);
+  if (!revisionIterator){
+    return RevisionPtr();
+  }
+  while ((*revisionIterator)["time"].get<Time>() > time){
+    revisionIterator = getRow((*revisionIterator)["previous"].get<Hash>());
+    if (!revisionIterator){
+      return RevisionPtr();
+    }
+  }
+  return std::make_shared<Revision>(
+      (*revisionIterator)["time"].get<Revision>());
 }
 
 } /* namespace map_api */

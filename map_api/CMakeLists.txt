@@ -55,6 +55,7 @@ SET(CORE_SOURCE  src/cr-table-interface.cc
                  src/map-api-hub.cc
                  src/revision.cc
                  src/table-field.cc
+                 src/time.cc
                  src/transaction.cc)
                 
 add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_HDRS} ${PROTO_SRCS})

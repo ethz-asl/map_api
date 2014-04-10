@@ -53,6 +53,9 @@ bool Transaction::addInsertQuery(const SharedRevisionPointer& query){
   // invalid old state pointer means insert in journal entry
   this->commonOperations(SharedRevisionPointer(), query);
 
+  // Bag for blobs that need to stay in scope until statement is executed
+  std::vector<std::shared_ptr<Poco::Data::BLOB> > blobBag;
+
   // SQL transaction: Makes insert & locking atomic. We could have all
   // statements of a map_api::Transaction wrapped in an SQL transaction
   // but then we couldn't test the Transaction functionality we will need
@@ -80,7 +83,7 @@ bool Transaction::addInsertQuery(const SharedRevisionPointer& query){
     }
     const TableField& field =
         static_cast<const TableField&>(query->fieldqueries(i));
-    field.insertPlaceHolder(stat);
+    blobBag.push_back(field.insertPlaceHolder(stat));
   }
   stat << " ); ";
 
@@ -91,8 +94,6 @@ bool Transaction::addInsertQuery(const SharedRevisionPointer& query){
   }
 
   *session_ << "COMMIT TRANSACTION; ", Poco::Data::now;
-
-  system("cp database.db ~/temp");
 
   // TODO (tcies) trigger subscribers
   return true;
