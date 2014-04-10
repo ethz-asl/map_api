@@ -72,18 +72,14 @@ bool Transaction::addInsertQuery(const SharedRevisionPointer& query){
     if (i > 0){
       stat << ", ";
     }
-    const TableField& field =
-        static_cast<const TableField&>(query->fieldqueries(i));
-    stat << field.nametype().name();
+    stat << query->fieldqueries(i).nametype().name();
   }
   stat << ") VALUES ( ";
   for (int i = 0; i < query->fieldqueries_size(); ++i){
     if (i > 0){
       stat << " , ";
     }
-    const TableField& field =
-        static_cast<const TableField&>(query->fieldqueries(i));
-    blobBag.push_back(field.insertPlaceHolder(stat));
+    blobBag.push_back(query->insertPlaceHolder(i,stat));
   }
   stat << " ); ";
 
@@ -127,7 +123,7 @@ bool Transaction::commonOperations(const SharedRevisionPointer& oldState,
   if (notifyAbortedOrInactive()){
     return false;
   }
-  (*newState)["locked_by"].set(owner_);
+  newState->set("locked_by",owner_);
   // check will be done within SQL transaction
   journal_.push(JournalEntry(oldState, newState));
   return true;

@@ -20,12 +20,52 @@ class Revision : public proto::Revision {
   bool index();
   TableField& operator[](const std::string& field);
   const TableField& operator[](const std::string& field) const;
+
+  /**
+   * Insert placeholder in SQLite insert statements. Returns blob shared pointer
+   * for dynamically created blob objects
+   */
+  std::shared_ptr<Poco::Data::BLOB>
+  insertPlaceHolder(int field, Poco::Data::Statement& stat) const;
+
+  /**
+   * Gets protocol buffer enum for type
+   */
+  template <typename FieldType>
+  static map_api::proto::TableFieldDescriptor_Type protobufEnum();
+  /**
+   * Supporting macro
+   */
+#define REVISION_ENUM(TYPE, ENUM) \
+    template <> \
+    map_api::proto::TableFieldDescriptor_Type \
+    Revision::protobufEnum< TYPE >() { \
+  return ENUM ; \
+}
+
+  /**
+   * Sets field according to type. TODO(tcies) macros
+   */
+  template <typename FieldType>
+  void set(const std::string& field, const FieldType& value);
+  /**
+   * Supporting macros
+   */
+#define REVISION_SET(TYPE) \
+    template <> \
+    void Revision::set< TYPE >(const std::string& field, const TYPE & value)
+  // TODO proto enum from function
+#define REVISION_TYPE_CHECK(TYPE)  \
+    CHECK_EQ((*this)[field].nametype().type(), protobufEnum< TYPE >() ) << \
+    "Trying to access non-" << #TYPE << " field"
+
+
  private:
   /**
    * A map of fields for more intuitive access.
    */
   typedef std::map<std::string, int> fieldMap;
-   fieldMap fields_;
+  fieldMap fields_;
 };
 
 } /* namespace map_api */

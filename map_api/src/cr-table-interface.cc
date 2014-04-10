@@ -113,7 +113,17 @@ bool CRTableInterface::createQuery(){
     if (i != 0){
       stat << ", ";
     }
-    stat << fieldDescriptor.name() << " " << field.sqlType();
+    stat << fieldDescriptor.name() << " ";
+    switch (fieldDescriptor.type()){
+      case (proto::TableFieldDescriptor_Type_BLOB): stat << "BLOB"; break;
+      case (proto::TableFieldDescriptor_Type_DOUBLE): stat << "REAL"; break;
+      case (proto::TableFieldDescriptor_Type_HASH128): stat << "TEXT"; break;
+      case (proto::TableFieldDescriptor_Type_INT32): stat << "INTEGER"; break;
+      case (proto::TableFieldDescriptor_Type_INT64): stat << "INTEGER"; break;
+      case (proto::TableFieldDescriptor_Type_STRING): stat << "TEXT"; break;
+      default:
+        LOG(FATAL) << "Field type not handled";
+    }
     if (fieldDescriptor.name().compare("ID") == 0){
       stat << " PRIMARY KEY";
     }
@@ -127,8 +137,8 @@ bool CRTableInterface::createQuery(){
 map_api::Hash CRTableInterface::insertQuery(Revision& query){
   // set ID (TODO(tcies): set owner as well)
   map_api::Hash idHash(query.SerializeAsString());
-  query["ID"].set(idHash);
-  query["owner"].set(owner_);
+  query.set("ID",idHash);
+  query.set("owner",owner_);
 
   Transaction transaction(owner_);
   // TODO(tcies) all the checks...

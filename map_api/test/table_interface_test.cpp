@@ -73,7 +73,7 @@ class FieldTestTable : public TestTable{
   }
   Hash insert(const FieldType& value){
     std::shared_ptr<Revision> query = getTemplate();
-    (*query)["test_field"].set<FieldType>(value);
+    query->set("test_field",value);
     return insertQuery(*query);
   }
   bool get(const Hash& id, FieldType& value){
@@ -99,7 +99,7 @@ class FieldTestTable : public TestTable{
       LOG(ERROR) << "Row " << id.getString() << " not found.";
       return false;
     }
-    (*row)["test_field"].set<FieldType>(newValue);
+    row->set("test_field",newValue);
     return updateQuery(id, *row);
   }
  protected:

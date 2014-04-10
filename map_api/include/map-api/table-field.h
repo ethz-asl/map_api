@@ -24,31 +24,11 @@ namespace map_api {
 class TableField : public proto::TableField{
  public:
   /**
-   * SQL type descriptor
-   */
-  const std::string sqlType() const;
-  /**
-   * Insert placeholder in SQLite insert statements. Returns blob shared pointer
-   * for dynamically created blob objects
-   */
-  std::shared_ptr<Poco::Data::BLOB>
-  insertPlaceHolder(Poco::Data::Statement& stat)
-  const;
-  /**
-   * Sets field according to type. TODO(tcies) macros
-   */
-  template <typename FieldType>
-  void set(const FieldType& value);
-  /**
    * Gets field according to type.
    */
   template <typename FieldType>
   FieldType get() const;
-  /**
-   * Gets protocol buffer enum for type
-   */
-  template <typename FieldType>
-  static map_api::proto::TableFieldDescriptor_Type protobufEnum();
+
 };
 
 class testBlob : public map_api::proto::TableField{

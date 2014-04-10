@@ -13,11 +13,11 @@ namespace map_api {
 
 //TODO(tcies) in definitive version of map api posegraph: Move these to
 // separate file, e.g. table-field-extension.cc (?)
-template <>
-void TableField::set<posegraph::Frame>(const posegraph::Frame& value){
-  CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
-      "Trying to set non-frame field to frame";
-  set_blobvalue(value.SerializeAsString());
+REVISION_ENUM(posegraph::Frame, proto::TableFieldDescriptor_Type_BLOB)
+
+REVISION_SET(posegraph::Frame){
+  REVISION_TYPE_CHECK(posegraph::Frame);
+  (*this)[field].set_blobvalue(value.SerializeAsString());
 }
 template <>
 posegraph::Frame TableField::get<posegraph::Frame>() const{
@@ -27,11 +27,6 @@ posegraph::Frame TableField::get<posegraph::Frame>() const{
   bool parsed = field.ParseFromString(blobvalue());
   CHECK(parsed) << "Failed to parse Frame";
   return field;
-}
-template <>
-map_api::proto::TableFieldDescriptor_Type
-TableField::protobufEnum<posegraph::Frame>(){
-  return proto::TableFieldDescriptor_Type_BLOB;
 }
 
 namespace posegraph {
