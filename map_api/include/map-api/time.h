@@ -12,7 +12,20 @@
 
 namespace map_api {
 
+/**
+ * TODO(tcies) time synchronization
+ */
 class Time : public Poco::DateTime{
+ public:
+  /**
+   * To deserialize from database.
+   */
+  Time(int64_t epochMicroseconds);
+  /**
+   * Current time
+   */
+  Time();
+  int64_t serialize() const;
 };
 
 } // namespace map_api

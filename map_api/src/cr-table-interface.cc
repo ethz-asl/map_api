@@ -30,8 +30,8 @@ const Hash& CRTableInterface::getOwner() const{
   return owner_;
 }
 
-bool CRTableInterface::addField(std::string name,
-                              proto::TableFieldDescriptor_Type type){
+bool CRTableInterface::addField(const std::string& name,
+                                proto::TableFieldDescriptor_Type type){
   // make sure the field has not been defined yet
   for (int i=0; i<fields_size(); ++i){
     if (fields(i).name().compare(name) == 0){
@@ -52,8 +52,8 @@ bool CRTableInterface::setup(const std::string& name){
   set_name(name);
   // Define table fields
   // enforced fields id (hash) and owner
-  addField("ID",proto::TableFieldDescriptor_Type_HASH128);
-  addField("owner",proto::TableFieldDescriptor_Type_HASH128);
+  addField<Hash>("ID");
+  addField<Hash>("owner");
   // transaction-enforced fields
   std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
   transactionFields(Transaction::requiredTableFields());
@@ -152,6 +152,7 @@ std::shared_ptr<Revision> CRTableInterface::getRow(
   std::map<std::string, double> doublePostApply;
   std::map<std::string, int32_t> intPostApply;
   std::map<std::string, int64_t> longPostApply;
+  std::map<std::string, Poco::Data::BLOB> blobPostApply;
 
   for (int i=0; i<query->fieldqueries_size(); ++i){
     if (i>0){
@@ -162,7 +163,7 @@ std::shared_ptr<Revision> CRTableInterface::getRow(
     // TODO(simon) do you see a reasonable way to move this to TableField?
     switch(field.nametype().type()){
       case (proto::TableFieldDescriptor_Type_BLOB):{
-        stat, Poco::Data::into(*field.mutable_blobvalue());
+        stat, Poco::Data::into(blobPostApply[field.nametype().name()]);
         break;
       }
       case (proto::TableFieldDescriptor_Type_DOUBLE):{
@@ -179,7 +180,10 @@ std::shared_ptr<Revision> CRTableInterface::getRow(
       }
       case (proto::TableFieldDescriptor_Type_STRING): // Fallthrough intended
       case (proto::TableFieldDescriptor_Type_HASH128):{
-        stat, Poco::Data::into(*field.mutable_stringvalue());
+        // default string value allows us to see whether a query failed by
+        // looking at the ID
+        stat, Poco::Data::into(*field.mutable_stringvalue(),
+                               std::string(""));
         break;
       }
       default:{
@@ -195,7 +199,12 @@ std::shared_ptr<Revision> CRTableInterface::getRow(
   try{
     stat.execute();
   } catch (std::exception& e){
-    LOG(ERROR) << "Row " << id.getString() << " not found!";
+    LOG(ERROR) << "Statement failed transaction: " << stat.toString();
+    return std::shared_ptr<Revision>();
+  }
+
+  // indication of empty result
+  if ((*query)["ID"].get<Hash>().getString() == ""){
     return std::shared_ptr<Revision>();
   }
 
@@ -203,11 +212,16 @@ std::shared_ptr<Revision> CRTableInterface::getRow(
   for (std::pair<std::string, double> fieldDouble : doublePostApply){
     (*query)[fieldDouble.first].set_doublevalue(fieldDouble.second);
   }
-  for (std::pair<std::string, int> fieldInt : intPostApply){
+  for (std::pair<std::string, int32_t> fieldInt : intPostApply){
     (*query)[fieldInt.first].set_intvalue(fieldInt.second);
   }
-  for (std::pair<std::string, long> fieldLong : longPostApply){
+  for (std::pair<std::string, int64_t> fieldLong : longPostApply){
     (*query)[fieldLong.first].set_longvalue(fieldLong.second);
+  }
+  for (const std::pair<std::string, Poco::Data::BLOB>& fieldBlob :
+      blobPostApply){
+    (*query)[fieldBlob.first].set_blobvalue(fieldBlob.second.rawContent(),
+                                            fieldBlob.second.size());
   }
 
   query->index(); // FIXME (titus) just index if not indexed or so...

@@ -54,9 +54,9 @@ class CRTableInterface : public proto::TableDescriptor {
   std::shared_ptr<Revision> getTemplate() const;
   /**
    * Function to be called at definition:  Adds field to table
-   * TODO(tcies) templated implementation? Would hide proto.
    */
-  bool addField(std::string name, proto::TableFieldDescriptor_Type type);
+  template<typename Type>
+  bool addField(const std::string& name);
   /**                                                                       CCCC
    *                                                                       C
    * Commits an insert query                                               C
@@ -88,6 +88,8 @@ class CRTableInterface : public proto::TableDescriptor {
    * Parse and execute SQL query necessary to create the database
    */
   bool createQuery();
+
+  bool addField(const std::string& name, proto::TableFieldDescriptor_Type type);
   /**
    * On one hand, the cache is used to test concurrency concepts with a single
    * process. On the other hand, it can be used for access speedup later on.
@@ -98,5 +100,7 @@ class CRTableInterface : public proto::TableDescriptor {
 };
 
 } /* namespace map_api */
+
+#include "map-api/cr-table-interface-inl.h"
 
 #endif /* WRITE_ONLY_TABLE_INTERFACE_H_ */
