@@ -46,7 +46,8 @@ add_definitions(${EIGEN_DEFINITIONS})
 ## Testing ##
 #############
 
-catkin_add_gtest(test_relaxation test/PosegraphRelaxationTest.cpp)
+catkin_add_gtest(test_relaxation test/posegraph_relaxation_test.cpp)
+catkin_add_gtest(test_covariance test/posegraph_covariance_computation_test.cpp)
 
-# currently the library is header-only
 target_link_libraries(test_relaxation ${catkin_LIBRARIES} ${GLOG_LIBRARY})
+target_link_libraries(test_covariance ${catkin_LIBRARIES} ${GLOG_LIBRARY})
