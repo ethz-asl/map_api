@@ -23,18 +23,28 @@ class CRUTableInterface : public CRTableInterface{
   virtual bool init() = 0;
  protected:
   /**
-   * Setup: Load table definition and match with table definition in
-   * cluster.
+   * Overriding CR table setup in order to implement history.
    */
-  virtual bool setup(const std::string& name);
+  bool setup(const std::string& name);
   virtual bool define() = 0;
+
+ private:
+  /**
+   * The following functions are to be used by transactions only. They pose a
+   * very crude access straight to the database, without synchronization
+   * and conflict checking - that is assumed to be done by the transaction.
+   */
+  friend class Transaction;
   /**                                                                      U   U
    *                                                                       U   U
    * Takes hash ID and TableInsertQuery as argument and updates the row of U   U
-   * the given ID with the query                                           U   U
-   *                                                                        UUU
+   * the given ID with the query. IMPORTANT: This is to modify the own     U   U
+   * fields of the CRU table, not the revisions in the history. That has    UUU
+   * to be handled properly by the transaction itself.
+   * the parameter nextRevision is the hash to the revision the CRU table item
+   * is supposed to be updated to.
    */
-  bool updateQuery(const Hash& id, const Revision& query);
+  bool rawUpdateQuery(const Hash& id, const Hash& nextRevision);
 };
 
 }

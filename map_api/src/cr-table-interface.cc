@@ -53,13 +53,13 @@ bool CRTableInterface::setup(const std::string& name){
   // enforced fields id (hash) and owner
   addField<Hash>("ID");
   addField<Hash>("owner");
-  // transaction-enforced fields
-  std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
-  transactionFields(Transaction::requiredTableFields());
-  for (const proto::TableFieldDescriptor& descriptor :
-      *transactionFields){
-    addField(descriptor.name(), descriptor.type());
-  }
+  // transaction-enforced fields TODO(tcies) later
+  // std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
+  // transactionFields(Transaction::requiredTableFields());
+  // for (const proto::TableFieldDescriptor& descriptor :
+  //     *transactionFields){
+  //   addField(descriptor.name(), descriptor.type());
+  // }
   // user-defined fields
   define();
 
@@ -132,23 +132,46 @@ bool CRTableInterface::createQuery(){
 }
 
 // TODO(tcies) pass by reference to shared pointer
-map_api::Hash CRTableInterface::insertQuery(Revision& query){
-  // set ID (TODO(tcies): set owner as well)
+map_api::Hash CRTableInterface::rawInsertQuery(Revision& query){
+  // TODO(tcies) verify schema
   map_api::Hash idHash(query.SerializeAsString());
   query.set("ID",idHash);
   query.set("owner",owner_);
 
-  Transaction transaction(owner_);
-  // TODO(tcies) all the checks...
-  transaction.begin();
-  transaction.addInsertQuery(
-      Transaction::SharedRevisionPointer(new Revision(query)));
-  transaction.commit();
-  // TODO(tcies) check if aborted
+  // Bag for blobs that need to stay in scope until statement is executed
+  std::vector<std::shared_ptr<Poco::Data::BLOB> > blobBag;
+
+  // assemble SQLite statement
+  Poco::Data::Statement stat(*session_);
+  // NB: sqlite placeholders work only for column values
+  stat << "INSERT INTO " << name() << " ";
+
+  stat << "(";
+  for (int i = 0; i < query.fieldqueries_size(); ++i){
+    if (i > 0){
+      stat << ", ";
+    }
+    stat << query.fieldqueries(i).nametype().name();
+  }
+  stat << ") VALUES ( ";
+  for (int i = 0; i < query.fieldqueries_size(); ++i){
+    if (i > 0){
+      stat << " , ";
+    }
+    blobBag.push_back(query.insertPlaceHolder(i,stat));
+  }
+  stat << " ); ";
+
+  try {
+    stat.execute();
+  } catch(std::exception &e){
+    LOG(FATAL) << "Insert failed with exception " << e.what();
+  }
+
   return idHash;
 }
 
-std::shared_ptr<Revision> CRTableInterface::getRow(
+std::shared_ptr<Revision> CRTableInterface::rawGetRow(
     const map_api::Hash &id) const{
   std::shared_ptr<Revision> query = getTemplate();
   Poco::Data::Statement stat(*session_);

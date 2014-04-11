@@ -62,5 +62,5 @@ target_link_libraries(${PROJECT_NAME} ${LINK_WITH})
 #########
 # DEMOS #
 #########
-add_executable(single-posegraph-client demo/single-posegraph-client.cc)
-target_link_libraries(single-posegraph-client ${PROJECT_NAME})
+# add_executable(single-posegraph-client demo/single-posegraph-client.cc)
+# target_link_libraries(single-posegraph-client ${PROJECT_NAME})

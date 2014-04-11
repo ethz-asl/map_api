@@ -34,13 +34,13 @@ bool CRUTableInterface::setup(const std::string &name){
   // enforced fields id (hash) and owner
   addField("ID",proto::TableFieldDescriptor_Type_HASH128);
   addField("owner",proto::TableFieldDescriptor_Type_HASH128);
-  // transaction-enforced fields
-  std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
-  transactionFields(Transaction::requiredTableFields());
-  for (const proto::TableFieldDescriptor& descriptor :
-      *transactionFields){
-    addField(descriptor.name(), descriptor.type());
-  }
+  // transaction-enforced fields TODO(tcies) later
+  // std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
+  // transactionFields(Transaction::requiredTableFields());
+  // for (const proto::TableFieldDescriptor& descriptor :
+  //     *transactionFields){
+  //   addField(descriptor.name(), descriptor.type());
+  // }
   // user-defined fields
   define();
 
@@ -65,9 +65,11 @@ bool CRUTableInterface::setup(const std::string &name){
 }
 
 
-bool CRUTableInterface::updateQuery(const Hash& id,
-                                 const Revision& query){
-  // TODO(tcies) all concurrency handling, owner locking, etc... comes here
+bool CRUTableInterface::rawUpdateQuery(const Hash& id,
+                                       const Hash& nextRevision){
+  // TODO(tcies) adapt to transaction-centricity
+
+  /*
 
   // Bag for blobs that need to stay in scope until statement is executed
   std::vector<std::shared_ptr<Poco::Data::BLOB> > blobBag;
@@ -87,6 +89,9 @@ bool CRUTableInterface::updateQuery(const Hash& id,
 
   stat.execute();
   return stat.done();
+
+   */
+  return false;
 }
 
 }

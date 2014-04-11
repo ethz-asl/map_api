@@ -14,8 +14,7 @@
 namespace map_api {
 
 class History : public CRTableInterface {
-  friend class CRUTableInterface;
- private:
+ public:
   /**
    * Define the table of which the history is to be kept.
    * Will create a table with the name <table.name()>_history.
@@ -27,6 +26,7 @@ class History : public CRTableInterface {
    * Takes the table name taken from constructor to set up table interface
    */
   virtual bool init();
+ private:
   /**
    * History table fields:
    * - ID (implicit)
@@ -38,6 +38,10 @@ class History : public CRTableInterface {
    */
   virtual bool define();
   /**
+   * The following part is managed by transactions only.
+   */
+  friend class Transaction;
+  /**
    * Returns shared pointer of latest revision at requested time. Supplied id is
    * reference to any revision. If that revision is older than the supplied
    * time, it is the one that is returned.
@@ -46,9 +50,9 @@ class History : public CRTableInterface {
                                        const Time& time);
   /**
    * Inserts revision into history. Proper linking is responsibility of
-   * CRUTableInterface / Transaction
+   * Transaction.
    */
-  Hash insert(Revision& revision, const Hash& previous);
+  Hash rawInsert(Revision& revision, const Hash& previous);
 
   const CRUTableInterface& table_;
 };

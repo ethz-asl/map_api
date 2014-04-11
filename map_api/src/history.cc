@@ -23,24 +23,24 @@ bool History::define(){
   return true;
 }
 
-Hash History::insert(Revision& revision, const Hash& previous){
+Hash History::rawInsert(Revision& revision, const Hash& previous){
   std::shared_ptr<Revision> query = getTemplate();
   query->set("rowId", revision.get<Hash>("ID"));
   query->set("previous", previous);
   query->set("revision", revision);
   query->set("time", Time());
-  return insertQuery(*query);
+  return rawInsertQuery(*query);
 }
 
 std::shared_ptr<Revision> History::revisionAt(const Hash& id,
                                               const Time& time){
   typedef std::shared_ptr<Revision> RevisionPtr;
-  RevisionPtr revisionIterator = getRow(id);
+  RevisionPtr revisionIterator = rawGetRow(id);
   if (!revisionIterator){
     return RevisionPtr();
   }
   while (revisionIterator->get<Time>("time") > time){
-    revisionIterator = getRow(revisionIterator->get<Hash>("previous"));
+    revisionIterator = rawGetRow(revisionIterator->get<Hash>("previous"));
     if (!revisionIterator){
       return RevisionPtr();
     }
