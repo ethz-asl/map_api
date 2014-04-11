@@ -79,10 +79,7 @@ with {\tt \_history}.
 \section{Transactions}\label{transactions}
 
 Queries to the Map API are handled by transactions, as previously specified in
-the Map Manager API by Stéphane. The user can choose to make queries one by one
-or to bundle them into transactions. In the former case the query is
-automatically wrapped in a transaction, just like in SQL. \todo{tcies: Respec 
-this in new pull request, too many changes (insert queries above and all...)}
+the Map Manager API by Stéphane.
 
 \subsection{Transaction walkthrough}
 
@@ -111,7 +108,7 @@ this in new pull request, too many changes (insert queries above and all...)}
     a hash id. They only lead to conflict if the assigned hash ID is
     already present in the local database. It is in general assumed that insert
     conflicts don't happen.
-  \item {\bf Read queries} take a has id as argument and
+  \item {\bf Read queries} take a hash id as argument and
     always return the latest revision from before the
     beginning of the transaction. \todo{Way to notify about outdated data?}
   \item {\bf Update queries} take a hash id and a revision as argument. 
