@@ -46,8 +46,11 @@ add_definitions(${EIGEN_DEFINITIONS})
 ## Testing ##
 #############
 
-catkin_add_gtest(test_relaxation test/posegraph_relaxation_test.cpp)
-catkin_add_gtest(test_covariance test/posegraph_covariance_computation_test.cpp)
+catkin_add_gtest(test_relaxation test/test_main.cpp 
+	test/test_posegraph_relaxation_test.cpp)
+catkin_add_gtest(test_covariance test/test_main.cpp 
+	test/test_posegraph_covariance_computation_test.cpp)
 
 target_link_libraries(test_relaxation ${catkin_LIBRARIES} ${GLOG_LIBRARY})
 target_link_libraries(test_covariance ${catkin_LIBRARIES} ${GLOG_LIBRARY})
+
