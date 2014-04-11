@@ -48,5 +48,8 @@ target_link_libraries(${PROJECT_NAME}
 
 catkin_add_gtest(test_relaxation test/PosegraphRelaxationTest.cpp src/quat_param_hamilton.cc)
 
+catkin_add_gtest(test_quat_parametrization test/test_quaternion_parametrization_test.cpp src/quat_param_hamilton.cc)
+
 # currently the library is header-only
 target_link_libraries(test_relaxation ${catkin_LIBRARIES} ${GLOG_LIBRARY})
+target_link_libraries(test_quat_parametrization ${catkin_LIBRARIES} ${GLOG_LIBRARY})
