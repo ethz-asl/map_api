@@ -93,7 +93,6 @@ std::shared_ptr<Revision> CRTableInterface::getTemplate() const{
   for (int i=0; i<this->fields_size(); ++i){
     *(ret->add_fieldqueries()->mutable_nametype()) = this->fields(i);
   }
-  ret->index();
   return ret;
 }
 
@@ -232,8 +231,6 @@ std::shared_ptr<Revision> CRTableInterface::getRow(
     query->set(fieldBlob.first, fieldBlob.second);
   }
 
-  query->index(); // FIXME (titus) just index if not indexed or so...
-  // TODO(tcies) return NULL if empty result
   return query;
 }
 

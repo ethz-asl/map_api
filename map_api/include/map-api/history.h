@@ -48,7 +48,7 @@ class History : public CRTableInterface {
    * Inserts revision into history. Proper linking is responsibility of
    * CRUTableInterface / Transaction
    */
-  Hash insert(const Revision& revision, const Hash& previous);
+  Hash insert(Revision& revision, const Hash& previous);
 
   const CRUTableInterface& table_;
 };

@@ -26,15 +26,13 @@ bool Revision::index() {
 
 proto::TableField& Revision::find(const std::string& field){
   fieldMap::iterator find = fields_.find(field);
-  CHECK(find != fields_.end()) << "Attempted to access inexistent field.";
+  if (find == fields_.end()){
+    index();
+  }
+  find = fields_.find(field);
+  CHECK(find != fields_.end()) <<
+      "Attempted to access inexistent field " << field;
   return *mutable_fieldqueries(find->second);
-}
-
-const proto::TableField& Revision::find(
-    const std::string& field) const{
-  fieldMap::const_iterator find = fields_.find(field);
-  CHECK(find != fields_.end()) << "Attempted to access inexistent field.";
-  return fieldqueries(find->second);
 }
 
 std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(

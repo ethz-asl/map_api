@@ -20,8 +20,6 @@ namespace map_api {
 
 class Revision : public proto::Revision {
  public:
-  bool index();
-
   /**
    * Insert placeholder in SQLite insert statements. Returns blob shared pointer
    * for dynamically created blob objects
@@ -60,17 +58,17 @@ class Revision : public proto::Revision {
     "Trying to access non-" << #TYPE << " field"
 
   /**
-   * Gets field according to type.
+   * Gets field according to type. Non-const because field lookup might lead
+   * to re-indexing the map.
    */
   template <typename FieldType>
-  FieldType get(const std::string& field) const;
+  FieldType get(const std::string& field);
   /**
    * Supporting macro
    */
 #define REVISION_GET(TYPE) \
     template <> \
-    TYPE Revision::get<TYPE>(const std::string& field) const
-
+    TYPE Revision::get<TYPE>(const std::string& field)
 
  private:
   /**
@@ -78,11 +76,11 @@ class Revision : public proto::Revision {
    */
   typedef std::map<std::string, int> fieldMap;
   fieldMap fields_;
+  bool index();
   /**
-   * Access to the map
+   * Access to the map. Non-const because might need to index.
    */
   proto::TableField& find(const std::string& field);
-  const proto::TableField& find(const std::string& field) const;
 
 };
 
