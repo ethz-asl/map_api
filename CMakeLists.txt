@@ -47,7 +47,7 @@ target_link_libraries(${PROJECT_NAME}
 #############
 
 catkin_add_gtest(test_relaxation test/test_main.cpp 
-	test/test_posegraph_relaxation_test.cpp)
+	test/test_posegraph_relaxation_test.cpp src/quat_param_hamilton.cc)
 catkin_add_gtest(test_covariance test/test_main.cpp 
 	test/test_posegraph_covariance_computation_test.cpp)
 
