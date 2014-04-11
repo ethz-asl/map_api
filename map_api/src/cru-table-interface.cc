@@ -83,7 +83,7 @@ bool CRUTableInterface::updateQuery(const Hash& id,
         static_cast<const TableField&>(query.fieldqueries(i));
     stat << field.nametype().name() << "=";
     // TODO(tcies) prettify, uncast
-    blobBag.push_back(query.insertPlaceHolder(i,stat));
+    blobBag.push_back(query.insertPlaceHolder(i, stat));
   }
   stat << "WHERE ID LIKE :id", Poco::Data::use(id.getString());
 

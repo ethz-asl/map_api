@@ -39,7 +39,7 @@ class Revision : public proto::Revision {
 #define REVISION_ENUM(TYPE, ENUM) \
     template <> \
     map_api::proto::TableFieldDescriptor_Type \
-    Revision::protobufEnum< TYPE >() { \
+    Revision::protobufEnum<TYPE>() { \
   return ENUM ; \
 }
 
@@ -53,10 +53,10 @@ class Revision : public proto::Revision {
    */
 #define REVISION_SET(TYPE) \
     template <> \
-    void Revision::set< TYPE >(const std::string& field, const TYPE & value)
+    void Revision::set<TYPE>(const std::string& field, const TYPE& value)
   // TODO proto enum from function
 #define REVISION_TYPE_CHECK(TYPE)  \
-    CHECK_EQ((*this)[field].nametype().type(), protobufEnum< TYPE >() ) << \
+    CHECK_EQ((*this)[field].nametype().type(), protobufEnum<TYPE>() ) << \
     "Trying to access non-" << #TYPE << " field"
 
 

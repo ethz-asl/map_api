@@ -25,10 +25,10 @@ bool History::define(){
 
 Hash History::insert(const Revision& revision, const Hash& previous){
   std::shared_ptr<Revision> query = getTemplate();
-  query->set("rowId",revision["ID"].get<Hash>());
-  query->set("previous",previous);
-  query->set("revision",revision);
-  query->set("time",Time());
+  query->set("rowId", revision["ID"].get<Hash>());
+  query->set("previous", previous);
+  query->set("revision", revision);
+  query->set("time", Time());
   return insertQuery(*query);
 }
 
