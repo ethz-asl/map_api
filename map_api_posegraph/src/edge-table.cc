@@ -11,7 +11,7 @@
 #include <vector>
 
 #include <glog/logging.h>
-#include <map-api/table-field.h>
+#include <map-api/revision.h>
 
 #include "core.pb.h"
 
@@ -19,11 +19,11 @@ namespace map_api {
 
 //TODO(tcies) in definitive version of map api posegraph: Move these to
 // separate file, e.g. table-field-extension.cc (?)
-template <>
-void TableField::set<posegraph::Edge>(const posegraph::Edge& value){
-  CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
-      "Trying to set non-edge field to edge";
-  set_blobvalue(value.SerializeAsString());
+REVISION_ENUM(posegraph::Edge, proto::TableFieldDescriptor_Type_BLOB)
+
+REVISION_SET(posegraph::Edge){
+  REVISION_TYPE_CHECK(posegraph::Edge);
+  (*this)[field].set_blobvalue(value.SerializeAsString());
 }
 template <>
 posegraph::Edge TableField::get<posegraph::Edge>() const{
@@ -33,11 +33,6 @@ posegraph::Edge TableField::get<posegraph::Edge>() const{
   bool parsed = field.ParseFromString(blobvalue());
   CHECK(parsed) << "Failed to parse Edge";
   return field;
-}
-template <>
-map_api::proto::TableFieldDescriptor_Type
-TableField::protobufEnum<posegraph::Edge>(){
-  return proto::TableFieldDescriptor_Type_BLOB;
 }
 
 namespace posegraph {
@@ -77,7 +72,7 @@ map_api::Hash EdgeTable::insertEdge(const Edge &edge,
   std::shared_ptr<Frame> to = frameTable.get(toId);
   to->add_incoming(result.getString());
   frameTable.update(toId, *to);
-  */
+   */
   // TODO(discuss) don't report to anchor frames (e.g. GPS)?
   return result;
 }

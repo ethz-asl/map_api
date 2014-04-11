@@ -11,7 +11,7 @@
 namespace map_api{
 template<typename Type>
 bool CRTableInterface::addField(const std::string& name){
-  return addField(name, TableField::protobufEnum<Type>());
+  return addField(name, Revision::protobufEnum<Type>());
 }
 
 } // namespace map_api
