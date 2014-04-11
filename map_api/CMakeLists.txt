@@ -54,7 +54,6 @@ SET(CORE_SOURCE  src/cr-table-interface.cc
                  src/map-api-core.cc
                  src/map-api-hub.cc
                  src/revision.cc
-                 src/table-field.cc
                  src/time.cc
                  src/transaction.cc)
                 

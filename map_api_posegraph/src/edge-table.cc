@@ -23,16 +23,15 @@ REVISION_ENUM(posegraph::Edge, proto::TableFieldDescriptor_Type_BLOB)
 
 REVISION_SET(posegraph::Edge){
   REVISION_TYPE_CHECK(posegraph::Edge);
-  (*this)[field].set_blobvalue(value.SerializeAsString());
+  find(field).set_blobvalue(value.SerializeAsString());
 }
-template <>
-posegraph::Edge TableField::get<posegraph::Edge>() const{
-  CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
-      "Trying to get edge from non-edge field";
-  posegraph::Edge field;
-  bool parsed = field.ParseFromString(blobvalue());
+
+REVISION_GET(posegraph::Edge){
+  REVISION_TYPE_CHECK(posegraph::Edge);
+  posegraph::Edge value;
+  bool parsed = value.ParseFromString(find(field).blobvalue());
   CHECK(parsed) << "Failed to parse Edge";
-  return field;
+  return value;
 }
 
 namespace posegraph {
@@ -50,7 +49,7 @@ bool EdgeTable::define(){
 map_api::Hash EdgeTable::insertEdge(const Edge &edge,
                                     FrameTable &frameTable){
   std::shared_ptr<map_api::Revision> query = getTemplate();
-  (*query)["data"].set_blobvalue(edge.SerializeAsString());
+  query->set("data", edge);
   // commit
   map_api::Hash result = insertQuery(*query);
   if (!result.isValid()){

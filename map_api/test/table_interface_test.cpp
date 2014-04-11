@@ -34,23 +34,12 @@ class TestTable : public CRUTableInterface{
   }
 };
 
-bool fieldOf(proto::TableField& a, const Revision& query){
-  for (int i = 0; i < query.fieldqueries_size(); ++i){
-    if (&a == &query.fieldqueries(i))
-      return true;
-  }
-  return false;
-}
-
 TEST(TableInterFace, initEmpty){
   TestTable table;
   table.init();
   std::shared_ptr<Revision> structure = table.templateForward();
   ASSERT_TRUE(static_cast<bool>(structure));
   EXPECT_EQ(structure->fieldqueries_size(), 3);
-  EXPECT_TRUE(fieldOf((*structure)["ID"], *structure));
-  EXPECT_TRUE(fieldOf((*structure)["owner"], *structure));
-  EXPECT_DEATH(fieldOf((*structure)["not a field"], *structure),"^");
 }
 
 /**
@@ -82,7 +71,7 @@ class FieldTestTable : public TestTable{
       LOG(ERROR) << "Row " << id.getString() << " not found.";
       return false;
     }
-    value = (*row)["test_field"].get<FieldType>();
+    value = row->get<FieldType>("test_field");
     return true;
   }
   Hash owner(const Hash& id){
@@ -91,7 +80,7 @@ class FieldTestTable : public TestTable{
       LOG(ERROR) << "Row " << id.getString() << " not found.";
       return Hash();
     }
-    return (*row)["owner"].get<Hash>();
+    return row->get<Hash>("owner");
   }
   bool update(const Hash& id, const FieldType& newValue){
     std::shared_ptr<Revision> row = getRow(id);
@@ -222,7 +211,6 @@ TYPED_TEST(FieldTest, Init){
   table.init();
   std::shared_ptr<Revision> structure = table.templateForward();
   EXPECT_EQ(structure->fieldqueries_size(), 4);
-  EXPECT_TRUE(fieldOf((*structure)["test_field"], *structure));
   table.cleanup();
 }
 

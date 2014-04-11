@@ -18,7 +18,6 @@
 #include <gflags/gflags.h>
 
 #include "map-api/map-api-core.h"
-#include "map-api/table-field.h"
 #include "map-api/transaction.h"
 #include "core.pb.h"
 
@@ -79,8 +78,7 @@ bool CRUTableInterface::updateQuery(const Hash& id,
     if (i>0){
       stat << ", ";
     }
-    const TableField& field =
-        static_cast<const TableField&>(query.fieldqueries(i));
+    const proto::TableField& field = query.fieldqueries(i);
     stat << field.nametype().name() << "=";
     // TODO(tcies) prettify, uncast
     blobBag.push_back(query.insertPlaceHolder(i, stat));

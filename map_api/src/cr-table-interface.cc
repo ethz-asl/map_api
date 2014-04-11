@@ -18,7 +18,6 @@
 #include <gflags/gflags.h>
 
 #include "map-api/map-api-core.h"
-#include "map-api/table-field.h"
 #include "map-api/transaction.h"
 #include "core.pb.h"
 
@@ -104,7 +103,7 @@ bool CRTableInterface::createQuery(){
   // parse fields from descriptor as database fields
   for (int i=0; i<this->fields_size(); ++i){
     const proto::TableFieldDescriptor &fieldDescriptor = this->fields(i);
-    TableField field;
+    proto::TableField field;
     // The following is specified in protobuf but not available.
     // We are using an outdated version of protobuf.
     // Consider upgrading once overwhelmingly necessary.
@@ -214,24 +213,23 @@ std::shared_ptr<Revision> CRTableInterface::getRow(
   }
 
   // indication of empty result
-  if ((*query)["ID"].get<Hash>().getString() == ""){
+  if (query->get<Hash>("ID").getString() == ""){
     return std::shared_ptr<Revision>();
   }
 
   // write values that couldn't be written directly
   for (std::pair<std::string, double> fieldDouble : doublePostApply){
-    (*query)[fieldDouble.first].set_doublevalue(fieldDouble.second);
+    query->set(fieldDouble.first, fieldDouble.second);
   }
   for (std::pair<std::string, int32_t> fieldInt : intPostApply){
-    (*query)[fieldInt.first].set_intvalue(fieldInt.second);
+    query->set(fieldInt.first, fieldInt.second);
   }
   for (std::pair<std::string, int64_t> fieldLong : longPostApply){
-    (*query)[fieldLong.first].set_longvalue(fieldLong.second);
+    query->set(fieldLong.first, fieldLong.second);
   }
   for (const std::pair<std::string, Poco::Data::BLOB>& fieldBlob :
       blobPostApply){
-    (*query)[fieldBlob.first].set_blobvalue(fieldBlob.second.rawContent(),
-                                            fieldBlob.second.size());
+    query->set(fieldBlob.first, fieldBlob.second);
   }
 
   query->index(); // FIXME (titus) just index if not indexed or so...
