@@ -9,16 +9,20 @@ project(ceres_error_terms)
 #  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
 set(CMAKE_BUILD_TYPE Release)
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake/)
+
 find_package(catkin REQUIRED COMPONENTS kindr ceres)
 find_package(Eigen REQUIRED)
+find_package(GLog REQUIRED)
 
-add_definitions(--std=c++0x)
+add_definitions(--std=c++11)
 
 catkin_package(
-  DEPENDS eigen
+  DEPENDS eigen GLog
   CATKIN_DEPENDS ceres kindr
   INCLUDE_DIRS include ${catkin_INCLUDE_DIRS}
   LIBRARIES
+  CFG_EXTRAS FindGLog.cmake
 )
 
 ###########
@@ -45,4 +49,4 @@ add_definitions(${EIGEN_DEFINITIONS})
 catkin_add_gtest(test_relaxation test/PosegraphRelaxationTest.cpp)
 
 # currently the library is header-only
-target_link_libraries(test_relaxation ${catkin_LIBRARIES})
+target_link_libraries(test_relaxation ${catkin_LIBRARIES} ${GLOG_LIBRARY})
