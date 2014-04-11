@@ -25,6 +25,8 @@ DEFINE_string(ipPort, "127.0.0.1:5050", "Define node ip and port");
 
 namespace map_api {
 
+CRTableInterface::CRTableInterface(const Hash& owner) : owner_(owner) {}
+
 const Hash& CRTableInterface::getOwner() const{
   return owner_;
 }
@@ -67,11 +69,6 @@ bool CRTableInterface::setup(const std::string& name){
   if (!MapApiCore::getInstance().isInitialized()) {
     MapApiCore::getInstance().init(FLAGS_ipPort);
   }
-
-  // choose owner ID TODO(tcies) this is temporary
-  // TODO(tcies) make shareable across table interfaces
-  owner_ = Hash::randomHash();
-  LOG(INFO) << "Table interface with owner " << owner_.getString();
 
   // connect to database & create table
   // TODO(tcies) register in master table
@@ -132,11 +129,8 @@ bool CRTableInterface::createQuery(){
 }
 
 // TODO(tcies) pass by reference to shared pointer
-map_api::Hash CRTableInterface::rawInsertQuery(Revision& query){
+bool CRTableInterface::rawInsertQuery(Revision& query){
   // TODO(tcies) verify schema
-  map_api::Hash idHash(query.SerializeAsString());
-  query.set("ID",idHash);
-  query.set("owner",owner_);
 
   // Bag for blobs that need to stay in scope until statement is executed
   std::vector<std::shared_ptr<Poco::Data::BLOB> > blobBag;
@@ -168,7 +162,7 @@ map_api::Hash CRTableInterface::rawInsertQuery(Revision& query){
     LOG(FATAL) << "Insert failed with exception " << e.what();
   }
 
-  return idHash;
+  return true;
 }
 
 std::shared_ptr<Revision> CRTableInterface::rawGetRow(

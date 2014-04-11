@@ -12,12 +12,14 @@
 #include <Poco/Data/Statement.h>
 
 #include <map-api/cru-table-interface.h>
+#include <map-api/hash.h>
 #include <map-api/time.h>
 
 using namespace map_api;
 
 class TestTable : public CRUTableInterface{
  public:
+  TestTable(Hash owner) : CRUTableInterface(owner) {}
   virtual bool init(){
     setup("test_table");
     return true;
@@ -35,7 +37,7 @@ class TestTable : public CRUTableInterface{
 };
 
 TEST(TableInterFace, initEmpty){
-  TestTable table;
+  TestTable table(Hash::randomHash());
   table.init();
   std::shared_ptr<Revision> structure = table.templateForward();
   ASSERT_TRUE(static_cast<bool>(structure));

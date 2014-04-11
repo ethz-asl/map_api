@@ -8,7 +8,7 @@
 #ifndef HISTORY_H_
 #define HISTORY_H_
 
-#include <map-api/cru-table-interface.h>
+#include <map-api/cr-table-interface.h>
 #include <map-api/time.h>
 
 namespace map_api {
@@ -17,15 +17,19 @@ class History : public CRTableInterface {
  public:
   /**
    * Define the table of which the history is to be kept.
-   * Will create a table with the name <table.name()>_history.
-   * Owner is used later to verify that owner locks affected rows when pushing
-   * a revision to the revision history
+   * Will create a table with the name <tableName>_history.
    */
-  explicit History(const CRUTableInterface& table);
+  explicit History(const std::string& tableName, const Hash& owner);
   /**
    * Takes the table name taken from constructor to set up table interface
    */
   virtual bool init();
+  /**
+   * Prepare a history item for insertion by transaction.
+   */
+  std::shared_ptr<Revision> prepareForInsert(Revision& revision,
+                                             const Hash& previous);
+
  private:
   /**
    * History table fields:
@@ -48,13 +52,8 @@ class History : public CRTableInterface {
    */
   std::shared_ptr<Revision> revisionAt(const Hash& id,
                                        const Time& time);
-  /**
-   * Inserts revision into history. Proper linking is responsibility of
-   * Transaction.
-   */
-  Hash rawInsert(Revision& revision, const Hash& previous);
 
-  const CRUTableInterface& table_;
+  std::string tableName_;
 };
 
 } /* namespace map_api */

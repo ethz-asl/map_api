@@ -25,73 +25,71 @@ DECLARE_string(ipPort);
 
 namespace map_api {
 
-bool CRUTableInterface::setup(const std::string &name){
-  // TODO(tcies) outsource tasks common with write-only table interface
-  // TODO(tcies) Test before initialized or RAII
-  // TODO(tcies) check whether string safe for SQL, e.g. no hyphens
-  set_name(name);
-  // Define table fields
-  // enforced fields id (hash) and owner
-  addField("ID",proto::TableFieldDescriptor_Type_HASH128);
-  addField("owner",proto::TableFieldDescriptor_Type_HASH128);
-  // transaction-enforced fields TODO(tcies) later
-  // std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
-  // transactionFields(Transaction::requiredTableFields());
-  // for (const proto::TableFieldDescriptor& descriptor :
-  //     *transactionFields){
-  //   addField(descriptor.name(), descriptor.type());
-  // }
-  // user-defined fields
-  define();
+// TODO(tcies) oh no, can't initialize history!! unique_ptr or move owner
+// declaration to init() function
+CRUTableInterface::CRUTableInterface(Hash owner) : CRTableInterface(owner),
+    history_("FIXME!!!", owner) {}
 
-  // start up core if not running yet TODO(tcies) do this in the core
-  if (!MapApiCore::getInstance().isInitialized()) {
-    MapApiCore::getInstance().init(FLAGS_ipPort);
+bool CRUTableInterface::setup(const std::string &name){
+  // First part: Define fields of content (that will be outsourced to history
+  {
+    // user will call addField in define, which has been overriden here to
+    // define the structure that is exported to the history
+    define();
   }
 
-  // choose owner ID TODO(tcies) this is temporary
-  // TODO(tcies) make shareable across table interfaces
-  owner_ = Hash::randomHash();
-  VLOG(3) << "Table interface with owner " << owner_.getString();
+  // Second part: Define fields of the actual CRU table: Householding of
+  // references to history items. Very simple:
+  {
+    addCRUField<Hash>("ID");
+    addCRUField<Hash>("owner");
+    addCRUField<Hash>("latest_revision");
+  }
 
-  // connect to database & create table
-  // TODO(tcies) register in master table
-  session_ = MapApiCore::getInstance().getSession();
-  createQuery();
+  // Third part: Various other setup operations
+  {
+    // Fire up core TODO(tcies) core auto-start?
+    if (!MapApiCore::getInstance().isInitialized()) {
+      MapApiCore::getInstance().init(FLAGS_ipPort);
+    }
+    // Set table name TODO(tcies) string SQL-ready, e.g. no hyphens?
+    set_name(name);
 
-  // Sync with cluster TODO(tcies)
-  // sync();
+    // connect to database & create table
+    // TODO(tcies) register in master table
+    session_ = MapApiCore::getInstance().getSession();
+    createQuery();
+  }
+  return true;
+}
+
+bool CRUTableInterface::addField(const std::string& name,
+                                 proto::TableFieldDescriptor_Type type){
+  // same code as in CR table, except that setting fields on descriptor member,
+  // not the table interface itself
+  // make sure the field has not been defined yet
+  for (int i=0; i<descriptor_.fields_size(); ++i){
+    if (descriptor_.fields(i).name().compare(name) == 0){
+      LOG(FATAL) << "In descriptor of table " << this->name() << ": Field " <<
+          name << " defined twice!" << std::endl;
+    }
+  }
+  // otherwise, proceed with adding field
+  proto::TableFieldDescriptor *field = descriptor_.add_fields();
+  field->set_name(name);
+  field->set_type(type);
   return true;
 }
 
 
 bool CRUTableInterface::rawUpdateQuery(const Hash& id,
                                        const Hash& nextRevision){
-  // TODO(tcies) adapt to transaction-centricity
-
-  /*
-
-  // Bag for blobs that need to stay in scope until statement is executed
-  std::vector<std::shared_ptr<Poco::Data::BLOB> > blobBag;
-
   Poco::Data::Statement stat(*session_);
-  stat << "UPDATE " << name() << " SET ";
-  for (int i=0; i<query.fieldqueries_size(); ++i){
-    if (i>0){
-      stat << ", ";
-    }
-    const proto::TableField& field = query.fieldqueries(i);
-    stat << field.nametype().name() << "=";
-    // TODO(tcies) prettify, uncast
-    blobBag.push_back(query.insertPlaceHolder(i, stat));
-  }
+  stat << "UPDATE " << name() <<
+      " SET latest_revision = ? ", Poco::Data::use(nextRevision.getString());
   stat << "WHERE ID LIKE :id", Poco::Data::use(id.getString());
-
   stat.execute();
   return stat.done();
-
-   */
-  return false;
 }
 
 }

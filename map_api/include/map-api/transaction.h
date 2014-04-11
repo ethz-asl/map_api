@@ -29,9 +29,16 @@ class Transaction {
   bool commit();
   bool abort();
 
+  /**
+   * Sets a hash ID for the table to be inserted. Returns that ID, such that
+   * the item can be subsequently referred to.
+   *
+   * Item can't const because of un-constability due to auto-indexing of
+   * revisions.
+   */
   template<typename TableInterfaceType>
-  bool insert(TableInterfaceType& table,
-              const SharedRevisionPointer& item);
+  Hash insert(TableInterfaceType& table,
+              SharedRevisionPointer& item);
   /**
    * Fails if global state differs from groundState before updating
    */
@@ -57,22 +64,33 @@ class Transaction {
    * in consistent order as the same item might be updated twice, thus queue
    */
   typedef std::pair<CRUTableInterface&, Hash> ItemIdentifier;
-  typedef std::pair<ItemIdentifier, Revision> UpdateTodo;
+  typedef std::pair<ItemIdentifier, SharedRevisionPointer> UpdateTodo;
   std::queue<UpdateTodo> updateQueue_;
 
   /**
-   * Insert queues: Uncommitted initial revisions. Order doesn't matter here.
+   * Insert queues: Uncommitted initial revisions. Order doesn't matter here,
+   * however, all inserts must be committed before updates.
    */
-  typedef std::pair<CRTableInterface&, Revision> CRInsertTodo;
+  typedef std::pair<CRTableInterface&, SharedRevisionPointer>
+  CRInsertTodo;
   std::queue<CRInsertTodo> crInsertQueue_;
-  typedef std::pair<CRUTableInterface&, Revision> CRUInsertTodo;
+  /**
+   * CRU inserts are split into two parts: Insertion of item pointing to no
+   * revision, then update to revision.
+   */
+  typedef std::pair<CRUTableInterface&, SharedRevisionPointer>
+  CRUInsertTodo;
   std::queue<CRUInsertTodo> cruInsertQueue_;
+  /**
+   * TODO(tcies) will also need a map for keeping track of the latest
+   * revision Hash of each modified object, in case it gets updated twice.
+   */
 
   Hash owner_;
   std::shared_ptr<Poco::Data::Session> session_;
   bool active_;
   bool aborted_;
-  Time startTime_;
+  Time beginTime_;
 };
 
 } /* namespace map_api */

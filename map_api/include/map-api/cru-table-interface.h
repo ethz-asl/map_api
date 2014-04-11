@@ -9,6 +9,7 @@
 #include <gflags/gflags.h>
 
 #include "map-api/hash.h"
+#include "map-api/history.h"
 #include "map-api/revision.h"
 #include "map-api/cr-table-interface.h"
 #include "core.pb.h"
@@ -20,6 +21,7 @@ namespace map_api {
  */
 class CRUTableInterface : public CRTableInterface{
  public:
+  CRUTableInterface(Hash owner);
   virtual bool init() = 0;
  protected:
   /**
@@ -28,7 +30,26 @@ class CRUTableInterface : public CRTableInterface{
   bool setup(const std::string& name);
   virtual bool define() = 0;
 
+  /**
+   * Overriding addField, as the actual data will be outsourced to the
+   * history
+   */
+  template<typename Type>
+  bool addField(const std::string& name);
+  bool addField(const std::string& name,
+                proto::TableFieldDescriptor_Type type);
+
  private:
+  /**
+   * This is the function that will actually add fields to this table - for
+   * householding the references to the history table.
+   */
+  template<typename Type>
+  bool addCRUField(const std::string& name);
+
+  History history_;
+  proto::TableDescriptor descriptor_;
+
   /**
    * The following functions are to be used by transactions only. They pose a
    * very crude access straight to the database, without synchronization
@@ -48,5 +69,7 @@ class CRUTableInterface : public CRTableInterface{
 };
 
 }
+
+#include "map-api/cru-table-interface-inl.h"
 
 #endif  // TABLE_INTERFACE_H

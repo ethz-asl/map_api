@@ -25,6 +25,10 @@ namespace map_api {
 class CRTableInterface : public proto::TableDescriptor {
  public:
   /**
+   * Constructor does not throw, just sets owner
+   */
+  CRTableInterface(const Hash& owner);
+  /**
    * Init routine, must be implemented by derived class, defines table name.
    * TODO(tcies) enforce? isInitialized?
    */
@@ -91,11 +95,11 @@ class CRTableInterface : public proto::TableDescriptor {
   friend class History;
   /**                                                                       CCCC
    *                                                                       C
-   * Commits an insert query. ID does not need to be specified in the      C
-   * revision, it will be defined here.                                    C
+   * Commits an insert query. ID has to be defined in the query, this is   C
+   * responsability of the transaction.                                    C
    *                                                                        CCCC
    */
-  Hash rawInsertQuery(Revision& query);
+  bool rawInsertQuery(Revision& query);
   /**                                                                      RRRR
    *                                                                       R   R
    * Fetches row by ID and returns it as revision                          RRRR

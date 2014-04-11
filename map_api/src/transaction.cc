@@ -27,7 +27,7 @@ bool Transaction::begin(){
   }
   session_ = MapApiCore::getInstance().getSession();
   active_ = true;
-  // TODO(tcies) set time to current
+  beginTime_ = Time();
   return true;
 }
 
@@ -47,6 +47,40 @@ bool Transaction::abort(){
   // TODO(tcies) this should be rather straightforward...
   active_ = false;
   return true;
+}
+
+template<>
+Hash Transaction::insert<CRTableInterface>(
+    CRTableInterface& table,
+    SharedRevisionPointer& item){
+  Hash idHash = Hash::randomHash();
+  item->set("ID",idHash);
+  item->set("owner",owner_);
+  crInsertQueue_.push(CRInsertTodo(table, item));
+  return idHash;
+}
+
+template<>
+Hash Transaction::insert<CRUTableInterface>(
+    CRUTableInterface& table,
+    SharedRevisionPointer& item){
+  // 1. Prepping a CRU table entry pointing to nothing
+  Hash idHash = Hash::randomHash();
+  SharedRevisionPointer insertItem = table.getTemplate();
+  insertItem->set("ID", idHash);
+  insertItem->set("owner", owner_);
+  insertItem->set("latest_revision", Hash()); // invalid hash
+  crInsertQueue_.push(CRInsertTodo(table, insertItem));
+
+  // 2. Prepping history entry and submitting to update queue
+  SharedRevisionPointer updateItem =
+      table.history_.prepareForInsert(*item, Hash());
+  updateQueue_.push(UpdateTodo(
+      ItemIdentifier(table, idHash),
+      updateItem));
+  // TODO(tcies) register updateItem as latest revision of table:insertItem
+  // transaction-internally
+  return idHash;
 }
 
 

@@ -9,10 +9,11 @@
 
 namespace map_api {
 
-History::History(const CRUTableInterface& table) : table_(table){}
+History::History(const std::string& tableName, const Hash& owner) :
+    tableName_(tableName), CRTableInterface(owner) {}
 
 bool History::init(){
-  return setup(table_.name() + "_history");
+  return setup(tableName_ + "_history");
 }
 
 bool History::define(){
@@ -23,13 +24,14 @@ bool History::define(){
   return true;
 }
 
-Hash History::rawInsert(Revision& revision, const Hash& previous){
+std::shared_ptr<Revision> History::prepareForInsert(Revision& revision,
+                                                    const Hash& previous){
   std::shared_ptr<Revision> query = getTemplate();
   query->set("rowId", revision.get<Hash>("ID"));
   query->set("previous", previous);
   query->set("revision", revision);
   query->set("time", Time());
-  return rawInsertQuery(*query);
+  return query;
 }
 
 std::shared_ptr<Revision> History::revisionAt(const Hash& id,
