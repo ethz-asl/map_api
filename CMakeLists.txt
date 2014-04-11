@@ -50,7 +50,9 @@ catkin_add_gtest(test_relaxation test/test_main.cpp
 	test/test_posegraph_relaxation_test.cpp src/quat_param_hamilton.cc)
 catkin_add_gtest(test_covariance test/test_main.cpp 
 	test/test_posegraph_covariance_computation_test.cpp)
+catkin_add_gtest(test_quat_parametrization test/test_main.cpp 
+	test/test_quaternion_parametrization_test.cpp src/quat_param_hamilton.cc)
 
 target_link_libraries(test_relaxation ${catkin_LIBRARIES} ${GLOG_LIBRARY})
 target_link_libraries(test_covariance ${catkin_LIBRARIES} ${GLOG_LIBRARY})
-
+target_link_libraries(test_quat_parametrization ${catkin_LIBRARIES} ${GLOG_LIBRARY})
