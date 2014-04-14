@@ -47,6 +47,9 @@ bool CRUTableInterface::setup(const std::string &name){
   createQuery();
   // initialize history table
   history_ = std::unique_ptr<History>(new History(name, owner_));
+  // TODO(tcies) error-check
+  LOG(INFO) << "Init history";
+  history_->init();
   return true;
 }
 

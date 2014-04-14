@@ -15,26 +15,9 @@
 #include <map-api/hash.h>
 #include <map-api/time.h>
 
-using namespace map_api;
+#include "test_table.cpp"
 
-class TestTable : public CRUTableInterface{
- public:
-  TestTable(Hash owner) : CRUTableInterface(owner) {}
-  virtual bool init(){
-    setup("test_table");
-    return true;
-  }
-  std::shared_ptr<Revision> templateForward() const{
-    return getTemplate();
-  }
-  std::shared_ptr<Poco::Data::Session> sessionForward(){
-    return std::shared_ptr<Poco::Data::Session>(session_);
-  }
- protected:
-  virtual bool define(){
-    return true;
-  }
-};
+using namespace map_api;
 
 TEST(TableInterFace, initEmpty){
   TestTable table(Hash::randomHash());
@@ -57,11 +40,6 @@ class FieldTestTable : public TestTable{
   virtual bool init(){
     setup("field_test_table");
     return true;
-  }
-  void cleanup(){
-    *(sessionForward()) << "DROP TABLE IF EXISTS field_test_table",
-        Poco::Data::now;
-    LOG(INFO) << "Table field_test_table dropped";
   }
   std::shared_ptr<Revision> prepareInsert(const FieldType& value){
     std::shared_ptr<Revision> query = getTemplate();
