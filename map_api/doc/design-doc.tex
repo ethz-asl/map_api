@@ -123,7 +123,8 @@ Before applications use tables, they need to define them. This involves
 synchronizing the table schema with other nodes that use the table, or creating
 the table if it doesn't exist yet. The latter could be subject to a race
 condition, so needs to be synchronized. This happens in a transaction which is
-completely hidden away from the user, i.e. the choice is not given to bind the
+completely hidden away from the user, that is, the choice is not given to bind 
+the
 definition of a table with other queries into a transaction for the time being
 \todo{tcies: possible future feature: couple definition of multiple tables, or 
 just make it generally available for inclusion in transactions}. As we don't
