@@ -21,7 +21,7 @@ namespace map_api {
  */
 class CRUTableInterface : public CRTableInterface{
  public:
-  CRUTableInterface(Hash owner);
+  explicit CRUTableInterface(const Hash& owner);
   virtual bool init() = 0;
  protected:
   /**
@@ -47,7 +47,7 @@ class CRUTableInterface : public CRTableInterface{
   template<typename Type>
   bool addCRUField(const std::string& name);
 
-  History history_;
+  std::unique_ptr<History> history_;
   proto::TableDescriptor descriptor_;
 
   /**

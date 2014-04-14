@@ -52,30 +52,30 @@ bool Transaction::abort(){
 template<>
 Hash Transaction::insert<CRTableInterface>(
     CRTableInterface& table,
-    SharedRevisionPointer& item){
+    const SharedRevisionPointer& item){
   Hash idHash = Hash::randomHash();
   item->set("ID",idHash);
   item->set("owner",owner_);
-  crInsertQueue_.push(CRInsertTodo(table, item));
+  crInsertQueue_.push(CRInsertRequest(table, item));
   return idHash;
 }
 
 template<>
 Hash Transaction::insert<CRUTableInterface>(
     CRUTableInterface& table,
-    SharedRevisionPointer& item){
-  // 1. Prepping a CRU table entry pointing to nothing
+    const SharedRevisionPointer& item){
+  // 1. Prepare a CRU table entry pointing to nothing
   Hash idHash = Hash::randomHash();
   SharedRevisionPointer insertItem = table.getTemplate();
   insertItem->set("ID", idHash);
   insertItem->set("owner", owner_);
   insertItem->set("latest_revision", Hash()); // invalid hash
-  crInsertQueue_.push(CRInsertTodo(table, insertItem));
+  crInsertQueue_.push(CRInsertRequest(table, insertItem));
 
-  // 2. Prepping history entry and submitting to update queue
+  // 2. Prepare history entry and submitting to update queue
   SharedRevisionPointer updateItem =
-      table.history_.prepareForInsert(*item, Hash());
-  updateQueue_.push(UpdateTodo(
+      table.history_->prepareForInsert(*item, Hash());
+  updateQueue_.push(UpdateRequest(
       ItemIdentifier(table, idHash),
       updateItem));
   // TODO(tcies) register updateItem as latest revision of table:insertItem

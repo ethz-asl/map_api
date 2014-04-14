@@ -38,7 +38,7 @@ class Transaction {
    */
   template<typename TableInterfaceType>
   Hash insert(TableInterfaceType& table,
-              SharedRevisionPointer& item);
+              const SharedRevisionPointer& item);
   /**
    * Fails if global state differs from groundState before updating
    */
@@ -60,27 +60,29 @@ class Transaction {
   bool notifyAbortedOrInactive();
 
   /**
-   * Update queue:  Keeps uncommitted history entries. These must be applied
+   * Update queue: Queue of update queries requested over the course of the
+   * transaction, to be commited at the end. These must be applied
    * in consistent order as the same item might be updated twice, thus queue
    */
   typedef std::pair<CRUTableInterface&, Hash> ItemIdentifier;
-  typedef std::pair<ItemIdentifier, SharedRevisionPointer> UpdateTodo;
-  std::queue<UpdateTodo> updateQueue_;
+  typedef std::pair<ItemIdentifier, const SharedRevisionPointer> UpdateRequest;
+  std::queue<UpdateRequest> updateQueue_;
 
   /**
-   * Insert queues: Uncommitted initial revisions. Order doesn't matter here,
+   * Insert queues: Queues of insert queries requested over the course of the
+   * transaction, to be commited at the end. Order doesn't matter here,
    * however, all inserts must be committed before updates.
    */
-  typedef std::pair<CRTableInterface&, SharedRevisionPointer>
-  CRInsertTodo;
-  std::queue<CRInsertTodo> crInsertQueue_;
+  typedef std::pair<CRTableInterface&, const SharedRevisionPointer>
+  CRInsertRequest;
+  std::queue<CRInsertRequest> crInsertQueue_;
   /**
    * CRU inserts are split into two parts: Insertion of item pointing to no
    * revision, then update to revision.
    */
-  typedef std::pair<CRUTableInterface&, SharedRevisionPointer>
-  CRUInsertTodo;
-  std::queue<CRUInsertTodo> cruInsertQueue_;
+  typedef std::pair<CRUTableInterface&, const SharedRevisionPointer>
+  CRUInsertRequest;
+  std::queue<CRUInsertRequest> cruInsertQueue_;
   /**
    * TODO(tcies) will also need a map for keeping track of the latest
    * revision Hash of each modified object, in case it gets updated twice.

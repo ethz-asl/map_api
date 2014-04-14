@@ -11,12 +11,12 @@
 namespace map_api{
 
 template<typename Type>
-bool CRUTableInterface::addField(const std::string& name){
+bool CRUTableInterface::addField(const std::string& name) {
   return addField(name, Revision::protobufEnum<Type>());
 }
 
 template<typename Type>
-bool CRUTableInterface::addCRUField(const std::string& name){
+bool CRUTableInterface::addCRUField(const std::string& name) {
   return CRTableInterface::addField(name, Revision::protobufEnum<Type>());
 }
 

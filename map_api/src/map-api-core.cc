@@ -10,10 +10,20 @@
 
 #include "map-api/map-api-hub.h"
 
+DEFINE_string(ipPort, "127.0.0.1:5050", "Define node ip and port");
+
 namespace map_api {
 
 MapApiCore &MapApiCore::getInstance() {
   static MapApiCore instance;
+  static std::mutex initMutex;
+  initMutex.lock();
+  if (!instance.isInitialized()) {
+    if (!instance.init(FLAGS_ipPort)){
+      LOG(FATAL) << "Failed to initialize Map Api Core.";
+    }
+  }
+  initMutex.unlock();
   return instance;
 }
 

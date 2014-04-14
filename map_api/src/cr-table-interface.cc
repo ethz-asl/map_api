@@ -21,8 +21,6 @@
 #include "map-api/transaction.h"
 #include "core.pb.h"
 
-DEFINE_string(ipPort, "127.0.0.1:5050", "Define node ip and port");
-
 namespace map_api {
 
 CRTableInterface::CRTableInterface(const Hash& owner) : owner_(owner) {}
@@ -64,11 +62,6 @@ bool CRTableInterface::setup(const std::string& name){
   // }
   // user-defined fields
   define();
-
-  // start up core if not running yet TODO(tcies) do this in the core
-  if (!MapApiCore::getInstance().isInitialized()) {
-    MapApiCore::getInstance().init(FLAGS_ipPort);
-  }
 
   // connect to database & create table
   // TODO(tcies) register in master table
@@ -128,8 +121,7 @@ bool CRTableInterface::createQuery(){
   return true;
 }
 
-// TODO(tcies) pass by reference to shared pointer
-bool CRTableInterface::rawInsertQuery(Revision& query){
+bool CRTableInterface::rawInsertQuery(const Revision& query){
   // TODO(tcies) verify schema
 
   // Bag for blobs that need to stay in scope until statement is executed
