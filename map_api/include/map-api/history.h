@@ -26,6 +26,7 @@ class History : public CRTableInterface {
    * Takes the table name taken from constructor to set up table interface
    */
   virtual bool init();
+
  private:
   /**
    * History table fields:
