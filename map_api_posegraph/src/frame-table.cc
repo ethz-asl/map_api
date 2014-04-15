@@ -17,20 +17,21 @@ REVISION_ENUM(posegraph::Frame, proto::TableFieldDescriptor_Type_BLOB)
 
 REVISION_SET(posegraph::Frame){
   REVISION_TYPE_CHECK(posegraph::Frame);
-  (*this)[field].set_blobvalue(value.SerializeAsString());
+  find(field).set_blobvalue(value.SerializeAsString());
 }
-template <>
-posegraph::Frame TableField::get<posegraph::Frame>() const{
-  CHECK_EQ(nametype().type(), proto::TableFieldDescriptor_Type_BLOB) <<
-      "Trying to get frame from non-frame field";
-  posegraph::Frame field;
-  bool parsed = field.ParseFromString(blobvalue());
+
+REVISION_GET(posegraph::Frame){
+  REVISION_TYPE_CHECK(posegraph::Frame);
+  posegraph::Frame value;
+  bool parsed = value.ParseFromString(find(field).blobvalue());
   CHECK(parsed) << "Failed to parse Frame";
-  return field;
+  return value;
 }
 
 namespace posegraph {
 
+
+/** TODO(tcies) outdated, adapt to transaction-centricity
 bool FrameTable::init(){
   return setup("posegraph_frame");
 }
@@ -43,25 +44,23 @@ bool FrameTable::define(){
 
 map_api::Hash FrameTable::insertFrame(const Frame &frame){
   std::shared_ptr<map_api::Revision> query = getTemplate();
-  (*query)["data"].set_blobvalue(frame.SerializeAsString());
+  query->set("data", frame);
   // commit
   return insertQuery(*query);
 }
 
 std::shared_ptr<Frame> FrameTable::get(const map_api::Hash &id){
   std::shared_ptr<map_api::Revision> result = getRow(id);
-  std::shared_ptr<Frame> ret(new Frame());
-  ret->ParseFromString((*result)["data"].blobvalue());
-  return ret;
+  return std::make_shared<Frame>(result->get<Frame>("data"));
 }
 
 // TODO(tcies) many similarities with insert... meldable?
 bool FrameTable::update(const map_api::Hash& hash, const Frame& frame){
   std::shared_ptr<map_api::Revision> query = getTemplate();
-  (*query)["data"].set_blobvalue(frame.SerializeAsString());
-  // commit
+  query->set("data", frame);
   return updateQuery(hash, *query);
 }
+*/
 
 } /* namespace posegraph */
 } /* namespace map_api */

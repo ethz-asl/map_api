@@ -11,21 +11,17 @@
 
 using namespace map_api;
 
-TEST(MapApiCore, uninitialized) {
-  MapApiCore &instance = MapApiCore::getInstance();
-  EXPECT_FALSE(instance.isInitialized());
-}
+DECLARE_string(ipPort);
 
 TEST(MapApiCore, validInit) {
+  FLAGS_ipPort = "127.0.0.1:5050";
   MapApiCore &instance = MapApiCore::getInstance();
-  instance.init("127.0.0.1:5050");
   EXPECT_TRUE(instance.isInitialized());
   instance.kill();
   EXPECT_FALSE(instance.isInitialized());
 }
 
 TEST(MapApiCore, invalidInit) {
-  MapApiCore &instance = MapApiCore::getInstance();
-  EXPECT_FALSE(instance.init("not an IP:port string"));
-  EXPECT_FALSE(instance.isInitialized());
+  FLAGS_ipPort = "Not an IP-port string";
+  EXPECT_DEATH(MapApiCore &instance = MapApiCore::getInstance(),"^");
 }

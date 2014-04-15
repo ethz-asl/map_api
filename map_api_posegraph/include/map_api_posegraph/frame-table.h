@@ -14,7 +14,8 @@
 namespace map_api {
 namespace posegraph {
 
-// TODO(tcies) implement generic class for blob tables?
+/* TODO(tcies) adapt to transaction-centricity
+
 class FrameTable : public map_api::CRUTableInterface {
  public:
   virtual bool init();
@@ -24,6 +25,7 @@ class FrameTable : public map_api::CRUTableInterface {
  protected:
   virtual bool define();
 };
+*/
 
 } /* namespace posegraph */
 } /* namespace map_api */

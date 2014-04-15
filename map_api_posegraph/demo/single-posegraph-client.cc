@@ -23,6 +23,8 @@
 DEFINE_string(mission_file, "",
               "The csv file specifying the mission to process");
 
+// TODO(tcies) adapt to transaction-centricity
+
 map_api::posegraph::EdgeTable edgeTable;
 map_api::posegraph::FrameTable frameTable;
 

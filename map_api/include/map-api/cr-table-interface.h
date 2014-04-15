@@ -25,6 +25,10 @@ namespace map_api {
 class CRTableInterface : public proto::TableDescriptor {
  public:
   /**
+   * Constructor does not throw, just sets owner
+   */
+  CRTableInterface(const Hash& owner);
+  /**
    * Init routine, must be implemented by derived class, defines table name.
    * TODO(tcies) enforce? isInitialized?
    */
@@ -42,7 +46,7 @@ class CRTableInterface : public proto::TableDescriptor {
    * Setup: Load table definition and match with table definition in
    * cluster.
    */
-  virtual bool setup(const std::string& name);
+  bool setup(const std::string& name);
   /**
    * Function to be implemented by derivations: Define table by repeated
    * calls to addField()
@@ -53,24 +57,14 @@ class CRTableInterface : public proto::TableDescriptor {
    */
   std::shared_ptr<Revision> getTemplate() const;
   /**
-   * Function to be called at definition:  Adds field to table
+   * Function to be called at definition:  Adds field to table. This only calls
+   * the other addField function with the proper enum, see implementation
+   * header.
    */
   template<typename Type>
   bool addField(const std::string& name);
-  /**                                                                       CCCC
-   *                                                                       C
-   * Commits an insert query                                               C
-   *                                                                       C
-   *                                                                        CCCC
-   */
-  Hash insertQuery(Revision& query);
-  /**                                                                      RRRR
-   *                                                                       R   R
-   * Fetches row by ID and returns it as filled TableInsertQuery           RRRR
-   *                                                                       R  R
-   *                                                                       R   R
-   */
-  std::shared_ptr<Revision> getRow(const Hash& id) const;
+  bool addField(const std::string& name,
+                        proto::TableFieldDescriptor_Type type);
   /**
    * Shared pointer to database session TODO(tcies) can this be set private
    * yet accessed from a test table?
@@ -89,13 +83,30 @@ class CRTableInterface : public proto::TableDescriptor {
    */
   bool createQuery();
 
-  bool addField(const std::string& name, proto::TableFieldDescriptor_Type type);
-  /**
-   * On one hand, the cache is used to test concurrency concepts with a single
-   * process. On the other hand, it can be used for access speedup later on.
-   */
-  std::map<Hash, Revision> cache_;
   Hash owner_;
+
+  /**
+   * The following functions are to be used by transactions only. They pose a
+   * very crude access straight to the database, without synchronization
+   * and conflict checking - that is assumed to be done by the transaction.
+   * History is another example at it is managed by the transaction.
+   */
+  friend class Transaction;
+  friend class History;
+  /**                                                                       CCCC
+   *                                                                       C
+   * Commits an insert query. ID has to be defined in the query, this is   C
+   * responsability of the transaction.                                    C
+   *                                                                        CCCC
+   */
+  bool rawInsertQuery(const Revision& query);
+  /**                                                                      RRRR
+   *                                                                       R   R
+   * Fetches row by ID and returns it as revision                          RRRR
+   *                                                                       R  R
+   *                                                                       R   R
+   */
+  std::shared_ptr<Revision> rawGetRow(const Hash& id) const;
 
 };
 

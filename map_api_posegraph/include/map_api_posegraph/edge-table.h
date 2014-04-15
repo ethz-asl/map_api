@@ -18,17 +18,17 @@
 namespace map_api {
 namespace posegraph {
 
+/* TODO(tcies) adapt to transaction-centricity
+
 class EdgeTable : public map_api::CRUTableInterface {
  public:
   virtual bool init();
-  /**
-   * TODO (discuss) instead of passing around table references and initializing
-   * them by the user, implement as Singleton pattern?
-   */
   map_api::Hash insertEdge(const Edge &edge, FrameTable &frameTable);
  protected:
   virtual bool define();
 };
+
+*/
 
 } /* namespace posegraph */
 } /* namespace map_api */
