@@ -26,10 +26,11 @@ bool Revision::index() {
 
 proto::TableField& Revision::find(const std::string& field){
   fieldMap::iterator find = fields_.find(field);
+  // reindex if not found
   if (find == fields_.end()){
     index();
+    find = fields_.find(field);
   }
-  find = fields_.find(field);
   CHECK(find != fields_.end()) <<
       "Attempted to access inexistent field " << field;
   return *mutable_fieldqueries(find->second);
