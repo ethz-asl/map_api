@@ -78,7 +78,7 @@ class Revision : public proto::Revision {
   fieldMap fields_;
   bool index();
   /**
-   * Access to the map. Non-const because might need to index.
+   * Access to the map. Non-const because might need to reindex.
    */
   proto::TableField& find(const std::string& field);
 

@@ -58,7 +58,6 @@ std::shared_ptr<Frame> FrameTable::get(const map_api::Hash &id){
 bool FrameTable::update(const map_api::Hash& hash, const Frame& frame){
   std::shared_ptr<map_api::Revision> query = getTemplate();
   query->set("data", frame);
-  // commit
   return updateQuery(hash, *query);
 }
 */
