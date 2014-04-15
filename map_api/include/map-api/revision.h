@@ -46,29 +46,14 @@ class Revision : public proto::Revision {
    * Sets field according to type.
    */
   template <typename FieldType>
-  void set(const std::string& field, const FieldType& value);
-  /**
-   * Supporting macros
-   */
-#define REVISION_SET(TYPE) \
-    template <> \
-    void Revision::set<TYPE>(const std::string& field, const TYPE& value)
-#define REVISION_TYPE_CHECK(TYPE)  \
-    CHECK_EQ(find(field).nametype().type(), protobufEnum<TYPE>() ) << \
-    "Trying to access non-" << #TYPE << " field"
+  bool set(const std::string& fieldName, const FieldType& value);
 
   /**
    * Gets field according to type. Non-const because field lookup might lead
    * to re-indexing the map.
    */
   template <typename FieldType>
-  FieldType get(const std::string& field);
-  /**
-   * Supporting macro
-   */
-#define REVISION_GET(TYPE) \
-    template <> \
-    TYPE Revision::get<TYPE>(const std::string& field)
+  bool get(const std::string& fieldName, FieldType* value);
 
  private:
   /**
@@ -80,7 +65,30 @@ class Revision : public proto::Revision {
   /**
    * Access to the map. Non-const because might need to reindex.
    */
-  proto::TableField& find(const std::string& field);
+  bool find(const std::string& name, proto::TableField** field);
+  /**
+   * Sets field according to type.
+   */
+  template <typename FieldType>
+  bool set(proto::TableField& field, const FieldType& value);
+  /**
+   * Supporting macro
+   */
+#define REVISION_SET(TYPE) \
+    template <> \
+    bool Revision::set<TYPE>(proto::TableField& field, const TYPE& value)
+  /**
+   * Gets field according to type. Non-const because field lookup might lead
+   * to re-indexing the map.
+   */
+  template <typename FieldType>
+  bool get(proto::TableField& field, FieldType* value);
+  /**
+   * Supporting macro
+   */
+#define REVISION_GET(TYPE) \
+    template <> \
+    bool Revision::get<TYPE>(proto::TableField& field, TYPE* value)
 
 };
 
@@ -97,5 +105,7 @@ class testBlob : public map_api::proto::TableField{
 };
 
 } /* namespace map_api */
+
+#include "map-api/revision-inl.h"
 
 #endif /* REVISION_H_ */

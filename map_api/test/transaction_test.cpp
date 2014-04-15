@@ -66,5 +66,8 @@ class TransactionCRUTest : public TransactionTest {
 
 TEST_F(TransactionCRUTest, QueueInsertNonsense){
   std::shared_ptr<Revision> nonsense(new Revision());
-  EXPECT_DEATH(transaction_.insert<CRUTableInterface>(table_, nonsense), "^");
+  EXPECT_TRUE(transaction_.begin());
+  EXPECT_EQ(transaction_.insert<CRUTableInterface>(table_, nonsense), Hash());
 }
+
+// TODO (tcies) access uninitialized transaction

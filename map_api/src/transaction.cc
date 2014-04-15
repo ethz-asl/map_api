@@ -74,6 +74,12 @@ Hash Transaction::insert<CRUTableInterface>(
   // 2. Prepare history entry and submitting to update queue
   SharedRevisionPointer updateItem =
       table.history_->prepareForInsert(*item, Hash());
+  if (!updateItem){
+    LOG(ERROR) << "Preparation of insert statement failed for item";
+    // aborts transaction TODO(or just abort insert?)
+    abort();
+    return Hash();
+  }
   updateQueue_.push(UpdateRequest(
       ItemIdentifier(table, idHash),
       updateItem));

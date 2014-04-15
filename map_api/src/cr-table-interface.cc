@@ -227,7 +227,11 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
   }
 
   // indication of empty result
-  if (query->get<Hash>("ID").getString() == ""){
+  Hash test;
+  if (!query->get<Hash>("ID", &test)){
+    LOG(FATAL) << "Field ID seems to be absent";
+  }
+  if (test.getString() == ""){
     return std::shared_ptr<Revision>();
   }
 

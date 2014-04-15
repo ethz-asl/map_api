@@ -42,6 +42,7 @@ bool Hash::isValid() const{
   return hexHash_.size() == 32;
 }
 
+// TODO(tcies) error checking, return bool
 Hash Hash::cast(const std::string& hex){
   Hash ret;
   ret.hexHash_ = hex;
