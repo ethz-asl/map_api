@@ -44,7 +44,6 @@ bool Transaction::abort(){
   if (notifyAbortedOrInactive()){
     return false;
   }
-  // TODO(tcies) this should be rather straightforward...
   active_ = false;
   return true;
 }
