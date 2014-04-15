@@ -44,9 +44,15 @@ bool CRUTableInterface::setup(const std::string &name){
   // connect to database & create table
   // TODO(tcies) register in master table
   session_ = MapApiCore::getInstance().getSession();
-  createQuery();
+  if (!createQuery()){
+    LOG(ERROR) << "Failed to create table";
+  }
   // initialize history table
   history_ = std::unique_ptr<History>(new History(name, owner_));
+  if (!history_->init()){
+    LOG(ERROR) << "Failed to initialize history";
+    return false;
+  }
   return true;
 }
 

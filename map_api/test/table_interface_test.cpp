@@ -15,26 +15,9 @@
 #include <map-api/hash.h>
 #include <map-api/time.h>
 
-using namespace map_api;
+#include "test_table.cpp"
 
-class TestTable : public CRUTableInterface{
- public:
-  TestTable(Hash owner) : CRUTableInterface(owner) {}
-  virtual bool init(){
-    setup("test_table");
-    return true;
-  }
-  std::shared_ptr<Revision> templateForward() const{
-    return getTemplate();
-  }
-  std::shared_ptr<Poco::Data::Session> sessionForward(){
-    return std::shared_ptr<Poco::Data::Session>(session_);
-  }
- protected:
-  virtual bool define(){
-    return true;
-  }
-};
+using namespace map_api;
 
 TEST(TableInterFace, initEmpty){
   TestTable table(Hash::randomHash());
@@ -50,52 +33,18 @@ TEST(TableInterFace, initEmpty){
  **********************************************************
  */
 
-/**
- * TODO(tcies) all this is outdated with the new concept of transaction-
- * centricity and will need to be adapted
- *
 template <typename FieldType>
 class FieldTestTable : public TestTable{
  public:
+  FieldTestTable(const Hash& owner) : TestTable(owner) {}
   virtual bool init(){
     setup("field_test_table");
     return true;
   }
-  void cleanup(){
-    *(sessionForward()) << "DROP TABLE IF EXISTS field_test_table",
-        Poco::Data::now;
-    LOG(INFO) << "Table field_test_table dropped";
-  }
-  Hash insert(const FieldType& value){
+  std::shared_ptr<Revision> prepareInsert(const FieldType& value){
     std::shared_ptr<Revision> query = getTemplate();
     query->set("test_field",value);
-    return insertQuery(*query);
-  }
-  bool get(const Hash& id, FieldType& value){
-    std::shared_ptr<Revision> row = getRow(id);
-    if (!static_cast<bool>(row)){
-      LOG(ERROR) << "Row " << id.getString() << " not found.";
-      return false;
-    }
-    value = row->get<FieldType>("test_field");
-    return true;
-  }
-  Hash owner(const Hash& id){
-    std::shared_ptr<Revision> row = getRow(id);
-    if (!static_cast<bool>(row)){
-      LOG(ERROR) << "Row " << id.getString() << " not found.";
-      return Hash();
-    }
-    return row->get<Hash>("owner");
-  }
-  bool update(const Hash& id, const FieldType& newValue){
-    std::shared_ptr<Revision> row = getRow(id);
-    if (!static_cast<bool>(row)){
-      LOG(ERROR) << "Row " << id.getString() << " not found.";
-      return false;
-    }
-    row->set("test_field",newValue);
-    return updateQuery(id, *row);
+    return query;
   }
  protected:
   virtual bool define(){
@@ -103,7 +52,7 @@ class FieldTestTable : public TestTable{
     return true;
   }
 };
-*/
+
 
 /**
  **************************************
@@ -213,17 +162,18 @@ typedef ::testing::Types<testBlob, std::string, int32_t, double,
     map_api::Hash, int64_t, map_api::Time> MyTypes;
 TYPED_TEST_CASE(FieldTest, MyTypes);
 
-/**
- * TODO(tcies) outdated with transaction-centricity, needs update
- *
 TYPED_TEST(FieldTest, Init){
-  FieldTestTable<TypeParam> table;
+  Hash owner = Hash::randomHash();
+  FieldTestTable<TypeParam> table(owner);
   table.init();
   std::shared_ptr<Revision> structure = table.templateForward();
-  EXPECT_EQ(structure->fieldqueries_size(), 4);
+  EXPECT_EQ(structure->fieldqueries_size(), 3);
   table.cleanup();
 }
 
+/**
+ * TODO(tcies) outdated with transaction-centricity, needs update
+ *
 TYPED_TEST(FieldTest, CreateBeforeInit){
   FieldTestTable<TypeParam> table;
   EXPECT_DEATH(table.insert(this->sample_data_1()),"^");

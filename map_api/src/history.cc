@@ -10,7 +10,7 @@
 namespace map_api {
 
 History::History(const std::string& tableName, const Hash& owner) :
-    tableName_(tableName), CRTableInterface(owner) {}
+    CRTableInterface(owner), tableName_(tableName) {}
 
 bool History::init(){
   return setup(tableName_ + "_history");
