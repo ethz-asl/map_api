@@ -34,7 +34,6 @@ TEST_F(TransactionTest, BeginCommit){
   Transaction transaction(owner);
   EXPECT_TRUE(transaction_.begin());
   EXPECT_TRUE(transaction_.commit());
-  // TODO(discuss) or should this false when nothing was changed?
 }
 
 /**
@@ -44,7 +43,7 @@ class TransactionTestTable : public TestTable {
  public:
   TransactionTestTable(const Hash& owner) : TestTable(owner) {}
  protected:
-  virtual bool define(){
+  virtual bool define() {
     addField<double>("n");
     return true;
   }

@@ -117,7 +117,6 @@ bool CRTableInterface::createQuery(){
     }
   }
   stat << ");";
-  LOG(INFO) << stat.toString();
   stat.execute();
   return true;
 }

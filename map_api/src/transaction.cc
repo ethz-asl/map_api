@@ -35,7 +35,7 @@ bool Transaction::commit(){
   if (notifyAbortedOrInactive()){
     return false;
   }
-  // TODO(tcies) c.f. design document
+  // TODO(tcies) return false if no jobs scheduled
   active_ = false;
   return true;
 }

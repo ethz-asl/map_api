@@ -26,9 +26,9 @@ class TestTable : public map_api::CRUTableInterface {
     return std::shared_ptr<Poco::Data::Session>(session_);
   }
   void cleanup(){
-    *(sessionForward()) << "DROP TABLE IF EXISTS field_test_table",
+    *(sessionForward()) << "DROP TABLE IF EXISTS " << name(),
         Poco::Data::now;
-    LOG(INFO) << "Table dropped";
+    LOG(INFO) << "Table " << name() << " dropped";
   }
  protected:
   virtual bool define(){
