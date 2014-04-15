@@ -36,6 +36,8 @@ REVISION_GET(posegraph::Edge){
 
 namespace posegraph {
 
+/** TODO(tcies) will need to be redone at transaction-centricity
+
 bool EdgeTable::init(){
   return setup("posegraph_edge");
 }
@@ -65,16 +67,16 @@ map_api::Hash EdgeTable::insertEdge(const Edge &edge,
   std::shared_ptr<Frame> from = frameTable.get(fromId);
   from->add_outgoing(result.getString());
   frameTable.update(fromId, *from);
-  /*
   // to
-  map_api::Hash toId = map_api::Hash::cast(edge.to());
-  std::shared_ptr<Frame> to = frameTable.get(toId);
-  to->add_incoming(result.getString());
-  frameTable.update(toId, *to);
-   */
+  // map_api::Hash toId = map_api::Hash::cast(edge.to());
+  // std::shared_ptr<Frame> to = frameTable.get(toId);
+  // to->add_incoming(result.getString());
+  // frameTable.update(toId, *to);
   // TODO(discuss) don't report to anchor frames (e.g. GPS)?
   return result;
 }
+
+*/
 
 } /* namespace posegraph */
 } /* namespace map_api */

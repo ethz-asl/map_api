@@ -30,6 +30,8 @@ REVISION_GET(posegraph::Frame){
 
 namespace posegraph {
 
+
+/** TODO(tcies) outdated, adapt to transaction-centricity
 bool FrameTable::init(){
   return setup("posegraph_frame");
 }
@@ -59,6 +61,7 @@ bool FrameTable::update(const map_api::Hash& hash, const Frame& frame){
   // commit
   return updateQuery(hash, *query);
 }
+*/
 
 } /* namespace posegraph */
 } /* namespace map_api */

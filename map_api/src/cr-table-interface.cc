@@ -21,9 +21,9 @@
 #include "map-api/transaction.h"
 #include "core.pb.h"
 
-DEFINE_string(ipPort, "127.0.0.1:5050", "Define node ip and port");
-
 namespace map_api {
+
+CRTableInterface::CRTableInterface(const Hash& owner) : owner_(owner) {}
 
 const Hash& CRTableInterface::getOwner() const{
   return owner_;
@@ -53,25 +53,15 @@ bool CRTableInterface::setup(const std::string& name){
   // enforced fields id (hash) and owner
   addField<Hash>("ID");
   addField<Hash>("owner");
-  // transaction-enforced fields
-  std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
-  transactionFields(Transaction::requiredTableFields());
-  for (const proto::TableFieldDescriptor& descriptor :
-      *transactionFields){
-    addField(descriptor.name(), descriptor.type());
-  }
+  // transaction-enforced fields TODO(tcies) later
+  // std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
+  // transactionFields(Transaction::requiredTableFields());
+  // for (const proto::TableFieldDescriptor& descriptor :
+  //     *transactionFields){
+  //   addField(descriptor.name(), descriptor.type());
+  // }
   // user-defined fields
   define();
-
-  // start up core if not running yet TODO(tcies) do this in the core
-  if (!MapApiCore::getInstance().isInitialized()) {
-    MapApiCore::getInstance().init(FLAGS_ipPort);
-  }
-
-  // choose owner ID TODO(tcies) this is temporary
-  // TODO(tcies) make shareable across table interfaces
-  owner_ = Hash::randomHash();
-  LOG(INFO) << "Table interface with owner " << owner_.getString();
 
   // connect to database & create table
   // TODO(tcies) register in master table
@@ -127,28 +117,53 @@ bool CRTableInterface::createQuery(){
     }
   }
   stat << ");";
-  stat.execute();
+
+  try {
+    stat.execute();
+  } catch(const std::exception &e){
+    LOG(FATAL) << "Create failed with exception " << e.what();
+  }
+
   return true;
 }
 
-// TODO(tcies) pass by reference to shared pointer
-map_api::Hash CRTableInterface::insertQuery(Revision& query){
-  // set ID (TODO(tcies): set owner as well)
-  map_api::Hash idHash(query.SerializeAsString());
-  query.set("ID",idHash);
-  query.set("owner",owner_);
+bool CRTableInterface::rawInsertQuery(const Revision& query){
+  // TODO(tcies) verify schema
 
-  Transaction transaction(owner_);
-  // TODO(tcies) all the checks...
-  transaction.begin();
-  transaction.addInsertQuery(
-      Transaction::SharedRevisionPointer(new Revision(query)));
-  transaction.commit();
-  // TODO(tcies) check if aborted
-  return idHash;
+  // Bag for blobs that need to stay in scope until statement is executed
+  std::vector<std::shared_ptr<Poco::Data::BLOB> > blobBag;
+
+  // assemble SQLite statement
+  Poco::Data::Statement stat(*session_);
+  // NB: sqlite placeholders work only for column values
+  stat << "INSERT INTO " << name() << " ";
+
+  stat << "(";
+  for (int i = 0; i < query.fieldqueries_size(); ++i){
+    if (i > 0){
+      stat << ", ";
+    }
+    stat << query.fieldqueries(i).nametype().name();
+  }
+  stat << ") VALUES ( ";
+  for (int i = 0; i < query.fieldqueries_size(); ++i){
+    if (i > 0){
+      stat << " , ";
+    }
+    blobBag.push_back(query.insertPlaceHolder(i,stat));
+  }
+  stat << " ); ";
+
+  try {
+    stat.execute();
+  } catch(const std::exception &e){
+    LOG(FATAL) << "Insert failed with exception " << e.what();
+  }
+
+  return true;
 }
 
-std::shared_ptr<Revision> CRTableInterface::getRow(
+std::shared_ptr<Revision> CRTableInterface::rawGetRow(
     const map_api::Hash &id) const{
   std::shared_ptr<Revision> query = getTemplate();
   Poco::Data::Statement stat(*session_);
@@ -206,7 +221,7 @@ std::shared_ptr<Revision> CRTableInterface::getRow(
 
   try{
     stat.execute();
-  } catch (std::exception& e){
+  } catch (const std::exception& e){
     LOG(ERROR) << "Statement failed transaction: " << stat.toString();
     return std::shared_ptr<Revision>();
   }

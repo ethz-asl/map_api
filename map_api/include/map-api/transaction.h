@@ -8,73 +8,91 @@
 #ifndef TRANSACTION_H_
 #define TRANSACTION_H_
 
-#include <stack>
+#include <queue>
 #include <memory>
 
+#include "map-api/cr-table-interface.h"
+#include "map-api/cru-table-interface.h"
 #include "map-api/hash.h"
 #include "map-api/revision.h"
+#include "map-api/time.h"
 
 namespace map_api {
 
 class Transaction {
  public:
   typedef std::shared_ptr<Revision> SharedRevisionPointer;
-  /**
-   * Exception-free initialization.
-   */
+
   Transaction(const Hash& owner);
-  /**
-   * Any other initialization
-   */
+
   bool begin();
   bool commit();
   bool abort();
+
   /**
-   * Passing shared pointer so we can be more flexible with the journal.
+   * Sets a hash ID for the table to be inserted. Returns that ID, such that
+   * the item can be subsequently referred to.
+   *
+   * Item can't const because of un-constability due to auto-indexing of
+   * revisions.
    */
-  bool addInsertQuery(const SharedRevisionPointer& query);
+  template<typename TableInterfaceType>
+  Hash insert(TableInterfaceType& table,
+              const SharedRevisionPointer& item);
   /**
-   * Transaction fails if global state differs from groundState before updating
+   * Fails if global state differs from groundState before updating
    */
-  bool addUpdateQuery(const SharedRevisionPointer& oldState,
-                      const SharedRevisionPointer& newState);
+  bool update(CRUTableInterface& table, const Hash& id,
+              const SharedRevisionPointer& newRevision);
+
   /**
-   * Does a select query need to be in a transaction? What would rollback mean?
-   * Cache invalidation of some sort?
+   * Returns latest revision prior to transaction begin time
    */
-  SharedRevisionPointer addSelectQuery(
-      const std::string& table, const Hash& id);
+  template<typename TableInterfaceType>
+  SharedRevisionPointer read(TableInterfaceType& table, const Hash& id);
   /**
    * Define own fields for database tables, such as for locks.
    */
-  static std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
-  requiredTableFields();
+  // static std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
+  // requiredTableFields();
+  // TODO(tcies) later, start with mutexes
  private:
-  /**
-   * Common operations for insert/update query
-   */
-  bool commonOperations(const SharedRevisionPointer& oldState,
-      const SharedRevisionPointer& newState);
   bool notifyAbortedOrInactive();
+
   /**
-   * Journal entry
+   * Update queue: Queue of update queries requested over the course of the
+   * transaction, to be commited at the end. These must be applied
+   * in consistent order as the same item might be updated twice, thus queue
    */
-  typedef struct JournalEntry{
-    SharedRevisionPointer oldState;
-    SharedRevisionPointer newState;
-    JournalEntry(){}
-    JournalEntry(const SharedRevisionPointer& old_state,
-                 const SharedRevisionPointer& new_state) : oldState(old_state),
-                     newState(new_state) {}
-  }JournalEntry;
+  typedef std::pair<CRUTableInterface&, Hash> ItemIdentifier;
+  typedef std::pair<ItemIdentifier, const SharedRevisionPointer> UpdateRequest;
+  std::queue<UpdateRequest> updateQueue_;
+
   /**
-   * Journal: stack, as the latest changes need to be rolled back first.
+   * Insert queues: Queues of insert queries requested over the course of the
+   * transaction, to be commited at the end. Order doesn't matter here,
+   * however, all inserts must be committed before updates.
    */
-  std::stack<JournalEntry> journal_;
+  typedef std::pair<CRTableInterface&, const SharedRevisionPointer>
+  CRInsertRequest;
+  std::queue<CRInsertRequest> crInsertQueue_;
+  /**
+   * CRU inserts are split into two parts: Insertion of item pointing to no
+   * revision, then update to revision.
+   */
+  typedef std::pair<CRUTableInterface&, const SharedRevisionPointer>
+  CRUInsertRequest;
+  std::queue<CRUInsertRequest> cruInsertQueue_;
+  /**
+   * TODO(tcies) will also need a map for keeping track of the latest
+   * revision Hash of each modified object, in case it gets updated twice.
+   */
+
   Hash owner_;
   std::shared_ptr<Poco::Data::Session> session_;
   bool active_;
   bool aborted_;
+  Time beginTime_;
 };
 
 } /* namespace map_api */

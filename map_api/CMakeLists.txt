@@ -74,3 +74,7 @@ target_link_libraries(test_hash_test ${PROJECT_NAME} ${LINK_WITH})
 
 catkin_add_gtest(test_core_test test/test_main.cpp test/core_test.cpp)
 target_link_libraries(test_core_test ${PROJECT_NAME} ${LINK_WITH})
+
+catkin_add_gtest(test_transaction_test test/test_main.cpp 
+  test/transaction_test.cpp)
+target_link_libraries(test_transaction_test ${PROJECT_NAME} ${LINK_WITH})
