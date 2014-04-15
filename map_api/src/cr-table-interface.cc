@@ -117,7 +117,13 @@ bool CRTableInterface::createQuery(){
     }
   }
   stat << ");";
-  stat.execute();
+
+  try {
+    stat.execute();
+  } catch(const std::exception &e){
+    LOG(FATAL) << "Create failed with exception " << e.what();
+  }
+
   return true;
 }
 
@@ -150,7 +156,7 @@ bool CRTableInterface::rawInsertQuery(const Revision& query){
 
   try {
     stat.execute();
-  } catch(std::exception &e){
+  } catch(const std::exception &e){
     LOG(FATAL) << "Insert failed with exception " << e.what();
   }
 
@@ -215,7 +221,7 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
 
   try{
     stat.execute();
-  } catch (std::exception& e){
+  } catch (const std::exception& e){
     LOG(ERROR) << "Statement failed transaction: " << stat.toString();
     return std::shared_ptr<Revision>();
   }
