@@ -58,6 +58,21 @@ class Transaction {
   // TODO(tcies) later, start with mutexes
  private:
   bool notifyAbortedOrInactive();
+  /**
+   * Returns true if the supplied queue has a conflict
+   */
+  template<typename Queue>
+  bool queueConflict(const Queue& queue);
+  /**
+   * Returns true if the supplied insert/update request has a conflict
+   */
+  template<typename Request>
+  bool requestConflict(const Request& request);
+  /**
+   * Allows templated implementation for both kinds of insert requests
+   */
+  template<typename InsertRequest>
+  bool insertRequestConflict(const InsertRequest& request);
 
   /**
    * Update queue: Queue of update queries requested over the course of the
@@ -66,7 +81,7 @@ class Transaction {
    */
   typedef std::pair<CRUTableInterface&, Hash> ItemIdentifier;
   typedef std::pair<ItemIdentifier, const SharedRevisionPointer> UpdateRequest;
-  std::queue<UpdateRequest> updateQueue_;
+  std::deque<UpdateRequest> updateQueue_;
 
   /**
    * Insert queues: Queues of insert queries requested over the course of the
@@ -75,14 +90,14 @@ class Transaction {
    */
   typedef std::pair<CRTableInterface&, const SharedRevisionPointer>
   CRInsertRequest;
-  std::queue<CRInsertRequest> crInsertQueue_;
+  std::deque<CRInsertRequest> crInsertQueue_;
   /**
    * CRU inserts are split into two parts: Insertion of item pointing to no
    * revision, then update to revision.
    */
   typedef std::pair<CRUTableInterface&, const SharedRevisionPointer>
   CRUInsertRequest;
-  std::queue<CRUInsertRequest> cruInsertQueue_;
+  std::deque<CRUInsertRequest> cruInsertQueue_;
   /**
    * TODO(tcies) will also need a map for keeping track of the latest
    * revision Hash of each modified object, in case it gets updated twice.

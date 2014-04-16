@@ -7,6 +7,8 @@
 
 #include <map-api/transaction.h>
 
+#include <mutex>
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
@@ -35,7 +37,23 @@ bool Transaction::commit(){
   if (notifyAbortedOrInactive()){
     return false;
   }
-  // TODO(tcies) return false if no jobs scheduled
+  //return false if no jobs scheduled
+  if (crInsertQueue_.empty() && cruInsertQueue_.empty() &&
+      updateQueue_.empty()){
+    LOG(WARNING) << "Committing transaction with no queries";
+    return false;
+  }
+  // Acquire lock for database updates TODO(tcies) per-item locks
+  static std::mutex dbMutex;
+  {
+    std::lock_guard<std::mutex> lock(dbMutex);
+    // check for conflicts in all request queues
+    if (queueConflict(crInsertQueue_) || queueConflict(cruInsertQueue_) ||
+        queueConflict(updateQueue_)){
+      LOG(WARNING) << "Conflict in transaction requests queues, commit fails";
+      return false;
+    }
+  }
   active_ = false;
   return true;
 }
@@ -55,7 +73,7 @@ Hash Transaction::insert<CRTableInterface>(
   Hash idHash = Hash::randomHash();
   item->set("ID",idHash);
   item->set("owner",owner_);
-  crInsertQueue_.push(CRInsertRequest(table, item));
+  crInsertQueue_.push_back(CRInsertRequest(table, item));
   return idHash;
 }
 
@@ -69,9 +87,9 @@ Hash Transaction::insert<CRUTableInterface>(
   insertItem->set("ID", idHash);
   insertItem->set("owner", owner_);
   insertItem->set("latest_revision", Hash()); // invalid hash
-  crInsertQueue_.push(CRInsertRequest(table, insertItem));
+  cruInsertQueue_.push_back(CRUInsertRequest(table, insertItem));
 
-  // 2. Prepare history entry and submitting to update queue
+  // 2. Prepare history entry and submit to update queue
   SharedRevisionPointer updateItem =
       table.history_->prepareForInsert(*item, Hash());
   if (!updateItem){
@@ -80,14 +98,13 @@ Hash Transaction::insert<CRUTableInterface>(
     abort();
     return Hash();
   }
-  updateQueue_.push(UpdateRequest(
+  updateQueue_.push_back(UpdateRequest(
       ItemIdentifier(table, idHash),
       updateItem));
   // TODO(tcies) register updateItem as latest revision of table:insertItem
   // transaction-internally
   return idHash;
 }
-
 
 // Going with locks for now
 // std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
@@ -100,7 +117,6 @@ Hash Transaction::insert<CRUTableInterface>(
 //   return fields;
 // }
 
-
 bool Transaction::notifyAbortedOrInactive(){
   if (!active_){
     LOG(ERROR) << "Transaction has not been initialized";
@@ -110,6 +126,57 @@ bool Transaction::notifyAbortedOrInactive(){
     LOG(ERROR) << "Transaction has previously been aborted";
     return true;
   }
+  return false;
+}
+
+template<typename Queue>
+bool Transaction::queueConflict(const Queue& queue){
+  for (const auto& request : queue){
+    if (requestConflict(request)){
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Insert requests conflict only if the id is already present
+ */
+template<>
+bool Transaction::requestConflict<Transaction::CRInsertRequest>(
+    const Transaction::CRInsertRequest& request){
+  return this->insertRequestConflict(request);
+}
+template<>
+bool Transaction::requestConflict<Transaction::CRUInsertRequest>(
+    const Transaction::CRUInsertRequest& request){
+  return this->insertRequestConflict(request);
+}
+template<typename InsertRequest>
+bool Transaction::insertRequestConflict(const InsertRequest& request){
+  const auto& table = request.first; // will be CR- or CRUTableInterface
+  const SharedRevisionPointer& revision = request.second;
+  Hash id;
+  if (!revision->get("ID", &id)){
+    LOG(ERROR) << "Queued request revision does not contain ID";
+    return true;
+  }
+  if (table.rawGetRow(id)){
+    LOG(WARNING) << "Table " << table.name() << " already contains id " <<
+        id.getString() << ", transaction conflict!";
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Update requests conflict if there is a revision that is later than the one
+ * referenced as "previous" in the update request.
+ */
+template<>
+bool Transaction::requestConflict<Transaction::UpdateRequest>(
+    const Transaction::UpdateRequest& request){
+  // TODO(tcies) implement
   return false;
 }
 
