@@ -164,7 +164,7 @@ Transaction::CRUpdateState>(const Transaction::CRInsertRequest& request,
   return false;
 }
 /**
- * CRU insert request: very similar to CR insert request TODO(tcies) DRY
+ * CRU insert request: very similar to CR insert request
  */
 template<>
 bool Transaction::requestConflict<Transaction::CRUInsertRequest,
