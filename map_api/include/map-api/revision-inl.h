@@ -42,7 +42,7 @@ bool Revision::get(const std::string& fieldName, FieldType* value){
   // 2. Check type
   CHECK_EQ(field->nametype().type(), Revision::protobufEnum<FieldType>()) <<
       "Type mismatch when trying to get " << fieldName;
-  // 3. Set
+  // 3. Get
   return get(*field, value);
 }
 
