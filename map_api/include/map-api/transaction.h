@@ -8,6 +8,8 @@
 #ifndef TRANSACTION_H_
 #define TRANSACTION_H_
 
+#include <map>
+#include <set>
 #include <queue>
 #include <memory>
 
@@ -57,30 +59,64 @@ class Transaction {
   // requiredTableFields();
   // TODO(tcies) later, start with mutexes
  private:
+  class CRItemIdentifier : public std::pair<const CRTableInterface&, Hash>{
+   public:
+    inline CRItemIdentifier(const CRTableInterface& table,
+                                 const Hash& id) :
+          std::pair<const CRTableInterface&, Hash>(table,id) {}
+    // required for set
+    inline bool operator <(const CRItemIdentifier& other) const{
+      if (first.name() == other.first.name())
+        return second < other.second;
+      return first.name() < other.first.name();
+    }
+
+  };
+  class CRUItemIdentifier : public std::pair<const CRUTableInterface&, Hash>{
+   public:
+    inline CRUItemIdentifier(const CRUTableInterface& table,
+                             const Hash& id) :
+      std::pair<const CRUTableInterface&, Hash>(table,id) {}
+    // required for map
+    inline bool operator <(const CRUItemIdentifier& other) const{
+      if (first.name() == other.first.name())
+        return second < other.second;
+      return first.name() < other.first.name();
+    }
+  };
+  typedef std::pair<CRUItemIdentifier, const SharedRevisionPointer>
+  UpdateRequest;
+  typedef std::pair<CRTableInterface&, const SharedRevisionPointer>
+  CRInsertRequest;
+  typedef std::pair<CRUTableInterface&, const SharedRevisionPointer>
+  CRUInsertRequest;
+  /**
+   * Type for keeping track of previous changes within the same transaction
+   */
+  typedef std::set<CRItemIdentifier> CRUpdateState;
+  typedef std::map<CRUItemIdentifier, Hash> CRUUpdateState;
+
+
   bool notifyAbortedOrInactive();
   /**
-   * Returns true if the supplied queue has a conflict
+   * Returns true if the supplied queue has a conflict, keeps track of the
+   * update state of the transaction: Operations are registered, such that
+   * subsequent operations on the same item or insert conflicts are recognized
+   * properly.
    */
-  template<typename Queue>
-  bool queueConflict(const Queue& queue);
+  template<typename Queue, typename UpdateState>
+  bool queueConflict(const Queue& queue, UpdateState& state);
   /**
    * Returns true if the supplied insert/update request has a conflict
    */
-  template<typename Request>
-  bool requestConflict(const Request& request);
-  /**
-   * Allows templated implementation for both kinds of insert requests
-   */
-  template<typename InsertRequest>
-  bool insertRequestConflict(const InsertRequest& request);
+  template<typename Request, typename UpdateState>
+  bool requestConflict(const Request& request, UpdateState& state);
 
   /**
    * Update queue: Queue of update queries requested over the course of the
    * transaction, to be commited at the end. These must be applied
    * in consistent order as the same item might be updated twice, thus queue
    */
-  typedef std::pair<CRUTableInterface&, Hash> ItemIdentifier;
-  typedef std::pair<ItemIdentifier, const SharedRevisionPointer> UpdateRequest;
   std::deque<UpdateRequest> updateQueue_;
 
   /**
@@ -88,20 +124,12 @@ class Transaction {
    * transaction, to be commited at the end. Order doesn't matter here,
    * however, all inserts must be committed before updates.
    */
-  typedef std::pair<CRTableInterface&, const SharedRevisionPointer>
-  CRInsertRequest;
   std::deque<CRInsertRequest> crInsertQueue_;
   /**
    * CRU inserts are split into two parts: Insertion of item pointing to no
    * revision, then update to revision.
    */
-  typedef std::pair<CRUTableInterface&, const SharedRevisionPointer>
-  CRUInsertRequest;
   std::deque<CRUInsertRequest> cruInsertQueue_;
-  /**
-   * TODO(tcies) will also need a map for keeping track of the latest
-   * revision Hash of each modified object, in case it gets updated twice.
-   */
 
   Hash owner_;
   std::shared_ptr<Poco::Data::Session> session_;

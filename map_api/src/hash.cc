@@ -53,6 +53,10 @@ bool Hash::operator==(const Hash& other) const{
   return hexHash_ == other.hexHash_;
 }
 
+bool Hash::operator<(const Hash& other) const{
+  return hexHash_ < other.hexHash_;
+}
+
 Hash Hash::randomHash(){
   static std::mutex rngMutex;
   rngMutex.lock();
