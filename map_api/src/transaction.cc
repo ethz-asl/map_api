@@ -23,10 +23,6 @@ Transaction::Transaction(const Hash& owner) : owner_(owner),
 }
 
 bool Transaction::begin(){
-  // start up core if not running yet TODO(tcies) do this in the core
-  if (!MapApiCore::getInstance().isInitialized()) {
-    MapApiCore::getInstance().init(FLAGS_ipPort);
-  }
   session_ = MapApiCore::getInstance().getSession();
   active_ = true;
   beginTime_ = Time();
@@ -106,7 +102,7 @@ Hash Transaction::insert<CRUTableInterface>(
   return idHash;
 }
 
-// Going with locks for now
+// Going with locks for now TODO(tcies) adopt when moving to per-item locks
 // std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
 // Transaction::requiredTableFields(){
 //   std::shared_ptr<std::vector<proto::TableFieldDescriptor> > fields(
