@@ -46,19 +46,28 @@ target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${GLOG_LIBRARY})
 
 catkin_add_gtest(test_relaxation
 	test/test_posegraph_relaxation_test.cpp)
-target_link_libraries(test_relaxation ${PROJECT_NAME} ${catkin_LIBRARIES} ${GLOG_LIBRARY})
+target_link_libraries(test_relaxation ${PROJECT_NAME} 
+	${catkin_LIBRARIES} ${GLOG_LIBRARY})
 	
 catkin_add_gtest(test_covariance
 	test/test_posegraph_covariance_computation_test.cpp)
-target_link_libraries(test_covariance ${PROJECT_NAME} ${catkin_LIBRARIES} ${GLOG_LIBRARY})
+target_link_libraries(test_covariance ${PROJECT_NAME} 
+	${catkin_LIBRARIES} ${GLOG_LIBRARY})
 
 catkin_add_gtest(test_quat_parametrization
 	test/test_quaternion_parametrization_test.cpp)
-target_link_libraries(test_quat_parametrization ${PROJECT_NAME} ${catkin_LIBRARIES} ${GLOG_LIBRARY})
+target_link_libraries(test_quat_parametrization ${PROJECT_NAME} 
+	${catkin_LIBRARIES} ${GLOG_LIBRARY})
 
 catkin_add_gtest(test_few_points_quaternion_test
 	test/test_few_points_quaternion_test.cpp)
-target_link_libraries(test_few_points_quaternion_test ${PROJECT_NAME} ${catkin_LIBRARIES} ${GLOG_LIBRARY})
+target_link_libraries(test_few_points_quaternion_test ${PROJECT_NAME} 
+	${catkin_LIBRARIES} ${GLOG_LIBRARY})
+	
+catkin_add_gtest(test_switchable_constraints_test
+	test/test_switchable_constraints_test.cpp)
+target_link_libraries(test_switchable_constraints_test ${PROJECT_NAME} 
+	${catkin_LIBRARIES} ${GLOG_LIBRARY})
 
 
 
