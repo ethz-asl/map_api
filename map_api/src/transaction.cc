@@ -172,7 +172,35 @@ bool Transaction::insertRequestConflict(const InsertRequest& request){
 template<>
 bool Transaction::requestConflict<Transaction::UpdateRequest>(
     const Transaction::UpdateRequest& request){
-  // TODO(tcies) implement
+  CRUTableInterface& table = request.first.first;
+  const Hash& id = request.first.second;
+  const SharedRevisionPointer& revision = request.second;
+  SharedRevisionPointer currentRow = table.rawGetRow(id);
+  if (!currentRow){
+    // TODO(tcies) look in insert queries
+    LOG(WARNING) << "Element to be updated seems not to exist";
+    return true;
+  }
+  Hash latestRevision;
+  if (!currentRow->get("latest_revision", &latestRevision)){
+    LOG(ERROR) << "CRU table " << table.name() << " seems to miss "\
+        "'latest_revision' column";
+    return true;
+  }
+  Hash intendedPrevious;
+  if (!revision->get("previous", &intendedPrevious)){
+    LOG(ERROR) << "Queued history item does not contain reference to previous "\
+        "revision";
+    return true;
+  }
+  // TODO(tcies) keep track of previous updates on the same object in the
+  // same transaction
+  if (!(latestRevision == intendedPrevious)){
+    LOG(WARNING) << "Update conflict: Request assumes previous revision " <<
+        intendedPrevious.getString() << " but latest revision is " <<
+        latestRevision.getString();
+    return true;
+  }
   return false;
 }
 
