@@ -36,7 +36,7 @@ include_directories(
 )
 add_definitions(${EIGEN_DEFINITIONS})
 
-add_library(${PROJECT_NAME} src/quaternion_math.cc src/quat_param_hamilton.cc)
+add_library(${PROJECT_NAME} src/quat_param_hamilton.cc)
 add_dependencies(${PROJECT_NAME} ceres)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${GLOG_LIBRARY})
 
@@ -46,19 +46,19 @@ target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${GLOG_LIBRARY})
 
 catkin_add_gtest(test_relaxation
 	test/test_posegraph_relaxation_test.cpp)
-target_link_libraries(test_relaxation ceres_error_terms ${catkin_LIBRARIES} ${GLOG_LIBRARY})
+target_link_libraries(test_relaxation ${PROJECT_NAME} ${catkin_LIBRARIES} ${GLOG_LIBRARY})
 	
 catkin_add_gtest(test_covariance
 	test/test_posegraph_covariance_computation_test.cpp)
-target_link_libraries(test_covariance ceres_error_terms ${catkin_LIBRARIES} ${GLOG_LIBRARY})
+target_link_libraries(test_covariance ${PROJECT_NAME} ${catkin_LIBRARIES} ${GLOG_LIBRARY})
 
 catkin_add_gtest(test_quat_parametrization
 	test/test_quaternion_parametrization_test.cpp)
-target_link_libraries(test_quat_parametrization ceres_error_terms ${catkin_LIBRARIES} ${GLOG_LIBRARY})
+target_link_libraries(test_quat_parametrization ${PROJECT_NAME} ${catkin_LIBRARIES} ${GLOG_LIBRARY})
 
 catkin_add_gtest(test_few_points_quaternion_test
 	test/test_few_points_quaternion_test.cpp)
-target_link_libraries(test_few_points_quaternion_test ceres_error_terms ${catkin_LIBRARIES} ${GLOG_LIBRARY})
+target_link_libraries(test_few_points_quaternion_test ${PROJECT_NAME} ${catkin_LIBRARIES} ${GLOG_LIBRARY})
 
 
 
