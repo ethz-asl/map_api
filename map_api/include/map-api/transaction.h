@@ -62,8 +62,9 @@ class Transaction {
   class CRItemIdentifier : public std::pair<const CRTableInterface&, Hash>{
    public:
     inline CRItemIdentifier(const CRTableInterface& table,
-                                 const Hash& id) :
-          std::pair<const CRTableInterface&, Hash>(table,id) {}
+                            const Hash& id) :
+                            std::pair<const CRTableInterface&, Hash>(table,id)
+                            {}
     // required for set
     inline bool operator <(const CRItemIdentifier& other) const{
       if (first.name() == other.first.name())
@@ -76,7 +77,8 @@ class Transaction {
    public:
     inline CRUItemIdentifier(const CRUTableInterface& table,
                              const Hash& id) :
-      std::pair<const CRUTableInterface&, Hash>(table,id) {}
+                             std::pair<const CRUTableInterface&, Hash>(table,id)
+                             {}
     // required for map
     inline bool operator <(const CRUItemIdentifier& other) const{
       if (first.name() == other.first.name())
@@ -111,6 +113,12 @@ class Transaction {
    */
   template<typename Request, typename UpdateState>
   bool requestConflict(const Request& request, UpdateState& state);
+  /**
+   * Templateable common operations for insert conflict checking
+   */
+  template<typename Request, typename UpdateState, typename Identifier>
+  bool insertRequestConflictCommons(const Request& request,
+                                    UpdateState& state, Hash& id);
 
   /**
    * Update queue: Queue of update queries requested over the course of the

@@ -152,28 +152,15 @@ template<>
 bool Transaction::requestConflict<Transaction::CRInsertRequest,
 Transaction::CRUpdateState>(const Transaction::CRInsertRequest& request,
                             Transaction::CRUpdateState& state){
-  const CRTableInterface& table = request.first;
-  const SharedRevisionPointer& revision = request.second;
   Hash id;
-  if (!revision->get("ID", &id)){
-    LOG(ERROR) << "Queued request revision does not contain ID";
-    return true;
-  }
-  // Conflict if id present in table
-  if (table.rawGetRow(id)){
-    LOG(WARNING) << "Table " << table.name() << " already contains id " <<
-        id.getString() << ", transaction conflict!";
-    return true;
-  }
-  // Conflict if id present in previous insert requests within same transaction
-  Transaction::CRItemIdentifier insertItem(table, id);
-  if (state.find(insertItem) != state.end()){
-    LOG(WARNING) << "Id conflict for table " << table.name() << ", id " <<
-        id.getString() << ", previously inserted in same transaction!";
+  if (insertRequestConflictCommons<Transaction::CRInsertRequest,
+      Transaction::CRUpdateState, Transaction::CRItemIdentifier>(request,
+                                                                 state, id)){
     return true;
   }
   // Register insert for stateful conflict checking
-  state.insert(insertItem);
+  Transaction::CRItemIdentifier inserted(request.first, id);
+  state.insert(inserted);
   return false;
 }
 /**
@@ -183,28 +170,15 @@ template<>
 bool Transaction::requestConflict<Transaction::CRUInsertRequest,
 Transaction::CRUUpdateState>(const Transaction::CRUInsertRequest& request,
                              Transaction::CRUUpdateState& state){
-  const CRUTableInterface& table = request.first;
-  const SharedRevisionPointer& revision = request.second;
   Hash id;
-  if (!revision->get("ID", &id)){
-    LOG(ERROR) << "Queued request revision does not contain ID";
-    return true;
-  }
-  // Conflict if id present in table
-  if (table.rawGetRow(id)){
-    LOG(WARNING) << "Table " << table.name() << " already contains id " <<
-        id.getString() << ", transaction conflict!";
-    return true;
-  }
-  // Conflict if id present in previous insert requests within same transaction
-  Transaction::CRUItemIdentifier insertItem(table, id);
-  if (state.find(insertItem) != state.end()){
-    LOG(WARNING) << "Id conflict for table " << table.name() << ", id " <<
-        id.getString() << ", previously inserted in same transaction!";
+  if (insertRequestConflictCommons<Transaction::CRUInsertRequest,
+      Transaction::CRUUpdateState, Transaction::CRUItemIdentifier>(request,
+                                                                 state, id)){
     return true;
   }
   // Register insert for stateful conflict checking
-  state[insertItem] = Hash();
+  Transaction::CRUItemIdentifier inserted(request.first, id);
+  state[inserted] = Hash();
   return false;
 }
 
@@ -250,11 +224,36 @@ Transaction::CRUUpdateState>(const Transaction::UpdateRequest& request,
   }
   // register update
   Hash insertedId;
-  if (!revision.get("ID", insertedId)){
+  if (!revision->get("ID", &insertedId)){
     LOG(ERROR) << "Queued history item does not contain ID";
     return true;
   }
   state[item] = insertedId;
+  return false;
+}
+
+template<typename Request, typename UpdateState, typename Identifier>
+bool Transaction::insertRequestConflictCommons(const Request& request,
+                                               UpdateState& state, Hash& id){
+  const auto& table = request.first;
+  const SharedRevisionPointer& revision = request.second;
+  if (!revision->get("ID", &id)){
+    LOG(ERROR) << "Queued request revision does not contain ID";
+    return true;
+  }
+  // Conflict if id present in table
+  if (table.rawGetRow(id)){
+    LOG(WARNING) << "Table " << table.name() << " already contains id " <<
+        id.getString() << ", transaction conflict!";
+    return true;
+  }
+  // Conflict if id present in previous insert requests within same transaction
+  Identifier inserted(table, id);
+  if (state.find(inserted) != state.end()){
+    LOG(WARNING) << "Id conflict for table " << table.name() << ", id " <<
+        id.getString() << ", previously inserted in same transaction!";
+    return true;
+  }
   return false;
 }
 
