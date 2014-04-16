@@ -217,21 +217,16 @@ bool Transaction::requestConflict<Transaction::UpdateRequest,
 Transaction::CRUUpdateState>(const Transaction::UpdateRequest& request,
                              Transaction::CRUUpdateState& state){
   const CRUItemIdentifier& item = request.first;
-  const CRUTableInterface& table = item.first;
-  const Hash& id = item.second;
   const SharedRevisionPointer& revision = request.second;
-  // see whether item to be updated present in table
-  // TODO(tcies) speedup by inverting order of checking
-  SharedRevisionPointer currentRow = table.rawGetRow(id);
-  if (!currentRow){
-    // see whether item to be updated queued for insertion
-    if (state.find(item) == state.end()){
+  // if the item to be updated is not yet in the update state cache, fetch it
+  if (state.find(item) == state.end()){
+    const CRUTableInterface& table = item.first;
+    const Hash& id = item.second;
+    SharedRevisionPointer currentRow = table.rawGetRow(id);
+    if (!currentRow){
       LOG(WARNING) << "Element to be updated seems not to exist";
       return true;
     }
-  }
-  // keep track of updates on the object in this revision
-  if (state.find(item) == state.end()){
     Hash latestRevision;
     if (!currentRow->get("latest_revision", &latestRevision)){
       LOG(ERROR) << "CRU table " << table.name() << " seems to miss "\
@@ -240,19 +235,26 @@ Transaction::CRUUpdateState>(const Transaction::UpdateRequest& request,
     }
     state[item] = latestRevision;
   }
+  // compare it to the "previous" element inteded by the udpate reqest
   Hash intendedPrevious;
   if (!revision->get("previous", &intendedPrevious)){
     LOG(ERROR) << "Queued history item does not contain reference to previous "\
         "revision";
     return true;
   }
-
   if (!(state[item] == intendedPrevious)){
     LOG(WARNING) << "Update conflict: Request assumes previous revision " <<
         intendedPrevious.getString() << " but latest revision is " <<
         state[item].getString();
     return true;
   }
+  // register update
+  Hash insertedId;
+  if (!revision.get("ID", insertedId)){
+    LOG(ERROR) << "Queued history item does not contain ID";
+    return true;
+  }
+  state[item] = insertedId;
   return false;
 }
 
