@@ -40,7 +40,10 @@ class Hash {
    */
   static Hash cast(const std::string& hex);
 
-  bool operator==(const Hash& other) const;
+  inline bool operator==(const Hash& other) const;
+
+  inline bool operator<(const Hash& other) const;
+
   /**
    * Generates a random hash
    */
@@ -56,5 +59,7 @@ class Hash {
 };
 
 } /* namespace map_api */
+
+#include "map-api/hash-inl.h"
 
 #endif /* HASH_H_ */

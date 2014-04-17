@@ -49,10 +49,6 @@ Hash Hash::cast(const std::string& hex){
   return ret;
 }
 
-bool Hash::operator==(const Hash& other) const{
-  return hexHash_ == other.hexHash_;
-}
-
 Hash Hash::randomHash(){
   static std::mutex rngMutex;
   rngMutex.lock();

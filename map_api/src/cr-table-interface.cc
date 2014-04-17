@@ -131,7 +131,7 @@ bool CRTableInterface::rawInsertQuery(const Revision& query){
   // TODO(tcies) verify schema
 
   // Bag for blobs that need to stay in scope until statement is executed
-  std::vector<std::shared_ptr<Poco::Data::BLOB> > blobBag;
+  std::vector<std::shared_ptr<Poco::Data::BLOB> > placeholderBlobs;
 
   // assemble SQLite statement
   Poco::Data::Statement stat(*session_);
@@ -150,7 +150,7 @@ bool CRTableInterface::rawInsertQuery(const Revision& query){
     if (i > 0){
       stat << " , ";
     }
-    blobBag.push_back(query.insertPlaceHolder(i,stat));
+    placeholderBlobs.push_back(query.insertPlaceHolder(i,stat));
   }
   stat << " ); ";
 
