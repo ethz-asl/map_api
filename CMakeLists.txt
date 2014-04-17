@@ -36,8 +36,7 @@ include_directories(
 )
 add_definitions(${EIGEN_DEFINITIONS})
 
-add_library(${PROJECT_NAME} src/quaternion_param_hamilton.cc 
-	src/switch_function.cc)
+add_library(${PROJECT_NAME} src/quaternion_param_hamilton.cc)
 add_dependencies(${PROJECT_NAME} ceres)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${GLOG_LIBRARY})
 
