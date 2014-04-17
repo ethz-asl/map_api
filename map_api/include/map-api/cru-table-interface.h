@@ -29,6 +29,15 @@ class CRUTableInterface : public CRTableInterface{
    */
   bool setup(const std::string& name);
   virtual bool define() = 0;
+  /**
+   * Overriding get template on order to get template of revision, not history
+   * bookkeeping.
+   */
+  std::shared_ptr<Revision> getTemplate() const;
+  /**
+   * Template for history bookkeeping
+   */
+  std::shared_ptr<Revision> getCRUTemplate() const;
 
   /**
    * Overriding addField, as the actual data will be outsourced to the

@@ -14,6 +14,7 @@
 #include <map-api/cru-table-interface.h>
 #include <map-api/hash.h>
 #include <map-api/time.h>
+#include <map-api/transaction.h>
 
 #include "test_table.cpp"
 
@@ -24,7 +25,7 @@ TEST(TableInterFace, initEmpty){
   table.init();
   std::shared_ptr<Revision> structure = table.templateForward();
   ASSERT_TRUE(static_cast<bool>(structure));
-  EXPECT_EQ(structure->fieldqueries_size(), 3);
+  EXPECT_EQ(structure->fieldqueries_size(), 0);
 }
 
 /**
@@ -43,8 +44,19 @@ class FieldTestTable : public TestTable{
   }
   std::shared_ptr<Revision> prepareInsert(const FieldType& value){
     std::shared_ptr<Revision> query = getTemplate();
-    query->set("test_field",value);
+    if (!query->set("test_field",value)){
+      LOG(ERROR) << "Failed to set field test_field";
+      return std::shared_ptr<Revision>();
+    }
     return query;
+  }
+  FieldType read(const std::shared_ptr<Revision>& revision){
+    FieldType value;
+    if (!revision->get("test_field", &value)){
+      LOG(ERROR) << "Failed to set test_field";
+      return FieldType();
+    }
+    return value;
   }
  protected:
   virtual bool define(){
@@ -167,18 +179,24 @@ TYPED_TEST(FieldTest, Init){
   FieldTestTable<TypeParam> table(owner);
   table.init();
   std::shared_ptr<Revision> structure = table.templateForward();
-  EXPECT_EQ(structure->fieldqueries_size(), 3);
+  EXPECT_EQ(structure->fieldqueries_size(), 1);
   table.cleanup();
+}
+
+// TODO(tcies) move to transaction tests
+TYPED_TEST(FieldTest, CreateBeforeInit){
+  Hash owner = Hash::randomHash();
+  FieldTestTable<TypeParam> table(owner);
+  Transaction transaction(owner);
+  transaction.begin();
+  EXPECT_FALSE(transaction.insert<CRUTableInterface>(
+      table, table.prepareInsert(this->sample_data_1())));
+  transaction.abort();
 }
 
 /**
  * TODO(tcies) outdated with transaction-centricity, needs update
- *
-TYPED_TEST(FieldTest, CreateBeforeInit){
-  FieldTestTable<TypeParam> table;
-  EXPECT_DEATH(table.insert(this->sample_data_1()),"^");
-}
-
+ * TODO(tcies) implement Transaction::read
 TYPED_TEST(FieldTest, ReadBeforeInit){
   FieldTestTable<TypeParam> table;
   TypeParam value;
@@ -194,13 +212,6 @@ TYPED_TEST(FieldTest, CreateRead){
   EXPECT_TRUE(table.get(createTest, readValue));
   EXPECT_EQ(readValue, this->sample_data_1());
   table.cleanup();
-}
-
-TYPED_TEST(FieldTest, CreateTwice){
-  FieldTestTable<TypeParam> table;
-  table.init();
-  table.insert(this->sample_data_1());
-  EXPECT_DEATH(table.insert(this->sample_data_1()),"^");
 }
 
 TYPED_TEST(FieldTest, ReadInexistent){

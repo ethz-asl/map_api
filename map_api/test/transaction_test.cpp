@@ -42,6 +42,14 @@ TEST_F(TransactionTest, BeginCommit){
 class TransactionTestTable : public TestTable {
  public:
   TransactionTestTable(const Hash& owner) : TestTable(owner) {}
+  std::shared_ptr<Revision> sample(double n){
+    std::shared_ptr<Revision> revision = getTemplate();
+    if (!revision->set("n",n)){
+      LOG(ERROR) << "Failed to set n";
+      return std::shared_ptr<Revision>();
+    }
+    return revision;
+  }
  protected:
   virtual bool define() {
     addField<double>("n");
@@ -67,7 +75,14 @@ class TransactionCRUTest : public TransactionTest {
 TEST_F(TransactionCRUTest, QueueInsertNonsense){
   std::shared_ptr<Revision> nonsense(new Revision());
   EXPECT_TRUE(transaction_.begin());
-  EXPECT_EQ(transaction_.insert<CRUTableInterface>(table_, nonsense), Hash());
+  EXPECT_FALSE(transaction_.insert<CRUTableInterface>(table_, nonsense));
+}
+
+TEST_F(TransactionTest, QueueInsertBeforeTableInit){
+  TransactionTestTable table(owner_);
+  EXPECT_TRUE(transaction_.begin());
+  EXPECT_FALSE(transaction_.insert<CRUTableInterface>(
+      table, table.sample(3.14)));
 }
 
 // TODO (tcies) access uninitialized transaction

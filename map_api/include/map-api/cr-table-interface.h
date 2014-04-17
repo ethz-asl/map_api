@@ -41,6 +41,8 @@ class CRTableInterface : public proto::TableDescriptor {
    */
   const Hash& getOwner() const;
 
+  bool isInitialized() const;
+
  protected:
   /**
    * Setup: Load table definition and match with table definition in
@@ -84,6 +86,7 @@ class CRTableInterface : public proto::TableDescriptor {
   bool createQuery();
 
   Hash owner_;
+  bool initialized_;
 
   /**
    * The following functions are to be used by transactions only. They pose a
