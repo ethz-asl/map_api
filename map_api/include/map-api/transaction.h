@@ -107,17 +107,17 @@ class Transaction {
    * properly.
    */
   template<typename Queue, typename UpdateState>
-  bool queueConflict(const Queue& queue, UpdateState& state);
+  bool hasQueueConflict(const Queue& queue, UpdateState& state);
   /**
    * Returns true if the supplied insert/update request has a conflict
    */
   template<typename Request, typename UpdateState>
-  bool requestConflict(const Request& request, UpdateState& state);
+  bool hasRequestConflict(const Request& request, UpdateState& state);
   /**
    * Templateable common operations for insert conflict checking
    */
   template<typename Request, typename UpdateState, typename Identifier>
-  bool insertRequestConflictCommons(const Request& request,
+  bool hasInsertRequestConflictCommons(const Request& request,
                                     UpdateState& state, Hash& id);
 
   /**

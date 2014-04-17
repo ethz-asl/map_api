@@ -33,7 +33,7 @@ TEST_F(TransactionTest, BeginCommit){
   Hash owner = Hash::randomHash();
   Transaction transaction(owner);
   EXPECT_TRUE(transaction_.begin());
-  EXPECT_TRUE(transaction_.commit());
+  EXPECT_FALSE(transaction_.commit());
 }
 
 /**

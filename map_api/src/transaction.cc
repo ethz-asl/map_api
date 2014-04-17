@@ -47,15 +47,15 @@ bool Transaction::commit(){
     CRUpdateState crUpdateState;
     CRUUpdateState cruUpdateState;
     // check for conflicts in insert queues
-    if (queueConflict(crInsertQueue_, crUpdateState) ||
-        queueConflict(cruInsertQueue_, cruUpdateState)){
+    if (hasQueueConflict(crInsertQueue_, crUpdateState) ||
+        hasQueueConflict(cruInsertQueue_, cruUpdateState)){
       LOG(WARNING) << "Conflict in insert request queues, commit fails";
       return false;
     }
     // check for conflicts in update queus, this needs to come after the insert
     // queues due to stateful conflict checking: We need to take into account
     // updates that are performed on items inserted in the same transaction
-    if (queueConflict(updateQueue_, cruUpdateState)){
+    if (hasQueueConflict(updateQueue_, cruUpdateState)){
       LOG(WARNING) << "Conflict in update request queue, commit fails";
       return false;
     }
@@ -136,9 +136,9 @@ bool Transaction::notifyAbortedOrInactive(){
 }
 
 template<typename Queue, typename UpdateState>
-bool Transaction::queueConflict(const Queue& queue, UpdateState& state){
-  for (const auto& request : queue){
-    if (requestConflict(request, state)){
+bool Transaction::hasQueueConflict(const Queue& queue, UpdateState& state){
+  for (const typename Queue::value_type& request : queue){
+    if (hasRequestConflict(request, state)){
       return true;
     }
   }
@@ -149,11 +149,11 @@ bool Transaction::queueConflict(const Queue& queue, UpdateState& state){
  * CR insert requests conflict only if the id is already present
  */
 template<>
-bool Transaction::requestConflict<Transaction::CRInsertRequest,
+bool Transaction::hasRequestConflict<Transaction::CRInsertRequest,
 Transaction::CRUpdateState>(const Transaction::CRInsertRequest& request,
                             Transaction::CRUpdateState& state){
   Hash id;
-  if (insertRequestConflictCommons<Transaction::CRInsertRequest,
+  if (hasInsertRequestConflictCommons<Transaction::CRInsertRequest,
       Transaction::CRUpdateState, Transaction::CRItemIdentifier>(request,
                                                                  state, id)){
     return true;
@@ -167,13 +167,13 @@ Transaction::CRUpdateState>(const Transaction::CRInsertRequest& request,
  * CRU insert request: very similar to CR insert request
  */
 template<>
-bool Transaction::requestConflict<Transaction::CRUInsertRequest,
+bool Transaction::hasRequestConflict<Transaction::CRUInsertRequest,
 Transaction::CRUUpdateState>(const Transaction::CRUInsertRequest& request,
                              Transaction::CRUUpdateState& state){
   Hash id;
-  if (insertRequestConflictCommons<Transaction::CRUInsertRequest,
-      Transaction::CRUUpdateState, Transaction::CRUItemIdentifier>(request,
-                                                                 state, id)){
+  if (hasInsertRequestConflictCommons<Transaction::CRUInsertRequest,
+      Transaction::CRUUpdateState, Transaction::CRUItemIdentifier>(
+          request, state, id)){
     return true;
   }
   // Register insert for stateful conflict checking
@@ -187,13 +187,14 @@ Transaction::CRUUpdateState>(const Transaction::CRUInsertRequest& request,
  * referenced as "previous" in the update request.
  */
 template<>
-bool Transaction::requestConflict<Transaction::UpdateRequest,
+bool Transaction::hasRequestConflict<Transaction::UpdateRequest,
 Transaction::CRUUpdateState>(const Transaction::UpdateRequest& request,
                              Transaction::CRUUpdateState& state){
   const CRUItemIdentifier& item = request.first;
   const SharedRevisionPointer& revision = request.second;
+  Transaction::CRUUpdateState::iterator itemIterator = state.find(item);
   // if the item to be updated is not yet in the update state cache, fetch it
-  if (state.find(item) == state.end()){
+  if (itemIterator == state.end()){
     const CRUTableInterface& table = item.first;
     const Hash& id = item.second;
     SharedRevisionPointer currentRow = table.rawGetRow(id);
@@ -207,19 +208,20 @@ Transaction::CRUUpdateState>(const Transaction::UpdateRequest& request,
           "'latest_revision' column";
       return true;
     }
-    state[item] = latestRevision;
+    itemIterator = state.insert(std::pair<CRUItemIdentifier, Hash>(
+        item, latestRevision)).first;
   }
-  // compare it to the "previous" element inteded by the udpate reqest
+  // compare it to the "previous" element inteded by the udpate request
   Hash intendedPrevious;
   if (!revision->get("previous", &intendedPrevious)){
     LOG(ERROR) << "Queued history item does not contain reference to previous "\
         "revision";
     return true;
   }
-  if (!(state[item] == intendedPrevious)){
+  if (!(itemIterator->second == intendedPrevious)){
     LOG(WARNING) << "Update conflict: Request assumes previous revision " <<
         intendedPrevious.getString() << " but latest revision is " <<
-        state[item].getString();
+        itemIterator->second.getString();
     return true;
   }
   // register update
@@ -228,14 +230,14 @@ Transaction::CRUUpdateState>(const Transaction::UpdateRequest& request,
     LOG(ERROR) << "Queued history item does not contain ID";
     return true;
   }
-  state[item] = insertedId;
+  itemIterator->second = insertedId;
   return false;
 }
 
 template<typename Request, typename UpdateState, typename Identifier>
-bool Transaction::insertRequestConflictCommons(const Request& request,
-                                               UpdateState& state, Hash& id){
-  const auto& table = request.first;
+bool Transaction::hasInsertRequestConflictCommons(const Request& request,
+                                                  UpdateState& state, Hash& id){
+  const typename Request::first_type& table = request.first;
   const SharedRevisionPointer& revision = request.second;
   if (!revision->get("ID", &id)){
     LOG(ERROR) << "Queued request revision does not contain ID";
