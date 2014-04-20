@@ -7,8 +7,6 @@
 
 #include <map-api/transaction.h>
 
-#include <mutex>
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
@@ -40,9 +38,8 @@ bool Transaction::commit(){
     return false;
   }
   // Acquire lock for database updates TODO(tcies) per-item locks
-  static std::mutex dbMutex;
   {
-    std::lock_guard<std::mutex> lock(dbMutex);
+    std::lock_guard<std::mutex> lock(dbMutex_);
     // initialize UpdateStates for stateful conflict checking
     CRUpdateState crUpdateState;
     CRUUpdateState cruUpdateState;
@@ -110,6 +107,35 @@ Hash Transaction::insert<CRUTableInterface>(
   // TODO(tcies) register updateItem as latest revision of table:insertItem
   // transaction-internally
   return idHash;
+}
+
+template<>
+Transaction::SharedRevisionPointer Transaction::read<CRTableInterface>(
+    CRTableInterface& table, const Hash& id){
+  // TODO(tcies) browse through uncommitted inserts as well?
+    std::lock_guard<std::mutex> lock(dbMutex_);
+  return table.rawGetRow(id);
+}
+
+template<>
+Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
+    CRUTableInterface& table, const Hash& id){
+  // TODO(tcies) browse through uncommitted inserts as well?
+  // TODO (tcies) per-item reader lock
+  std::lock_guard<std::mutex> lock(dbMutex_);
+  // find bookkeeping row
+    SharedRevisionPointer cruRow = table.rawGetRow(id);
+  if (!cruRow){
+    LOG(ERROR) << "Can't find item " << id.getString() << " in table " <<
+        table.name();
+    return SharedRevisionPointer();
+  }
+  Hash latest;
+  if (!cruRow->get("latest", &latest)){
+    LOG(ERROR) << "Bookkeeping item does not contain reference to latest";
+    return SharedRevisionPointer();
+  }
+  return table.history_->revisionAt(latest, beginTime_);
 }
 
 // Going with locks for now TODO(tcies) adopt when moving to per-item locks

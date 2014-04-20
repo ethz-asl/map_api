@@ -12,6 +12,7 @@
 #include <set>
 #include <queue>
 #include <memory>
+#include <mutex>
 
 #include "map-api/cr-table-interface.h"
 #include "map-api/cru-table-interface.h"
@@ -144,6 +145,11 @@ class Transaction {
   bool active_;
   bool aborted_;
   Time beginTime_;
+
+  /**
+   * Mutex for db access... for now
+   */
+  static std::mutex dbMutex_;
 };
 
 } /* namespace map_api */

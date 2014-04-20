@@ -40,7 +40,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/bin)
 #############
 # LIBRARIES #
 #############
-add_definitions(--std=c++0x -Wall -Wextra -pedantic)
+add_definitions(--std=c++0x -Wall -Wextra -pedantic -Wno-unused-local-typedefs)
 
 include_directories(include ${catkin_INCLUDE_DIRS}
                     ${ZEROMQ_INCLUDE_DIRS} ${POCO_INCLUDE_DIRS}
