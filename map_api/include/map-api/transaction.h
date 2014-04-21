@@ -89,15 +89,20 @@ class Transaction {
   };
   typedef std::pair<CRUItemIdentifier, const SharedRevisionPointer>
   UpdateRequest;
+  typedef std::deque<UpdateRequest> UpdateQueue;
   typedef std::pair<CRTableInterface&, const SharedRevisionPointer>
   CRInsertRequest;
+  typedef std::deque<CRInsertRequest> CRInsertQueue;
   typedef std::pair<CRUTableInterface&, const SharedRevisionPointer>
   CRUInsertRequest;
+  typedef std::deque<CRUInsertRequest> CRUInsertQueue;
+
   /**
    * Type for keeping track of previous changes within the same transaction
+   * Using pointers to allow NULL pointer as "invalid"
    */
-  typedef std::set<CRItemIdentifier> CRUpdateState;
-  typedef std::map<CRUItemIdentifier, Hash> CRUUpdateState;
+  typedef std::map<CRItemIdentifier, CRInsertRequest*> CRUpdateState;
+  typedef std::map<CRUItemIdentifier, UpdateRequest*> CRUUpdateState;
 
 
   bool notifyAbortedOrInactive();
@@ -113,7 +118,7 @@ class Transaction {
    * Returns true if the supplied insert/update request has a conflict
    */
   template<typename Request, typename UpdateState>
-  bool hasRequestConflict(const Request& request, UpdateState& state);
+  bool hasRequestConflict(Request& request, UpdateState& state);
   /**
    * Templateable common operations for insert conflict checking
    */
@@ -126,19 +131,19 @@ class Transaction {
    * transaction, to be commited at the end. These must be applied
    * in consistent order as the same item might be updated twice, thus queue
    */
-  std::deque<UpdateRequest> updateQueue_;
+  UpdateQueue updateQueue_;
 
   /**
    * Insert queues: Queues of insert queries requested over the course of the
    * transaction, to be commited at the end. Order doesn't matter here,
    * however, all inserts must be committed before updates.
    */
-  std::deque<CRInsertRequest> crInsertQueue_;
+  CRInsertQueue crInsertQueue_;
   /**
    * CRU inserts are split into two parts: Insertion of item pointing to no
    * revision, then update to revision.
    */
-  std::deque<CRUInsertRequest> cruInsertQueue_;
+  CRUInsertQueue cruInsertQueue_;
   /**
    * Update states to keep track of uncommitted changes within the transaction
    */

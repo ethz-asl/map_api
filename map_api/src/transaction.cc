@@ -113,22 +113,10 @@ template<>
 Transaction::SharedRevisionPointer Transaction::read<CRTableInterface>(
     CRTableInterface& table, const Hash& id){
   // fast check in uncommitted transaction queries
-  // TODO(tcies) put this lookup somewhere else? Common operation...
   Transaction::CRItemIdentifier item(table, id);
   Transaction::CRUpdateState::iterator itemIterator = crUpdateState_.find(item);
   if (itemIterator != crUpdateState_.end()){
-    // TODO(tcies) change data structure to avoid this lookup?
-    for (const Transaction::CRInsertRequest& request : crInsertQueue_){
-      Hash requestId;
-      if (!request.second->get("ID", &requestId)){
-        LOG(ERROR) << "Failed to get ID from request in queue";
-        return Transaction::SharedRevisionPointer();
-      }
-      // TODO(discuss) compare by pointer legitimate? Rather compare by name?
-      if (&request.first == &table && requestId == id){
-        return request.second;
-      }
-    }
+    return itemIterator->second->second;
   }
   std::lock_guard<std::mutex> lock(dbMutex_);
   return table.rawGetRow(id);
@@ -137,7 +125,12 @@ Transaction::SharedRevisionPointer Transaction::read<CRTableInterface>(
 template<>
 Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
     CRUTableInterface& table, const Hash& id){
-  // TODO(tcies) browse through uncommitted inserts as well?
+  // fast check in uncommitted transaction queries
+  Transaction::CRUItemIdentifier item(table, id);
+  Transaction::CRUUpdateState::iterator itemIterator = cruUpdateState_.find(item);
+  if (itemIterator != cruUpdateState_.end()){
+    return itemIterator->second->second;
+  }
   // TODO (tcies) per-item reader lock
   std::lock_guard<std::mutex> lock(dbMutex_);
   // find bookkeeping row
@@ -193,17 +186,17 @@ bool Transaction::hasQueueConflict(const Queue& queue, UpdateState& state){
  */
 template<>
 bool Transaction::hasRequestConflict<Transaction::CRInsertRequest,
-Transaction::CRUpdateState>(const Transaction::CRInsertRequest& request,
+Transaction::CRUpdateState>(Transaction::CRInsertRequest& request,
                             Transaction::CRUpdateState& state){
   Hash id;
   if (hasInsertRequestConflictCommons<Transaction::CRInsertRequest,
-      Transaction::CRUpdateState, Transaction::CRItemIdentifier>(request,
-                                                                 state, id)){
+      Transaction::CRUpdateState, Transaction::CRItemIdentifier>(
+          request, state, id)){
     return true;
   }
   // Register insert for stateful conflict checking
-  Transaction::CRItemIdentifier inserted(request.first, id);
-  state.insert(inserted);
+  Transaction::CRItemIdentifier item(request.first, id);
+  state[item] = &request;
   return false;
 }
 /**
@@ -211,7 +204,7 @@ Transaction::CRUpdateState>(const Transaction::CRInsertRequest& request,
  */
 template<>
 bool Transaction::hasRequestConflict<Transaction::CRUInsertRequest,
-Transaction::CRUUpdateState>(const Transaction::CRUInsertRequest& request,
+Transaction::CRUUpdateState>(Transaction::CRUInsertRequest& request,
                              Transaction::CRUUpdateState& state){
   Hash id;
   if (hasInsertRequestConflictCommons<Transaction::CRUInsertRequest,
@@ -220,8 +213,8 @@ Transaction::CRUUpdateState>(const Transaction::CRUInsertRequest& request,
     return true;
   }
   // Register insert for stateful conflict checking
-  Transaction::CRUItemIdentifier inserted(request.first, id);
-  state[inserted] = Hash();
+  Transaction::CRUItemIdentifier item(request.first, id);
+  state[item] = NULL;
   return false;
 }
 
@@ -231,13 +224,20 @@ Transaction::CRUUpdateState>(const Transaction::CRUInsertRequest& request,
  */
 template<>
 bool Transaction::hasRequestConflict<Transaction::UpdateRequest,
-Transaction::CRUUpdateState>(const Transaction::UpdateRequest& request,
+Transaction::CRUUpdateState>(Transaction::UpdateRequest& request,
                              Transaction::CRUUpdateState& state){
   const CRUItemIdentifier& item = request.first;
   const SharedRevisionPointer& revision = request.second;
+  // "previous" element intended by the update request
+  Hash intendedPrevious, previous;
+  if (!revision->get("previous", &intendedPrevious)){
+    LOG(ERROR) << "Queued history item does not contain reference to previous "\
+        "revision";
+    return true;
+  }
   Transaction::CRUUpdateState::iterator itemIterator = state.find(item);
-  // if the item to be updated is not yet in the update state cache, fetch it
   if (itemIterator == state.end()){
+    // item has not been previously updated in this transaction
     const CRUTableInterface& table = item.first;
     const Hash& id = item.second;
     SharedRevisionPointer currentRow = table.rawGetRow(id);
@@ -245,26 +245,28 @@ Transaction::CRUUpdateState>(const Transaction::UpdateRequest& request,
       LOG(WARNING) << "Element to be updated seems not to exist";
       return true;
     }
-    Hash latestRevision;
-    if (!currentRow->get("latest_revision", &latestRevision)){
+    if (!currentRow->get("latest_revision", &previous)){
       LOG(ERROR) << "CRU table " << table.name() << " seems to miss "\
           "'latest_revision' column";
       return true;
     }
-    itemIterator = state.insert(std::pair<CRUItemIdentifier, Hash>(
-        item, latestRevision)).first;
   }
-  // compare it to the "previous" element inteded by the udpate request
-  Hash intendedPrevious;
-  if (!revision->get("previous", &intendedPrevious)){
-    LOG(ERROR) << "Queued history item does not contain reference to previous "\
-        "revision";
-    return true;
+  else{
+    // item has been previously updated in this transaction
+    if (itemIterator->second->second){
+      if (!(itemIterator->second->second->get("ID", &previous))){
+        LOG(ERROR) << "Revision in conflict check update state seems to miss "\
+            "'ID'";
+        return true;
+      }
+    }
+    // if itemIterator->second is NULL, previous remains empty Hash
   }
-  if (!(itemIterator->second == intendedPrevious)){
+
+  if (!(previous == intendedPrevious)){
     LOG(WARNING) << "Update conflict: Request assumes previous revision " <<
         intendedPrevious.getString() << " but latest revision is " <<
-        itemIterator->second.getString();
+        previous.getString();
     return true;
   }
   // register update
@@ -273,7 +275,7 @@ Transaction::CRUUpdateState>(const Transaction::UpdateRequest& request,
     LOG(ERROR) << "Queued history item does not contain ID";
     return true;
   }
-  itemIterator->second = insertedId;
+  state[item] = &request;
   return false;
 }
 
