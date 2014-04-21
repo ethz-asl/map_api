@@ -112,8 +112,25 @@ Hash Transaction::insert<CRUTableInterface>(
 template<>
 Transaction::SharedRevisionPointer Transaction::read<CRTableInterface>(
     CRTableInterface& table, const Hash& id){
-  // TODO(tcies) browse through uncommitted inserts as well?
-    std::lock_guard<std::mutex> lock(dbMutex_);
+  // fast check in uncommitted transaction queries
+  // TODO(tcies) put this lookup somewhere else? Common operation...
+  Transaction::CRItemIdentifier item(table, id);
+  Transaction::CRUpdateState::iterator itemIterator = crUpdateState_.find(item);
+  if (itemIterator != crUpdateState_.end()){
+    // TODO(tcies) change data structure to avoid this lookup?
+    for (const Transaction::CRInsertRequest& request : crInsertQueue_){
+      Hash requestId;
+      if (!request.second->get("ID", &requestId)){
+        LOG(ERROR) << "Failed to get ID from request in queue";
+        return Transaction::SharedRevisionPointer();
+      }
+      // TODO(discuss) compare by pointer legitimate? Rather compare by name?
+      if (&request.first == &table && requestId == id){
+        return request.second;
+      }
+    }
+  }
+  std::lock_guard<std::mutex> lock(dbMutex_);
   return table.rawGetRow(id);
 }
 
@@ -124,7 +141,7 @@ Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
   // TODO (tcies) per-item reader lock
   std::lock_guard<std::mutex> lock(dbMutex_);
   // find bookkeeping row
-    SharedRevisionPointer cruRow = table.rawGetRow(id);
+  SharedRevisionPointer cruRow = table.rawGetRow(id);
   if (!cruRow){
     LOG(ERROR) << "Can't find item " << id.getString() << " in table " <<
         table.name();

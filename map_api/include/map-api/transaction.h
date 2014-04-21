@@ -139,6 +139,11 @@ class Transaction {
    * revision, then update to revision.
    */
   std::deque<CRUInsertRequest> cruInsertQueue_;
+  /**
+   * Update states to keep track of uncommitted changes within the transaction
+   */
+  CRUpdateState crUpdateState_;
+  CRUUpdateState cruUpdateState_;
 
   Hash owner_;
   std::shared_ptr<Poco::Data::Session> session_;
