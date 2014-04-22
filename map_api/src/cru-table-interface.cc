@@ -24,7 +24,7 @@
 namespace map_api {
 
 CRUTableInterface::CRUTableInterface(const Hash& owner) :
-            CRTableInterface(owner), history_() {}
+                CRTableInterface(owner), history_() {}
 
 bool CRUTableInterface::setup(const std::string &name){
   // Define fields of content (that will be outsourced to history
@@ -53,7 +53,25 @@ bool CRUTableInterface::setup(const std::string &name){
     LOG(ERROR) << "Failed to initialize history";
     return false;
   }
+  initialized_ = true;
   return true;
+}
+
+std::shared_ptr<Revision> CRUTableInterface::getTemplate() const{
+  std::shared_ptr<Revision> ret =
+      std::shared_ptr<Revision>(
+          new Revision);
+  // add own name
+  ret->set_table(name());
+  // add editable fields
+  for (int i=0; i<descriptor_.fields_size(); ++i){
+    *(ret->add_fieldqueries()->mutable_nametype()) = descriptor_.fields(i);
+  }
+  return ret;
+}
+
+std::shared_ptr<Revision> CRUTableInterface::getCRUTemplate() const{
+  return CRTableInterface::getTemplate();
 }
 
 bool CRUTableInterface::addField(const std::string& name,

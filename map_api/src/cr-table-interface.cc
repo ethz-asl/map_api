@@ -23,10 +23,15 @@
 
 namespace map_api {
 
-CRTableInterface::CRTableInterface(const Hash& owner) : owner_(owner) {}
+CRTableInterface::CRTableInterface(const Hash& owner) : owner_(owner),
+    initialized_(false) {}
 
 const Hash& CRTableInterface::getOwner() const{
   return owner_;
+}
+
+bool CRTableInterface::isInitialized() const{
+  return initialized_;
 }
 
 bool CRTableInterface::addField(const std::string& name,
@@ -70,6 +75,7 @@ bool CRTableInterface::setup(const std::string& name){
 
   // Sync with cluster TODO(tcies)
   // sync();
+  initialized_ = true;
   return true;
 }
 

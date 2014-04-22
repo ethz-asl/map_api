@@ -17,7 +17,6 @@ bool History::init(){
 }
 
 bool History::define(){
-  addField<Hash>("rowId");
   addField<Hash>("previous");
   addField<Revision>("revision");
   addField<Time>("time");
@@ -26,13 +25,11 @@ bool History::define(){
 
 std::shared_ptr<Revision> History::prepareForInsert(Revision& revision,
                                                     const Hash& previous){
-  std::shared_ptr<Revision> query = getTemplate();
-  Hash rowId;
-  if (!revision.get<Hash>("ID", &rowId)){
-    LOG(ERROR) << "revision doesn't seem to contain field ID, aborting";
+  if (!revision.has_table()){
+    LOG(ERROR) << "Trying to insert invalid revision into history";
     return std::shared_ptr<Revision>();
   }
-  query->set("rowId", rowId);
+  std::shared_ptr<Revision> query = getTemplate();
   query->set("previous", previous);
   query->set("revision", revision);
   query->set("time", Time());

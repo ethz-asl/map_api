@@ -73,6 +73,14 @@ template<>
 Hash Transaction::insert<CRTableInterface>(
     CRTableInterface& table,
     const SharedRevisionPointer& item){
+  if (!table.IsInitialized()){
+    LOG(ERROR) << "Attempted to insert into uninitialized table";
+    return Hash();
+  }
+  if (!item){
+      LOG(ERROR) << "Passed revision pointer is null";
+      return Hash();
+    }
   Hash idHash = Hash::randomHash();
   item->set("ID",idHash);
   item->set("owner",owner_);
@@ -85,9 +93,17 @@ template<>
 Hash Transaction::insert<CRUTableInterface>(
     CRUTableInterface& table,
     const SharedRevisionPointer& item){
+  if (!table.IsInitialized()){
+    LOG(ERROR) << "Attempted to insert into uninitialized table";
+    return Hash();
+  }
+  if (!item){
+    LOG(ERROR) << "Passed revision pointer is null";
+    return Hash();
+  }
   // 1. Prepare a CRU table entry pointing to nothing
   Hash idHash = Hash::randomHash();
-  SharedRevisionPointer insertItem = table.getTemplate();
+  SharedRevisionPointer insertItem = table.getCRUTemplate();
   insertItem->set("ID", idHash);
   insertItem->set("owner", owner_);
   insertItem->set("latest_revision", Hash()); // invalid hash

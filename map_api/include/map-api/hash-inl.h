@@ -18,6 +18,10 @@ inline bool Hash::operator<(const Hash& other) const{
   return hexHash_ < other.hexHash_;
 }
 
+inline bool Hash::operator!() const{
+  return !isValid();
+}
+
 } // namespace map_api
 
 #endif /* HASH_INL_H_ */

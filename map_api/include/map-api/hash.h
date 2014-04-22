@@ -41,8 +41,8 @@ class Hash {
   static Hash cast(const std::string& hex);
 
   inline bool operator==(const Hash& other) const;
-
   inline bool operator<(const Hash& other) const;
+  inline bool operator!() const;
 
   /**
    * Generates a random hash
