@@ -22,16 +22,17 @@ namespace map_api {
 REVISION_ENUM(posegraph::Edge, proto::TableFieldDescriptor_Type_BLOB)
 
 REVISION_SET(posegraph::Edge){
-  REVISION_TYPE_CHECK(posegraph::Edge);
-  find(field).set_blobvalue(value.SerializeAsString());
+  field.set_blobvalue(value.SerializeAsString());
+  return true;
 }
 
 REVISION_GET(posegraph::Edge){
-  REVISION_TYPE_CHECK(posegraph::Edge);
-  posegraph::Edge value;
-  bool parsed = value.ParseFromString(find(field).blobvalue());
-  CHECK(parsed) << "Failed to parse Edge";
-  return value;
+  bool parsed = value->ParseFromString(field.blobvalue());
+  if (!parsed) {
+    LOG(ERROR) << "Failed to parse Edge";
+    return false;
+  }
+  return true;
 }
 
 namespace posegraph {

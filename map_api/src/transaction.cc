@@ -7,6 +7,8 @@
 
 #include <map-api/transaction.h>
 
+#include <mutex>
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
@@ -21,10 +23,6 @@ Transaction::Transaction(const Hash& owner) : owner_(owner),
 }
 
 bool Transaction::begin(){
-  // start up core if not running yet TODO(tcies) do this in the core
-  if (!MapApiCore::getInstance().isInitialized()) {
-    MapApiCore::getInstance().init(FLAGS_ipPort);
-  }
   session_ = MapApiCore::getInstance().getSession();
   active_ = true;
   beginTime_ = Time();
@@ -35,7 +33,33 @@ bool Transaction::commit(){
   if (notifyAbortedOrInactive()){
     return false;
   }
-  // TODO(tcies) return false if no jobs scheduled
+  //return false if no jobs scheduled
+  if (crInsertQueue_.empty() && cruInsertQueue_.empty() &&
+      updateQueue_.empty()){
+    LOG(WARNING) << "Committing transaction with no queries";
+    return false;
+  }
+  // Acquire lock for database updates TODO(tcies) per-item locks
+  static std::mutex dbMutex;
+  {
+    std::lock_guard<std::mutex> lock(dbMutex);
+    // initialize UpdateStates for stateful conflict checking
+    CRUpdateState crUpdateState;
+    CRUUpdateState cruUpdateState;
+    // check for conflicts in insert queues
+    if (hasQueueConflict(crInsertQueue_, crUpdateState) ||
+        hasQueueConflict(cruInsertQueue_, cruUpdateState)){
+      LOG(WARNING) << "Conflict in insert request queues, commit fails";
+      return false;
+    }
+    // check for conflicts in update queus, this needs to come after the insert
+    // queues due to stateful conflict checking: We need to take into account
+    // updates that are performed on items inserted in the same transaction
+    if (hasQueueConflict(updateQueue_, cruUpdateState)){
+      LOG(WARNING) << "Conflict in update request queue, commit fails";
+      return false;
+    }
+  }
   active_ = false;
   return true;
 }
@@ -55,7 +79,7 @@ Hash Transaction::insert<CRTableInterface>(
   Hash idHash = Hash::randomHash();
   item->set("ID",idHash);
   item->set("owner",owner_);
-  crInsertQueue_.push(CRInsertRequest(table, item));
+  crInsertQueue_.push_back(CRInsertRequest(table, item));
   return idHash;
 }
 
@@ -69,21 +93,26 @@ Hash Transaction::insert<CRUTableInterface>(
   insertItem->set("ID", idHash);
   insertItem->set("owner", owner_);
   insertItem->set("latest_revision", Hash()); // invalid hash
-  crInsertQueue_.push(CRInsertRequest(table, insertItem));
+  cruInsertQueue_.push_back(CRUInsertRequest(table, insertItem));
 
-  // 2. Prepare history entry and submitting to update queue
+  // 2. Prepare history entry and submit to update queue
   SharedRevisionPointer updateItem =
       table.history_->prepareForInsert(*item, Hash());
-  updateQueue_.push(UpdateRequest(
-      ItemIdentifier(table, idHash),
+  if (!updateItem){
+    LOG(ERROR) << "Preparation of insert statement failed for item";
+    // aborts transaction TODO(or just abort insert?)
+    abort();
+    return Hash();
+  }
+  updateQueue_.push_back(UpdateRequest(
+      CRUItemIdentifier(table, idHash),
       updateItem));
   // TODO(tcies) register updateItem as latest revision of table:insertItem
   // transaction-internally
   return idHash;
 }
 
-
-// Going with locks for now
+// Going with locks for now TODO(tcies) adopt when moving to per-item locks
 // std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
 // Transaction::requiredTableFields(){
 //   std::shared_ptr<std::vector<proto::TableFieldDescriptor> > fields(
@@ -94,7 +123,6 @@ Hash Transaction::insert<CRUTableInterface>(
 //   return fields;
 // }
 
-
 bool Transaction::notifyAbortedOrInactive(){
   if (!active_){
     LOG(ERROR) << "Transaction has not been initialized";
@@ -102,6 +130,130 @@ bool Transaction::notifyAbortedOrInactive(){
   }
   if (aborted_){
     LOG(ERROR) << "Transaction has previously been aborted";
+    return true;
+  }
+  return false;
+}
+
+template<typename Queue, typename UpdateState>
+bool Transaction::hasQueueConflict(const Queue& queue, UpdateState& state){
+  for (const typename Queue::value_type& request : queue){
+    if (hasRequestConflict(request, state)){
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * CR insert requests conflict only if the id is already present
+ */
+template<>
+bool Transaction::hasRequestConflict<Transaction::CRInsertRequest,
+Transaction::CRUpdateState>(const Transaction::CRInsertRequest& request,
+                            Transaction::CRUpdateState& state){
+  Hash id;
+  if (hasInsertRequestConflictCommons<Transaction::CRInsertRequest,
+      Transaction::CRUpdateState, Transaction::CRItemIdentifier>(request,
+                                                                 state, id)){
+    return true;
+  }
+  // Register insert for stateful conflict checking
+  Transaction::CRItemIdentifier inserted(request.first, id);
+  state.insert(inserted);
+  return false;
+}
+/**
+ * CRU insert request: very similar to CR insert request
+ */
+template<>
+bool Transaction::hasRequestConflict<Transaction::CRUInsertRequest,
+Transaction::CRUUpdateState>(const Transaction::CRUInsertRequest& request,
+                             Transaction::CRUUpdateState& state){
+  Hash id;
+  if (hasInsertRequestConflictCommons<Transaction::CRUInsertRequest,
+      Transaction::CRUUpdateState, Transaction::CRUItemIdentifier>(
+          request, state, id)){
+    return true;
+  }
+  // Register insert for stateful conflict checking
+  Transaction::CRUItemIdentifier inserted(request.first, id);
+  state[inserted] = Hash();
+  return false;
+}
+
+/**
+ * Update requests conflict if there is a revision that is later than the one
+ * referenced as "previous" in the update request.
+ */
+template<>
+bool Transaction::hasRequestConflict<Transaction::UpdateRequest,
+Transaction::CRUUpdateState>(const Transaction::UpdateRequest& request,
+                             Transaction::CRUUpdateState& state){
+  const CRUItemIdentifier& item = request.first;
+  const SharedRevisionPointer& revision = request.second;
+  Transaction::CRUUpdateState::iterator itemIterator = state.find(item);
+  // if the item to be updated is not yet in the update state cache, fetch it
+  if (itemIterator == state.end()){
+    const CRUTableInterface& table = item.first;
+    const Hash& id = item.second;
+    SharedRevisionPointer currentRow = table.rawGetRow(id);
+    if (!currentRow){
+      LOG(WARNING) << "Element to be updated seems not to exist";
+      return true;
+    }
+    Hash latestRevision;
+    if (!currentRow->get("latest_revision", &latestRevision)){
+      LOG(ERROR) << "CRU table " << table.name() << " seems to miss "\
+          "'latest_revision' column";
+      return true;
+    }
+    itemIterator = state.insert(std::pair<CRUItemIdentifier, Hash>(
+        item, latestRevision)).first;
+  }
+  // compare it to the "previous" element inteded by the udpate request
+  Hash intendedPrevious;
+  if (!revision->get("previous", &intendedPrevious)){
+    LOG(ERROR) << "Queued history item does not contain reference to previous "\
+        "revision";
+    return true;
+  }
+  if (!(itemIterator->second == intendedPrevious)){
+    LOG(WARNING) << "Update conflict: Request assumes previous revision " <<
+        intendedPrevious.getString() << " but latest revision is " <<
+        itemIterator->second.getString();
+    return true;
+  }
+  // register update
+  Hash insertedId;
+  if (!revision->get("ID", &insertedId)){
+    LOG(ERROR) << "Queued history item does not contain ID";
+    return true;
+  }
+  itemIterator->second = insertedId;
+  return false;
+}
+
+template<typename Request, typename UpdateState, typename Identifier>
+bool Transaction::hasInsertRequestConflictCommons(const Request& request,
+                                                  UpdateState& state, Hash& id){
+  const typename Request::first_type& table = request.first;
+  const SharedRevisionPointer& revision = request.second;
+  if (!revision->get("ID", &id)){
+    LOG(ERROR) << "Queued request revision does not contain ID";
+    return true;
+  }
+  // Conflict if id present in table
+  if (table.rawGetRow(id)){
+    LOG(WARNING) << "Table " << table.name() << " already contains id " <<
+        id.getString() << ", transaction conflict!";
+    return true;
+  }
+  // Conflict if id present in previous insert requests within same transaction
+  Identifier inserted(table, id);
+  if (state.find(inserted) != state.end()){
+    LOG(WARNING) << "Id conflict for table " << table.name() << ", id " <<
+        id.getString() << ", previously inserted in same transaction!";
     return true;
   }
   return false;

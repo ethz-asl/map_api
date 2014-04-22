@@ -42,14 +42,11 @@ bool Hash::isValid() const{
   return hexHash_.size() == 32;
 }
 
+// TODO(tcies) error checking, return bool
 Hash Hash::cast(const std::string& hex){
   Hash ret;
   ret.hexHash_ = hex;
   return ret;
-}
-
-bool Hash::operator==(const Hash& other) const{
-  return hexHash_ == other.hexHash_;
 }
 
 Hash Hash::randomHash(){

@@ -16,16 +16,17 @@ namespace map_api {
 REVISION_ENUM(posegraph::Frame, proto::TableFieldDescriptor_Type_BLOB)
 
 REVISION_SET(posegraph::Frame){
-  REVISION_TYPE_CHECK(posegraph::Frame);
-  find(field).set_blobvalue(value.SerializeAsString());
+  field.set_blobvalue(value.SerializeAsString());
+  return true;
 }
 
 REVISION_GET(posegraph::Frame){
-  REVISION_TYPE_CHECK(posegraph::Frame);
-  posegraph::Frame value;
-  bool parsed = value.ParseFromString(find(field).blobvalue());
-  CHECK(parsed) << "Failed to parse Frame";
-  return value;
+  bool parsed = value->ParseFromString(field.blobvalue());
+  if (!parsed) {
+    LOG(ERROR) << "Failed to parse Frame";
+    return false;
+  }
+  return true;
 }
 
 namespace posegraph {

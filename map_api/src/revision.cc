@@ -24,16 +24,19 @@ bool Revision::index() {
   return true;
 }
 
-proto::TableField& Revision::find(const std::string& field){
-  fieldMap::iterator find = fields_.find(field);
+bool Revision::find(const std::string& name, proto::TableField** field){
+  fieldMap::iterator find = fields_.find(name);
   // reindex if not found
   if (find == fields_.end()){
     index();
-    find = fields_.find(field);
+    find = fields_.find(name);
   }
-  CHECK(find != fields_.end()) <<
-      "Attempted to access inexistent field " << field;
-  return *mutable_fieldqueries(find->second);
+  if (find == fields_.end()) {
+    LOG(ERROR) << "Attempted to access inexistent field " << name;
+    return false;
+  }
+  *field = mutable_fieldqueries(find->second);
+  return true;
 }
 
 std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(
@@ -97,86 +100,88 @@ REVISION_ENUM(Poco::Data::BLOB, proto::TableFieldDescriptor_Type_BLOB)
  * SET
  */
 REVISION_SET(std::string){
-  REVISION_TYPE_CHECK(std::string);
-  find(field).set_stringvalue(value);
+  field.set_stringvalue(value);
+  return true;
 }
 REVISION_SET(double){
-  REVISION_TYPE_CHECK(double);
-  find(field).set_doublevalue(value);
+  field.set_doublevalue(value);
+  return true;
 }
 REVISION_SET(int32_t){
-  REVISION_TYPE_CHECK(int32_t);
-  find(field).set_intvalue(value);
+  field.set_intvalue(value);
+  return true;
 }
 REVISION_SET(Hash){
-  REVISION_TYPE_CHECK(Hash);
-  find(field).set_stringvalue(value.getString());
+  field.set_stringvalue(value.getString());
+  return true;
 }
 REVISION_SET(int64_t){
-  REVISION_TYPE_CHECK(int64_t);
-  find(field).set_longvalue(value);
+  field.set_longvalue(value);
+  return true;
 }
 REVISION_SET(Time){
-  REVISION_TYPE_CHECK(Time);
-  find(field).set_longvalue(value.serialize());
+  field.set_longvalue(value.serialize());
+  return true;
 }
 REVISION_SET(Revision){
-  REVISION_TYPE_CHECK(Revision);
-  find(field).set_blobvalue(value.SerializeAsString());
+  field.set_blobvalue(value.SerializeAsString());
+  return true;
 }
 REVISION_SET(testBlob){
-  REVISION_TYPE_CHECK(testBlob);
-  find(field).set_blobvalue(value.SerializeAsString());
+  field.set_blobvalue(value.SerializeAsString());
+  return true;
 }
 REVISION_SET(Poco::Data::BLOB){
-  REVISION_TYPE_CHECK(Poco::Data::BLOB);
-  find(field).set_blobvalue(value.rawContent(), value.size());
+  field.set_blobvalue(value.rawContent(), value.size());
+  return true;
 }
 
 /**
  * GET
  */
 REVISION_GET(std::string){
-  REVISION_TYPE_CHECK(std::string);
-  return find(field).stringvalue();
+  *value = field.stringvalue();
+  return true;
 }
 REVISION_GET(double){
-  REVISION_TYPE_CHECK(double);
-  return find(field).doublevalue();
+  *value = field.doublevalue();
+  return true;
 }
 REVISION_GET(int32_t){
-  REVISION_TYPE_CHECK(int32_t);
-  return find(field).intvalue();
+  *value = field.intvalue();
+  return true;
 }
 REVISION_GET(Hash){
-  REVISION_TYPE_CHECK(Hash);
-  return map_api::Hash::cast(find(field).stringvalue());
+  *value = map_api::Hash::cast(field.stringvalue());
+  return true;
 }
 REVISION_GET(int64_t){
-  REVISION_TYPE_CHECK(int64_t);
-  return find(field).longvalue();
+  *value = field.longvalue();
+  return true;
 }
 REVISION_GET(Time){
-  REVISION_TYPE_CHECK(Time);
-  return Time(find(field).longvalue());
+  *value = Time(field.longvalue());
+  return true;
 }
 REVISION_GET(Revision){
-  REVISION_TYPE_CHECK(Revision);
-  Revision value;
-  bool parsed = value.ParseFromString(find(field).blobvalue());
-  CHECK(parsed) << "Failed to parse revision";
-  return value;
+  bool parsed = value->ParseFromString(field.blobvalue());
+  if (!parsed) {
+    LOG(ERROR) << "Failed to parse revision";
+    return false;
+  }
+  return true;
 }
 REVISION_GET(testBlob){
-  REVISION_TYPE_CHECK(testBlob);
-  testBlob value;
-  bool parsed = value.ParseFromString(find(field).blobvalue());
-  CHECK(parsed) << "Failed to parse test blob";
-  return value;
+  bool parsed = value->ParseFromString(field.blobvalue());
+  if (!parsed) {
+    LOG(ERROR) << "Failed to parse test blob";
+    return false;
+  }
+  return true;
 }
 REVISION_GET(Poco::Data::BLOB){
-  REVISION_TYPE_CHECK(Poco::Data::BLOB);
-  return Poco::Data::BLOB(find(field).blobvalue());
+  *value = Poco::Data::BLOB(field.blobvalue());
+  return true;
 }
 
 } /* namespace map_api */
