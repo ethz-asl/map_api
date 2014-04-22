@@ -32,28 +32,16 @@ bool Transaction::commit(){
     return false;
   }
   //return false if no jobs scheduled
-  if (crInsertQueue_.empty() && cruInsertQueue_.empty() &&
-      updateQueue_.empty()){
+  if (insertions_.empty() && updates_.empty()){
     LOG(WARNING) << "Committing transaction with no queries";
     return false;
   }
   // Acquire lock for database updates TODO(tcies) per-item locks
   {
     std::lock_guard<std::mutex> lock(dbMutex_);
-    // initialize UpdateStates for stateful conflict checking
-    CRUpdateState crUpdateState;
-    CRUUpdateState cruUpdateState;
     // check for conflicts in insert queues
-    if (hasQueueConflict(crInsertQueue_, crUpdateState) ||
-        hasQueueConflict(cruInsertQueue_, cruUpdateState)){
-      LOG(WARNING) << "Conflict in insert request queues, commit fails";
-      return false;
-    }
-    // check for conflicts in update queus, this needs to come after the insert
-    // queues due to stateful conflict checking: We need to take into account
-    // updates that are performed on items inserted in the same transaction
-    if (hasQueueConflict(updateQueue_, cruUpdateState)){
-      LOG(WARNING) << "Conflict in update request queue, commit fails";
+    if (hasMapConflict(insertions_) || hasMapConflict(updates_)){
+      LOG(WARNING) << "Conflict, commit fails";
       return false;
     }
   }
@@ -84,8 +72,8 @@ Hash Transaction::insert<CRTableInterface>(
   Hash idHash = Hash::randomHash();
   item->set("ID",idHash);
   item->set("owner",owner_);
-  crInsertQueue_.push_back(CRInsertRequest(table, item));
-  // TODO(tcies) set state
+  insertions_.insert(InsertMap::value_type(
+      CRItemIdentifier(table, idHash), item));
   return idHash;
 }
 
@@ -107,7 +95,8 @@ Hash Transaction::insert<CRUTableInterface>(
   insertItem->set("ID", idHash);
   insertItem->set("owner", owner_);
   insertItem->set("latest_revision", Hash()); // invalid hash
-  cruInsertQueue_.push_back(CRUInsertRequest(table, insertItem));
+  insertions_.insert(InsertMap::value_type(
+      CRItemIdentifier(table, idHash), insertItem));
 
   // 2. Prepare history entry and submit to update queue
   SharedRevisionPointer updateItem =
@@ -118,22 +107,19 @@ Hash Transaction::insert<CRUTableInterface>(
     abort();
     return Hash();
   }
-  updateQueue_.push_back(UpdateRequest(
-      CRUItemIdentifier(table, idHash),
-      updateItem));
-  // TODO(tcies) register updateItem as latest revision of table:insertItem
-  // transaction-internally
+  updates_.insert(UpdateMap::value_type(
+      CRUItemIdentifier(table, idHash), updateItem));
   return idHash;
 }
 
 template<>
 Transaction::SharedRevisionPointer Transaction::read<CRTableInterface>(
     CRTableInterface& table, const Hash& id){
-  // fast check in uncommitted transaction queries
+  // fast check in uncommitted insertions
   Transaction::CRItemIdentifier item(table, id);
-  Transaction::CRUpdateState::iterator itemIterator = crUpdateState_.find(item);
-  if (itemIterator != crUpdateState_.end()){
-    return itemIterator->second->second;
+  Transaction::InsertMap::iterator itemIterator = insertions_.find(item);
+  if (itemIterator != insertions_.end()){
+    return itemIterator->second;
   }
   std::lock_guard<std::mutex> lock(dbMutex_);
   return table.rawGetRow(id);
@@ -144,7 +130,7 @@ Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
     CRUTableInterface& table, const Hash& id){
   // fast check in uncommitted transaction queries
   Transaction::CRUItemIdentifier item(table, id);
-  Transaction::CRUUpdateState::iterator itemIterator = cruUpdateState_.find(item);
+  Transaction::UpdateMap::iterator itemIterator = updates_.find(item);
   if (itemIterator != cruUpdateState_.end()){
     return itemIterator->second->second;
   }
