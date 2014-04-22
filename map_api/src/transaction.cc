@@ -77,6 +77,7 @@ Hash Transaction::insert<CRTableInterface>(
   item->set("ID",idHash);
   item->set("owner",owner_);
   crInsertQueue_.push_back(CRInsertRequest(table, item));
+  // TODO(tcies) set state
   return idHash;
 }
 
@@ -146,6 +147,55 @@ Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
     return SharedRevisionPointer();
   }
   return table.history_->revisionAt(latest, beginTime_);
+}
+
+bool Transaction::update(CRUTableInterface& table, const Hash& id,
+                         const SharedRevisionPointer& newRevision){
+  Hash latest;
+  // if in uncommitted queue, check for latest there
+  CRUItemIdentifier item(table, id);
+  CRUUpdateState::iterator itemIterator = cruUpdateState_.find(item);
+  if (itemIterator != cruUpdateState_.end()){
+    if (!itemIterator->second->second->get("ID", &latest)){
+      LOG(FATAL) << "cruUpdateState_ entry has no field ID!";
+    }
+  }
+  else {
+    // get latest from history as previous
+    Hash absoluteLatest;
+    SharedRevisionPointer cruRevision;
+    {
+      std::lock_guard<std::mutex> lock(dbMutex_);
+      cruRevision = table.rawGetRow(id);
+    }
+    if (!cruRevision){
+      LOG(ERROR) << "Couldn't find item " << id.getString() <<
+          " referred to by update";
+      return false;
+    }
+    if (!cruRevision->get("latest_revision", &absoluteLatest)){
+      LOG(FATAL) << "CRU table seems to miss 'latest_revision'";
+    }
+    SharedRevisionPointer historyLatest = table.history_->revisionAt(
+        absoluteLatest, beginTime_);
+    if (!historyLatest){
+      LOG(ERROR) << "Failed to retrieve latest revision before transaction "\
+          "begin time from history for item " << id.getString() << " from table"
+          << table.name();
+      return false;
+    }
+    if (!historyLatest->get("ID", &latest)){
+      LOG(ERROR) << "Latest history entry for seems to have no 'ID'";
+      return false;
+    }
+  }
+  // TODO(tcies) NO! Just push revision as updaterequest, determine "previous"
+  // only at commit time!!!
+  // insert request to history
+  insert<CRTableInterface>(*table.history_, table.history_->prepareForInsert(
+      *newRevision, latest));
+  // update request to CRU table
+  return false;
 }
 
 // Going with locks for now TODO(tcies) adopt when moving to per-item locks
