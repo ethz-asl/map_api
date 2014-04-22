@@ -8,10 +8,11 @@
 #include <Poco/Data/Common.h>
 #include <gflags/gflags.h>
 
+#include "map-api/cr-table-interface.h"
 #include "map-api/hash.h"
 #include "map-api/history.h"
 #include "map-api/revision.h"
-#include "map-api/cr-table-interface.h"
+#include "map-api/time.h"
 #include "core.pb.h"
 
 namespace map_api {
@@ -34,10 +35,6 @@ class CRUTableInterface : public CRTableInterface{
    * bookkeeping.
    */
   std::shared_ptr<Revision> getTemplate() const;
-  /**
-   * Template for history bookkeeping
-   */
-  std::shared_ptr<Revision> getCRUTemplate() const;
 
   /**
    * Overriding addField, as the actual data will be outsourced to the
@@ -75,6 +72,13 @@ class CRUTableInterface : public CRTableInterface{
    * is supposed to be updated to.
    */
   bool rawUpdateQuery(const Hash& id, const Hash& nextRevision);
+  /**
+   * Template for history bookkeeping
+   */
+  std::shared_ptr<Revision> getCRUTemplate() const;
+
+  bool rawLatestUpdate(const Hash& id, Time* time) const;
+
 };
 
 }
