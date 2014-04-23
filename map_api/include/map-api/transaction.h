@@ -129,7 +129,7 @@ class Transaction {
   /**
    * Mutex for db access... for now
    */
-  static std::mutex dbMutex_;
+  static std::recursive_mutex dbMutex_;
 };
 
 } /* namespace map_api */

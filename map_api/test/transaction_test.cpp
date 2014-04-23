@@ -4,6 +4,8 @@
  *  Created on: Apr 14, 2014
  *      Author: titus
  */
+#include <list>
+
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
@@ -72,17 +74,96 @@ class TransactionCRUTest : public TransactionTest {
   TransactionTestTable table_;
 };
 
-TEST_F(TransactionCRUTest, QueueInsertNonsense){
+TEST_F(TransactionCRUTest, InsertNonsense){
   std::shared_ptr<Revision> nonsense(new Revision());
   EXPECT_TRUE(transaction_.begin());
   EXPECT_EQ(transaction_.insert<CRUTableInterface>(table_, nonsense), Hash());
 }
 
-TEST_F(TransactionTest, QueueInsertBeforeTableInit){
+TEST_F(TransactionTest, InsertBeforeTableInit){
   TransactionTestTable table(owner_);
   EXPECT_TRUE(transaction_.begin());
-  EXPECT_EQ(transaction_.insert<CRUTableInterface>(
-      table, table.sample(3.14)), Hash());
+  EXPECT_EQ(transaction_.insert<CRUTableInterface>(table, table.sample(3.14)),
+            Hash());
 }
 
 // TODO (tcies) access uninitialized transaction
+
+/**
+ * Fixture for tests with multiple owners and transactions
+ */
+class MultiTransactionTest : public testing::Test {
+ protected:
+  class Owner{
+   public:
+    Owner() : id_(Hash::randomHash()), transactions_() {}
+    Transaction& beginNewTransaction(){
+      transactions_.push_back(Transaction(id_));
+      transactions_.back().begin();
+      return transactions_.back();
+    }
+   private:
+    Hash id_;
+    std::list<Transaction> transactions_;
+  };
+  Owner& addOwner(){
+    owners_.push_back(Owner());
+    return owners_.back();
+  }
+  std::list<Owner> owners_;
+};
+
+/**
+ * Fixture for multi-transaction tests on a single CRU table interface
+ * TODO(tcies) multiple table interfaces (test definition sync)
+ */
+class MultiTransactionSingleCRUTest : public MultiTransactionTest {
+ public:
+  MultiTransactionSingleCRUTest() : MultiTransactionTest(),
+  table_(Hash::randomHash()) {
+    table_.init();
+  }
+ protected:
+  virtual void TearDown() {
+    table_.cleanup();
+  }
+  Hash insertSample(Transaction& transaction, double sample){
+    return transaction.insert<CRUTableInterface>(table_, table_.sample(3.14));
+  }
+  TransactionTestTable table_;
+};
+
+TEST_F(MultiTransactionSingleCRUTest, SerialInsert) {
+  Owner& a = addOwner();
+  Transaction& at = a.beginNewTransaction();
+  EXPECT_NE(insertSample(at, 3.14), Hash());
+  EXPECT_TRUE(at.commit());
+  Owner& b = addOwner();
+  Transaction& bt = b.beginNewTransaction();
+  EXPECT_NE(insertSample(bt, 42), Hash());
+  EXPECT_TRUE(bt.commit());
+  // TODO(tcies) verify presence of data after finishing commit()
+}
+
+TEST_F(MultiTransactionSingleCRUTest, ParallelInsert) {
+  Owner& a = addOwner(), &b = addOwner();
+  Transaction& at = a.beginNewTransaction(), &bt = b.beginNewTransaction();
+  EXPECT_NE(insertSample(at, 3.14), Hash());
+  EXPECT_NE(insertSample(bt, 42), Hash());
+  EXPECT_TRUE(bt.commit());
+  EXPECT_TRUE(at.commit());
+  // TODO(tcies) verify presence of data after finishing commit()
+}
+
+TEST_F(MultiTransactionSingleCRUTest, SerialUpdate) {
+  // Prepare item to be updated
+  Hash itemId;
+  Owner& a = addOwner();
+  Transaction& aInsert = a.beginNewTransaction();
+  itemId = insertSample(aInsert, 3.14);
+  EXPECT_NE(itemId, Hash());
+  EXPECT_TRUE(aInsert.commit());
+  // a updates item and commits
+  // b updates item and commits
+  // TODO(tcies) first need to finish implementing commit
+}

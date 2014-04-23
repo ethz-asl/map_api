@@ -16,7 +16,7 @@ DECLARE_string(ipPort);
 
 namespace map_api {
 
-std::mutex Transaction::dbMutex_;
+std::recursive_mutex Transaction::dbMutex_;
 
 Transaction::Transaction(const Hash& owner) : owner_(owner),
     active_(false), aborted_(false){
@@ -40,10 +40,14 @@ bool Transaction::commit(){
   }
   // Acquire lock for database updates TODO(tcies) per-item locks
   {
-    std::lock_guard<std::mutex> lock(dbMutex_);
-    // check for conflicts in insert queues
-    if (hasMapConflict(insertions_) || hasMapConflict(updates_)){
-      LOG(WARNING) << "Conflict, commit fails";
+    std::lock_guard<std::recursive_mutex> lock(dbMutex_);
+    // check for conflicts in insert queue
+    if (hasMapConflict(insertions_)) {
+      LOG(WARNING) << "Insert conflict, commit fails";
+      return false;
+    }
+    if (hasMapConflict(updates_)){
+      LOG(WARNING) << "Update conflict, commit fails";
       return false;
     }
   }
@@ -123,7 +127,7 @@ Transaction::SharedRevisionPointer Transaction::read<CRTableInterface>(
   if (itemIterator != insertions_.end()){
     return itemIterator->second;
   }
-  std::lock_guard<std::mutex> lock(dbMutex_);
+  std::lock_guard<std::recursive_mutex> lock(dbMutex_);
   return table.rawGetRow(id);
 }
 
@@ -137,7 +141,7 @@ Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
     return itemIterator->second;
   }
   // TODO (tcies) per-item reader lock
-  std::lock_guard<std::mutex> lock(dbMutex_);
+  std::lock_guard<std::recursive_mutex> lock(dbMutex_);
   // find bookkeeping row
   SharedRevisionPointer cruRow = table.rawGetRow(id);
   if (!cruRow){
@@ -199,7 +203,7 @@ bool Transaction::hasMapConflict(const Map& map){
 template<>
 bool Transaction::hasItemConflict<Transaction::CRItemIdentifier>(
     const Transaction::CRItemIdentifier& item){
-  std::lock_guard<std::mutex> lock(dbMutex_);
+  std::lock_guard<std::recursive_mutex> lock(dbMutex_);
   // Conflict if id present in table
   if (item.first.rawGetRow(item.second)){
     LOG(WARNING) << "Table " << item.first.name() << " already contains id " <<
