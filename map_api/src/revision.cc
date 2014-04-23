@@ -25,7 +25,7 @@ bool Revision::index() {
 }
 
 bool Revision::find(const std::string& name, proto::TableField** field){
-  fieldMap::iterator find = fields_.find(name);
+  FieldMap::iterator find = fields_.find(name);
   // reindex if not found
   if (find == fields_.end()){
     index();
@@ -80,6 +80,27 @@ std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(
   }
   stat << " ";
   return blobPointer;
+}
+
+bool Revision::structureMatch(Revision& other){
+  index();
+  other.index();
+  if (fields_.size() != other.fields_.size()){
+    LOG(INFO) << "Field count does not match";
+    return false;
+  }
+  FieldMap::iterator leftIterator = fields_.begin(),
+      rightIterator = other.fields_.begin();
+  while (leftIterator != fields_.end()){
+    if (leftIterator->first != rightIterator->first){
+      LOG(INFO) << "Field name mismatch: " << leftIterator->first << " vs " <<
+          rightIterator->first;
+      return false;
+    }
+    leftIterator++;
+    rightIterator++;
+  }
+  return true;
 }
 
 /**

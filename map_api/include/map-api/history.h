@@ -28,7 +28,7 @@ class History : public CRTableInterface {
    * Prepare a history item for insertion by transaction.
    */
   std::shared_ptr<Revision> prepareForInsert(Revision& revision,
-                                             const Hash& previous);
+                                             const Hash& previous) const;
 
  private:
   /**

@@ -88,10 +88,10 @@ class Transaction {
     }
   };
 
-  typedef std::map<const CRItemIdentifier, const SharedRevisionPointer>
+  typedef std::map<CRItemIdentifier, const SharedRevisionPointer>
   InsertMap;
 
-  typedef std::map<const CRUItemIdentifier, const SharedRevisionPointer>
+  typedef std::map<CRUItemIdentifier, const SharedRevisionPointer>
   UpdateMap;
 
   bool notifyAbortedOrInactive();

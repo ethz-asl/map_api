@@ -142,6 +142,7 @@ TEST_F(MultiTransactionSingleCRUTest, SerialInsert) {
   Transaction& bt = b.beginNewTransaction();
   EXPECT_NE(insertSample(bt, 42), Hash());
   EXPECT_TRUE(bt.commit());
+  // system("cp database.db /tmp/database.db");
   // TODO(tcies) verify presence of data after finishing commit()
 }
 

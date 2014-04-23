@@ -55,12 +55,17 @@ class Revision : public proto::Revision {
   template <typename FieldType>
   bool get(const std::string& fieldName, FieldType* value);
 
+  /**
+   * Returns true if Revision contains same fields as other
+   */
+  bool structureMatch(Revision& other);
+
  private:
   /**
    * A map of fields for more intuitive access.
    */
-  typedef std::map<std::string, int> fieldMap;
-  fieldMap fields_;
+  typedef std::map<std::string, int> FieldMap;
+  FieldMap fields_;
   bool index();
   /**
    * Access to the map. Non-const because might need to reindex.

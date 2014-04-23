@@ -133,7 +133,7 @@ bool CRTableInterface::createQuery(){
   return true;
 }
 
-bool CRTableInterface::rawInsertQuery(const Revision& query){
+bool CRTableInterface::rawInsertQuery(const Revision& query) const{
   // TODO(tcies) verify schema
 
   // Bag for blobs that need to stay in scope until statement is executed
@@ -163,7 +163,8 @@ bool CRTableInterface::rawInsertQuery(const Revision& query){
   try {
     stat.execute();
   } catch(const std::exception &e){
-    LOG(FATAL) << "Insert failed with exception " << e.what();
+    LOG(ERROR) << "Insert failed with exception " << e.what();
+    return false;
   }
 
   return true;

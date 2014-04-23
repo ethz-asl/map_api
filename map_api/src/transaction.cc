@@ -50,6 +50,73 @@ bool Transaction::commit(){
       LOG(WARNING) << "Update conflict, commit fails";
       return false;
     }
+    // if no conflicts were found, apply changes, starting from inserts...
+    // TODO(tcies) ideally, this should be rollback-able, e.g. by using
+    // the SQL built-in transactions
+    for (const std::pair<CRItemIdentifier, SharedRevisionPointer> &insertion :
+        insertions_){
+      const CRTableInterface& table = insertion.first.first;
+      const Hash& id = insertion.first.second;
+      Hash idCheck;
+      const SharedRevisionPointer &revision = insertion.second;
+      if (!revision->get("ID", &idCheck)){
+        // This should never ever happen, thus fatal:
+        LOG(FATAL) << "Revision to be inserted does not contain ID";
+      }
+      if (id != idCheck){
+        // idem
+        LOG(FATAL) << "Identifier ID does not match revision ID";
+      }
+      if (!table.rawInsertQuery(*revision)){
+        LOG(ERROR) << "Insertion of " << id.getString() << " into table " <<
+            table.name() << " failed, aborting commit.";
+        return false;
+      }
+    }
+    // ...then updates
+    for (const std::pair<CRUItemIdentifier, SharedRevisionPointer> &update :
+        updates_){
+      const CRUTableInterface& table = update.first.first;
+      const Hash& id = update.first.second;
+      const SharedRevisionPointer &newRevision = update.second;
+      // 1. Fetch id of latest from CRU table
+      SharedRevisionPointer current = table.rawGetRow(id);
+      Hash latestRevisionId;
+      if (!current){
+        LOG(ERROR) << "Failed to fetch current CRU table entry for " <<
+            id.getString() << " in table " << table.name();
+        return false;
+      }
+      if (!current->get("latest_revision", &latestRevisionId)){
+        LOG(ERROR) << "CRU table entry for " << id.getString() << " of table "
+            << table.name() << " seems not to contain 'latest_revision'";
+        return false;
+      }
+      // 2. Create entry in history
+      SharedRevisionPointer rawHistory = table.history_->prepareForInsert(
+          *newRevision, latestRevisionId);
+      if (!rawHistory){
+        LOG(ERROR) << "Failed to create revision for insertion into history for"
+            << id.getString() << " of table " << table.name();
+        return false;
+      }
+      Hash nextRevisionId;
+      if (!rawHistory->get("ID", &nextRevisionId)){
+        // this should never happen, thus fatal
+        LOG(FATAL) << "Revision generated for history of " << id.getString() <<
+            " in table " << table.name() << " is missing 'ID'";
+      }
+      if (!table.history_->rawInsertQuery(*rawHistory)){
+        LOG(ERROR) << "Failed to insert history item for " << id.getString() <<
+            " of table " << table.name() << ", commit fails.";
+      }
+      // 3. Link to entry in history
+      if (!table.rawUpdateQuery(id, nextRevisionId)){
+        LOG(ERROR) << "Failed to link CRU item " << id.getString() << " in " <<
+            table.name() << " with its latest history item, aborting commit.";
+        return false;
+      }
+    }
   }
   active_ = false;
   return true;
@@ -104,17 +171,15 @@ Hash Transaction::insert<CRUTableInterface>(
   insertions_.insert(InsertMap::value_type(
       CRItemIdentifier(table, idHash), insertItem));
 
-  // 2. Prepare history entry and submit to update queue
-  SharedRevisionPointer updateItem =
-      table.history_->prepareForInsert(*item, Hash());
-  if (!updateItem){
-    LOG(ERROR) << "Preparation of insert statement failed for item";
-    // aborts transaction TODO(or just abort insert?)
-    abort();
+  // 2. Submit revision to update queue if revision matches structure
+  if (!item->structureMatch(*table.getTemplate())){
+    LOG(ERROR) << "Revision to be inserted into " << table.name() <<
+        " does not match its template structurally";
+    insertions_.erase(insertions_.find(CRItemIdentifier(table, idHash)));
     return Hash();
   }
   updates_.insert(UpdateMap::value_type(
-      CRUItemIdentifier(table, idHash), updateItem));
+      CRUItemIdentifier(table, idHash), item));
   return idHash;
 }
 

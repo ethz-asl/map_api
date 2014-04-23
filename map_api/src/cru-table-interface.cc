@@ -91,7 +91,7 @@ bool CRUTableInterface::addField(const std::string& name,
 
 
 bool CRUTableInterface::rawUpdateQuery(const Hash& id,
-                                       const Hash& nextRevision){
+                                       const Hash& nextRevision) const{
   Poco::Data::Statement stat(*session_);
   stat << "UPDATE " << name() <<
       " SET latest_revision = ? ", Poco::Data::use(nextRevision.getString());
