@@ -60,7 +60,7 @@ bool Transaction::abort(){
 template<>
 Hash Transaction::insert<CRTableInterface>(
     CRTableInterface& table, const SharedRevisionPointer& item){
-  // TODO(tcies) item must not yet exist
+  // TODO(tcies) item must not yet exist in InsertMap
   if (!table.IsInitialized()){
     LOG(ERROR) << "Attempted to insert into uninitialized table";
     return Hash();
