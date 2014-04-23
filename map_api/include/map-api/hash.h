@@ -42,7 +42,6 @@ class Hash {
 
   inline bool operator==(const Hash& other) const;
   inline bool operator<(const Hash& other) const;
-  inline bool operator!() const;
 
   /**
    * Generates a random hash

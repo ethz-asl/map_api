@@ -58,13 +58,11 @@ bool CRUTableInterface::setup(const std::string &name){
 }
 
 std::shared_ptr<Revision> CRUTableInterface::getTemplate() const{
-  std::shared_ptr<Revision> ret =
-      std::shared_ptr<Revision>(
-          new Revision);
+  std::shared_ptr<Revision> ret(new Revision);
   // add own name
   ret->set_table(name());
   // add editable fields
-  for (int i=0; i<descriptor_.fields_size(); ++i){
+  for (int i = 0; i < descriptor_.fields_size(); ++i){
     *(ret->add_fieldqueries()->mutable_nametype()) = descriptor_.fields(i);
   }
   return ret;
