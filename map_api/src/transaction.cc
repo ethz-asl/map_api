@@ -16,6 +16,8 @@ DECLARE_string(ipPort);
 
 namespace map_api {
 
+std::mutex Transaction::dbMutex_;
+
 Transaction::Transaction(const Hash& owner) : owner_(owner),
     active_(false), aborted_(false){
 }
