@@ -97,8 +97,8 @@ bool Revision::structureMatch(Revision& other){
           rightIterator->first;
       return false;
     }
-    leftIterator++;
-    rightIterator++;
+    ++leftIterator;
+    ++rightIterator;
   }
   return true;
 }

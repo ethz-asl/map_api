@@ -59,14 +59,9 @@ bool Transaction::commit(){
       const Hash& id = insertion.first.second;
       Hash idCheck;
       const SharedRevisionPointer &revision = insertion.second;
-      if (!revision->get("ID", &idCheck)){
-        // This should never ever happen, thus fatal:
-        LOG(FATAL) << "Revision to be inserted does not contain ID";
-      }
-      if (id != idCheck){
-        // idem
-        LOG(FATAL) << "Identifier ID does not match revision ID";
-      }
+      CHECK_EQ(revision->get("ID", &idCheck), true) <<
+          "Revision to be inserted does not contain ID";
+      CHECK(id == idCheck) << "Identifier ID does not match revision ID";
       if (!table.rawInsertQuery(*revision)){
         LOG(ERROR) << "Insertion of " << id.getString() << " into table " <<
             table.name() << " failed, aborting commit.";
@@ -101,11 +96,9 @@ bool Transaction::commit(){
         return false;
       }
       Hash nextRevisionId;
-      if (!rawHistory->get("ID", &nextRevisionId)){
-        // this should never happen, thus fatal
-        LOG(FATAL) << "Revision generated for history of " << id.getString() <<
-            " in table " << table.name() << " is missing 'ID'";
-      }
+      CHECK_EQ(rawHistory->get("ID", &nextRevisionId), true) <<
+          "Revision generated for history of " << id.getString() <<
+          " in table " << table.name() << " is missing 'ID'";
       if (!table.history_->rawInsertQuery(*rawHistory)){
         LOG(ERROR) << "Failed to insert history item for " << id.getString() <<
             " of table " << table.name() << ", commit fails.";
