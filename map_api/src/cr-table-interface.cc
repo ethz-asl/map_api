@@ -86,8 +86,8 @@ std::shared_ptr<Revision> CRTableInterface::getTemplate() const{
   // add own name
   ret->set_table(name());
   // add editable fields
-  for (int i=0; i<this->fields_size(); ++i){
-    *(ret->add_fieldqueries()->mutable_nametype()) = this->fields(i);
+  for (int i = 0; i < fields_size(); ++i){
+    ret->addField(fields(i));
   }
   return ret;
 }
@@ -183,14 +183,15 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
   std::map<std::string, int32_t> intPostApply;
   std::map<std::string, int64_t> longPostApply;
   std::map<std::string, Poco::Data::BLOB> blobPostApply;
+  std::map<std::string, std::string> stringPostApply;
+  std::map<std::string, std::string> hashPostApply;
 
   for (int i=0; i<query->fieldqueries_size(); ++i){
     if (i>0){
       stat << ", ";
     }
-    proto::TableField& field = *query->mutable_fieldqueries(i);
+    const proto::TableField& field = query->fieldqueries(i);
     stat << field.nametype().name();
-    // TODO(simon) do you see a reasonable way to move this to TableField?
     switch(field.nametype().type()){
       case (proto::TableFieldDescriptor_Type_BLOB):{
         stat, Poco::Data::into(blobPostApply[field.nametype().name()]);
@@ -208,11 +209,14 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
         stat, Poco::Data::into(longPostApply[field.nametype().name()]);
         break;
       }
-      case (proto::TableFieldDescriptor_Type_STRING): // Fallthrough intended
+      case (proto::TableFieldDescriptor_Type_STRING):{
+        stat, Poco::Data::into(stringPostApply[field.nametype().name()]);
+        break;
+      }
       case (proto::TableFieldDescriptor_Type_HASH128):{
         // default string value allows us to see whether a query failed by
         // looking at the ID
-        stat, Poco::Data::into(*field.mutable_stringvalue(),
+        stat, Poco::Data::into(hashPostApply[field.nametype().name()],
                                std::string(""));
         break;
       }
@@ -234,15 +238,13 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
   }
 
   // indication of empty result
-  Hash test;
-  if (!query->get<Hash>("ID", &test)){
-    LOG(FATAL) << "Field ID seems to be absent";
-  }
-  if (test.getString() == ""){
+  if (hashPostApply["ID"] == ""){
+    LOG(ERROR) << "Database query for " << id.getString() << " in table " <<
+        name() << " returned empty result";
     return std::shared_ptr<Revision>();
   }
 
-  // write values that couldn't be written directly
+  // write values
   for (std::pair<std::string, double> fieldDouble : doublePostApply){
     query->set(fieldDouble.first, fieldDouble.second);
   }
@@ -256,6 +258,14 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
       blobPostApply){
     query->set(fieldBlob.first, fieldBlob.second);
   }
+  for (const std::pair<std::string, std::string>& fieldString :
+      stringPostApply){
+    query->set(fieldString.first, fieldString.second);
+  }
+  for (const std::pair<std::string, std::string>& fieldHash :
+        hashPostApply){
+      query->set(fieldHash.first, Hash(fieldHash.second));
+    }
 
   return query;
 }

@@ -16,26 +16,26 @@
 
 namespace map_api {
 
-bool Revision::index() {
-  for (int i = 0; i < this->fieldqueries_size(); ++i){
-    fields_[this->fieldqueries(i).nametype().name()] =
-        i;
-  }
-  return true;
-}
-
 bool Revision::find(const std::string& name, proto::TableField** field){
   FieldMap::iterator find = fields_.find(name);
   // reindex if not found
-  if (find == fields_.end()){
-    index();
-    find = fields_.find(name);
-  }
   if (find == fields_.end()) {
     LOG(ERROR) << "Attempted to access inexistent field " << name;
     return false;
   }
   *field = mutable_fieldqueries(find->second);
+  return true;
+}
+
+bool Revision::find(const std::string& name, const proto::TableField** field)
+const{
+  FieldMap::const_iterator find = fields_.find(name);
+  // reindex if not found
+  if (find == fields_.end()) {
+    LOG(ERROR) << "Attempted to access inexistent field " << name;
+    return false;
+  }
+  *field = &fieldqueries(find->second);
   return true;
 }
 
@@ -82,9 +82,14 @@ std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(
   return blobPointer;
 }
 
+void Revision::addField(const proto::TableFieldDescriptor& descriptor){
+  // add field
+  *add_fieldqueries()->mutable_nametype() = descriptor;
+  // add to index
+  fields_[descriptor.name()] = fieldqueries_size() - 1;
+}
+
 bool Revision::structureMatch(Revision& other){
-  index();
-  other.index();
   if (fields_.size() != other.fields_.size()){
     LOG(INFO) << "Field count does not match";
     return false;
