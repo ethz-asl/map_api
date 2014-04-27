@@ -130,6 +130,9 @@ class MultiTransactionSingleCRUTest : public MultiTransactionTest {
   Hash insertSample(Transaction& transaction, double sample){
     return transaction.insert<CRUTableInterface>(table_, table_.sample(sample));
   }
+  bool updateSample(Transaction& transaction, const Hash& id, double newValue){
+    return transaction.update(table_, id, table_.sample(newValue));
+  }
   bool verify(Transaction& transaction, const Hash& id, double expected){
     double actual;
     std::shared_ptr<Revision> row = transaction.read<CRUTableInterface>(
@@ -161,7 +164,6 @@ TEST_F(MultiTransactionSingleCRUTest, SerialInsertRead) {
   Hash bh = insertSample(bt, 42);
   EXPECT_NE(bh, Hash());
   EXPECT_TRUE(bt.commit());
-  system("cp database.db /tmp");
   // read
   Owner& r = addOwner();
   Transaction& rt = r.beginNewTransaction();
@@ -173,15 +175,21 @@ TEST_F(MultiTransactionSingleCRUTest, SerialInsertRead) {
 TEST_F(MultiTransactionSingleCRUTest, ParallelInsertRead) {
   Owner& a = addOwner(), &b = addOwner();
   Transaction& at = a.beginNewTransaction(), &bt = b.beginNewTransaction();
-  EXPECT_NE(insertSample(at, 3.14), Hash());
-  EXPECT_NE(insertSample(bt, 42), Hash());
+  Hash ah = insertSample(at, 3.14), bh = insertSample(bt, 42);
+  EXPECT_NE(ah, Hash());
+  EXPECT_NE(bh, Hash());
   EXPECT_TRUE(bt.commit());
   EXPECT_TRUE(at.commit());
-  // TODO(tcies) verify presence of data after finishing commit()
+  // read
+  Owner& r = addOwner();
+  Transaction& rt = r.beginNewTransaction();
+  EXPECT_TRUE(verify(rt, ah, 3.14));
+  EXPECT_TRUE(verify(rt, bh, 42));
+  EXPECT_TRUE(rt.abort());
 }
 
 TEST_F(MultiTransactionSingleCRUTest, SerialUpdateRead) {
-  // Prepare item to be updated
+  // Insert item to be updated
   Hash itemId;
   Owner& a = addOwner();
   Transaction& aInsert = a.beginNewTransaction();
@@ -189,6 +197,8 @@ TEST_F(MultiTransactionSingleCRUTest, SerialUpdateRead) {
   EXPECT_NE(itemId, Hash());
   EXPECT_TRUE(aInsert.commit());
   // a updates item and commits
+  Transaction& aUpdate = a.beginNewTransaction();
+  // TODO(tcies) continue here
   // b updates item and commits
   // TODO(tcies) first need to finish implementing commit
 }
