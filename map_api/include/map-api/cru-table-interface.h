@@ -71,7 +71,7 @@ class CRUTableInterface : public CRTableInterface{
    * the parameter nextRevision is the hash to the revision the CRU table item
    * is supposed to be updated to.
    */
-  bool rawUpdateQuery(const Hash& id, const Hash& nextRevision);
+  bool rawUpdateQuery(const Hash& id, const Hash& nextRevision) const;
   /**
    * Template for history bookkeeping
    */

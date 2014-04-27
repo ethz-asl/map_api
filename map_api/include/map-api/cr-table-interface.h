@@ -102,7 +102,7 @@ class CRTableInterface : public proto::TableDescriptor {
    * responsability of the transaction.                                    C
    *                                                                        CCCC
    */
-  bool rawInsertQuery(const Revision& query);
+  bool rawInsertQuery(const Revision& query) const;
   /**                                                                      RRRR
    *                                                                       R   R
    * Fetches row by ID and returns it as revision                          RRRR
