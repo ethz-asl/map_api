@@ -218,8 +218,7 @@ Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
 bool Transaction::update(CRUTableInterface& table, const Hash& id,
                          const SharedRevisionPointer& newRevision){
   // TODO(tcies) fail if non-matching structure?
-  updates_.insert(UpdateMap::value_type(
-      CRUItemIdentifier(table, id), newRevision));
+  updates_[CRUItemIdentifier(table, id)] = newRevision;
   return true;
 }
 
