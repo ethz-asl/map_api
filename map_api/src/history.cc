@@ -23,7 +23,7 @@ bool History::define(){
   return true;
 }
 
-std::shared_ptr<Revision> History::prepareForInsert(Revision& revision,
+std::shared_ptr<Revision> History::prepareForInsert(const Revision& revision,
                                                     const Hash& previous) const{
   if (!revision.has_table()){
     LOG(ERROR) << "Trying to insert invalid revision into history";

@@ -32,9 +32,9 @@ bool Revision::set(const std::string& fieldName, const FieldType& value){
 }
 
 template <typename FieldType>
-bool Revision::get(const std::string& fieldName, FieldType* value){
+bool Revision::get(const std::string& fieldName, FieldType* value) const {
   // 1. Check if field exists
-  proto::TableField* field;
+  const proto::TableField* field;
   if (!find(fieldName, &field)){
     LOG(ERROR) << "Trying to get inexistent field " << fieldName;
     return false;
