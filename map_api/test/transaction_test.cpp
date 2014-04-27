@@ -238,3 +238,27 @@ TEST_F(MultiTransactionSingleCRUTest, UpdateRead) {
   EXPECT_TRUE(verify(aCheck, itemId, 42));
   EXPECT_TRUE(aCheck.abort());
 }
+
+TEST_F(MultiTransactionSingleCRUTest, ParallelUpdate) {
+  // Insert item to be updated
+  Hash itemId;
+  Owner& a = addOwner();
+  Transaction& aInsert = a.beginNewTransaction();
+  itemId = insertSample(aInsert, 3.14);
+  EXPECT_NE(itemId, Hash());
+  EXPECT_TRUE(aInsert.commit());
+  // a updates item
+  Transaction& aUpdate = a.beginNewTransaction();
+  EXPECT_TRUE(updateSample(aUpdate, itemId, 42));
+  // b updates item
+  Owner& b = addOwner();
+  Transaction& bUpdate = b.beginNewTransaction();
+  EXPECT_TRUE(updateSample(bUpdate, itemId, 0xDEADBEEF));
+  // expect commit conflict
+  EXPECT_TRUE(bUpdate.commit());
+  EXPECT_FALSE(aUpdate.commit());
+  // make sure b has won
+  Transaction& aCheck = a.beginNewTransaction();
+  EXPECT_TRUE(verify(aCheck, itemId, 0xDEADBEEF));
+  EXPECT_TRUE(aCheck.abort());
+}
