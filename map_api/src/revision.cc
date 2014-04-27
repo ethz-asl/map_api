@@ -108,6 +108,15 @@ bool Revision::structureMatch(Revision& other){
   return true;
 }
 
+bool Revision::ParseFromString(const std::string& data){
+  bool success = proto::Revision::ParseFromString(data);
+  CHECK(success) << "Parsing revision from string failed";
+  for (int i = 0; i < fieldqueries_size(); ++i){
+    fields_[fieldqueries(i).nametype().name()] = i;
+  }
+  return true;
+}
+
 /**
  * PROTOBUFENUM
  */

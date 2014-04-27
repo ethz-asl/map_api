@@ -128,25 +128,49 @@ class MultiTransactionSingleCRUTest : public MultiTransactionTest {
     table_.cleanup();
   }
   Hash insertSample(Transaction& transaction, double sample){
-    return transaction.insert<CRUTableInterface>(table_, table_.sample(3.14));
+    return transaction.insert<CRUTableInterface>(table_, table_.sample(sample));
+  }
+  bool verify(Transaction& transaction, const Hash& id, double expected){
+    double actual;
+    std::shared_ptr<Revision> row = transaction.read<CRUTableInterface>(
+        table_, id);
+    if (!row){
+      LOG(ERROR) << "Failed to fetch row for verification";
+      return false;
+    }
+    if (!row->get("n", &actual)){
+      LOG(ERROR) << "Error when getting field 'n' from " << id.getString();
+      return false;
+    }
+    // no margin of error needed - it's supposedly the same implementation
+    return actual == expected;
   }
   TransactionTestTable table_;
 };
 
-TEST_F(MultiTransactionSingleCRUTest, SerialInsert) {
+TEST_F(MultiTransactionSingleCRUTest, SerialInsertRead) {
+  // a
   Owner& a = addOwner();
   Transaction& at = a.beginNewTransaction();
-  EXPECT_NE(insertSample(at, 3.14), Hash());
+  Hash ah = insertSample(at, 3.14);
+  EXPECT_NE(ah, Hash());
   EXPECT_TRUE(at.commit());
+  // b
   Owner& b = addOwner();
   Transaction& bt = b.beginNewTransaction();
-  EXPECT_NE(insertSample(bt, 42), Hash());
+  Hash bh = insertSample(bt, 42);
+  EXPECT_NE(bh, Hash());
   EXPECT_TRUE(bt.commit());
-  // system("cp database.db /tmp/database.db");
-  // TODO(tcies) verify presence of data after finishing commit()
+  system("cp database.db /tmp");
+  // read
+  Owner& r = addOwner();
+  Transaction& rt = r.beginNewTransaction();
+  EXPECT_TRUE(verify(rt, ah, 3.14));
+  EXPECT_TRUE(verify(rt, bh, 42));
+  EXPECT_TRUE(rt.abort());
 }
 
-TEST_F(MultiTransactionSingleCRUTest, ParallelInsert) {
+TEST_F(MultiTransactionSingleCRUTest, ParallelInsertRead) {
   Owner& a = addOwner(), &b = addOwner();
   Transaction& at = a.beginNewTransaction(), &bt = b.beginNewTransaction();
   EXPECT_NE(insertSample(at, 3.14), Hash());
@@ -156,7 +180,7 @@ TEST_F(MultiTransactionSingleCRUTest, ParallelInsert) {
   // TODO(tcies) verify presence of data after finishing commit()
 }
 
-TEST_F(MultiTransactionSingleCRUTest, SerialUpdate) {
+TEST_F(MultiTransactionSingleCRUTest, SerialUpdateRead) {
   // Prepare item to be updated
   Hash itemId;
   Owner& a = addOwner();

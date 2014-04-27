@@ -64,13 +64,18 @@ class Revision : public proto::Revision {
    */
   bool structureMatch(Revision& other);
 
+  /**
+   * Overriding parsing from string in order to add indexing.
+   */
+  bool ParseFromString(const std::string& data);
+
  private:
   /**
    * Making mutable_fieldqueries private forces use of addField(), which leads
    * to properly indexed data. We couldn't just override mutable_fieldqueries
    * as we need to know the name of the field at index time.
    */
-  proto::Revision::mutable_fieldqueries;
+  using proto::Revision::mutable_fieldqueries;
   /**
    * A map of fields for more intuitive access.
    */

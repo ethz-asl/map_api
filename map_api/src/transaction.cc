@@ -208,7 +208,7 @@ Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
     return SharedRevisionPointer();
   }
   Hash latest;
-  if (!cruRow->get("latest", &latest)){
+  if (!cruRow->get("latest_revision", &latest)){
     LOG(ERROR) << "Bookkeeping item does not contain reference to latest";
     return SharedRevisionPointer();
   }
