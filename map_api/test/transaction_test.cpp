@@ -109,7 +109,7 @@ class TransactionCRUTest : public TransactionTest {
     double actual;
     std::shared_ptr<Revision> row = transaction_.read<CRUTableInterface>(
         table_, id);
-    EXPECT_FALSE(!row); // direct doesn't compile
+    EXPECT_TRUE(static_cast<bool>(row)); // direct doesn't compile
     EXPECT_TRUE(row->get(table_.sampleField(), &actual));
     EXPECT_EQ(actual, expected);
   }
@@ -176,7 +176,7 @@ class MultiTransactionSingleCRUTest : public MultiTransactionTest {
     double actual;
     std::shared_ptr<Revision> row = transaction.read<CRUTableInterface>(
         table_, id);
-    EXPECT_FALSE(!row); // direct doesn't compile
+    EXPECT_TRUE(static_cast<bool>(row)); // direct doesn't compile
     EXPECT_TRUE(row->get(table_.sampleField(), &actual));
     EXPECT_EQ(actual, expected);
   }
