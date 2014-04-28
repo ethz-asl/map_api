@@ -9,7 +9,7 @@
 
 namespace map_api {
 
-History::History(const std::string& tableName, const Hash& owner) :
+History::History(const std::string& tableName, const sm::HashId& owner) :
             CRTableInterface(owner), tableName_(tableName) {}
 
 bool History::init(){
@@ -17,20 +17,21 @@ bool History::init(){
 }
 
 bool History::define(){
-  addField<Hash>("previous");
+  addField<sm::HashId>("previous");
   addField<Revision>("revision");
   addField<Time>("time");
   return true;
 }
 
 std::shared_ptr<Revision> History::prepareForInsert(const Revision& revision,
-                                                    const Hash& previous) const{
+                                                    const sm::HashId& previous)
+const {
   if (!revision.has_table()){
     LOG(ERROR) << "Trying to insert invalid revision into history";
     return std::shared_ptr<Revision>();
   }
   std::shared_ptr<Revision> query = getTemplate();
-  query->set("ID", Hash::randomHash());
+  query->set("ID", sm::HashId());
   query->set("owner", owner_);
   query->set("previous", previous);
   query->set("revision", revision);

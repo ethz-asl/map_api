@@ -23,7 +23,7 @@
 
 namespace map_api {
 
-CRUTableInterface::CRUTableInterface(const Hash& owner) :
+CRUTableInterface::CRUTableInterface(const sm::HashId& owner) :
                 CRTableInterface(owner), history_() {}
 
 bool CRUTableInterface::setup(const std::string &name){
@@ -35,9 +35,9 @@ bool CRUTableInterface::setup(const std::string &name){
   }
   // Define fields of the actual CRU table: Reference to latest history item.
   {
-    addCRUField<Hash>("ID");
-    addCRUField<Hash>("owner");
-    addCRUField<Hash>("latest_revision");
+    addCRUField<sm::HashId>("ID");
+    addCRUField<sm::HashId>("owner");
+    addCRUField<sm::HashId>("latest_revision");
   }
   // Set table name TODO(tcies) string SQL-ready, e.g. no hyphens?
   set_name(name);
@@ -90,26 +90,26 @@ bool CRUTableInterface::addField(const std::string& name,
 }
 
 
-bool CRUTableInterface::rawUpdateQuery(const Hash& id,
-                                       const Hash& nextRevision) const{
+bool CRUTableInterface::rawUpdateQuery(const sm::HashId& id,
+                                       const sm::HashId& nextRevision) const{
   Poco::Data::Statement stat(*session_);
   stat << "UPDATE " << name() <<
-      " SET latest_revision = ? ", Poco::Data::use(nextRevision.getString());
-  stat << "WHERE ID LIKE :id", Poco::Data::use(id.getString());
+      " SET latest_revision = ? ", Poco::Data::use(nextRevision.hexString());
+  stat << "WHERE ID LIKE :id", Poco::Data::use(id.hexString());
   stat.execute();
   return stat.done();
 }
 
-bool CRUTableInterface::rawLatestUpdate(const Hash& id, Time* time) const{
+bool CRUTableInterface::rawLatestUpdate(const sm::HashId& id, Time* time) const{
   std::shared_ptr<Revision> row = rawGetRow(id);
   if (!row){
-    LOG(ERROR) << "Failed to retrieve row " << id.getString() << "from table" <<
+    LOG(ERROR) << "Failed to retrieve row " << id.hexString() << "from table" <<
         name();
     return false;
   }
-  Hash latestInHistoryId;
+  sm::HashId latestInHistoryId;
   if (!row->get("latest_revision", &latestInHistoryId)){
-    LOG(ERROR) << "Row " << id.getString() << " in table " << name() <<
+    LOG(ERROR) << "Row " << id.hexString() << " in table " << name() <<
         "does not contain 'latest_revision'";
     // TODO(tcies) is there a way to auto-feed id & name to logs in scope?
     return false;
@@ -118,11 +118,11 @@ bool CRUTableInterface::rawLatestUpdate(const Hash& id, Time* time) const{
       history_->rawGetRow(latestInHistoryId));
   if (!latestInHistory){
     LOG(ERROR) << "Failed to retrieve latest revision in history of  " <<
-        id.getString() << "from table" << name();
+        id.hexString() << "from table" << name();
     return false;
   }
   if (!latestInHistory->get("time", time)){
-    LOG(ERROR) << "Latest revision " << id.getString() << " in table " << name()
+    LOG(ERROR) << "Latest revision " << id.hexString() << " in table " << name()
         << "does not contain 'time'";
     return false;
   }

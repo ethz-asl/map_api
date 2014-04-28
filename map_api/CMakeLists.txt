@@ -3,7 +3,7 @@ project(map_api)
 
 include(ExternalProject)
 
-find_package(catkin REQUIRED COMPONENTS)
+find_package(catkin REQUIRED COMPONENTS sm_common)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
@@ -30,7 +30,7 @@ LIST(APPEND LINK_WITH ${PROTOBUF_LIBRARIES})
 
 catkin_package(
     DEPENDS eigen GLog GFlags Protobuf
-    CATKIN_DEPENDS 
+    CATKIN_DEPENDS sm_common
     INCLUDE_DIRS include ${CMAKE_CURRENT_BINARY_DIR}
     LIBRARIES ${PROJECT_NAME}
     CFG_EXTRAS FindGFlags.cmake FindGLog.cmake
@@ -49,7 +49,6 @@ include_directories(include ${catkin_INCLUDE_DIRS}
 # Core Library available to all applications
 SET(CORE_SOURCE  src/cr-table-interface.cc
                  src/cru-table-interface.cc
-                 src/hash.cc
                  src/history.cc
                  src/map-api-core.cc
                  src/map-api-hub.cc

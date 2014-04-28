@@ -9,7 +9,6 @@
 #include <gflags/gflags.h>
 
 #include "map-api/cr-table-interface.h"
-#include "map-api/hash.h"
 #include "map-api/history.h"
 #include "map-api/revision.h"
 #include "map-api/time.h"
@@ -22,7 +21,7 @@ namespace map_api {
  */
 class CRUTableInterface : public CRTableInterface{
  public:
-  explicit CRUTableInterface(const Hash& owner);
+  explicit CRUTableInterface(const sm::HashId& owner);
   virtual bool init() = 0;
  protected:
   /**
@@ -71,13 +70,14 @@ class CRUTableInterface : public CRTableInterface{
    * the parameter nextRevision is the hash to the revision the CRU table item
    * is supposed to be updated to.
    */
-  bool rawUpdateQuery(const Hash& id, const Hash& nextRevision) const;
+  bool rawUpdateQuery(const sm::HashId& id, const sm::HashId& nextRevision)
+  const;
   /**
    * Template for history bookkeeping
    */
   std::shared_ptr<Revision> getCRUTemplate() const;
 
-  bool rawLatestUpdate(const Hash& id, Time* time) const;
+  bool rawLatestUpdate(const sm::HashId& id, Time* time) const;
 
 };
 

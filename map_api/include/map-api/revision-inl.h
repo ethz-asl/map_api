@@ -12,7 +12,6 @@
 
 #include "map-api/revision.h"
 #include "map-api/time.h"
-#include "map-api/hash.h"
 
 namespace map_api {
 
