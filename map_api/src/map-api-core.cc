@@ -9,6 +9,7 @@
 #include <glog/logging.h>
 
 #include "map-api/map-api-hub.h"
+#include "map-api/transaction.h"
 
 DEFINE_string(ipPort, "127.0.0.1:5050", "Define node ip and port");
 
@@ -27,8 +28,12 @@ MapApiCore &MapApiCore::getInstance() {
   return instance;
 }
 
-MapApiCore::MapApiCore() : hub_(MapApiHub::getInstance()),
-    initialized_(false){}
+MapApiCore::MapApiCore() : owner_(Hash::randomHash()),
+    hub_(MapApiHub::getInstance()), metatable_(), initialized_(false){}
+
+bool MapApiCore::syncTableDefinition(std::shared_ptr<Revision> tableTemplate){
+  // TODO(tcies) implement lookup by something else than ID - by table name!
+}
 
 bool MapApiCore::init(const std::string &ipPort) {
   if (!hub_.init(ipPort)){

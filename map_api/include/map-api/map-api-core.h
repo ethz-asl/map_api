@@ -6,7 +6,9 @@
 #include <Poco/Data/Common.h>
 
 #include "map-api/cru-table-interface.h"
+#include "map-api/hash.h"
 #include "map-api/map-api-hub.h"
+#include "map-api/metatable.h"
 #include "core.pb.h"
 
 namespace map_api {
@@ -25,13 +27,10 @@ class MapApiCore {
    */
   static MapApiCore& getInstance();
   /**
-   * Get the list of available tables
+   * Synchronizes table definition with peers
+   * by using standard table operations on the metatable
    */
-  std::shared_ptr<proto::TableList> getTables();
-  /**
-   * Get interface to given table by table name
-   */
-  std::shared_ptr<CRUTableInterface> getTable(const std::string &name);
+  bool syncTableDefinition(std::shared_ptr<Revision> tableTemplate);
   /**
    * Initializer
    */
@@ -58,6 +57,8 @@ class MapApiCore {
   friend class CRTableInterface;
   friend class CRUTableInterface;
   friend class Transaction;
+
+  Hash owner_;
   /**
    * Session of local database
    */
@@ -66,6 +67,8 @@ class MapApiCore {
    * Hub instance
    */
   MapApiHub &hub_;
+
+  std::unique_ptr<Metatable> metatable_;
   /**
    * initialized?
    */
