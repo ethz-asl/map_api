@@ -126,7 +126,9 @@ bool Transaction::abort(){
 template<>
 Hash Transaction::insert<CRTableInterface>(
     CRTableInterface& table, const SharedRevisionPointer& item){
-  // TODO(tcies) item must not yet exist in InsertMap
+  if (notifyAbortedOrInactive()){
+    return Hash();
+  }
   if (!table.IsInitialized()){
     LOG(ERROR) << "Attempted to insert into uninitialized table";
     return Hash();
@@ -147,6 +149,9 @@ template<>
 Hash Transaction::insert<CRUTableInterface>(
     CRUTableInterface& table,
     const SharedRevisionPointer& item){
+  if (notifyAbortedOrInactive()){
+    return Hash();
+  }
   if (!table.IsInitialized()){
     LOG(ERROR) << "Attempted to insert into uninitialized table";
     return Hash();
@@ -179,6 +184,9 @@ Hash Transaction::insert<CRUTableInterface>(
 template<>
 Transaction::SharedRevisionPointer Transaction::read<CRTableInterface>(
     CRTableInterface& table, const Hash& id){
+  if (notifyAbortedOrInactive()){
+    return false;
+  }
   // fast check in uncommitted insertions
   Transaction::CRItemIdentifier item(table, id);
   Transaction::InsertMap::iterator itemIterator = insertions_.find(item);
@@ -192,6 +200,9 @@ Transaction::SharedRevisionPointer Transaction::read<CRTableInterface>(
 template<>
 Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
     CRUTableInterface& table, const Hash& id){
+  if (notifyAbortedOrInactive()){
+    return false;
+  }
   // fast check in uncommitted transaction queries
   Transaction::CRUItemIdentifier item(table, id);
   Transaction::UpdateMap::iterator itemIterator = updates_.find(item);
@@ -217,7 +228,9 @@ Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
 
 bool Transaction::update(CRUTableInterface& table, const Hash& id,
                          const SharedRevisionPointer& newRevision){
-  // TODO(tcies) fail if non-matching structure?
+  if (notifyAbortedOrInactive()){
+    return false;
+  }
   updates_[CRUItemIdentifier(table, id)] = newRevision;
   return true;
 }

@@ -34,15 +34,18 @@ class TransactionTestTable : public TestTable {
   TransactionTestTable(const Hash& owner) : TestTable(owner) {}
   std::shared_ptr<Revision> sample(double n){
     std::shared_ptr<Revision> revision = getTemplate();
-    if (!revision->set("n",n)){
-      LOG(ERROR) << "Failed to set n";
+    if (!revision->set(sampleField(),n)){
+      LOG(ERROR) << "Failed to set " << sampleField();
       return std::shared_ptr<Revision>();
     }
     return revision;
   }
+  inline static const std::string sampleField(){
+    return "n";
+  }
  protected:
   virtual bool define() {
-    addField<double>("n");
+    addField<double>(sampleField());
     return true;
   }
 };
@@ -53,10 +56,25 @@ TEST_F(TransactionTest, BeginAbort){
 }
 
 TEST_F(TransactionTest, BeginCommit){
-  Hash owner = Hash::randomHash();
-  Transaction transaction(owner);
   EXPECT_TRUE(transaction_.begin());
   EXPECT_FALSE(transaction_.commit());
+}
+
+TEST_F(TransactionTest, OperationsBeforeBegin){
+  TransactionTestTable table(owner_);
+  EXPECT_TRUE(table.init());
+  std::shared_ptr<Revision> data = table.sample(6.626e-34);
+  EXPECT_EQ(transaction_.insert<CRUTableInterface>(table, data), Hash());
+  // read and update should fail only because transaction hasn't started yet,
+  // so we need to insert some data
+  Transaction valid(owner_);
+  EXPECT_TRUE(valid.begin());
+  Hash inserted = valid.insert<CRUTableInterface>(table, data);
+  EXPECT_NE(inserted, Hash());
+  EXPECT_TRUE(valid.commit());
+
+  EXPECT_FALSE(transaction_.read<CRUTableInterface>(table, inserted));
+  EXPECT_FALSE(transaction_.update(table, inserted, data));
 }
 
 TEST_F(TransactionTest, InsertBeforeTableInit){
@@ -87,23 +105,13 @@ class TransactionCRUTest : public TransactionTest {
   bool updateSample(const Hash& id, double newValue){
     return transaction_.update(table_, id, table_.sample(newValue));
   }
-  bool verify(const Hash& id, double expected){
+  void verify(const Hash& id, double expected){
     double actual;
     std::shared_ptr<Revision> row = transaction_.read<CRUTableInterface>(
         table_, id);
-    if (!row){
-      LOG(ERROR) << "Failed to fetch row for verification";
-      return false;
-    }
-    if (!row->get("n", &actual)){
-      LOG(ERROR) << "Error when getting field 'n' from " << id.getString();
-      return false;
-    }
-    // no margin of error needed - it's supposedly the same implementation
-    if (actual != expected){
-      LOG(ERROR) << "Actual is " << actual << " while expected is " << expected;
-    }
-    return actual == expected;
+    EXPECT_FALSE(!row); // direct doesn't compile
+    EXPECT_TRUE(row->get(table_.sampleField(), &actual));
+    EXPECT_EQ(actual, expected);
   }
   TransactionTestTable table_;
 };
@@ -115,12 +123,10 @@ TEST_F(TransactionCRUTest, InsertNonsense){
 
 TEST_F(TransactionCRUTest, InsertUpdateReadBeforeCommit){
   Hash id = insertSample(1.618);
-  EXPECT_TRUE(verify(id, 1.618));
+  verify(id, 1.618);
   EXPECT_TRUE(updateSample(id, 007));
-  EXPECT_TRUE(verify(id, 007));
+  verify(id, 007);
 }
-
-// TODO (tcies) access uninitialized transaction
 
 /**
  * Fixture for tests with multiple owners and transactions
@@ -166,43 +172,36 @@ class MultiTransactionSingleCRUTest : public MultiTransactionTest {
   bool updateSample(Transaction& transaction, const Hash& id, double newValue){
     return transaction.update(table_, id, table_.sample(newValue));
   }
-  bool verify(Transaction& transaction, const Hash& id, double expected){
+  void verify(Transaction& transaction, const Hash& id, double expected){
     double actual;
     std::shared_ptr<Revision> row = transaction.read<CRUTableInterface>(
         table_, id);
-    if (!row){
-      LOG(ERROR) << "Failed to fetch row for verification";
-      return false;
-    }
-    if (!row->get("n", &actual)){
-      LOG(ERROR) << "Error when getting field 'n' from " << id.getString();
-      return false;
-    }
-    // no margin of error needed - it's supposedly the same implementation
-    return actual == expected;
+    EXPECT_FALSE(!row); // direct doesn't compile
+    EXPECT_TRUE(row->get(table_.sampleField(), &actual));
+    EXPECT_EQ(actual, expected);
   }
   TransactionTestTable table_;
 };
 
 TEST_F(MultiTransactionSingleCRUTest, SerialInsertRead) {
-  // a
+  // Insert by a
   Owner& a = addOwner();
   Transaction& at = a.beginNewTransaction();
   Hash ah = insertSample(at, 3.14);
   EXPECT_NE(ah, Hash());
   EXPECT_TRUE(at.commit());
-  // b
+  // Insert by b
   Owner& b = addOwner();
   Transaction& bt = b.beginNewTransaction();
   Hash bh = insertSample(bt, 42);
   EXPECT_NE(bh, Hash());
   EXPECT_TRUE(bt.commit());
-  // read
-  Owner& r = addOwner();
-  Transaction& rt = r.beginNewTransaction();
-  EXPECT_TRUE(verify(rt, ah, 3.14));
-  EXPECT_TRUE(verify(rt, bh, 42));
-  EXPECT_TRUE(rt.abort());
+  // Check presence of samples in table
+  Owner& verifier = addOwner();
+  Transaction& verification = verifier.beginNewTransaction();
+  verify(verification, ah, 3.14);
+  verify(verification, bh, 42);
+  EXPECT_TRUE(verification.abort());
 }
 
 TEST_F(MultiTransactionSingleCRUTest, ParallelInsertRead) {
@@ -213,12 +212,12 @@ TEST_F(MultiTransactionSingleCRUTest, ParallelInsertRead) {
   EXPECT_NE(bh, Hash());
   EXPECT_TRUE(bt.commit());
   EXPECT_TRUE(at.commit());
-  // read
-  Owner& r = addOwner();
-  Transaction& rt = r.beginNewTransaction();
-  EXPECT_TRUE(verify(rt, ah, 3.14));
-  EXPECT_TRUE(verify(rt, bh, 42));
-  EXPECT_TRUE(rt.abort());
+  // Check presence of samples in table
+  Owner& verifier = addOwner();
+  Transaction& verification = verifier.beginNewTransaction();
+  verify(verification, ah, 3.14);
+  verify(verification, bh, 42);
+  EXPECT_TRUE(verification.abort());
 }
 
 TEST_F(MultiTransactionSingleCRUTest, UpdateRead) {
@@ -233,9 +232,9 @@ TEST_F(MultiTransactionSingleCRUTest, UpdateRead) {
   Transaction& aUpdate = a.beginNewTransaction();
   EXPECT_TRUE(updateSample(aUpdate, itemId, 42));
   EXPECT_TRUE(aUpdate.commit());
-  // check presence
+  // Check presence of sample in table
   Transaction& aCheck = a.beginNewTransaction();
-  EXPECT_TRUE(verify(aCheck, itemId, 42));
+  verify(aCheck, itemId, 42);
   EXPECT_TRUE(aCheck.abort());
 }
 
@@ -259,6 +258,6 @@ TEST_F(MultiTransactionSingleCRUTest, ParallelUpdate) {
   EXPECT_FALSE(aUpdate.commit());
   // make sure b has won
   Transaction& aCheck = a.beginNewTransaction();
-  EXPECT_TRUE(verify(aCheck, itemId, 0xDEADBEEF));
+  verify(aCheck, itemId, 0xDEADBEEF);
   EXPECT_TRUE(aCheck.abort());
 }
