@@ -138,8 +138,9 @@ class MultiTransactionTest : public testing::Test {
     Owner() : id_(Hash::randomHash()), transactions_() {}
     Transaction& beginNewTransaction(){
       transactions_.push_back(Transaction(id_));
-      transactions_.back().begin();
-      return transactions_.back();
+      Transaction& current_transaction = transactions_.back();
+      current_transaction.begin();
+      return current_transaction;
     }
    private:
     Hash id_;
