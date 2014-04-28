@@ -239,7 +239,9 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
 
   // indication of empty result
   if (hashPostApply["ID"] == ""){
-    LOG(ERROR) << "Database query for " << id.getString() << " in table " <<
+    // sometimes, queries fail intentionally, such as when checking for conflict
+    // when inserting
+    VLOG(3) << "Database query for " << id.getString() << " in table " <<
         name() << " returned empty result";
     return std::shared_ptr<Revision>();
   }
@@ -264,7 +266,7 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
   }
   for (const std::pair<std::string, std::string>& fieldHash :
         hashPostApply){
-      query->set(fieldHash.first, Hash(fieldHash.second));
+      query->set(fieldHash.first, Hash::cast(fieldHash.second));
     }
 
   return query;

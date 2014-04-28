@@ -91,7 +91,7 @@ class Transaction {
   typedef std::map<CRItemIdentifier, const SharedRevisionPointer>
   InsertMap;
 
-  typedef std::map<CRUItemIdentifier, const SharedRevisionPointer>
+  typedef std::map<CRUItemIdentifier, SharedRevisionPointer>
   UpdateMap;
 
   bool notifyAbortedOrInactive();
