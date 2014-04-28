@@ -88,10 +88,10 @@ class Transaction {
     }
   };
 
-  typedef std::map<const CRItemIdentifier, const SharedRevisionPointer>
+  typedef std::map<CRItemIdentifier, const SharedRevisionPointer>
   InsertMap;
 
-  typedef std::map<const CRUItemIdentifier, const SharedRevisionPointer>
+  typedef std::map<CRUItemIdentifier, SharedRevisionPointer>
   UpdateMap;
 
   bool notifyAbortedOrInactive();
@@ -129,7 +129,7 @@ class Transaction {
   /**
    * Mutex for db access... for now
    */
-  static std::mutex dbMutex_;
+  static std::recursive_mutex dbMutex_;
 };
 
 } /* namespace map_api */

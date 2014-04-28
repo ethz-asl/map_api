@@ -63,7 +63,7 @@ std::shared_ptr<Revision> CRUTableInterface::getTemplate() const{
   ret->set_table(name());
   // add editable fields
   for (int i = 0; i < descriptor_.fields_size(); ++i){
-    *(ret->add_fieldqueries()->mutable_nametype()) = descriptor_.fields(i);
+    ret->addField(descriptor_.fields(i));
   }
   return ret;
 }
@@ -91,7 +91,7 @@ bool CRUTableInterface::addField(const std::string& name,
 
 
 bool CRUTableInterface::rawUpdateQuery(const Hash& id,
-                                       const Hash& nextRevision){
+                                       const Hash& nextRevision) const{
   Poco::Data::Statement stat(*session_);
   stat << "UPDATE " << name() <<
       " SET latest_revision = ? ", Poco::Data::use(nextRevision.getString());

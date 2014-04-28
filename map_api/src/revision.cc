@@ -16,26 +16,26 @@
 
 namespace map_api {
 
-bool Revision::index() {
-  for (int i = 0; i < this->fieldqueries_size(); ++i){
-    fields_[this->fieldqueries(i).nametype().name()] =
-        i;
-  }
-  return true;
-}
-
 bool Revision::find(const std::string& name, proto::TableField** field){
-  fieldMap::iterator find = fields_.find(name);
+  FieldMap::iterator find = fields_.find(name);
   // reindex if not found
-  if (find == fields_.end()){
-    index();
-    find = fields_.find(name);
-  }
   if (find == fields_.end()) {
     LOG(ERROR) << "Attempted to access inexistent field " << name;
     return false;
   }
   *field = mutable_fieldqueries(find->second);
+  return true;
+}
+
+bool Revision::find(const std::string& name, const proto::TableField** field)
+const{
+  FieldMap::const_iterator find = fields_.find(name);
+  // reindex if not found
+  if (find == fields_.end()) {
+    LOG(ERROR) << "Attempted to access inexistent field " << name;
+    return false;
+  }
+  *field = &fieldqueries(find->second);
   return true;
 }
 
@@ -80,6 +80,41 @@ std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(
   }
   stat << " ";
   return blobPointer;
+}
+
+void Revision::addField(const proto::TableFieldDescriptor& descriptor){
+  // add field
+  *add_fieldqueries()->mutable_nametype() = descriptor;
+  // add to index
+  fields_[descriptor.name()] = fieldqueries_size() - 1;
+}
+
+bool Revision::structureMatch(Revision& other){
+  if (fields_.size() != other.fields_.size()){
+    LOG(INFO) << "Field count does not match";
+    return false;
+  }
+  FieldMap::iterator leftIterator = fields_.begin(),
+      rightIterator = other.fields_.begin();
+  while (leftIterator != fields_.end()){
+    if (leftIterator->first != rightIterator->first){
+      LOG(INFO) << "Field name mismatch: " << leftIterator->first << " vs " <<
+          rightIterator->first;
+      return false;
+    }
+    ++leftIterator;
+    ++rightIterator;
+  }
+  return true;
+}
+
+bool Revision::ParseFromString(const std::string& data){
+  bool success = proto::Revision::ParseFromString(data);
+  CHECK(success) << "Parsing revision from string failed";
+  for (int i = 0; i < fieldqueries_size(); ++i){
+    fields_[fieldqueries(i).nametype().name()] = i;
+  }
+  return true;
 }
 
 /**

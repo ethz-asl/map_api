@@ -23,13 +23,15 @@ bool History::define(){
   return true;
 }
 
-std::shared_ptr<Revision> History::prepareForInsert(Revision& revision,
-                                                    const Hash& previous){
+std::shared_ptr<Revision> History::prepareForInsert(const Revision& revision,
+                                                    const Hash& previous) const{
   if (!revision.has_table()){
     LOG(ERROR) << "Trying to insert invalid revision into history";
     return std::shared_ptr<Revision>();
   }
   std::shared_ptr<Revision> query = getTemplate();
+  query->set("ID", Hash::randomHash());
+  query->set("owner", owner_);
   query->set("previous", previous);
   query->set("revision", revision);
   query->set("time", Time());
