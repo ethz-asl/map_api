@@ -21,22 +21,16 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 endif()
 
 catkin_package(
-    DEPENDS eigen GLog GFlags lemon
-    CATKIN_DEPENDS roscpp
+    DEPENDS eigen GLog GFlags
+    CATKIN_DEPENDS roscpp kindr
     INCLUDE_DIRS include ${Eigen_INCLUDE_DIRS}
     LIBRARIES ${PROJECT_NAME}
     CFG_EXTRAS export_flags.cmake FindGLog.cmake
 )
 
-include_directories(${LEMON_INCLUDE_DIRS})
-
 add_library(${PROJECT_NAME} src/edge.cc src/pose-graph.cc src/hash-id.cc)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${GLOG_LIBRARY})
-add_dependencies(${PROJECT_NAME} lemon)
-
-add_executable(lemon_test src/lemon-test.cc)
-target_link_libraries(lemon_test ${catkin_LIBRARIES} ${GLOG_LIBRARY} ${PROJECT_NAME})
-add_dependencies(lemon_test lemon)
+# add_dependencies(${PROJECT_NAME})
 
 catkin_add_gtest(test_posegraph test/test_main.cpp test/test_posegraph.cc)
 target_link_libraries(test_posegraph ${PROJECT_NAME} pthread ${PROJECT_NAME} ${GLOG_LIBRARY})
