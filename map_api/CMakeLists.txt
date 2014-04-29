@@ -68,9 +68,6 @@ catkin_add_gtest(test_table_interface_test test/test_main.cpp
   test/table_interface_test.cpp)
 target_link_libraries(test_table_interface_test ${PROJECT_NAME} ${LINK_WITH})
 
-catkin_add_gtest(test_hash_test test/test_main.cpp test/hash_test.cpp)
-target_link_libraries(test_hash_test ${PROJECT_NAME} ${LINK_WITH})
-
 catkin_add_gtest(test_core_test test/test_main.cpp test/core_test.cpp)
 target_link_libraries(test_core_test ${PROJECT_NAME} ${LINK_WITH})
 

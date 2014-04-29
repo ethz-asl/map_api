@@ -31,7 +31,7 @@ const {
     return std::shared_ptr<Revision>();
   }
   std::shared_ptr<Revision> query = getTemplate();
-  query->set("ID", Id());
+  query->set("ID", Id::random());
   query->set("owner", owner_);
   query->set("previous", previous);
   query->set("revision", revision);

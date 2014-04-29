@@ -227,8 +227,11 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
     }
   }
 
+  // ID string must remain in scope until the statement is executed, so we need
+  // an explicit copy
+  std::string idString = id.hexString();
   stat << " FROM " << name() << " WHERE ID LIKE :id",
-      Poco::Data::use(id.hexString());
+      Poco::Data::use(idString);
 
   try{
     stat.execute();
@@ -242,7 +245,7 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
     // sometimes, queries fail intentionally, such as when checking for conflict
     // when inserting
     VLOG(3) << "Database query for " << id.hexString() << " in table " <<
-        name() << " returned empty result";
+        name() << " returned empty result, query was " << stat.toString();
     return std::shared_ptr<Revision>();
   }
 

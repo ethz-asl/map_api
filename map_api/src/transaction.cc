@@ -78,7 +78,7 @@ bool Transaction::commit(){
       SharedRevisionPointer current = table.rawGetRow(id);
       Id latestRevisionId;
       if (!current){
-        LOG(ERROR) << "Failed to fetch current CRU table entry for " <<
+        LOG(FATAL) << "Failed to fetch current CRU table entry for " <<
             id.hexString() << " in table " << table.name();
         return false;
       }

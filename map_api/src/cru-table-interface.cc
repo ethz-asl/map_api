@@ -93,10 +93,19 @@ bool CRUTableInterface::addField(const std::string& name,
 bool CRUTableInterface::rawUpdateQuery(const Id& id,
                                        const Id& nextRevision) const{
   Poco::Data::Statement stat(*session_);
+  // needs to persist until the statement is executed
+  std::string idString = id.hexString();
+  std::string nextRevisionString = nextRevision.hexString();
   stat << "UPDATE " << name() <<
-      " SET latest_revision = ? ", Poco::Data::use(nextRevision.hexString());
-  stat << "WHERE ID LIKE :id", Poco::Data::use(id.hexString());
-  stat.execute();
+      " SET latest_revision = ? ", Poco::Data::use(nextRevisionString);
+  stat << "WHERE ID LIKE :id", Poco::Data::use(idString);
+  try {
+    stat.execute();
+  }
+  catch (const std::exception& e) {
+    LOG(ERROR) << "Update failed with exception " << e.what();
+    return false;
+  }
   return stat.done();
 }
 
