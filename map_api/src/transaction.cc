@@ -133,10 +133,7 @@ Hash Transaction::insert<CRTableInterface>(
     LOG(ERROR) << "Attempted to insert into uninitialized table";
     return Hash();
   }
-  if (!item){
-    LOG(ERROR) << "Passed revision pointer is null";
-    return Hash();
-  }
+  CHECK(item) << "Passed revision pointer is null";
   Hash idHash = Hash::randomHash();
   item->set("ID",idHash);
   item->set("owner",owner_);
@@ -156,10 +153,7 @@ Hash Transaction::insert<CRUTableInterface>(
     LOG(ERROR) << "Attempted to insert into uninitialized table";
     return Hash();
   }
-  if (!item){
-    LOG(ERROR) << "Passed revision pointer is null";
-    return Hash();
-  }
+  CHECK(item) << "Passed revision pointer is null";
   // 1. Prepare a CRU table entry pointing to nothing
   Hash idHash = Hash::randomHash();
   SharedRevisionPointer insertItem = table.getCRUTemplate();
@@ -187,7 +181,7 @@ Transaction::SharedRevisionPointer Transaction::read<CRTableInterface>(
   if (notifyAbortedOrInactive()){
     return false;
   }
-  // fast check in uncommitted insertions
+  // fast lookup in uncommitted insertions
   Transaction::CRItemIdentifier item(table, id);
   Transaction::InsertMap::iterator itemIterator = insertions_.find(item);
   if (itemIterator != insertions_.end()){

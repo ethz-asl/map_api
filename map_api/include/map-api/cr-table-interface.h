@@ -43,6 +43,20 @@ class CRTableInterface : public proto::TableDescriptor {
 
   bool isInitialized() const;
 
+  /**
+   * The following struct and macro can be used to automatically supply table
+   * name and item id to a glog message.
+   */
+  typedef struct ItemDebugInfo{
+    std::string table;
+    std::string id;
+    ItemDebugInfo(const std::string& _table, const Hash& _id) :
+      table(_table), id(_id.getString()) {}
+  } ItemDebugInfo;
+#define ITEM_LOG(itemDebugInfo, severity) \
+  LOG(severity) << "In table " << itemDebugInfo.table << ", item " << \
+  itemDebugInfo.id << ": "
+
  protected:
   /**
    * Setup: Load table definition and match with table definition in

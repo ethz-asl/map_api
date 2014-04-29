@@ -31,8 +31,8 @@ class CRUTableInterface : public CRTableInterface{
   bool setup(const std::string& name);
   virtual bool define() = 0;
   /**
-   * Overriding get template on order to get template of revision, not history
-   * bookkeeping.
+   * Overriding getTemplate() in order to get template of revision, not history
+   * book keeping.
    */
   std::shared_ptr<Revision> getTemplate() const;
 
@@ -78,7 +78,6 @@ class CRUTableInterface : public CRTableInterface{
   std::shared_ptr<Revision> getCRUTemplate() const;
 
   bool rawLatestUpdate(const Hash& id, Time* time) const;
-
 };
 
 }
