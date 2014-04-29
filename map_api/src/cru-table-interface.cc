@@ -23,7 +23,7 @@
 
 namespace map_api {
 
-CRUTableInterface::CRUTableInterface(const sm::HashId& owner) :
+CRUTableInterface::CRUTableInterface(const Id& owner) :
                 CRTableInterface(owner), history_() {}
 
 bool CRUTableInterface::setup(const std::string &name){
@@ -35,9 +35,9 @@ bool CRUTableInterface::setup(const std::string &name){
   }
   // Define fields of the actual CRU table: Reference to latest history item.
   {
-    addCRUField<sm::HashId>("ID");
-    addCRUField<sm::HashId>("owner");
-    addCRUField<sm::HashId>("latest_revision");
+    addCRUField<Id>("ID");
+    addCRUField<Id>("owner");
+    addCRUField<Id>("latest_revision");
   }
   // Set table name TODO(tcies) string SQL-ready, e.g. no hyphens?
   set_name(name);
@@ -90,8 +90,8 @@ bool CRUTableInterface::addField(const std::string& name,
 }
 
 
-bool CRUTableInterface::rawUpdateQuery(const sm::HashId& id,
-                                       const sm::HashId& nextRevision) const{
+bool CRUTableInterface::rawUpdateQuery(const Id& id,
+                                       const Id& nextRevision) const{
   Poco::Data::Statement stat(*session_);
   stat << "UPDATE " << name() <<
       " SET latest_revision = ? ", Poco::Data::use(nextRevision.hexString());
@@ -100,14 +100,14 @@ bool CRUTableInterface::rawUpdateQuery(const sm::HashId& id,
   return stat.done();
 }
 
-bool CRUTableInterface::rawLatestUpdate(const sm::HashId& id, Time* time) const{
+bool CRUTableInterface::rawLatestUpdate(const Id& id, Time* time) const{
   std::shared_ptr<Revision> row = rawGetRow(id);
   if (!row){
     LOG(ERROR) << "Failed to retrieve row " << id.hexString() << "from table" <<
         name();
     return false;
   }
-  sm::HashId latestInHistoryId;
+  Id latestInHistoryId;
   if (!row->get("latest_revision", &latestInHistoryId)){
     LOG(ERROR) << "Row " << id.hexString() << " in table " << name() <<
         "does not contain 'latest_revision'";

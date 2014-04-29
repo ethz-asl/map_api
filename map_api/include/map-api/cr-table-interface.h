@@ -15,8 +15,7 @@
 #include <Poco/Data/Common.h>
 #include <gflags/gflags.h>
 
-#include "sm/hash_id.hpp"
-
+#include "map-api/id.h"
 #include "map-api/revision.h"
 #include "map-api/cr-table-interface.h"
 #include "core.pb.h"
@@ -28,7 +27,7 @@ class CRTableInterface : public proto::TableDescriptor {
   /**
    * Constructor does not throw, just sets owner
    */
-  CRTableInterface(const sm::HashId& owner);
+  CRTableInterface(const Id& owner);
   /**
    * Init routine, must be implemented by derived class, defines table name.
    * TODO(tcies) enforce? isInitialized?
@@ -40,7 +39,7 @@ class CRTableInterface : public proto::TableDescriptor {
    * probably not really absolutely required, unlike in updatable tables, where
    * it's needed to lock.
    */
-  const sm::HashId& getOwner() const;
+  const Id& getOwner() const;
 
   bool isInitialized() const;
 
@@ -86,7 +85,7 @@ class CRTableInterface : public proto::TableDescriptor {
    */
   bool createQuery();
 
-  sm::HashId owner_;
+  Id owner_;
   bool initialized_;
 
   /**
@@ -110,7 +109,7 @@ class CRTableInterface : public proto::TableDescriptor {
    *                                                                       R  R
    *                                                                       R   R
    */
-  std::shared_ptr<Revision> rawGetRow(const sm::HashId& id) const;
+  std::shared_ptr<Revision> rawGetRow(const Id& id) const;
 
 };
 

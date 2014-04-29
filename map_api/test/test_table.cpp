@@ -14,7 +14,7 @@
 
 class TestTable : public map_api::CRUTableInterface {
  public:
-  TestTable(map_api::Hash owner) : map_api::CRUTableInterface(owner) {}
+  TestTable(map_api::Id owner) : map_api::CRUTableInterface(owner) {}
   virtual bool init(){
     setup("test_table");
     return true;

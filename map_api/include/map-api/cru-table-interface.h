@@ -21,7 +21,7 @@ namespace map_api {
  */
 class CRUTableInterface : public CRTableInterface{
  public:
-  explicit CRUTableInterface(const sm::HashId& owner);
+  explicit CRUTableInterface(const Id& owner);
   virtual bool init() = 0;
  protected:
   /**
@@ -70,14 +70,14 @@ class CRUTableInterface : public CRTableInterface{
    * the parameter nextRevision is the hash to the revision the CRU table item
    * is supposed to be updated to.
    */
-  bool rawUpdateQuery(const sm::HashId& id, const sm::HashId& nextRevision)
+  bool rawUpdateQuery(const Id& id, const Id& nextRevision)
   const;
   /**
    * Template for history bookkeeping
    */
   std::shared_ptr<Revision> getCRUTemplate() const;
 
-  bool rawLatestUpdate(const sm::HashId& id, Time* time) const;
+  bool rawLatestUpdate(const Id& id, Time* time) const;
 
 };
 

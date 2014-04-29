@@ -23,10 +23,10 @@
 
 namespace map_api {
 
-CRTableInterface::CRTableInterface(const sm::HashId& owner) : owner_(owner),
+CRTableInterface::CRTableInterface(const Id& owner) : owner_(owner),
     initialized_(false) {}
 
-const sm::HashId& CRTableInterface::getOwner() const{
+const Id& CRTableInterface::getOwner() const{
   return owner_;
 }
 
@@ -56,8 +56,8 @@ bool CRTableInterface::setup(const std::string& name){
   set_name(name);
   // Define table fields
   // enforced fields id (hash) and owner
-  addField<sm::HashId>("ID");
-  addField<sm::HashId>("owner");
+  addField<Id>("ID");
+  addField<Id>("owner");
   // transaction-enforced fields TODO(tcies) later
   // std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
   // transactionFields(Transaction::requiredTableFields());
@@ -171,7 +171,7 @@ bool CRTableInterface::rawInsertQuery(const Revision& query) const{
 }
 
 std::shared_ptr<Revision> CRTableInterface::rawGetRow(
-    const sm::HashId &id) const{
+    const Id &id) const{
   std::shared_ptr<Revision> query = getTemplate();
   Poco::Data::Statement stat(*session_);
   stat << "SELECT ";
@@ -266,7 +266,7 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
   }
   for (const std::pair<std::string, std::string>& fieldHash :
         hashPostApply){
-      sm::HashId value;
+      Id value;
       value.fromHexString(fieldHash.second);
       query->set(fieldHash.first, value);
     }

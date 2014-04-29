@@ -11,7 +11,6 @@
 #include <memory>
 
 #include "map-api/cru-table-interface.h"
-#include "map-api/hash.h"
 #include "map_api_posegraph/edge.h"
 #include "map_api_posegraph/frame-table.h"
 

@@ -25,7 +25,7 @@ class Transaction {
  public:
   typedef std::shared_ptr<Revision> SharedRevisionPointer;
 
-  Transaction(const sm::HashId& owner);
+  Transaction(const Id& owner);
 
   bool begin();
   bool commit();
@@ -39,19 +39,19 @@ class Transaction {
    * revisions.
    */
   template<typename TableInterfaceType>
-  sm::HashId insert(TableInterfaceType& table,
+  Id insert(TableInterfaceType& table,
                     const SharedRevisionPointer& item);
   /**
    * Fails if global state differs from groundState before updating
    */
-  bool update(CRUTableInterface& table, const sm::HashId& id,
+  bool update(CRUTableInterface& table, const Id& id,
               const SharedRevisionPointer& newRevision);
 
   /**
    * Returns latest revision prior to transaction begin time
    */
   template<typename TableInterfaceType>
-  SharedRevisionPointer read(TableInterfaceType& table, const sm::HashId& id);
+  SharedRevisionPointer read(TableInterfaceType& table, const Id& id);
   /**
    * Define own fields for database tables, such as for locks.
    */
@@ -59,11 +59,10 @@ class Transaction {
   // requiredTableFields();
   // TODO(tcies) later, start with mutexes
  private:
-  class CRItemIdentifier : public std::pair<const CRTableInterface&, sm::HashId>{
+  class CRItemIdentifier : public std::pair<const CRTableInterface&, Id>{
    public:
-    inline CRItemIdentifier(const CRTableInterface& table,
-                            const sm::HashId& id) :
-                            std::pair<const CRTableInterface&, sm::HashId>(
+    inline CRItemIdentifier(const CRTableInterface& table, const Id& id) :
+                            std::pair<const CRTableInterface&, Id>(
                                 table,id)
                                 {}
     // required for set
@@ -75,11 +74,10 @@ class Transaction {
 
   };
   class CRUItemIdentifier :
-      public std::pair<const CRUTableInterface&, sm::HashId>{
+      public std::pair<const CRUTableInterface&, Id>{
    public:
-    inline CRUItemIdentifier(const CRUTableInterface& table,
-                             const sm::HashId& id) :
-                             std::pair<const CRUTableInterface&, sm::HashId>(
+    inline CRUItemIdentifier(const CRUTableInterface& table, const Id& id) :
+                             std::pair<const CRUTableInterface&, Id>(
                                  table,id)
                              {}
     // required for map
@@ -122,7 +120,7 @@ class Transaction {
    */
   UpdateMap updates_;
 
-  sm::HashId owner_;
+  Id owner_;
   std::shared_ptr<Poco::Data::Session> session_;
   bool active_;
   bool aborted_;
