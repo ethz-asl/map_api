@@ -11,7 +11,7 @@ set(CMAKE_BUILD_TYPE Release)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake/)
 
-find_package(catkin REQUIRED COMPONENTS kindr ceres)
+find_package(catkin REQUIRED COMPONENTS kindr ceres aslam_posegraph)
 find_package(Eigen REQUIRED)
 find_package(GLog REQUIRED)
 
@@ -19,7 +19,7 @@ add_definitions(--std=c++11)
 
 catkin_package(
   DEPENDS eigen GLog
-  CATKIN_DEPENDS ceres kindr
+  CATKIN_DEPENDS ceres kindr aslam_posegraph
   INCLUDE_DIRS include ${catkin_INCLUDE_DIRS}
   LIBRARIES
   CFG_EXTRAS FindGLog.cmake
@@ -68,6 +68,11 @@ catkin_add_gtest(test_switchable_constraints_test
 	test/test_switchable_constraints_test.cpp)
 target_link_libraries(test_switchable_constraints_test ${PROJECT_NAME} 
 	${catkin_LIBRARIES} ${GLOG_LIBRARY})
+	
+catkin_add_gtest(test_aslam_posegraph_support_test
+	test/test_aslam_posegraph_support_test.cpp)
+target_link_libraries(test_aslam_posegraph_support_test ${PROJECT_NAME} 
+	${catkin_LIBRARIES} ${GLOG_LIBRARY} aslam_posegraph)
 
 
 
