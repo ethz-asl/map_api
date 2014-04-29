@@ -1,50 +1,29 @@
 cmake_minimum_required (VERSION 2.8)
 project(map_api)
-
-include(ExternalProject)
-
-find_package(catkin REQUIRED COMPONENTS sm_common)
-
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
+
+find_package(catkin_simple REQUIRED)
+
+catkin_simple()
 
 ################
 # DEPENDENCIES #
 ################
 include(${PROJECT_SOURCE_DIR}/cmake/dependencies.cmake)
-find_package(GLog REQUIRED)
-find_package(GFlags REQUIRED)
 LIST(APPEND LINK_WITH ${GLOG_LIBRARIES} ${GFLAGS_LIBRARIES})
 
 ############
 # PROTOBUF #
 ############
-find_package(Protobuf REQUIRED)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 file (GLOB_RECURSE PROTO_DEFNS proto/*.proto)
 PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 LIST(APPEND LINK_WITH ${PROTOBUF_LIBRARIES})
 
-######################
-# CATKIN DECLARATION #
-######################
-
-catkin_package(
-    DEPENDS eigen GLog GFlags Protobuf
-    CATKIN_DEPENDS sm_common
-    INCLUDE_DIRS include ${CMAKE_CURRENT_BINARY_DIR}
-    LIBRARIES ${PROJECT_NAME}
-    CFG_EXTRAS FindGFlags.cmake FindGLog.cmake
-)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/bin)
-
 #############
 # LIBRARIES #
 #############
 add_definitions(--std=c++0x -Wall -Wextra -pedantic -Wno-unused-local-typedefs)
-
-include_directories(include ${catkin_INCLUDE_DIRS}
-                    ${ZEROMQ_INCLUDE_DIRS} ${POCO_INCLUDE_DIRS}
-                    ${Eigen_INCLUDE_DIRS})
 
 # Core Library available to all applications
 SET(CORE_SOURCE  src/cr-table-interface.cc
@@ -56,7 +35,7 @@ SET(CORE_SOURCE  src/cr-table-interface.cc
                  src/time.cc
                  src/transaction.cc)
                 
-add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_HDRS} ${PROTO_SRCS})
+cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_HDRS} ${PROTO_SRCS})
 add_dependencies(${PROJECT_NAME} ${BUILD_DEPEND})
 target_link_libraries(${PROJECT_NAME} ${LINK_WITH})
 
