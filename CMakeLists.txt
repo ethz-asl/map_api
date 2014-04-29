@@ -11,6 +11,18 @@ find_package(GLog REQUIRED)
 
 include(${PROJECT_SOURCE_DIR}/cmake/dependencies.cmake)
 
+catkin_package(
+    DEPENDS eigen GLog GFlags
+    CATKIN_DEPENDS roscpp kindr
+    INCLUDE_DIRS include ${Eigen_INCLUDE_DIRS}
+    LIBRARIES ${PROJECT_NAME}
+    CFG_EXTRAS export_flags.cmake FindGLog.cmake
+)
+
+###########
+## Build ##
+###########
+
 include_directories(include ${Eigen_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wno-unused-parameter")
@@ -20,17 +32,13 @@ else()
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 endif()
 
-catkin_package(
-    DEPENDS eigen GLog GFlags
-    CATKIN_DEPENDS roscpp kindr
-    INCLUDE_DIRS include ${Eigen_INCLUDE_DIRS}
-    LIBRARIES ${PROJECT_NAME}
-    CFG_EXTRAS export_flags.cmake FindGLog.cmake
-)
-
-add_library(${PROJECT_NAME} src/edge.cc src/pose-graph.cc src/hash-id.cc)
+add_library(${PROJECT_NAME} src/edge.cc src/vertex.cc src/pose-graph.cc src/hash-id.cc)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${GLOG_LIBRARY})
 # add_dependencies(${PROJECT_NAME})
 
-catkin_add_gtest(test_posegraph test/test_main.cpp test/test_posegraph.cc)
-target_link_libraries(test_posegraph ${PROJECT_NAME} pthread ${PROJECT_NAME} ${GLOG_LIBRARY})
+#############
+## Testing ##
+#############
+
+catkin_add_gtest(test_posegraph test/test_posegraph.cc)
+target_link_libraries(test_posegraph ${PROJECT_NAME} ${GLOG_LIBRARY})
