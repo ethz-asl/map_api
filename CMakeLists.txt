@@ -15,7 +15,7 @@ find_package(catkin REQUIRED COMPONENTS kindr ceres)
 find_package(Eigen REQUIRED)
 find_package(GLog REQUIRED)
 
-add_definitions(--std=c++11)
+add_definitions(--std=c++11 -Wno-enum-compare)
 
 catkin_package(
   DEPENDS eigen GLog
