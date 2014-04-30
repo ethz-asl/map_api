@@ -21,6 +21,6 @@
   <build_depend>roscpp</build_depend>
   <build_depend>GLog</build_depend>
   <build_depend>eigen</build_depend>
-  <build_depend>kindr</build_depend>
+  <build_depend>kindr_catkin</build_depend>
 
 </package>
