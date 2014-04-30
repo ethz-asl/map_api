@@ -1,0 +1,148 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{todonotes}
+\usepackage{a4wide}
+
+\title{Map API design document}
+\author{Titus Cieslewski}
+\date{Spring 2014}
+
+\setlength{\parindent}{0mm}
+%\setlength{\parskip}{3mm}
+
+\begin{document}
+
+\maketitle
+
+\section{Overview}
+
+The Map API should provide a mean for robots to collaborate on maps on a large
+scale. It is designed with collaboration on a pose graph in mind, but pose
+graph and the backend are separated, allowing using the Map API for other
+map-related tasks.
+
+The envisioned long-term goal is to develop a Peer-to-peer database system
+(PDBS) geared towards mapping purposes.
+
+\section{Application-to-database mapping, table types}
+
+Applications acces the Map API by extending a table interface class. What
+fields the application would want to use is to be defined in the virutal
+method {\tt define()}, using calls to {\tt addField()}. The mechanisms used to
+ensure synchronized definition of tables are specified in section 
+\ref{define-trans}.
+
+Two types of table interfaces can be chosen: Table interfaces that allow
+updating items (CRU tables) and table interfaces that don't (CR tables). 
+
+Both expose the the method {\tt std::shared\_ptr$<$Revision$>$ getTemplate()},
+which returns a revision object which allows the application to set the fields
+of an item to be inserted into the database.
+
+Any operation on the table is done via transactions. Insertion and update takes
+a populated revision as argument, reading returns one. Table lookups can for
+now only be done via 128 bit Hashes, which are the primary keys of tables.
+
+\subsection{Structure of a {\tt map\_api::Revision}}
+
+A revision object is an extended protocol buffer message which contains the
+name of the table that the object belongs to, the type (CR or CRU),
+and repeated key-type-value
+triples. These contain the field information of the row represented by the
+revision.
+
+\subsection{Default fields}
+
+All tables have per default two fields: ID and owner, both of which are
+currently 128 bit hashes stored in string form. ID's are the primary key and
+thus need to be unique. Per default, they are randomly generated.
+
+\subsection{Revision history for updatable tables}
+
+Tables with ability to update need to carry a revision history in order to be
+able to perform meaningful transactions.
+Instead of containing the latest revision themselves, CRU table rows contain
+a reference to their latest revision each. More precisely, the reference is to
+an object with the following information:
+
+\begin{itemize} \itemsep0em
+  \item The ID of the corresponding CRU table row
+  \item The revision
+  \item A precise timpestamp of the revision
+  \item A reference to the same object type, representing the previous revision
+\end{itemize}
+
+In the implementation, these objects are stored in a revision history table
+which is a CR table and has the same name as the table it versions, suffixed
+with {\tt \_history}.
+
+\section{Transactions}\label{transactions}
+
+Queries to the Map API are handled by transactions, as previously specified in
+the Map Manager API by Stéphane.
+
+\subsection{Transaction walkthrough}
+
+\begin{enumerate} \itemsep0em
+  \item When a transaction is initialized, the timestamp is taken. This allows
+    for the transaction to hold a view on the database as it is at this
+    particular instant.
+  \item Write queries to the API are queued, not journaled and executed as in 
+    SQL. This reduces overhead in case of conflict. Read queries are executed
+    directly, but the returned revisions are always the latest revisions before
+    the transaction view timestamp.
+  \item When the transaction is filed for commit, a global reader lock for the
+    database is acquired \todo{tcies: per-item locks, deadlock prevention}
+  \item All modified objects are checked for conflict. In case of conflict,
+    the transaction is aborted, but the application may retrieve the queue of
+    queries in order to handle the conflict and attempt to re-apply.
+  \item If the conflict handler succeeds or there are no conflicts, the lock
+    is upgraded to writer lock and the
+    queries are executed.
+\end{enumerate}
+
+\subsection{Query types}
+
+\begin{itemize} \itemsep0em
+  \item {\bf Insert queries} take a populated revision as argument and return
+    a hash id. They only lead to conflict if the assigned hash ID is
+    already present in the local database. It is in general assumed that insert
+    conflicts don't happen.
+  \item {\bf Read queries} take a hash id as argument and
+    always return the latest revision from before the
+    beginning of the transaction. \todo{Way to notify about outdated data?}
+  \item {\bf Update queries} take a hash id and a revision as argument. 
+    When update queries are queued, the latest
+    revision before the update is referenced. If there exists a later revision 
+    at commit time, there is a conflict.
+\end{itemize}
+
+\subsection{Transaction involved in defining tables}\label{define-trans}
+
+Before applications use tables, they need to define them. This involves
+synchronizing the table schema with other nodes that use the table, or creating
+the table if it doesn't exist yet. The latter could be subject to a race
+condition, so needs to be synchronized. This happens in a transaction which is
+completely hidden away from the user, that is, the choice is not given to bind 
+the
+definition of a table with other queries into a transaction for the time being
+\todo{tcies: possible future feature: couple definition of multiple tables, or 
+just make it generally available for inclusion in transactions}. As we don't
+assume that tables will change over time, the transaction is a bit simpler than
+a generic transaction described above:
+
+\begin{enumerate}
+  \item Lock a global reader lock specific to the definition of tables
+  \item Check if a table with the defined name already exists. If yes, verify
+    the schemata are congruent or fail.
+  \item If the schemata are different, upgrade to writer lock and create new
+    table
+\end{enumerate}
+
+\section{First implementation simplifications}
+
+\begin{itemize}
+  \item Not using reader-writer locks for now but just simple locks
+\end{itemize}
+
+\end{document}
