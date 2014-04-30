@@ -12,7 +12,7 @@ find_package(GLog REQUIRED)
 catkin_package(
     DEPENDS eigen GLog GFlags
     CATKIN_DEPENDS roscpp kindr
-    INCLUDE_DIRS include ${Eigen_INCLUDE_DIRS}
+    INCLUDE_DIRS include ${Eigen_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS}
     LIBRARIES ${PROJECT_NAME}
     CFG_EXTRAS export_flags.cmake FindGLog.cmake
 )
