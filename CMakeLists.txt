@@ -9,8 +9,6 @@ find_package(catkin REQUIRED roscpp)
 find_package(Eigen REQUIRED)
 find_package(GLog REQUIRED)
 
-include(${PROJECT_SOURCE_DIR}/cmake/dependencies.cmake)
-
 catkin_package(
     DEPENDS eigen GLog GFlags
     CATKIN_DEPENDS roscpp kindr
