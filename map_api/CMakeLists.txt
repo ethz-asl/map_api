@@ -4,6 +4,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
 find_package(catkin_simple REQUIRED)
 
+unset(GLOG_INCLUDE_DIR CACHE)
 catkin_simple()
 
 ################
@@ -53,3 +54,13 @@ target_link_libraries(test_core_test ${PROJECT_NAME} ${LINK_WITH})
 catkin_add_gtest(test_transaction_test test/test_main.cpp 
   test/transaction_test.cpp)
 target_link_libraries(test_transaction_test ${PROJECT_NAME} ${LINK_WITH})
+
+##########
+# EXPORT #
+##########
+
+cs_install()
+# we need to add the current binary dir to include dirs due to
+# protobuf, also exporting sm_common header directory for sm::HashId 
+cs_export(INCLUDE_DIRS include ${CMAKE_CURRENT_BINARY_DIR} 
+                       ${sm_common_INCLUDE_DIRS})

@@ -43,6 +43,11 @@ class CRTableInterface : public proto::TableDescriptor {
 
   bool isInitialized() const;
 
+  /**
+   * Returns a table row template
+   */
+  std::shared_ptr<Revision> getTemplate() const;
+
  protected:
   /**
    * Setup: Load table definition and match with table definition in
@@ -55,10 +60,6 @@ class CRTableInterface : public proto::TableDescriptor {
    */
   virtual bool define() = 0;
   /**
-   * Returns a table row template
-   */
-  std::shared_ptr<Revision> getTemplate() const;
-  /**
    * Function to be called at definition:  Adds field to table. This only calls
    * the other addField function with the proper enum, see implementation
    * header.
@@ -66,7 +67,7 @@ class CRTableInterface : public proto::TableDescriptor {
   template<typename Type>
   bool addField(const std::string& name);
   bool addField(const std::string& name,
-                        proto::TableFieldDescriptor_Type type);
+                proto::TableFieldDescriptor_Type type);
   /**
    * Shared pointer to database session TODO(tcies) can this be set private
    * yet accessed from a test table?
