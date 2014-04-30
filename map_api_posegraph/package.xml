@@ -16,7 +16,9 @@
   <build_depend>map_api</build_depend>
   <build_depend>aslam_posegraph</build_depend>
   <build_depend>ceres_error_terms</build_depend>
+  <build_depend>sm_common</build_depend>
   
   <build_depend>Protobuf</build_depend>
+  <build_depend>eigen</build_depend>
 
 </package>

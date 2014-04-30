@@ -18,6 +18,7 @@ namespace posegraph {
 // TODO(tcies) could this be a CR table? If yes, need to test CR Transactions!
 class OdometryEdgeTable : public map_api::CRUTableInterface {
  public:
+  OdometryEdgeTable(const sm::HashId& owner);
   virtual bool init();
  protected:
   virtual bool define();

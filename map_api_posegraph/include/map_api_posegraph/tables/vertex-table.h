@@ -15,6 +15,7 @@ namespace posegraph {
 
 class VertexTable : public map_api::CRUTableInterface {
  public:
+  VertexTable(const sm::HashId& owner);
   virtual bool init();
  protected:
   virtual bool define();

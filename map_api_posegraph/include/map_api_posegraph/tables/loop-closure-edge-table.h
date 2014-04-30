@@ -17,6 +17,7 @@ namespace posegraph {
 
 class LoopClosureEdgeTable : public map_api::CRUTableInterface {
  public:
+  LoopClosureEdgeTable(const sm::HashId& owner);
   virtual bool init();
  protected:
   virtual bool define();

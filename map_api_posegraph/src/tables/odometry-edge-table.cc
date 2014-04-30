@@ -22,6 +22,9 @@ REVISION_PROTOBUF(posegraph::proto::OdometryEdge)
 
 namespace posegraph {
 
+OdometryEdgeTable::OdometryEdgeTable(const sm::HashId& owner) :
+        map_api::CRUTableInterface(owner) {}
+
 bool OdometryEdgeTable::init(){
   return setup("posegraph_odometry_edge_table");
 }

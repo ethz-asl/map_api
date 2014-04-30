@@ -20,6 +20,8 @@ namespace posegraph {
 
 class MissionAdder : private map_api::Transaction {
  public:
+  // FIXME(tcies) fix owner concept!
+  MissionAdder();
   /**
    * Overrides Transaction::begin to also initialize table interfaces
    */
@@ -38,6 +40,7 @@ class MissionAdder : private map_api::Transaction {
   map_api::Id operator <<(const Datatype& data);
 
  private:
+  sm::HashId owner_;
   LoopClosureEdgeTable loopClosureTable_;
   OdometryEdgeTable odometryTable_;
   VertexTable vertexTable_;

@@ -17,6 +17,9 @@ REVISION_PROTOBUF(posegraph::proto::Vertex)
 
 namespace posegraph {
 
+VertexTable::VertexTable(const sm::HashId& owner) :
+   map_api::CRUTableInterface(owner) {}
+
 bool VertexTable::init(){
   return setup("posegraph_vertex_table");
 }

@@ -30,6 +30,8 @@ add_definitions(--std=c++0x -Wall -Wextra -pedantic)
 
 # Core Library available to all applications
 SET(PG_SOURCE src/mission-adder.cc
+              src/objects/odometry-edge.cc
+              src/pose-graph.cc
               src/tables/loop-closure-edge-table.cc
               src/tables/odometry-edge-table.cc
               src/tables/vertex-table.cc)

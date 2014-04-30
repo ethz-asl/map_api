@@ -18,6 +18,10 @@
 namespace map_api {
 namespace posegraph {
 
+MissionAdder::MissionAdder() : owner_(sm::HashId::random()),
+    map_api::Transaction(owner_), loopClosureTable_(owner_),
+    odometryTable_(owner_), vertexTable_(owner_) {}
+
 bool MissionAdder::begin() {
   map_api::CRTableInterface* tables[] = {&loopClosureTable_, &odometryTable_,
       &vertexTable_};
