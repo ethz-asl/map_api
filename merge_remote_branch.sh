@@ -2,11 +2,11 @@
 
 if [ -z "$1" ]
   then
-    echo "No argument for the repository supplied. Usage: pull_branch.sh reposity_name branch_name"
+    echo -e "\e[1;31mError: No argument for the repository supplied.\e[0m Usage: pull_branch.sh reposity_name branch_name" && exit
 fi
 if [ -z "$2" ]
   then
-    echo "No argument for the branch supplied. Usage: pull_branch.sh reposity_name branch_name"
+    echo -e "\e[1;31mError: No argument for the branch supplied.\e[0m Usage: pull_branch.sh reposity_name branch_name" && exit
 fi
 
 branch_name=$(git symbolic-ref -q HEAD)
