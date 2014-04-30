@@ -3,7 +3,8 @@ project(map_api_posegraph)
 
 include(ExternalProject)
 
-find_package(catkin REQUIRED COMPONENTS map_api)
+find_package(catkin REQUIRED COMPONENTS map_api aslam_posegraph
+                                        ceres_error_terms)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 
@@ -28,7 +29,7 @@ LIST(APPEND LINK_WITH ${PROTOBUF_LIBRARIES})
 
 catkin_package(
     DEPENDS eigen GLog GFlags Protobuf
-    CATKIN_DEPENDS map_api
+    CATKIN_DEPENDS map_api aslam_posegraph ceres_error_terms
     INCLUDE_DIRS include ${Eigen_INCLUDE_DIRS} ${GLOG_INCLUDE_DIRS} ${GFLAGS_INCLUDE_DIRS}
     LIBRARIES ${PROJECT_NAME}
 )

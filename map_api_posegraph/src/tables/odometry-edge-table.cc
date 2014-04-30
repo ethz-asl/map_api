@@ -18,9 +18,17 @@
 
 namespace map_api {
 
-REVISION_PROTOBUF(posegraph::proto::OdometryEdge);
+REVISION_PROTOBUF(posegraph::proto::OdometryEdge)
 
 namespace posegraph {
+
+bool OdometryEdgeTable::init(){
+  return setup("posegraph_odometry_edge_table");
+}
+
+bool OdometryEdgeTable::define(){
+  return addField<posegraph::proto::OdometryEdge>("data");
+}
 
 } /* namespace posegraph */
 } /* namespace map_api */
