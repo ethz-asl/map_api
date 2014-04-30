@@ -5,7 +5,7 @@ set(CMAKE_BUILD_TYPE Release)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake/)
 
-find_package(catkin REQUIRED roscpp)
+find_package(catkin REQUIRED roscpp kindr)
 find_package(Eigen REQUIRED)
 find_package(GLog REQUIRED)
 
