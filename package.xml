@@ -21,10 +21,12 @@
   <build_depend>GLog</build_depend>
   <build_depend>eigen</build_depend>
   <build_depend>kindr</build_depend>
+  <build_depend>sm_common</build_depend>
 
   <!-- Dependencies needed after this package is compiled. -->
   <run_depend>roscpp</run_depend>
   <run_depend>GLog</run_depend>
   <run_depend>eigen</run_depend>
   <run_depend>kindr</run_depend>
+  <run_depend>sm_common</run_depend>
 </package>

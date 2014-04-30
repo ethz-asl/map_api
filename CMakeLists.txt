@@ -5,13 +5,13 @@ set(CMAKE_BUILD_TYPE Release)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake/)
 
-find_package(catkin REQUIRED roscpp kindr)
+find_package(catkin REQUIRED COMPONENTS roscpp kindr sm_common)
 find_package(Eigen REQUIRED)
 find_package(GLog REQUIRED)
 
 catkin_package(
     DEPENDS eigen GLog GFlags
-    CATKIN_DEPENDS roscpp kindr
+    CATKIN_DEPENDS roscpp kindr sm_common
     INCLUDE_DIRS include ${Eigen_INCLUDE_DIRS}
     LIBRARIES ${PROJECT_NAME}
     CFG_EXTRAS export_flags.cmake FindGLog.cmake
@@ -32,7 +32,7 @@ endif()
 
 add_library(${PROJECT_NAME} src/edge.cc src/vertex.cc src/pose-graph.cc 
 	src/pose-vertex.cc src/loop-closure-edge.cc src/odometry-edge.cc
-	src/hash-id.cc src/switchable-constraints-pose-graph.cc)
+	src/switchable-constraints-pose-graph.cc)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${GLOG_LIBRARY})
 # add_dependencies(${PROJECT_NAME})
 
