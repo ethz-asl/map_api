@@ -11,7 +11,7 @@ set(CMAKE_BUILD_TYPE Release)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake/)
 
-find_package(catkin REQUIRED COMPONENTS kindr ceres aslam_posegraph)
+find_package(catkin REQUIRED COMPONENTS kindr ceres aslam_posegraph sm_common)
 find_package(Eigen REQUIRED)
 find_package(GLog REQUIRED)
 
@@ -19,7 +19,7 @@ add_definitions(--std=c++11)
 
 catkin_package(
   DEPENDS eigen GLog
-  CATKIN_DEPENDS ceres kindr aslam_posegraph
+  CATKIN_DEPENDS ceres kindr aslam_posegraph sm_common
   INCLUDE_DIRS include ${catkin_INCLUDE_DIRS}
   LIBRARIES
   CFG_EXTRAS FindGLog.cmake
