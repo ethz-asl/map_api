@@ -23,18 +23,17 @@ catkin_package(
 
 include_directories(include ${Eigen_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wno-unused-parameter")
+add_definitions(-Wall -Wextra -Werror -Wno-unused-parameter)
 if (CMAKE_COMPILER_IS_GNUCC)
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+  add_definitions(-std=c++0x)
 else()
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+  add_definitions(-std=c++11)
 endif()
 
 add_library(${PROJECT_NAME} src/edge.cc src/vertex.cc src/pose-graph.cc 
 	src/pose-vertex.cc src/loop-closure-edge.cc src/odometry-edge.cc
 	src/hash-id.cc src/switchable-constraints-pose-graph.cc)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${GLOG_LIBRARY})
-# add_dependencies(${PROJECT_NAME})
 
 #############
 ## Testing ##
