@@ -265,11 +265,16 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
     query->set(fieldString.first, fieldString.second);
   }
   for (const std::pair<std::string, std::string>& fieldHash :
-        hashPostApply){
-      query->set(fieldHash.first, Hash::cast(fieldHash.second));
-    }
+      hashPostApply){
+    query->set(fieldHash.first, Hash::cast(fieldHash.second));
+  }
 
   return query;
+}
+
+std::ostream& operator<< (std::ostream& stream,
+                          const CRTableInterface::ItemDebugInfo& info){
+  return stream << "For table " << info.table << ", item " << info.id << ": ";
 }
 
 } /* namespace map_api */

@@ -104,22 +104,22 @@ bool CRUTableInterface::rawLatestUpdate(const Hash& id, Time* time) const{
   ItemDebugInfo itemInfo(name(), id);
   std::shared_ptr<Revision> row = rawGetRow(id);
   if (!row){
-    ITEM_LOG(itemInfo, ERROR) << "Failed to retrieve row";
+    LOG(ERROR) << itemInfo << "Failed to retrieve row";
     return false;
   }
   Hash latestInHistoryId;
   if (!row->get("latest_revision", &latestInHistoryId)){
-    ITEM_LOG(itemInfo, ERROR) << "Does not contain 'latest_revision'";
+    LOG(ERROR) << itemInfo << "Does not contain 'latest_revision'";
     return false;
   }
   std::shared_ptr<Revision> latestInHistory(
       history_->rawGetRow(latestInHistoryId));
   if (!latestInHistory){
-    ITEM_LOG(itemInfo, ERROR) << "Failed to get latest revision in history";
+    LOG(ERROR) << itemInfo << "Failed to get latest revision in history";
     return false;
   }
   if (!latestInHistory->get("time", time)){
-    ITEM_LOG(itemInfo, ERROR) << "Latest revision does not contain 'time'";
+    LOG(ERROR) << itemInfo << "Latest revision does not contain 'time'";
     return false;
   }
   return true;

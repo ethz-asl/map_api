@@ -53,9 +53,6 @@ class CRTableInterface : public proto::TableDescriptor {
     ItemDebugInfo(const std::string& _table, const Hash& _id) :
       table(_table), id(_id.getString()) {}
   } ItemDebugInfo;
-#define ITEM_LOG(itemDebugInfo, severity) \
-  LOG(severity) << "In table " << itemDebugInfo.table << ", item " << \
-  itemDebugInfo.id << ": "
 
  protected:
   /**
@@ -126,6 +123,9 @@ class CRTableInterface : public proto::TableDescriptor {
   std::shared_ptr<Revision> rawGetRow(const Hash& id) const;
 
 };
+
+std::ostream& operator<< (std::ostream& stream, const
+                          CRTableInterface::ItemDebugInfo& info);
 
 } /* namespace map_api */
 
