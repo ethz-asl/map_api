@@ -28,6 +28,7 @@ class CRTableInterface : public proto::TableDescriptor {
    * Constructor does not throw, just sets owner
    */
   CRTableInterface(const Id& owner);
+  virtual ~CRTableInterface();
   /**
    * Init routine, must be implemented by derived class, defines table name.
    * TODO(tcies) enforce? isInitialized?

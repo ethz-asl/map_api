@@ -26,6 +26,8 @@ namespace map_api {
 CRUTableInterface::CRUTableInterface(const Id& owner) :
                 CRTableInterface(owner), history_() {}
 
+CRUTableInterface::~CRUTableInterface() {}
+
 bool CRUTableInterface::setup(const std::string &name){
   // Define fields of content (that will be outsourced to history
   {

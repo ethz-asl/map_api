@@ -22,6 +22,8 @@ REVISION_PROTOBUF(posegraph::proto::LoopClosureEdge)
 
 namespace posegraph {
 
+LoopClosureEdgeTable::~LoopClosureEdgeTable() {}
+
 bool LoopClosureEdgeTable::init(){
   return setup("posegraph_loop_closure_edge_table");
 }

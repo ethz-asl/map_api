@@ -26,6 +26,8 @@ namespace map_api {
 CRTableInterface::CRTableInterface(const Id& owner) : owner_(owner),
     initialized_(false) {}
 
+CRTableInterface::~CRTableInterface() {}
+
 const Id& CRTableInterface::getOwner() const{
   return owner_;
 }

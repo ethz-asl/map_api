@@ -15,7 +15,7 @@ message Edge {
   required string to = 2;
   repeated double translation = 3;
   repeated double rotation = 4;
-  repeated double covMat = 5;
+  repeated double covariance = 5;
 }
 
 message OdometryEdge {

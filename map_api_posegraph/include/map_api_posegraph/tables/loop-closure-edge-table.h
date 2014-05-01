@@ -1,10 +1,3 @@
-/*
- * loop-closure-edge-table.h
- *
- *  Created on: Apr 29, 2014
- *      Author: titus
- */
-
 #ifndef LOOP_CLOSURE_EDGE_TABLE_H_
 #define LOOP_CLOSURE_EDGE_TABLE_H_
 
@@ -18,6 +11,7 @@ namespace posegraph {
 class LoopClosureEdgeTable : public map_api::CRUTableInterface {
  public:
   virtual bool init();
+  virtual ~LoopClosureEdgeTable();
  protected:
   virtual bool define();
 };

@@ -19,6 +19,7 @@ namespace posegraph {
 class OdometryEdgeTable : public map_api::CRUTableInterface {
  public:
   virtual bool init();
+  virtual ~OdometryEdgeTable();
  protected:
   virtual bool define();
 };

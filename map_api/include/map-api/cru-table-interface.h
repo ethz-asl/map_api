@@ -22,6 +22,7 @@ namespace map_api {
 class CRUTableInterface : public CRTableInterface{
  public:
   explicit CRUTableInterface(const Id& owner);
+  virtual ~CRUTableInterface();
   virtual bool init() = 0;
   /**
    * Overriding get template on order to get template of revision, not history

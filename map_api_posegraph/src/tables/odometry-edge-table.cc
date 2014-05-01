@@ -22,6 +22,8 @@ REVISION_PROTOBUF(posegraph::proto::OdometryEdge)
 
 namespace posegraph {
 
+OdometryEdgeTable::~OdometryEdgeTable() {}
+
 bool OdometryEdgeTable::init(){
   return setup("posegraph_odometry_edge_table");
 }
