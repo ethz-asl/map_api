@@ -103,8 +103,7 @@ bool CRUTableInterface::rawUpdateQuery(const Id& id,
   stat << "WHERE ID LIKE :id", Poco::Data::use(idString);
   try {
     stat.execute();
-  }
-  catch (const std::exception& e) {
+  } catch (const std::exception& e) {
     LOG(ERROR) << "Update failed with exception " << e.what();
     return false;
   }

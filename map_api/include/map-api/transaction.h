@@ -40,7 +40,7 @@ class Transaction {
    */
   template<typename TableInterfaceType>
   Id insert(TableInterfaceType& table,
-                    const SharedRevisionPointer& item);
+            const SharedRevisionPointer& item);
   /**
    * Fails if global state differs from groundState before updating
    */
@@ -62,9 +62,7 @@ class Transaction {
   class CRItemIdentifier : public std::pair<const CRTableInterface&, Id>{
    public:
     inline CRItemIdentifier(const CRTableInterface& table, const Id& id) :
-                            std::pair<const CRTableInterface&, Id>(
-                                table,id)
-                                {}
+                            std::pair<const CRTableInterface&, Id>(table,id) {}
     // required for set
     inline bool operator <(const CRItemIdentifier& other) const{
       if (first.name() == other.first.name())
@@ -77,9 +75,7 @@ class Transaction {
       public std::pair<const CRUTableInterface&, Id>{
    public:
     inline CRUItemIdentifier(const CRUTableInterface& table, const Id& id) :
-                             std::pair<const CRUTableInterface&, Id>(
-                                 table,id)
-                             {}
+                             std::pair<const CRUTableInterface&, Id>(table,id){}
     // required for map
     inline bool operator <(const CRUItemIdentifier& other) const{
       if (first.name() == other.first.name())
