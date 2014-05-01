@@ -1,4 +1,3 @@
-<?xml version="1.0"?>
 <package>
   <name>ceres_error_terms</name>
   <version>0.0.0</version>
@@ -12,8 +11,9 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   <buildtool_depend>catkin_simple</buildtool_depend>
+  
   <build_depend>ceres</build_depend>
   <build_depend>eigen</build_depend>
-  <build_depend>kindr</build_depend>
+  <build_depend>catkin_kindr</build_depend>
   <build_depend>glog</build_depend>
 </package>
