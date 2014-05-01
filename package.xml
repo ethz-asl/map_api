@@ -3,6 +3,8 @@
   <version>0.0.1</version>
   <description>aslam posegraph implementation</description>
   <maintainer email="simon.lynen@mavt.ethz.ch">Simon Lynen</maintainer>
+  <maintainer email="dev@titus-c.ch">Titus Cieslewski</maintainer>
+  <maintainer email="mdymczyk@gmail.com">Marcin Dymczyk</maintainer>
 
   <license>ASL 2.0</license>
 
@@ -17,8 +19,12 @@
   <!-- Dependencies needed to compile this package. -->
   <build_depend>roscpp</build_depend>
   <build_depend>GLog</build_depend>
+  <build_depend>eigen</build_depend>
+  <build_depend>kindr_catkin</build_depend>
 
   <!-- Dependencies needed after this package is compiled. -->
   <run_depend>roscpp</run_depend>
   <run_depend>GLog</run_depend>
+  <run_depend>eigen</run_depend>
+  <run_depend>kindr_catkin</run_depend>
 </package>
