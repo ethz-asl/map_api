@@ -1,17 +1,29 @@
 package map_api.posegraph.proto;
 
-message Frame {
+message Vertex {
   required double time = 1;
   required string dataFormat = 2;
-  required bytes dataRef = 3;
+  required string dataRef = 3;
   repeated string incoming = 4;
   repeated string outgoing = 5;
+  repeated double position = 6; // assuming absolute position for now, for ceres
+  repeated double attitude = 7;
 }
 
 message Edge {
-  required bytes from = 1;
-  required bytes to = 2;
-  repeated double transform = 3;
-  repeated double covMat = 4;
-  required double confidence = 5;
+  required string from = 1;
+  required string to = 2;
+  repeated double translation = 3;
+  repeated double rotation = 4;
+  repeated double covariance = 5;
+}
+
+message OdometryEdge {
+  required Edge edge = 1;
+}
+
+message LoopClosureEdge {
+  required Edge edge = 1;
+  required double switchVariable = 2;
+  required double switchVariance = 3;
 }

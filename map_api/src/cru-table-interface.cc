@@ -23,8 +23,10 @@
 
 namespace map_api {
 
-CRUTableInterface::CRUTableInterface(const Hash& owner) :
-            CRTableInterface(owner), history_() {}
+CRUTableInterface::CRUTableInterface(const Id& owner) :
+                CRTableInterface(owner), history_() {}
+
+CRUTableInterface::~CRUTableInterface() {}
 
 bool CRUTableInterface::setup(const std::string &name){
   // Define fields of content (that will be outsourced to history
@@ -35,9 +37,9 @@ bool CRUTableInterface::setup(const std::string &name){
   }
   // Define fields of the actual CRU table: Reference to latest history item.
   {
-    addCRUField<Hash>("ID");
-    addCRUField<Hash>("owner");
-    addCRUField<Hash>("latest_revision");
+    addCRUField<Id>("ID");
+    addCRUField<Id>("owner");
+    addCRUField<Id>("latest_revision");
   }
   // Set table name TODO(tcies) string SQL-ready, e.g. no hyphens?
   set_name(name);
@@ -53,7 +55,23 @@ bool CRUTableInterface::setup(const std::string &name){
     LOG(ERROR) << "Failed to initialize history";
     return false;
   }
+  initialized_ = true;
   return true;
+}
+
+std::shared_ptr<Revision> CRUTableInterface::getTemplate() const{
+  std::shared_ptr<Revision> ret(new Revision);
+  // add own name
+  ret->set_table(name());
+  // add editable fields
+  for (int i = 0; i < descriptor_.fields_size(); ++i){
+    ret->addField(descriptor_.fields(i));
+  }
+  return ret;
+}
+
+std::shared_ptr<Revision> CRUTableInterface::getCRUTemplate() const{
+  return CRTableInterface::getTemplate();
 }
 
 bool CRUTableInterface::addField(const std::string& name,
@@ -74,14 +92,47 @@ bool CRUTableInterface::addField(const std::string& name,
 }
 
 
-bool CRUTableInterface::rawUpdateQuery(const Hash& id,
-                                       const Hash& nextRevision){
+bool CRUTableInterface::rawUpdateQuery(const Id& id,
+                                       const Id& nextRevision) const{
   Poco::Data::Statement stat(*session_);
+  // needs to persist until the statement is executed
+  std::string idString = id.hexString();
+  std::string nextRevisionString = nextRevision.hexString();
   stat << "UPDATE " << name() <<
-      " SET latest_revision = ? ", Poco::Data::use(nextRevision.getString());
-  stat << "WHERE ID LIKE :id", Poco::Data::use(id.getString());
-  stat.execute();
+      " SET latest_revision = ? ", Poco::Data::use(nextRevisionString);
+  stat << "WHERE ID LIKE :id", Poco::Data::use(idString);
+  try {
+    stat.execute();
+  } catch (const std::exception& e) {
+    LOG(ERROR) << "Update failed with exception " << e.what();
+    return false;
+  }
   return stat.done();
+}
+
+bool CRUTableInterface::rawLatestUpdate(const Id& id, Time* time) const{
+  std::shared_ptr<Revision> row = rawGetRow(id);
+  ItemDebugInfo itemInfo(name(), id);
+  if (!row){
+    LOG(ERROR) << itemInfo << "Failed to retrieve row";
+    return false;
+  }
+  Id latestInHistoryId;
+  if (!row->get("latest_revision", &latestInHistoryId)){
+    LOG(ERROR) << itemInfo << "Does not contain 'latest_revision'";
+    return false;
+  }
+  std::shared_ptr<Revision> latestInHistory(
+      history_->rawGetRow(latestInHistoryId));
+  if (!latestInHistory){
+    LOG(ERROR) << itemInfo << "Failed to get latest revision in history";
+    return false;
+  }
+  if (!latestInHistory->get("time", time)){
+    LOG(ERROR) << itemInfo << "Latest revision does not contain 'time'";
+    return false;
+  }
+  return true;
 }
 
 }

@@ -1,3 +1,5 @@
+include(ExternalProject)
+
 # Fetch POCO
 ExternalProject_Add(POCO
   URL http://pocoproject.org/releases/poco-1.4.6/poco-1.4.6p2-all.tar.gz
@@ -31,3 +33,6 @@ SET(ZEROMQ_INCLUDE_DIRS ${CMAKE_BINARY_DIR}/include)
 SET(ZEROMQ_LIBRARIES ${CMAKE_BINARY_DIR}/lib/libzmq.a)
 LIST(APPEND LINK_WITH ${ZEROMQ_LIBRARIES})
 LIST(APPEND BUILD_DEPEND ZMQ ZMQ_CPP)
+
+include_directories(${ZEROMQ_INCLUDE_DIRS} ${POCO_INCLUDE_DIRS})
+

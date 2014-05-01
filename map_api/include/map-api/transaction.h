@@ -12,10 +12,10 @@
 #include <set>
 #include <queue>
 #include <memory>
+#include <mutex>
 
 #include "map-api/cr-table-interface.h"
 #include "map-api/cru-table-interface.h"
-#include "map-api/hash.h"
 #include "map-api/revision.h"
 #include "map-api/time.h"
 
@@ -25,7 +25,7 @@ class Transaction {
  public:
   typedef std::shared_ptr<Revision> SharedRevisionPointer;
 
-  Transaction(const Hash& owner);
+  Transaction(const Id& owner);
 
   bool begin();
   bool commit();
@@ -39,19 +39,19 @@ class Transaction {
    * revisions.
    */
   template<typename TableInterfaceType>
-  Hash insert(TableInterfaceType& table,
-              const SharedRevisionPointer& item);
+  Id insert(TableInterfaceType& table,
+            const SharedRevisionPointer& item);
   /**
    * Fails if global state differs from groundState before updating
    */
-  bool update(CRUTableInterface& table, const Hash& id,
+  bool update(CRUTableInterface& table, const Id& id,
               const SharedRevisionPointer& newRevision);
 
   /**
    * Returns latest revision prior to transaction begin time
    */
   template<typename TableInterfaceType>
-  SharedRevisionPointer read(TableInterfaceType& table, const Hash& id);
+  SharedRevisionPointer read(TableInterfaceType& table, const Id& id);
   /**
    * Define own fields for database tables, such as for locks.
    */
@@ -59,12 +59,10 @@ class Transaction {
   // requiredTableFields();
   // TODO(tcies) later, start with mutexes
  private:
-  class CRItemIdentifier : public std::pair<const CRTableInterface&, Hash>{
+  class CRItemIdentifier : public std::pair<const CRTableInterface&, Id>{
    public:
-    inline CRItemIdentifier(const CRTableInterface& table,
-                            const Hash& id) :
-                            std::pair<const CRTableInterface&, Hash>(table,id)
-                            {}
+    inline CRItemIdentifier(const CRTableInterface& table, const Id& id) :
+                            std::pair<const CRTableInterface&, Id>(table,id) {}
     // required for set
     inline bool operator <(const CRItemIdentifier& other) const{
       if (first.name() == other.first.name())
@@ -73,12 +71,11 @@ class Transaction {
     }
 
   };
-  class CRUItemIdentifier : public std::pair<const CRUTableInterface&, Hash>{
+  class CRUItemIdentifier :
+      public std::pair<const CRUTableInterface&, Id>{
    public:
-    inline CRUItemIdentifier(const CRUTableInterface& table,
-                             const Hash& id) :
-                             std::pair<const CRUTableInterface&, Hash>(table,id)
-                             {}
+    inline CRUItemIdentifier(const CRUTableInterface& table, const Id& id) :
+                             std::pair<const CRUTableInterface&, Id>(table,id){}
     // required for map
     inline bool operator <(const CRUItemIdentifier& other) const{
       if (first.name() == other.first.name())
@@ -86,64 +83,49 @@ class Transaction {
       return first.name() < other.first.name();
     }
   };
-  typedef std::pair<CRUItemIdentifier, const SharedRevisionPointer>
-  UpdateRequest;
-  typedef std::pair<CRTableInterface&, const SharedRevisionPointer>
-  CRInsertRequest;
-  typedef std::pair<CRUTableInterface&, const SharedRevisionPointer>
-  CRUInsertRequest;
-  /**
-   * Type for keeping track of previous changes within the same transaction
-   */
-  typedef std::set<CRItemIdentifier> CRUpdateState;
-  typedef std::map<CRUItemIdentifier, Hash> CRUUpdateState;
 
+  typedef std::map<CRItemIdentifier, const SharedRevisionPointer>
+  InsertMap;
+
+  typedef std::map<CRUItemIdentifier, SharedRevisionPointer>
+  UpdateMap;
 
   bool notifyAbortedOrInactive();
   /**
-   * Returns true if the supplied queue has a conflict, keeps track of the
-   * update state of the transaction: Operations are registered, such that
-   * subsequent operations on the same item or insert conflicts are recognized
-   * properly.
+   * Returns true if the supplied map (insert or update) has a conflict
    */
-  template<typename Queue, typename UpdateState>
-  bool hasQueueConflict(const Queue& queue, UpdateState& state);
+  template<typename Map>
+  bool hasMapConflict(const Map& map);
   /**
    * Returns true if the supplied insert/update request has a conflict
    */
-  template<typename Request, typename UpdateState>
-  bool hasRequestConflict(const Request& request, UpdateState& state);
-  /**
-   * Templateable common operations for insert conflict checking
-   */
-  template<typename Request, typename UpdateState, typename Identifier>
-  bool hasInsertRequestConflictCommons(const Request& request,
-                                    UpdateState& state, Hash& id);
+  template<typename Identifier>
+  bool hasItemConflict(const Identifier& item);
 
   /**
-   * Update queue: Queue of update queries requested over the course of the
-   * transaction, to be commited at the end. These must be applied
-   * in consistent order as the same item might be updated twice, thus queue
+   * Maps of insert queries requested over the course of the
+   * transaction, to be committed at the end.
+   * All inserts must be committed before updates.
    */
-  std::deque<UpdateRequest> updateQueue_;
+  InsertMap insertions_;
 
   /**
-   * Insert queues: Queues of insert queries requested over the course of the
-   * transaction, to be commited at the end. Order doesn't matter here,
-   * however, all inserts must be committed before updates.
+   * Map of update queries requested over the course of the
+   * transaction, to be committed at the end. If an item gets updated multiple
+   * times, only the latest revision will be committed
    */
-  std::deque<CRInsertRequest> crInsertQueue_;
-  /**
-   * CRU inserts are split into two parts: Insertion of item pointing to no
-   * revision, then update to revision.
-   */
-  std::deque<CRUInsertRequest> cruInsertQueue_;
+  UpdateMap updates_;
 
-  Hash owner_;
+  Id owner_;
   std::shared_ptr<Poco::Data::Session> session_;
   bool active_;
   bool aborted_;
   Time beginTime_;
+
+  /**
+   * Mutex for db access... for now
+   */
+  static std::recursive_mutex dbMutex_;
 };
 
 } /* namespace map_api */

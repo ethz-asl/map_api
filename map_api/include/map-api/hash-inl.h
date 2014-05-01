@@ -14,6 +14,10 @@ inline bool Hash::operator==(const Hash& other) const{
   return hexHash_ == other.hexHash_;
 }
 
+inline bool Hash::operator!=(const Hash& other) const{
+  return !(*this == other);
+}
+
 inline bool Hash::operator<(const Hash& other) const{
   return hexHash_ < other.hexHash_;
 }
