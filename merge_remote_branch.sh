@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Checks arguments
 if [ -z "$1" ]
   then
     echo -e "\e[1;31mError: No argument for the repository supplied.\e[0m Usage: pull_branch.sh reposity_name branch_name" && exit
@@ -7,6 +8,13 @@ fi
 if [ -z "$2" ]
   then
     echo -e "\e[1;31mError: No argument for the branch supplied.\e[0m Usage: pull_branch.sh reposity_name branch_name" && exit
+fi
+
+# Verifies presence of remotes
+remote_check=`git remote | grep ethz-asl_$1`
+if [ -z "$remote_check" ]
+  then
+    git remote add -f ethz-asl_$1 https://github.com/ethz-asl/$1.git
 fi
 
 branch_name=$(git symbolic-ref -q HEAD)
