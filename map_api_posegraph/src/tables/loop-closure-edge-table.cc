@@ -18,9 +18,17 @@
 
 namespace map_api {
 
-REVISION_PROTOBUF(posegraph::proto::LoopClosureEdge);
+REVISION_PROTOBUF(posegraph::proto::LoopClosureEdge)
 
 namespace posegraph {
+
+bool LoopClosureEdgeTable::init(){
+  return setup("posegraph_loop_closure_edge_table");
+}
+
+bool LoopClosureEdgeTable::define(){
+  return addField<posegraph::proto::LoopClosureEdge>("data");
+}
 
 } /* namespace posegraph */
 } /* namespace map_api */

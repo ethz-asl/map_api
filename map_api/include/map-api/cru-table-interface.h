@@ -23,17 +23,18 @@ class CRUTableInterface : public CRTableInterface{
  public:
   explicit CRUTableInterface(const Id& owner);
   virtual bool init() = 0;
+  /**
+   * Overriding get template on order to get template of revision, not history
+   * bookkeeping.
+   */
+  std::shared_ptr<Revision> getTemplate() const;
+
  protected:
   /**
    * Overriding CR table setup in order to implement history.
    */
   bool setup(const std::string& name);
   virtual bool define() = 0;
-  /**
-   * Overriding get template on order to get template of revision, not history
-   * bookkeeping.
-   */
-  std::shared_ptr<Revision> getTemplate() const;
 
   /**
    * Overriding addField, as the actual data will be outsourced to the
