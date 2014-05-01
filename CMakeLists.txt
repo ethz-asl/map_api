@@ -7,6 +7,11 @@ catkin_simple()
 include_directories(${Eigen_INCLUDE_DIRS})
 add_definitions(${EIGEN_DEFINITIONS})
 
+#Hack to find ceres.
+#TODO(slynen): Properly export include from ceres.
+include_directories(${CATKIN_DEVEL_PREFIX}/include)
+
+
 add_definitions(--std=c++11 -Wno-enum-compare)
 
 cs_add_library(${PROJECT_NAME} src/quaternion_param_hamilton.cc)
