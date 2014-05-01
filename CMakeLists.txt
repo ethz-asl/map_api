@@ -32,5 +32,8 @@ catkin_add_gtest(test_switchable_constraints_test
 target_link_libraries(test_switchable_constraints_test ${PROJECT_NAME})
 
 
+cs_install()
+
+cs_export()
 
 
