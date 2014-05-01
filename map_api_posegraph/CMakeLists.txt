@@ -10,9 +10,6 @@ catkin_simple()
 ################
 # Finding GLog and GFlags is provided by map_api
 LIST(APPEND LINK_WITH ${GLOG_LIBRARIES} ${GFLAGS_LIBRARIES} ${catkin_LIBRARIES})
-# This is a bit of a hack: We need the core.pb.h file from 
-# map_api as include:
-include_directories(${CMAKE_BINARY_DIR}/../map_api)
 
 ############
 # PROTOBUF #

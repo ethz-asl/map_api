@@ -1,10 +1,3 @@
-/*
- * mission-adder.cc
- *
- *  Created on: Apr 30, 2014
- *      Author: titus
- */
-
 #include "map_api_posegraph/mission-adder.h"
 
 #include <memory>
@@ -23,8 +16,7 @@ bool MissionAdder::begin() {
       &vertexTable_};
   for (map_api::CRTableInterface* table : tables){
     if (!table->init()){
-      LOG(ERROR) << "Failed to initialize table " << table->name();
-      return false;
+      LOG(FATAL) << "Failed to initialize table " << table->name();
     }
   }
   return map_api::Transaction::begin();
