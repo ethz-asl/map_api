@@ -8,20 +8,12 @@
   <maintainer email="dev@titus-c.ch">Titus Cieslewski</maintainer>
   <maintainer email="mdymczyk@gmail.com">Marcin Dymczyk</maintainer>
 
-
-  <license>TODO</license>
-
+  <license>New BSD</license>
 
   <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>catkin_simple</buildtool_depend>
   <build_depend>ceres</build_depend>
   <build_depend>eigen</build_depend>
   <build_depend>kindr</build_depend>
-  <run_depend>ceres</run_depend>
-  <run_depend>eigen</run_depend>
-  <run_depend>kindr</run_depend>
-
-
-  <export>
-    
-  </export>
+  <build_depend>glog</build_depend>
 </package>
