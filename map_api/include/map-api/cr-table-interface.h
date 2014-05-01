@@ -48,6 +48,16 @@ class CRTableInterface : public proto::TableDescriptor {
    * Returns a table row template
    */
   std::shared_ptr<Revision> getTemplate() const;
+  /**
+   * The following struct can be used to automatically supply table name and
+   * item id to a glog message.
+   */
+  typedef struct ItemDebugInfo{
+    std::string table;
+    std::string id;
+    ItemDebugInfo(const std::string& _table, const Id& _id) :
+      table(_table), id(_id.hexString()) {}
+  } ItemDebugInfo;
 
  protected:
   /**
@@ -114,6 +124,9 @@ class CRTableInterface : public proto::TableDescriptor {
   std::shared_ptr<Revision> rawGetRow(const Id& id) const;
 
 };
+
+std::ostream& operator<< (std::ostream& stream, const
+                          CRTableInterface::ItemDebugInfo& info);
 
 } /* namespace map_api */
 

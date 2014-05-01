@@ -112,28 +112,24 @@ bool CRUTableInterface::rawUpdateQuery(const Id& id,
 
 bool CRUTableInterface::rawLatestUpdate(const Id& id, Time* time) const{
   std::shared_ptr<Revision> row = rawGetRow(id);
+  ItemDebugInfo itemInfo(name(), id);
   if (!row){
-    LOG(ERROR) << "Failed to retrieve row " << id.hexString() << "from table" <<
-        name();
+    LOG(ERROR) << itemInfo << "Failed to retrieve row";
     return false;
   }
   Id latestInHistoryId;
   if (!row->get("latest_revision", &latestInHistoryId)){
-    LOG(ERROR) << "Row " << id.hexString() << " in table " << name() <<
-        "does not contain 'latest_revision'";
-    // TODO(tcies) is there a way to auto-feed id & name to logs in scope?
+    LOG(ERROR) << itemInfo << "Does not contain 'latest_revision'";
     return false;
   }
   std::shared_ptr<Revision> latestInHistory(
       history_->rawGetRow(latestInHistoryId));
   if (!latestInHistory){
-    LOG(ERROR) << "Failed to retrieve latest revision in history of  " <<
-        id.hexString() << "from table" << name();
+    LOG(ERROR) << itemInfo << "Failed to get latest revision in history";
     return false;
   }
   if (!latestInHistory->get("time", time)){
-    LOG(ERROR) << "Latest revision " << id.hexString() << " in table " << name()
-        << "does not contain 'time'";
+    LOG(ERROR) << itemInfo << "Latest revision does not contain 'time'";
     return false;
   }
   return true;

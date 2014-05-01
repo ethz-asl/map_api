@@ -80,7 +80,6 @@ class CRUTableInterface : public CRTableInterface{
   std::shared_ptr<Revision> getCRUTemplate() const;
 
   bool rawLatestUpdate(const Id& id, Time* time) const;
-
 };
 
 }
