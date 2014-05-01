@@ -15,7 +15,7 @@
 #include <Poco/Data/Common.h>
 #include <gflags/gflags.h>
 
-#include "map-api/hash.h"
+#include "map-api/id.h"
 #include "map-api/revision.h"
 #include "map-api/cr-table-interface.h"
 #include "core.pb.h"
@@ -27,7 +27,8 @@ class CRTableInterface : public proto::TableDescriptor {
   /**
    * Constructor does not throw, just sets owner
    */
-  CRTableInterface(const Hash& owner);
+  CRTableInterface(const Id& owner);
+  virtual ~CRTableInterface();
   /**
    * Init routine, must be implemented by derived class, defines table name.
    * TODO(tcies) enforce? isInitialized?
@@ -39,19 +40,23 @@ class CRTableInterface : public proto::TableDescriptor {
    * probably not really absolutely required, unlike in updatable tables, where
    * it's needed to lock.
    */
-  const Hash& getOwner() const;
+  const Id& getOwner() const;
 
   bool isInitialized() const;
 
   /**
-   * The following struct and macro can be used to automatically supply table
-   * name and item id to a glog message.
+   * Returns a table row template
+   */
+  std::shared_ptr<Revision> getTemplate() const;
+  /**
+   * The following struct can be used to automatically supply table name and
+   * item id to a glog message.
    */
   typedef struct ItemDebugInfo{
     std::string table;
     std::string id;
-    ItemDebugInfo(const std::string& _table, const Hash& _id) :
-      table(_table), id(_id.getString()) {}
+    ItemDebugInfo(const std::string& _table, const Id& _id) :
+      table(_table), id(_id.hexString()) {}
   } ItemDebugInfo;
 
  protected:
@@ -66,10 +71,6 @@ class CRTableInterface : public proto::TableDescriptor {
    */
   virtual bool define() = 0;
   /**
-   * Returns a table row template
-   */
-  std::shared_ptr<Revision> getTemplate() const;
-  /**
    * Function to be called at definition:  Adds field to table. This only calls
    * the other addField function with the proper enum, see implementation
    * header.
@@ -77,7 +78,7 @@ class CRTableInterface : public proto::TableDescriptor {
   template<typename Type>
   bool addField(const std::string& name);
   bool addField(const std::string& name,
-                        proto::TableFieldDescriptor_Type type);
+                proto::TableFieldDescriptor_Type type);
   /**
    * Shared pointer to database session TODO(tcies) can this be set private
    * yet accessed from a test table?
@@ -96,7 +97,7 @@ class CRTableInterface : public proto::TableDescriptor {
    */
   bool createQuery();
 
-  Hash owner_;
+  Id owner_;
   bool initialized_;
 
   /**
@@ -120,7 +121,7 @@ class CRTableInterface : public proto::TableDescriptor {
    *                                                                       R  R
    *                                                                       R   R
    */
-  std::shared_ptr<Revision> rawGetRow(const Hash& id) const;
+  std::shared_ptr<Revision> rawGetRow(const Id& id) const;
 
 };
 

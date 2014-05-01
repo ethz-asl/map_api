@@ -18,7 +18,7 @@ namespace map_api {
 
 std::recursive_mutex Transaction::dbMutex_;
 
-Transaction::Transaction(const Hash& owner) : owner_(owner),
+Transaction::Transaction(const Id& owner) : owner_(owner),
     active_(false), aborted_(false){
 }
 
@@ -56,14 +56,14 @@ bool Transaction::commit(){
     for (const std::pair<CRItemIdentifier, SharedRevisionPointer> &insertion :
         insertions_){
       const CRTableInterface& table = insertion.first.first;
-      const Hash& id = insertion.first.second;
-      Hash idCheck;
+      const Id& id = insertion.first.second;
+      Id idCheck;
       const SharedRevisionPointer &revision = insertion.second;
       CHECK_EQ(revision->get("ID", &idCheck), true) <<
           "Revision to be inserted does not contain ID";
       CHECK(id == idCheck) << "Identifier ID does not match revision ID";
       if (!table.rawInsertQuery(*revision)){
-        LOG(ERROR) << "Insertion of " << id.getString() << " into table " <<
+        LOG(ERROR) << "Insertion of " << id.hexString() << " into table " <<
             table.name() << " failed, aborting commit.";
         return false;
       }
@@ -72,18 +72,18 @@ bool Transaction::commit(){
     for (const std::pair<CRUItemIdentifier, SharedRevisionPointer> &update :
         updates_){
       const CRUTableInterface& table = update.first.first;
-      const Hash& id = update.first.second;
+      const Id& id = update.first.second;
       const SharedRevisionPointer &newRevision = update.second;
       // 1. Fetch id of latest from CRU table
       SharedRevisionPointer current = table.rawGetRow(id);
-      Hash latestRevisionId;
+      Id latestRevisionId;
       if (!current){
-        LOG(ERROR) << "Failed to fetch current CRU table entry for " <<
-            id.getString() << " in table " << table.name();
+        LOG(FATAL) << "Failed to fetch current CRU table entry for " <<
+            id.hexString() << " in table " << table.name();
         return false;
       }
       if (!current->get("latest_revision", &latestRevisionId)){
-        LOG(ERROR) << "CRU table entry for " << id.getString() << " of table "
+        LOG(ERROR) << "CRU table entry for " << id.hexString() << " of table "
             << table.name() << " seems not to contain 'latest_revision'";
         return false;
       }
@@ -92,20 +92,20 @@ bool Transaction::commit(){
           *newRevision, latestRevisionId);
       if (!rawHistory){
         LOG(ERROR) << "Failed to create revision for insertion into history for"
-            << id.getString() << " of table " << table.name();
+            << id.hexString() << " of table " << table.name();
         return false;
       }
-      Hash nextRevisionId;
+      Id nextRevisionId;
       CHECK_EQ(rawHistory->get("ID", &nextRevisionId), true) <<
-          "Revision generated for history of " << id.getString() <<
+          "Revision generated for history of " << id.hexString() <<
           " in table " << table.name() << " is missing 'ID'";
       if (!table.history_->rawInsertQuery(*rawHistory)){
-        LOG(ERROR) << "Failed to insert history item for " << id.getString() <<
+        LOG(ERROR) << "Failed to insert history item for " << id.hexString() <<
             " of table " << table.name() << ", commit fails.";
       }
       // 3. Link to entry in history
       if (!table.rawUpdateQuery(id, nextRevisionId)){
-        LOG(ERROR) << "Failed to link CRU item " << id.getString() << " in " <<
+        LOG(ERROR) << "Failed to link CRU item " << id.hexString() << " in " <<
             table.name() << " with its latest history item, aborting commit.";
         return false;
       }
@@ -124,17 +124,17 @@ bool Transaction::abort(){
 }
 
 template<>
-Hash Transaction::insert<CRTableInterface>(
+Id Transaction::insert<CRTableInterface>(
     CRTableInterface& table, const SharedRevisionPointer& item){
   if (notifyAbortedOrInactive()){
-    return Hash();
+    return Id();
   }
   if (!table.IsInitialized()){
     LOG(ERROR) << "Attempted to insert into uninitialized table";
-    return Hash();
+    return Id();
   }
   CHECK(item) << "Passed revision pointer is null";
-  Hash idHash = Hash::randomHash();
+  Id idHash(Id::random());
   item->set("ID",idHash);
   item->set("owner",owner_);
   insertions_.insert(InsertMap::value_type(
@@ -143,23 +143,23 @@ Hash Transaction::insert<CRTableInterface>(
 }
 
 template<>
-Hash Transaction::insert<CRUTableInterface>(
+Id Transaction::insert<CRUTableInterface>(
     CRUTableInterface& table,
     const SharedRevisionPointer& item){
   if (notifyAbortedOrInactive()){
-    return Hash();
+    return Id();
   }
   if (!table.IsInitialized()){
     LOG(ERROR) << "Attempted to insert into uninitialized table";
-    return Hash();
+    return Id();
   }
   CHECK(item) << "Passed revision pointer is null";
   // 1. Prepare a CRU table entry pointing to nothing
-  Hash idHash = Hash::randomHash();
+  Id idHash(Id::random());
   SharedRevisionPointer insertItem = table.getCRUTemplate();
   insertItem->set("ID", idHash);
   insertItem->set("owner", owner_);
-  insertItem->set("latest_revision", Hash()); // invalid hash
+  insertItem->set("latest_revision", Id()); // invalid hash
   insertions_.insert(InsertMap::value_type(
       CRItemIdentifier(table, idHash), insertItem));
 
@@ -168,7 +168,7 @@ Hash Transaction::insert<CRUTableInterface>(
     LOG(ERROR) << "Revision to be inserted into " << table.name() <<
         " does not match its template structurally";
     insertions_.erase(insertions_.find(CRItemIdentifier(table, idHash)));
-    return Hash();
+    return Id();
   }
   updates_.insert(UpdateMap::value_type(
       CRUItemIdentifier(table, idHash), item));
@@ -177,7 +177,7 @@ Hash Transaction::insert<CRUTableInterface>(
 
 template<>
 Transaction::SharedRevisionPointer Transaction::read<CRTableInterface>(
-    CRTableInterface& table, const Hash& id){
+    CRTableInterface& table, const Id& id){
   if (notifyAbortedOrInactive()){
     return false;
   }
@@ -193,7 +193,7 @@ Transaction::SharedRevisionPointer Transaction::read<CRTableInterface>(
 
 template<>
 Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
-    CRUTableInterface& table, const Hash& id){
+    CRUTableInterface& table, const Id& id){
   if (notifyAbortedOrInactive()){
     return false;
   }
@@ -208,11 +208,11 @@ Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
   // find bookkeeping row
   SharedRevisionPointer cruRow = table.rawGetRow(id);
   if (!cruRow){
-    LOG(ERROR) << "Can't find item " << id.getString() << " in table " <<
+    LOG(ERROR) << "Can't find item " << id.hexString() << " in table " <<
         table.name();
     return SharedRevisionPointer();
   }
-  Hash latest;
+  Id latest;
   if (!cruRow->get("latest_revision", &latest)){
     LOG(ERROR) << "Bookkeeping item does not contain reference to latest";
     return SharedRevisionPointer();
@@ -220,7 +220,7 @@ Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
   return table.history_->revisionAt(latest, beginTime_);
 }
 
-bool Transaction::update(CRUTableInterface& table, const Hash& id,
+bool Transaction::update(CRUTableInterface& table, const Id& id,
                          const SharedRevisionPointer& newRevision){
   if (notifyAbortedOrInactive()){
     return false;
@@ -272,7 +272,7 @@ bool Transaction::hasItemConflict<Transaction::CRItemIdentifier>(
   // Conflict if id present in table
   if (item.first.rawGetRow(item.second)){
     LOG(WARNING) << "Table " << item.first.name() << " already contains id " <<
-        item.second.getString() << ", transaction conflict!";
+        item.second.hexString() << ", transaction conflict!";
     return true;
   }
   return false;

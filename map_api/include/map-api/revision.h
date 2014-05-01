@@ -112,6 +112,26 @@ class Revision : public proto::Revision {
 };
 
 /**
+ * One Macro to define REVISION_ENUM, _SET and _GET for Protobuf objects
+ */
+#define REVISION_PROTOBUF(TYPE) \
+    REVISION_ENUM(TYPE, proto::TableFieldDescriptor_Type_BLOB) \
+    \
+    REVISION_SET(TYPE){ \
+  field.set_blobvalue(value.SerializeAsString()); \
+  return true; \
+} \
+\
+REVISION_GET(TYPE){ \
+  bool parsed = value->ParseFromString(field.blobvalue()); \
+  if (!parsed) { \
+    LOG(ERROR) << "Failed to parse " << #TYPE; \
+    return false; \
+  } \
+  return true; \
+}
+
+/**
  * A generic, blob-y field type for testing blob insertion
  */
 class testBlob : public map_api::proto::TableField{

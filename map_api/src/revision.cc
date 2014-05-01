@@ -5,12 +5,12 @@
  *      Author: titus
  */
 
-#include <map-api/revision.h>
-#include <map-api/hash.h>
-#include <map-api/time.h>
-
 #include <Poco/Data/Common.h>
 #include <Poco/Data/BLOB.h>
+
+#include <map-api/id.h>
+#include <map-api/revision.h>
+#include <map-api/time.h>
 
 #include <glog/logging.h>
 
@@ -124,7 +124,7 @@ bool Revision::ParseFromString(const std::string& data){
 REVISION_ENUM(std::string, proto::TableFieldDescriptor_Type_STRING)
 REVISION_ENUM(double, proto::TableFieldDescriptor_Type_DOUBLE)
 REVISION_ENUM(int32_t, proto::TableFieldDescriptor_Type_INT32)
-REVISION_ENUM(Hash, proto::TableFieldDescriptor_Type_HASH128)
+REVISION_ENUM(Id, proto::TableFieldDescriptor_Type_HASH128)
 REVISION_ENUM(int64_t, proto::TableFieldDescriptor_Type_INT64)
 REVISION_ENUM(Time, proto::TableFieldDescriptor_Type_INT64)
 REVISION_ENUM(Revision, proto::TableFieldDescriptor_Type_BLOB)
@@ -146,8 +146,8 @@ REVISION_SET(int32_t){
   field.set_intvalue(value);
   return true;
 }
-REVISION_SET(Hash){
-  field.set_stringvalue(value.getString());
+REVISION_SET(Id){
+  field.set_stringvalue(value.hexString());
   return true;
 }
 REVISION_SET(int64_t){
@@ -186,8 +186,11 @@ REVISION_GET(int32_t){
   *value = field.intvalue();
   return true;
 }
-REVISION_GET(Hash){
-  *value = map_api::Hash::cast(field.stringvalue());
+REVISION_GET(Id){
+  if (!value->fromHexString(field.stringvalue())){
+    LOG(ERROR) << "Failed to parse Hash id from string " << field.stringvalue();
+    return false;
+  }
   return true;
 }
 REVISION_GET(int64_t){

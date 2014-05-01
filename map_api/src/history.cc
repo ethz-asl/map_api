@@ -9,7 +9,7 @@
 
 namespace map_api {
 
-History::History(const std::string& tableName, const Hash& owner) :
+History::History(const std::string& tableName, const Id& owner) :
             CRTableInterface(owner), tableName_(tableName) {}
 
 bool History::init(){
@@ -17,20 +17,21 @@ bool History::init(){
 }
 
 bool History::define(){
-  addField<Hash>("previous");
+  addField<Id>("previous");
   addField<Revision>("revision");
   addField<Time>("time");
   return true;
 }
 
 std::shared_ptr<Revision> History::prepareForInsert(const Revision& revision,
-                                                    const Hash& previous) const{
+                                                    const Id& previous)
+const {
   if (!revision.has_table()){
     LOG(ERROR) << "Trying to insert invalid revision into history";
     return std::shared_ptr<Revision>();
   }
   std::shared_ptr<Revision> query = getTemplate();
-  query->set("ID", Hash::randomHash());
+  query->set("ID", Id::random());
   query->set("owner", owner_);
   query->set("previous", previous);
   query->set("revision", revision);
@@ -38,7 +39,7 @@ std::shared_ptr<Revision> History::prepareForInsert(const Revision& revision,
   return query;
 }
 
-std::shared_ptr<Revision> History::revisionAt(const Hash& id,
+std::shared_ptr<Revision> History::revisionAt(const Id& id,
                                               const Time& time){
   typedef std::shared_ptr<Revision> RevisionPtr;
   RevisionPtr revisionIterator = rawGetRow(id);
@@ -51,14 +52,14 @@ std::shared_ptr<Revision> History::revisionAt(const Hash& id,
     return std::shared_ptr<Revision>();
   }
   while (revisionTime > time){
-    Hash previous;
-    if (!revisionIterator->get<Hash>("previous", &previous)){
+    Id previous;
+    if (!revisionIterator->get<Id>("previous", &previous)){
       LOG(ERROR) << "History entry doesn't have field previous!";
       return std::shared_ptr<Revision>();
     }
     revisionIterator = rawGetRow(previous);
     if (!revisionIterator){
-      LOG(ERROR) << "Failed to get previous revision " << previous.getString();
+      LOG(ERROR) << "Failed to get previous revision " << previous.hexString();
       return RevisionPtr();
     }
     if (!revisionIterator->get<Time>("time", &revisionTime)){

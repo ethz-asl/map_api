@@ -12,7 +12,7 @@
 #include <Poco/Data/Statement.h>
 
 #include <map-api/cru-table-interface.h>
-#include <map-api/hash.h>
+#include <map-api/id.h>
 #include <map-api/time.h>
 #include <map-api/transaction.h>
 
@@ -21,7 +21,7 @@
 using namespace map_api;
 
 TEST(TableInterFace, initEmpty){
-  TestTable table(Hash::randomHash());
+  TestTable table(Id::random());
   table.init();
   std::shared_ptr<Revision> structure = table.templateForward();
   ASSERT_TRUE(static_cast<bool>(structure));
@@ -37,7 +37,7 @@ TEST(TableInterFace, initEmpty){
 template <typename FieldType>
 class FieldTestTable : public TestTable{
  public:
-  FieldTestTable(const Hash& owner) : TestTable(owner) {}
+  FieldTestTable(const Id& owner) : TestTable(owner) {}
   virtual bool init(){
     setup("field_test_table");
     return true;
@@ -112,13 +112,13 @@ class FieldTest<int32_t> : public ::testing::Test{
   }
 };
 template <>
-class FieldTest<map_api::Hash> : public ::testing::Test{
+class FieldTest<map_api::Id> : public ::testing::Test{
  protected:
-  map_api::Hash sample_data_1(){
-    return map_api::Hash("One hash");
+  map_api::Id sample_data_1(){
+    return map_api::Id::random();
   }
-  map_api::Hash sample_data_2(){
-    return map_api::Hash("Another hash");
+  map_api::Id sample_data_2(){
+    return map_api::Id::random();
   }
 };
 template <>
@@ -171,11 +171,11 @@ class FieldTest<testBlob> : public ::testing::Test{
  */
 
 typedef ::testing::Types<testBlob, std::string, int32_t, double,
-    map_api::Hash, int64_t, map_api::Time> MyTypes;
+    map_api::Id, int64_t, map_api::Time> MyTypes;
 TYPED_TEST_CASE(FieldTest, MyTypes);
 
 TYPED_TEST(FieldTest, Init){
-  Hash owner = Hash::randomHash();
+  Id owner = Id::random();
   FieldTestTable<TypeParam> table(owner);
   table.init();
   std::shared_ptr<Revision> structure = table.templateForward();
@@ -185,12 +185,12 @@ TYPED_TEST(FieldTest, Init){
 
 // TODO(tcies) move to transaction tests
 TYPED_TEST(FieldTest, CreateBeforeInit){
-  Hash owner = Hash::randomHash();
+  Id owner = Id::random();
   FieldTestTable<TypeParam> table(owner);
   Transaction transaction(owner);
   transaction.begin();
   EXPECT_EQ(transaction.insert<CRUTableInterface>(
-      table, table.prepareInsert(this->sample_data_1())), Hash());
+      table, table.prepareInsert(this->sample_data_1())), Id());
   transaction.abort();
 }
 

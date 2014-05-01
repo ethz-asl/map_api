@@ -8,15 +8,15 @@
   </maintainer>
   <maintainer email="slynen@ethz.ch">Simon Lynen</maintainer>
   <maintainer email="dev@titus-c.ch">Titus Cieslewski</maintainer>
-
-
   <license>Apache 2.0</license>
 
-
   <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>catkin_simple</buildtool_depend>
+  
   <build_depend>map_api</build_depend>
-  <run_depend>map_api</run_depend>
+  <build_depend>aslam_posegraph</build_depend>
+  <build_depend>ceres_error_terms</build_depend>
+  
+  <build_depend>Protobuf</build_depend>
 
-  <export>
-  </export>
 </package>

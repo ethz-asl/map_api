@@ -23,10 +23,12 @@
 
 namespace map_api {
 
-CRTableInterface::CRTableInterface(const Hash& owner) : owner_(owner),
+CRTableInterface::CRTableInterface(const Id& owner) : owner_(owner),
     initialized_(false) {}
 
-const Hash& CRTableInterface::getOwner() const{
+CRTableInterface::~CRTableInterface() {}
+
+const Id& CRTableInterface::getOwner() const{
   return owner_;
 }
 
@@ -56,8 +58,8 @@ bool CRTableInterface::setup(const std::string& name){
   set_name(name);
   // Define table fields
   // enforced fields id (hash) and owner
-  addField<Hash>("ID");
-  addField<Hash>("owner");
+  addField<Id>("ID");
+  addField<Id>("owner");
   // transaction-enforced fields TODO(tcies) later
   // std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
   // transactionFields(Transaction::requiredTableFields());
@@ -171,7 +173,7 @@ bool CRTableInterface::rawInsertQuery(const Revision& query) const{
 }
 
 std::shared_ptr<Revision> CRTableInterface::rawGetRow(
-    const map_api::Hash &id) const{
+    const Id &id) const{
   std::shared_ptr<Revision> query = getTemplate();
   Poco::Data::Statement stat(*session_);
   stat << "SELECT ";
@@ -227,8 +229,11 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
     }
   }
 
+  // ID string must remain in scope until the statement is executed, so we need
+  // an explicit copy
+  std::string idString = id.hexString();
   stat << " FROM " << name() << " WHERE ID LIKE :id",
-      Poco::Data::use(id.getString());
+      Poco::Data::use(idString);
 
   try{
     stat.execute();
@@ -241,8 +246,8 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
   if (hashPostApply["ID"] == ""){
     // sometimes, queries fail intentionally, such as when checking for conflict
     // when inserting
-    VLOG(3) << "Database query for " << id.getString() << " in table " <<
-        name() << " returned empty result";
+    VLOG(3) << "Database query for " << id.hexString() << " in table " <<
+        name() << " returned empty result, query was " << stat.toString();
     return std::shared_ptr<Revision>();
   }
 
@@ -266,9 +271,10 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
   }
   for (const std::pair<std::string, std::string>& fieldHash :
       hashPostApply){
-    query->set(fieldHash.first, Hash::cast(fieldHash.second));
+    Id value;
+    value.fromHexString(fieldHash.second);
+    query->set(fieldHash.first, value);
   }
-
   return query;
 }
 

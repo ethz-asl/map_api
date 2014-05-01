@@ -16,7 +16,6 @@
 
 #include "map-api/cr-table-interface.h"
 #include "map-api/cru-table-interface.h"
-#include "map-api/hash.h"
 #include "map-api/revision.h"
 #include "map-api/time.h"
 
@@ -26,7 +25,7 @@ class Transaction {
  public:
   typedef std::shared_ptr<Revision> SharedRevisionPointer;
 
-  Transaction(const Hash& owner);
+  Transaction(const Id& owner);
 
   bool begin();
   bool commit();
@@ -40,19 +39,19 @@ class Transaction {
    * revisions.
    */
   template<typename TableInterfaceType>
-  Hash insert(TableInterfaceType& table,
-              const SharedRevisionPointer& item);
+  Id insert(TableInterfaceType& table,
+            const SharedRevisionPointer& item);
   /**
    * Fails if global state differs from groundState before updating
    */
-  bool update(CRUTableInterface& table, const Hash& id,
+  bool update(CRUTableInterface& table, const Id& id,
               const SharedRevisionPointer& newRevision);
 
   /**
    * Returns latest revision prior to transaction begin time
    */
   template<typename TableInterfaceType>
-  SharedRevisionPointer read(TableInterfaceType& table, const Hash& id);
+  SharedRevisionPointer read(TableInterfaceType& table, const Id& id);
   /**
    * Define own fields for database tables, such as for locks.
    */
@@ -60,12 +59,10 @@ class Transaction {
   // requiredTableFields();
   // TODO(tcies) later, start with mutexes
  private:
-  class CRItemIdentifier : public std::pair<const CRTableInterface&, Hash>{
+  class CRItemIdentifier : public std::pair<const CRTableInterface&, Id>{
    public:
-    inline CRItemIdentifier(const CRTableInterface& table,
-                            const Hash& id) :
-                            std::pair<const CRTableInterface&, Hash>(table,id)
-                            {}
+    inline CRItemIdentifier(const CRTableInterface& table, const Id& id) :
+                            std::pair<const CRTableInterface&, Id>(table,id) {}
     // required for set
     inline bool operator <(const CRItemIdentifier& other) const{
       if (first.name() == other.first.name())
@@ -74,12 +71,11 @@ class Transaction {
     }
 
   };
-  class CRUItemIdentifier : public std::pair<const CRUTableInterface&, Hash>{
+  class CRUItemIdentifier :
+      public std::pair<const CRUTableInterface&, Id>{
    public:
-    inline CRUItemIdentifier(const CRUTableInterface& table,
-                             const Hash& id) :
-                             std::pair<const CRUTableInterface&, Hash>(table,id)
-                             {}
+    inline CRUItemIdentifier(const CRUTableInterface& table, const Id& id) :
+                             std::pair<const CRUTableInterface&, Id>(table,id){}
     // required for map
     inline bool operator <(const CRUItemIdentifier& other) const{
       if (first.name() == other.first.name())
@@ -120,7 +116,7 @@ class Transaction {
    */
   UpdateMap updates_;
 
-  Hash owner_;
+  Id owner_;
   std::shared_ptr<Poco::Data::Session> session_;
   bool active_;
   bool aborted_;

@@ -9,7 +9,6 @@
 #include <gflags/gflags.h>
 
 #include "map-api/cr-table-interface.h"
-#include "map-api/hash.h"
 #include "map-api/history.h"
 #include "map-api/revision.h"
 #include "map-api/time.h"
@@ -22,19 +21,21 @@ namespace map_api {
  */
 class CRUTableInterface : public CRTableInterface{
  public:
-  explicit CRUTableInterface(const Hash& owner);
+  explicit CRUTableInterface(const Id& owner);
+  virtual ~CRUTableInterface();
   virtual bool init() = 0;
+  /**
+   * Overriding get template on order to get template of revision, not history
+   * bookkeeping.
+   */
+  std::shared_ptr<Revision> getTemplate() const;
+
  protected:
   /**
    * Overriding CR table setup in order to implement history.
    */
   bool setup(const std::string& name);
   virtual bool define() = 0;
-  /**
-   * Overriding getTemplate() in order to get template of revision, not history
-   * book keeping.
-   */
-  std::shared_ptr<Revision> getTemplate() const;
 
   /**
    * Overriding addField, as the actual data will be outsourced to the
@@ -71,13 +72,14 @@ class CRUTableInterface : public CRTableInterface{
    * the parameter nextRevision is the hash to the revision the CRU table item
    * is supposed to be updated to.
    */
-  bool rawUpdateQuery(const Hash& id, const Hash& nextRevision) const;
+  bool rawUpdateQuery(const Id& id, const Id& nextRevision)
+  const;
   /**
    * Template for history bookkeeping
    */
   std::shared_ptr<Revision> getCRUTemplate() const;
 
-  bool rawLatestUpdate(const Hash& id, Time* time) const;
+  bool rawLatestUpdate(const Id& id, Time* time) const;
 };
 
 }
