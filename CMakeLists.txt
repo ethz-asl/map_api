@@ -5,8 +5,7 @@ find_package(catkin_simple REQUIRED)
 catkin_simple()
 
 # Disable broken Kindr macros.
-add_definitions(-DNEBUG)
-set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -DNDEBUG)
 
 include_directories(${Eigen_INCLUDE_DIRS})
 add_definitions(${EIGEN_DEFINITIONS})
