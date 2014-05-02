@@ -8,7 +8,6 @@ catkin_simple()
 set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -DNDEBUG)
 
 include_directories(${Eigen_INCLUDE_DIRS})
-add_definitions(${EIGEN_DEFINITIONS})
 
 add_definitions(-std=c++11 -Wno-enum-compare)
 
