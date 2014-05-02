@@ -10,7 +10,7 @@ set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -DNDEBUG)
 include_directories(${Eigen_INCLUDE_DIRS})
 add_definitions(${EIGEN_DEFINITIONS})
 
-add_definitions(--std=c++11 -Wno-enum-compare)
+add_definitions(-std=c++11 -Wno-enum-compare)
 
 cs_add_library(${PROJECT_NAME} src/quaternion_param_hamilton.cc)
 
