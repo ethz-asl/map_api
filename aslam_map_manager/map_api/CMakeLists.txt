@@ -11,7 +11,7 @@ catkin_simple()
 # DEPENDENCIES #
 ################
 include(${PROJECT_SOURCE_DIR}/cmake/dependencies.cmake)
-LIST(APPEND LINK_WITH ${GLOG_LIBRARIES} ${GFLAGS_LIBRARIES})
+# LIST(APPEND LINK_WITH ${GLOG_LIBRARIES} ${GFLAGS_LIBRARIES})
 
 ############
 # PROTOBUF #
