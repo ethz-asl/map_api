@@ -34,13 +34,19 @@ class Transaction {
   /**
    * Sets a hash ID for the table to be inserted. Returns that ID, such that
    * the item can be subsequently referred to.
-   *
-   * Item can't const because of un-constability due to auto-indexing of
-   * revisions.
    */
   template<typename TableInterfaceType>
   Id insert(TableInterfaceType& table,
             const SharedRevisionPointer& item);
+
+  /**
+   * Allows the user to preset a Hash ID. Will fail in commit if there is a
+   * conflict.
+   */
+  template<typename TableInterfaceType>
+  bool insert(TableInterfaceType& table, const Id& id,
+            const SharedRevisionPointer& item);
+
   /**
    * Fails if global state differs from groundState before updating
    */
@@ -73,7 +79,7 @@ class Transaction {
   };
   class CRUItemIdentifier :
       public std::pair<const CRUTableInterface&, Id>{
-   public:
+       public:
     inline CRUItemIdentifier(const CRUTableInterface& table, const Id& id) :
                              std::pair<const CRUTableInterface&, Id>(table,id){}
     // required for map
@@ -129,5 +135,7 @@ class Transaction {
 };
 
 } /* namespace map_api */
+
+#include "map-api/transaction-inl.h"
 
 #endif /* TRANSACTION_H_ */

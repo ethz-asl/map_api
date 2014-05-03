@@ -124,55 +124,53 @@ bool Transaction::abort(){
 }
 
 template<>
-Id Transaction::insert<CRTableInterface>(
-    CRTableInterface& table, const SharedRevisionPointer& item){
+bool Transaction::insert<CRTableInterface>(
+    CRTableInterface& table, const Id& id, const SharedRevisionPointer& item){
   if (notifyAbortedOrInactive()){
-    return Id();
+    return false;
   }
   if (!table.IsInitialized()){
     LOG(ERROR) << "Attempted to insert into uninitialized table";
-    return Id();
+    return false;
   }
   CHECK(item) << "Passed revision pointer is null";
   Id idHash(Id::random());
-  item->set("ID",idHash);
+  item->set("ID",id);
   item->set("owner",owner_);
   insertions_.insert(InsertMap::value_type(
-      CRItemIdentifier(table, idHash), item));
-  return idHash;
+      CRItemIdentifier(table, id), item));
+  return true;
 }
 
 template<>
-Id Transaction::insert<CRUTableInterface>(
-    CRUTableInterface& table,
-    const SharedRevisionPointer& item){
+bool Transaction::insert<CRUTableInterface>(
+    CRUTableInterface& table, const Id& id, const SharedRevisionPointer& item){
   if (notifyAbortedOrInactive()){
-    return Id();
+    return false;
   }
   if (!table.IsInitialized()){
     LOG(ERROR) << "Attempted to insert into uninitialized table";
-    return Id();
+    return false;
   }
   CHECK(item) << "Passed revision pointer is null";
   // 1. Prepare a CRU table entry pointing to nothing
-  Id idHash(Id::random());
   SharedRevisionPointer insertItem = table.getCRUTemplate();
-  insertItem->set("ID", idHash);
+  insertItem->set("ID", id);
   insertItem->set("owner", owner_);
   insertItem->set("latest_revision", Id()); // invalid hash
   insertions_.insert(InsertMap::value_type(
-      CRItemIdentifier(table, idHash), insertItem));
+      CRItemIdentifier(table, id), insertItem));
 
   // 2. Submit revision to update queue if revision matches structure
   if (!item->structureMatch(*table.getTemplate())){
     LOG(ERROR) << "Revision to be inserted into " << table.name() <<
         " does not match its template structurally";
-    insertions_.erase(insertions_.find(CRItemIdentifier(table, idHash)));
-    return Id();
+    insertions_.erase(insertions_.find(CRItemIdentifier(table, id)));
+    return false;
   }
   updates_.insert(UpdateMap::value_type(
-      CRUItemIdentifier(table, idHash), item));
-  return idHash;
+      CRUItemIdentifier(table, id), item));
+  return true;
 }
 
 template<>

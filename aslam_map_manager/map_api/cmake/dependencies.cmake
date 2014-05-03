@@ -5,6 +5,8 @@ ExternalProject_Add(POCO
   URL http://pocoproject.org/releases/poco-1.4.6/poco-1.4.6p2-all.tar.gz
   # omitting ODBC in order to not have to install additional dependencies
   CONFIGURE_COMMAND ../POCO/configure --no-tests --no-samples --prefix=${CMAKE_BINARY_DIR}/pocolib --omit=Data/ODBC,Net,Zip
+  BUILD_COMMAND make
+  INSTALL_COMMAND make install
 )
 
 set(POCO_INCLUDE_DIRS ${CMAKE_BINARY_DIR}/pocolib/include)
@@ -20,6 +22,8 @@ ExternalProject_Add(ZMQ
   URL http://download.zeromq.org/zeromq-4.0.3.tar.gz
   URL_MD5 8348341a0ea577ff311630da0d624d45
   CONFIGURE_COMMAND ../ZMQ/configure --includedir=${CMAKE_BINARY_DIR}/include/ --with-pic --libdir=${CMAKE_BINARY_DIR}/lib --bindir=${CMAKE_BINARY_DIR}/bin	
+  BUILD_COMMAND make
+  INSTALL_COMMAND make install
 )
 ExternalProject_Add(ZMQ_CPP
   GIT_REPOSITORY https://github.com/zeromq/cppzmq.git
