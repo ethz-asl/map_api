@@ -23,10 +23,17 @@
 
 namespace map_api {
 
-CRTableInterface::CRTableInterface(const Hash& owner) : owner_(owner) {}
+CRTableInterface::CRTableInterface(const Id& owner) : owner_(owner),
+    initialized_(false) {}
 
-const Hash& CRTableInterface::getOwner() const{
+CRTableInterface::~CRTableInterface() {}
+
+const Id& CRTableInterface::getOwner() const{
   return owner_;
+}
+
+bool CRTableInterface::isInitialized() const{
+  return initialized_;
 }
 
 bool CRTableInterface::addField(const std::string& name,
@@ -51,8 +58,8 @@ bool CRTableInterface::setup(const std::string& name){
   set_name(name);
   // Define table fields
   // enforced fields id (hash) and owner
-  addField<Hash>("ID");
-  addField<Hash>("owner");
+  addField<Id>("ID");
+  addField<Id>("owner");
   // transaction-enforced fields TODO(tcies) later
   // std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
   // transactionFields(Transaction::requiredTableFields());
@@ -70,6 +77,7 @@ bool CRTableInterface::setup(const std::string& name){
 
   // Sync with cluster TODO(tcies)
   // sync();
+  initialized_ = true;
   return true;
 }
 
@@ -80,8 +88,8 @@ std::shared_ptr<Revision> CRTableInterface::getTemplate() const{
   // add own name
   ret->set_table(name());
   // add editable fields
-  for (int i=0; i<this->fields_size(); ++i){
-    *(ret->add_fieldqueries()->mutable_nametype()) = this->fields(i);
+  for (int i = 0; i < fields_size(); ++i){
+    ret->addField(fields(i));
   }
   return ret;
 }
@@ -127,7 +135,7 @@ bool CRTableInterface::createQuery(){
   return true;
 }
 
-bool CRTableInterface::rawInsertQuery(const Revision& query){
+bool CRTableInterface::rawInsertQuery(const Revision& query) const{
   // TODO(tcies) verify schema
 
   // Bag for blobs that need to stay in scope until statement is executed
@@ -157,14 +165,15 @@ bool CRTableInterface::rawInsertQuery(const Revision& query){
   try {
     stat.execute();
   } catch(const std::exception &e){
-    LOG(FATAL) << "Insert failed with exception " << e.what();
+    LOG(ERROR) << "Insert failed with exception " << e.what();
+    return false;
   }
 
   return true;
 }
 
 std::shared_ptr<Revision> CRTableInterface::rawGetRow(
-    const map_api::Hash &id) const{
+    const Id &id) const{
   std::shared_ptr<Revision> query = getTemplate();
   Poco::Data::Statement stat(*session_);
   stat << "SELECT ";
@@ -176,14 +185,15 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
   std::map<std::string, int32_t> intPostApply;
   std::map<std::string, int64_t> longPostApply;
   std::map<std::string, Poco::Data::BLOB> blobPostApply;
+  std::map<std::string, std::string> stringPostApply;
+  std::map<std::string, std::string> hashPostApply;
 
   for (int i=0; i<query->fieldqueries_size(); ++i){
     if (i>0){
       stat << ", ";
     }
-    proto::TableField& field = *query->mutable_fieldqueries(i);
+    const proto::TableField& field = query->fieldqueries(i);
     stat << field.nametype().name();
-    // TODO(simon) do you see a reasonable way to move this to TableField?
     switch(field.nametype().type()){
       case (proto::TableFieldDescriptor_Type_BLOB):{
         stat, Poco::Data::into(blobPostApply[field.nametype().name()]);
@@ -201,11 +211,14 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
         stat, Poco::Data::into(longPostApply[field.nametype().name()]);
         break;
       }
-      case (proto::TableFieldDescriptor_Type_STRING): // Fallthrough intended
+      case (proto::TableFieldDescriptor_Type_STRING):{
+        stat, Poco::Data::into(stringPostApply[field.nametype().name()]);
+        break;
+      }
       case (proto::TableFieldDescriptor_Type_HASH128):{
         // default string value allows us to see whether a query failed by
         // looking at the ID
-        stat, Poco::Data::into(*field.mutable_stringvalue(),
+        stat, Poco::Data::into(hashPostApply[field.nametype().name()],
                                std::string(""));
         break;
       }
@@ -216,8 +229,11 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
     }
   }
 
+  // ID string must remain in scope until the statement is executed, so we need
+  // an explicit copy
+  std::string idString = id.hexString();
   stat << " FROM " << name() << " WHERE ID LIKE :id",
-      Poco::Data::use(id.getString());
+      Poco::Data::use(idString);
 
   try{
     stat.execute();
@@ -227,15 +243,15 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
   }
 
   // indication of empty result
-  Hash test;
-  if (!query->get<Hash>("ID", &test)){
-    LOG(FATAL) << "Field ID seems to be absent";
-  }
-  if (test.getString() == ""){
+  if (hashPostApply["ID"] == ""){
+    // sometimes, queries fail intentionally, such as when checking for conflict
+    // when inserting
+    VLOG(3) << "Database query for " << id.hexString() << " in table " <<
+        name() << " returned empty result, query was " << stat.toString();
     return std::shared_ptr<Revision>();
   }
 
-  // write values that couldn't be written directly
+  // write values
   for (std::pair<std::string, double> fieldDouble : doublePostApply){
     query->set(fieldDouble.first, fieldDouble.second);
   }
@@ -249,8 +265,22 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
       blobPostApply){
     query->set(fieldBlob.first, fieldBlob.second);
   }
-
+  for (const std::pair<std::string, std::string>& fieldString :
+      stringPostApply){
+    query->set(fieldString.first, fieldString.second);
+  }
+  for (const std::pair<std::string, std::string>& fieldHash :
+      hashPostApply){
+    Id value;
+    value.fromHexString(fieldHash.second);
+    query->set(fieldHash.first, value);
+  }
   return query;
+}
+
+std::ostream& operator<< (std::ostream& stream,
+                          const CRTableInterface::ItemDebugInfo& info){
+  return stream << "For table " << info.table << ", item " << info.id << ": ";
 }
 
 } /* namespace map_api */
