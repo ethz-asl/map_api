@@ -16,7 +16,7 @@
 #include <condition_variable>
 #include <set>
 
-#include <zmq.hpp>
+#include <zeromq_cpp/zmq.hpp>
 #include <Poco/RWLock.h>
 
 namespace map_api {

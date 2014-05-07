@@ -4,22 +4,14 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
 find_package(catkin_simple REQUIRED)
 
-unset(GLOG_INCLUDE_DIR CACHE)
 catkin_simple()
-
-################
-# DEPENDENCIES #
-################
-include(${PROJECT_SOURCE_DIR}/cmake/dependencies.cmake)
-# LIST(APPEND LINK_WITH ${GLOG_LIBRARIES} ${GFLAGS_LIBRARIES})
 
 ############
 # PROTOBUF #
 ############
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
 file (GLOB_RECURSE PROTO_DEFNS proto/*.proto)
-PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
-LIST(APPEND LINK_WITH ${PROTOBUF_LIBRARIES})
+PROTOBUF_CATKIN_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 #############
 # LIBRARIES #
@@ -36,9 +28,7 @@ SET(CORE_SOURCE  src/cr-table-interface.cc
                  src/time.cc
                  src/transaction.cc)
                 
-cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_HDRS} ${PROTO_SRCS})
-add_dependencies(${PROJECT_NAME} ${BUILD_DEPEND})
-target_link_libraries(${PROJECT_NAME} ${LINK_WITH})
+cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS})
 
 ##########
 # GTESTS #
@@ -46,14 +36,14 @@ target_link_libraries(${PROJECT_NAME} ${LINK_WITH})
 
 catkin_add_gtest(test_table_interface_test test/test_main.cpp
   test/table_interface_test.cpp)
-target_link_libraries(test_table_interface_test ${PROJECT_NAME} ${LINK_WITH})
+target_link_libraries(test_table_interface_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_core_test test/test_main.cpp test/core_test.cpp)
-target_link_libraries(test_core_test ${PROJECT_NAME} ${LINK_WITH})
+target_link_libraries(test_core_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_transaction_test test/test_main.cpp 
   test/transaction_test.cpp)
-target_link_libraries(test_transaction_test ${PROJECT_NAME} ${LINK_WITH})
+target_link_libraries(test_transaction_test ${PROJECT_NAME})
 
 ##########
 # EXPORT #

@@ -15,8 +15,9 @@
 
   <build_depend>sm_common</build_depend>
   
-  <build_depend>GLog</build_depend>
-  <build_depend>GFlags</build_depend>
-  <build_depend>Protobuf</build_depend>
+  <build_depend>glog_catkin</build_depend>
+  <build_depend>protobuf_catkin</build_depend>
+  <build_depend>zeromq_catkin</build_depend>
+  <build_depend>poco_catkin</build_depend>
 
 </package>

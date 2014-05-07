@@ -12,7 +12,6 @@
 #include <memory>
 #include <thread>
 
-#include <zmq.hpp>
 #include <glog/logging.h>
 
 #include "core.pb.h"
