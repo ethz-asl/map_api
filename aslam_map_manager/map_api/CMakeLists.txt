@@ -4,7 +4,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
 find_package(catkin_simple REQUIRED)
 
-# TODO(dymczykm, tcies) would be cool to get rid of this everywhere
 link_directories(${CATKIN_DEVEL_PREFIX}/lib)
 
 catkin_simple()
@@ -31,30 +30,22 @@ SET(CORE_SOURCE  src/cr-table-interface.cc
                  src/time.cc
                  src/transaction.cc)
                  
-# GLog/GFlags don't support multiple linking so we need to remove it 
-# before exporting the library
-set(catkin_LIBRARIES_NOGLOG_NOGFLAGS ${catkin_LIBRARIES})
-list(REMOVE_ITEM catkin_LIBRARIES_NOGLOG_NOGFLAGS glog_catkin_dependency_tracker
-  gflags_catkin_dependency_tracker)
-cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} NO_AUTO_LINK)
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES_NOGLOG_NOGFLAGS})
-                       
-# cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS})
+cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS})
 
 ##########
 # GTESTS #
 ##########
 
-#catkin_add_gtest(test_table_interface_test test/test_main.cpp
-#  test/table_interface_test.cpp)
-#target_link_libraries(test_table_interface_test ${PROJECT_NAME})
+catkin_add_gtest(test_table_interface_test test/test_main.cpp
+  test/table_interface_test.cpp)
+target_link_libraries(test_table_interface_test ${PROJECT_NAME})
 
-#catkin_add_gtest(test_core_test test/test_main.cpp test/core_test.cpp)
-#target_link_libraries(test_core_test ${PROJECT_NAME})
+catkin_add_gtest(test_core_test test/test_main.cpp test/core_test.cpp)
+target_link_libraries(test_core_test ${PROJECT_NAME})
 
-#catkin_add_gtest(test_transaction_test test/test_main.cpp 
-#  test/transaction_test.cpp)
-#target_link_libraries(test_transaction_test ${PROJECT_NAME})
+catkin_add_gtest(test_transaction_test test/test_main.cpp 
+  test/transaction_test.cpp)
+target_link_libraries(test_transaction_test ${PROJECT_NAME})
 
 ##########
 # EXPORT #
