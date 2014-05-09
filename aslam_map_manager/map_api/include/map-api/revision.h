@@ -1,10 +1,3 @@
-/*
- * table-insert-query.h
- *
- *  Created on: Mar 17, 2014
- *      Author: titus
- */
-
 #ifndef REVISION_H_
 #define REVISION_H_
 

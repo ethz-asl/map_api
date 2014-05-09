@@ -1,10 +1,3 @@
-/*
- * revision-inl.h
- *
- *  Created on: Apr 15, 2014
- *      Author: titus
- */
-
 #ifndef REVISION_INL_H_
 #define REVISION_INL_H_
 

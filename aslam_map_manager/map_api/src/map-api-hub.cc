@@ -1,10 +1,3 @@
-/*
- * map-api-hub.cc
- *
- *  Created on: Mar 17, 2014
- *      Author: titus
- */
-
 #include "map-api/map-api-hub.h"
 
 #include <iostream>
