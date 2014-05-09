@@ -32,9 +32,7 @@ SET(CORE_SOURCE  src/cr-table-interface.cc
 cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS})
 # we need to add dependencies of external project packages to fetch headers
 # before compilation
-add_dependencies(${PROJECT_NAME} zeromq_catkin_dependency_tracker
-                                 gflags_catkin_dependency_tracker
-                                 glog_catkin_dependency_tracker)
+add_dependencies(${PROJECT_NAME} zeromq_catkin gflags_catkin glog_catkin)
 target_link_libraries(${PROJECT_NAME} ${POCO_LIBRARIES})
 
 ##########
