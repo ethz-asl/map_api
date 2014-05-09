@@ -18,6 +18,5 @@
   <build_depend>glog_catkin</build_depend>
   <build_depend>protobuf_catkin</build_depend>
   <build_depend>zeromq_catkin</build_depend>
-  <build_depend>poco_catkin</build_depend>
 
 </package>
