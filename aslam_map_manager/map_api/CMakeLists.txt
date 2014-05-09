@@ -32,7 +32,6 @@ SET(CORE_SOURCE  src/cr-table-interface.cc
                  src/transaction.cc)
                  
 cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS})
-add_dependency(${PROJECT_NAME} zeromq_cpp)
 target_link_libraries(${PROJECT_NAME} ${POCO_LIBRARIES})
 
 ##########
