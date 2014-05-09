@@ -1,9 +1,3 @@
-/*
- * core_test.cpp
- *
- *  Created on: Mar 31, 2014
- *      Author: titus
- */
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 

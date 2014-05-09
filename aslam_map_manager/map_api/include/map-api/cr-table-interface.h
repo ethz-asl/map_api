@@ -1,10 +1,3 @@
-/*
- * write-only-table-interface.h
- *
- *  Created on: Apr 4, 2014
- *      Author: titus
- */
-
 #ifndef WRITE_ONLY_TABLE_INTERFACE_H_
 #define WRITE_ONLY_TABLE_INTERFACE_H_
 

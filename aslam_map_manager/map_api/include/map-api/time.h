@@ -1,10 +1,3 @@
-/*
- * time.h
- *
- *  Created on: Apr 8, 2014
- *      Author: titus
- */
-
 #ifndef TIME_H_
 #define TIME_H_
 

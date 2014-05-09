@@ -1,10 +1,3 @@
-/*
- * history.h
- *
- *  Created on: Apr 4, 2014
- *      Author: titus
- */
-
 #ifndef HISTORY_H_
 #define HISTORY_H_
 

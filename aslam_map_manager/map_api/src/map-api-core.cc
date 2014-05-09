@@ -3,10 +3,10 @@
 #include <iostream>
 #include <cstring>
 
-#include <zmq.hpp>
 #include <Poco/Data/Common.h>
 #include <Poco/Data/SQLite/Connector.h>
 #include <glog/logging.h>
+#include <zeromq_cpp/zmq.hpp>
 
 #include "map-api/map-api-hub.h"
 

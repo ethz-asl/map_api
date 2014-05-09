@@ -1,10 +1,3 @@
-/*
- * map-api-hub.cc
- *
- *  Created on: Mar 17, 2014
- *      Author: titus
- */
-
 #include "map-api/map-api-hub.h"
 
 #include <iostream>
@@ -12,7 +5,6 @@
 #include <memory>
 #include <thread>
 
-#include <zmq.hpp>
 #include <glog/logging.h>
 
 #include "core.pb.h"
@@ -169,6 +161,10 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
 }
 
 void MapApiHub::kill(){
+  if (terminate_){
+    VLOG(3) << "Double termination";
+    return;
+  }
   // unbind and re-enter server
   terminate_ = true;
   listener_.join();
