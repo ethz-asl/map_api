@@ -32,6 +32,7 @@ SET(CORE_SOURCE  src/cr-table-interface.cc
                  src/transaction.cc)
                  
 cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS})
+add_dependencies(${PROJECT_NAME} zeromq_catkin_dependency_tracker)
 target_link_libraries(${PROJECT_NAME} ${POCO_LIBRARIES})
 
 ##########
