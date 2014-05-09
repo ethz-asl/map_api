@@ -1,10 +1,3 @@
-/*
- * map-api-hub.h
- *
- *  Created on: Mar 17, 2014
- *      Author: titus
- */
-
 #ifndef MAP_API_HUB_H_
 #define MAP_API_HUB_H_
 

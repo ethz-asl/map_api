@@ -1,10 +1,3 @@
-/*
- * hash-inl.h
- *
- *  Created on: Apr 17, 2014
- *      Author: titus
- */
-
 #ifndef HASH_INL_H_
 #define HASH_INL_H_
 
