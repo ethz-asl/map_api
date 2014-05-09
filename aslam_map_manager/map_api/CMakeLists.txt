@@ -3,6 +3,9 @@ project(map_api)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
 find_package(catkin_simple REQUIRED)
+find_package(Poco REQUIRED)
+
+link_directories(${CATKIN_DEVEL_PREFIX}/lib)
 
 catkin_simple()
 
@@ -27,8 +30,10 @@ SET(CORE_SOURCE  src/cr-table-interface.cc
                  src/revision.cc
                  src/time.cc
                  src/transaction.cc)
-                
+                 
 cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS})
+add_dependencies(${PROJECT_NAME} zeromq_catkin_dependency_tracker)
+target_link_libraries(${PROJECT_NAME} ${POCO_LIBRARIES})
 
 ##########
 # GTESTS #
