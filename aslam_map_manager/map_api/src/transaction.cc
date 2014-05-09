@@ -1,10 +1,3 @@
-/*
- * transaction.cc
- *
- *  Created on: Apr 3, 2014
- *      Author: titus
- */
-
 #include <map-api/transaction.h>
 
 #include <gflags/gflags.h>

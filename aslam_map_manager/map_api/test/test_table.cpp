@@ -1,10 +1,3 @@
-/*
- * test_table.cpp
- *
- *  Created on: Apr 14, 2014
- *      Author: titus
- */
-
 /**
  * A test table revealing some more internals than a typical table, such as
  * template, database session and cleanup.

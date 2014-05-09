@@ -1,10 +1,3 @@
-/*
- * id.h
- *
- *  Created on: Apr 29, 2014
- *      Author: titus
- */
-
 #ifndef ID_H_
 #define ID_H_
 

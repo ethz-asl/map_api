@@ -1,10 +1,3 @@
-/*
- * write-only-table-interface.cc
- *
- *  Created on: Apr 4, 2014
- *      Author: titus
- */
-
 #include <map-api/cru-table-interface.h>
 
 #include <cstdio>
