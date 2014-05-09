@@ -1,10 +1,3 @@
-/*
- * time.cc
- *
- *  Created on: Apr 9, 2014
- *      Author: titus
- */
-
 #include <map-api/time.h>
 
 namespace map_api{

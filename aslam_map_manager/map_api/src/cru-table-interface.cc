@@ -1,10 +1,3 @@
-/*
- * TableInterface.cpp
- *
- *  Created on: Mar 6, 2014
- *      Author: titus
- */
-
 #include "map-api/cru-table-interface.h"
 
 #include <cstdio>

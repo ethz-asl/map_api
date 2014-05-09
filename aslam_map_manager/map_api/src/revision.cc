@@ -1,10 +1,3 @@
-/*
- * table-insert-query.cc
- *
- *  Created on: Mar 17, 2014
- *      Author: titus
- */
-
 #include <Poco/Data/Common.h>
 #include <Poco/Data/BLOB.h>
 

@@ -1,10 +1,3 @@
-/*
- * transaction.h
- *
- *  Created on: Apr 3, 2014
- *      Author: titus
- */
-
 #ifndef TRANSACTION_H_
 #define TRANSACTION_H_
 
