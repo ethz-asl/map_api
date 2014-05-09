@@ -168,6 +168,10 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
 }
 
 void MapApiHub::kill(){
+  if (terminate_){
+    VLOG(3) << "Double termination";
+    return;
+  }
   // unbind and re-enter server
   terminate_ = true;
   listener_.join();
