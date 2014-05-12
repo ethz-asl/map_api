@@ -231,7 +231,7 @@ bool Transaction::update(CRUTableInterface& table, const Id& id,
 //   return fields;
 // }
 
-bool Transaction::notifyAbortedOrInactive(){
+bool Transaction::notifyAbortedOrInactive() const {
   if (!active_){
     LOG(ERROR) << "Transaction has not been initialized";
     return true;
@@ -283,7 +283,7 @@ bool Transaction::hasItemConflict<Transaction::CRUItemIdentifier>(
 template<>
 bool Transaction::hasItemConflict<Transaction::ConflictCondition>(
     const Transaction::ConflictCondition& item) {
-  return item.table.rawFind(item.key, *item.valueHolder);
+  return static_cast<bool>(item.table.rawFind(item.key, *item.valueHolder));
 }
 
 template<>

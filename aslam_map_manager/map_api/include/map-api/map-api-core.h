@@ -30,7 +30,7 @@ class MapApiCore {
    * Synchronizes table definition with peers
    * by using standard table operations on the metatable
    */
-  bool syncTableDefinition(std::shared_ptr<Revision> tableTemplate);
+  bool syncTableDefinition(const proto::TableDescriptor& descriptor);
   /**
    * Initializer
    */

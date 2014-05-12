@@ -32,17 +32,32 @@ MapApiCore::MapApiCore() : owner_(Id::random()),
     hub_(MapApiHub::getInstance()), metatable_(), initialized_(false){}
 
 bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
+  // init metatable if not yet initialized
+  if (!metatable_){
+    metatable_ = std::unique_ptr<Metatable>(new Metatable(owner_));
+    metatable_->init();
+  }
   // insert table definition if not exists
   Transaction tryInsert(owner_);
-  std::shared_ptr<Revision> attempt = metatable_.getTemplate();
+  std::shared_ptr<Revision> attempt = metatable_->getTemplate();
   attempt->set("name", descriptor.name());
   attempt->set("descriptor", descriptor);
-  tryInsert.insert(metatable_, attempt);
-  tryInsert.addConflictCondition(metatable_, "name", descriptor.name());
+  tryInsert.insert<CRTableInterface>(*metatable_, attempt);
+  tryInsert.addConflictCondition(*metatable_, "name", descriptor.name());
   bool success = tryInsert.commit();
-  return true;
+  if (success){
+    return true;
+  }
   // if has existed, verify descriptors match
   Transaction reader(owner_);
+  std::shared_ptr<Revision> previous = reader.find(*metatable_, "name",
+                                                   descriptor.name());
+  CHECK(previous) << "Can't find table " << descriptor.name() <<
+      " even though its presence seemingly caused a conflict";
+  proto::TableDescriptor previousDescriptor;
+  previous->get("descriptor", &previousDescriptor);
+  return descriptor.SerializeAsString() ==
+      previousDescriptor.SerializeAsString();
 }
 
 bool MapApiCore::init(const std::string &ipPort) {

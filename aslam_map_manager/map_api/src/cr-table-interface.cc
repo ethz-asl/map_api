@@ -89,7 +89,7 @@ std::shared_ptr<Revision> CRTableInterface::getTemplate() const{
 }
 
 bool CRTableInterface::sync() {
-  return MapApiCore::getInstance().syncTableDefinition(getTemplate());
+  return MapApiCore::getInstance().syncTableDefinition(*this);
 }
 
 bool CRTableInterface::createQuery(){
@@ -277,7 +277,7 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
 }
 
 // TODO(tcies) test
-bool CRTableInterface::rawFind(const std::string& key,
+std::shared_ptr<Revision> CRTableInterface::rawFind(const std::string& key,
                                const Revision& valueHolder) const {
   Poco::Data::Statement stat(*session_);
   std::vector<std::string> ids;
@@ -290,10 +290,13 @@ bool CRTableInterface::rawFind(const std::string& key,
     LOG(FATAL) << "Find statement failed: " << stat.toString();
   }
   if (!ids.empty()){
-    return true;
+    // TODO (tcies) I'd prefer to merge from feature/dump_table before writing
+    // this function in proper, for I'll need common operations for read(),
+    // dumpTable() and find(). So, this return value is stub only.
+    return getTemplate();
   }
   else{
-    return false;
+    return std::shared_ptr<Revision>();
   }
 }
 

@@ -52,7 +52,7 @@ class Transaction {
    * MapApiCore::syncTableDefinition)
    */
   template<typename ValueType>
-  void addConflictCondition(CRTableInterface& table,
+  bool addConflictCondition(CRTableInterface& table,
                             const std::string& key, const ValueType& value);
 
   /**
@@ -66,6 +66,15 @@ class Transaction {
    */
   template<typename TableInterfaceType>
   SharedRevisionPointer read(TableInterfaceType& table, const Id& id);
+  /**
+   * Looks for item where key = value. As with addConflictCondition(),
+   * CRTableInterface because partial template
+   * specialization of functions is not allowed in C++.
+   */
+  template<typename ValueType>
+  SharedRevisionPointer find(CRTableInterface& table,
+                             const std::string& key, const ValueType& value)
+  const;
   /**
    * Define own fields for database tables, such as for locks.
    */
@@ -104,7 +113,7 @@ class Transaction {
   typedef std::map<CRUItemIdentifier, SharedRevisionPointer>
   UpdateMap;
 
-  bool notifyAbortedOrInactive();
+  bool notifyAbortedOrInactive() const;
   /**
    * Returns true if the supplied insert/update request has a conflict
    */

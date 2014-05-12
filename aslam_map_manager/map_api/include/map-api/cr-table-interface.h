@@ -123,8 +123,8 @@ class CRTableInterface : public proto::TableDescriptor {
    * virtual, but the difference between CR and CRU is handled in the
    * Transaction class. If possible, this would be better moved here, right?
    */
-  virtual bool rawFind(const std::string& key, const Revision& valueHolder)
-  const;
+  virtual std::shared_ptr<Revision> rawFind(const std::string& key,
+                                            const Revision& valueHolder) const;
 
 };
 

@@ -14,13 +14,31 @@ Id Transaction::insert(TableInterfaceType& table,
 }
 
 template<typename ValueType>
-void Transaction::addConflictCondition(CRTableInterface& table,
+bool Transaction::addConflictCondition(CRTableInterface& table,
                                        const std::string& key,
                                        const ValueType& value){
+  if (Transaction::notifyAbortedOrInactive()){
+    return false;
+  }
   SharedRevisionPointer valueHolder = table.getTemplate();
   valueHolder->set(key, value);
   Transaction::conflictconditions_.push_back(
       ConflictCondition(table, key, valueHolder));
+  return true;
+}
+
+template<typename ValueType>
+Transaction::SharedRevisionPointer Transaction::find(CRTableInterface& table,
+                           const std::string& key, const ValueType& value)
+const {
+  if (Transaction::notifyAbortedOrInactive()){
+    return false;
+  }
+  SharedRevisionPointer valueHolder = table.getTemplate();
+  valueHolder->set(key, value);
+  // TODO(tcies) also browse uncommitted
+  std::lock_guard<std::recursive_mutex> lock(dbMutex_);
+  return table.rawFind(key, *valueHolder);
 }
 
 } // namespace map_api
