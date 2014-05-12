@@ -211,6 +211,24 @@ Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
   return table.history_->revisionAt(latest, beginTime_);
 }
 
+template<>
+bool Transaction::dumpTable<CRTableInterface>(CRTableInterface& table,
+                 std::vector<SharedRevisionPointer>* dest){
+  // TODO(tcies) implement
+  // TODO(tcies) incorporate updates pending in transaction (use case?)
+  // TODO(tcies) test
+  return true;
+}
+
+template<>
+bool Transaction::dumpTable<CRUTableInterface>(CRUTableInterface& table,
+                 std::vector<SharedRevisionPointer>* dest){
+  // TODO(tcies) implement
+  // TODO(tcies) incorporate updates pending in transaction (use case?)
+  // TODO(tcies) test
+  return true;
+}
+
 bool Transaction::update(CRUTableInterface& table, const Id& id,
                          const SharedRevisionPointer& newRevision){
   if (notifyAbortedOrInactive()){
