@@ -1,9 +1,11 @@
-#include <map-api/transaction.h>
+#include "map-api/transaction.h"
+
+#include <unordered_set>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include <map-api/map-api-core.h>
+#include "map-api/map-api-core.h"
 
 DECLARE_string(ipPort);
 
@@ -212,15 +214,11 @@ Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
 }
 
 template<>
-bool Transaction::dumpTable<CRTableInterface>(CRTableInterface& table,
-                 std::vector<SharedRevisionPointer>* dest) {
-  // TODO(tcies) incorporate updates pending in transaction (use case?)
+bool Transaction::dumpTable<CRTableInterface>(
+    CRTableInterface& table, std::vector<SharedRevisionPointer>* dest) {
   for (const std::pair<CRItemIdentifier,
       const SharedRevisionPointer> &insertion : insertions_) {
-    // TODO(tcies) I guess we should filter insertions_ by table
-    //   if (insertion.first == table) <-- this is not working, but I guess we
-    //   should check which table we want to get data from
-    if (true) {
+    if (insertion.first.first.name() == table.name()) {
       dest->push_back(insertion.second);
     }
   }
@@ -233,18 +231,24 @@ bool Transaction::dumpTable<CRTableInterface>(CRTableInterface& table,
 }
 
 template<>
-bool Transaction::dumpTable<CRUTableInterface>(CRUTableInterface& table,
-                 std::vector<SharedRevisionPointer>* dest) {
+bool Transaction::dumpTable<CRUTableInterface>(
+    CRUTableInterface& table, std::vector<SharedRevisionPointer>* dest) {
   if (notifyAbortedOrInactive()){
     return false;
   }
 
   // fast check in uncommitted transaction queries
-  // TODO(tcies) again, not sure how to filter by table here
+  std::unordered_set<sm::HashId> updated_items;
   for (const std::pair<CRUItemIdentifier, SharedRevisionPointer> &update :
       updates_) {
-    if (true) {
+    if (update.first.first.name() == table.name()){
       dest->push_back(update.second);
+      // insert ID of item
+      // TODO(tcies) a bit of a hack... how to do this more properly?
+      Revision& current = *dest->back();
+      current.addField<sm::HashId>("ID");
+      current.set("ID", update.first.second);
+      updated_items.insert(update.first.second);
     }
   }
 
@@ -254,18 +258,19 @@ bool Transaction::dumpTable<CRUTableInterface>(CRUTableInterface& table,
   table.rawDump(&cru_rows);
 
   for (const SharedRevisionPointer& cru_row : cru_rows) {
-    if (!cru_row) {
-      // TODO(tcies) not sure how should I characterize the item here
-      LOG(ERROR) << "Can't find item " << "ID" << " in table " <<
-            table.name();
+    Id id;
+    cru_row->get("ID", &id);
+    if (updated_items.count(id)) {
+      continue;
     }
-
     Id latest;
-    if (!cru_row->get("latest_revision", &latest)) {
-      LOG(ERROR) << "Bookkeeping item does not contain reference to latest";
-    }
-
+    cru_row->get("latest_revision", &latest);
     dest->push_back(table.history_->revisionAt(latest, beginTime_));
+    // insert ID of item
+    // TODO(tcies) a bit of a hack... how to do this more properly?
+    Revision& current = *dest->back();
+    current.addField<sm::HashId>("ID");
+    current.set("ID", id);
   }
 
   // TODO(tcies) test

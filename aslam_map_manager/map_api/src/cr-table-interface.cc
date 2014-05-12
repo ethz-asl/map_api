@@ -334,8 +334,7 @@ const{
   try{
     stat.execute();
   } catch (const std::exception& e){
-    LOG(ERROR) << "Statement failed transaction: " << stat.toString();
-    return false;
+    LOG(FATAL) << "Failed fetching all items from table: " << stat.toString();
   }
 
   // reserve output
