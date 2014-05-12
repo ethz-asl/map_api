@@ -64,12 +64,13 @@ bool CRTableInterface::setup(const std::string& name){
   define();
 
   // connect to database & create table
-  // TODO(tcies) register in master table
   session_ = MapApiCore::getInstance().getSession();
   createQuery();
 
   // Sync with cluster TODO(tcies)
-  // sync();
+  if (!sync()){
+    return false;
+  }
   initialized_ = true;
   return true;
 }
@@ -85,6 +86,10 @@ std::shared_ptr<Revision> CRTableInterface::getTemplate() const{
     ret->addField(fields(i));
   }
   return ret;
+}
+
+bool CRTableInterface::sync() {
+  return MapApiCore::getInstance().syncTableDefinition(getTemplate());
 }
 
 bool CRTableInterface::createQuery(){
