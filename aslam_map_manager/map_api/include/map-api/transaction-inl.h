@@ -13,6 +13,16 @@ Id Transaction::insert(TableInterfaceType& table,
   return id;
 }
 
+template<typename ValueType>
+void Transaction::addConflictCondition(CRTableInterface& table,
+                                       const std::string& key,
+                                       const ValueType& value){
+  SharedRevisionPointer valueHolder = table.getTemplate();
+  valueHolder->set(key, value);
+  Transaction::conflictconditions_.push_back(
+      ConflictCondition(table, key, valueHolder));
+}
+
 } // namespace map_api
 
 #endif /* TRANSACTION_INL_H_ */

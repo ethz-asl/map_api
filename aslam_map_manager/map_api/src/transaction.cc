@@ -243,22 +243,12 @@ bool Transaction::notifyAbortedOrInactive(){
   return false;
 }
 
-template<typename Map>
-bool Transaction::hasMapConflict(const Map& map){
-  for (const typename Map::value_type& item : map){
-    if (hasItemConflict(item.first)){
-      return true;
-    }
-  }
-  return false;
-}
-
 /**
  * Insert requests conflict only if the id is already present
  */
 template<>
 bool Transaction::hasItemConflict<Transaction::CRItemIdentifier>(
-    const Transaction::CRItemIdentifier& item){
+    const Transaction::CRItemIdentifier& item) {
   std::lock_guard<std::recursive_mutex> lock(dbMutex_);
   // Conflict if id present in table
   if (item.first.rawGetRow(item.second)){
@@ -275,7 +265,7 @@ bool Transaction::hasItemConflict<Transaction::CRItemIdentifier>(
  */
 template<>
 bool Transaction::hasItemConflict<Transaction::CRUItemIdentifier>(
-    const Transaction::CRUItemIdentifier& item){
+    const Transaction::CRUItemIdentifier& item) {
   // no problem anyways if item inserted within same transaction
   CRItemIdentifier crItem(item.first, item.second);
   if (this->insertions_.find(crItem) != this->insertions_.end()){
@@ -287,6 +277,44 @@ bool Transaction::hasItemConflict<Transaction::CRUItemIdentifier>(
     return true;
   }
   return latestUpdate > beginTime_;
+}
+
+
+template<>
+bool Transaction::hasItemConflict<Transaction::ConflictCondition>(
+    const Transaction::ConflictCondition& item) {
+  return item.table.rawFind(item.key, *item.valueHolder);
+}
+
+template<>
+inline bool Transaction::hasContainerConflict<Transaction::InsertMap>(
+    const Transaction::InsertMap& container){
+  return Transaction::hasMapConflict(container);
+}
+template<>
+inline bool Transaction::hasContainerConflict<Transaction::UpdateMap>(
+    const Transaction::UpdateMap& container){
+  return Transaction::hasMapConflict(container);
+}
+template<typename Map>
+inline bool Transaction::hasMapConflict(const Map& map){
+  for (const typename Map::value_type& item : map){
+    if (hasItemConflict(item.first)){
+      return true;
+    }
+  }
+  return false;
+}
+template<>
+inline bool Transaction::hasContainerConflict<
+std::vector<Transaction::ConflictCondition>>(
+    const std::vector<Transaction::ConflictCondition>& container){
+  for (const Transaction::ConflictCondition& conflictCondition : container){
+    if (hasItemConflict(conflictCondition)){
+      return true;
+    }
+  }
+  return false;
 }
 
 } /* namespace map_api */

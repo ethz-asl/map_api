@@ -11,7 +11,6 @@ namespace map_api {
 
 bool Revision::find(const std::string& name, proto::TableField** field){
   FieldMap::iterator find = fields_.find(name);
-  // reindex if not found
   if (find == fields_.end()) {
     LOG(ERROR) << "Attempted to access inexistent field " << name;
     return false;
@@ -23,7 +22,6 @@ bool Revision::find(const std::string& name, proto::TableField** field){
 bool Revision::find(const std::string& name, const proto::TableField** field)
 const{
   FieldMap::const_iterator find = fields_.find(name);
-  // reindex if not found
   if (find == fields_.end()) {
     LOG(ERROR) << "Attempted to access inexistent field " << name;
     return false;
@@ -73,6 +71,14 @@ std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(
   }
   stat << " ";
   return blobPointer;
+}
+
+std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(
+    const std::string& field, Poco::Data::Statement& stat) const {
+  FieldMap::const_iterator fieldIt = fields_.find(field);
+  CHECK(fieldIt != fields_.end()) << "Attempted to access inexisting field " <<
+      field;
+  return insertPlaceHolder(fieldIt->second, stat);
 }
 
 void Revision::addField(const proto::TableFieldDescriptor& descriptor){

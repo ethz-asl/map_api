@@ -19,14 +19,15 @@ namespace map_api {
  */
 class Metatable : public CRTableInterface {
  public:
-  Metatable(const Hash& owner);
+  Metatable(const Id& owner);
+  ~Metatable();
   virtual bool init();
   virtual bool define();
  private:
   /**
    * Overriding sync to do nothing - we don't want an infinite recursion
    */
-  bool sync();
+  virtual bool sync();
 };
 
 } /* namespace map_api */

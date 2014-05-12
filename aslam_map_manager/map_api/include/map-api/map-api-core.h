@@ -6,7 +6,7 @@
 #include <Poco/Data/Common.h>
 
 #include "map-api/cru-table-interface.h"
-#include "map-api/hash.h"
+#include "map-api/id.h"
 #include "map-api/map-api-hub.h"
 #include "map-api/metatable.h"
 #include "core.pb.h"
@@ -58,7 +58,7 @@ class MapApiCore {
   friend class CRUTableInterface;
   friend class Transaction;
 
-  Hash owner_;
+  Id owner_;
   /**
    * Session of local database
    */

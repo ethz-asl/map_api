@@ -38,7 +38,22 @@ class Transaction {
    */
   template<typename TableInterfaceType>
   bool insert(TableInterfaceType& table, const Id& id,
-            const SharedRevisionPointer& item);
+              const SharedRevisionPointer& item);
+
+  /**
+   * Transaction will fail if a table item where key = value exists. The
+   * necessity of this function has arisen from MapApiCore::syncTableDefinition,
+   * where we only want to create a table definition if it is not yet present.
+   * We need to use the base class CRTableInterface because partial template
+   * specialization of functions is not allowed in C++.
+   * In commit(), conflicts will be looked for in the table only and not in the
+   * uncommited data, because this function may be used in conjunction with
+   * insertion of data that would cause a conflict (e.g.
+   * MapApiCore::syncTableDefinition)
+   */
+  template<typename ValueType>
+  void addConflictCondition(CRTableInterface& table,
+                            const std::string& key, const ValueType& value);
 
   /**
    * Fails if global state differs from groundState before updating
@@ -61,7 +76,7 @@ class Transaction {
   class CRItemIdentifier : public std::pair<const CRTableInterface&, Id>{
    public:
     inline CRItemIdentifier(const CRTableInterface& table, const Id& id) :
-                            std::pair<const CRTableInterface&, Id>(table,id) {}
+    std::pair<const CRTableInterface&, Id>(table,id) {}
     // required for set
     inline bool operator <(const CRItemIdentifier& other) const{
       if (first.name() == other.first.name())
@@ -74,7 +89,7 @@ class Transaction {
       public std::pair<const CRUTableInterface&, Id>{
        public:
     inline CRUItemIdentifier(const CRUTableInterface& table, const Id& id) :
-                             std::pair<const CRUTableInterface&, Id>(table,id){}
+    std::pair<const CRUTableInterface&, Id>(table,id){}
     // required for map
     inline bool operator <(const CRUItemIdentifier& other) const{
       if (first.name() == other.first.name())
@@ -91,15 +106,17 @@ class Transaction {
 
   bool notifyAbortedOrInactive();
   /**
-   * Returns true if the supplied map (insert or update) has a conflict
-   */
-  template<typename Map>
-  bool hasMapConflict(const Map& map);
-  /**
    * Returns true if the supplied insert/update request has a conflict
    */
   template<typename Identifier>
   bool hasItemConflict(const Identifier& item);
+  /**
+   * Returns true if the supplied container has a conflict
+   */
+  template<typename Container>
+  inline bool hasContainerConflict(const Container& container);
+  template<typename Map>
+  inline bool hasMapConflict(const Map& map); // map subspecialization
 
   /**
    * Maps of insert queries requested over the course of the
@@ -114,6 +131,22 @@ class Transaction {
    * times, only the latest revision will be committed
    */
   UpdateMap updates_;
+
+  /**
+   * A conflict condition leads to a conflict if the key-value pair it describes
+   * is found in the table in specifies.
+   * The value is stored in a Revision in order to easily allow it to take any
+   * type, thanks to the Revision template specializations.
+   */
+  typedef struct ConflictCondition {
+    const CRTableInterface& table;
+    const std::string key;
+    const SharedRevisionPointer valueHolder;
+    ConflictCondition(const CRTableInterface& _table, const std::string& _key,
+                      const SharedRevisionPointer& _valueHolder) :
+                        table(_table), key(_key), valueHolder(_valueHolder) {}
+  } ConflictCondition;
+  std::vector<ConflictCondition> conflictconditions_;
 
   Id owner_;
   std::shared_ptr<Poco::Data::Session> session_;

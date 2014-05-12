@@ -55,7 +55,7 @@ class CRTableInterface : public proto::TableDescriptor {
  protected:
   /**
    * Setup: Load table definition and match with table definition in
-   * cluster.
+   * cluster. TODO(tcies) name in constructor
    */
   bool setup(const std::string& name);
   /**
@@ -82,9 +82,10 @@ class CRTableInterface : public proto::TableDescriptor {
   friend class CRUTableInterface;
   /**
    * Synchronize with cluster: Check if table already present in cluster
-   * metatable, add user to distributed table
+   * metatable, add user to distributed table. Virtual so that class Metatable
+   * can override it.
    */
-  bool sync();
+  virtual bool sync();
   /**
    * Parse and execute SQL query necessary to create the database
    */
@@ -115,6 +116,15 @@ class CRTableInterface : public proto::TableDescriptor {
    *                                                                       R   R
    */
   std::shared_ptr<Revision> rawGetRow(const Id& id) const;
+  /**
+   * Returns an item where key = value, if found
+   * Virtual, for TODO(tcies) CRUTableInterface will need its own implementation
+   * TODO(discsuss) this is inconsistent with rawInsertQuery, which is not
+   * virtual, but the difference between CR and CRU is handled in the
+   * Transaction class. If possible, this would be better moved here, right?
+   */
+  virtual bool rawFind(const std::string& key, const Revision& valueHolder)
+  const;
 
 };
 

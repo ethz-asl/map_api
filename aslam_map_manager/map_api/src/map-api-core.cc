@@ -28,11 +28,21 @@ MapApiCore &MapApiCore::getInstance() {
   return instance;
 }
 
-MapApiCore::MapApiCore() : owner_(Hash::randomHash()),
+MapApiCore::MapApiCore() : owner_(Id::random()),
     hub_(MapApiHub::getInstance()), metatable_(), initialized_(false){}
 
-bool MapApiCore::syncTableDefinition(std::shared_ptr<Revision> tableTemplate){
-  // TODO(tcies) implement lookup by something else than ID - by table name!
+bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
+  // insert table definition if not exists
+  Transaction tryInsert(owner_);
+  std::shared_ptr<Revision> attempt = metatable_.getTemplate();
+  attempt->set("name", descriptor.name());
+  attempt->set("descriptor", descriptor);
+  tryInsert.insert(metatable_, attempt);
+  tryInsert.addConflictCondition(metatable_, "name", descriptor.name());
+  bool success = tryInsert.commit();
+  return true;
+  // if has existed, verify descriptors match
+  Transaction reader(owner_);
 }
 
 bool MapApiCore::init(const std::string &ipPort) {

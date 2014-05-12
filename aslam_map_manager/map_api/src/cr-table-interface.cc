@@ -276,6 +276,27 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
   return query;
 }
 
+// TODO(tcies) test
+bool CRTableInterface::rawFind(const std::string& key,
+                               const Revision& valueHolder) const {
+  Poco::Data::Statement stat(*session_);
+  std::vector<std::string> ids;
+  stat << "SELECT ID ", Poco::Data::into(ids);
+  stat << "FROM " << name() << " WHERE " << key << " LIKE ";
+  valueHolder.insertPlaceHolder(key, stat);
+  try{
+    stat.execute();
+  } catch (const std::exception& e){
+    LOG(FATAL) << "Find statement failed: " << stat.toString();
+  }
+  if (!ids.empty()){
+    return true;
+  }
+  else{
+    return false;
+  }
+}
+
 std::ostream& operator<< (std::ostream& stream,
                           const CRTableInterface::ItemDebugInfo& info){
   return stream << "For table " << info.table << ", item " << info.id << ": ";
