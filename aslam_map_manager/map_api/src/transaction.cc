@@ -213,18 +213,61 @@ Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
 
 template<>
 bool Transaction::dumpTable<CRTableInterface>(CRTableInterface& table,
-                 std::vector<SharedRevisionPointer>* dest){
-  // TODO(tcies) implement
+                 std::vector<SharedRevisionPointer>* dest) {
   // TODO(tcies) incorporate updates pending in transaction (use case?)
+  for (const std::pair<CRItemIdentifier,
+      const SharedRevisionPointer> &insertion : insertions_) {
+    // TODO(tcies) I guess we should filter insertions_ by table
+    //   if (insertion.first == table) <-- this is not working, but I guess we
+    //   should check which table we want to get data from
+    if (true) {
+      dest->push_back(insertion.second);
+    }
+  }
+
+  std::lock_guard<std::recursive_mutex> lock(dbMutex_);
+  table.rawDump(dest);
+
   // TODO(tcies) test
   return true;
 }
 
 template<>
 bool Transaction::dumpTable<CRUTableInterface>(CRUTableInterface& table,
-                 std::vector<SharedRevisionPointer>* dest){
-  // TODO(tcies) implement
-  // TODO(tcies) incorporate updates pending in transaction (use case?)
+                 std::vector<SharedRevisionPointer>* dest) {
+  if (notifyAbortedOrInactive()){
+    return false;
+  }
+
+  // fast check in uncommitted transaction queries
+  // TODO(tcies) again, not sure how to filter by table here
+  for (const std::pair<CRUItemIdentifier, SharedRevisionPointer> &update :
+      updates_) {
+    if (true) {
+      dest->push_back(update.second);
+    }
+  }
+
+  std::lock_guard<std::recursive_mutex> lock(dbMutex_);
+  // find bookkeeping rows in the table
+  std::vector<SharedRevisionPointer> cru_rows;
+  table.rawDump(&cru_rows);
+
+  for (const SharedRevisionPointer& cru_row : cru_rows) {
+    if (!cru_row) {
+      // TODO(tcies) not sure how should I characterize the item here
+      LOG(ERROR) << "Can't find item " << "ID" << " in table " <<
+            table.name();
+    }
+
+    Id latest;
+    if (!cru_row->get("latest_revision", &latest)) {
+      LOG(ERROR) << "Bookkeeping item does not contain reference to latest";
+    }
+
+    dest->push_back(table.history_->revisionAt(latest, beginTime_));
+  }
+
   // TODO(tcies) test
   return true;
 }
