@@ -74,8 +74,8 @@ TEST_F(TransactionTest, OperationsBeforeBegin){
 TEST_F(TransactionTest, InsertBeforeTableInit){
   TransactionTestTable table(owner_);
   EXPECT_TRUE(transaction_.begin());
-  EXPECT_EQ(transaction_.insert<CRUTableInterface>(table, table.sample(3.14)),
-            Id());
+  EXPECT_DEATH(transaction_.insert<CRUTableInterface>(table,
+                                                      table.sample(3.14)), "^");
 }
 
 /**
