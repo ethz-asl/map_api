@@ -1,3 +1,5 @@
+#include <fstream>
+
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
@@ -187,7 +189,7 @@ class FieldTestWithoutInit : public FieldTest<TestedType> {
 };
 
 template <typename TestedType>
-class FieldTestWithTableInit : public FieldTestWithoutInit<TestedType> {
+class FieldTestWithInit : public FieldTestWithoutInit<TestedType> {
  protected:
   virtual void SetUp() {
     this->table_.reset(new InsertReadFieldTestTable<TestedType>(Id::random()));
@@ -195,7 +197,7 @@ class FieldTestWithTableInit : public FieldTestWithoutInit<TestedType> {
   }
 
   virtual void TearDown() {
-    this->table_->cleanup();
+    std::ofstream dbfile("database.db", std::ios::trunc);
   }
 };
 
@@ -208,9 +210,9 @@ class FieldTestWithTableInit : public FieldTestWithoutInit<TestedType> {
 typedef ::testing::Types<testBlob, std::string, int32_t, double,
     map_api::Id, int64_t, map_api::Time> MyTypes;
 TYPED_TEST_CASE(FieldTestWithoutInit, MyTypes);
-TYPED_TEST_CASE(FieldTestWithTableInit, MyTypes);
+TYPED_TEST_CASE(FieldTestWithInit, MyTypes);
 
-TYPED_TEST(FieldTestWithTableInit, Init) {
+TYPED_TEST(FieldTestWithInit, Init) {
   EXPECT_EQ(this->getTemplate()->fieldqueries_size(), 3u);
 }
 
@@ -224,7 +226,7 @@ TYPED_TEST(FieldTestWithoutInit, ReadBeforeInit) {
   EXPECT_DEATH(this->table_->rawGetRow(Id::random()), "^");
 }
 
-TYPED_TEST(FieldTestWithTableInit, CreateRead) {
+TYPED_TEST(FieldTestWithInit, CreateRead) {
   Id inserted = this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
@@ -235,7 +237,7 @@ TYPED_TEST(FieldTestWithTableInit, CreateRead) {
   EXPECT_EQ(dataFromTable, this->sample_data_1());
 }
 
-TYPED_TEST(FieldTestWithTableInit, ReadInexistentRow) {
+TYPED_TEST(FieldTestWithInit, ReadInexistentRow) {
   this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
@@ -243,7 +245,7 @@ TYPED_TEST(FieldTestWithTableInit, ReadInexistentRow) {
   EXPECT_FALSE(this->table_->rawGetRow(other_id));
 }
 
-TYPED_TEST(FieldTestWithTableInit, ReadInexistentRowData) {
+TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   Id inserted = this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
