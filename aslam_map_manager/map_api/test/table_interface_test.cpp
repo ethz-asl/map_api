@@ -183,8 +183,8 @@ TYPED_TEST(FieldTest, CreateBeforeInit){
   FieldTestTable<TypeParam> table(owner);
   Transaction transaction(owner);
   transaction.begin();
-  EXPECT_EQ(transaction.insert<CRUTableInterface>(
-      table, table.prepareInsert(this->sample_data_1())), Id());
+  EXPECT_DEATH(transaction.insert<CRUTableInterface>(
+      table, table.prepareInsert(this->sample_data_1())), "^");
   transaction.abort();
 }
 

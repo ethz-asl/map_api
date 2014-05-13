@@ -124,8 +124,11 @@ class CRTableInterface : public proto::TableDescriptor {
    * Transaction class. If possible, this would be better moved here, right?
    */
   virtual bool rawSelect(const std::string& key, const Revision& valueHolder,
-      std::vector<std::shared_ptr<Revision> >* dest)  const;
-
+                         std::vector<std::shared_ptr<Revision> >* dest)  const;
+  /**
+   * Fetches all the contents of the table
+   */
+  bool rawDump(std::vector<std::shared_ptr<Revision> >* dest) const;
 };
 
 std::ostream& operator<< (std::ostream& stream, const

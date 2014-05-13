@@ -56,16 +56,24 @@ class Transaction {
                             const std::string& key, const ValueType& value);
 
   /**
+   * Returns latest revision prior to transaction begin time
+   */
+  template<typename TableInterfaceType>
+  SharedRevisionPointer read(TableInterfaceType& table, const Id& id);
+
+  /**
+   * Returns latest revision prior to transaction begin time for all contents
+   */
+  template<typename TableInterfaceType>
+  bool dumpTable(TableInterfaceType& table,
+                 std::vector<SharedRevisionPointer>* dest);
+
+  /**
    * Fails if global state differs from groundState before updating
    */
   bool update(CRUTableInterface& table, const Id& id,
               const SharedRevisionPointer& newRevision);
 
-  /**
-   * Returns latest revision prior to transaction begin time
-   */
-  template<typename TableInterfaceType>
-  SharedRevisionPointer read(TableInterfaceType& table, const Id& id);
   /**
    * Looks for item where key = value. As with addConflictCondition(),
    * CRTableInterface because partial template
@@ -85,7 +93,7 @@ class Transaction {
   class CRItemIdentifier : public std::pair<const CRTableInterface&, Id>{
    public:
     inline CRItemIdentifier(const CRTableInterface& table, const Id& id) :
-    std::pair<const CRTableInterface&, Id>(table,id) {}
+    std::pair<const CRTableInterface&, Id>(table, id) {}
     // required for set
     inline bool operator <(const CRItemIdentifier& other) const{
       if (first.name() == other.first.name())
@@ -98,7 +106,7 @@ class Transaction {
       public std::pair<const CRUTableInterface&, Id>{
        public:
     inline CRUItemIdentifier(const CRUTableInterface& table, const Id& id) :
-    std::pair<const CRUTableInterface&, Id>(table,id){}
+    std::pair<const CRUTableInterface&, Id>(table, id){}
     // required for map
     inline bool operator <(const CRUItemIdentifier& other) const{
       if (first.name() == other.first.name())
