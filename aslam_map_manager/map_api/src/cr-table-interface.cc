@@ -275,6 +275,7 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
 // features without loss of performance TODO(discuss)
 bool CRTableInterface::rawDump(std::vector<std::shared_ptr<Revision> >* dest)
 const{
+  CHECK_NOTNULL(dest);
   std::shared_ptr<Revision> query = getTemplate();
   Poco::Data::Statement stat(*session_);
   stat << "SELECT ";
@@ -289,8 +290,8 @@ const{
   std::map<std::string, std::vector<std::string> > stringPostApply;
   std::map<std::string, std::vector<std::string> > hashPostApply;
 
-  for (int i=0; i<query->fieldqueries_size(); ++i){
-    if (i>0){
+  for (int i = 0; i < query->fieldqueries_size(); ++i) {
+    if (i>0) {
       stat << ", ";
     }
     const proto::TableField& field = query->fieldqueries(i);
@@ -323,8 +324,7 @@ const{
         break;
       }
       default:{
-        LOG(FATAL) << "Type of field supplied to select query unknown" <<
-            std::endl;
+        LOG(FATAL) << "Type of field supplied to select query unknown";
       }
     }
   }
@@ -334,7 +334,8 @@ const{
   try{
     stat.execute();
   } catch (const std::exception& e){
-    LOG(FATAL) << "Failed fetching all items from table: " << stat.toString();
+    LOG(FATAL) << "Failed fetching all items from table: " << stat.toString()
+        << " with exception " << e.what();
   }
 
   // reserve output

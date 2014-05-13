@@ -216,6 +216,8 @@ Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
 template<>
 bool Transaction::dumpTable<CRTableInterface>(
     CRTableInterface& table, std::vector<SharedRevisionPointer>* dest) {
+  CHECK_NOTNULL(dest);
+  dest->clear();
   for (const std::pair<CRItemIdentifier,
       const SharedRevisionPointer> &insertion : insertions_) {
     if (insertion.first.first.name() == table.name()) {
@@ -233,6 +235,9 @@ bool Transaction::dumpTable<CRTableInterface>(
 template<>
 bool Transaction::dumpTable<CRUTableInterface>(
     CRUTableInterface& table, std::vector<SharedRevisionPointer>* dest) {
+  CHECK_NOTNULL(dest);
+  dest->clear();
+
   if (notifyAbortedOrInactive()){
     return false;
   }
