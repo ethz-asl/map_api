@@ -24,6 +24,11 @@ bool Transaction::begin(){
   return true;
 }
 
+template<>
+inline bool Transaction::hasContainerConflict<
+Transaction::ConflictConditionVector>(
+    const Transaction::ConflictConditionVector& container);
+
 bool Transaction::commit(){
   if (notifyAbortedOrInactive()){
     return false;
@@ -36,13 +41,16 @@ bool Transaction::commit(){
   // Acquire lock for database updates TODO(tcies) per-item locks
   {
     std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-    // check for conflicts in insert queue
     if (hasMapConflict(insertions_)) {
       LOG(WARNING) << "Insert conflict, commit fails";
       return false;
     }
     if (hasMapConflict(updates_)){
       LOG(WARNING) << "Update conflict, commit fails";
+      return false;
+    }
+    if (hasContainerConflict(conflictConditions_)){
+      LOG(WARNING) << "Conflict condition true, commit fails";
       return false;
     }
     // if no conflicts were found, apply changes, starting from inserts...
@@ -69,18 +77,23 @@ bool Transaction::commit(){
       const CRUTableInterface& table = update.first.first;
       const Id& id = update.first.second;
       const SharedRevisionPointer &newRevision = update.second;
-      // 1. Fetch id of latest from CRU table
-      SharedRevisionPointer current = table.rawGetRow(id);
+      // 1. Fetch id of latest from CRU table or link to 0 if part of insertions
       Id latestRevisionId;
-      if (!current){
-        LOG(FATAL) << "Failed to fetch current CRU table entry for " <<
-            id.hexString() << " in table " << table.name();
-        return false;
+      if (insertions_.find(CRItemIdentifier(table, id)) != insertions_.end()){
+        latestRevisionId = Id();
       }
-      if (!current->get("latest_revision", &latestRevisionId)){
-        LOG(ERROR) << "CRU table entry for " << id.hexString() << " of table "
-            << table.name() << " seems not to contain 'latest_revision'";
-        return false;
+      else{
+        SharedRevisionPointer current = table.rawGetRow(id);
+        if (!current){
+          LOG(FATAL) << "Failed to fetch current CRU table entry for " <<
+              id.hexString() << " in table " << table.name();
+          return false;
+        }
+        if (!current->get("latest_revision", &latestRevisionId)){
+          LOG(FATAL) << "CRU table entry for " << id.hexString() << " of table "
+              << table.name() << " seems not to contain 'latest_revision'";
+          return false;
+        }
       }
       // 2. Create entry in history
       SharedRevisionPointer rawHistory = table.history_->prepareForInsert(
@@ -354,7 +367,8 @@ bool Transaction::hasItemConflict<Transaction::CRUItemIdentifier>(
 template<>
 bool Transaction::hasItemConflict<Transaction::ConflictCondition>(
     const Transaction::ConflictCondition& item) {
-  return static_cast<bool>(item.table.rawFind(item.key, *item.valueHolder));
+  std::vector<std::shared_ptr<Revision> > results;
+  return item.table.rawFind(item.key, *item.valueHolder, &results);
 }
 
 template<>
@@ -378,8 +392,8 @@ inline bool Transaction::hasMapConflict(const Map& map){
 }
 template<>
 inline bool Transaction::hasContainerConflict<
-std::vector<Transaction::ConflictCondition>>(
-    const std::vector<Transaction::ConflictCondition>& container){
+Transaction::ConflictConditionVector>(
+    const Transaction::ConflictConditionVector& container){
   for (const Transaction::ConflictCondition& conflictCondition : container){
     if (hasItemConflict(conflictCondition)){
       return true;

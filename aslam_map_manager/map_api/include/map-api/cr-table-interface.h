@@ -38,7 +38,7 @@ class CRTableInterface : public proto::TableDescriptor {
   bool isInitialized() const;
 
   /**
-   * Returns a table row template
+   * Returns a table row template TODO(tcies) cache, in setup()
    */
   std::shared_ptr<Revision> getTemplate() const;
   /**
@@ -69,8 +69,8 @@ class CRTableInterface : public proto::TableDescriptor {
    * header.
    */
   template<typename Type>
-  bool addField(const std::string& name);
-  bool addField(const std::string& name,
+  void addField(const std::string& name);
+  void addField(const std::string& name,
                 proto::TableFieldDescriptor_Type type);
   /**
    * Shared pointer to database session TODO(tcies) can this be set private
@@ -117,18 +117,63 @@ class CRTableInterface : public proto::TableDescriptor {
    */
   std::shared_ptr<Revision> rawGetRow(const Id& id) const;
   /**
-   * Returns items where key = value, if found
+   * Loads items where key = value, returns their count.
+   * If "key" is an empty string, no filter will be applied (equivalent to
+   * rawDump())
+   * Instead of passing value as its respective type, it shall be written into
+   * a revision under the correct key TODO(tcies) remember why
    * Virtual, for TODO(tcies) CRUTableInterface will need its own implementation
    * TODO(discsuss) this is inconsistent with rawInsertQuery, which is not
    * virtual, but the difference between CR and CRU is handled in the
    * Transaction class. If possible, this would be better moved here, right?
    */
-  virtual bool rawSelect(const std::string& key, const Revision& valueHolder,
+  virtual int rawFind(const std::string& key, const Revision& valueHolder,
                          std::vector<std::shared_ptr<Revision> >* dest)  const;
+  /**
+   * Same as rawFind(), but asserts that not more than one item is found
+   */
+  std::shared_ptr<Revision> rawFindUnique(const std::string& key,
+                                          const Revision& valueHolder) const;
   /**
    * Fetches all the contents of the table
    */
-  bool rawDump(std::vector<std::shared_ptr<Revision> >* dest) const;
+  void rawDump(std::vector<std::shared_ptr<Revision> >* dest) const;
+  /**
+   * The PocoToProto class serves as intermediate between Poco and Protobuf:
+   * Because Protobuf doesn't support pointers to numeric fields and Poco Data
+   * can't handle blobs saved as std::strings (which is used in Protobuf),
+   * this intermediate data structure is required to pass data from Poco::Data
+   * to our protobuf objects.
+   */
+  class PocoToProto {
+   public:
+    /**
+     * Associating with Table interface object to get template
+     */
+    PocoToProto(const CRTableInterface& table);
+    /**
+     * To be inserted between "SELECT" and "FROM": Bind database outputs to
+     * own structure.
+     */
+    void into(Poco::Data::Statement& statement);
+    /**
+     * Applies the data obtained after statement execution onto a vector of
+     * Protos. Returns the element count. This assumes the presence of an "ID"
+     * field. TODO(discuss) better solution then to rely on "ID"?
+     */
+    int toProto(std::vector<std::shared_ptr<Revision> >* dest);
+   private:
+    const CRTableInterface& table_;
+    /**
+     * Maps where the data is store intermediately
+     */
+    std::map<std::string, std::vector<double> > doubles_;
+    std::map<std::string, std::vector<int32_t> > ints_;
+    std::map<std::string, std::vector<int64_t> > longs_;
+    std::map<std::string, std::vector<Poco::Data::BLOB> > blobs_;
+    std::map<std::string, std::vector<std::string> > strings_;
+    std::map<std::string, std::vector<std::string> > hashes_;
+  };
 };
 
 std::ostream& operator<< (std::ostream& stream, const

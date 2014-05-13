@@ -75,14 +75,21 @@ class Transaction {
               const SharedRevisionPointer& newRevision);
 
   /**
-   * Looks for item where key = value. As with addConflictCondition(),
+   * Looks for items where key = value. As with addConflictCondition(),
    * CRTableInterface because partial template
    * specialization of functions is not allowed in C++.
    */
   template<typename ValueType>
-  SharedRevisionPointer find(CRTableInterface& table,
-                             const std::string& key, const ValueType& value)
+  bool find(CRTableInterface& table, const std::string& key,
+            const ValueType& value, std::vector<SharedRevisionPointer>* dest)
   const;
+  /**
+   * Same as find(), but ensuring that there is only one result
+   */
+  template<typename ValueType>
+  SharedRevisionPointer findUnique(CRTableInterface& table,
+                                   const std::string& key,
+                                   const ValueType& value) const;
   /**
    * Define own fields for database tables, such as for locks.
    */
@@ -163,7 +170,8 @@ class Transaction {
                       const SharedRevisionPointer& _valueHolder) :
                         table(_table), key(_key), valueHolder(_valueHolder) {}
   } ConflictCondition;
-  std::vector<ConflictCondition> conflictconditions_;
+  typedef std::vector<ConflictCondition> ConflictConditionVector;
+  ConflictConditionVector conflictConditions_;
 
   Id owner_;
   std::shared_ptr<Poco::Data::Session> session_;

@@ -9,8 +9,8 @@ bool CRUTableInterface::addField(const std::string& name) {
 }
 
 template<typename Type>
-bool CRUTableInterface::addCRUField(const std::string& name) {
-  return CRTableInterface::addField(name, Revision::protobufEnum<Type>());
+void CRUTableInterface::addCRUField(const std::string& name) {
+  CRTableInterface::addField(name, Revision::protobufEnum<Type>());
 }
 
 } // namespace map_api

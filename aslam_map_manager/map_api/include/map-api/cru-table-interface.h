@@ -52,7 +52,7 @@ class CRUTableInterface : public CRTableInterface{
    * householding the references to the history table.
    */
   template<typename Type>
-  bool addCRUField(const std::string& name);
+  void addCRUField(const std::string& name);
 
   std::unique_ptr<History> history_;
   proto::TableDescriptor descriptor_;

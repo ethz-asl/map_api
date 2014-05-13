@@ -22,6 +22,7 @@ bool Metatable::init() {
 bool Metatable::define() {
   addField<std::string>("name");
   addField<proto::TableDescriptor>("descriptor");
+  return true;
 }
 
 bool Metatable::sync() {

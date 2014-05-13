@@ -39,6 +39,7 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
   }
   // insert table definition if not exists
   Transaction tryInsert(owner_);
+  tryInsert.begin();
   std::shared_ptr<Revision> attempt = metatable_->getTemplate();
   attempt->set("name", descriptor.name());
   attempt->set("descriptor", descriptor);
@@ -50,8 +51,10 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
   }
   // if has existed, verify descriptors match
   Transaction reader(owner_);
-  std::shared_ptr<Revision> previous = reader.find(*metatable_, "name",
+  reader.begin();
+  std::shared_ptr<Revision> previous = reader.findUnique(*metatable_, "name",
                                                    descriptor.name());
+  system("cp database.db /tmp");
   CHECK(previous) << "Can't find table " << descriptor.name() <<
       " even though its presence seemingly caused a conflict";
   proto::TableDescriptor previousDescriptor;

@@ -22,14 +22,31 @@ bool Transaction::addConflictCondition(CRTableInterface& table,
   }
   SharedRevisionPointer valueHolder = table.getTemplate();
   valueHolder->set(key, value);
-  Transaction::conflictconditions_.push_back(
+  Transaction::conflictConditions_.push_back(
       ConflictCondition(table, key, valueHolder));
   return true;
 }
 
 template<typename ValueType>
-Transaction::SharedRevisionPointer Transaction::find(CRTableInterface& table,
-                           const std::string& key, const ValueType& value)
+bool Transaction::find(CRTableInterface& table, const std::string& key,
+                       const ValueType& value,
+                       std::vector<SharedRevisionPointer>* dest)
+const {
+  CHECK_NOTNULL(dest);
+  if (Transaction::notifyAbortedOrInactive()){
+    return false;
+  }
+  SharedRevisionPointer valueHolder = table.getTemplate();
+  valueHolder->set(key, value);
+  // TODO(tcies) also browse uncommitted
+  std::lock_guard<std::recursive_mutex> lock(dbMutex_);
+  table.rawFind(key, *valueHolder, dest);
+  return true;
+}
+
+template<typename ValueType>
+Transaction::SharedRevisionPointer Transaction::findUnique(
+    CRTableInterface& table, const std::string& key, const ValueType& value)
 const {
   if (Transaction::notifyAbortedOrInactive()){
     return false;
@@ -38,7 +55,7 @@ const {
   valueHolder->set(key, value);
   // TODO(tcies) also browse uncommitted
   std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-  return table.rawFind(key, *valueHolder);
+  return table.rawFindUnique(key, *valueHolder);
 }
 
 } // namespace map_api
