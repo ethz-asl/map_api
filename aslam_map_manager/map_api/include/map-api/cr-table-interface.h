@@ -117,14 +117,14 @@ class CRTableInterface : public proto::TableDescriptor {
    */
   std::shared_ptr<Revision> rawGetRow(const Id& id) const;
   /**
-   * Returns an item where key = value, if found
+   * Returns items where key = value, if found
    * Virtual, for TODO(tcies) CRUTableInterface will need its own implementation
    * TODO(discsuss) this is inconsistent with rawInsertQuery, which is not
    * virtual, but the difference between CR and CRU is handled in the
    * Transaction class. If possible, this would be better moved here, right?
    */
-  virtual std::shared_ptr<Revision> rawFind(const std::string& key,
-                                            const Revision& valueHolder) const;
+  virtual bool rawSelect(const std::string& key, const Revision& valueHolder,
+      std::vector<std::shared_ptr<Revision> >* dest)  const;
 
 };
 
