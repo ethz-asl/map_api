@@ -13,8 +13,7 @@ bool Revision::set(const std::string& fieldName, const FieldType& value){
   // 1. Check if field exists
   proto::TableField* field;
   if (!find(fieldName, &field)){
-    LOG(ERROR) << "Trying to set inexistent field " << fieldName;
-    return false;
+    LOG(FATAL) << "Trying to set inexistent field " << fieldName;
   }
   // 2. Check type
   CHECK_EQ(field->nametype().type(), Revision::protobufEnum<FieldType>()) <<
@@ -28,8 +27,7 @@ bool Revision::get(const std::string& fieldName, FieldType* value) const {
   // 1. Check if field exists
   const proto::TableField* field;
   if (!find(fieldName, &field)){
-    LOG(ERROR) << "Trying to get inexistent field " << fieldName;
-    return false;
+    LOG(FATAL) << "Trying to get inexistent field " << fieldName;
   }
   // 2. Check type
   CHECK_EQ(field->nametype().type(), Revision::protobufEnum<FieldType>()) <<

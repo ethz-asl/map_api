@@ -23,7 +23,7 @@ class TransactionTest : public testing::Test {
 /**
  * CRU table for query tests TODO(tcies) test a CRTable
  */
-class TransactionTestTable : public TestTable {
+class TransactionTestTable : public TestTable<CRUTableInterface> {
  public:
   TransactionTestTable(const Id& owner) : TestTable(owner) {}
   std::shared_ptr<Revision> sample(double n){
