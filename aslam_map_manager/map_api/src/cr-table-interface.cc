@@ -265,7 +265,10 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
   for (const std::pair<std::string, std::string>& fieldHash :
       hashPostApply){
     Id value;
-    CHECK(value.fromHexString(fieldHash.second));
+    if (!value.fromHexString(fieldHash.second)){
+      LOG(FATAL) << "Hex string " << fieldHash.second <<
+          "in table can't parse to Hash ID";
+    }
     query->set(fieldHash.first, value);
   }
   return query;
