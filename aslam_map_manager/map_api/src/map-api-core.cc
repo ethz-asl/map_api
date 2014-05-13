@@ -62,6 +62,19 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
       previousDescriptor.SerializeAsString();
 }
 
+void MapApiCore::purgeDb() {
+  Transaction reader(owner_);
+  reader.begin();
+  std::vector<std::shared_ptr<Revision> > tables;
+  reader.dumpTable<CRTableInterface>(*metatable_, &tables);
+  for (const std::shared_ptr<Revision>& table : tables) {
+    std::string name;
+    table->get("name", &name);
+    *dbSess_ << "DROP TABLE " << name, Poco::Data::now;
+  }
+  *dbSess_ << "DROP TABLE metatable", Poco::Data::now;
+}
+
 bool MapApiCore::init(const std::string &ipPort) {
   if (!hub_.init(ipPort)){
     LOG(ERROR) << "Map Api core init failed, could not connect to socket " <<

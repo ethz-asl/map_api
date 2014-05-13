@@ -31,6 +31,7 @@ class MapApiCore {
    * by using standard table operations on the metatable
    */
   bool syncTableDefinition(const proto::TableDescriptor& descriptor);
+  void purgeDb();
   /**
    * Initializer
    */
