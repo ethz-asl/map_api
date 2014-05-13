@@ -192,7 +192,8 @@ int CRTableInterface::rawFind(
   try{
     statement.execute();
   } catch (const std::exception& e){
-    LOG(FATAL) << "Find statement failed: " << statement.toString();
+    LOG(FATAL) << "Find statement failed: " << statement.toString() <<
+        " with exception " << e.what();
   }
   return pocoToProto.toProto(dest);
 }

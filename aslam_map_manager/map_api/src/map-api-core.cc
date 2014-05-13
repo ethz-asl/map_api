@@ -54,7 +54,6 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
   reader.begin();
   std::shared_ptr<Revision> previous = reader.findUnique(*metatable_, "name",
                                                    descriptor.name());
-  system("cp database.db /tmp");
   CHECK(previous) << "Can't find table " << descriptor.name() <<
       " even though its presence seemingly caused a conflict";
   proto::TableDescriptor previousDescriptor;
