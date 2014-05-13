@@ -28,7 +28,7 @@ class TransactionTestTable : public TestTable<CRUTableInterface> {
   TransactionTestTable(const Id& owner) : TestTable(owner) {}
   std::shared_ptr<Revision> sample(double n){
     std::shared_ptr<Revision> revision = getTemplate();
-    if (!revision->set(sampleField(),n)){
+    if (!revision->set(sampleField(), n)){
       LOG(ERROR) << "Failed to set " << sampleField();
       return std::shared_ptr<Revision>();
     }
@@ -74,8 +74,8 @@ TEST_F(TransactionTest, OperationsBeforeBegin){
 TEST_F(TransactionTest, InsertBeforeTableInit){
   TransactionTestTable table(owner_);
   EXPECT_TRUE(transaction_.begin());
-  EXPECT_EQ(transaction_.insert<CRUTableInterface>(table, table.sample(3.14)),
-            Id());
+  EXPECT_DEATH(transaction_.insert<CRUTableInterface>(table, table.sample(3.14)),
+               "^");
 }
 
 /**
