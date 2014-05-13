@@ -36,22 +36,6 @@ class FieldTestTable : public TestTable{
     setup("field_test_table");
     return true;
   }
-  std::shared_ptr<Revision> prepareInsert(const FieldType& value){
-    std::shared_ptr<Revision> query = getTemplate();
-    if (!query->set("test_field",value)){
-      LOG(ERROR) << "Failed to set field test_field";
-      return std::shared_ptr<Revision>();
-    }
-    return query;
-  }
-  FieldType read(const std::shared_ptr<Revision>& revision){
-    FieldType value;
-    if (!revision->get("test_field", &value)){
-      LOG(ERROR) << "Failed to set test_field";
-      return FieldType();
-    }
-    return value;
-  }
  protected:
   virtual bool define(){
     addField<FieldType>("test_field");
@@ -179,59 +163,71 @@ TYPED_TEST(FieldTest, Init){
 
 // TODO(tcies) move to transaction tests
 TYPED_TEST(FieldTest, CreateBeforeInit){
-  Id owner = Id::random();
-  FieldTestTable<TypeParam> table(owner);
-  Transaction transaction(owner);
-  transaction.begin();
-  EXPECT_EQ(transaction.insert<CRUTableInterface>(
-      table, table.prepareInsert(this->sample_data_1())), Id());
-  transaction.abort();
+//  Id owner = Id::random();
+//  FieldTestTable<TypeParam> table(owner);
+//  Transaction transaction(owner);
+//  transaction.begin();
+//  EXPECT_EQ(transaction.insert<CRUTableInterface>(
+//      table, table.prepareInsert(this->sample_data_1())), Id());
+//  transaction.abort();
+
+
 }
 
-/**
- * TODO(tcies) outdated with transaction-centricity, needs update
- * TODO(tcies) implement Transaction::read
+
+//TODO(tcies) outdated with transaction-centricity, needs update
+//TODO(tcies) implement Transaction::read
 TYPED_TEST(FieldTest, ReadBeforeInit){
-  FieldTestTable<TypeParam> table;
-  TypeParam value;
-  EXPECT_DEATH(table.get(Hash("Give me any hash"), value),"^");
+  //FieldTestTable<TypeParam> table;
+  //TypeParam value;
+  //EXPECT_DEATH(table.get(Hash("Give me any hash"), value),"^");
+//  Id owner = Id::random();
+//  FieldTestTable<TypeParam> table(owner);
+//  Transaction transaction(owner);
+//  transaction.begin();
+//
+//  transaction.abort();
 }
 
 TYPED_TEST(FieldTest, CreateRead){
   FieldTestTable<TypeParam> table;
   table.init();
-  Hash createTest = table.insert(this->sample_data_1());
-  EXPECT_EQ(table.getOwner(), table.owner(createTest));
-  TypeParam readValue;
-  EXPECT_TRUE(table.get(createTest, readValue));
-  EXPECT_EQ(readValue, this->sample_data_1());
-  table.cleanup();
+  std::shared_ptr<Revision> toInsert = table.getTemplate();
+  toInsert
+//  FieldTestTable<TypeParam> table;
+//  table.init();
+//  Hash createTest = table.insert(this->sample_data_1());
+//  EXPECT_EQ(table.getOwner(), table.owner(createTest));
+//  TypeParam readValue;
+//  EXPECT_TRUE(table.get(createTest, readValue));
+//  EXPECT_EQ(readValue, this->sample_data_1());
+//  table.cleanup();
 }
-
-TYPED_TEST(FieldTest, ReadInexistent){
-  FieldTestTable<TypeParam> table;
-  table.init();
-  TypeParam value;
-  EXPECT_FALSE(table.get(Hash("Give me any hash"), value));
-  table.cleanup();
-}
-
-TYPED_TEST(FieldTest, UpdateBeforeInit){
-  FieldTestTable<TypeParam> table;
-  EXPECT_DEATH(table.update(Hash("Give me any hash"),
-                            this->sample_data_1()),"^");
-}
-
-TYPED_TEST(FieldTest, UpdateRead){
-  FieldTestTable<TypeParam> table;
-  table.init();
-  TypeParam readValue;
-  Hash updateTest = table.insert(this->sample_data_1());
-  EXPECT_TRUE(table.get(updateTest, readValue));
-  EXPECT_EQ(readValue, this->sample_data_1());
-  EXPECT_TRUE(table.update(updateTest, this->sample_data_2()));
-  EXPECT_TRUE(table.get(updateTest, readValue));
-  EXPECT_EQ(readValue, this->sample_data_2());
-  table.cleanup();
-}
-*/
+//
+//TYPED_TEST(FieldTest, ReadInexistent){
+//  FieldTestTable<TypeParam> table;
+//  table.init();
+//  TypeParam value;
+//  EXPECT_FALSE(table.get(Hash("Give me any hash"), value));
+//  table.cleanup();
+//}
+//
+//TYPED_TEST(FieldTest, UpdateBeforeInit){
+//  FieldTestTable<TypeParam> table;
+//  EXPECT_DEATH(table.update(Hash("Give me any hash"),
+//                            this->sample_data_1()),"^");
+//}
+//
+//TYPED_TEST(FieldTest, UpdateRead){
+//  FieldTestTable<TypeParam> table;
+//  table.init();
+//  TypeParam readValue;
+//  Hash updateTest = table.insert(this->sample_data_1());
+//  EXPECT_TRUE(table.get(updateTest, readValue));
+//  EXPECT_EQ(readValue, this->sample_data_1());
+//  EXPECT_TRUE(table.update(updateTest, this->sample_data_2()));
+//  EXPECT_TRUE(table.get(updateTest, readValue));
+//  EXPECT_EQ(readValue, this->sample_data_2());
+//  table.cleanup();
+//}
+//

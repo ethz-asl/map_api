@@ -28,4 +28,8 @@ class TestTable : public map_api::CRUTableInterface {
   virtual bool define(){
     return true;
   }
+
+ public:
+  using CRTableInterface::rawInsertQuery;
+  using CRTableInterface::rawGetRow;
 };
