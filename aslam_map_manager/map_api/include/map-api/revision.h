@@ -39,6 +39,8 @@ class Revision : public proto::Revision {
    * Overriding adding field in order to impose indexing
    */
   void addField(const proto::TableFieldDescriptor& descriptor);
+  template<typename FieldType>
+  void addField(const std::string& name);
 
   /**
    * Sets field according to type.
