@@ -130,6 +130,7 @@ bool CRTableInterface::createQuery(){
 
 bool CRTableInterface::rawInsertQuery(const Revision& query) const{
   // TODO(tcies) verify schema
+  // TODO(tcies) verify mandatory fields
 
   // Bag for blobs that need to stay in scope until statement is executed
   std::vector<std::shared_ptr<Poco::Data::BLOB> > placeholderBlobs;
@@ -267,7 +268,7 @@ std::shared_ptr<Revision> CRTableInterface::rawGetRow(
     Id value;
     if (!value.fromHexString(fieldHash.second)){
       LOG(FATAL) << "Hex string " << fieldHash.second <<
-          "in table can't parse to Hash ID";
+          " in table can't parse to Hash ID";
     }
     query->set(fieldHash.first, value);
   }

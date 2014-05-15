@@ -78,21 +78,6 @@ class CRTableInterface : public proto::TableDescriptor {
    */
   std::shared_ptr<Poco::Data::Session> session_;
 
- private:
-  friend class CRUTableInterface;
-  /**
-   * Synchronize with cluster: Check if table already present in cluster
-   * metatable, add user to distributed table
-   */
-  bool sync();
-  /**
-   * Parse and execute SQL query necessary to create the database
-   */
-  bool createQuery();
-
-  Id owner_;
-  bool initialized_;
-
   /**
    * The following functions are to be used by transactions only. They pose a
    * very crude access straight to the database, without synchronization
@@ -120,6 +105,20 @@ class CRTableInterface : public proto::TableDescriptor {
    */
   bool rawDump(std::vector<std::shared_ptr<Revision> >* dest) const;
 
+ private:
+  friend class CRUTableInterface;
+  /**
+   * Synchronize with cluster: Check if table already present in cluster
+   * metatable, add user to distributed table
+   */
+  bool sync();
+  /**
+   * Parse and execute SQL query necessary to create the database
+   */
+  bool createQuery();
+
+  Id owner_;
+  bool initialized_;
 };
 
 std::ostream& operator<< (std::ostream& stream, const
