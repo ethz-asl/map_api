@@ -25,6 +25,7 @@ SET(CORE_SOURCE  src/cr-table-interface.cc
                  src/history.cc
                  src/map-api-core.cc
                  src/map-api-hub.cc
+                 src/metatable.cc
                  src/revision.cc
                  src/time.cc
                  src/transaction.cc)

@@ -19,6 +19,9 @@ class Revision : public proto::Revision {
    */
   std::shared_ptr<Poco::Data::BLOB>
   insertPlaceHolder(int field, Poco::Data::Statement& stat) const;
+  std::shared_ptr<Poco::Data::BLOB>
+  insertPlaceHolder(const std::string& field,
+                    Poco::Data::Statement& stat) const;
 
   /**
    * Gets protocol buffer enum for type
@@ -124,7 +127,12 @@ REVISION_GET(TYPE){ \
     return false; \
   } \
   return true; \
-}
+} \
+extern void __FILE__ ## __LINE__(void)
+// in order to swallow the semicolon
+// http://gcc.gnu.org/onlinedocs/cpp/Swallowing-the-Semicolon.html
+// http://stackoverflow.com/questions/18786848/macro-that-swallows-semicolon-out
+// side-of-function
 
 /**
  * A generic, blob-y field type for testing blob insertion

@@ -37,8 +37,10 @@ bool CRUTableInterface::setup(const std::string &name){
   // Set table name TODO(tcies) string SQL-ready, e.g. no hyphens?
   set_name(name);
   // connect to database & create table
-  // TODO(tcies) register in master table
   session_ = MapApiCore::getInstance().getSession();
+  if (!sync()){
+    return false;
+  }
   if (!createQuery()){
     LOG(ERROR) << "Failed to create table";
   }

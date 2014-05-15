@@ -24,6 +24,11 @@ bool Transaction::begin(){
   return true;
 }
 
+// forward declaration required, else "specialization after instantiation"
+template<>
+inline bool Transaction::hasContainerConflict(
+    const Transaction::ConflictConditionVector& container);
+
 bool Transaction::commit(){
   if (notifyAbortedOrInactive()){
     return false;
@@ -36,13 +41,16 @@ bool Transaction::commit(){
   // Acquire lock for database updates TODO(tcies) per-item locks
   {
     std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-    // check for conflicts in insert queue
     if (hasMapConflict(insertions_)) {
-      LOG(WARNING) << "Insert conflict, commit fails";
+      VLOG(3) << "Insert conflict, commit fails";
       return false;
     }
     if (hasMapConflict(updates_)){
-      LOG(WARNING) << "Update conflict, commit fails";
+      VLOG(3) << "Update conflict, commit fails";
+      return false;
+    }
+    if (hasContainerConflict(conflictConditions_)){
+      VLOG(3) << "Conflict condition true, commit fails";
       return false;
     }
     // if no conflicts were found, apply changes, starting from inserts...
@@ -69,18 +77,23 @@ bool Transaction::commit(){
       const CRUTableInterface& table = update.first.first;
       const Id& id = update.first.second;
       const SharedRevisionPointer &newRevision = update.second;
-      // 1. Fetch id of latest from CRU table
-      SharedRevisionPointer current = table.rawGetRow(id);
+      // 1. Fetch id of latest from CRU table or link to 0 if part of insertions
       Id latestRevisionId;
-      if (!current){
-        LOG(FATAL) << "Failed to fetch current CRU table entry for " <<
-            id.hexString() << " in table " << table.name();
-        return false;
+      if (insertions_.find(CRItemIdentifier(table, id)) != insertions_.end()){
+        latestRevisionId = Id();
       }
-      if (!current->get("latest_revision", &latestRevisionId)){
-        LOG(ERROR) << "CRU table entry for " << id.hexString() << " of table "
-            << table.name() << " seems not to contain 'latest_revision'";
-        return false;
+      else{
+        SharedRevisionPointer current = table.rawGetRow(id);
+        if (!current){
+          LOG(FATAL) << "Failed to fetch current CRU table entry for " <<
+              id.hexString() << " in table " << table.name();
+          return false;
+        }
+        if (!current->get("latest_revision", &latestRevisionId)){
+          LOG(FATAL) << "CRU table entry for " << id.hexString() << " of table "
+              << table.name() << " seems not to contain 'latest_revision'";
+          return false;
+        }
       }
       // 2. Create entry in history
       SharedRevisionPointer rawHistory = table.history_->prepareForInsert(
@@ -302,7 +315,7 @@ bool Transaction::update(CRUTableInterface& table, const Id& id,
 //   return fields;
 // }
 
-bool Transaction::notifyAbortedOrInactive(){
+bool Transaction::notifyAbortedOrInactive() const {
   if (!active_){
     LOG(ERROR) << "Transaction has not been initialized";
     return true;
@@ -314,22 +327,12 @@ bool Transaction::notifyAbortedOrInactive(){
   return false;
 }
 
-template<typename Map>
-bool Transaction::hasMapConflict(const Map& map){
-  for (const typename Map::value_type& item : map){
-    if (hasItemConflict(item.first)){
-      return true;
-    }
-  }
-  return false;
-}
-
 /**
  * Insert requests conflict only if the id is already present
  */
 template<>
 bool Transaction::hasItemConflict<Transaction::CRItemIdentifier>(
-    const Transaction::CRItemIdentifier& item){
+    const Transaction::CRItemIdentifier& item) {
   std::lock_guard<std::recursive_mutex> lock(dbMutex_);
   // Conflict if id present in table
   if (item.first.rawGetRow(item.second)){
@@ -346,7 +349,7 @@ bool Transaction::hasItemConflict<Transaction::CRItemIdentifier>(
  */
 template<>
 bool Transaction::hasItemConflict<Transaction::CRUItemIdentifier>(
-    const Transaction::CRUItemIdentifier& item){
+    const Transaction::CRUItemIdentifier& item) {
   // no problem anyways if item inserted within same transaction
   CRItemIdentifier crItem(item.first, item.second);
   if (this->insertions_.find(crItem) != this->insertions_.end()){
@@ -358,6 +361,45 @@ bool Transaction::hasItemConflict<Transaction::CRUItemIdentifier>(
     return true;
   }
   return latestUpdate > beginTime_;
+}
+
+
+template<>
+bool Transaction::hasItemConflict(
+    const Transaction::ConflictCondition& item) {
+  std::vector<std::shared_ptr<Revision> > results;
+  return item.table.rawFindByRevision(item.key, *item.valueHolder, &results);
+}
+
+template<>
+inline bool Transaction::hasContainerConflict<Transaction::InsertMap>(
+    const Transaction::InsertMap& container){
+  return Transaction::hasMapConflict(container);
+}
+template<>
+inline bool Transaction::hasContainerConflict<Transaction::UpdateMap>(
+    const Transaction::UpdateMap& container){
+  return Transaction::hasMapConflict(container);
+}
+template<typename Map>
+inline bool Transaction::hasMapConflict(const Map& map){
+  for (const typename Map::value_type& item : map){
+    if (hasItemConflict(item.first)){
+      return true;
+    }
+  }
+  return false;
+}
+template<>
+inline bool Transaction::hasContainerConflict<
+Transaction::ConflictConditionVector>(
+    const Transaction::ConflictConditionVector& container){
+  for (const Transaction::ConflictCondition& conflictCondition : container){
+    if (hasItemConflict(conflictCondition)){
+      return true;
+    }
+  }
+  return false;
 }
 
 } /* namespace map_api */

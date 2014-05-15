@@ -1,5 +1,3 @@
-#include <fstream>
-
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
@@ -9,6 +7,7 @@
 
 #include "map-api/cru-table-interface.h"
 #include "map-api/id.h"
+#include "map-api/map-api-core.h"
 #include "map-api/time.h"
 #include "map-api/transaction.h"
 
@@ -193,12 +192,9 @@ template <typename TestedType>
 class FieldTestWithInit : public FieldTestWithoutInit<TestedType> {
  protected:
   virtual void SetUp() {
+    MapApiCore::getInstance().purgeDb();
     this->table_.reset(new InsertReadFieldTestTable<TestedType>(Id::random()));
     this->table_->init();
-  }
-
-  virtual void TearDown() {
-    std::ofstream dbfile("database.db", std::ios::trunc);
   }
 };
 

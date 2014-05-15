@@ -37,6 +37,7 @@ std::shared_ptr<Revision> History::revisionAt(const Id& id,
   typedef std::shared_ptr<Revision> RevisionPtr;
   RevisionPtr revisionIterator = rawGetRow(id);
   if (!revisionIterator){
+    LOG(ERROR) << "Couldn't find id " << id << " in history table " << name();
     return RevisionPtr();
   }
   Time revisionTime;

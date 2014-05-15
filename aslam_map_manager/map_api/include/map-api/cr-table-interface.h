@@ -38,7 +38,7 @@ class CRTableInterface : public proto::TableDescriptor {
   bool isInitialized() const;
 
   /**
-   * Returns a table row template
+   * Returns a table row template TODO(tcies) cache, in setup()
    */
   std::shared_ptr<Revision> getTemplate() const;
   /**
@@ -55,7 +55,7 @@ class CRTableInterface : public proto::TableDescriptor {
  protected:
   /**
    * Setup: Load table definition and match with table definition in
-   * cluster.
+   * cluster. TODO(tcies) name in constructor
    */
   bool setup(const std::string& name);
   /**
@@ -69,8 +69,8 @@ class CRTableInterface : public proto::TableDescriptor {
    * header.
    */
   template<typename Type>
-  bool addField(const std::string& name);
-  bool addField(const std::string& name,
+  void addField(const std::string& name);
+  void addField(const std::string& name,
                 proto::TableFieldDescriptor_Type type);
   /**
    * Shared pointer to database session TODO(tcies) can this be set private
@@ -101,17 +101,79 @@ class CRTableInterface : public proto::TableDescriptor {
    */
   std::shared_ptr<Revision> rawGetRow(const Id& id) const;
   /**
+   * Loads items where key = value, returns their count.
+   * If "key" is an empty string, no filter will be applied (equivalent to
+   * rawDump())
+   * The non-templated override that uses a revision container for the value is
+   * there so that class Transaction may store conflict requests, which call
+   * this function upon commit, without the need to specialize, which would be
+   * impractical for users who want to add custom field types.
+   * Virtual, for TODO(tcies) CRUTableInterface will need its own implementation
+   * TODO(discsuss) this is inconsistent with rawInsertQuery, which is not
+   * virtual, but the difference between CR and CRU is handled in the
+   * Transaction class. If possible, this would be better moved here, right?
+   */
+  template<typename ValueType>
+  int rawFind(const std::string& key, const ValueType& value,
+              std::vector<std::shared_ptr<Revision> >* dest) const;
+  virtual int rawFindByRevision(
+      const std::string& key, const Revision& valueHolder,
+      std::vector<std::shared_ptr<Revision> >* dest)  const;
+  /**
+   * Same as rawFind(), but asserts that not more than one item is found
+   */
+  template<typename ValueType>
+  std::shared_ptr<Revision> rawFindUnique(const std::string& key,
+                                          const ValueType& value) const;
+  /**
    * Fetches all the contents of the table
    */
-  bool rawDump(std::vector<std::shared_ptr<Revision> >* dest) const;
+  void rawDump(std::vector<std::shared_ptr<Revision> >* dest) const;
+  /**
+   * The PocoToProto class serves as intermediate between Poco and Protobuf:
+   * Because Protobuf doesn't support pointers to numeric fields and Poco Data
+   * can't handle blobs saved as std::strings (which is used in Protobuf),
+   * this intermediate data structure is required to pass data from Poco::Data
+   * to our protobuf objects.
+   */
+  class PocoToProto {
+   public:
+    /**
+     * Associating with Table interface object to get template
+     */
+    PocoToProto(const CRTableInterface& table);
+    /**
+     * To be inserted between "SELECT" and "FROM": Bind database outputs to
+     * own structure.
+     */
+    void into(Poco::Data::Statement& statement);
+    /**
+     * Applies the data obtained after statement execution onto a vector of
+     * Protos. Returns the element count. This assumes the presence of an "ID"
+     * field.
+     */
+    int toProto(std::vector<std::shared_ptr<Revision> >* dest);
+   private:
+    const CRTableInterface& table_;
+    /**
+     * Maps where the data is store intermediately
+     */
+    std::map<std::string, std::vector<double> > doubles_;
+    std::map<std::string, std::vector<int32_t> > ints_;
+    std::map<std::string, std::vector<int64_t> > longs_;
+    std::map<std::string, std::vector<Poco::Data::BLOB> > blobs_;
+    std::map<std::string, std::vector<std::string> > strings_;
+    std::map<std::string, std::vector<std::string> > hashes_;
+  };
 
  private:
   friend class CRUTableInterface;
   /**
    * Synchronize with cluster: Check if table already present in cluster
-   * metatable, add user to distributed table
+   * metatable, add user to distributed table. Virtual so that the metatable
+   * may override this to do nothing in order to avoid infinite recursion.
    */
-  bool sync();
+  virtual bool sync();
   /**
    * Parse and execute SQL query necessary to create the database
    */

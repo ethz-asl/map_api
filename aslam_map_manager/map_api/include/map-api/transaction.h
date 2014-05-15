@@ -41,6 +41,21 @@ class Transaction {
               const SharedRevisionPointer& item);
 
   /**
+   * Transaction will fail if a table item where key = value exists. The
+   * necessity of this function has arisen from MapApiCore::syncTableDefinition,
+   * where we only want to create a table definition if it is not yet present.
+   * We need to use the base class CRTableInterface because partial template
+   * specialization of functions is not allowed in C++.
+   * In commit(), conflicts will be looked for in the table only and not in the
+   * uncommited data, because this function may be used in conjunction with
+   * insertion of data that would cause a conflict (e.g.
+   * MapApiCore::syncTableDefinition)
+   */
+  template<typename ValueType>
+  bool addConflictCondition(CRTableInterface& table,
+                            const std::string& key, const ValueType& value);
+
+  /**
    * Returns latest revision prior to transaction begin time
    */
   template<typename TableInterfaceType>
@@ -59,6 +74,22 @@ class Transaction {
   bool update(CRUTableInterface& table, const Id& id,
               const SharedRevisionPointer& newRevision);
 
+  /**
+   * Looks for items where key = value. As with addConflictCondition(),
+   * CRTableInterface because partial template
+   * specialization of functions is not allowed in C++.
+   */
+  template<typename ValueType>
+  bool find(CRTableInterface& table, const std::string& key,
+            const ValueType& value, std::vector<SharedRevisionPointer>* dest)
+  const;
+  /**
+   * Same as find(), but ensuring that there is only one result
+   */
+  template<typename ValueType>
+  SharedRevisionPointer findUnique(CRTableInterface& table,
+                                   const std::string& key,
+                                   const ValueType& value) const;
   /**
    * Define own fields for database tables, such as for locks.
    */
@@ -97,17 +128,19 @@ class Transaction {
   typedef std::map<CRUItemIdentifier, SharedRevisionPointer>
   UpdateMap;
 
-  bool notifyAbortedOrInactive();
-  /**
-   * Returns true if the supplied map (insert or update) has a conflict
-   */
-  template<typename Map>
-  bool hasMapConflict(const Map& map);
+  bool notifyAbortedOrInactive() const;
   /**
    * Returns true if the supplied insert/update request has a conflict
    */
   template<typename Identifier>
   bool hasItemConflict(const Identifier& item);
+  /**
+   * Returns true if the supplied container has a conflict
+   */
+  template<typename Container>
+  inline bool hasContainerConflict(const Container& container);
+  template<typename Map>
+  inline bool hasMapConflict(const Map& map); // map subspecialization
 
   /**
    * Maps of insert queries requested over the course of the
@@ -122,6 +155,23 @@ class Transaction {
    * times, only the latest revision will be committed
    */
   UpdateMap updates_;
+
+  /**
+   * A conflict condition leads to a conflict if the key-value pair it describes
+   * is found in the table in specifies.
+   * The value is stored in a Revision in order to easily allow it to take any
+   * type, thanks to the Revision template specializations.
+   */
+  struct ConflictCondition {
+    const CRTableInterface& table;
+    const std::string key;
+    const SharedRevisionPointer valueHolder;
+    ConflictCondition(const CRTableInterface& _table, const std::string& _key,
+                      const SharedRevisionPointer& _valueHolder) :
+                        table(_table), key(_key), valueHolder(_valueHolder) {}
+  };
+  typedef std::vector<ConflictCondition> ConflictConditionVector;
+  ConflictConditionVector conflictConditions_;
 
   Id owner_;
   std::shared_ptr<Poco::Data::Session> session_;
