@@ -8,6 +8,14 @@
 
 namespace map_api {
 
+template<typename FieldType>
+void Revision::addField(const std::string& name) {
+  proto::TableFieldDescriptor descriptor;
+  descriptor.set_name(name);
+  descriptor.set_type(Revision::protobufEnum<FieldType>());
+  addField(descriptor);
+}
+
 template <typename FieldType>
 bool Revision::set(const std::string& fieldName, const FieldType& value){
   // 1. Check if field exists

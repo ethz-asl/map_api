@@ -100,6 +100,10 @@ class CRTableInterface : public proto::TableDescriptor {
    *                                                                       R   R
    */
   std::shared_ptr<Revision> rawGetRow(const Id& id) const;
+  /**
+   * Fetches all the contents of the table
+   */
+  bool rawDump(std::vector<std::shared_ptr<Revision> >* dest) const;
 
  private:
   friend class CRUTableInterface;

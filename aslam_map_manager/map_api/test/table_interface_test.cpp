@@ -176,6 +176,7 @@ class FieldTestWithoutInit : public FieldTest<TestedType> {
     getTemplate();
     Id inserted = Id::random();
     to_insert_->set("ID", inserted);
+    to_insert_->set("owner", Id::random());
     to_insert_->set("test_field", this->sample_data_1());
     return inserted;
   }

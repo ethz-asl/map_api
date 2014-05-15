@@ -1,9 +1,11 @@
-#include <map-api/transaction.h>
+#include "map-api/transaction.h"
+
+#include <unordered_set>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include <map-api/map-api-core.h>
+#include "map-api/map-api-core.h"
 
 DECLARE_string(ipPort);
 
@@ -209,6 +211,75 @@ Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
     return SharedRevisionPointer();
   }
   return table.history_->revisionAt(latest, beginTime_);
+}
+
+template<>
+bool Transaction::dumpTable<CRTableInterface>(
+    CRTableInterface& table, std::vector<SharedRevisionPointer>* dest) {
+  CHECK_NOTNULL(dest);
+  dest->clear();
+  for (const std::pair<CRItemIdentifier,
+      const SharedRevisionPointer> &insertion : insertions_) {
+    if (insertion.first.first.name() == table.name()) {
+      dest->push_back(insertion.second);
+    }
+  }
+
+  std::lock_guard<std::recursive_mutex> lock(dbMutex_);
+  table.rawDump(dest);
+
+  // TODO(tcies) test
+  return true;
+}
+
+template<>
+bool Transaction::dumpTable<CRUTableInterface>(
+    CRUTableInterface& table, std::vector<SharedRevisionPointer>* dest) {
+  CHECK_NOTNULL(dest);
+  dest->clear();
+
+  if (notifyAbortedOrInactive()){
+    return false;
+  }
+
+  // fast check in uncommitted transaction queries
+  std::unordered_set<sm::HashId> updated_items;
+  for (const std::pair<CRUItemIdentifier, SharedRevisionPointer> &update :
+      updates_) {
+    if (update.first.first.name() == table.name()){
+      dest->push_back(update.second);
+      // insert ID of item
+      // TODO(tcies) a bit of a hack... how to do this more properly?
+      Revision& current = *dest->back();
+      current.addField<sm::HashId>("ID");
+      current.set("ID", update.first.second);
+      updated_items.insert(update.first.second);
+    }
+  }
+
+  std::lock_guard<std::recursive_mutex> lock(dbMutex_);
+  // find bookkeeping rows in the table
+  std::vector<SharedRevisionPointer> cru_rows;
+  table.rawDump(&cru_rows);
+
+  for (const SharedRevisionPointer& cru_row : cru_rows) {
+    Id id;
+    cru_row->get("ID", &id);
+    if (updated_items.count(id)) {
+      continue;
+    }
+    Id latest;
+    cru_row->get("latest_revision", &latest);
+    dest->push_back(table.history_->revisionAt(latest, beginTime_));
+    // insert ID of item
+    // TODO(tcies) a bit of a hack... how to do this more properly?
+    Revision& current = *dest->back();
+    current.addField<sm::HashId>("ID");
+    current.set("ID", id);
+  }
+
+  // TODO(tcies) test
+  return true;
 }
 
 bool Transaction::update(CRUTableInterface& table, const Id& id,
