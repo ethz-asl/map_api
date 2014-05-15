@@ -203,17 +203,12 @@ std::shared_ptr<Revision> CRTableInterface::rawFindUnique(
   std::vector<std::shared_ptr<Revision> > results;
   int count = rawFind(key, valueHolder, &results);
   switch (count){
-    case 0:{
+    case 0: return std::shared_ptr<Revision>();
+    case 1: return results[0];
+    default:
+      LOG(FATAL) << "There seems to be more than one item with value of " << key
+      << " as in " << valueHolder.DebugString() << ", table " << name();
       return std::shared_ptr<Revision>();
-    }
-    case 1:{
-      return results[0];
-    }
-    default:{
-      LOG(FATAL) << "There seems to be more than one item with value of" << key
-          << " as in " << valueHolder.DebugString() << ", table " << name();
-      return std::shared_ptr<Revision>();
-    }
   }
 }
 
@@ -227,13 +222,13 @@ const{
 
 CRTableInterface::PocoToProto::PocoToProto(
     const CRTableInterface& table) :
-        table_(table) {}
+                table_(table) {}
 
 void CRTableInterface::PocoToProto::into(Poco::Data::Statement& statement) {
   statement << " ";
   std::shared_ptr<Revision> dummy = table_.getTemplate();
   for (int i = 0; i < dummy->fieldqueries_size(); ++i) {
-    if (i>0) {
+    if (i > 0) {
       statement << ", ";
     }
     const proto::TableField& field = dummy->fieldqueries(i);

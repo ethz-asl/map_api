@@ -194,8 +194,6 @@ TEST_F(MultiTransactionSingleCRUTest, SerialInsertRead) {
   // Check presence of samples in table
   Owner& verifier = addOwner();
   Transaction& verification = verifier.beginNewTransaction();
-  LOG(INFO) << "Inserted " << aId << " and " << bId;
-  system("cp database.db /tmp");
   verify(verification, aId, 3.14);
   verify(verification, bId, 42);
   EXPECT_TRUE(verification.abort());

@@ -32,11 +32,8 @@ MapApiCore::MapApiCore() : owner_(Id::random()),
     hub_(MapApiHub::getInstance()), metatable_(), initialized_(false){}
 
 bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
-  // init metatable if not yet initialized TODO(tcies) smarter
-  if (!metatable_){
-    metatable_ = std::unique_ptr<Metatable>(new Metatable(owner_));
-    metatable_->init();
-  }
+  // init metatable if not yet initialized TODO(tcies) better solution?
+  ensureMetatable();
   // insert table definition if not exists
   Transaction tryInsert(owner_);
   tryInsert.begin();
@@ -64,10 +61,7 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
 
 void MapApiCore::purgeDb() {
   // the following is possible if no table has been initialized yet:
-  if (!metatable_){
-    metatable_ = std::unique_ptr<Metatable>(new Metatable(owner_));
-    metatable_->init();
-  }
+  ensureMetatable();
   Transaction reader(owner_);
   reader.begin();
   std::vector<std::shared_ptr<Revision> > tables;
@@ -103,6 +97,13 @@ bool MapApiCore::init(const std::string &ipPort) {
 
 std::shared_ptr<Poco::Data::Session> MapApiCore::getSession(){
   return dbSess_;
+}
+
+inline void MapApiCore::ensureMetatable() {
+  if (!metatable_){
+    metatable_ = std::unique_ptr<Metatable>(new Metatable(owner_));
+    metatable_->init();
+  }
 }
 
 bool MapApiCore::isInitialized() const{

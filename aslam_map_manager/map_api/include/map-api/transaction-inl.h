@@ -16,8 +16,8 @@ Id Transaction::insert(TableInterfaceType& table,
 template<typename ValueType>
 bool Transaction::addConflictCondition(CRTableInterface& table,
                                        const std::string& key,
-                                       const ValueType& value){
-  if (Transaction::notifyAbortedOrInactive()){
+                                       const ValueType& value) {
+  if (Transaction::notifyAbortedOrInactive()) {
     return false;
   }
   SharedRevisionPointer valueHolder = table.getTemplate();
@@ -30,8 +30,7 @@ bool Transaction::addConflictCondition(CRTableInterface& table,
 template<typename ValueType>
 bool Transaction::find(CRTableInterface& table, const std::string& key,
                        const ValueType& value,
-                       std::vector<SharedRevisionPointer>* dest)
-const {
+                       std::vector<SharedRevisionPointer>* dest) const {
   CHECK_NOTNULL(dest);
   if (Transaction::notifyAbortedOrInactive()){
     return false;

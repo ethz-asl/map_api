@@ -24,9 +24,9 @@ bool Transaction::begin(){
   return true;
 }
 
+// forward declaration required, else "specialization after instantiation"
 template<>
-inline bool Transaction::hasContainerConflict<
-Transaction::ConflictConditionVector>(
+inline bool Transaction::hasContainerConflict(
     const Transaction::ConflictConditionVector& container);
 
 bool Transaction::commit(){
@@ -365,7 +365,7 @@ bool Transaction::hasItemConflict<Transaction::CRUItemIdentifier>(
 
 
 template<>
-bool Transaction::hasItemConflict<Transaction::ConflictCondition>(
+bool Transaction::hasItemConflict(
     const Transaction::ConflictCondition& item) {
   std::vector<std::shared_ptr<Revision> > results;
   return item.table.rawFind(item.key, *item.valueHolder, &results);

@@ -1,10 +1,3 @@
-/*
- * metatable.cc
- *
- *  Created on: Apr 28, 2014
- *      Author: titus
- */
-
 #include <map-api/metatable.h>
 
 namespace map_api {
@@ -22,10 +15,6 @@ bool Metatable::init() {
 bool Metatable::define() {
   addField<std::string>("name");
   addField<proto::TableDescriptor>("descriptor");
-  return true;
-}
-
-bool Metatable::sync() {
   return true;
 }
 

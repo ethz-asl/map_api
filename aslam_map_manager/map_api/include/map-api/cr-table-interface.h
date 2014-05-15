@@ -128,7 +128,7 @@ class CRTableInterface : public proto::TableDescriptor {
    * Transaction class. If possible, this would be better moved here, right?
    */
   virtual int rawFind(const std::string& key, const Revision& valueHolder,
-                         std::vector<std::shared_ptr<Revision> >* dest)  const;
+                      std::vector<std::shared_ptr<Revision> >* dest)  const;
   /**
    * Same as rawFind(), but asserts that not more than one item is found
    */
@@ -159,7 +159,7 @@ class CRTableInterface : public proto::TableDescriptor {
     /**
      * Applies the data obtained after statement execution onto a vector of
      * Protos. Returns the element count. This assumes the presence of an "ID"
-     * field. TODO(discuss) better solution then to rely on "ID"?
+     * field.
      */
     int toProto(std::vector<std::shared_ptr<Revision> >* dest);
    private:

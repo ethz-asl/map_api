@@ -20,8 +20,8 @@ class Revision : public proto::Revision {
   std::shared_ptr<Poco::Data::BLOB>
   insertPlaceHolder(int field, Poco::Data::Statement& stat) const;
   std::shared_ptr<Poco::Data::BLOB>
-  insertPlaceHolder(const std::string& field, Poco::Data::Statement& stat)
-  const;
+  insertPlaceHolder(const std::string& field,
+                    Poco::Data::Statement& stat) const;
 
   /**
    * Gets protocol buffer enum for type

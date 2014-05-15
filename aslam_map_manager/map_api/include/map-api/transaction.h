@@ -162,14 +162,14 @@ class Transaction {
    * The value is stored in a Revision in order to easily allow it to take any
    * type, thanks to the Revision template specializations.
    */
-  typedef struct ConflictCondition {
+  struct ConflictCondition {
     const CRTableInterface& table;
     const std::string key;
     const SharedRevisionPointer valueHolder;
     ConflictCondition(const CRTableInterface& _table, const std::string& _key,
                       const SharedRevisionPointer& _valueHolder) :
                         table(_table), key(_key), valueHolder(_valueHolder) {}
-  } ConflictCondition;
+  };
   typedef std::vector<ConflictCondition> ConflictConditionVector;
   ConflictConditionVector conflictConditions_;
 

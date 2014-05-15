@@ -58,6 +58,12 @@ class MapApiCore {
   friend class CRTableInterface;
   friend class CRUTableInterface;
   friend class Transaction;
+  /**
+   * Initializes metatable if not initialized. Unfortunately, the metatable
+   * can't be initialized in init, as the initializer of metatable calls init
+   * indirectly itself, so there would be an endless recursion.
+   */
+  inline void ensureMetatable();
 
   Id owner_;
   /**
