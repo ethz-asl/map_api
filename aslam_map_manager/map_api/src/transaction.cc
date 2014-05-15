@@ -368,7 +368,7 @@ template<>
 bool Transaction::hasItemConflict(
     const Transaction::ConflictCondition& item) {
   std::vector<std::shared_ptr<Revision> > results;
-  return item.table.rawFind(item.key, *item.valueHolder, &results);
+  return item.table.rawFindByRevision(item.key, *item.valueHolder, &results);
 }
 
 template<>

@@ -171,13 +171,11 @@ bool CRTableInterface::rawInsertQuery(const Revision& query) const{
 
 std::shared_ptr<Revision> CRTableInterface::rawGetRow(
     const Id &id) const{
-  std::shared_ptr<Revision> valueHolder = getTemplate();
-  valueHolder->set("ID", id);
-  return rawFindUnique("ID", *valueHolder);
+  return rawFindUnique("ID", id);
 }
 
 // TODO(tcies) test
-int CRTableInterface::rawFind(
+int CRTableInterface::rawFindByRevision(
     const std::string& key, const Revision& valueHolder,
     std::vector<std::shared_ptr<Revision> >* dest) const {
   PocoToProto pocoToProto(*this);
@@ -198,26 +196,12 @@ int CRTableInterface::rawFind(
   return pocoToProto.toProto(dest);
 }
 
-std::shared_ptr<Revision> CRTableInterface::rawFindUnique(
-    const std::string& key, const Revision& valueHolder) const{
-  std::vector<std::shared_ptr<Revision> > results;
-  int count = rawFind(key, valueHolder, &results);
-  switch (count){
-    case 0: return std::shared_ptr<Revision>();
-    case 1: return results[0];
-    default:
-      LOG(FATAL) << "There seems to be more than one item with value of " << key
-      << " as in " << valueHolder.DebugString() << ", table " << name();
-      return std::shared_ptr<Revision>();
-  }
-}
-
 // although this is very similar to rawGetRow(), I don't see how to share the
 // features without loss of performance TODO(discuss)
 void CRTableInterface::rawDump(std::vector<std::shared_ptr<Revision> >* dest)
 const{
   std::shared_ptr<Revision> valueHolder = getTemplate();
-  rawFind("", *valueHolder , dest);
+  rawFindByRevision("", *valueHolder , dest);
 }
 
 CRTableInterface::PocoToProto::PocoToProto(

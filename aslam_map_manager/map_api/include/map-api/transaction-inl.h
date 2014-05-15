@@ -35,11 +35,9 @@ bool Transaction::find(CRTableInterface& table, const std::string& key,
   if (Transaction::notifyAbortedOrInactive()){
     return false;
   }
-  SharedRevisionPointer valueHolder = table.getTemplate();
-  valueHolder->set(key, value);
   // TODO(tcies) also browse uncommitted
   std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-  table.rawFind(key, *valueHolder, dest);
+  table.rawFind(key, value, dest);
   return true;
 }
 
@@ -50,11 +48,9 @@ const {
   if (Transaction::notifyAbortedOrInactive()){
     return false;
   }
-  SharedRevisionPointer valueHolder = table.getTemplate();
-  valueHolder->set(key, value);
   // TODO(tcies) also browse uncommitted
   std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-  return table.rawFindUnique(key, *valueHolder);
+  return table.rawFindUnique(key, value);
 }
 
 } // namespace map_api

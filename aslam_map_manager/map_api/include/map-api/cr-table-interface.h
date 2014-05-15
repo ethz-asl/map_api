@@ -120,20 +120,27 @@ class CRTableInterface : public proto::TableDescriptor {
    * Loads items where key = value, returns their count.
    * If "key" is an empty string, no filter will be applied (equivalent to
    * rawDump())
-   * Instead of passing value as its respective type, it shall be written into
-   * a revision under the correct key TODO(tcies) remember why
+   * The non-templated override that uses a revision container for the value is
+   * there so that class Transaction may store conflict requests, which call
+   * this function upon commit, without the need to specialize, which would be
+   * impractical for users who want to add custom field types.
    * Virtual, for TODO(tcies) CRUTableInterface will need its own implementation
    * TODO(discsuss) this is inconsistent with rawInsertQuery, which is not
    * virtual, but the difference between CR and CRU is handled in the
    * Transaction class. If possible, this would be better moved here, right?
    */
-  virtual int rawFind(const std::string& key, const Revision& valueHolder,
-                      std::vector<std::shared_ptr<Revision> >* dest)  const;
+  template<typename ValueType>
+  int rawFind(const std::string& key, const ValueType& value,
+              std::vector<std::shared_ptr<Revision> >* dest) const;
+  virtual int rawFindByRevision(
+      const std::string& key, const Revision& valueHolder,
+      std::vector<std::shared_ptr<Revision> >* dest)  const;
   /**
    * Same as rawFind(), but asserts that not more than one item is found
    */
+  template<typename ValueType>
   std::shared_ptr<Revision> rawFindUnique(const std::string& key,
-                                          const Revision& valueHolder) const;
+                                          const ValueType& value) const;
   /**
    * Fetches all the contents of the table
    */
