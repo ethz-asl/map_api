@@ -32,7 +32,7 @@ MapApiCore::MapApiCore() : owner_(Id::random()),
     hub_(MapApiHub::getInstance()), metatable_(), initialized_(false){}
 
 bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
-  // init metatable if not yet initialized
+  // init metatable if not yet initialized TODO(tcies) smarter
   if (!metatable_){
     metatable_ = std::unique_ptr<Metatable>(new Metatable(owner_));
     metatable_->init();
@@ -53,7 +53,7 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
   Transaction reader(owner_);
   reader.begin();
   std::shared_ptr<Revision> previous = reader.findUnique(*metatable_, "name",
-                                                   descriptor.name());
+                                                         descriptor.name());
   CHECK(previous) << "Can't find table " << descriptor.name() <<
       " even though its presence seemingly caused a conflict";
   proto::TableDescriptor previousDescriptor;
@@ -63,6 +63,11 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
 }
 
 void MapApiCore::purgeDb() {
+  // the following is possible if no table has been initialized yet:
+  if (!metatable_){
+    metatable_ = std::unique_ptr<Metatable>(new Metatable(owner_));
+    metatable_->init();
+  }
   Transaction reader(owner_);
   reader.begin();
   std::vector<std::shared_ptr<Revision> > tables;
@@ -73,8 +78,11 @@ void MapApiCore::purgeDb() {
     *dbSess_ << "DROP TABLE " << name, Poco::Data::now;
   }
   *dbSess_ << "DROP TABLE metatable", Poco::Data::now;
+  metatable_.reset();
 }
 
+// can't initialize metatable in init, as its initialization calls
+// MapApiCore::getInstance, which again calls this
 bool MapApiCore::init(const std::string &ipPort) {
   if (!hub_.init(ipPort)){
     LOG(ERROR) << "Map Api core init failed, could not connect to socket " <<
