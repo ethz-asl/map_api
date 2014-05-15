@@ -42,15 +42,15 @@ bool Transaction::commit(){
   {
     std::lock_guard<std::recursive_mutex> lock(dbMutex_);
     if (hasMapConflict(insertions_)) {
-      LOG(WARNING) << "Insert conflict, commit fails";
+      VLOG(3) << "Insert conflict, commit fails";
       return false;
     }
     if (hasMapConflict(updates_)){
-      LOG(WARNING) << "Update conflict, commit fails";
+      VLOG(3) << "Update conflict, commit fails";
       return false;
     }
     if (hasContainerConflict(conflictConditions_)){
-      LOG(WARNING) << "Conflict condition true, commit fails";
+      VLOG(3) << "Conflict condition true, commit fails";
       return false;
     }
     // if no conflicts were found, apply changes, starting from inserts...

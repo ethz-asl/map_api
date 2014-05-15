@@ -134,6 +134,7 @@ bool CRTableInterface::createQuery(){
 
 bool CRTableInterface::rawInsertQuery(const Revision& query) const{
   // TODO(tcies) verify schema
+  // TODO(tcies) verify mandatory fields
 
   // Bag for blobs that need to stay in scope until statement is executed
   std::vector<std::shared_ptr<Poco::Data::BLOB> > placeholderBlobs;
