@@ -44,7 +44,8 @@ bool CRTableInterface::setup(const std::string& name){
   // Define table fields
   // enforced fields id (hash) and owner
   addField<Id>("ID");
-  // addField<Id>("owner"); TODO(tcies) later
+  // addField<Id>("owner"); TODO(tcies) later, when owner will be used for
+  // synchronization accross the network, or for its POC
   // transaction-enforced fields TODO(tcies) later
   // std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
   // transactionFields(Transaction::requiredTableFields());
