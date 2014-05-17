@@ -4,8 +4,6 @@ namespace map_api {
 
 REVISION_PROTOBUF(proto::TableDescriptor);
 
-Metatable::Metatable(const Id& owner) : CRTableInterface(owner) {}
-
 Metatable::~Metatable() {}
 
 bool Metatable::init() {

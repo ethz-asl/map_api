@@ -16,11 +16,11 @@
 using namespace map_api;
 
 TEST(TableInterFace, initEmpty) {
-  TestTable<CRTableInterface> table(Id::random());
+  TestTable<CRTableInterface> table;
   table.init();
   std::shared_ptr<Revision> structure = table.getTemplate();
   ASSERT_TRUE(static_cast<bool>(structure));
-  EXPECT_EQ(structure->fieldqueries_size(), 2u);
+  EXPECT_EQ(structure->fieldqueries_size(), 1u);
 }
 
 /**
@@ -32,7 +32,6 @@ TEST(TableInterFace, initEmpty) {
 template <typename FieldType>
 class FieldTestTable : public TestTable<CRTableInterface> {
  public:
-  FieldTestTable(const Id& owner) : TestTable(owner) {}
   virtual bool init() {
     setup("field_test_table");
     return true;
@@ -47,10 +46,6 @@ class FieldTestTable : public TestTable<CRTableInterface> {
 template <typename FieldType>
 class InsertReadFieldTestTable : public FieldTestTable<FieldType> {
  public:
-  InsertReadFieldTestTable(const Id& owner)
-      : FieldTestTable<FieldType>(owner) {
-  }
-
   bool insertQuery(const Revision& query) {
     return this->rawInsertQuery(query);
   }
@@ -163,7 +158,7 @@ template <typename TestedType>
 class FieldTestWithoutInit : public FieldTest<TestedType> {
  protected:
   virtual void SetUp() {
-    this->table_.reset(new InsertReadFieldTestTable<TestedType>(Id::random()));
+    this->table_.reset(new InsertReadFieldTestTable<TestedType>);
   }
 
   std::shared_ptr<Revision> getTemplate() {
@@ -175,7 +170,7 @@ class FieldTestWithoutInit : public FieldTest<TestedType> {
     getTemplate();
     Id inserted = Id::random();
     to_insert_->set("ID", inserted);
-    to_insert_->set("owner", Id::random());
+    // to_insert_->set("owner", Id::random()); TODO(tcies) later, from core
     to_insert_->set("test_field", this->sample_data_1());
     return inserted;
   }
@@ -193,7 +188,7 @@ class FieldTestWithInit : public FieldTestWithoutInit<TestedType> {
  protected:
   virtual void SetUp() {
     MapApiCore::getInstance().purgeDb();
-    this->table_.reset(new InsertReadFieldTestTable<TestedType>(Id::random()));
+    this->table_.reset(new InsertReadFieldTestTable<TestedType>);
     this->table_->init();
   }
 };
@@ -210,7 +205,7 @@ TYPED_TEST_CASE(FieldTestWithoutInit, MyTypes);
 TYPED_TEST_CASE(FieldTestWithInit, MyTypes);
 
 TYPED_TEST(FieldTestWithInit, Init) {
-  EXPECT_EQ(this->getTemplate()->fieldqueries_size(), 3u);
+  EXPECT_EQ(this->getTemplate()->fieldqueries_size(), 2u);
 }
 
 TYPED_TEST(FieldTestWithoutInit, CreateBeforeInit) {

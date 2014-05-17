@@ -17,23 +17,12 @@ namespace map_api {
 
 class CRTableInterface : public proto::TableDescriptor {
  public:
-  /**
-   * Constructor does not throw, just sets owner
-   */
-  CRTableInterface(const Id& owner);
   virtual ~CRTableInterface();
   /**
    * Init routine, must be implemented by derived class, defines table name.
-   * TODO(tcies) enforce? isInitialized?
+   * TODO(tcies) enforce? isInitialized? -> virtual inline string tableName = 0
    */
   virtual bool init() = 0;
-
-  /**
-   * TODO(tcies) might drop notion of owner for write-only tables - it's
-   * probably not really absolutely required, unlike in updatable tables, where
-   * it's needed to lock.
-   */
-  const Id& getOwner() const;
 
   bool isInitialized() const;
 
@@ -179,8 +168,7 @@ class CRTableInterface : public proto::TableDescriptor {
    */
   bool createQuery();
 
-  Id owner_;
-  bool initialized_;
+  bool initialized_ = false;
 };
 
 std::ostream& operator<< (std::ostream& stream, const

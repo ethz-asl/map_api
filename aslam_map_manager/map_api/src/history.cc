@@ -2,8 +2,7 @@
 
 namespace map_api {
 
-History::History(const std::string& tableName, const Id& owner) :
-            CRTableInterface(owner), tableName_(tableName) {}
+History::History(const std::string& tableName) : tableName_(tableName) {}
 
 bool History::init(){
   return setup(tableName_ + "_history");
@@ -25,7 +24,7 @@ const {
   }
   std::shared_ptr<Revision> query = getTemplate();
   query->set("ID", Id::random());
-  query->set("owner", owner_);
+  // query->set("owner", owner_); TODO(tcies) later, fetch from core
   query->set("previous", previous);
   query->set("revision", revision);
   query->set("time", Time());
