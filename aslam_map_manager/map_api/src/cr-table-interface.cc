@@ -1,10 +1,3 @@
-/*
- * write-only-table-interface.cc
- *
- *  Created on: Apr 4, 2014
- *      Author: titus
- */
-
 #include <map-api/cru-table-interface.h>
 
 #include <cstdio>
@@ -23,13 +16,13 @@
 
 namespace map_api {
 
-CRTableInterface::CRTableInterface(const Hash& owner) : owner_(owner) {}
+CRTableInterface::~CRTableInterface() {}
 
-const Hash& CRTableInterface::getOwner() const{
-  return owner_;
+bool CRTableInterface::isInitialized() const{
+  return initialized_;
 }
 
-bool CRTableInterface::addField(const std::string& name,
+void CRTableInterface::addField(const std::string& name,
                                 proto::TableFieldDescriptor_Type type){
   // make sure the field has not been defined yet
   for (int i=0; i<fields_size(); ++i){
@@ -42,7 +35,6 @@ bool CRTableInterface::addField(const std::string& name,
   proto::TableFieldDescriptor *field = add_fields();
   field->set_name(name);
   field->set_type(type);
-  return true;
 }
 
 bool CRTableInterface::setup(const std::string& name){
@@ -51,8 +43,9 @@ bool CRTableInterface::setup(const std::string& name){
   set_name(name);
   // Define table fields
   // enforced fields id (hash) and owner
-  addField<Hash>("ID");
-  addField<Hash>("owner");
+  addField<Id>("ID");
+  // addField<Id>("owner"); TODO(tcies) later, when owner will be used for
+  // synchronization accross the network, or for its POC
   // transaction-enforced fields TODO(tcies) later
   // std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
   // transactionFields(Transaction::requiredTableFields());
@@ -64,12 +57,14 @@ bool CRTableInterface::setup(const std::string& name){
   define();
 
   // connect to database & create table
-  // TODO(tcies) register in master table
   session_ = MapApiCore::getInstance().getSession();
   createQuery();
 
   // Sync with cluster TODO(tcies)
-  // sync();
+  if (!sync()){
+    return false;
+  }
+  initialized_ = true;
   return true;
 }
 
@@ -80,10 +75,14 @@ std::shared_ptr<Revision> CRTableInterface::getTemplate() const{
   // add own name
   ret->set_table(name());
   // add editable fields
-  for (int i=0; i<this->fields_size(); ++i){
-    *(ret->add_fieldqueries()->mutable_nametype()) = this->fields(i);
+  for (int i = 0; i < fields_size(); ++i){
+    ret->addField(fields(i));
   }
   return ret;
+}
+
+bool CRTableInterface::sync() {
+  return MapApiCore::getInstance().syncTableDefinition(*this);
 }
 
 bool CRTableInterface::createQuery(){
@@ -127,8 +126,9 @@ bool CRTableInterface::createQuery(){
   return true;
 }
 
-bool CRTableInterface::rawInsertQuery(const Revision& query){
+bool CRTableInterface::rawInsertQuery(const Revision& query) const{
   // TODO(tcies) verify schema
+  // TODO(tcies) verify mandatory fields
 
   // Bag for blobs that need to stay in scope until statement is executed
   std::vector<std::shared_ptr<Poco::Data::BLOB> > placeholderBlobs;
@@ -157,100 +157,139 @@ bool CRTableInterface::rawInsertQuery(const Revision& query){
   try {
     stat.execute();
   } catch(const std::exception &e){
-    LOG(FATAL) << "Insert failed with exception " << e.what();
+    LOG(ERROR) << "Insert failed with exception " << e.what();
+    return false;
   }
 
   return true;
 }
 
 std::shared_ptr<Revision> CRTableInterface::rawGetRow(
-    const map_api::Hash &id) const{
-  std::shared_ptr<Revision> query = getTemplate();
-  Poco::Data::Statement stat(*session_);
-  stat << "SELECT ";
+    const Id &id) const{
+  return rawFindUnique("ID", id);
+}
 
-  // because protobuf won't supply mutable pointers to numeric values, we can't
-  // pass them as reference to the into() binding of Poco::Data; they have to
-  // be assigned a posteriori - this is done through this map
-  std::map<std::string, double> doublePostApply;
-  std::map<std::string, int32_t> intPostApply;
-  std::map<std::string, int64_t> longPostApply;
-  std::map<std::string, Poco::Data::BLOB> blobPostApply;
+// TODO(tcies) test
+int CRTableInterface::rawFindByRevision(
+    const std::string& key, const Revision& valueHolder,
+    std::vector<std::shared_ptr<Revision> >* dest) const {
+  PocoToProto pocoToProto(*this);
+  Poco::Data::Statement statement(*session_);
+  statement << "SELECT";
+  pocoToProto.into(statement);
+  statement << "FROM " << name();
+  if (key != ""){
+    statement << " WHERE " << key << " LIKE ";
+    valueHolder.insertPlaceHolder(key, statement);
+  }
+  try{
+    statement.execute();
+  } catch (const std::exception& e){
+    LOG(FATAL) << "Find statement failed: " << statement.toString() <<
+        " with exception " << e.what();
+  }
+  return pocoToProto.toProto(dest);
+}
 
-  for (int i=0; i<query->fieldqueries_size(); ++i){
-    if (i>0){
-      stat << ", ";
+// although this is very similar to rawGetRow(), I don't see how to share the
+// features without loss of performance TODO(discuss)
+void CRTableInterface::rawDump(std::vector<std::shared_ptr<Revision> >* dest)
+const{
+  std::shared_ptr<Revision> valueHolder = getTemplate();
+  rawFindByRevision("", *valueHolder , dest);
+}
+
+CRTableInterface::PocoToProto::PocoToProto(
+    const CRTableInterface& table) :
+                table_(table) {}
+
+void CRTableInterface::PocoToProto::into(Poco::Data::Statement& statement) {
+  statement << " ";
+  std::shared_ptr<Revision> dummy = table_.getTemplate();
+  for (int i = 0; i < dummy->fieldqueries_size(); ++i) {
+    if (i > 0) {
+      statement << ", ";
     }
-    proto::TableField& field = *query->mutable_fieldqueries(i);
-    stat << field.nametype().name();
-    // TODO(simon) do you see a reasonable way to move this to TableField?
+    const proto::TableField& field = dummy->fieldqueries(i);
+    statement << field.nametype().name();
     switch(field.nametype().type()){
       case (proto::TableFieldDescriptor_Type_BLOB):{
-        stat, Poco::Data::into(blobPostApply[field.nametype().name()]);
+        statement, Poco::Data::into(blobs_[field.nametype().name()]);
         break;
       }
       case (proto::TableFieldDescriptor_Type_DOUBLE):{
-        stat, Poco::Data::into(doublePostApply[field.nametype().name()]);
+        statement, Poco::Data::into(doubles_[field.nametype().name()]);
         break;
       }
       case (proto::TableFieldDescriptor_Type_INT32):{
-        stat, Poco::Data::into(intPostApply[field.nametype().name()]);
+        statement, Poco::Data::into(ints_[field.nametype().name()]);
         break;
       }
       case (proto::TableFieldDescriptor_Type_INT64):{
-        stat, Poco::Data::into(longPostApply[field.nametype().name()]);
+        statement, Poco::Data::into(longs_[field.nametype().name()]);
         break;
       }
-      case (proto::TableFieldDescriptor_Type_STRING): // Fallthrough intended
+      case (proto::TableFieldDescriptor_Type_STRING):{
+        statement, Poco::Data::into(strings_[field.nametype().name()]);
+        break;
+      }
       case (proto::TableFieldDescriptor_Type_HASH128):{
-        // default string value allows us to see whether a query failed by
-        // looking at the ID
-        stat, Poco::Data::into(*field.mutable_stringvalue(),
-                               std::string(""));
+        statement, Poco::Data::into(hashes_[field.nametype().name()]);
         break;
       }
       default:{
-        LOG(FATAL) << "Type of field supplied to select query unknown" <<
-            std::endl;
+        LOG(FATAL) << "Type of field supplied to select query unknown";
       }
     }
   }
+  statement << " ";
+}
 
-  stat << " FROM " << name() << " WHERE ID LIKE :id",
-      Poco::Data::use(id.getString());
+int CRTableInterface::PocoToProto::toProto(
+    std::vector<std::shared_ptr<Revision> >* dest) {
+  CHECK_NOTNULL(dest);
+  // reserve output size
+  CHECK(hashes_.find("ID") != hashes_.end());
+  dest->resize(hashes_["ID"].size());
 
-  try{
-    stat.execute();
-  } catch (const std::exception& e){
-    LOG(ERROR) << "Statement failed transaction: " << stat.toString();
-    return std::shared_ptr<Revision>();
+  // write values
+  for (size_t i = 0; i < dest->size(); ++i) {
+    (*dest)[i] = table_.getTemplate();
+    for (const std::pair<std::string, std::vector<double> >& fieldDouble :
+        doubles_){
+      (*dest)[i]->set(fieldDouble.first, fieldDouble.second[i]);
+    }
+    for (const std::pair<std::string, std::vector<int32_t> >& fieldInt :
+        ints_){
+      (*dest)[i]->set(fieldInt.first, fieldInt.second[i]);
+    }
+    for (const std::pair<std::string, std::vector<int64_t> >& fieldLong :
+        longs_){
+      (*dest)[i]->set(fieldLong.first, fieldLong.second[i]);
+    }
+    for (const std::pair<std::string, std::vector<Poco::Data::BLOB> >&
+        fieldBlob : blobs_){
+      (*dest)[i]->set(fieldBlob.first, fieldBlob.second[i]);
+    }
+    for (const std::pair<std::string, std::vector<std::string> >& fieldString :
+        strings_){
+      (*dest)[i]->set(fieldString.first, fieldString.second[i]);
+    }
+    for (const std::pair<std::string, std::vector<std::string> >& fieldHash :
+        hashes_){
+      Id value;
+      CHECK(value.fromHexString(fieldHash.second[i])) << "Can't parse id from "
+          << fieldHash.second[i];
+      (*dest)[i]->set(fieldHash.first, value);
+    }
   }
 
-  // indication of empty result
-  Hash test;
-  if (!query->get<Hash>("ID", &test)){
-    LOG(FATAL) << "Field ID seems to be absent";
-  }
-  if (test.getString() == ""){
-    return std::shared_ptr<Revision>();
-  }
+  return hashes_["ID"].size();
+}
 
-  // write values that couldn't be written directly
-  for (std::pair<std::string, double> fieldDouble : doublePostApply){
-    query->set(fieldDouble.first, fieldDouble.second);
-  }
-  for (std::pair<std::string, int32_t> fieldInt : intPostApply){
-    query->set(fieldInt.first, fieldInt.second);
-  }
-  for (std::pair<std::string, int64_t> fieldLong : longPostApply){
-    query->set(fieldLong.first, fieldLong.second);
-  }
-  for (const std::pair<std::string, Poco::Data::BLOB>& fieldBlob :
-      blobPostApply){
-    query->set(fieldBlob.first, fieldBlob.second);
-  }
-
-  return query;
+std::ostream& operator<< (std::ostream& stream,
+                          const CRTableInterface::ItemDebugInfo& info){
+  return stream << "For table " << info.table << ", item " << info.id << ": ";
 }
 
 } /* namespace map_api */

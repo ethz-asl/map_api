@@ -1,41 +1,32 @@
-/*
- * table-insert-query.cc
- *
- *  Created on: Mar 17, 2014
- *      Author: titus
- */
-
-#include <map-api/revision.h>
-#include <map-api/hash.h>
-#include <map-api/time.h>
-
 #include <Poco/Data/Common.h>
 #include <Poco/Data/BLOB.h>
+
+#include <map-api/id.h>
+#include <map-api/revision.h>
+#include <map-api/time.h>
 
 #include <glog/logging.h>
 
 namespace map_api {
 
-bool Revision::index() {
-  for (int i = 0; i < this->fieldqueries_size(); ++i){
-    fields_[this->fieldqueries(i).nametype().name()] =
-        i;
-  }
-  return true;
-}
-
 bool Revision::find(const std::string& name, proto::TableField** field){
-  fieldMap::iterator find = fields_.find(name);
-  // reindex if not found
-  if (find == fields_.end()){
-    index();
-    find = fields_.find(name);
-  }
+  FieldMap::iterator find = fields_.find(name);
   if (find == fields_.end()) {
     LOG(ERROR) << "Attempted to access inexistent field " << name;
     return false;
   }
   *field = mutable_fieldqueries(find->second);
+  return true;
+}
+
+bool Revision::find(const std::string& name, const proto::TableField** field)
+const{
+  FieldMap::const_iterator find = fields_.find(name);
+  if (find == fields_.end()) {
+    LOG(ERROR) << "Attempted to access inexistent field " << name;
+    return false;
+  }
+  *field = &fieldqueries(find->second);
   return true;
 }
 
@@ -82,6 +73,49 @@ std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(
   return blobPointer;
 }
 
+std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(
+    const std::string& field, Poco::Data::Statement& stat) const {
+  FieldMap::const_iterator fieldIt = fields_.find(field);
+  CHECK(fieldIt != fields_.end()) << "Attempted to access inexisting field " <<
+      field;
+  return insertPlaceHolder(fieldIt->second, stat);
+}
+
+void Revision::addField(const proto::TableFieldDescriptor& descriptor){
+  // add field
+  *add_fieldqueries()->mutable_nametype() = descriptor;
+  // add to index
+  fields_[descriptor.name()] = fieldqueries_size() - 1;
+}
+
+bool Revision::structureMatch(Revision& other){
+  if (fields_.size() != other.fields_.size()){
+    LOG(INFO) << "Field count does not match";
+    return false;
+  }
+  FieldMap::iterator leftIterator = fields_.begin(),
+      rightIterator = other.fields_.begin();
+  while (leftIterator != fields_.end()){
+    if (leftIterator->first != rightIterator->first){
+      LOG(INFO) << "Field name mismatch: " << leftIterator->first << " vs " <<
+          rightIterator->first;
+      return false;
+    }
+    ++leftIterator;
+    ++rightIterator;
+  }
+  return true;
+}
+
+bool Revision::ParseFromString(const std::string& data){
+  bool success = proto::Revision::ParseFromString(data);
+  CHECK(success) << "Parsing revision from string failed";
+  for (int i = 0; i < fieldqueries_size(); ++i){
+    fields_[fieldqueries(i).nametype().name()] = i;
+  }
+  return true;
+}
+
 /**
  * PROTOBUFENUM
  */
@@ -89,7 +123,7 @@ std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(
 REVISION_ENUM(std::string, proto::TableFieldDescriptor_Type_STRING)
 REVISION_ENUM(double, proto::TableFieldDescriptor_Type_DOUBLE)
 REVISION_ENUM(int32_t, proto::TableFieldDescriptor_Type_INT32)
-REVISION_ENUM(Hash, proto::TableFieldDescriptor_Type_HASH128)
+REVISION_ENUM(Id, proto::TableFieldDescriptor_Type_HASH128)
 REVISION_ENUM(int64_t, proto::TableFieldDescriptor_Type_INT64)
 REVISION_ENUM(Time, proto::TableFieldDescriptor_Type_INT64)
 REVISION_ENUM(Revision, proto::TableFieldDescriptor_Type_BLOB)
@@ -111,8 +145,8 @@ REVISION_SET(int32_t){
   field.set_intvalue(value);
   return true;
 }
-REVISION_SET(Hash){
-  field.set_stringvalue(value.getString());
+REVISION_SET(Id){
+  field.set_stringvalue(value.hexString());
   return true;
 }
 REVISION_SET(int64_t){
@@ -151,8 +185,11 @@ REVISION_GET(int32_t){
   *value = field.intvalue();
   return true;
 }
-REVISION_GET(Hash){
-  *value = map_api::Hash::cast(field.stringvalue());
+REVISION_GET(Id){
+  if (!value->fromHexString(field.stringvalue())){
+    LOG(ERROR) << "Failed to parse Hash id from string " << field.stringvalue();
+    return false;
+  }
   return true;
 }
 REVISION_GET(int64_t){

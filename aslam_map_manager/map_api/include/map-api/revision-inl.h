@@ -1,10 +1,3 @@
-/*
- * revision-inl.h
- *
- *  Created on: Apr 15, 2014
- *      Author: titus
- */
-
 #ifndef REVISION_INL_H_
 #define REVISION_INL_H_
 
@@ -12,17 +5,23 @@
 
 #include "map-api/revision.h"
 #include "map-api/time.h"
-#include "map-api/hash.h"
 
 namespace map_api {
+
+template<typename FieldType>
+void Revision::addField(const std::string& name) {
+  proto::TableFieldDescriptor descriptor;
+  descriptor.set_name(name);
+  descriptor.set_type(Revision::protobufEnum<FieldType>());
+  addField(descriptor);
+}
 
 template <typename FieldType>
 bool Revision::set(const std::string& fieldName, const FieldType& value){
   // 1. Check if field exists
   proto::TableField* field;
   if (!find(fieldName, &field)){
-    LOG(ERROR) << "Trying to set inexistent field " << fieldName;
-    return false;
+    LOG(FATAL) << "Trying to set inexistent field " << fieldName;
   }
   // 2. Check type
   CHECK_EQ(field->nametype().type(), Revision::protobufEnum<FieldType>()) <<
@@ -32,12 +31,11 @@ bool Revision::set(const std::string& fieldName, const FieldType& value){
 }
 
 template <typename FieldType>
-bool Revision::get(const std::string& fieldName, FieldType* value){
+bool Revision::get(const std::string& fieldName, FieldType* value) const {
   // 1. Check if field exists
-  proto::TableField* field;
+  const proto::TableField* field;
   if (!find(fieldName, &field)){
-    LOG(ERROR) << "Trying to get inexistent field " << fieldName;
-    return false;
+    LOG(FATAL) << "Trying to get inexistent field " << fieldName;
   }
   // 2. Check type
   CHECK_EQ(field->nametype().type(), Revision::protobufEnum<FieldType>()) <<

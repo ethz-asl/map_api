@@ -1,10 +1,3 @@
-/*
- * history.h
- *
- *  Created on: Apr 4, 2014
- *      Author: titus
- */
-
 #ifndef HISTORY_H_
 #define HISTORY_H_
 
@@ -13,13 +6,13 @@
 
 namespace map_api {
 
-class History : public CRTableInterface {
+class History final : public CRTableInterface {
  public:
   /**
    * Define the table of which the history is to be kept.
    * Will create a table with the name <tableName>_history.
    */
-  explicit History(const std::string& tableName, const Hash& owner);
+  explicit History(const std::string& tableName);
   /**
    * Takes the table name taken from constructor to set up table interface
    */
@@ -27,8 +20,8 @@ class History : public CRTableInterface {
   /**
    * Prepare a history item for insertion by transaction.
    */
-  std::shared_ptr<Revision> prepareForInsert(Revision& revision,
-                                             const Hash& previous);
+  std::shared_ptr<Revision> prepareForInsert(const Revision& revision,
+                                             const Id& previous) const;
 
  private:
   /**
@@ -50,7 +43,7 @@ class History : public CRTableInterface {
    * reference to any revision. If that revision is older than the supplied
    * time, it is the one that is returned.
    */
-  std::shared_ptr<Revision> revisionAt(const Hash& id,
+  std::shared_ptr<Revision> revisionAt(const Id& id,
                                        const Time& time);
 
   std::string tableName_;

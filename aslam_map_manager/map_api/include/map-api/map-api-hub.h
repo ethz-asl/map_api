@@ -1,10 +1,3 @@
-/*
- * map-api-hub.h
- *
- *  Created on: Mar 17, 2014
- *      Author: titus
- */
-
 #ifndef MAP_API_HUB_H_
 #define MAP_API_HUB_H_
 
@@ -16,7 +9,7 @@
 #include <condition_variable>
 #include <set>
 
-#include <zmq.hpp>
+#include <zeromq_cpp/zmq.hpp>
 #include <Poco/RWLock.h>
 
 namespace map_api {
@@ -24,7 +17,7 @@ namespace map_api {
 /**
  * Map Api Hub: Manages connections to other participating nodes
  */
-class MapApiHub {
+class MapApiHub final {
  public:
   /**
    * Get singleton instance of Map Api Hub

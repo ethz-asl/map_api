@@ -8,10 +8,10 @@
 #include <Poco/Data/Common.h>
 #include <gflags/gflags.h>
 
-#include "map-api/hash.h"
+#include "map-api/cr-table-interface.h"
 #include "map-api/history.h"
 #include "map-api/revision.h"
-#include "map-api/cr-table-interface.h"
+#include "map-api/time.h"
 #include "core.pb.h"
 
 namespace map_api {
@@ -21,8 +21,14 @@ namespace map_api {
  */
 class CRUTableInterface : public CRTableInterface{
  public:
-  explicit CRUTableInterface(const Hash& owner);
+  virtual ~CRUTableInterface();
   virtual bool init() = 0;
+  /**
+   * Overriding get template on order to get template of revision, not history
+   * bookkeeping.
+   */
+  std::shared_ptr<Revision> getTemplate() const;
+
  protected:
   /**
    * Overriding CR table setup in order to implement history.
@@ -45,7 +51,7 @@ class CRUTableInterface : public CRTableInterface{
    * householding the references to the history table.
    */
   template<typename Type>
-  bool addCRUField(const std::string& name);
+  void addCRUField(const std::string& name);
 
   std::unique_ptr<History> history_;
   proto::TableDescriptor descriptor_;
@@ -65,7 +71,14 @@ class CRUTableInterface : public CRTableInterface{
    * the parameter nextRevision is the hash to the revision the CRU table item
    * is supposed to be updated to.
    */
-  bool rawUpdateQuery(const Hash& id, const Hash& nextRevision);
+  bool rawUpdateQuery(const Id& id, const Id& nextRevision)
+  const;
+  /**
+   * Template for history bookkeeping
+   */
+  std::shared_ptr<Revision> getCRUTemplate() const;
+
+  bool rawLatestUpdate(const Id& id, Time* time) const;
 };
 
 }

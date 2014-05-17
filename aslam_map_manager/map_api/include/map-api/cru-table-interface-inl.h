@@ -1,10 +1,3 @@
-/*
- * cru-table-interface-inl.h
- *
- *  Created on: Apr 9, 2014
- *      Author: titus
- */
-
 #ifndef CRU_TABLE_INTERFACE_INL_H_
 #define CRU_TABLE_INTERFACE_INL_H_
 
@@ -16,8 +9,8 @@ bool CRUTableInterface::addField(const std::string& name) {
 }
 
 template<typename Type>
-bool CRUTableInterface::addCRUField(const std::string& name) {
-  return CRTableInterface::addField(name, Revision::protobufEnum<Type>());
+void CRUTableInterface::addCRUField(const std::string& name) {
+  CRTableInterface::addField(name, Revision::protobufEnum<Type>());
 }
 
 } // namespace map_api

@@ -1,49 +1,42 @@
-/*
- * history.cc
- *
- *  Created on: Apr 4, 2014
- *      Author: titus
- */
-
 #include <map-api/history.h>
 
 namespace map_api {
 
-History::History(const std::string& tableName, const Hash& owner) :
-            CRTableInterface(owner), tableName_(tableName) {}
+History::History(const std::string& tableName) : tableName_(tableName) {}
 
 bool History::init(){
   return setup(tableName_ + "_history");
 }
 
 bool History::define(){
-  addField<Hash>("rowId");
-  addField<Hash>("previous");
+  addField<Id>("previous");
   addField<Revision>("revision");
   addField<Time>("time");
   return true;
 }
 
-std::shared_ptr<Revision> History::prepareForInsert(Revision& revision,
-                                                    const Hash& previous){
-  std::shared_ptr<Revision> query = getTemplate();
-  Hash rowId;
-  if (!revision.get<Hash>("ID", &rowId)){
-    LOG(ERROR) << "revision doesn't seem to contain field ID, aborting";
+std::shared_ptr<Revision> History::prepareForInsert(const Revision& revision,
+                                                    const Id& previous)
+const {
+  if (!revision.has_table()){
+    LOG(ERROR) << "Trying to insert invalid revision into history";
     return std::shared_ptr<Revision>();
   }
-  query->set("rowId", rowId);
+  std::shared_ptr<Revision> query = getTemplate();
+  query->set("ID", Id::random());
+  // query->set("owner", owner_); TODO(tcies) later, fetch from core
   query->set("previous", previous);
   query->set("revision", revision);
   query->set("time", Time());
   return query;
 }
 
-std::shared_ptr<Revision> History::revisionAt(const Hash& id,
+std::shared_ptr<Revision> History::revisionAt(const Id& id,
                                               const Time& time){
   typedef std::shared_ptr<Revision> RevisionPtr;
   RevisionPtr revisionIterator = rawGetRow(id);
   if (!revisionIterator){
+    LOG(ERROR) << "Couldn't find id " << id << " in history table " << name();
     return RevisionPtr();
   }
   Time revisionTime;
@@ -52,14 +45,14 @@ std::shared_ptr<Revision> History::revisionAt(const Hash& id,
     return std::shared_ptr<Revision>();
   }
   while (revisionTime > time){
-    Hash previous;
-    if (!revisionIterator->get<Hash>("previous", &previous)){
+    Id previous;
+    if (!revisionIterator->get<Id>("previous", &previous)){
       LOG(ERROR) << "History entry doesn't have field previous!";
       return std::shared_ptr<Revision>();
     }
     revisionIterator = rawGetRow(previous);
     if (!revisionIterator){
-      LOG(ERROR) << "Failed to get previous revision " << previous.getString();
+      LOG(ERROR) << "Failed to get previous revision " << previous.hexString();
       return RevisionPtr();
     }
     if (!revisionIterator->get<Time>("time", &revisionTime)){

@@ -1,9 +1,3 @@
-/*
- * table_interface_test.cpp
- *
- *  Created on: Mar 31, 2014
- *      Author: titus
- */
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
@@ -11,20 +5,22 @@
 #include <Poco/Data/BLOB.h>
 #include <Poco/Data/Statement.h>
 
-#include <map-api/cru-table-interface.h>
-#include <map-api/hash.h>
-#include <map-api/time.h>
+#include "map-api/cru-table-interface.h"
+#include "map-api/id.h"
+#include "map-api/map-api-core.h"
+#include "map-api/time.h"
+#include "map-api/transaction.h"
 
 #include "test_table.cpp"
 
 using namespace map_api;
 
-TEST(TableInterFace, initEmpty){
-  TestTable table(Hash::randomHash());
+TEST(TableInterFace, initEmpty) {
+  TestTable<CRTableInterface> table;
   table.init();
-  std::shared_ptr<Revision> structure = table.templateForward();
+  std::shared_ptr<Revision> structure = table.getTemplate();
   ASSERT_TRUE(static_cast<bool>(structure));
-  EXPECT_EQ(structure->fieldqueries_size(), 3);
+  EXPECT_EQ(structure->fieldqueries_size(), 1u);
 }
 
 /**
@@ -34,22 +30,24 @@ TEST(TableInterFace, initEmpty){
  */
 
 template <typename FieldType>
-class FieldTestTable : public TestTable{
+class FieldTestTable : public TestTable<CRTableInterface> {
  public:
-  FieldTestTable(const Hash& owner) : TestTable(owner) {}
-  virtual bool init(){
+  virtual bool init() {
     setup("field_test_table");
     return true;
   }
-  std::shared_ptr<Revision> prepareInsert(const FieldType& value){
-    std::shared_ptr<Revision> query = getTemplate();
-    query->set("test_field",value);
-    return query;
-  }
  protected:
-  virtual bool define(){
+  virtual bool define() {
     addField<FieldType>("test_field");
     return true;
+  }
+};
+
+template <typename FieldType>
+class InsertReadFieldTestTable : public FieldTestTable<FieldType> {
+ public:
+  bool insertQuery(const Revision& query) {
+    return this->rawInsertQuery(query);
   }
 };
 
@@ -60,7 +58,7 @@ class FieldTestTable : public TestTable{
  **************************************
  */
 template <typename TestedType>
-class FieldTest : public ::testing::Test{
+class FieldTest : public ::testing::Test {
  protected:
   /**
    * Sample data for tests. MUST BE NON-DEFAULT!
@@ -70,69 +68,73 @@ class FieldTest : public ::testing::Test{
 };
 
 template <>
-class FieldTest<std::string> : public ::testing::Test{
+class FieldTest<std::string> : public ::testing::Test {
  protected:
-  std::string sample_data_1(){
+  std::string sample_data_1() {
     return "Test_string_1";
   }
-  std::string sample_data_2(){
+  std::string sample_data_2() {
     return "Test_string_2";
   }
 };
 template <>
-class FieldTest<double> : public ::testing::Test{
+class FieldTest<double> : public ::testing::Test {
  protected:
-  double sample_data_1(){
+  double sample_data_1() {
     return 3.14;
   }
-  double sample_data_2(){
+  double sample_data_2() {
     return -3.14;
   }
 };
 template <>
-class FieldTest<int32_t> : public ::testing::Test{
+class FieldTest<int32_t> : public ::testing::Test {
  protected:
-  int32_t sample_data_1(){
+  int32_t sample_data_1() {
     return 42;
   }
-  int32_t sample_data_2(){
+  int32_t sample_data_2() {
     return -42;
   }
 };
 template <>
-class FieldTest<map_api::Hash> : public ::testing::Test{
+class FieldTest<map_api::Id> : public ::testing::Test {
  protected:
-  map_api::Hash sample_data_1(){
-    return map_api::Hash("One hash");
+  map_api::Id sample_data_1() {
+    map_api::Id id;
+    id.fromHexString("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    return id;
   }
-  map_api::Hash sample_data_2(){
-    return map_api::Hash("Another hash");
+  map_api::Id sample_data_2() {
+    map_api::Id id;
+    id.fromHexString("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+    return id;
   }
 };
 template <>
-class FieldTest<int64_t> : public ::testing::Test{
+class FieldTest<int64_t> : public ::testing::Test {
  protected:
-  int64_t sample_data_1(){
+  int64_t sample_data_1() {
     return 9223372036854775807;
   }
-  int64_t sample_data_2(){
+  int64_t sample_data_2() {
     return -9223372036854775807;
   }
 };
 template <>
-class FieldTest<map_api::Time> : public ::testing::Test{
+class FieldTest<map_api::Time> : public ::testing::Test {
  protected:
-  Time sample_data_1(){
+  Time sample_data_1() {
     return Time(9223372036854775807);
   }
-  Time sample_data_2(){
+  Time sample_data_2() {
     return Time(9223372036854775);
   }
 };
 template <>
-class FieldTest<testBlob> : public ::testing::Test{
+class FieldTest<testBlob> : public ::testing::Test {
  protected:
-  testBlob sample_data_1(){
+  testBlob sample_data_1() {
     testBlob field;
     *field.mutable_nametype() = map_api::proto::TableFieldDescriptor();
     field.mutable_nametype()->set_name("A name");
@@ -141,7 +143,7 @@ class FieldTest<testBlob> : public ::testing::Test{
     field.set_doublevalue(3);
     return field;
   }
-  testBlob sample_data_2(){
+  testBlob sample_data_2() {
     testBlob field;
     *field.mutable_nametype() = map_api::proto::TableFieldDescriptor();
     field.mutable_nametype()->set_name("Another name");
@@ -152,6 +154,45 @@ class FieldTest<testBlob> : public ::testing::Test{
   }
 };
 
+template <typename TestedType>
+class FieldTestWithoutInit : public FieldTest<TestedType> {
+ protected:
+  virtual void SetUp() {
+    this->table_.reset(new InsertReadFieldTestTable<TestedType>);
+  }
+
+  std::shared_ptr<Revision> getTemplate() {
+    to_insert_ = this->table_->getTemplate();
+    return to_insert_;
+  }
+
+  Id fillRevision() {
+    getTemplate();
+    Id inserted = Id::random();
+    to_insert_->set("ID", inserted);
+    // to_insert_->set("owner", Id::random()); TODO(tcies) later, from core
+    to_insert_->set("test_field", this->sample_data_1());
+    return inserted;
+  }
+
+  bool insertRevision() {
+    return this->table_->insertQuery(*to_insert_);
+  }
+
+  std::shared_ptr<InsertReadFieldTestTable<TestedType> > table_;
+  std::shared_ptr<Revision> to_insert_;
+};
+
+template <typename TestedType>
+class FieldTestWithInit : public FieldTestWithoutInit<TestedType> {
+ protected:
+  virtual void SetUp() {
+    MapApiCore::getInstance().purgeDb();
+    this->table_.reset(new InsertReadFieldTestTable<TestedType>);
+    this->table_->init();
+  }
+};
+
 /**
  *************************
  * TYPED TABLE FIELD TESTS
@@ -159,74 +200,70 @@ class FieldTest<testBlob> : public ::testing::Test{
  */
 
 typedef ::testing::Types<testBlob, std::string, int32_t, double,
-    map_api::Hash, int64_t, map_api::Time> MyTypes;
-TYPED_TEST_CASE(FieldTest, MyTypes);
+    map_api::Id, int64_t, map_api::Time> MyTypes;
+TYPED_TEST_CASE(FieldTestWithoutInit, MyTypes);
+TYPED_TEST_CASE(FieldTestWithInit, MyTypes);
 
-TYPED_TEST(FieldTest, Init){
-  Hash owner = Hash::randomHash();
-  FieldTestTable<TypeParam> table(owner);
-  table.init();
-  std::shared_ptr<Revision> structure = table.templateForward();
-  EXPECT_EQ(structure->fieldqueries_size(), 3);
-  table.cleanup();
+TYPED_TEST(FieldTestWithInit, Init) {
+  EXPECT_EQ(this->getTemplate()->fieldqueries_size(), 2u);
 }
 
-/**
- * TODO(tcies) outdated with transaction-centricity, needs update
- *
-TYPED_TEST(FieldTest, CreateBeforeInit){
-  FieldTestTable<TypeParam> table;
-  EXPECT_DEATH(table.insert(this->sample_data_1()),"^");
+TYPED_TEST(FieldTestWithoutInit, CreateBeforeInit) {
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  EXPECT_DEATH(this->fillRevision(),"^");
 }
 
-TYPED_TEST(FieldTest, ReadBeforeInit){
-  FieldTestTable<TypeParam> table;
-  TypeParam value;
-  EXPECT_DEATH(table.get(Hash("Give me any hash"), value),"^");
+TYPED_TEST(FieldTestWithoutInit, ReadBeforeInit) {
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  EXPECT_DEATH(this->table_->rawGetRow(Id::random()), "^");
 }
 
-TYPED_TEST(FieldTest, CreateRead){
-  FieldTestTable<TypeParam> table;
-  table.init();
-  Hash createTest = table.insert(this->sample_data_1());
-  EXPECT_EQ(table.getOwner(), table.owner(createTest));
-  TypeParam readValue;
-  EXPECT_TRUE(table.get(createTest, readValue));
-  EXPECT_EQ(readValue, this->sample_data_1());
-  table.cleanup();
+TYPED_TEST(FieldTestWithInit, CreateRead) {
+  Id inserted = this->fillRevision();
+  EXPECT_TRUE(this->insertRevision());
+
+  std::shared_ptr<Revision> rowFromTable = this->table_->rawGetRow(inserted);
+  EXPECT_TRUE(static_cast<bool>(rowFromTable));
+  TypeParam dataFromTable;
+  rowFromTable->get("test_field", &dataFromTable);
+  EXPECT_EQ(dataFromTable, this->sample_data_1());
 }
 
-TYPED_TEST(FieldTest, CreateTwice){
-  FieldTestTable<TypeParam> table;
-  table.init();
-  table.insert(this->sample_data_1());
-  EXPECT_DEATH(table.insert(this->sample_data_1()),"^");
+TYPED_TEST(FieldTestWithInit, ReadInexistentRow) {
+  this->fillRevision();
+  EXPECT_TRUE(this->insertRevision());
+
+  Id other_id = Id::random();
+  EXPECT_FALSE(this->table_->rawGetRow(other_id));
 }
 
-TYPED_TEST(FieldTest, ReadInexistent){
-  FieldTestTable<TypeParam> table;
-  table.init();
-  TypeParam value;
-  EXPECT_FALSE(table.get(Hash("Give me any hash"), value));
-  table.cleanup();
+TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  Id inserted = this->fillRevision();
+  EXPECT_TRUE(this->insertRevision());
+
+  std::shared_ptr<Revision> rowFromTable = this->table_->rawGetRow(inserted);
+  EXPECT_TRUE(static_cast<bool>(rowFromTable));
+  TypeParam dataFromTable;
+  EXPECT_DEATH(rowFromTable->get("some_other_field", &dataFromTable), "^");
 }
 
-TYPED_TEST(FieldTest, UpdateBeforeInit){
-  FieldTestTable<TypeParam> table;
-  EXPECT_DEATH(table.update(Hash("Give me any hash"),
-                            this->sample_data_1()),"^");
-}
-
-TYPED_TEST(FieldTest, UpdateRead){
-  FieldTestTable<TypeParam> table;
-  table.init();
-  TypeParam readValue;
-  Hash updateTest = table.insert(this->sample_data_1());
-  EXPECT_TRUE(table.get(updateTest, readValue));
-  EXPECT_EQ(readValue, this->sample_data_1());
-  EXPECT_TRUE(table.update(updateTest, this->sample_data_2()));
-  EXPECT_TRUE(table.get(updateTest, readValue));
-  EXPECT_EQ(readValue, this->sample_data_2());
-  table.cleanup();
-}
-*/
+// TODO(tcies) do something with these below
+//TYPED_TEST(FieldTest, UpdateBeforeInit){
+//  FieldTestTable<TypeParam> table;
+//  EXPECT_DEATH(table.update(Hash("Give me any hash"),
+//                            this->sample_data_1()),"^");
+//}
+//
+//TYPED_TEST(FieldTest, UpdateRead){
+//  FieldTestTable<TypeParam> table;
+//  table.init();
+//  TypeParam readValue;
+//  Hash updateTest = table.insert(this->sample_data_1());
+//  EXPECT_TRUE(table.get(updateTest, readValue));
+//  EXPECT_EQ(readValue, this->sample_data_1());
+//  EXPECT_TRUE(table.update(updateTest, this->sample_data_2()));
+//  EXPECT_TRUE(table.get(updateTest, readValue));
+//  EXPECT_EQ(readValue, this->sample_data_2());
+//  table.cleanup();
+//}

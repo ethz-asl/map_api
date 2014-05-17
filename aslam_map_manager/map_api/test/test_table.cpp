@@ -1,37 +1,32 @@
-/*
- * test_table.cpp
- *
- *  Created on: Apr 14, 2014
- *      Author: titus
- */
+#include <map-api/cru-table-interface.h>
+#include <glog/logging.h>
 
 /**
  * A test table revealing some more internals than a typical table, such as
  * template, database session and cleanup.
  */
-#include <map-api/cru-table-interface.h>
-#include <glog/logging.h>
-
-class TestTable : public map_api::CRUTableInterface {
+template <typename TableInterfaceType>
+class TestTable : public TableInterfaceType {
  public:
-  TestTable(map_api::Hash owner) : map_api::CRUTableInterface(owner) {}
+  ~TestTable() {}
   virtual bool init(){
-    setup("test_table");
+    this->setup("test_table");
     return true;
   }
-  std::shared_ptr<map_api::Revision> templateForward() const{
-    return getTemplate();
-  }
   std::shared_ptr<Poco::Data::Session> sessionForward(){
-    return std::shared_ptr<Poco::Data::Session>(session_);
+    return std::shared_ptr<Poco::Data::Session>(this->session_);
   }
   void cleanup(){
-    *(sessionForward()) << "DROP TABLE IF EXISTS " << name(),
+    *(sessionForward()) << "DROP TABLE IF EXISTS " << this->name(),
         Poco::Data::now;
-    LOG(INFO) << "Table " << name() << " dropped";
+    LOG(INFO) << "Table " << this->name() << " dropped";
   }
  protected:
   virtual bool define(){
     return true;
   }
+
+ public:
+  using TableInterfaceType::rawInsertQuery;
+  using TableInterfaceType::rawGetRow;
 };

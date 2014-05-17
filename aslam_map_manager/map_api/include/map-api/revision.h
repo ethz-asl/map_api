@@ -1,10 +1,3 @@
-/*
- * table-insert-query.h
- *
- *  Created on: Mar 17, 2014
- *      Author: titus
- */
-
 #ifndef REVISION_H_
 #define REVISION_H_
 
@@ -18,7 +11,7 @@
 
 namespace map_api {
 
-class Revision : public proto::Revision {
+class Revision final : public proto::Revision {
  public:
   /**
    * Insert placeholder in SQLite insert statements. Returns blob shared pointer
@@ -26,6 +19,9 @@ class Revision : public proto::Revision {
    */
   std::shared_ptr<Poco::Data::BLOB>
   insertPlaceHolder(int field, Poco::Data::Statement& stat) const;
+  std::shared_ptr<Poco::Data::BLOB>
+  insertPlaceHolder(const std::string& field,
+                    Poco::Data::Statement& stat) const;
 
   /**
    * Gets protocol buffer enum for type
@@ -43,29 +39,51 @@ class Revision : public proto::Revision {
 }
 
   /**
+   * Overriding adding field in order to impose indexing
+   */
+  void addField(const proto::TableFieldDescriptor& descriptor);
+  template<typename FieldType>
+  void addField(const std::string& name);
+
+  /**
    * Sets field according to type.
    */
   template <typename FieldType>
   bool set(const std::string& fieldName, const FieldType& value);
 
   /**
-   * Gets field according to type. Non-const because field lookup might lead
-   * to re-indexing the map.
+   * Gets field according to type.
    */
   template <typename FieldType>
-  bool get(const std::string& fieldName, FieldType* value);
+  bool get(const std::string& fieldName, FieldType* value) const;
+
+  /**
+   * Returns true if Revision contains same fields as other
+   */
+  bool structureMatch(Revision& other);
+
+  /**
+   * Overriding parsing from string in order to add indexing.
+   */
+  bool ParseFromString(const std::string& data);
 
  private:
   /**
+   * Making mutable_fieldqueries private forces use of addField(), which leads
+   * to properly indexed data. We couldn't just override mutable_fieldqueries
+   * as we need to know the name of the field at index time.
+   */
+  using proto::Revision::mutable_fieldqueries;
+  /**
    * A map of fields for more intuitive access.
    */
-  typedef std::map<std::string, int> fieldMap;
-  fieldMap fields_;
-  bool index();
+  typedef std::map<std::string, int> FieldMap;
+  FieldMap fields_;
   /**
-   * Access to the map. Non-const because might need to reindex.
+   * Access to the map.
    */
   bool find(const std::string& name, proto::TableField** field);
+  bool find(const std::string& name, const proto::TableField** field) const;
   /**
    * Sets field according to type.
    */
@@ -78,19 +96,43 @@ class Revision : public proto::Revision {
     template <> \
     bool Revision::set<TYPE>(proto::TableField& field, const TYPE& value)
   /**
-   * Gets field according to type. Non-const because field lookup might lead
-   * to re-indexing the map.
+   * Gets field according to type.
    */
   template <typename FieldType>
-  bool get(proto::TableField& field, FieldType* value);
+  bool get(const proto::TableField& field, FieldType* value) const;
   /**
    * Supporting macro
    */
 #define REVISION_GET(TYPE) \
     template <> \
-    bool Revision::get<TYPE>(proto::TableField& field, TYPE* value)
+    bool Revision::get<TYPE>(const proto::TableField& field, TYPE* value) const
 
 };
+
+/**
+ * One Macro to define REVISION_ENUM, _SET and _GET for Protobuf objects
+ */
+#define REVISION_PROTOBUF(TYPE) \
+    REVISION_ENUM(TYPE, proto::TableFieldDescriptor_Type_BLOB) \
+    \
+    REVISION_SET(TYPE){ \
+  field.set_blobvalue(value.SerializeAsString()); \
+  return true; \
+} \
+\
+REVISION_GET(TYPE){ \
+  bool parsed = value->ParseFromString(field.blobvalue()); \
+  if (!parsed) { \
+    LOG(ERROR) << "Failed to parse " << #TYPE; \
+    return false; \
+  } \
+  return true; \
+} \
+extern void __FILE__ ## __LINE__(void)
+// in order to swallow the semicolon
+// http://gcc.gnu.org/onlinedocs/cpp/Swallowing-the-Semicolon.html
+// http://stackoverflow.com/questions/18786848/macro-that-swallows-semicolon-out
+// side-of-function
 
 /**
  * A generic, blob-y field type for testing blob insertion

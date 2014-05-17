@@ -6,7 +6,9 @@
 #include <Poco/Data/Common.h>
 
 #include "map-api/cru-table-interface.h"
+#include "map-api/id.h"
 #include "map-api/map-api-hub.h"
+#include "map-api/metatable.h"
 #include "core.pb.h"
 
 namespace map_api {
@@ -17,7 +19,7 @@ namespace map_api {
  * - Ensure that only one instance of the database is created and used
  * - Ensure that only one thread is present to communicate with other nodes
  */
-class MapApiCore {
+class MapApiCore final {
  public:
   /**
    * Get singleton instance of Map Api Core
@@ -25,13 +27,11 @@ class MapApiCore {
    */
   static MapApiCore& getInstance();
   /**
-   * Get the list of available tables
+   * Synchronizes table definition with peers
+   * by using standard table operations on the metatable
    */
-  std::shared_ptr<proto::TableList> getTables();
-  /**
-   * Get interface to given table by table name
-   */
-  std::shared_ptr<CRUTableInterface> getTable(const std::string &name);
+  bool syncTableDefinition(const proto::TableDescriptor& descriptor);
+  void purgeDb();
   /**
    * Initializer
    */
@@ -59,6 +59,14 @@ class MapApiCore {
   friend class CRUTableInterface;
   friend class Transaction;
   /**
+   * Initializes metatable if not initialized. Unfortunately, the metatable
+   * can't be initialized in init, as the initializer of metatable calls init
+   * indirectly itself, so there would be an endless recursion.
+   */
+  inline void ensureMetatable();
+
+  Id owner_;
+  /**
    * Session of local database
    */
   std::shared_ptr<Poco::Data::Session> dbSess_;
@@ -66,6 +74,8 @@ class MapApiCore {
    * Hub instance
    */
   MapApiHub &hub_;
+
+  std::unique_ptr<Metatable> metatable_;
   /**
    * initialized?
    */
