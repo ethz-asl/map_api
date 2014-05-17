@@ -17,7 +17,7 @@ namespace map_api {
 /**
  * Map Api Hub: Manages connections to other participating nodes
  */
-class MapApiHub {
+class MapApiHub final {
  public:
   /**
    * Get singleton instance of Map Api Hub

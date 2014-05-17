@@ -19,7 +19,7 @@ namespace map_api {
  * - Ensure that only one instance of the database is created and used
  * - Ensure that only one thread is present to communicate with other nodes
  */
-class MapApiCore {
+class MapApiCore final {
  public:
   /**
    * Get singleton instance of Map Api Core

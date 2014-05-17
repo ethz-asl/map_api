@@ -8,7 +8,6 @@
 template <typename TableInterfaceType>
 class TestTable : public TableInterfaceType {
  public:
-  TestTable(map_api::Id owner) : TableInterfaceType(owner) {}
   ~TestTable() {}
   virtual bool init(){
     this->setup("test_table");

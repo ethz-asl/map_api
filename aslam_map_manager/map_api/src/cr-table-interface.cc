@@ -16,14 +16,7 @@
 
 namespace map_api {
 
-CRTableInterface::CRTableInterface(const Id& owner) : owner_(owner),
-    initialized_(false) {}
-
 CRTableInterface::~CRTableInterface() {}
-
-const Id& CRTableInterface::getOwner() const{
-  return owner_;
-}
 
 bool CRTableInterface::isInitialized() const{
   return initialized_;
@@ -51,7 +44,8 @@ bool CRTableInterface::setup(const std::string& name){
   // Define table fields
   // enforced fields id (hash) and owner
   addField<Id>("ID");
-  addField<Id>("owner");
+  // addField<Id>("owner"); TODO(tcies) later, when owner will be used for
+  // synchronization accross the network, or for its POC
   // transaction-enforced fields TODO(tcies) later
   // std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
   // transactionFields(Transaction::requiredTableFields());
@@ -284,7 +278,8 @@ int CRTableInterface::PocoToProto::toProto(
     for (const std::pair<std::string, std::vector<std::string> >& fieldHash :
         hashes_){
       Id value;
-      CHECK(value.fromHexString(fieldHash.second[i]));
+      CHECK(value.fromHexString(fieldHash.second[i])) << "Can't parse id from "
+          << fieldHash.second[i];
       (*dest)[i]->set(fieldHash.first, value);
     }
   }

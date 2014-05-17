@@ -21,7 +21,6 @@ namespace map_api {
  */
 class CRUTableInterface : public CRTableInterface{
  public:
-  explicit CRUTableInterface(const Id& owner);
   virtual ~CRUTableInterface();
   virtual bool init() = 0;
   /**
