@@ -17,14 +17,31 @@ namespace map_api {
 
 class CRTableInterface : public proto::TableDescriptor {
  public:
-  virtual ~CRTableInterface();
   /**
-   * Init routine, must be implemented by derived class, defines table name.
-   * TODO(tcies) enforce? isInitialized? -> virtual inline string tableName = 0
+   * Init routine, may be overriden by derived classes, in particular
+   * CRUTableInterface. This function calls the pure virtual functions
+   * tableName() and define()
    */
-  virtual bool init() = 0;
+  virtual bool init();
 
   bool isInitialized() const;
+
+  /**
+   * ================================================
+   * FUNCTIONS TO BE IMPLEMENTED BY THE DERIVED CLASS
+   * ================================================
+   */
+  /**
+   * This table name will appear in the database, so it must be chosen SQL
+   * friendly: Letters and underscores only.
+   */
+  virtual const std::string tableName() = 0;
+  /**
+   * Function to be implemented by derivations: Define table by repeated
+   * calls to addField()
+   */
+  virtual bool define() = 0;
+  virtual ~CRTableInterface();
 
   /**
    * Returns a table row template TODO(tcies) cache, in setup()
@@ -42,16 +59,6 @@ class CRTableInterface : public proto::TableDescriptor {
   } ItemDebugInfo;
 
  protected:
-  /**
-   * Setup: Load table definition and match with table definition in
-   * cluster. TODO(tcies) name in constructor
-   */
-  bool setup(const std::string& name);
-  /**
-   * Function to be implemented by derivations: Define table by repeated
-   * calls to addField()
-   */
-  virtual bool define() = 0;
   /**
    * Function to be called at definition:  Adds field to table. This only calls
    * the other addField function with the proper enum, see implementation

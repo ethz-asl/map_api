@@ -18,7 +18,17 @@ namespace map_api {
 
 CRUTableInterface::~CRUTableInterface() {}
 
-bool CRUTableInterface::setup(const std::string &name){
+bool CRUTableInterface::init() {
+  const std::string name(tableName());
+  // @simonlynen: I intend to unite init a bit more yet, don't worry about this
+  // being duplicate TODO(tcies) unite more yet
+  // verify name is SQL friendly: For now very tight constraints:
+  for (const char& character : name) {
+    CHECK((character >= 'A' && character <= 'Z') ||
+          (character >= 'a' && character <= 'z') ||
+          (character == '_')) << "Desired table name \"" << name <<
+              "\" ill-suited for SQL database";
+  }
   // Define fields of content (that will be outsourced to history
   {
     // user will call addField in define, which has been overriden here to

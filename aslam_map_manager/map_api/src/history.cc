@@ -4,8 +4,8 @@ namespace map_api {
 
 History::History(const std::string& tableName) : tableName_(tableName) {}
 
-bool History::init(){
-  return setup(tableName_ + "_history");
+inline const std::string History::tableName(){
+  return tableName_ + "_history";
 }
 
 bool History::define(){

@@ -13,7 +13,7 @@ namespace map_api {
 class Metatable final : public CRTableInterface {
  public:
   virtual ~Metatable();
-  virtual bool init();
+  virtual inline const std::string tableName() override;
   virtual bool define();
  private:
   /**

@@ -9,9 +9,8 @@ template <typename TableInterfaceType>
 class TestTable : public TableInterfaceType {
  public:
   ~TestTable() {}
-  virtual bool init(){
-    this->setup("test_table");
-    return true;
+  virtual inline const std::string tableName() override {
+    return "test_table";
   }
   std::shared_ptr<Poco::Data::Session> sessionForward(){
     return std::shared_ptr<Poco::Data::Session>(this->session_);

@@ -37,9 +37,15 @@ void CRTableInterface::addField(const std::string& name,
   field->set_type(type);
 }
 
-bool CRTableInterface::setup(const std::string& name){
-  // TODO(tcies) Test before initialized or RAII
-  // TODO(tcies) check whether string safe for SQL, e.g. no hyphens
+bool CRTableInterface::init() {
+  const std::string name(tableName());
+  // verify name is SQL friendly: For now very tight constraints:
+  for (const char& character : name) {
+    CHECK((character >= 'A' && character <= 'Z') ||
+          (character >= 'a' && character <= 'z') ||
+          (character == '_')) << "Desired table name \"" << name <<
+              "\" ill-suited for SQL database";
+  }
   set_name(name);
   // Define table fields
   // enforced fields id (hash) and owner
