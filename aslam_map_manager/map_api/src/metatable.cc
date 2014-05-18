@@ -6,8 +6,8 @@ REVISION_PROTOBUF(proto::TableDescriptor);
 
 Metatable::~Metatable() {}
 
-bool Metatable::init() {
-  return setup("metatable");
+const std::string Metatable::tableName() const {
+  return "metatable";
 }
 
 bool Metatable::define() {

@@ -16,7 +16,7 @@ class History final : public CRTableInterface {
   /**
    * Takes the table name taken from constructor to set up table interface
    */
-  virtual bool init();
+  virtual const std::string tableName() const override;
   /**
    * Prepare a history item for insertion by transaction.
    */
