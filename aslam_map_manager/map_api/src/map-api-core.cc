@@ -35,7 +35,7 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
   // init metatable if not yet initialized TODO(tcies) better solution?
   ensureMetatable();
   // insert table definition if not exists
-  Transaction tryInsert(owner_);
+  Transaction tryInsert;
   tryInsert.begin();
   std::shared_ptr<Revision> attempt = metatable_->getTemplate();
   attempt->set("name", descriptor.name());
@@ -47,7 +47,7 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
     return true;
   }
   // if has existed, verify descriptors match
-  Transaction reader(owner_);
+  Transaction reader;
   reader.begin();
   std::shared_ptr<Revision> previous = reader.findUnique(*metatable_, "name",
                                                          descriptor.name());
@@ -62,7 +62,7 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
 void MapApiCore::purgeDb() {
   // the following is possible if no table has been initialized yet:
   ensureMetatable();
-  Transaction reader(owner_);
+  Transaction reader;
   reader.begin();
   std::vector<std::shared_ptr<Revision> > tables;
   reader.dumpTable<CRTableInterface>(*metatable_, &tables);
@@ -101,7 +101,7 @@ std::shared_ptr<Poco::Data::Session> MapApiCore::getSession(){
 
 inline void MapApiCore::ensureMetatable() {
   if (!metatable_){
-    metatable_ = std::unique_ptr<Metatable>(new Metatable(owner_));
+    metatable_ = std::unique_ptr<Metatable>(new Metatable);
     metatable_->init();
   }
 }

@@ -6,13 +6,13 @@
 
 namespace map_api {
 
-class History : public CRTableInterface {
+class History final : public CRTableInterface {
  public:
   /**
    * Define the table of which the history is to be kept.
    * Will create a table with the name <tableName>_history.
    */
-  explicit History(const std::string& tableName, const Id& owner);
+  explicit History(const std::string& tableName);
   /**
    * Takes the table name taken from constructor to set up table interface
    */

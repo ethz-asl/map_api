@@ -18,8 +18,6 @@ class Transaction {
  public:
   typedef std::shared_ptr<Revision> SharedRevisionPointer;
 
-  Transaction(const Id& owner);
-
   bool begin();
   bool commit();
   bool abort();
@@ -173,10 +171,9 @@ class Transaction {
   typedef std::vector<ConflictCondition> ConflictConditionVector;
   ConflictConditionVector conflictConditions_;
 
-  Id owner_;
   std::shared_ptr<Poco::Data::Session> session_;
-  bool active_;
-  bool aborted_;
+  bool active_ = false;
+  bool aborted_ = false;
   Time beginTime_;
 
   /**

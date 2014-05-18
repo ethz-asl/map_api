@@ -16,9 +16,6 @@
 
 namespace map_api {
 
-CRUTableInterface::CRUTableInterface(const Id& owner) :
-                CRTableInterface(owner), history_() {}
-
 CRUTableInterface::~CRUTableInterface() {}
 
 bool CRUTableInterface::setup(const std::string &name){
@@ -31,7 +28,7 @@ bool CRUTableInterface::setup(const std::string &name){
   // Define fields of the actual CRU table: Reference to latest history item.
   {
     addCRUField<Id>("ID");
-    addCRUField<Id>("owner");
+    // addCRUField<Id>("owner"); TODO(tcies) later
     addCRUField<Id>("latest_revision");
   }
   // Set table name TODO(tcies) string SQL-ready, e.g. no hyphens?
@@ -45,7 +42,7 @@ bool CRUTableInterface::setup(const std::string &name){
     LOG(ERROR) << "Failed to create table";
   }
   // initialize history table
-  history_ = std::unique_ptr<History>(new History(name, owner_));
+  history_ = std::unique_ptr<History>(new History(name));
   if (!history_->init()){
     LOG(ERROR) << "Failed to initialize history";
     return false;

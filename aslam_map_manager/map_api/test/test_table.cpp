@@ -1,14 +1,13 @@
+#include <map-api/cru-table-interface.h>
+#include <glog/logging.h>
+
 /**
  * A test table revealing some more internals than a typical table, such as
  * template, database session and cleanup.
  */
-#include <map-api/cru-table-interface.h>
-#include <glog/logging.h>
-
 template <typename TableInterfaceType>
 class TestTable : public TableInterfaceType {
  public:
-  TestTable(map_api::Id owner) : TableInterfaceType(owner) {}
   ~TestTable() {}
   virtual bool init(){
     this->setup("test_table");

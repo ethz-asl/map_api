@@ -11,7 +11,7 @@
 
 namespace map_api {
 
-class Revision : public proto::Revision {
+class Revision final : public proto::Revision {
  public:
   /**
    * Insert placeholder in SQLite insert statements. Returns blob shared pointer

@@ -13,10 +13,7 @@ using namespace map_api;
  * Fixture for simple transaction tests
  */
 class TransactionTest : public testing::Test {
- public:
-  TransactionTest() : owner_(Id::random()), transaction_(owner_) {}
  protected:
-  Id owner_;
   Transaction transaction_;
 };
 
@@ -25,7 +22,6 @@ class TransactionTest : public testing::Test {
  */
 class TransactionTestTable : public TestTable<CRUTableInterface> {
  public:
-  TransactionTestTable(const Id& owner) : TestTable(owner) {}
   std::shared_ptr<Revision> sample(double n){
     std::shared_ptr<Revision> revision = getTemplate();
     if (!revision->set(sampleField(), n)){
@@ -55,13 +51,13 @@ TEST_F(TransactionTest, BeginCommit){
 }
 
 TEST_F(TransactionTest, OperationsBeforeBegin){
-  TransactionTestTable table(owner_);
+  TransactionTestTable table;
   EXPECT_TRUE(table.init());
   std::shared_ptr<Revision> data = table.sample(6.626e-34);
   EXPECT_EQ(transaction_.insert<CRUTableInterface>(table, data), Id());
   // read and update should fail only because transaction hasn't started yet,
   // so we need to insert some data
-  Transaction valid(owner_);
+  Transaction valid;
   EXPECT_TRUE(valid.begin());
   Id inserted = valid.insert<CRUTableInterface>(table, data);
   EXPECT_NE(inserted, Id());
@@ -72,7 +68,7 @@ TEST_F(TransactionTest, OperationsBeforeBegin){
 }
 
 TEST_F(TransactionTest, InsertBeforeTableInit){
-  TransactionTestTable table(owner_);
+  TransactionTestTable table;
   EXPECT_TRUE(transaction_.begin());
   EXPECT_DEATH(transaction_.insert<CRUTableInterface>(table,
                                                       table.sample(3.14)), "^");
@@ -82,12 +78,11 @@ TEST_F(TransactionTest, InsertBeforeTableInit){
  * Fixture for transaction tests with a cru table
  */
 class TransactionCRUTest : public TransactionTest {
- public:
-  TransactionCRUTest() : TransactionTest(), table_(owner_) {
+ protected:
+  virtual void SetUp() {
     table_.init();
     transaction_.begin();
   }
- protected:
   virtual void TearDown() {
     transaction_.abort();
     table_.cleanup();
@@ -127,24 +122,22 @@ TEST_F(TransactionCRUTest, InsertUpdateReadBeforeCommit){
  */
 class MultiTransactionTest : public testing::Test {
  protected:
-  class Owner{
+  class Agent{
    public:
-    Owner() : id_(Id::random()), transactions_() {}
     Transaction& beginNewTransaction(){
-      transactions_.push_back(Transaction(id_));
+      transactions_.push_back(Transaction());
       Transaction& current_transaction = transactions_.back();
       current_transaction.begin();
       return current_transaction;
     }
    private:
-    Id id_;
     std::list<Transaction> transactions_;
   };
-  Owner& addOwner(){
-    owners_.push_back(Owner());
-    return owners_.back();
+  Agent& addAgent(){
+    agents_.push_back(Agent());
+    return agents_.back();
   }
-  std::list<Owner> owners_;
+  std::list<Agent> agents_;
 };
 
 /**
@@ -152,12 +145,10 @@ class MultiTransactionTest : public testing::Test {
  * TODO(tcies) multiple table interfaces (test definition sync)
  */
 class MultiTransactionSingleCRUTest : public MultiTransactionTest {
- public:
-  MultiTransactionSingleCRUTest() : MultiTransactionTest(),
-  table_(Id::random()) {
+ protected:
+  virtual void SetUp()  {
     table_.init();
   }
- protected:
   virtual void TearDown() {
     table_.cleanup();
   }
@@ -180,19 +171,19 @@ class MultiTransactionSingleCRUTest : public MultiTransactionTest {
 
 TEST_F(MultiTransactionSingleCRUTest, SerialInsertRead) {
   // Insert by a
-  Owner& a = addOwner();
+  Agent& a = addAgent();
   Transaction& at = a.beginNewTransaction();
   Id aId = insertSample(at, 3.14);
   EXPECT_NE(aId, Id());
   EXPECT_TRUE(at.commit());
   // Insert by b
-  Owner& b = addOwner();
+  Agent& b = addAgent();
   Transaction& bt = b.beginNewTransaction();
   Id bId = insertSample(bt, 42);
   EXPECT_NE(bId, Id());
   EXPECT_TRUE(bt.commit());
   // Check presence of samples in table
-  Owner& verifier = addOwner();
+  Agent& verifier = addAgent();
   Transaction& verification = verifier.beginNewTransaction();
   verify(verification, aId, 3.14);
   verify(verification, bId, 42);
@@ -200,7 +191,7 @@ TEST_F(MultiTransactionSingleCRUTest, SerialInsertRead) {
 }
 
 TEST_F(MultiTransactionSingleCRUTest, ParallelInsertRead) {
-  Owner& a = addOwner(), &b = addOwner();
+  Agent& a = addAgent(), &b = addAgent();
   Transaction& at = a.beginNewTransaction(), &bt = b.beginNewTransaction();
   Id aId = insertSample(at, 3.14), bId = insertSample(bt, 42);
   EXPECT_NE(aId, Id());
@@ -208,7 +199,7 @@ TEST_F(MultiTransactionSingleCRUTest, ParallelInsertRead) {
   EXPECT_TRUE(bt.commit());
   EXPECT_TRUE(at.commit());
   // Check presence of samples in table
-  Owner& verifier = addOwner();
+  Agent& verifier = addAgent();
   Transaction& verification = verifier.beginNewTransaction();
   verify(verification, aId, 3.14);
   verify(verification, bId, 42);
@@ -218,7 +209,7 @@ TEST_F(MultiTransactionSingleCRUTest, ParallelInsertRead) {
 TEST_F(MultiTransactionSingleCRUTest, UpdateRead) {
   // Insert item to be updated
   Id itemId;
-  Owner& a = addOwner();
+  Agent& a = addAgent();
   Transaction& aInsert = a.beginNewTransaction();
   itemId = insertSample(aInsert, 3.14);
   EXPECT_NE(itemId, Id());
@@ -236,7 +227,7 @@ TEST_F(MultiTransactionSingleCRUTest, UpdateRead) {
 TEST_F(MultiTransactionSingleCRUTest, ParallelUpdate) {
   // Insert item to be updated
   Id itemId;
-  Owner& a = addOwner();
+  Agent& a = addAgent();
   Transaction& aInsert = a.beginNewTransaction();
   itemId = insertSample(aInsert, 3.14);
   EXPECT_NE(itemId, Id());
@@ -245,7 +236,7 @@ TEST_F(MultiTransactionSingleCRUTest, ParallelUpdate) {
   Transaction& aUpdate = a.beginNewTransaction();
   EXPECT_TRUE(updateSample(aUpdate, itemId, 42));
   // b updates item
-  Owner& b = addOwner();
+  Agent& b = addAgent();
   Transaction& bUpdate = b.beginNewTransaction();
   EXPECT_TRUE(updateSample(bUpdate, itemId, 0xDEADBEEF));
   // expect commit conflict

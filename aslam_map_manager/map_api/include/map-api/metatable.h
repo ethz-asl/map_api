@@ -10,9 +10,8 @@ namespace map_api {
  * all application-defined tables. It is used to synchronize table definitions
  * across the peers
  */
-class Metatable : public CRTableInterface {
+class Metatable final : public CRTableInterface {
  public:
-  Metatable(const Id& owner);
   virtual ~Metatable();
   virtual bool init();
   virtual bool define();

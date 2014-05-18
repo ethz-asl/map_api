@@ -13,10 +13,6 @@ namespace map_api {
 
 std::recursive_mutex Transaction::dbMutex_;
 
-Transaction::Transaction(const Id& owner) : owner_(owner),
-    active_(false), aborted_(false){
-}
-
 bool Transaction::begin(){
   session_ = MapApiCore::getInstance().getSession();
   active_ = true;
@@ -144,7 +140,7 @@ bool Transaction::insert<CRTableInterface>(
   CHECK(item) << "Passed revision pointer is null";
   Id idHash(Id::random());
   item->set("ID",id);
-  item->set("owner",owner_);
+  // item->set("owner",owner_); TODO(tcies) later, fetch from core
   insertions_.insert(InsertMap::value_type(
       CRItemIdentifier(table, id), item));
   return true;
@@ -164,7 +160,7 @@ bool Transaction::insert<CRUTableInterface>(
   // 1. Prepare a CRU table entry pointing to nothing
   SharedRevisionPointer insertItem = table.getCRUTemplate();
   insertItem->set("ID", id);
-  insertItem->set("owner", owner_);
+  // insertItem->set("owner", owner_); TODO(tcies) later, fetch from core
   insertItem->set("latest_revision", Id()); // invalid hash
   insertions_.insert(InsertMap::value_type(
       CRItemIdentifier(table, id), insertItem));
