@@ -6,7 +6,7 @@ REVISION_PROTOBUF(proto::TableDescriptor);
 
 Metatable::~Metatable() {}
 
-inline const std::string Metatable::tableName() {
+const std::string Metatable::tableName() const {
   return "metatable";
 }
 

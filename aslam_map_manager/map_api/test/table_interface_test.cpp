@@ -32,7 +32,7 @@ TEST(TableInterFace, initEmpty) {
 template <typename FieldType>
 class FieldTestTable : public TestTable<CRTableInterface> {
  public:
-  virtual inline const std::string tableName() override {
+  virtual const std::string tableName() const override {
     return "field_test_table";
   }
  protected:

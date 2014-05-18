@@ -35,7 +35,7 @@ class CRTableInterface : public proto::TableDescriptor {
    * This table name will appear in the database, so it must be chosen SQL
    * friendly: Letters and underscores only.
    */
-  virtual const std::string tableName() = 0;
+  virtual const std::string tableName() const = 0;
   /**
    * Function to be implemented by derivations: Define table by repeated
    * calls to addField()

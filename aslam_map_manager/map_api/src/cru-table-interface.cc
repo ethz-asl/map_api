@@ -20,8 +20,7 @@ CRUTableInterface::~CRUTableInterface() {}
 
 bool CRUTableInterface::init() {
   const std::string name(tableName());
-  // @simonlynen: I intend to unite init a bit more yet, don't worry about this
-  // being duplicate TODO(tcies) unite more yet
+  // TODO(tcies) unite with CRTableInterface::init
   // verify name is SQL friendly: For now very tight constraints:
   for (const char& character : name) {
     CHECK((character >= 'A' && character <= 'Z') ||

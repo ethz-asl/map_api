@@ -9,7 +9,7 @@ template <typename TableInterfaceType>
 class TestTable : public TableInterfaceType {
  public:
   ~TestTable() {}
-  virtual inline const std::string tableName() override {
+  virtual const std::string tableName() const override {
     return "test_table";
   }
   std::shared_ptr<Poco::Data::Session> sessionForward(){
