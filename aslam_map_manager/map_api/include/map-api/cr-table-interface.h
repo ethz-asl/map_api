@@ -15,7 +15,11 @@
 
 namespace map_api {
 
-class CRTableInterface : public proto::TableDescriptor {
+/**
+ * The derived table descriptor is to contain the desctiption of the data
+ * fields as defined by the user in define().
+ */
+class CRTableInterface {
  public:
   /**
    * Init routine, may be overriden by derived classes, in particular
@@ -35,18 +39,19 @@ class CRTableInterface : public proto::TableDescriptor {
    * This table name will appear in the database, so it must be chosen SQL
    * friendly: Letters and underscores only.
    */
-  virtual const std::string tableName() const = 0;
+  virtual const std::string name() const = 0;
   /**
    * Function to be implemented by derivations: Define table by repeated
    * calls to addField()
    */
-  virtual bool define() = 0;
+  virtual void define() = 0;
   virtual ~CRTableInterface();
 
   /**
-   * Returns a table row template TODO(tcies) cache, in setup()
+   * Returns an empty revision having the structure as defined by the user
+   * in define() TODO(tcies) cache, in setup()
    */
-  std::shared_ptr<Revision> getTemplate() const;
+  virtual std::shared_ptr<Revision> getTemplate() const final;
   /**
    * The following struct can be used to automatically supply table name and
    * item id to a glog message.
@@ -66,11 +71,11 @@ class CRTableInterface : public proto::TableDescriptor {
    */
   template<typename Type>
   void addField(const std::string& name);
-  void addField(const std::string& name,
-                proto::TableFieldDescriptor_Type type);
+  virtual void addField(const std::string& name,
+                proto::TableFieldDescriptor_Type type) final;
   /**
-   * Shared pointer to database session TODO(tcies) can this be set private
-   * yet accessed from a test table?
+   * Shared pointer to database session
+   * TODO(tcies) move to private, remove from testtable, replace by purgedb
    */
   std::shared_ptr<Poco::Data::Session> session_;
 
@@ -82,20 +87,15 @@ class CRTableInterface : public proto::TableDescriptor {
    */
   friend class Transaction;
   friend class History;
-  /**                                                                       CCCC
-   *                                                                       C
-   * Commits an insert query. ID has to be defined in the query, this is   C
-   * responsability of the transaction.                                    C
-   *                                                                        CCCC
+  /**
+   * Commits an insert query. ID has to be defined in the query.
+   * TODO(tcies) check for query completeness... will need to NVI anyways.
    */
-  bool rawInsertQuery(const Revision& query) const;
-  /**                                                                      RRRR
-   *                                                                       R   R
-   * Fetches row by ID and returns it as revision                          RRRR
-   *                                                                       R  R
-   *                                                                       R   R
+  virtual bool rawInsertQuery(Revision& query) const;
+  /**
+   * Fetches row by ID and returns it as revision.
    */
-  std::shared_ptr<Revision> rawGetRow(const Id& id) const;
+  virtual std::shared_ptr<Revision> rawGetRow(const Id& id) const;
   /**
    * Loads items where key = value, returns their count.
    * If "key" is an empty string, no filter will be applied (equivalent to
@@ -105,9 +105,6 @@ class CRTableInterface : public proto::TableDescriptor {
    * this function upon commit, without the need to specialize, which would be
    * impractical for users who want to add custom field types.
    * Virtual, for TODO(tcies) CRUTableInterface will need its own implementation
-   * TODO(discsuss) this is inconsistent with rawInsertQuery, which is not
-   * virtual, but the difference between CR and CRU is handled in the
-   * Transaction class. If possible, this would be better moved here, right?
    */
   template<typename ValueType>
   int rawFind(const std::string& key, const ValueType& value,
@@ -116,15 +113,18 @@ class CRTableInterface : public proto::TableDescriptor {
       const std::string& key, const Revision& valueHolder,
       std::vector<std::shared_ptr<Revision> >* dest)  const;
   /**
-   * Same as rawFind(), but asserts that not more than one item is found
+   * Same as rawFind(), but asserts that not more than one item is found. Of
+   * these three functions only rawFindByRevision is virtual, as it is called
+   * by the others.
    */
   template<typename ValueType>
   std::shared_ptr<Revision> rawFindUnique(const std::string& key,
                                           const ValueType& value) const;
   /**
-   * Fetches all the contents of the table
+   * Fetches all the contents of the table. Calls rawFindByRevision indirectly.
    */
-  void rawDump(std::vector<std::shared_ptr<Revision> >* dest) const;
+  virtual void rawDump(
+      std::vector<std::shared_ptr<Revision> >* dest) const final;
   /**
    * The PocoToProto class serves as intermediate between Poco and Protobuf:
    * Because Protobuf doesn't support pointers to numeric fields and Poco Data
@@ -171,10 +171,12 @@ class CRTableInterface : public proto::TableDescriptor {
    */
   virtual bool sync();
   /**
-   * Parse and execute SQL query necessary to create the database
+   * Parse and execute SQL query necessary to create the table schema in the
+   * database.
    */
-  bool createQuery();
+  virtual bool createQuery();
 
+  proto::TableDescriptor structure_;
   bool initialized_ = false;
 };
 

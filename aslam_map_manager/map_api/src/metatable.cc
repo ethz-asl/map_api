@@ -6,14 +6,13 @@ REVISION_PROTOBUF(proto::TableDescriptor);
 
 Metatable::~Metatable() {}
 
-const std::string Metatable::tableName() const {
+const std::string Metatable::name() const {
   return "metatable";
 }
 
-bool Metatable::define() {
+void Metatable::define() {
   addField<std::string>("name");
   addField<proto::TableDescriptor>("descriptor");
-  return true;
 }
 
 } /* namespace map_api */

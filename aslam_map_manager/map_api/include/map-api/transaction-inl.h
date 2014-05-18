@@ -3,16 +3,6 @@
 
 namespace map_api {
 
-template<typename TableInterfaceType>
-Id Transaction::insert(TableInterfaceType& table,
-                       const SharedRevisionPointer& item){
-  Id id(Id::random());
-  if (!Transaction::insert(table, id, item)){
-    return Id();
-  }
-  return id;
-}
-
 template<typename ValueType>
 bool Transaction::addConflictCondition(CRTableInterface& table,
                                        const std::string& key,

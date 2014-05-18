@@ -32,29 +32,13 @@ class CRUTableInterface : public CRTableInterface{
    * This table name will appear in the database, so it must be chosen SQL
    * friendly: Letters and underscores only.
    */
-  virtual const std::string tableName() const = 0;
+  virtual const std::string name() const = 0;
   /**
    * Function to be implemented by derivations: Define table by repeated
    * calls to addField()
    */
-  virtual bool define() = 0;
+  virtual void define() = 0;
   virtual ~CRUTableInterface();
-
-  /**
-   * Overriding get template on order to get template of revision, not history
-   * bookkeeping.
-   */
-  std::shared_ptr<Revision> getTemplate() const;
-
- protected:
-  /**
-   * Overriding addField, as the actual data will be outsourced to the
-   * history
-   */
-  template<typename Type>
-  bool addField(const std::string& name);
-  bool addField(const std::string& name,
-                proto::TableFieldDescriptor_Type type);
 
  private:
   /**
@@ -62,10 +46,9 @@ class CRUTableInterface : public CRTableInterface{
    * householding the references to the history table.
    */
   template<typename Type>
-  void addCRUField(const std::string& name);
+  void addBookKeepingField(const std::string& name);
 
-  std::unique_ptr<History> history_;
-  proto::TableDescriptor descriptor_;
+  History history_;
 
   /**
    * The following functions are to be used by transactions only. They pose a
@@ -73,27 +56,24 @@ class CRUTableInterface : public CRTableInterface{
    * and conflict checking - that is assumed to be done by the transaction.
    */
   friend class Transaction;
-  /**                                                                      U   U
-   *                                                                       U   U
-   * Takes hash ID and TableInsertQuery as argument and updates the row of U   U
-   * the given ID with the query. IMPORTANT: This is to modify the own     U   U
-   * fields of the CRU table, not the revisions in the history. That has    UUU
-   * to be handled properly by the transaction itself.
-   * the parameter nextRevision is the hash to the revision the CRU table item
-   * is supposed to be updated to.
-   */
-  bool rawUpdateQuery(const Id& id, const Id& nextRevision)
-  const;
+  virtual bool rawInsertQuery(Revision& query) const override;
   /**
-   * Template for history bookkeeping
+   * Extension to CR interface: Get latest version at given time.
    */
-  std::shared_ptr<Revision> getCRUTemplate() const;
-
-  bool rawLatestUpdate(const Id& id, Time* time) const;
+  std::shared_ptr<Revision> rawGetRowAtTime(const Id& id, const Time& time);
+  /**
+   * Dump table according to state at given time TODO(tcies) also in CR
+   */
+  void rawDumpAtTime(const Time& time,
+                     std::vector<std::shared_ptr<Revision> >* dest);
+  /**
+   * Field ID in revision must correspond to an already present item, revision
+   * structure needs to match.
+   */
+  bool rawUpdateQuery(Revision& query) const;
+  // bool rawLatestUpdate(const Id& id, Time* time) const; TODO(tcies)
 };
 
 }
-
-#include "map-api/cru-table-interface-inl.h"
 
 #endif  // TABLE_INTERFACE_H

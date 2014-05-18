@@ -58,6 +58,12 @@ class Revision final : public proto::Revision {
   bool get(const std::string& fieldName, FieldType* value) const;
 
   /**
+   * Verifies field value according to type.
+   */
+  template <typename FieldType>
+  bool verify(const std::string& fieldName, const FieldType& wanted) const;
+
+  /**
    * Returns true if Revision contains same fields as other
    */
   bool structureMatch(Revision& other);

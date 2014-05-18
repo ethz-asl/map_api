@@ -44,6 +44,14 @@ bool Revision::get(const std::string& fieldName, FieldType* value) const {
   return get(*field, value);
 }
 
+template <typename FieldType>
+bool Revision::verify(const std::string& fieldName,
+                      const FieldType& wanted) const {
+  FieldType value;
+  get(fieldName, &value);
+  return value == wanted;
+}
+
 } // namespace map_api
 
 

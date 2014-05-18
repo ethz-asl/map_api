@@ -40,7 +40,7 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
   std::shared_ptr<Revision> attempt = metatable_->getTemplate();
   attempt->set("name", descriptor.name());
   attempt->set("descriptor", descriptor);
-  tryInsert.insert<CRTableInterface>(*metatable_, attempt);
+  tryInsert.insert(*metatable_, attempt);
   tryInsert.addConflictCondition(*metatable_, "name", descriptor.name());
   bool success = tryInsert.commit();
   if (success){

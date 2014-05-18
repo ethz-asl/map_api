@@ -25,28 +25,28 @@ bool CRTableInterface::isInitialized() const{
 void CRTableInterface::addField(const std::string& name,
                                 proto::TableFieldDescriptor_Type type){
   // make sure the field has not been defined yet
-  for (int i=0; i<fields_size(); ++i){
-    if (fields(i).name().compare(name) == 0){
-      LOG(FATAL) << "In table " << this->name() << ": Field " << name <<
+  for (int i=0; i<structure_.fields_size(); ++i){
+    if (structure_.fields(i).name().compare(name) == 0){
+      LOG(FATAL) << "In table " << structure_.name() << ": Field " << name <<
           " defined twice!" << std::endl;
     }
   }
   // otherwise, proceed with adding field
-  proto::TableFieldDescriptor *field = add_fields();
+  proto::TableFieldDescriptor *field = structure_.add_fields();
   field->set_name(name);
   field->set_type(type);
 }
 
 bool CRTableInterface::init() {
-  const std::string name(tableName());
+  const std::string tableName(name());
   // verify name is SQL friendly: For now very tight constraints:
-  for (const char& character : name) {
+  for (const char& character : tableName) {
     CHECK((character >= 'A' && character <= 'Z') ||
           (character >= 'a' && character <= 'z') ||
-          (character == '_')) << "Desired table name \"" << name <<
+          (character == '_')) << "Desired table name \"" << tableName <<
               "\" ill-suited for SQL database";
   }
-  set_name(name);
+  structure_.set_name(tableName);
   // Define table fields
   // enforced fields id (hash) and owner
   addField<Id>("ID");
@@ -79,24 +79,24 @@ std::shared_ptr<Revision> CRTableInterface::getTemplate() const{
       std::shared_ptr<Revision>(
           new Revision);
   // add own name
-  ret->set_table(name());
+  ret->set_table(structure_.name());
   // add editable fields
-  for (int i = 0; i < fields_size(); ++i){
-    ret->addField(fields(i));
+  for (int i = 0; i < structure_.fields_size(); ++i){
+    ret->addField(structure_.fields(i));
   }
   return ret;
 }
 
 bool CRTableInterface::sync() {
-  return MapApiCore::getInstance().syncTableDefinition(*this);
+  return MapApiCore::getInstance().syncTableDefinition(structure_);
 }
 
 bool CRTableInterface::createQuery(){
   Poco::Data::Statement stat(*session_);
   stat << "CREATE TABLE IF NOT EXISTS " << name() << " (";
   // parse fields from descriptor as database fields
-  for (int i=0; i<this->fields_size(); ++i){
-    const proto::TableFieldDescriptor &fieldDescriptor = this->fields(i);
+  for (int i = 0; i < structure_.fields_size(); ++i){
+    const proto::TableFieldDescriptor &fieldDescriptor = structure_.fields(i);
     proto::TableField field;
     // The following is specified in protobuf but not available.
     // We are using an outdated version of protobuf.
@@ -132,7 +132,7 @@ bool CRTableInterface::createQuery(){
   return true;
 }
 
-bool CRTableInterface::rawInsertQuery(const Revision& query) const{
+bool CRTableInterface::rawInsertQuery(Revision& query) const{
   // TODO(tcies) verify schema
   // TODO(tcies) verify mandatory fields
 
