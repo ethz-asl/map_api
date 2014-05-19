@@ -36,7 +36,12 @@ class Revision final : public proto::Revision {
     map_api::proto::TableFieldDescriptor_Type \
     Revision::protobufEnum<TYPE>() { \
   return ENUM ; \
-}
+} \
+extern void revEnum ## __FILE__ ## __LINE__(void)
+  // in order to swallow the semicolon
+  // http://gcc.gnu.org/onlinedocs/cpp/Swallowing-the-Semicolon.html
+  // http://stackoverflow.com/questions/18786848/macro-that-swallows-semicolon-out
+  // side-of-function
 
   /**
    * Overriding adding field in order to impose indexing
@@ -113,7 +118,7 @@ class Revision final : public proto::Revision {
  * One Macro to define REVISION_ENUM, _SET and _GET for Protobuf objects
  */
 #define REVISION_PROTOBUF(TYPE) \
-    REVISION_ENUM(TYPE, proto::TableFieldDescriptor_Type_BLOB) \
+    REVISION_ENUM(TYPE, proto::TableFieldDescriptor_Type_BLOB); \
     \
     REVISION_SET(TYPE){ \
   field.set_blobvalue(value.SerializeAsString()); \
