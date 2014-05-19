@@ -50,6 +50,7 @@ bool CRTableInterface::init() {
   // Define table fields
   // enforced fields id (hash) and owner
   addField<Id>("ID");
+  addField<Time>("time");
   // addField<Id>("owner"); TODO(tcies) later, when owner will be used for
   // synchronization accross the network, or for its POC
   // transaction-enforced fields TODO(tcies) later
@@ -140,6 +141,7 @@ bool CRTableInterface::rawInsert(Revision& query) const {
   Id id;
   query.get("ID", &id);
   CHECK_NE(id, Id()) << "Attempted to insert element with invalid ID";
+  query.set("time", Time());
   return rawInsertImpl(query);
 }
 bool CRTableInterface::rawInsertImpl(Revision& query) const{

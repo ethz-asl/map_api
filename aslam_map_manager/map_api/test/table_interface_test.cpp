@@ -20,7 +20,7 @@ TEST(TableInterFace, initEmpty) {
   EXPECT_TRUE(table.init());
   std::shared_ptr<Revision> structure = table.getTemplate();
   ASSERT_TRUE(static_cast<bool>(structure));
-  EXPECT_EQ(structure->fieldqueries_size(), 1u);
+  EXPECT_EQ(structure->fieldqueries_size(), 2u);
 }
 
 /**
@@ -203,7 +203,7 @@ TYPED_TEST_CASE(FieldTestWithoutInit, MyTypes);
 TYPED_TEST_CASE(FieldTestWithInit, MyTypes);
 
 TYPED_TEST(FieldTestWithInit, Init) {
-  EXPECT_EQ(this->getTemplate()->fieldqueries_size(), 2u);
+  EXPECT_EQ(this->getTemplate()->fieldqueries_size(), 3u);
 }
 
 TYPED_TEST(FieldTestWithoutInit, CreateBeforeInit) {

@@ -20,14 +20,12 @@ CRUTableInterface::~CRUTableInterface() {}
 
 bool CRUTableInterface::init() {
   // adding fields that make this an updateable table
-  addField<Time>("time"); // time of update
   addField<Id>("previous"); // id of previous revision in history table
   history_.reset(new History(name()));
   return history_->init() && CRTableInterface::init();
 }
 
 bool CRUTableInterface::rawInsertImpl(Revision& query) const {
-  query.set("time", Time());
   query.set("previous", Id());
   return CRTableInterface::rawInsertImpl(query);
 }
@@ -39,7 +37,7 @@ std::shared_ptr<Revision> CRUTableInterface::rawGetRowAtTime(
   std::shared_ptr<Revision> returnValue = rawGetById(id);
   Time timeIteration;
   for (returnValue->get("time", &timeIteration); timeIteration > time;
-      returnValue->get("time", &timeIteration)) {
+      returnValue->get("revision_time", &timeIteration)) {
     Id previous;
     returnValue->get("previous", &previous);
     std::shared_ptr<Revision> archived = history_->rawGetById(previous);
@@ -81,7 +79,7 @@ bool CRUTableInterface::rawUpdateQuery(Revision& query) const{
   archive->set("previous", previous);
   Time time;
   query.get("time", &time);
-  archive->set("time", time);
+  archive->set("revision_time", time);
   archive->set("revision", *current);
   if (!history_->rawInsert(*archive)) {
     LOG(FATAL) << info << "Failed to insert current version into history";

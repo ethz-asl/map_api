@@ -11,7 +11,7 @@ const std::string History::name() const {
 void History::define(){
   addField<Id>("previous");
   addField<Revision>("revision");
-  addField<Time>("time");
+  addField<Time>("revision_time");
 }
 
 } /* namespace map_api */
