@@ -47,7 +47,7 @@ class CRUTableInterface : public CRTableInterface{
    * and conflict checking - that is assumed to be done by the transaction.
    */
   friend class Transaction;
-  virtual bool rawInsertQuery(Revision& query) const override;
+  virtual bool rawInsertImpl(Revision& query) const override;
   /**
    * Extension to CR interface: Get latest version at given time.
    */

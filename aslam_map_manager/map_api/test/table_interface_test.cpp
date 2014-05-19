@@ -17,7 +17,7 @@ using namespace map_api;
 
 TEST(TableInterFace, initEmpty) {
   TestTable<CRTableInterface> table;
-  table.init();
+  EXPECT_TRUE(table.init());
   std::shared_ptr<Revision> structure = table.getTemplate();
   ASSERT_TRUE(static_cast<bool>(structure));
   EXPECT_EQ(structure->fieldqueries_size(), 1u);
@@ -45,7 +45,7 @@ template <typename FieldType>
 class InsertReadFieldTestTable : public FieldTestTable<FieldType> {
  public:
   bool insertQuery(Revision& query) const {
-    return this->rawInsertQuery(query);
+    return this->rawInsert(query);
   }
 };
 

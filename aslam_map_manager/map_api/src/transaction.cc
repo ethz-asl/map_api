@@ -60,7 +60,7 @@ bool Transaction::commit(){
       const SharedRevisionPointer &revision = insertion.second;
       CHECK(revision->verify("ID", id)) <<
           "Identifier ID does not match revision ID";
-      if (!table.rawInsertQuery(*revision)){
+      if (!table.rawInsert(*revision)){
         LOG(ERROR) << debugInfo << "Insertion failed, aborting commit.";
         return false;
       }

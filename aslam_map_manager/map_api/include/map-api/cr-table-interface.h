@@ -88,10 +88,11 @@ class CRTableInterface {
   friend class Transaction;
   friend class History;
   /**
-   * Commits an insert query. ID has to be defined in the query.
-   * TODO(tcies) check for query completeness... will need to NVI anyways.
+   * Commits an insert query. ID has to be defined in the query. Non-virtual
+   * interface design pattern.
    */
-  virtual bool rawInsertQuery(Revision& query) const;
+  virtual bool rawInsert(Revision& query) const final;
+  virtual bool rawInsertImpl(Revision& query) const;
   /**
    * Fetches row by ID and returns it as revision.
    */

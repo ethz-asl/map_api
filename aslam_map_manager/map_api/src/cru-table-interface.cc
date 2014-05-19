@@ -26,10 +26,10 @@ bool CRUTableInterface::init() {
   return history_->init() && CRTableInterface::init();
 }
 
-bool CRUTableInterface::rawInsertQuery(Revision& query) const {
+bool CRUTableInterface::rawInsertImpl(Revision& query) const {
   query.set("time", Time());
   query.set("previous", Id());
-  return CRTableInterface::rawInsertQuery(query);
+  return CRTableInterface::rawInsertImpl(query);
 }
 
 std::shared_ptr<Revision> CRUTableInterface::rawGetRowAtTime(
@@ -83,7 +83,7 @@ bool CRUTableInterface::rawUpdateQuery(Revision& query) const{
   query.get("time", &time);
   archive->set("time", time);
   archive->set("revision", *current);
-  if (!history_->rawInsertQuery(*archive)) {
+  if (!history_->rawInsert(*archive)) {
     LOG(FATAL) << info << "Failed to insert current version into history";
   }
   // 2. overwrite
@@ -96,7 +96,9 @@ bool CRUTableInterface::rawUpdateQuery(Revision& query) const{
   }
   query.set("time", Time());
   query.set("previous", archiveId);
-  return CRTableInterface::rawInsertQuery(query);
+  // important: Needs to call CR implementation, not CRU implementation through
+  // non-virtual interface rawInsert(), to keep correct 'previous' field value
+  return CRTableInterface::rawInsertImpl(query);
 }
 
 bool CRUTableInterface::rawLatestUpdateTime(
