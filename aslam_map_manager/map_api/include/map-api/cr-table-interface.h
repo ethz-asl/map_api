@@ -15,10 +15,6 @@
 
 namespace map_api {
 
-/**
- * The derived table descriptor is to contain the desctiption of the data
- * fields as defined by the user in define().
- */
 class CRTableInterface {
  public:
   /**
@@ -72,7 +68,7 @@ class CRTableInterface {
   template<typename Type>
   void addField(const std::string& name);
   virtual void addField(const std::string& name,
-                proto::TableFieldDescriptor_Type type) final;
+                        proto::TableFieldDescriptor_Type type) final;
   /**
    * Shared pointer to database session
    * TODO(tcies) move to private, remove from testtable, replace by purgedb

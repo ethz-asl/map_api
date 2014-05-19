@@ -25,7 +25,7 @@ bool CRTableInterface::isInitialized() const{
 void CRTableInterface::addField(const std::string& name,
                                 proto::TableFieldDescriptor_Type type){
   // make sure the field has not been defined yet
-  for (int i=0; i<structure_.fields_size(); ++i){
+  for (int i = 0; i < structure_.fields_size(); ++i){
     if (structure_.fields(i).name().compare(name) == 0){
       LOG(FATAL) << "In table " << structure_.name() << ": Field " << name <<
           " defined twice!" << std::endl;
