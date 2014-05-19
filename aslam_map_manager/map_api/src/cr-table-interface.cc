@@ -139,7 +139,7 @@ bool CRTableInterface::rawInsert(Revision& query) const {
   CHECK(reference->structureMatch(query)) << "Bad structure of insert revision";
   Id id;
   query.get("ID", &id);
-  CHECK_NE(id, Id()) << "Attempted to insert element with invalid ID";
+  CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
   return rawInsertImpl(query);
 }
 bool CRTableInterface::rawInsertImpl(Revision& query) const{
@@ -190,7 +190,7 @@ std::shared_ptr<Revision> CRTableInterface::rawGetByIdImpl(
 int CRTableInterface::rawFindByRevision(
     const std::string& key, const Revision& valueHolder,
     std::vector<std::shared_ptr<Revision> >* dest) const {
-  CHECK(isInitialized()) << "Attemplted to find in non-initialized table";
+  CHECK(isInitialized()) << "Attempted to find in non-initialized table";
   // whether valueHolder contains key is implicitly checked whenever using
   // Revision::insertPlaceHolder - for now it's a pretty safe bet that the
   // implementation uses that - this would be rather cumbersome to check here
