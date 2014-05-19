@@ -213,14 +213,14 @@ TYPED_TEST(FieldTestWithoutInit, CreateBeforeInit) {
 
 TYPED_TEST(FieldTestWithoutInit, ReadBeforeInit) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH(this->table_->rawGetRow(Id::random()), "^");
+  EXPECT_DEATH(this->table_->rawGetById(Id::random()), "^");
 }
 
 TYPED_TEST(FieldTestWithInit, CreateRead) {
   Id inserted = this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
-  std::shared_ptr<Revision> rowFromTable = this->table_->rawGetRow(inserted);
+  std::shared_ptr<Revision> rowFromTable = this->table_->rawGetById(inserted);
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   TypeParam dataFromTable;
   rowFromTable->get("test_field", &dataFromTable);
@@ -232,7 +232,7 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRow) {
   EXPECT_TRUE(this->insertRevision());
 
   Id other_id = Id::random();
-  EXPECT_FALSE(this->table_->rawGetRow(other_id));
+  EXPECT_FALSE(this->table_->rawGetById(other_id));
 }
 
 TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
@@ -240,7 +240,7 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
   Id inserted = this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
-  std::shared_ptr<Revision> rowFromTable = this->table_->rawGetRow(inserted);
+  std::shared_ptr<Revision> rowFromTable = this->table_->rawGetById(inserted);
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   TypeParam dataFromTable;
   EXPECT_DEATH(rowFromTable->get("some_other_field", &dataFromTable), "^");

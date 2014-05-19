@@ -176,13 +176,29 @@ bool CRTableInterface::rawInsertImpl(Revision& query) const{
   return true;
 }
 
-std::shared_ptr<Revision> CRTableInterface::rawGetRow(
+std::shared_ptr<Revision> CRTableInterface::rawGetById(
+    const Id &id) const{
+  CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
+  CHECK_NE(id, Id()) << "Supplied invalid ID";
+  return rawGetByIdImpl(id);
+}
+std::shared_ptr<Revision> CRTableInterface::rawGetByIdImpl(
     const Id &id) const{
   return rawFindUnique("ID", id);
 }
 
-// TODO(tcies) test
 int CRTableInterface::rawFindByRevision(
+    const std::string& key, const Revision& valueHolder,
+    std::vector<std::shared_ptr<Revision> >* dest) const {
+  CHECK(isInitialized()) << "Attemplted to find in non-initialized table";
+  // whether valueHolder contains key is implicitly checked whenever using
+  // Revision::insertPlaceHolder - for now it's a pretty safe bet that the
+  // implementation uses that - this would be rather cumbersome to check here
+  CHECK_NOTNULL(dest);
+  return rawFindByRevisionImpl(key, valueHolder, dest);
+}
+// TODO(tcies) test
+int CRTableInterface::rawFindByRevisionImpl(
     const std::string& key, const Revision& valueHolder,
     std::vector<std::shared_ptr<Revision> >* dest) const {
   PocoToProto pocoToProto(*this);

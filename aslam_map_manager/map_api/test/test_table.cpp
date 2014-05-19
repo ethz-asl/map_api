@@ -17,5 +17,5 @@ class TestTable : public TableInterfaceType {
 
  public:
   using TableInterfaceType::rawInsert;
-  using TableInterfaceType::rawGetRow;
+  using TableInterfaceType::rawGetById;
 };

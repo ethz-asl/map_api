@@ -94,9 +94,11 @@ class CRTableInterface {
   virtual bool rawInsert(Revision& query) const final;
   virtual bool rawInsertImpl(Revision& query) const;
   /**
-   * Fetches row by ID and returns it as revision.
+   * Fetches row by ID and returns it as revision. Non-virtual interface
+   * design pattern.
    */
-  virtual std::shared_ptr<Revision> rawGetRow(const Id& id) const;
+  virtual std::shared_ptr<Revision> rawGetById(const Id& id) const final;
+  virtual std::shared_ptr<Revision> rawGetByIdImpl(const Id& id) const;
   /**
    * Loads items where key = value, returns their count.
    * If "key" is an empty string, no filter will be applied (equivalent to
@@ -105,18 +107,21 @@ class CRTableInterface {
    * there so that class Transaction may store conflict requests, which call
    * this function upon commit, without the need to specialize, which would be
    * impractical for users who want to add custom field types.
-   * Virtual, for TODO(tcies) CRUTableInterface will need its own implementation
+   * Although rawFind can't be virtual final as it is templated, it is a
+   * non-virtual interface.
    */
   template<typename ValueType>
   int rawFind(const std::string& key, const ValueType& value,
               std::vector<std::shared_ptr<Revision> >* dest) const;
   virtual int rawFindByRevision(
       const std::string& key, const Revision& valueHolder,
-      std::vector<std::shared_ptr<Revision> >* dest)  const;
+      std::vector<std::shared_ptr<Revision> >* dest)  const final;
+  virtual int rawFindByRevisionImpl(
+        const std::string& key, const Revision& valueHolder,
+        std::vector<std::shared_ptr<Revision> >* dest)  const;
   /**
-   * Same as rawFind(), but asserts that not more than one item is found. Of
-   * these three functions only rawFindByRevision is virtual, as it is called
-   * by the others.
+   * Same as rawFind(), but asserts that not more than one item is found.
+   * As rawFind() and rawFindByRevision(), this is not meant to be overridden.
    */
   template<typename ValueType>
   std::shared_ptr<Revision> rawFindUnique(const std::string& key,
