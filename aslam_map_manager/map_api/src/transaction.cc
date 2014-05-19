@@ -102,13 +102,12 @@ Id Transaction::insert(CRTableInterface& table,
 }
 
 
-template<>
 bool Transaction::insert(CRTableInterface& table, const Id& id,
                          const SharedRevisionPointer& item){
   if (notifyAbortedOrInactive()){
     return false;
   }
-  if (!table.IsInitialized()){
+  if (!table.isInitialized()){
     LOG(ERROR) << "Attempted to insert into uninitialized table";
     return false;
   }
@@ -144,13 +143,13 @@ Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
   }
 
   // fast check in uncommitted transaction queries
-  Transaction::CRUItemIdentifier item(table, id);
-  Transaction::UpdateMap::iterator updateIterator = updates_.find(item);
+  Transaction::CRUItemIdentifier cru_item(table, id);
+  Transaction::UpdateMap::iterator updateIterator = updates_.find(cru_item);
   if (updateIterator != updates_.end()){
     return updateIterator->second;
   }
-  Transaction::CRItemIdentifier item(table, id);
-  Transaction::InsertMap::iterator insertIterator = insertions_.find(item);
+  Transaction::CRItemIdentifier cr_item(table, id);
+  Transaction::InsertMap::iterator insertIterator = insertions_.find(cr_item);
   if (insertIterator != insertions_.end()){
     return insertIterator->second;
   }
@@ -277,11 +276,11 @@ bool Transaction::hasItemConflict<Transaction::CRUItemIdentifier>(
     return false;
   }
   Time latestUpdate;
-  if (!item.first.rawLatestUpdate(item.second, &latestUpdate)){
+  if (!item.first.rawLatestUpdateTime(item.second, &latestUpdate)){
     LOG(ERROR) << "Error retrieving update time";
     return true;
   }
-  return latestUpdate > beginTime_;
+  return latestUpdate >= beginTime_;
 }
 
 

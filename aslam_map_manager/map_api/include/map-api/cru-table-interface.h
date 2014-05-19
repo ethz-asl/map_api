@@ -40,16 +40,7 @@ class CRUTableInterface : public CRTableInterface{
   virtual void define() = 0;
   virtual ~CRUTableInterface();
 
- private:
-  /**
-   * This is the function that will actually add fields to this table - for
-   * householding the references to the history table.
-   */
-  template<typename Type>
-  void addBookKeepingField(const std::string& name);
-
-  History history_;
-
+ protected:
   /**
    * The following functions are to be used by transactions only. They pose a
    * very crude access straight to the database, without synchronization
@@ -60,18 +51,25 @@ class CRUTableInterface : public CRTableInterface{
   /**
    * Extension to CR interface: Get latest version at given time.
    */
-  std::shared_ptr<Revision> rawGetRowAtTime(const Id& id, const Time& time);
+  std::shared_ptr<Revision> rawGetRowAtTime(
+      const Id& id, const Time& time) const;
   /**
    * Dump table according to state at given time TODO(tcies) also in CR
    */
   void rawDumpAtTime(const Time& time,
-                     std::vector<std::shared_ptr<Revision> >* dest);
+                     std::vector<std::shared_ptr<Revision> >* dest) const;
   /**
    * Field ID in revision must correspond to an already present item, revision
    * structure needs to match.
    */
   bool rawUpdateQuery(Revision& query) const;
-  // bool rawLatestUpdate(const Id& id, Time* time) const; TODO(tcies)
+  bool rawLatestUpdateTime(const Id& id, Time* time) const;
+
+ private:
+  /**
+   * Unique ptr for history needs to be initialized with the table name.
+   */
+  std::unique_ptr<History> history_;
 };
 
 }

@@ -34,9 +34,8 @@ class TransactionTestTable : public TestTable<CRUTableInterface> {
     return "n";
   }
  protected:
-  virtual bool define() {
+  virtual void define() {
     addField<double>(sampleField());
-    return true;
   }
 };
 
@@ -54,12 +53,12 @@ TEST_F(TransactionTest, OperationsBeforeBegin){
   TransactionTestTable table;
   EXPECT_TRUE(table.init());
   std::shared_ptr<Revision> data = table.sample(6.626e-34);
-  EXPECT_EQ(transaction_.insert<CRUTableInterface>(table, data), Id());
+  EXPECT_EQ(transaction_.insert(table, data), Id());
   // read and update should fail only because transaction hasn't started yet,
   // so we need to insert some data
   Transaction valid;
   EXPECT_TRUE(valid.begin());
-  Id inserted = valid.insert<CRUTableInterface>(table, data);
+  Id inserted = valid.insert(table, data);
   EXPECT_NE(inserted, Id());
   EXPECT_TRUE(valid.commit());
 
@@ -70,8 +69,7 @@ TEST_F(TransactionTest, OperationsBeforeBegin){
 TEST_F(TransactionTest, InsertBeforeTableInit){
   TransactionTestTable table;
   EXPECT_TRUE(transaction_.begin());
-  EXPECT_DEATH(transaction_.insert<CRUTableInterface>(table,
-                                                      table.sample(3.14)), "^");
+  EXPECT_DEATH(transaction_.insert(table, table.sample(3.14)), "^");
 }
 
 /**
@@ -88,8 +86,7 @@ class TransactionCRUTest : public TransactionTest {
     table_.cleanup();
   }
   Id insertSample(double sample){
-    return transaction_.insert<CRUTableInterface>(
-        table_, table_.sample(sample));
+    return transaction_.insert(table_, table_.sample(sample));
   }
   bool updateSample(const Id& id, double newValue){
     return transaction_.update(table_, id, table_.sample(newValue));
@@ -107,7 +104,7 @@ class TransactionCRUTest : public TransactionTest {
 
 TEST_F(TransactionCRUTest, InsertNonsense){
   std::shared_ptr<Revision> nonsense(new Revision());
-  EXPECT_EQ(transaction_.insert<CRUTableInterface>(table_, nonsense), Id());
+  EXPECT_EQ(transaction_.insert(table_, nonsense), Id());
 }
 
 TEST_F(TransactionCRUTest, InsertUpdateReadBeforeCommit){
@@ -153,7 +150,7 @@ class MultiTransactionSingleCRUTest : public MultiTransactionTest {
     table_.cleanup();
   }
   Id insertSample(Transaction& transaction, double sample){
-    return transaction.insert<CRUTableInterface>(table_, table_.sample(sample));
+    return transaction.insert(table_, table_.sample(sample));
   }
   bool updateSample(Transaction& transaction, const Id& id, double newValue){
     return transaction.update(table_, id, table_.sample(newValue));
