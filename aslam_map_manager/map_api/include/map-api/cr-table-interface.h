@@ -95,10 +95,12 @@ class CRTableInterface {
   virtual bool rawInsertImpl(Revision& query) const;
   /**
    * Fetches row by ID and returns it as revision. Non-virtual interface
-   * design pattern.
+   * design pattern. "Sees" only values with lower or equal time.
    */
-  virtual std::shared_ptr<Revision> rawGetById(const Id& id) const final;
-  virtual std::shared_ptr<Revision> rawGetByIdImpl(const Id& id) const;
+  virtual std::shared_ptr<Revision> rawGetById(const Id& id,
+                                               const Time& time) const final;
+  virtual std::shared_ptr<Revision> rawGetByIdImpl(const Id& id,
+                                                   const Time& time) const;
   /**
    * Loads items where key = value, returns their count.
    * If "key" is an empty string, no filter will be applied (equivalent to
@@ -111,13 +113,13 @@ class CRTableInterface {
    * non-virtual interface.
    */
   template<typename ValueType>
-  int rawFind(const std::string& key, const ValueType& value,
+  int rawFind(const std::string& key, const ValueType& value, const Time& time,
               std::vector<std::shared_ptr<Revision> >* dest) const;
   virtual int rawFindByRevision(
-      const std::string& key, const Revision& valueHolder,
+      const std::string& key, const Revision& valueHolder, const Time& time,
       std::vector<std::shared_ptr<Revision> >* dest)  const final;
   virtual int rawFindByRevisionImpl(
-        const std::string& key, const Revision& valueHolder,
+        const std::string& key, const Revision& valueHolder, const Time& time,
         std::vector<std::shared_ptr<Revision> >* dest)  const;
   /**
    * Same as rawFind(), but asserts that not more than one item is found.
@@ -125,11 +127,12 @@ class CRTableInterface {
    */
   template<typename ValueType>
   std::shared_ptr<Revision> rawFindUnique(const std::string& key,
-                                          const ValueType& value) const;
+                                          const ValueType& value,
+                                          const Time& time) const;
   /**
    * Fetches all the contents of the table. Calls rawFindByRevision indirectly.
    */
-  virtual void rawDump(
+  virtual void rawDump(const Time& time,
       std::vector<std::shared_ptr<Revision> >* dest) const final;
   /**
    * The PocoToProto class serves as intermediate between Poco and Protobuf:

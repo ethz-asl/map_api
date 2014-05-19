@@ -179,37 +179,39 @@ bool CRTableInterface::rawInsertImpl(Revision& query) const{
 }
 
 std::shared_ptr<Revision> CRTableInterface::rawGetById(
-    const Id &id) const{
+    const Id &id, const Time& time) const{
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   CHECK_NE(id, Id()) << "Supplied invalid ID";
-  return rawGetByIdImpl(id);
+  return rawGetByIdImpl(id, time);
 }
 std::shared_ptr<Revision> CRTableInterface::rawGetByIdImpl(
-    const Id &id) const{
-  return rawFindUnique("ID", id);
+    const Id &id, const Time& time) const{
+  return rawFindUnique("ID", id, time);
 }
 
 int CRTableInterface::rawFindByRevision(
-    const std::string& key, const Revision& valueHolder,
+    const std::string& key, const Revision& valueHolder, const Time& time,
     std::vector<std::shared_ptr<Revision> >* dest) const {
   CHECK(isInitialized()) << "Attemplted to find in non-initialized table";
   // whether valueHolder contains key is implicitly checked whenever using
   // Revision::insertPlaceHolder - for now it's a pretty safe bet that the
   // implementation uses that - this would be rather cumbersome to check here
   CHECK_NOTNULL(dest);
-  return rawFindByRevisionImpl(key, valueHolder, dest);
+  CHECK(time <= Time()) << "Seeing the future is yet to be implemented ;)";
+  return rawFindByRevisionImpl(key, valueHolder, time, dest);
 }
 // TODO(tcies) test
 int CRTableInterface::rawFindByRevisionImpl(
-    const std::string& key, const Revision& valueHolder,
+    const std::string& key, const Revision& valueHolder, const Time& time,
     std::vector<std::shared_ptr<Revision> >* dest) const {
   PocoToProto pocoToProto(*this);
   Poco::Data::Statement statement(*session_);
   statement << "SELECT";
   pocoToProto.into(statement);
-  statement << "FROM " << name();
+  statement << "FROM " << name() << " WHERE time <= ? ",
+      Poco::Data::use(time.serialize());
   if (key != ""){
-    statement << " WHERE " << key << " LIKE ";
+    statement << " AND " << key << " LIKE ";
     valueHolder.insertPlaceHolder(key, statement);
   }
   try{
@@ -223,15 +225,16 @@ int CRTableInterface::rawFindByRevisionImpl(
 
 // although this is very similar to rawGetRow(), I don't see how to share the
 // features without loss of performance TODO(discuss)
-void CRTableInterface::rawDump(std::vector<std::shared_ptr<Revision> >* dest)
+void CRTableInterface::rawDump(const Time& time,
+                               std::vector<std::shared_ptr<Revision> >* dest)
 const{
   std::shared_ptr<Revision> valueHolder = getTemplate();
-  rawFindByRevision("", *valueHolder , dest);
+  rawFindByRevision("", *valueHolder, time, dest);
 }
 
 CRTableInterface::PocoToProto::PocoToProto(
     const CRTableInterface& table) :
-                table_(table) {}
+                    table_(table) {}
 
 void CRTableInterface::PocoToProto::into(Poco::Data::Statement& statement) {
   statement << " ";

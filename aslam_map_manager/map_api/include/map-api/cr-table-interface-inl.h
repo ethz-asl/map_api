@@ -9,17 +9,19 @@ void CRTableInterface::addField(const std::string& name){
 
 template<typename ValueType>
 int CRTableInterface::rawFind(const std::string& key, const ValueType& value,
-            std::vector<std::shared_ptr<Revision> >* dest) const {
+                              const Time& time,
+                              std::vector<std::shared_ptr<Revision> >* dest)
+const {
   std::shared_ptr<Revision> valueHolder = this->getTemplate();
   valueHolder->set(key, value);
-  return this->rawFindByRevision(key, *valueHolder, dest);
+  return this->rawFindByRevision(key, *valueHolder, time, dest);
 }
 
 template<typename ValueType>
 std::shared_ptr<Revision> CRTableInterface::rawFindUnique(
-    const std::string& key, const ValueType& value) const{
+    const std::string& key, const ValueType& value, const Time& time) const{
   std::vector<std::shared_ptr<Revision> > results;
-  int count = rawFind(key, value, &results);
+  int count = rawFind(key, value, time, &results);
   switch (count){
     case 0: return std::shared_ptr<Revision>();
     case 1: return results[0];

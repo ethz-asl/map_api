@@ -47,17 +47,22 @@ class CRUTableInterface : public CRTableInterface{
    * and conflict checking - that is assumed to be done by the transaction.
    */
   friend class Transaction;
+  /**
+   * Insertion differs from CRTableInterface in that additional default field
+   * "previous" needs to be set.
+   */
   virtual bool rawInsertImpl(Revision& query) const override;
   /**
-   * Extension to CR interface: Get latest version at given time.
+   * For now, may find only by values that don't get updated. Otherwise, would
+   * need to search through entire history, which is not just painful to
+   * implement, but would also probably not work well on a distributed system.
+   * TODO(discuss) right?
+   * TODO(tcies) if yes, formalize and embed in code
    */
-  std::shared_ptr<Revision> rawGetRowAtTime(
-      const Id& id, const Time& time) const;
-  /**
-   * Dump table according to state at given time TODO(tcies) also in CR
-   */
-  void rawDumpAtTime(const Time& time,
-                     std::vector<std::shared_ptr<Revision> >* dest) const;
+  TODO continue here;
+  virtual int rawFindByRevisionImpl(
+      const std::string& key, const Revision& valueHolder, const Time& time,
+      std::vector<std::shared_ptr<Revision> >* dest)  const;
   /**
    * Field ID in revision must correspond to an already present item, revision
    * structure needs to match.
