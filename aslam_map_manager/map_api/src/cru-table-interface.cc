@@ -84,16 +84,15 @@ bool CRUTableInterface::rawUpdateQuery(Revision& query) const{
   archive->set("time", time);
   archive->set("revision", *current);
   if (!history_->rawInsertQuery(*archive)) {
-    LOG(ERROR) << info << "Failed to insert current version into history";
+    LOG(FATAL) << info << "Failed to insert current version into history";
   }
   // 2. overwrite
   // TODO(tcies) this is the lazy way, to get it to work; use UPDATE query
   try {
-    *session_ << "DELETE FROM " << name() << " WHERE 'ID' LIKE ?;",
-        id.hexString(), Poco::Data::now;
+    *session_ << "DELETE FROM " << name() << " WHERE ID LIKE ? ",
+        Poco::Data::use(id.hexString()), Poco::Data::now;
   } catch (const std::exception& e) {
-    LOG(ERROR) << info << "Delete in update failed with exception " << e.what();
-    return false;
+    LOG(FATAL) << info << "Delete in update failed with exception " << e.what();
   }
   query.set("time", Time());
   query.set("previous", archiveId);

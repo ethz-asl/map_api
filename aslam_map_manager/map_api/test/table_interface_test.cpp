@@ -32,20 +32,19 @@ TEST(TableInterFace, initEmpty) {
 template <typename FieldType>
 class FieldTestTable : public TestTable<CRTableInterface> {
  public:
-  virtual const std::string tableName() const override {
+  virtual const std::string name() const override {
     return "field_test_table";
   }
  protected:
-  virtual bool define() {
+  virtual void define() {
     addField<FieldType>("test_field");
-    return true;
   }
 };
 
 template <typename FieldType>
 class InsertReadFieldTestTable : public FieldTestTable<FieldType> {
  public:
-  bool insertQuery(const Revision& query) {
+  bool insertQuery(Revision& query) const {
     return this->rawInsertQuery(query);
   }
 };

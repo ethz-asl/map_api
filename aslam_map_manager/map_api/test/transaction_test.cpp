@@ -103,8 +103,9 @@ class TransactionCRUTest : public TransactionTest {
 };
 
 TEST_F(TransactionCRUTest, InsertNonsense){
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   std::shared_ptr<Revision> nonsense(new Revision());
-  EXPECT_EQ(transaction_.insert(table_, nonsense), Id());
+  EXPECT_DEATH(transaction_.insert(table_, nonsense), "^");
 }
 
 TEST_F(TransactionCRUTest, InsertUpdateReadBeforeCommit){
@@ -153,7 +154,11 @@ class MultiTransactionSingleCRUTest : public MultiTransactionTest {
     return transaction.insert(table_, table_.sample(sample));
   }
   bool updateSample(Transaction& transaction, const Id& id, double newValue){
-    return transaction.update(table_, id, table_.sample(newValue));
+    std::shared_ptr<Revision> toUpdate =
+        transaction.read<CRUTableInterface>(table_, id);
+    CHECK(toUpdate);
+    toUpdate->set("n", newValue);
+    return transaction.update(table_, id, toUpdate);
   }
   void verify(Transaction& transaction, const Id& id, double expected){
     double actual;
@@ -184,7 +189,6 @@ TEST_F(MultiTransactionSingleCRUTest, SerialInsertRead) {
   Transaction& verification = verifier.beginNewTransaction();
   verify(verification, aId, 3.14);
   verify(verification, bId, 42);
-  EXPECT_TRUE(verification.abort());
 }
 
 TEST_F(MultiTransactionSingleCRUTest, ParallelInsertRead) {
@@ -200,7 +204,6 @@ TEST_F(MultiTransactionSingleCRUTest, ParallelInsertRead) {
   Transaction& verification = verifier.beginNewTransaction();
   verify(verification, aId, 3.14);
   verify(verification, bId, 42);
-  EXPECT_TRUE(verification.abort());
 }
 
 TEST_F(MultiTransactionSingleCRUTest, UpdateRead) {
@@ -218,7 +221,14 @@ TEST_F(MultiTransactionSingleCRUTest, UpdateRead) {
   // Check presence of sample in table
   Transaction& aCheck = a.beginNewTransaction();
   verify(aCheck, itemId, 42);
-  EXPECT_TRUE(aCheck.abort());
+  // adding another udpate and check to see whether multiple history entries
+  // work together well
+  Transaction& aUpdate2 = a.beginNewTransaction();
+  EXPECT_TRUE(updateSample(aUpdate2, itemId, 21));
+  EXPECT_TRUE(aUpdate2.commit());
+  // Check presence of sample in table
+  Transaction& aCheck2 = a.beginNewTransaction();
+  verify(aCheck2, itemId, 21);
 }
 
 TEST_F(MultiTransactionSingleCRUTest, ParallelUpdate) {
@@ -235,12 +245,11 @@ TEST_F(MultiTransactionSingleCRUTest, ParallelUpdate) {
   // b updates item
   Agent& b = addAgent();
   Transaction& bUpdate = b.beginNewTransaction();
-  EXPECT_TRUE(updateSample(bUpdate, itemId, 0xDEADBEEF));
+  EXPECT_TRUE(updateSample(bUpdate, itemId, 12.34));
   // expect commit conflict
   EXPECT_TRUE(bUpdate.commit());
   EXPECT_FALSE(aUpdate.commit());
   // make sure b has won
   Transaction& aCheck = a.beginNewTransaction();
-  verify(aCheck, itemId, 0xDEADBEEF);
-  EXPECT_TRUE(aCheck.abort());
+  verify(aCheck, itemId, 12.34);
 }

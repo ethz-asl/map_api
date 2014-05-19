@@ -163,8 +163,7 @@ bool CRTableInterface::rawInsertQuery(Revision& query) const{
   try {
     stat.execute();
   } catch(const std::exception &e){
-    LOG(ERROR) << "Insert failed with exception " << e.what();
-    return false;
+    LOG(FATAL) << "Insert failed with exception " << e.what();
   }
 
   return true;

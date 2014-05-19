@@ -112,6 +112,10 @@ bool Transaction::insert(CRTableInterface& table, const Id& id,
     return false;
   }
   CHECK(item) << "Passed revision pointer is null";
+  std::shared_ptr<Revision> reference = table.getTemplate();
+  CHECK(item->structureMatch(*reference)) <<
+      "Structure of item to be inserted: " << item->DebugString() <<
+      " doesn't match table template " << reference->DebugString();
   item->set("ID",id);
   // item->set("owner",owner_); TODO(tcies) later, fetch from core
   insertions_.insert(InsertMap::value_type(
