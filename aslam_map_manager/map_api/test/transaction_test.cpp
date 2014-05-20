@@ -15,6 +15,9 @@ using namespace map_api;
  */
 class TransactionTest : public testing::Test {
  protected:
+  virtual void SetUp() override {
+    MapApiCore::getInstance().purgeDb();
+  }
   Transaction transaction_;
 };
 
@@ -55,7 +58,6 @@ TEST_F(TransactionTest, BeginCommit){
 
 TEST_F(TransactionTest, OperationsBeforeBegin){
   TransactionTestTable table;
-  system("cp database.db /tmp/trate0.db");
   EXPECT_TRUE(table.init());
   std::shared_ptr<Revision> data = table.sample(6.626e-34);
   EXPECT_EQ(transaction_.insert(table, data), Id());
@@ -65,7 +67,6 @@ TEST_F(TransactionTest, OperationsBeforeBegin){
   EXPECT_TRUE(valid.begin());
   Id inserted = valid.insert(table, data);
   EXPECT_NE(inserted, Id());
-  system("cp database.db /tmp/trate.db");
   EXPECT_TRUE(valid.commit());
 
   EXPECT_FALSE(transaction_.read<CRUTableInterface>(table, inserted));
