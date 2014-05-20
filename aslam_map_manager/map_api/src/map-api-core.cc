@@ -75,7 +75,7 @@ void MapApiCore::purgeDb() {
   for (const std::shared_ptr<Revision>& table : tables) {
     std::string name;
     table->get("name", &name);
-    *dbSess_ << "DROP TABLE " << name, Poco::Data::now;
+    *dbSess_ << "DROP TABLE IF EXISTS " << name, Poco::Data::now;
   }
   *dbSess_ << "DROP TABLE metatable", Poco::Data::now;
   metatable_.reset();

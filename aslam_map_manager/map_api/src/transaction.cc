@@ -281,8 +281,7 @@ bool Transaction::hasItemConflict<Transaction::CRUItemIdentifier>(
   }
   Time latestUpdate;
   if (!item.first.rawLatestUpdateTime(item.second, &latestUpdate)){
-    LOG(ERROR) << "Error retrieving update time";
-    return true;
+    LOG(FATAL) << "Error retrieving update time";
   }
   return latestUpdate >= beginTime_;
 }

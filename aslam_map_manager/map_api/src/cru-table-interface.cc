@@ -23,7 +23,9 @@ bool CRUTableInterface::init() {
   addField<Time>("update_time");
   addField<Id>("previous"); // id of previous revision in history table
   history_.reset(new History(name()));
-  return history_->init() && CRTableInterface::init();
+  bool history_initialized = history_->init();
+  bool cr_initialized = CRTableInterface::init();
+  return history_initialized && cr_initialized;
 }
 
 bool CRUTableInterface::rawInsertImpl(Revision& query) const {

@@ -25,7 +25,7 @@ bool CRTableInterface::isInitialized() const{
 void CRTableInterface::addField(const std::string& name,
                                 proto::TableFieldDescriptor_Type type){
   // make sure the field has not been defined yet
-  for (int i=0; i<structure_.fields_size(); ++i){
+  for (int i = 0; i < structure_.fields_size(); ++i){
     if (structure_.fields(i).name().compare(name) == 0){
       LOG(FATAL) << "In table " << structure_.name() << ": Field " << name <<
           " defined twice!" << std::endl;
@@ -140,7 +140,7 @@ bool CRTableInterface::rawInsert(Revision& query) const {
   CHECK(reference->structureMatch(query)) << "Bad structure of insert revision";
   Id id;
   query.get("ID", &id);
-  CHECK_NE(id, Id()) << "Attempted to insert element with invalid ID";
+  CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
   query.set("insert_time", Time());
   return rawInsertImpl(query);
 }
@@ -192,7 +192,7 @@ std::shared_ptr<Revision> CRTableInterface::rawGetByIdImpl(
 int CRTableInterface::rawFindByRevision(
     const std::string& key, const Revision& valueHolder, const Time& time,
     std::vector<std::shared_ptr<Revision> >* dest) const {
-  CHECK(isInitialized()) << "Attemplted to find in non-initialized table";
+  CHECK(isInitialized()) << "Attempted to find in non-initialized table";
   // whether valueHolder contains key is implicitly checked whenever using
   // Revision::insertPlaceHolder - for now it's a pretty safe bet that the
   // implementation uses that - this would be rather cumbersome to check here
@@ -237,7 +237,7 @@ const{
 
 CRTableInterface::PocoToProto::PocoToProto(
     const CRTableInterface& table) :
-                    table_(table) {}
+                        table_(table) {}
 
 void CRTableInterface::PocoToProto::into(Poco::Data::Statement& statement) {
   statement << " ";
