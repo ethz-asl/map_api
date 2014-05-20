@@ -12,18 +12,10 @@ class TestTable : public TableInterfaceType {
   virtual const std::string name() const override {
     return "test_table";
   }
-  std::shared_ptr<Poco::Data::Session> sessionForward(){
-    return std::shared_ptr<Poco::Data::Session>(this->session_);
-  }
-  void cleanup(){
-    *(sessionForward()) << "DROP TABLE IF EXISTS " << this->name(),
-        Poco::Data::now;
-    LOG(INFO) << "Table " << this->name() << " dropped";
-  }
  protected:
   virtual void define(){}
 
  public:
-  using TableInterfaceType::rawInsertQuery;
-  using TableInterfaceType::rawGetRow;
+  using TableInterfaceType::rawInsert;
+  using TableInterfaceType::rawGetById;
 };

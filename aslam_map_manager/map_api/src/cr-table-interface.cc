@@ -75,6 +75,7 @@ bool CRTableInterface::init() {
 }
 
 std::shared_ptr<Revision> CRTableInterface::getTemplate() const{
+  CHECK(isInitialized()) << "Can't get template of non-initialized table";
   std::shared_ptr<Revision> ret =
       std::shared_ptr<Revision>(
           new Revision);
@@ -132,10 +133,16 @@ bool CRTableInterface::createQuery(){
   return true;
 }
 
-bool CRTableInterface::rawInsertQuery(Revision& query) const{
-  // TODO(tcies) verify schema
-  // TODO(tcies) verify mandatory fields
-
+bool CRTableInterface::rawInsert(Revision& query) const {
+  CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
+  std::shared_ptr<Revision> reference = getTemplate();
+  CHECK(reference->structureMatch(query)) << "Bad structure of insert revision";
+  Id id;
+  query.get("ID", &id);
+  CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
+  return rawInsertImpl(query);
+}
+bool CRTableInterface::rawInsertImpl(Revision& query) const{
   // Bag for blobs that need to stay in scope until statement is executed
   std::vector<std::shared_ptr<Poco::Data::BLOB> > placeholderBlobs;
 
@@ -169,13 +176,29 @@ bool CRTableInterface::rawInsertQuery(Revision& query) const{
   return true;
 }
 
-std::shared_ptr<Revision> CRTableInterface::rawGetRow(
+std::shared_ptr<Revision> CRTableInterface::rawGetById(
+    const Id &id) const{
+  CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
+  CHECK_NE(id, Id()) << "Supplied invalid ID";
+  return rawGetByIdImpl(id);
+}
+std::shared_ptr<Revision> CRTableInterface::rawGetByIdImpl(
     const Id &id) const{
   return rawFindUnique("ID", id);
 }
 
-// TODO(tcies) test
 int CRTableInterface::rawFindByRevision(
+    const std::string& key, const Revision& valueHolder,
+    std::vector<std::shared_ptr<Revision> >* dest) const {
+  CHECK(isInitialized()) << "Attempted to find in non-initialized table";
+  // whether valueHolder contains key is implicitly checked whenever using
+  // Revision::insertPlaceHolder - for now it's a pretty safe bet that the
+  // implementation uses that - this would be rather cumbersome to check here
+  CHECK_NOTNULL(dest);
+  return rawFindByRevisionImpl(key, valueHolder, dest);
+}
+// TODO(tcies) test
+int CRTableInterface::rawFindByRevisionImpl(
     const std::string& key, const Revision& valueHolder,
     std::vector<std::shared_ptr<Revision> >* dest) const {
   PocoToProto pocoToProto(*this);

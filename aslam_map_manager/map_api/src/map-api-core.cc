@@ -55,8 +55,14 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
       " even though its presence seemingly caused a conflict";
   proto::TableDescriptor previousDescriptor;
   previous->get("descriptor", &previousDescriptor);
-  return descriptor.SerializeAsString() ==
-      previousDescriptor.SerializeAsString();
+  if (descriptor.SerializeAsString() !=
+      previousDescriptor.SerializeAsString()) {
+    LOG(ERROR) << "Table schema mismatch of table " << descriptor.name() << ": "
+        << "Desired structure is " << descriptor.DebugString() <<
+        " while structure in metatable is " << previousDescriptor.DebugString();
+    return false;
+  }
+  return true;
 }
 
 void MapApiCore::purgeDb() {

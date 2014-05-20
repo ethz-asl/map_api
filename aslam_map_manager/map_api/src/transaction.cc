@@ -60,7 +60,7 @@ bool Transaction::commit(){
       const SharedRevisionPointer &revision = insertion.second;
       CHECK(revision->verify("ID", id)) <<
           "Identifier ID does not match revision ID";
-      if (!table.rawInsertQuery(*revision)){
+      if (!table.rawInsert(*revision)){
         LOG(ERROR) << debugInfo << "Insertion failed, aborting commit.";
         return false;
       }
@@ -136,7 +136,7 @@ Transaction::SharedRevisionPointer Transaction::read<CRTableInterface>(
     return itemIterator->second;
   }
   std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-  return table.rawGetRow(id);
+  return table.rawGetById(id);
 }
 
 template<>
@@ -259,7 +259,7 @@ bool Transaction::hasItemConflict<Transaction::CRItemIdentifier>(
     const Transaction::CRItemIdentifier& item) {
   std::lock_guard<std::recursive_mutex> lock(dbMutex_);
   // Conflict if id present in table
-  if (item.first.rawGetRow(item.second)){
+  if (item.first.rawGetById(item.second)){
     LOG(WARNING) << "Table " << item.first.name() << " already contains id " <<
         item.second.hexString() << ", transaction conflict!";
     return true;

@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <map-api/map-api-core.h>
 #include <map-api/transaction.h>
 
 #include "test_table.cpp"
@@ -34,6 +35,9 @@ class TransactionTestTable : public TestTable<CRUTableInterface> {
     return "n";
   }
  protected:
+  virtual const std::string name() const override {
+    return "transaction_test_table";
+  }
   virtual void define() {
     addField<double>(sampleField());
   }
@@ -51,6 +55,7 @@ TEST_F(TransactionTest, BeginCommit){
 
 TEST_F(TransactionTest, OperationsBeforeBegin){
   TransactionTestTable table;
+  system("cp database.db /tmp/trate0.db");
   EXPECT_TRUE(table.init());
   std::shared_ptr<Revision> data = table.sample(6.626e-34);
   EXPECT_EQ(transaction_.insert(table, data), Id());
@@ -60,6 +65,7 @@ TEST_F(TransactionTest, OperationsBeforeBegin){
   EXPECT_TRUE(valid.begin());
   Id inserted = valid.insert(table, data);
   EXPECT_NE(inserted, Id());
+  system("cp database.db /tmp/trate.db");
   EXPECT_TRUE(valid.commit());
 
   EXPECT_FALSE(transaction_.read<CRUTableInterface>(table, inserted));
@@ -78,12 +84,9 @@ TEST_F(TransactionTest, InsertBeforeTableInit){
 class TransactionCRUTest : public TransactionTest {
  protected:
   virtual void SetUp() {
+    MapApiCore::getInstance().purgeDb();
     table_.init();
     transaction_.begin();
-  }
-  virtual void TearDown() {
-    transaction_.abort();
-    table_.cleanup();
   }
   Id insertSample(double sample){
     return transaction_.insert(table_, table_.sample(sample));
@@ -145,10 +148,8 @@ class MultiTransactionTest : public testing::Test {
 class MultiTransactionSingleCRUTest : public MultiTransactionTest {
  protected:
   virtual void SetUp()  {
+    MapApiCore::getInstance().purgeDb();
     table_.init();
-  }
-  virtual void TearDown() {
-    table_.cleanup();
   }
   Id insertSample(Transaction& transaction, double sample){
     return transaction.insert(table_, table_.sample(sample));

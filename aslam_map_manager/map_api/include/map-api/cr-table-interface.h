@@ -47,7 +47,7 @@ class CRTableInterface {
    * Returns an empty revision having the structure as defined by the user
    * in define() TODO(tcies) cache, in setup()
    */
-  virtual std::shared_ptr<Revision> getTemplate() const final;
+  std::shared_ptr<Revision> getTemplate() const;
   /**
    * The following struct can be used to automatically supply table name and
    * item id to a glog message.
@@ -67,8 +67,8 @@ class CRTableInterface {
    */
   template<typename Type>
   void addField(const std::string& name);
-  virtual void addField(const std::string& name,
-                        proto::TableFieldDescriptor_Type type) final;
+  void addField(const std::string& name,
+                proto::TableFieldDescriptor_Type type);
   /**
    * Shared pointer to database session
    * TODO(tcies) move to private, remove from testtable, replace by purgedb
@@ -84,14 +84,17 @@ class CRTableInterface {
   friend class Transaction;
   friend class History;
   /**
-   * Commits an insert query. ID has to be defined in the query.
-   * TODO(tcies) check for query completeness... will need to NVI anyways.
+   * Commits an insert query. ID has to be defined in the query. Non-virtual
+   * interface design pattern.
    */
-  virtual bool rawInsertQuery(Revision& query) const;
+  bool rawInsert(Revision& query) const;
+  virtual bool rawInsertImpl(Revision& query) const;
   /**
-   * Fetches row by ID and returns it as revision.
+   * Fetches row by ID and returns it as revision. Non-virtual interface
+   * design pattern.
    */
-  virtual std::shared_ptr<Revision> rawGetRow(const Id& id) const;
+  std::shared_ptr<Revision> rawGetById(const Id& id) const;
+  virtual std::shared_ptr<Revision> rawGetByIdImpl(const Id& id) const;
   /**
    * Loads items where key = value, returns their count.
    * If "key" is an empty string, no filter will be applied (equivalent to
@@ -100,18 +103,21 @@ class CRTableInterface {
    * there so that class Transaction may store conflict requests, which call
    * this function upon commit, without the need to specialize, which would be
    * impractical for users who want to add custom field types.
-   * Virtual, for TODO(tcies) CRUTableInterface will need its own implementation
+   * Although rawFind can't be virtual final as it is templated, it is a
+   * non-virtual interface.
    */
   template<typename ValueType>
   int rawFind(const std::string& key, const ValueType& value,
               std::vector<std::shared_ptr<Revision> >* dest) const;
-  virtual int rawFindByRevision(
+  int rawFindByRevision(
+      const std::string& key, const Revision& valueHolder,
+      std::vector<std::shared_ptr<Revision> >* dest)  const;
+  virtual int rawFindByRevisionImpl(
       const std::string& key, const Revision& valueHolder,
       std::vector<std::shared_ptr<Revision> >* dest)  const;
   /**
-   * Same as rawFind(), but asserts that not more than one item is found. Of
-   * these three functions only rawFindByRevision is virtual, as it is called
-   * by the others.
+   * Same as rawFind(), but asserts that not more than one item is found.
+   * As rawFind() and rawFindByRevision(), this is not meant to be overridden.
    */
   template<typename ValueType>
   std::shared_ptr<Revision> rawFindUnique(const std::string& key,
@@ -119,8 +125,8 @@ class CRTableInterface {
   /**
    * Fetches all the contents of the table. Calls rawFindByRevision indirectly.
    */
-  virtual void rawDump(
-      std::vector<std::shared_ptr<Revision> >* dest) const final;
+  void rawDump(
+      std::vector<std::shared_ptr<Revision> >* dest) const;
   /**
    * The PocoToProto class serves as intermediate between Poco and Protobuf:
    * Because Protobuf doesn't support pointers to numeric fields and Poco Data

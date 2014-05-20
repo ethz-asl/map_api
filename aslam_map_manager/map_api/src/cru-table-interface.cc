@@ -28,23 +28,23 @@ bool CRUTableInterface::init() {
   return history_initialized && cr_initialized;
 }
 
-bool CRUTableInterface::rawInsertQuery(Revision& query) const {
+bool CRUTableInterface::rawInsertImpl(Revision& query) const {
   query.set("time", Time());
   query.set("previous", Id());
-  return CRTableInterface::rawInsertQuery(query);
+  return CRTableInterface::rawInsertImpl(query);
 }
 
 std::shared_ptr<Revision> CRUTableInterface::rawGetRowAtTime(
     const Id& id, const Time& time) const {
   // TODO(tcies) this could be SQL optimized by pre-fetching a couple of
   // revisions atime, using the LIMIT statement and ordered be time, descending
-  std::shared_ptr<Revision> returnValue = rawGetRow(id);
+  std::shared_ptr<Revision> returnValue = rawGetById(id);
   Time timeIteration;
   for (returnValue->get("time", &timeIteration); timeIteration > time;
       returnValue->get("time", &timeIteration)) {
     Id previous;
     returnValue->get("previous", &previous);
-    std::shared_ptr<Revision> archived = history_->rawGetRow(previous);
+    std::shared_ptr<Revision> archived = history_->rawGetById(previous);
     archived->get("revision", returnValue.get());
   }
   return returnValue;
@@ -73,7 +73,7 @@ bool CRUTableInterface::rawUpdateQuery(Revision& query) const{
   query.get("ID", &id);
   ItemDebugInfo info(name(), id);
   // 1. archive current
-  std::shared_ptr<Revision> current = rawGetRow(id);
+  std::shared_ptr<Revision> current = rawGetById(id);
   CHECK(current) << info << "Attempted to update nonexistent item";
   std::shared_ptr<Revision> archive = history_->getTemplate();
   Id archiveId = Id::random();
@@ -85,7 +85,7 @@ bool CRUTableInterface::rawUpdateQuery(Revision& query) const{
   query.get("time", &time);
   archive->set("time", time);
   archive->set("revision", *current);
-  if (!history_->rawInsertQuery(*archive)) {
+  if (!history_->rawInsert(*archive)) {
     LOG(FATAL) << info << "Failed to insert current version into history";
   }
   // 2. overwrite
@@ -98,12 +98,14 @@ bool CRUTableInterface::rawUpdateQuery(Revision& query) const{
   }
   query.set("time", Time());
   query.set("previous", archiveId);
-  return CRTableInterface::rawInsertQuery(query);
+  // important: Needs to call CR implementation, not CRU implementation through
+  // non-virtual interface rawInsert(), to keep correct 'previous' field value
+  return CRTableInterface::rawInsertImpl(query);
 }
 
 bool CRUTableInterface::rawLatestUpdateTime(
     const Id& id, Time* time) const{
-  std::shared_ptr<Revision> row = rawGetRow(id);
+  std::shared_ptr<Revision> row = rawGetById(id);
   ItemDebugInfo itemInfo(name(), id);
   if (!row){
     LOG(ERROR) << itemInfo << "Failed to retrieve row";
