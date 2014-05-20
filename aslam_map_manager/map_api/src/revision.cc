@@ -120,15 +120,15 @@ bool Revision::ParseFromString(const std::string& data){
  * PROTOBUFENUM
  */
 
-REVISION_ENUM(std::string, proto::TableFieldDescriptor_Type_STRING)
-REVISION_ENUM(double, proto::TableFieldDescriptor_Type_DOUBLE)
-REVISION_ENUM(int32_t, proto::TableFieldDescriptor_Type_INT32)
-REVISION_ENUM(Id, proto::TableFieldDescriptor_Type_HASH128)
-REVISION_ENUM(int64_t, proto::TableFieldDescriptor_Type_INT64)
-REVISION_ENUM(Time, proto::TableFieldDescriptor_Type_INT64)
-REVISION_ENUM(Revision, proto::TableFieldDescriptor_Type_BLOB)
-REVISION_ENUM(testBlob, proto::TableFieldDescriptor_Type_BLOB)
-REVISION_ENUM(Poco::Data::BLOB, proto::TableFieldDescriptor_Type_BLOB)
+REVISION_ENUM(std::string, proto::TableFieldDescriptor_Type_STRING);
+REVISION_ENUM(double, proto::TableFieldDescriptor_Type_DOUBLE);
+REVISION_ENUM(int32_t, proto::TableFieldDescriptor_Type_INT32);
+REVISION_ENUM(Id, proto::TableFieldDescriptor_Type_HASH128);
+REVISION_ENUM(int64_t, proto::TableFieldDescriptor_Type_INT64);
+REVISION_ENUM(Time, proto::TableFieldDescriptor_Type_INT64);
+REVISION_ENUM(Revision, proto::TableFieldDescriptor_Type_BLOB);
+REVISION_ENUM(testBlob, proto::TableFieldDescriptor_Type_BLOB);
+REVISION_ENUM(Poco::Data::BLOB, proto::TableFieldDescriptor_Type_BLOB);
 
 /**
  * SET
