@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <map-api/map-api-core.h>
 #include <map-api/transaction.h>
 
 #include "test_table.cpp"
@@ -34,9 +35,11 @@ class TransactionTestTable : public TestTable<CRUTableInterface> {
     return "n";
   }
  protected:
-  virtual bool define() {
+  virtual const std::string name() const override {
+    return "transaction_test_table";
+  }
+  virtual void define() {
     addField<double>(sampleField());
-    return true;
   }
 };
 
@@ -52,15 +55,17 @@ TEST_F(TransactionTest, BeginCommit){
 
 TEST_F(TransactionTest, OperationsBeforeBegin){
   TransactionTestTable table;
+  system("cp database.db /tmp/trate0.db");
   EXPECT_TRUE(table.init());
   std::shared_ptr<Revision> data = table.sample(6.626e-34);
-  EXPECT_EQ(transaction_.insert<CRUTableInterface>(table, data), Id());
+  EXPECT_EQ(transaction_.insert(table, data), Id());
   // read and update should fail only because transaction hasn't started yet,
   // so we need to insert some data
   Transaction valid;
   EXPECT_TRUE(valid.begin());
-  Id inserted = valid.insert<CRUTableInterface>(table, data);
+  Id inserted = valid.insert(table, data);
   EXPECT_NE(inserted, Id());
+  system("cp database.db /tmp/trate.db");
   EXPECT_TRUE(valid.commit());
 
   EXPECT_FALSE(transaction_.read<CRUTableInterface>(table, inserted));
@@ -70,8 +75,7 @@ TEST_F(TransactionTest, OperationsBeforeBegin){
 TEST_F(TransactionTest, InsertBeforeTableInit){
   TransactionTestTable table;
   EXPECT_TRUE(transaction_.begin());
-  EXPECT_DEATH(transaction_.insert<CRUTableInterface>(table,
-                                                      table.sample(3.14)), "^");
+  EXPECT_DEATH(transaction_.insert(table, table.sample(3.14)), "^");
 }
 
 /**
@@ -80,16 +84,12 @@ TEST_F(TransactionTest, InsertBeforeTableInit){
 class TransactionCRUTest : public TransactionTest {
  protected:
   virtual void SetUp() {
+    MapApiCore::getInstance().purgeDb();
     table_.init();
     transaction_.begin();
   }
-  virtual void TearDown() {
-    transaction_.abort();
-    table_.cleanup();
-  }
   Id insertSample(double sample){
-    return transaction_.insert<CRUTableInterface>(
-        table_, table_.sample(sample));
+    return transaction_.insert(table_, table_.sample(sample));
   }
   bool updateSample(const Id& id, double newValue){
     return transaction_.update(table_, id, table_.sample(newValue));
@@ -106,8 +106,9 @@ class TransactionCRUTest : public TransactionTest {
 };
 
 TEST_F(TransactionCRUTest, InsertNonsense){
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   std::shared_ptr<Revision> nonsense(new Revision());
-  EXPECT_EQ(transaction_.insert<CRUTableInterface>(table_, nonsense), Id());
+  EXPECT_DEATH(transaction_.insert(table_, nonsense), "^");
 }
 
 TEST_F(TransactionCRUTest, InsertUpdateReadBeforeCommit){
@@ -147,16 +148,18 @@ class MultiTransactionTest : public testing::Test {
 class MultiTransactionSingleCRUTest : public MultiTransactionTest {
  protected:
   virtual void SetUp()  {
+    MapApiCore::getInstance().purgeDb();
     table_.init();
   }
-  virtual void TearDown() {
-    table_.cleanup();
-  }
   Id insertSample(Transaction& transaction, double sample){
-    return transaction.insert<CRUTableInterface>(table_, table_.sample(sample));
+    return transaction.insert(table_, table_.sample(sample));
   }
   bool updateSample(Transaction& transaction, const Id& id, double newValue){
-    return transaction.update(table_, id, table_.sample(newValue));
+    std::shared_ptr<Revision> toUpdate =
+        transaction.read<CRUTableInterface>(table_, id);
+    CHECK(toUpdate);
+    toUpdate->set("n", newValue);
+    return transaction.update(table_, id, toUpdate);
   }
   void verify(Transaction& transaction, const Id& id, double expected){
     double actual;
@@ -187,7 +190,6 @@ TEST_F(MultiTransactionSingleCRUTest, SerialInsertRead) {
   Transaction& verification = verifier.beginNewTransaction();
   verify(verification, aId, 3.14);
   verify(verification, bId, 42);
-  EXPECT_TRUE(verification.abort());
 }
 
 TEST_F(MultiTransactionSingleCRUTest, ParallelInsertRead) {
@@ -203,7 +205,6 @@ TEST_F(MultiTransactionSingleCRUTest, ParallelInsertRead) {
   Transaction& verification = verifier.beginNewTransaction();
   verify(verification, aId, 3.14);
   verify(verification, bId, 42);
-  EXPECT_TRUE(verification.abort());
 }
 
 TEST_F(MultiTransactionSingleCRUTest, UpdateRead) {
@@ -221,7 +222,14 @@ TEST_F(MultiTransactionSingleCRUTest, UpdateRead) {
   // Check presence of sample in table
   Transaction& aCheck = a.beginNewTransaction();
   verify(aCheck, itemId, 42);
-  EXPECT_TRUE(aCheck.abort());
+  // adding another udpate and check to see whether multiple history entries
+  // work together well
+  Transaction& aUpdate2 = a.beginNewTransaction();
+  EXPECT_TRUE(updateSample(aUpdate2, itemId, 21));
+  EXPECT_TRUE(aUpdate2.commit());
+  // Check presence of sample in table
+  Transaction& aCheck2 = a.beginNewTransaction();
+  verify(aCheck2, itemId, 21);
 }
 
 TEST_F(MultiTransactionSingleCRUTest, ParallelUpdate) {
@@ -238,12 +246,11 @@ TEST_F(MultiTransactionSingleCRUTest, ParallelUpdate) {
   // b updates item
   Agent& b = addAgent();
   Transaction& bUpdate = b.beginNewTransaction();
-  EXPECT_TRUE(updateSample(bUpdate, itemId, 0xDEADBEEF));
+  EXPECT_TRUE(updateSample(bUpdate, itemId, 12.34));
   // expect commit conflict
   EXPECT_TRUE(bUpdate.commit());
   EXPECT_FALSE(aUpdate.commit());
   // make sure b has won
   Transaction& aCheck = a.beginNewTransaction();
-  verify(aCheck, itemId, 0xDEADBEEF);
-  EXPECT_TRUE(aCheck.abort());
+  verify(aCheck, itemId, 12.34);
 }

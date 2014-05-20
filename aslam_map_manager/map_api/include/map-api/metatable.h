@@ -13,8 +13,8 @@ namespace map_api {
 class Metatable final : public CRTableInterface {
  public:
   virtual ~Metatable();
-  virtual const std::string tableName() const override;
-  virtual bool define();
+  virtual const std::string name() const override;
+  virtual void define();
  private:
   /**
    * Overriding sync to do nothing - we don't want an infinite recursion

@@ -9,23 +9,13 @@ template <typename TableInterfaceType>
 class TestTable : public TableInterfaceType {
  public:
   ~TestTable() {}
-  virtual const std::string tableName() const override {
+  virtual const std::string name() const override {
     return "test_table";
   }
-  std::shared_ptr<Poco::Data::Session> sessionForward(){
-    return std::shared_ptr<Poco::Data::Session>(this->session_);
-  }
-  void cleanup(){
-    *(sessionForward()) << "DROP TABLE IF EXISTS " << this->name(),
-        Poco::Data::now;
-    LOG(INFO) << "Table " << this->name() << " dropped";
-  }
  protected:
-  virtual bool define(){
-    return true;
-  }
+  virtual void define(){}
 
  public:
-  using TableInterfaceType::rawInsertQuery;
-  using TableInterfaceType::rawGetRow;
+  using TableInterfaceType::rawInsert;
+  using TableInterfaceType::rawGetById;
 };
