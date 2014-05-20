@@ -49,13 +49,13 @@ class CRUTableInterface : public CRTableInterface{
   friend class Transaction;
   /**
    * Insertion differs from CRTableInterface in that additional default field
-   * "previous" needs to be set.
+   * "previous" and "update_time" need to be set to 0 and now respectively.
    */
   virtual bool rawInsertImpl(Revision& query) const override;
   /**
    * For now, may find only by values that don't get updated (that is, it
-   * looks up value in the current version of the table, then looks back to the
-   * create time and verifies that the element was present at the specified
+   * looks up value in the current version of the table, then looks at the
+   * insert time and verifies that the element was present at the specified
    * time). Otherwise, would
    * need to search through entire history, which is not just painful to
    * implement, but would also probably not work well on a distributed system.

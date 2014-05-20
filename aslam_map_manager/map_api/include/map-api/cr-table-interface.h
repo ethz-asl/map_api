@@ -91,7 +91,7 @@ class CRTableInterface {
   virtual bool rawInsertImpl(Revision& query) const;
   /**
    * Fetches row by ID and returns it as revision. Non-virtual interface
-   * design pattern. "Sees" only values with lower or equal time.
+   * design pattern. "Sees" only values with lower or equal insert time.
    */
   std::shared_ptr<Revision> rawGetById(const Id& id, const Time& time) const;
   virtual std::shared_ptr<Revision> rawGetByIdImpl(const Id& id,
