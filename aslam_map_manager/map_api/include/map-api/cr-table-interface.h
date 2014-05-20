@@ -15,10 +15,6 @@
 
 namespace map_api {
 
-/**
- * The derived table descriptor is to contain the desctiption of the data
- * fields as defined by the user in define().
- */
 class CRTableInterface {
  public:
   /**
@@ -117,8 +113,8 @@ class CRTableInterface {
       const std::string& key, const Revision& valueHolder,
       std::vector<std::shared_ptr<Revision> >* dest)  const;
   virtual int rawFindByRevisionImpl(
-        const std::string& key, const Revision& valueHolder,
-        std::vector<std::shared_ptr<Revision> >* dest)  const;
+      const std::string& key, const Revision& valueHolder,
+      std::vector<std::shared_ptr<Revision> >* dest)  const;
   /**
    * Same as rawFind(), but asserts that not more than one item is found.
    * As rawFind() and rawFindByRevision(), this is not meant to be overridden.
