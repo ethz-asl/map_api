@@ -51,7 +51,7 @@ class CRTableInterface {
    * Returns an empty revision having the structure as defined by the user
    * in define() TODO(tcies) cache, in setup()
    */
-  virtual std::shared_ptr<Revision> getTemplate() const final;
+  std::shared_ptr<Revision> getTemplate() const;
   /**
    * The following struct can be used to automatically supply table name and
    * item id to a glog message.
@@ -71,8 +71,8 @@ class CRTableInterface {
    */
   template<typename Type>
   void addField(const std::string& name);
-  virtual void addField(const std::string& name,
-                proto::TableFieldDescriptor_Type type) final;
+  void addField(const std::string& name,
+                proto::TableFieldDescriptor_Type type);
   /**
    * Shared pointer to database session
    * TODO(tcies) move to private, remove from testtable, replace by purgedb
@@ -91,13 +91,13 @@ class CRTableInterface {
    * Commits an insert query. ID has to be defined in the query. Non-virtual
    * interface design pattern.
    */
-  virtual bool rawInsert(Revision& query) const final;
+  bool rawInsert(Revision& query) const;
   virtual bool rawInsertImpl(Revision& query) const;
   /**
    * Fetches row by ID and returns it as revision. Non-virtual interface
    * design pattern.
    */
-  virtual std::shared_ptr<Revision> rawGetById(const Id& id) const final;
+  std::shared_ptr<Revision> rawGetById(const Id& id) const;
   virtual std::shared_ptr<Revision> rawGetByIdImpl(const Id& id) const;
   /**
    * Loads items where key = value, returns their count.
@@ -113,9 +113,9 @@ class CRTableInterface {
   template<typename ValueType>
   int rawFind(const std::string& key, const ValueType& value,
               std::vector<std::shared_ptr<Revision> >* dest) const;
-  virtual int rawFindByRevision(
+  int rawFindByRevision(
       const std::string& key, const Revision& valueHolder,
-      std::vector<std::shared_ptr<Revision> >* dest)  const final;
+      std::vector<std::shared_ptr<Revision> >* dest)  const;
   virtual int rawFindByRevisionImpl(
         const std::string& key, const Revision& valueHolder,
         std::vector<std::shared_ptr<Revision> >* dest)  const;
@@ -129,8 +129,8 @@ class CRTableInterface {
   /**
    * Fetches all the contents of the table. Calls rawFindByRevision indirectly.
    */
-  virtual void rawDump(
-      std::vector<std::shared_ptr<Revision> >* dest) const final;
+  void rawDump(
+      std::vector<std::shared_ptr<Revision> >* dest) const;
   /**
    * The PocoToProto class serves as intermediate between Poco and Protobuf:
    * Because Protobuf doesn't support pointers to numeric fields and Poco Data
