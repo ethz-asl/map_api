@@ -27,7 +27,7 @@ bool Transaction::find(CRTableInterface& table, const std::string& key,
   }
   // TODO(tcies) also browse uncommitted
   std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-  table.rawFind(key, value, dest);
+  table.rawFind(key, value, this->beginTime_, dest);
   return true;
 }
 
@@ -40,7 +40,7 @@ const {
   }
   // TODO(tcies) also browse uncommitted
   std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-  return table.rawFindUnique(key, value);
+  return table.rawFindUnique(key, value, this->beginTime_);
 }
 
 } // namespace map_api

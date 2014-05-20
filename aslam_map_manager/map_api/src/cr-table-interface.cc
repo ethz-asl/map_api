@@ -50,7 +50,7 @@ bool CRTableInterface::init() {
   // Define table fields
   // enforced fields id (hash) and owner
   addField<Id>("ID");
-  addField<Time>("time");
+  addField<Time>("insert_time");
   // addField<Id>("owner"); TODO(tcies) later, when owner will be used for
   // synchronization accross the network, or for its POC
   // transaction-enforced fields TODO(tcies) later
@@ -141,7 +141,7 @@ bool CRTableInterface::rawInsert(Revision& query) const {
   Id id;
   query.get("ID", &id);
   CHECK_NE(id, Id()) << "Attempted to insert element with invalid ID";
-  query.set("time", Time());
+  query.set("insert_time", Time());
   return rawInsertImpl(query);
 }
 bool CRTableInterface::rawInsertImpl(Revision& query) const{
@@ -197,6 +197,7 @@ int CRTableInterface::rawFindByRevision(
   // Revision::insertPlaceHolder - for now it's a pretty safe bet that the
   // implementation uses that - this would be rather cumbersome to check here
   CHECK_NOTNULL(dest);
+  dest->clear();
   CHECK(time <= Time()) << "Seeing the future is yet to be implemented ;)";
   return rawFindByRevisionImpl(key, valueHolder, time, dest);
 }
@@ -208,7 +209,7 @@ int CRTableInterface::rawFindByRevisionImpl(
   Poco::Data::Statement statement(*session_);
   statement << "SELECT";
   pocoToProto.into(statement);
-  statement << "FROM " << name() << " WHERE time <= ? ",
+  statement << "FROM " << name() << " WHERE insert_time <= ? ",
       Poco::Data::use(time.serialize());
   if (key != ""){
     statement << " AND " << key << " LIKE ";
@@ -217,8 +218,10 @@ int CRTableInterface::rawFindByRevisionImpl(
   try{
     statement.execute();
   } catch (const std::exception& e){
+    system("cp database.db /tmp/crti-find-fail.db");
     LOG(FATAL) << "Find statement failed: " << statement.toString() <<
-        " with exception " << e.what();
+        " with exception \"" << e.what() << "\", find database snapshot in " <<
+        "/tmp/crti-find-fail.db";
   }
   return pocoToProto.toProto(dest);
 }

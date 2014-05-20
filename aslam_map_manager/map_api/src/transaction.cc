@@ -74,7 +74,7 @@ bool Transaction::commit(){
       const SharedRevisionPointer &revision = update.second;
       CHECK(revision->verify("ID", id)) <<
           "Identifier ID does not match revision ID";
-      if (!table.rawUpdateQuery(*revision)){
+      if (!table.rawUpdate(*revision)){
         LOG(ERROR) << debugInfo << "Update failed, aborting commit.";
         return false;
       }
@@ -136,7 +136,7 @@ Transaction::SharedRevisionPointer Transaction::read<CRTableInterface>(
     return itemIterator->second;
   }
   std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-  return table.rawGetById(id);
+  return table.rawGetById(id, beginTime_);
 }
 
 template<>
@@ -160,7 +160,7 @@ Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
 
   // TODO (tcies) per-item reader lock
   std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-  return table.rawGetRowAtTime(id, beginTime_);
+  return table.rawGetById(id, beginTime_);
 }
 
 template<>
@@ -173,7 +173,7 @@ bool Transaction::dumpTable<CRTableInterface>(
   dest->clear();
   {
     std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-    table.rawDump(dest);
+    table.rawDump(beginTime_, dest);
   }
   // Also add yet uncommitted
   for (const std::pair<CRItemIdentifier,
@@ -215,7 +215,7 @@ bool Transaction::dumpTable<CRUTableInterface>(
 
   std::lock_guard<std::recursive_mutex> lock(dbMutex_);
   // find bookkeeping rows in the table
-  table.rawDumpAtTime(beginTime_, dest);
+  table.rawDump(beginTime_, dest);
   return true;
 }
 
@@ -259,7 +259,7 @@ bool Transaction::hasItemConflict<Transaction::CRItemIdentifier>(
     const Transaction::CRItemIdentifier& item) {
   std::lock_guard<std::recursive_mutex> lock(dbMutex_);
   // Conflict if id present in table
-  if (item.first.rawGetById(item.second)){
+  if (item.first.rawGetById(item.second, Time())){
     LOG(WARNING) << "Table " << item.first.name() << " already contains id " <<
         item.second.hexString() << ", transaction conflict!";
     return true;
@@ -292,7 +292,8 @@ template<>
 bool Transaction::hasItemConflict(
     const Transaction::ConflictCondition& item) {
   std::vector<std::shared_ptr<Revision> > results;
-  return item.table.rawFindByRevision(item.key, *item.valueHolder, &results);
+  return item.table.rawFindByRevision(item.key, *item.valueHolder, Time(),
+                                      &results);
 }
 
 template<>

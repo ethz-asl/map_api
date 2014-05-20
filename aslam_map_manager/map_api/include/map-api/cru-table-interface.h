@@ -53,13 +53,15 @@ class CRUTableInterface : public CRTableInterface{
    */
   virtual bool rawInsertImpl(Revision& query) const override;
   /**
-   * For now, may find only by values that don't get updated. Otherwise, would
+   * For now, may find only by values that don't get updated (that is, it
+   * looks up value in the current version of the table, then looks back to the
+   * create time and verifies that the element was present at the specified
+   * time). Otherwise, would
    * need to search through entire history, which is not just painful to
    * implement, but would also probably not work well on a distributed system.
    * TODO(discuss) right?
    * TODO(tcies) if yes, formalize and embed in code
    */
-  TODO continue here;
   virtual int rawFindByRevisionImpl(
       const std::string& key, const Revision& valueHolder, const Time& time,
       std::vector<std::shared_ptr<Revision> >* dest)  const;
@@ -67,7 +69,8 @@ class CRUTableInterface : public CRTableInterface{
    * Field ID in revision must correspond to an already present item, revision
    * structure needs to match.
    */
-  bool rawUpdateQuery(Revision& query) const;
+  bool rawUpdate(Revision& query) const;
+  virtual bool rawUpdateImpl(Revision& query) const;
   bool rawLatestUpdateTime(const Id& id, Time* time) const;
 
  private:

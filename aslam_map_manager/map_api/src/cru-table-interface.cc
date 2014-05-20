@@ -20,56 +20,42 @@ CRUTableInterface::~CRUTableInterface() {}
 
 bool CRUTableInterface::init() {
   // adding fields that make this an updateable table
+  addField<Time>("update_time");
   addField<Id>("previous"); // id of previous revision in history table
   history_.reset(new History(name()));
   return history_->init() && CRTableInterface::init();
 }
 
 bool CRUTableInterface::rawInsertImpl(Revision& query) const {
+  query.set("update_time", Time());
   query.set("previous", Id());
   return CRTableInterface::rawInsertImpl(query);
 }
 
-std::shared_ptr<Revision> CRUTableInterface::rawGetRowAtTime(
-    const Id& id, const Time& time) const {
-  // TODO(tcies) this could be SQL optimized by pre-fetching a couple of
-  // revisions atime, using the LIMIT statement and ordered be time, descending
-  std::shared_ptr<Revision> returnValue = rawGetById(id);
-  Time timeIteration;
-  for (returnValue->get("time", &timeIteration); timeIteration > time;
-      returnValue->get("revision_time", &timeIteration)) {
-    Id previous;
-    returnValue->get("previous", &previous);
-    std::shared_ptr<Revision> archived = history_->rawGetById(previous);
-    archived->get("revision", returnValue.get());
-  }
-  return returnValue;
+int CRUTableInterface::rawFindByRevisionImpl(
+      const std::string& key, const Revision& valueHolder, const Time& time,
+      std::vector<std::shared_ptr<Revision> >* dest)  const {
+  // for now, no difference from CRTableInterface - see documentation at
+  // declaration
+  return CRTableInterface::rawFindByRevisionImpl(key, valueHolder, time, dest);
 }
 
-void CRUTableInterface::rawDumpAtTime(
-    const Time& time, std::vector<std::shared_ptr<Revision> >* dest) const {
-  PocoToProto pocoToProto(*this);
-  Poco::Data::Statement statement(*session_);
-  statement << "SELECT";
-  pocoToProto.into(statement);
-  statement << "FROM " << name();
-  int64_t serializedTime = time.serialize();
-  statement << " WHERE time < ?", Poco::Data::use(serializedTime) ;
-  try{
-    statement.execute();
-  } catch (const std::exception& e){
-    LOG(FATAL) << "Statement failed: " << statement.toString() <<
-        " with exception " << e.what();
-  }
-  pocoToProto.toProto(dest);
+bool CRUTableInterface::rawUpdate(Revision& query) const {
+  CHECK(isInitialized()) << "Attempted to update in non-initialized table";
+  std::shared_ptr<Revision> reference = getTemplate();
+  CHECK(reference->structureMatch(query)) << "Bad structure of update revision";
+  Id id;
+  query.get("ID", &id);
+  CHECK_NE(id, Id()) << "Attempted to update element with invalid ID";
+  return rawUpdateImpl(query);
 }
 
-bool CRUTableInterface::rawUpdateQuery(Revision& query) const{
+bool CRUTableInterface::rawUpdateImpl(Revision& query) const {
   Id id;
   query.get("ID", &id);
   ItemDebugInfo info(name(), id);
   // 1. archive current
-  std::shared_ptr<Revision> current = rawGetById(id);
+  std::shared_ptr<Revision> current = rawGetById(id, Time());
   CHECK(current) << info << "Attempted to update nonexistent item";
   std::shared_ptr<Revision> archive = history_->getTemplate();
   Id archiveId = Id::random();
@@ -78,7 +64,7 @@ bool CRUTableInterface::rawUpdateQuery(Revision& query) const{
   query.get("previous", &previous);
   archive->set("previous", previous);
   Time time;
-  query.get("time", &time);
+  query.get("update_time", &time);
   archive->set("revision_time", time);
   archive->set("revision", *current);
   if (!history_->rawInsert(*archive)) {
@@ -92,22 +78,23 @@ bool CRUTableInterface::rawUpdateQuery(Revision& query) const{
   } catch (const std::exception& e) {
     LOG(FATAL) << info << "Delete in update failed with exception " << e.what();
   }
-  query.set("time", Time());
+  query.set("update_time", Time());
   query.set("previous", archiveId);
   // important: Needs to call CR implementation, not CRU implementation through
   // non-virtual interface rawInsert(), to keep correct 'previous' field value
+  // AND correct create_time field value
   return CRTableInterface::rawInsertImpl(query);
 }
 
 bool CRUTableInterface::rawLatestUpdateTime(
     const Id& id, Time* time) const{
-  std::shared_ptr<Revision> row = rawGetById(id);
+  std::shared_ptr<Revision> row = rawGetById(id, Time());
   ItemDebugInfo itemInfo(name(), id);
   if (!row){
     LOG(ERROR) << itemInfo << "Failed to retrieve row";
     return false;
   }
-  row->get("time", time);
+  row->get("update_time", time);
   return true;
 }
 
