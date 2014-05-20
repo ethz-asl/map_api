@@ -20,7 +20,7 @@ TEST(TableInterFace, initEmpty) {
   EXPECT_TRUE(table.init());
   std::shared_ptr<Revision> structure = table.getTemplate();
   ASSERT_TRUE(static_cast<bool>(structure));
-  EXPECT_EQ(structure->fieldqueries_size(), 1u);
+  EXPECT_EQ(1u, structure->fieldqueries_size());
 }
 
 /**
@@ -203,7 +203,7 @@ TYPED_TEST_CASE(FieldTestWithoutInit, MyTypes);
 TYPED_TEST_CASE(FieldTestWithInit, MyTypes);
 
 TYPED_TEST(FieldTestWithInit, Init) {
-  EXPECT_EQ(this->getTemplate()->fieldqueries_size(), 2u);
+  EXPECT_EQ(2u, this->getTemplate()->fieldqueries_size());
 }
 
 TYPED_TEST(FieldTestWithoutInit, CreateBeforeInit) {
@@ -224,7 +224,7 @@ TYPED_TEST(FieldTestWithInit, CreateRead) {
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   TypeParam dataFromTable;
   rowFromTable->get("test_field", &dataFromTable);
-  EXPECT_EQ(dataFromTable, this->sample_data_1());
+  EXPECT_EQ(this->sample_data_1(), dataFromTable);
 }
 
 TYPED_TEST(FieldTestWithInit, ReadInexistentRow) {
@@ -259,9 +259,9 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
 //  TypeParam readValue;
 //  Hash updateTest = table.insert(this->sample_data_1());
 //  EXPECT_TRUE(table.get(updateTest, readValue));
-//  EXPECT_EQ(readValue, this->sample_data_1());
+//  EXPECT_EQ(this->sample_data_1(), readValue);
 //  EXPECT_TRUE(table.update(updateTest, this->sample_data_2()));
 //  EXPECT_TRUE(table.get(updateTest, readValue));
-//  EXPECT_EQ(readValue, this->sample_data_2());
+//  EXPECT_EQ(this->sample_data_2(), readValue);
 //  table.cleanup();
 //}
