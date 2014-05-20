@@ -21,8 +21,25 @@ namespace map_api {
  */
 class CRUTableInterface : public CRTableInterface{
  public:
+  virtual bool init();
+
+  /**
+   * ================================================
+   * FUNCTIONS TO BE IMPLEMENTED BY THE DERIVED CLASS
+   * ================================================
+   */
+  /**
+   * This table name will appear in the database, so it must be chosen SQL
+   * friendly: Letters and underscores only.
+   */
+  virtual const std::string tableName() const = 0;
+  /**
+   * Function to be implemented by derivations: Define table by repeated
+   * calls to addField()
+   */
+  virtual bool define() = 0;
   virtual ~CRUTableInterface();
-  virtual bool init() = 0;
+
   /**
    * Overriding get template on order to get template of revision, not history
    * bookkeeping.
@@ -30,12 +47,6 @@ class CRUTableInterface : public CRTableInterface{
   std::shared_ptr<Revision> getTemplate() const;
 
  protected:
-  /**
-   * Overriding CR table setup in order to implement history.
-   */
-  bool setup(const std::string& name);
-  virtual bool define() = 0;
-
   /**
    * Overriding addField, as the actual data will be outsourced to the
    * history

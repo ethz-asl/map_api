@@ -32,9 +32,8 @@ TEST(TableInterFace, initEmpty) {
 template <typename FieldType>
 class FieldTestTable : public TestTable<CRTableInterface> {
  public:
-  virtual bool init() {
-    setup("field_test_table");
-    return true;
+  virtual const std::string tableName() const override {
+    return "field_test_table";
   }
  protected:
   virtual bool define() {

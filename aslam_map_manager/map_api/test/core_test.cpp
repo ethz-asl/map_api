@@ -17,5 +17,5 @@ TEST(MapApiCore, validInit) {
 
 TEST(MapApiCore, invalidInit) {
   FLAGS_ipPort = "Not an IP-port string";
-  EXPECT_DEATH(MapApiCore &instance = MapApiCore::getInstance(),"^");
+  EXPECT_DEATH(MapApiCore::getInstance(),"^");
 }
