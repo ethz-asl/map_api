@@ -4,6 +4,11 @@ namespace map_api {
 
 REVISION_PROTOBUF(proto::TableDescriptor);
 
+static const std::string kDescriptorField;
+
+const std::string Metatable::kNameField = "name";
+const std::string Metatable::kDescriptorField = "descriptor";
+
 Metatable::~Metatable() {}
 
 const std::string Metatable::name() const {
@@ -11,8 +16,8 @@ const std::string Metatable::name() const {
 }
 
 void Metatable::define() {
-  addField<std::string>("name");
-  addField<proto::TableDescriptor>("descriptor");
+  addField<std::string>(kNameField);
+  addField<proto::TableDescriptor>(kDescriptorField);
 }
 
 } /* namespace map_api */

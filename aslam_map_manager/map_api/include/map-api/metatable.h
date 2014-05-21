@@ -12,6 +12,8 @@ namespace map_api {
  */
 class Metatable final : public CRTableInterface {
  public:
+  static const std::string kNameField;
+  static const std::string kDescriptorField;
   virtual ~Metatable();
   virtual const std::string name() const override;
   virtual void define();

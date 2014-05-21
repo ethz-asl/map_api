@@ -58,7 +58,7 @@ bool Transaction::commit(){
       const Id& id = insertion.first.second;
       CRTableInterface::ItemDebugInfo debugInfo(table.name(), id);
       const SharedRevisionPointer &revision = insertion.second;
-      CHECK(revision->verify("ID", id)) <<
+      CHECK(revision->verify(CRTableInterface::kIdField, id)) <<
           "Identifier ID does not match revision ID";
       if (!table.rawInsert(*revision)){
         LOG(ERROR) << debugInfo << "Insertion failed, aborting commit.";
@@ -72,7 +72,7 @@ bool Transaction::commit(){
       const Id& id = update.first.second;
       CRTableInterface::ItemDebugInfo debugInfo(table.name(), id);
       const SharedRevisionPointer &revision = update.second;
-      CHECK(revision->verify("ID", id)) <<
+      CHECK(revision->verify(CRTableInterface::kIdField, id)) <<
           "Identifier ID does not match revision ID";
       if (!table.rawUpdate(*revision)){
         LOG(ERROR) << debugInfo << "Update failed, aborting commit.";
@@ -116,7 +116,7 @@ bool Transaction::insert(CRTableInterface& table, const Id& id,
   CHECK(item->structureMatch(*reference)) <<
       "Structure of item to be inserted: " << item->DebugString() <<
       " doesn't match table template " << reference->DebugString();
-  item->set("ID",id);
+  item->set(CRTableInterface::kIdField, id);
   // item->set("owner",owner_); TODO(tcies) later, fetch from core
   insertions_.insert(InsertMap::value_type(
       CRItemIdentifier(table, id), item));

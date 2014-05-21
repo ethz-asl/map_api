@@ -22,6 +22,9 @@ bool CRTableInterface::isInitialized() const{
   return initialized_;
 }
 
+const std::string CRTableInterface::kIdField = "ID";
+const std::string CRTableInterface::kInsertTimeField = "insert_time";
+
 void CRTableInterface::addField(const std::string& name,
                                 proto::TableFieldDescriptor_Type type){
   // make sure the field has not been defined yet
@@ -49,8 +52,8 @@ bool CRTableInterface::init() {
   structure_.set_name(tableName);
   // Define table fields
   // enforced fields id (hash) and owner
-  addField<Id>("ID");
-  addField<Time>("insert_time");
+  addField<Id>(kIdField);
+  addField<Time>(kInsertTimeField);
   // addField<Id>("owner"); TODO(tcies) later, when owner will be used for
   // synchronization accross the network, or for its POC
   // transaction-enforced fields TODO(tcies) later
@@ -119,7 +122,7 @@ bool CRTableInterface::createQuery(){
       default:
         LOG(FATAL) << "Field type not handled";
     }
-    if (fieldDescriptor.name().compare("ID") == 0){
+    if (fieldDescriptor.name().compare(kIdField) == 0){
       stat << " PRIMARY KEY";
     }
   }
@@ -139,9 +142,9 @@ bool CRTableInterface::rawInsert(Revision& query) const {
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(reference->structureMatch(query)) << "Bad structure of insert revision";
   Id id;
-  query.get("ID", &id);
+  query.get(kIdField, &id);
   CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
-  query.set("insert_time", Time());
+  query.set(kInsertTimeField, Time());
   return rawInsertImpl(query);
 }
 bool CRTableInterface::rawInsertImpl(Revision& query) const{
@@ -188,7 +191,7 @@ std::shared_ptr<Revision> CRTableInterface::rawGetById(
 }
 std::shared_ptr<Revision> CRTableInterface::rawGetByIdImpl(
     const Id &id, const Time& time) const{
-  return rawFindUnique("ID", id, time);
+  return rawFindUnique(kIdField, id, time);
 }
 
 int CRTableInterface::rawFindByRevision(
@@ -211,7 +214,7 @@ int CRTableInterface::rawFindByRevisionImpl(
   Poco::Data::Statement statement(*session_);
   statement << "SELECT";
   pocoToProto.into(statement);
-  statement << "FROM " << name() << " WHERE insert_time <= ? ",
+  statement << "FROM " << name() << " WHERE " << kInsertTimeField << " <= ? ",
       Poco::Data::use(time.serialize());
   if (key != ""){
     statement << " AND " << key << " LIKE ";
@@ -239,7 +242,7 @@ const{
 
 CRTableInterface::PocoToProto::PocoToProto(
     const CRTableInterface& table) :
-                        table_(table) {}
+                            table_(table) {}
 
 void CRTableInterface::PocoToProto::into(Poco::Data::Statement& statement) {
   statement << " ";
@@ -287,8 +290,8 @@ int CRTableInterface::PocoToProto::toProto(
     std::vector<std::shared_ptr<Revision> >* dest) {
   CHECK_NOTNULL(dest);
   // reserve output size
-  CHECK(hashes_.find("ID") != hashes_.end());
-  dest->resize(hashes_["ID"].size());
+  CHECK(hashes_.find(kIdField) != hashes_.end());
+  dest->resize(hashes_[kIdField].size());
 
   // write values
   for (size_t i = 0; i < dest->size(); ++i) {
@@ -322,7 +325,7 @@ int CRTableInterface::PocoToProto::toProto(
     }
   }
 
-  return hashes_["ID"].size();
+  return hashes_[kIdField].size();
 }
 
 std::ostream& operator<< (std::ostream& stream,

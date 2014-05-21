@@ -32,14 +32,18 @@ TEST(TableInterFace, initEmpty) {
 template <typename FieldType>
 class FieldTestTable : public TestTable<CRTableInterface> {
  public:
+  static const std::string kTestField;
   virtual const std::string name() const override {
     return "field_test_table";
   }
  protected:
   virtual void define() {
-    addField<FieldType>("test_field");
+    addField<FieldType>(kTestField);
   }
 };
+
+template <typename FieldType>
+const std::string FieldTestTable<FieldType>::kTestField = "test_field";
 
 template <typename FieldType>
 class InsertReadFieldTestTable : public FieldTestTable<FieldType> {
@@ -167,9 +171,10 @@ class FieldTestWithoutInit : public FieldTest<TestedType> {
   Id fillRevision() {
     getTemplate();
     Id inserted = Id::random();
-    to_insert_->set("ID", inserted);
+    to_insert_->set(CRTableInterface::kIdField, inserted);
     // to_insert_->set("owner", Id::random()); TODO(tcies) later, from core
-    to_insert_->set("test_field", this->sample_data_1());
+    to_insert_->set(InsertReadFieldTestTable<TestedType>::kTestField,
+                    this->sample_data_1());
     return inserted;
   }
 
@@ -224,7 +229,8 @@ TYPED_TEST(FieldTestWithInit, CreateRead) {
       this->table_->rawGetById(inserted, Time());
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   TypeParam dataFromTable;
-  rowFromTable->get("test_field", &dataFromTable);
+  rowFromTable->get(InsertReadFieldTestTable<TypeParam>::kTestField,
+                    &dataFromTable);
   EXPECT_EQ(dataFromTable, this->sample_data_1());
 }
 
