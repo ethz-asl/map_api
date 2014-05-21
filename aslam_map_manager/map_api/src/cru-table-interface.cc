@@ -35,8 +35,8 @@ bool CRUTableInterface::rawInsertImpl(Revision& query) const {
 }
 
 int CRUTableInterface::rawFindByRevisionImpl(
-      const std::string& key, const Revision& valueHolder, const Time& time,
-      std::vector<std::shared_ptr<Revision> >* dest)  const {
+    const std::string& key, const Revision& valueHolder, const Time& time,
+    std::vector<std::shared_ptr<Revision> >* dest)  const {
   // for now, no difference from CRTableInterface - see documentation at
   // declaration
   return CRTableInterface::rawFindByRevisionImpl(key, valueHolder, time, dest);
@@ -73,19 +73,31 @@ bool CRUTableInterface::rawUpdateImpl(Revision& query) const {
     LOG(FATAL) << info << "Failed to insert current version into history";
   }
   // 2. overwrite
-  // TODO(tcies) this is the lazy way, to get it to work; use UPDATE query
-  try {
-    *session_ << "DELETE FROM " << name() << " WHERE ID LIKE ? ",
-        Poco::Data::use(id.hexString()), Poco::Data::now;
-  } catch (const std::exception& e) {
-    LOG(FATAL) << info << "Delete in update failed with exception " << e.what();
-  }
   query.set("update_time", Time());
   query.set("previous", archiveId);
-  // important: Needs to call CR implementation, not CRU implementation through
-  // non-virtual interface rawInsert(), to keep correct 'previous' field value
-  // AND correct create_time field value
-  return CRTableInterface::rawInsertImpl(query);
+  // Bag for blobs that need to stay in scope until statement is executed
+  std::vector<std::shared_ptr<Poco::Data::BLOB> > placeholderBlobs;
+  Poco::Data::Statement statement(*session_);
+  statement << "UPDATE " << name() << " SET ";
+  for (int i = 0; i < query.fieldqueries_size(); ++i) {
+    if (i > 0) {
+      statement << ", ";
+    }
+    statement << query.fieldqueries(i).nametype().name() << " = ";
+    placeholderBlobs.push_back(query.insertPlaceHolder(i, statement));
+  }
+  statement << " WHERE ID LIKE ";
+  query.insertPlaceHolder("ID", statement);
+
+  try {
+    statement.execute();
+  } catch (const std::exception &e) {
+    LOG(FATAL) << "Update failed with exception \"" << e.what() << "\", " <<
+        " statement was \"" << statement.toString() << "\" and query :" <<
+        query.DebugString();
+  }
+
+  return true;
 }
 
 bool CRUTableInterface::rawLatestUpdateTime(

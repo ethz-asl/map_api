@@ -149,30 +149,32 @@ bool CRTableInterface::rawInsertImpl(Revision& query) const{
   std::vector<std::shared_ptr<Poco::Data::BLOB> > placeholderBlobs;
 
   // assemble SQLite statement
-  Poco::Data::Statement stat(*session_);
+  Poco::Data::Statement statement(*session_);
   // NB: sqlite placeholders work only for column values
-  stat << "INSERT INTO " << name() << " ";
+  statement << "INSERT INTO " << name() << " ";
 
-  stat << "(";
-  for (int i = 0; i < query.fieldqueries_size(); ++i){
+  statement << "(";
+  for (int i = 0; i < query.fieldqueries_size(); ++i) {
     if (i > 0){
-      stat << ", ";
+      statement << ", ";
     }
-    stat << query.fieldqueries(i).nametype().name();
+    statement << query.fieldqueries(i).nametype().name();
   }
-  stat << ") VALUES ( ";
-  for (int i = 0; i < query.fieldqueries_size(); ++i){
+  statement << ") VALUES ( ";
+  for (int i = 0; i < query.fieldqueries_size(); ++i) {
     if (i > 0){
-      stat << " , ";
+      statement << " , ";
     }
-    placeholderBlobs.push_back(query.insertPlaceHolder(i,stat));
+    placeholderBlobs.push_back(query.insertPlaceHolder(i, statement));
   }
-  stat << " ); ";
+  statement << " ); ";
 
   try {
-    stat.execute();
-  } catch(const std::exception &e){
-    LOG(FATAL) << "Insert failed with exception " << e.what();
+    statement.execute();
+  } catch(const std::exception &e) {
+    LOG(FATAL) << "Insert failed with exception \"" << e.what() << "\", " <<
+        " statement was \"" << statement.toString() << "\" and query :" <<
+        query.DebugString();
   }
 
   return true;
