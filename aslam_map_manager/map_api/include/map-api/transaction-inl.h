@@ -18,17 +18,16 @@ bool Transaction::addConflictCondition(CRTableInterface& table,
 }
 
 template<typename ValueType>
-bool Transaction::find(CRTableInterface& table, const std::string& key,
-                       const ValueType& value,
-                       std::vector<SharedRevisionPointer>* dest) const {
+int Transaction::find(CRTableInterface& table, const std::string& key,
+                      const ValueType& value,
+                      std::vector<SharedRevisionPointer>* dest) const {
   CHECK_NOTNULL(dest);
   if (Transaction::notifyAbortedOrInactive()){
     return false;
   }
   // TODO(tcies) also browse uncommitted
   std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-  table.rawFind(key, value, this->beginTime_, dest);
-  return true;
+  return table.rawFind(key, value, this->beginTime_, dest);
 }
 
 template<typename ValueType>
@@ -41,6 +40,14 @@ const {
   // TODO(tcies) also browse uncommitted
   std::lock_guard<std::recursive_mutex> lock(dbMutex_);
   return table.rawFindUnique(key, value, this->beginTime_);
+}
+
+template<typename ValueType>
+int Transaction::findInUncommitted(
+    CRTableInterface& table, const std::string& key, const ValueType& value,
+    std::vector<SharedRevisionPointer>* dest) const {
+  // FIXME(tcies) continue here
+  return 0;
 }
 
 } // namespace map_api
