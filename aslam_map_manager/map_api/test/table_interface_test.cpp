@@ -15,13 +15,40 @@
 
 using namespace map_api;
 
-// TODO(tcies) apply template magic here
-TEST(TableInterFace, initEmpty) {
-  TestTable<CRTableInterface> table;
+template <typename TableType>
+class ExpectedFieldCount {
+ public:
+  static int get();
+};
+
+template<>
+int ExpectedFieldCount<CRTableInterface>::get() {
+  return 1;
+}
+
+template<>
+int ExpectedFieldCount<CRUTableInterface>::get() {
+  return 3;
+}
+
+template <typename TableType>
+class TableInterfaceTest : public ::testing::Test {
+ protected:
+  virtual void SetUp() {
+    MapApiCore::getInstance().purgeDb();
+  }
+};
+
+typedef ::testing::Types<CRTableInterface, CRUTableInterface> TableTypes;
+TYPED_TEST_CASE(TableInterfaceTest, TableTypes);
+
+TYPED_TEST(TableInterfaceTest, initEmpty) {
+  TestTable<TypeParam> table;
   EXPECT_TRUE(table.init());
   std::shared_ptr<Revision> structure = table.getTemplate();
   ASSERT_TRUE(static_cast<bool>(structure));
-  EXPECT_EQ(1u, structure->fieldqueries_size());
+  EXPECT_EQ(ExpectedFieldCount<TypeParam>::get(),
+            structure->fieldqueries_size());
 }
 
 /**
@@ -160,26 +187,10 @@ class FieldTest<testBlob> : public ::testing::Test {
   }
 };
 
-template <typename TableType>
-class ExpectedFieldCount {
- public:
-  static int get();
-};
-
-template<>
-int ExpectedFieldCount<CRTableInterface>::get() {
-  return 2;
-}
-
-template<>
-int ExpectedFieldCount<CRUTableInterface>::get() {
-  return 4;
-}
-
 template <typename TableDataType>
 class FieldTestWithoutInit :
     public FieldTest<typename TableDataType::DataType> {
- protected:
+     protected:
   virtual void SetUp() {
     this->table_.reset(new InsertReadFieldTestTable<TableDataType>);
   }
@@ -222,16 +233,25 @@ class FieldTestWithInit : public FieldTestWithoutInit<TableDataType> {
  *************************
  */
 
-//typedef ::testing::Types<testBlob, std::string, int32_t, double,
-//    map_api::Id, int64_t, map_api::Time> MyTypes;
+#define BOTH_TABLE_TYPES(data_type) \
+    TableDataTypes<CRTableInterface, data_type>, \
+    TableDataTypes<CRUTableInterface, data_type>
 
-typedef ::testing::Types<TableDataTypes<CRTableInterface, testBlob>, TableDataTypes<CRUTableInterface, double> > MyTypes;
+typedef ::testing::Types<
+    BOTH_TABLE_TYPES(testBlob),
+    BOTH_TABLE_TYPES(std::string),
+    BOTH_TABLE_TYPES(int32_t),
+    BOTH_TABLE_TYPES(double),
+    BOTH_TABLE_TYPES(map_api::Id),
+    BOTH_TABLE_TYPES(int64_t),
+    BOTH_TABLE_TYPES(map_api::Time)
+    > MyTypes;
 
 TYPED_TEST_CASE(FieldTestWithoutInit, MyTypes);
 TYPED_TEST_CASE(FieldTestWithInit, MyTypes);
 
 TYPED_TEST(FieldTestWithInit, Init) {
-  EXPECT_EQ(ExpectedFieldCount<typename TypeParam::TableType>::get(),
+  EXPECT_EQ(ExpectedFieldCount<typename TypeParam::TableType>::get() + 1,
             this->getTemplate()->fieldqueries_size());
 }
 
