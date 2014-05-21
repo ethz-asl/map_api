@@ -25,7 +25,7 @@ std::shared_ptr<Revision> CRTableInterface::rawFindUnique(
     case 1: return results[0];
     default:
       LOG(FATAL) << "There seems to be more than one item with given value of "
-      << key << ", table " << name();
+      << key << ", table " << structure_.name();
       return std::shared_ptr<Revision>();
   }
 }

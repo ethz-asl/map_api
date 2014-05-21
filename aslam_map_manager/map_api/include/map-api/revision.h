@@ -63,6 +63,13 @@ extern void revEnum ## __FILE__ ## __LINE__(void)
   bool get(const std::string& fieldName, FieldType* value) const;
 
   /**
+   * Verifies field value according to type.
+   */
+  template <typename ExpectedType>
+  bool verify(const std::string& fieldName,
+              const ExpectedType& expected) const;
+
+  /**
    * Returns true if Revision contains same fields as other
    */
   bool structureMatch(Revision& other);
