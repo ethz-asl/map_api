@@ -168,7 +168,7 @@ class FieldTest<map_api::Time> : public ::testing::Test {
   Time sample_data_2() {
     return Time(9223372036854775);
   }
-};abbrevi
+};
 template <>
 class FieldTest<testBlob> : public ::testing::Test {
  protected:
