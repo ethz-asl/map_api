@@ -15,12 +15,40 @@
 
 using namespace map_api;
 
-TEST(TableInterFace, initEmpty) {
-  TestTable<CRTableInterface> table;
-  table.init();
+template <typename TableType>
+class ExpectedFieldCount {
+ public:
+  static int get();
+};
+
+template<>
+int ExpectedFieldCount<CRTableInterface>::get() {
+  return 1;
+}
+
+template<>
+int ExpectedFieldCount<CRUTableInterface>::get() {
+  return 3;
+}
+
+template <typename TableType>
+class TableInterfaceTest : public ::testing::Test {
+ protected:
+  virtual void SetUp() {
+    MapApiCore::getInstance().purgeDb();
+  }
+};
+
+typedef ::testing::Types<CRTableInterface, CRUTableInterface> TableTypes;
+TYPED_TEST_CASE(TableInterfaceTest, TableTypes);
+
+TYPED_TEST(TableInterfaceTest, initEmpty) {
+  TestTable<TypeParam> table;
+  EXPECT_TRUE(table.init());
   std::shared_ptr<Revision> structure = table.getTemplate();
   ASSERT_TRUE(static_cast<bool>(structure));
-  EXPECT_EQ(structure->fieldqueries_size(), 1u);
+  EXPECT_EQ(ExpectedFieldCount<TypeParam>::get(),
+            structure->fieldqueries_size());
 }
 
 /**
@@ -29,24 +57,30 @@ TEST(TableInterFace, initEmpty) {
  **********************************************************
  */
 
-template <typename FieldType>
-class FieldTestTable : public TestTable<CRTableInterface> {
+template <typename _TableType, typename _DataType>
+class TableDataTypes {
  public:
-  virtual const std::string tableName() const override {
+  typedef _TableType TableType;
+  typedef _DataType DataType;
+};
+
+template <typename TableDataType>
+class FieldTestTable : public TestTable<typename TableDataType::TableType> {
+ public:
+  virtual const std::string name() const override {
     return "field_test_table";
   }
  protected:
-  virtual bool define() {
-    addField<FieldType>("test_field");
-    return true;
+  virtual void define() {
+    this->template addField<typename TableDataType::DataType>("test_field");
   }
 };
 
-template <typename FieldType>
-class InsertReadFieldTestTable : public FieldTestTable<FieldType> {
+template <typename TableDataType>
+class InsertReadFieldTestTable : public FieldTestTable<TableDataType> {
  public:
-  bool insertQuery(const Revision& query) {
-    return this->rawInsertQuery(query);
+  bool insertQuery(Revision& query) const {
+    return this->rawInsert(query);
   }
 };
 
@@ -153,11 +187,12 @@ class FieldTest<testBlob> : public ::testing::Test {
   }
 };
 
-template <typename TestedType>
-class FieldTestWithoutInit : public FieldTest<TestedType> {
- protected:
+template <typename TableDataType>
+class FieldTestWithoutInit :
+    public FieldTest<typename TableDataType::DataType> {
+     protected:
   virtual void SetUp() {
-    this->table_.reset(new InsertReadFieldTestTable<TestedType>);
+    this->table_.reset(new InsertReadFieldTestTable<TableDataType>);
   }
 
   std::shared_ptr<Revision> getTemplate() {
@@ -178,16 +213,16 @@ class FieldTestWithoutInit : public FieldTest<TestedType> {
     return this->table_->insertQuery(*to_insert_);
   }
 
-  std::shared_ptr<InsertReadFieldTestTable<TestedType> > table_;
+  std::shared_ptr<InsertReadFieldTestTable<TableDataType> > table_;
   std::shared_ptr<Revision> to_insert_;
 };
 
-template <typename TestedType>
-class FieldTestWithInit : public FieldTestWithoutInit<TestedType> {
+template <typename TableDataType>
+class FieldTestWithInit : public FieldTestWithoutInit<TableDataType> {
  protected:
   virtual void SetUp() {
     MapApiCore::getInstance().purgeDb();
-    this->table_.reset(new InsertReadFieldTestTable<TestedType>);
+    this->table_.reset(new InsertReadFieldTestTable<TableDataType>);
     this->table_->init();
   }
 };
@@ -198,13 +233,26 @@ class FieldTestWithInit : public FieldTestWithoutInit<TestedType> {
  *************************
  */
 
-typedef ::testing::Types<testBlob, std::string, int32_t, double,
-    map_api::Id, int64_t, map_api::Time> MyTypes;
+#define BOTH_TABLE_TYPES(data_type) \
+    TableDataTypes<CRTableInterface, data_type>, \
+    TableDataTypes<CRUTableInterface, data_type>
+
+typedef ::testing::Types<
+    BOTH_TABLE_TYPES(testBlob),
+    BOTH_TABLE_TYPES(std::string),
+    BOTH_TABLE_TYPES(int32_t),
+    BOTH_TABLE_TYPES(double),
+    BOTH_TABLE_TYPES(map_api::Id),
+    BOTH_TABLE_TYPES(int64_t),
+    BOTH_TABLE_TYPES(map_api::Time)
+    > MyTypes;
+
 TYPED_TEST_CASE(FieldTestWithoutInit, MyTypes);
 TYPED_TEST_CASE(FieldTestWithInit, MyTypes);
 
 TYPED_TEST(FieldTestWithInit, Init) {
-  EXPECT_EQ(this->getTemplate()->fieldqueries_size(), 2u);
+  EXPECT_EQ(ExpectedFieldCount<typename TypeParam::TableType>::get() + 1,
+            this->getTemplate()->fieldqueries_size());
 }
 
 TYPED_TEST(FieldTestWithoutInit, CreateBeforeInit) {
@@ -214,18 +262,18 @@ TYPED_TEST(FieldTestWithoutInit, CreateBeforeInit) {
 
 TYPED_TEST(FieldTestWithoutInit, ReadBeforeInit) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH(this->table_->rawGetRow(Id::random()), "^");
+  EXPECT_DEATH(this->table_->rawGetById(Id::random()), "^");
 }
 
 TYPED_TEST(FieldTestWithInit, CreateRead) {
   Id inserted = this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
-  std::shared_ptr<Revision> rowFromTable = this->table_->rawGetRow(inserted);
+  std::shared_ptr<Revision> rowFromTable = this->table_->rawGetById(inserted);
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
-  TypeParam dataFromTable;
+  typename TypeParam::DataType dataFromTable;
   rowFromTable->get("test_field", &dataFromTable);
-  EXPECT_EQ(dataFromTable, this->sample_data_1());
+  EXPECT_EQ(this->sample_data_1(), dataFromTable);
 }
 
 TYPED_TEST(FieldTestWithInit, ReadInexistentRow) {
@@ -233,7 +281,7 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRow) {
   EXPECT_TRUE(this->insertRevision());
 
   Id other_id = Id::random();
-  EXPECT_FALSE(this->table_->rawGetRow(other_id));
+  EXPECT_FALSE(this->table_->rawGetById(other_id));
 }
 
 TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
@@ -241,9 +289,9 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
   Id inserted = this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
-  std::shared_ptr<Revision> rowFromTable = this->table_->rawGetRow(inserted);
+  std::shared_ptr<Revision> rowFromTable = this->table_->rawGetById(inserted);
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
-  TypeParam dataFromTable;
+  typename TypeParam::DataType dataFromTable;
   EXPECT_DEATH(rowFromTable->get("some_other_field", &dataFromTable), "^");
 }
 
@@ -260,9 +308,9 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
 //  TypeParam readValue;
 //  Hash updateTest = table.insert(this->sample_data_1());
 //  EXPECT_TRUE(table.get(updateTest, readValue));
-//  EXPECT_EQ(readValue, this->sample_data_1());
+//  EXPECT_EQ(this->sample_data_1(), readValue);
 //  EXPECT_TRUE(table.update(updateTest, this->sample_data_2()));
 //  EXPECT_TRUE(table.get(updateTest, readValue));
-//  EXPECT_EQ(readValue, this->sample_data_2());
+//  EXPECT_EQ(this->sample_data_2(), readValue);
 //  table.cleanup();
 //}

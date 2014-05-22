@@ -26,16 +26,14 @@ class Transaction {
    * Sets a hash ID for the table to be inserted. Returns that ID, such that
    * the item can be subsequently referred to.
    */
-  template<typename TableInterfaceType>
-  Id insert(TableInterfaceType& table,
+  Id insert(CRTableInterface& table,
             const SharedRevisionPointer& item);
 
   /**
    * Allows the user to preset a Hash ID. Will fail in commit if there is a
    * conflict.
    */
-  template<typename TableInterfaceType>
-  bool insert(TableInterfaceType& table, const Id& id,
+  bool insert(CRTableInterface& table, const Id& id,
               const SharedRevisionPointer& item);
 
   /**

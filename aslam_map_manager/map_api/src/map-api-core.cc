@@ -40,7 +40,7 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
   std::shared_ptr<Revision> attempt = metatable_->getTemplate();
   attempt->set("name", descriptor.name());
   attempt->set("descriptor", descriptor);
-  tryInsert.insert<CRTableInterface>(*metatable_, attempt);
+  tryInsert.insert(*metatable_, attempt);
   tryInsert.addConflictCondition(*metatable_, "name", descriptor.name());
   bool success = tryInsert.commit();
   if (success){
@@ -55,8 +55,14 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
       " even though its presence seemingly caused a conflict";
   proto::TableDescriptor previousDescriptor;
   previous->get("descriptor", &previousDescriptor);
-  return descriptor.SerializeAsString() ==
-      previousDescriptor.SerializeAsString();
+  if (descriptor.SerializeAsString() !=
+      previousDescriptor.SerializeAsString()) {
+    LOG(ERROR) << "Table schema mismatch of table " << descriptor.name() << ": "
+        << "Desired structure is " << descriptor.DebugString() <<
+        " while structure in metatable is " << previousDescriptor.DebugString();
+    return false;
+  }
+  return true;
 }
 
 void MapApiCore::purgeDb() {
@@ -69,7 +75,7 @@ void MapApiCore::purgeDb() {
   for (const std::shared_ptr<Revision>& table : tables) {
     std::string name;
     table->get("name", &name);
-    *dbSess_ << "DROP TABLE " << name, Poco::Data::now;
+    *dbSess_ << "DROP TABLE IF EXISTS " << name, Poco::Data::now;
   }
   *dbSess_ << "DROP TABLE metatable", Poco::Data::now;
   metatable_.reset();
