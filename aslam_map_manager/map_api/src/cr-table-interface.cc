@@ -16,14 +16,14 @@
 
 namespace map_api {
 
+const std::string CRTableInterface::kIdField = "ID";
+const std::string CRTableInterface::kInsertTimeField = "insert_time";
+
 CRTableInterface::~CRTableInterface() {}
 
 bool CRTableInterface::isInitialized() const{
   return initialized_;
 }
-
-const std::string CRTableInterface::kIdField = "ID";
-const std::string CRTableInterface::kInsertTimeField = "insert_time";
 
 void CRTableInterface::addField(const std::string& name,
                                 proto::TableFieldDescriptor_Type type){
@@ -290,8 +290,11 @@ int CRTableInterface::PocoToProto::toProto(
     std::vector<std::shared_ptr<Revision> >* dest) {
   CHECK_NOTNULL(dest);
   // reserve output size
-  CHECK(hashes_.find(kIdField) != hashes_.end());
-  dest->resize(hashes_[kIdField].size());
+  const std::map<std::string, std::vector<std::string> >::iterator
+  id_hashes_iterator = hashes_.find(kIdField);
+  CHECK(id_hashes_iterator != hashes_.end());
+  std::vector<std::string>& id_hashes = id_hashes_iterator->second;
+  dest->resize(id_hashes.size());
 
   // write values
   for (size_t i = 0; i < dest->size(); ++i) {
@@ -325,7 +328,7 @@ int CRTableInterface::PocoToProto::toProto(
     }
   }
 
-  return hashes_[kIdField].size();
+  return id_hashes.size();
 }
 
 std::ostream& operator<< (std::ostream& stream,

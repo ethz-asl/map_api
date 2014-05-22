@@ -77,7 +77,7 @@ class Transaction {
    */
   template<typename ValueType>
   int find(CRTableInterface& table, const std::string& key,
-            const ValueType& value, std::vector<SharedRevisionPointer>* dest)
+           const ValueType& value, std::vector<SharedRevisionPointer>* dest)
   const;
   /**
    * Same as find(), but ensuring that there is only one result
@@ -99,9 +99,9 @@ class Transaction {
    * among others.
    */
   template<typename ValueType>
-  int findInUncommitted(CRTableInterface& table, const std::string& key,
-                         const ValueType& value,
-                         std::vector<SharedRevisionPointer>* dest) const;
+  int findInUncommitted(const CRTableInterface& table, const std::string& key,
+                        const ValueType& value,
+                        std::vector<SharedRevisionPointer>* dest) const;
 
   class CRItemIdentifier : public std::pair<const CRTableInterface&, Id>{
    public:

@@ -44,8 +44,8 @@ const {
 
 template<typename ValueType>
 int Transaction::findInUncommitted(
-    CRTableInterface& table, const std::string& key, const ValueType& value,
-    std::vector<SharedRevisionPointer>* dest) const {
+    const CRTableInterface& table, const std::string& key,
+    const ValueType& value, std::vector<SharedRevisionPointer>* dest) const {
   // FIXME(tcies) continue here
   return 0;
 }

@@ -16,10 +16,10 @@
 
 namespace map_api {
 
-CRUTableInterface::~CRUTableInterface() {}
-
 const std::string CRUTableInterface::kUpdateTimeField = "update_time";
 const std::string CRUTableInterface::kPreviousField = "previous";
+
+CRUTableInterface::~CRUTableInterface() {}
 
 bool CRUTableInterface::init() {
   // adding fields that make this an updateable table
