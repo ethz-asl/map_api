@@ -4,6 +4,7 @@
 #include <vector>
 #include <memory>
 #include <map>
+#include <unordered_map>
 
 #include <Poco/Data/Common.h>
 #include <gflags/gflags.h>
@@ -114,13 +115,13 @@ class CRTableInterface {
    */
   template<typename ValueType>
   int rawFind(const std::string& key, const ValueType& value, const Time& time,
-              std::vector<std::shared_ptr<Revision> >* dest) const;
+              std::unordered_map<Id, std::shared_ptr<Revision> >* dest) const;
   int rawFindByRevision(
       const std::string& key, const Revision& valueHolder, const Time& time,
-      std::vector<std::shared_ptr<Revision> >* dest)  const;
+      std::unordered_map<Id, std::shared_ptr<Revision> >* dest)  const;
   virtual int rawFindByRevisionImpl(
       const std::string& key, const Revision& valueHolder, const Time& time,
-      std::vector<std::shared_ptr<Revision> >* dest)  const;
+      std::unordered_map<Id, std::shared_ptr<Revision> >* dest)  const;
   /**
    * Same as rawFind(), but asserts that not more than one item is found.
    * As rawFind() and rawFindByRevision(), this is not meant to be overridden.
@@ -133,7 +134,7 @@ class CRTableInterface {
    * Fetches all the contents of the table. Calls rawFindByRevision indirectly.
    */
   void rawDump(const Time& time,
-               std::vector<std::shared_ptr<Revision> >* dest) const;
+               std::unordered_map<Id, std::shared_ptr<Revision> >* dest) const;
   /**
    * The PocoToProto class serves as intermediate between Poco and Protobuf:
    * Because Protobuf doesn't support pointers to numeric fields and Poco Data
@@ -154,8 +155,7 @@ class CRTableInterface {
     void into(Poco::Data::Statement& statement);
     /**
      * Applies the data obtained after statement execution onto a vector of
-     * Protos. Returns the element count. This assumes the presence of an "ID"
-     * field.
+     * Protos. Returns the element count.
      */
     int toProto(std::vector<std::shared_ptr<Revision> >* dest);
    private:

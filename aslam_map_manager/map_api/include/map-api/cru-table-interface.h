@@ -68,7 +68,8 @@ class CRUTableInterface : public CRTableInterface{
    */
   virtual int rawFindByRevisionImpl(
       const std::string& key, const Revision& valueHolder, const Time& time,
-      std::vector<std::shared_ptr<Revision> >* dest)  const;
+      std::unordered_map<Id, std::shared_ptr<Revision> >* dest)  const
+  override;
   /**
    * Field ID in revision must correspond to an already present item, revision
    * structure needs to match.

@@ -71,9 +71,10 @@ void MapApiCore::purgeDb() {
   ensureMetatable();
   Transaction reader;
   reader.begin();
-  std::vector<std::shared_ptr<Revision> > tables;
-  reader.dumpTable<CRTableInterface>(*metatable_, &tables);
-  for (const std::shared_ptr<Revision>& table : tables) {
+  std::unordered_map<Id, std::shared_ptr<Revision> > tables;
+  reader.dumpTable(*metatable_, &tables);
+  for (const std::pair<Id, std::shared_ptr<Revision> >& idTable : tables) {
+    const std::shared_ptr<Revision>& table = idTable.second;
     std::string name;
     table->get(Metatable::kNameField, &name);
     *dbSess_ << "DROP TABLE IF EXISTS " << name, Poco::Data::now;
@@ -92,8 +93,13 @@ bool MapApiCore::init(const std::string &ipPort) {
   }
   // TODO(titus) SigAbrt handler?
   Poco::Data::SQLite::Connector::registerConnector();
+#ifdef MAP_API_SQLITE_TO_DISK
   dbSess_ = std::shared_ptr<Poco::Data::Session>(
-      new Poco::Data::Session("SQLite", ":memory:"));
+      new Poco::Data::Session("SQLite", "database.db"));
+#else
+  dbSess_ = std::shared_ptr<Poco::Data::Session>(
+        new Poco::Data::Session("SQLite", ":memory:"));
+#endif
   LOG(INFO)<< "Connected to database..." << std::endl;
 
   // TODO(tcies) metatable

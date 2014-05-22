@@ -123,100 +123,14 @@ bool Transaction::insert(CRTableInterface& table, const Id& id,
   return true;
 }
 
-template<>
-Transaction::SharedRevisionPointer Transaction::read<CRTableInterface>(
+Transaction::SharedRevisionPointer Transaction::read(
     CRTableInterface& table, const Id& id){
-  if (notifyAbortedOrInactive()){
-    return false;
-  }
-  // fast lookup in uncommitted insertions
-  Transaction::CRItemIdentifier item(table, id);
-  Transaction::InsertMap::iterator itemIterator = insertions_.find(item);
-  if (itemIterator != insertions_.end()){
-    return itemIterator->second;
-  }
-  std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-  return table.rawGetById(id, beginTime_);
+  return findUnique(table, CRTableInterface::kIdField, id);
 }
 
-template<>
-Transaction::SharedRevisionPointer Transaction::read<CRUTableInterface>(
-    CRUTableInterface& table, const Id& id){
-  if (notifyAbortedOrInactive()){
-    return false;
-  }
-
-  // fast check in uncommitted transaction queries
-  Transaction::CRUItemIdentifier cru_item(table, id);
-  Transaction::UpdateMap::iterator updateIterator = updates_.find(cru_item);
-  if (updateIterator != updates_.end()){
-    return updateIterator->second;
-  }
-  Transaction::CRItemIdentifier cr_item(table, id);
-  Transaction::InsertMap::iterator insertIterator = insertions_.find(cr_item);
-  if (insertIterator != insertions_.end()){
-    return insertIterator->second;
-  }
-
-  // TODO (tcies) per-item reader lock
-  std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-  return table.rawGetById(id, beginTime_);
-}
-
-template<>
-bool Transaction::dumpTable<CRTableInterface>(
-    CRTableInterface& table, std::vector<SharedRevisionPointer>* dest) {
-  if (notifyAbortedOrInactive()){
-    return false;
-  }
-  CHECK_NOTNULL(dest);
-  dest->clear();
-  {
-    std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-    table.rawDump(beginTime_, dest);
-  }
-  // Also add yet uncommitted
-  for (const std::pair<CRItemIdentifier,
-      const SharedRevisionPointer> &insertion : insertions_) {
-    if (insertion.first.first.name() == table.name()) {
-      dest->push_back(insertion.second);
-    }
-  }
-  // TODO(tcies) test
-  // TODO(tcies) time-awareness
-  return true;
-}
-
-template<>
-bool Transaction::dumpTable<CRUTableInterface>(
-    CRUTableInterface& table, std::vector<SharedRevisionPointer>* dest) {
-  CHECK_NOTNULL(dest);
-  dest->clear();
-  if (notifyAbortedOrInactive()){
-    return false;
-  }
-
-  // fast check in uncommitted transaction queries
-  std::unordered_set<sm::HashId> updated_items;
-  for (const std::pair<CRUItemIdentifier, SharedRevisionPointer> &update :
-      updates_) {
-    if (update.first.first.name() == table.name()){
-      dest->push_back(update.second);
-      updated_items.insert(update.first.second);
-    }
-  }
-  for (const std::pair<CRItemIdentifier, SharedRevisionPointer> &insertion :
-      insertions_) {
-    if (insertion.first.first.name() == table.name() &&
-        updated_items.find(insertion.first.second) == updated_items.end()){
-      dest->push_back(insertion.second);
-    }
-  }
-
-  std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-  // find bookkeeping rows in the table
-  table.rawDump(beginTime_, dest);
-  return true;
+bool Transaction::dumpTable(CRTableInterface& table,
+                            std::unordered_map<Id, SharedRevisionPointer>* dest) {
+  return find(table, "", 0, dest);
 }
 
 bool Transaction::update(CRUTableInterface& table, const Id& id,
@@ -290,7 +204,7 @@ bool Transaction::hasItemConflict<Transaction::CRUItemIdentifier>(
 template<>
 bool Transaction::hasItemConflict(
     const Transaction::ConflictCondition& item) {
-  std::vector<std::shared_ptr<Revision> > results;
+  std::unordered_map<Id, SharedRevisionPointer> results;
   return item.table.rawFindByRevision(item.key, *item.valueHolder, Time(),
                                       &results);
 }

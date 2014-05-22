@@ -196,7 +196,7 @@ std::shared_ptr<Revision> CRTableInterface::rawGetByIdImpl(
 
 int CRTableInterface::rawFindByRevision(
     const std::string& key, const Revision& valueHolder, const Time& time,
-    std::vector<std::shared_ptr<Revision> >* dest) const {
+    std::unordered_map<Id, std::shared_ptr<Revision> >* dest) const {
   CHECK(isInitialized()) << "Attempted to find in non-initialized table";
   // whether valueHolder contains key is implicitly checked whenever using
   // Revision::insertPlaceHolder - for now it's a pretty safe bet that the
@@ -206,10 +206,10 @@ int CRTableInterface::rawFindByRevision(
   CHECK(time <= Time()) << "Seeing the future is yet to be implemented ;)";
   return rawFindByRevisionImpl(key, valueHolder, time, dest);
 }
-// TODO(tcies) test
+
 int CRTableInterface::rawFindByRevisionImpl(
     const std::string& key, const Revision& valueHolder, const Time& time,
-    std::vector<std::shared_ptr<Revision> >* dest) const {
+    std::unordered_map<Id, std::shared_ptr<Revision> >* dest) const {
   PocoToProto pocoToProto(*this);
   Poco::Data::Statement statement(*session_);
   statement << "SELECT";
@@ -228,13 +228,20 @@ int CRTableInterface::rawFindByRevisionImpl(
         " with exception \"" << e.what() << "\", find database snapshot in " <<
         "/tmp/crti-find-fail.db";
   }
-  return pocoToProto.toProto(dest);
+  std::vector<std::shared_ptr<Revision> > from_poco;
+  pocoToProto.toProto(&from_poco);
+  for (const std::shared_ptr<Revision>& item : from_poco) {
+    Id id;
+    item->get(kIdField, &id);
+    (*dest)[id] = item;
+  }
+  return from_poco.size();
 }
 
 // although this is very similar to rawGetRow(), I don't see how to share the
 // features without loss of performance TODO(discuss)
-void CRTableInterface::rawDump(const Time& time,
-                               std::vector<std::shared_ptr<Revision> >* dest)
+void CRTableInterface::rawDump(
+    const Time& time, std::unordered_map<Id, std::shared_ptr<Revision> >* dest)
 const{
   std::shared_ptr<Revision> valueHolder = getTemplate();
   rawFindByRevision("", *valueHolder, time, dest);
