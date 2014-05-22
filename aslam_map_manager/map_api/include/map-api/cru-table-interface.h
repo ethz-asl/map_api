@@ -22,7 +22,6 @@ namespace map_api {
 class CRUTableInterface : public CRTableInterface{
  public:
   virtual bool init();
-
   /**
    * ================================================
    * FUNCTIONS TO BE IMPLEMENTED BY THE DERIVED CLASS
@@ -41,6 +40,11 @@ class CRUTableInterface : public CRTableInterface{
   virtual ~CRUTableInterface();
 
  protected:
+  /**
+   * Default table fields
+   */
+  static const std::string kUpdateTimeField;
+  static const std::string kPreviousField; // previous revision in history
   /**
    * The following functions are to be used by transactions only. They pose a
    * very crude access straight to the database, without synchronization

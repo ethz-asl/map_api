@@ -18,6 +18,11 @@ namespace map_api {
 class CRTableInterface {
  public:
   /**
+   * Default fields
+   */
+  static const std::string kIdField;
+  static const std::string kInsertTimeField;
+  /**
    * Init routine, may be overriden by derived classes, in particular
    * CRUTableInterface. This function calls the pure virtual functions
    * tableName() and define()
@@ -114,8 +119,8 @@ class CRTableInterface {
       const std::string& key, const Revision& valueHolder, const Time& time,
       std::vector<std::shared_ptr<Revision> >* dest)  const;
   virtual int rawFindByRevisionImpl(
-        const std::string& key, const Revision& valueHolder, const Time& time,
-        std::vector<std::shared_ptr<Revision> >* dest)  const;
+      const std::string& key, const Revision& valueHolder, const Time& time,
+      std::vector<std::shared_ptr<Revision> >* dest)  const;
   /**
    * Same as rawFind(), but asserts that not more than one item is found.
    * As rawFind() and rawFindByRevision(), this is not meant to be overridden.
@@ -128,7 +133,7 @@ class CRTableInterface {
    * Fetches all the contents of the table. Calls rawFindByRevision indirectly.
    */
   void rawDump(const Time& time,
-      std::vector<std::shared_ptr<Revision> >* dest) const;
+               std::vector<std::shared_ptr<Revision> >* dest) const;
   /**
    * The PocoToProto class serves as intermediate between Poco and Protobuf:
    * Because Protobuf doesn't support pointers to numeric fields and Poco Data

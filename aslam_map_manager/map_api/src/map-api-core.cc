@@ -38,10 +38,11 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
   Transaction tryInsert;
   tryInsert.begin();
   std::shared_ptr<Revision> attempt = metatable_->getTemplate();
-  attempt->set("name", descriptor.name());
-  attempt->set("descriptor", descriptor);
+  attempt->set(Metatable::kNameField, descriptor.name());
+  attempt->set(Metatable::kDescriptorField, descriptor);
   tryInsert.insert(*metatable_, attempt);
-  tryInsert.addConflictCondition(*metatable_, "name", descriptor.name());
+  tryInsert.addConflictCondition(*metatable_, Metatable::kNameField,
+                                 descriptor.name());
   bool success = tryInsert.commit();
   if (success){
     return true;
@@ -49,12 +50,12 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
   // if has existed, verify descriptors match
   Transaction reader;
   reader.begin();
-  std::shared_ptr<Revision> previous = reader.findUnique(*metatable_, "name",
-                                                         descriptor.name());
+  std::shared_ptr<Revision> previous = reader.findUnique(
+      *metatable_, Metatable::kNameField, descriptor.name());
   CHECK(previous) << "Can't find table " << descriptor.name() <<
       " even though its presence seemingly caused a conflict";
   proto::TableDescriptor previousDescriptor;
-  previous->get("descriptor", &previousDescriptor);
+  previous->get(Metatable::kDescriptorField, &previousDescriptor);
   if (descriptor.SerializeAsString() !=
       previousDescriptor.SerializeAsString()) {
     LOG(ERROR) << "Table schema mismatch of table " << descriptor.name() << ": "
@@ -74,7 +75,7 @@ void MapApiCore::purgeDb() {
   reader.dumpTable<CRTableInterface>(*metatable_, &tables);
   for (const std::shared_ptr<Revision>& table : tables) {
     std::string name;
-    table->get("name", &name);
+    table->get(Metatable::kNameField, &name);
     *dbSess_ << "DROP TABLE IF EXISTS " << name, Poco::Data::now;
   }
   *dbSess_ << "DROP TABLE metatable", Poco::Data::now;
@@ -92,7 +93,7 @@ bool MapApiCore::init(const std::string &ipPort) {
   // TODO(titus) SigAbrt handler?
   Poco::Data::SQLite::Connector::registerConnector();
   dbSess_ = std::shared_ptr<Poco::Data::Session>(
-      new Poco::Data::Session("SQLite", "database.db"));
+      new Poco::Data::Session("SQLite", ":memory:"));
   LOG(INFO)<< "Connected to database..." << std::endl;
 
   // TODO(tcies) metatable

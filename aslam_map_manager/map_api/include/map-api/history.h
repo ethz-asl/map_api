@@ -9,6 +9,12 @@ namespace map_api {
 class History final : public CRTableInterface {
  public:
   /**
+   * Field names
+   */
+  static const std::string kPreviousField;
+  static const std::string kRevisionField;
+  static const std::string kRevisionTimeField;
+  /**
    * Define the table of which the history is to be kept.
    * Will create a table with the name <tableName>_history.
    */

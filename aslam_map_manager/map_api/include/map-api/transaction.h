@@ -76,8 +76,8 @@ class Transaction {
    * specialization of functions is not allowed in C++.
    */
   template<typename ValueType>
-  bool find(CRTableInterface& table, const std::string& key,
-            const ValueType& value, std::vector<SharedRevisionPointer>* dest)
+  int find(CRTableInterface& table, const std::string& key,
+           const ValueType& value, std::vector<SharedRevisionPointer>* dest)
   const;
   /**
    * Same as find(), but ensuring that there is only one result
@@ -93,6 +93,16 @@ class Transaction {
   // requiredTableFields();
   // TODO(tcies) later, start with mutexes
  private:
+  /**
+   * Same as functionality as find(), but looks only in the uncommitted
+   * (insertions and updates) revisions. Consequently, this is used in find(),
+   * among others.
+   */
+  template<typename ValueType>
+  int findInUncommitted(const CRTableInterface& table, const std::string& key,
+                        const ValueType& value,
+                        std::vector<SharedRevisionPointer>* dest) const;
+
   class CRItemIdentifier : public std::pair<const CRTableInterface&, Id>{
    public:
     inline CRItemIdentifier(const CRTableInterface& table, const Id& id) :
