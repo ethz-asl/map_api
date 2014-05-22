@@ -236,7 +236,6 @@ template <typename TableDataType>
 class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
  protected:
   bool updateRevision() {
-    //return this->table_->rawUpdateQuery(*this->query_);
     return this->table_->updateQuery(*this->query_);
   }
 
