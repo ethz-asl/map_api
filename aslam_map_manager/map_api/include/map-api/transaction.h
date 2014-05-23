@@ -75,7 +75,7 @@ class Transaction {
    * specialization of functions is not allowed in C++.
    */
   template<typename ValueType>
-  int find(CRTableInterface& table, const std::string& key,
+  int find(const CRTableInterface& table, const std::string& key,
            const ValueType& value,
            std::unordered_map<Id, SharedRevisionPointer>* dest) const;
   /**

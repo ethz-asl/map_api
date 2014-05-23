@@ -223,16 +223,15 @@ int CRTableInterface::rawFindByRevisionImpl(
   try{
     statement.execute();
   } catch (const std::exception& e){
-    system("cp database.db /tmp/crti-find-fail.db");
     LOG(FATAL) << "Find statement failed: " << statement.toString() <<
-        " with exception \"" << e.what() << "\", find database snapshot in " <<
-        "/tmp/crti-find-fail.db";
+        " with exception: " << e.what();
   }
   std::vector<std::shared_ptr<Revision> > from_poco;
   pocoToProto.toProto(&from_poco);
   for (const std::shared_ptr<Revision>& item : from_poco) {
     Id id;
     item->get(kIdField, &id);
+    CHECK(id.isValid());
     (*dest)[id] = item;
   }
   return from_poco.size();

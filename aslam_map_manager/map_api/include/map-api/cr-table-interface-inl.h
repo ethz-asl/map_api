@@ -23,13 +23,12 @@ std::shared_ptr<Revision> CRTableInterface::rawFindUnique(
     const std::string& key, const ValueType& value, const Time& time) const{
   std::unordered_map<Id, std::shared_ptr<Revision>> results;
   int count = rawFind(key, value, time, &results);
-  switch (count){
-    case 0: return std::shared_ptr<Revision>();
-    case 1: return results.begin()->second;
-    default:
-      LOG(FATAL) << "There seems to be more than one item with given value of "
-      << key << ", table " << structure_.name();
-      return std::shared_ptr<Revision>();
+  CHECK_LT(count, 2) << "There seems to be more than one item with given"\
+      " value of " << key << ", table " << structure_.name();
+  if (count == 0) {
+    return std::shared_ptr<Revision>();
+  } else {
+    return results.begin()->second;
   }
 }
 

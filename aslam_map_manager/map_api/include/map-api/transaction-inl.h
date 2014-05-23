@@ -19,7 +19,8 @@ bool Transaction::addConflictCondition(CRTableInterface& table,
 
 template<typename ValueType>
 int Transaction::find(
-    CRTableInterface& table, const std::string& key, const ValueType& value,
+    const CRTableInterface& table, const std::string& key,
+    const ValueType& value,
     std::unordered_map<Id, SharedRevisionPointer>* dest) const {
   CHECK_NOTNULL(dest);
   if (Transaction::notifyAbortedOrInactive()){
@@ -37,9 +38,8 @@ int Transaction::find(
     // duplicates, not override them, at least according to MSDN
     // http://msdn.microsoft.com/en-us/library/bb982322.aspx
     dest->insert(from_database.begin(), from_database.end());
-  }
-  else { // no results in uncommitted, forward db directly
-    std::lock_guard<std::recursive_mutex> lock(dbMutex_);
+  } else {  // no results in uncommitted, forward db directly
+    std::lock_guard < std::recursive_mutex > lock(dbMutex_);
     table.rawFind(key, value, this->beginTime_, dest);
   }
   return dest->size();
@@ -52,8 +52,8 @@ const {
   if (Transaction::notifyAbortedOrInactive()){
     return false;
   }
-  SharedRevisionPointer uncommitted = findUniqueInUncommitted(
-      table, key, value);
+  SharedRevisionPointer uncommitted =
+      findUniqueInUncommitted(table, key, value);
   if (uncommitted) {
     // uncommitted result could be an update of an item in database, so
     // verifying that the item can't be found in the database wouldn't even
@@ -78,8 +78,7 @@ const {
         if (insertion.second->verify(key, value)) {
           (*dest)[insertion.first.second] = insertion.second;
         }
-      }
-      else {
+      } else {
         (*dest)[insertion.first.second] = insertion.second;
       }
     }
@@ -93,8 +92,7 @@ const {
         if (update.second->verify(key, value)) {
           (*dest)[update.first.second] = update.second;
         }
-      }
-      else {
+      } else {
         (*dest)[update.first.second] = update.second;
       }
     }
@@ -107,14 +105,13 @@ Transaction::SharedRevisionPointer Transaction::findUniqueInUncommitted(
     const CRTableInterface& table, const std::string& key,
     const ValueType& value) const {
   std::unordered_map<Id, SharedRevisionPointer> results;
-  this->findInUncommitted(table, key, value, &results);
-  switch(results.size()) {
-    case 0: return SharedRevisionPointer();
-    case 1: return results.begin()->second;
-    default:
-      LOG(FATAL) << "Required unique find in uncommitted queries for " <<
+  int count = this->findInUncommitted(table, key, value, &results);
+  CHECK_LT(count, 2) << "Required unique find in uncommitted queries for " <<
       table.name() << ", instead got duplicates";
-      return SharedRevisionPointer();
+  if (count == 0) {
+    return SharedRevisionPointer();
+  } else {
+    return results.begin()->second;
   }
 }
 

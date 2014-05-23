@@ -18,13 +18,6 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 # LIBRARIES #
 #############
 add_definitions(--std=c++0x -Wall -Wextra -pedantic -Wno-unused-local-typedefs)
-# use "catkin_make --force-cmake -DMAP_API_SQLITE_TO_DISK:bool=true" to activate
-# this. Unfortunately, you'll need to invalidate map-api-core.cc for the 
-# change to take place AND set the variable to false to switch back to in-RAM
-# SQLite. TODO(simon) is there a better way?
-if (${MAP_API_SQLITE_TO_DISK})
-  add_definitions(-DMAP_API_SQLITE_TO_DISK)
-endif (${MAP_API_SQLITE_TO_DISK})
 
 # Core Library available to all applications
 SET(CORE_SOURCE  src/cr-table-interface.cc
