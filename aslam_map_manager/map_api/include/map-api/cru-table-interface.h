@@ -57,8 +57,8 @@ class CRUTableInterface : public CRTableInterface{
    */
   virtual bool rawInsertImpl(Revision& query) const override;
   /**
-   * For now, may find only by values that don't get updated (that is, it
-   * looks up value in the current version of the table, then looks at the
+   * For now, may find only values that don't get updated (that is, it
+   * looks up values in the current version of the table, then looks at the
    * insert time and verifies that the element was present at the specified
    * time). Otherwise, would
    * need to search through entire history, which is not just painful to
