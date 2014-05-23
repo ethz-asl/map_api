@@ -30,7 +30,7 @@ int ExpectedFieldCount<CRTableInterface>::get() {
 
 template<>
 int ExpectedFieldCount<CRUTableInterface>::get() {
-  return 4;
+  return 5;
 }
 
 template <typename TableType>

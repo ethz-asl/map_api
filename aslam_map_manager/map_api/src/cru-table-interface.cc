@@ -17,32 +17,60 @@
 namespace map_api {
 
 const std::string CRUTableInterface::kUpdateTimeField = "update_time";
-const std::string CRUTableInterface::kPreviousField = "previous";
+const std::string CRUTableInterface::kPreviousTimeField = "previous_time";
+const std::string CRUTableInterface::kNextTimeField = "next_time";
 
 CRUTableInterface::~CRUTableInterface() {}
 
 bool CRUTableInterface::init() {
   // adding fields that make this an updateable table
   addField<Time>(kUpdateTimeField);
-  addField<Id>(kPreviousField);
-  history_.reset(new History(name()));
-  bool history_initialized = history_->init();
-  bool cr_initialized = CRTableInterface::init();
-  return history_initialized && cr_initialized;
+  addField<Time>(kPreviousTimeField);
+  addField<Time>(kNextTimeField);
+  return CRTableInterface::init();
 }
 
 bool CRUTableInterface::rawInsertImpl(Revision& query) const {
   query.set(kUpdateTimeField, Time());
-  query.set(kPreviousField, Id());
+  query.set(kPreviousTimeField, Time(0));
+  query.set(kNextTimeField, Time(0));
   return CRTableInterface::rawInsertImpl(query);
 }
 
 int CRUTableInterface::rawFindByRevisionImpl(
     const std::string& key, const Revision& valueHolder, const Time& time,
     std::unordered_map<Id, std::shared_ptr<Revision> >* dest)  const {
-  // for now, no difference from CRTableInterface - see documentation at
-  // declaration
-  return CRTableInterface::rawFindByRevisionImpl(key, valueHolder, time, dest);
+  // TODO(tcies) apart from the more sophisticated time query, this is very
+  // similar to its CR equivalent. Maybe refactor at some time?
+  PocoToProto poco_to_proto(*this);
+  Poco::Data::Statement statement(*session_);
+  // TODO(tcies) evt. optimizations from http://www.sqlite.org/queryplanner.html
+  statement << "SELECT ";
+  poco_to_proto.into(statement);
+  statement << " FROM " << name() << " WHERE " << kUpdateTimeField << " <  ? ",
+      Poco::Data::use(time.serialize());
+  statement << " AND (" << kNextTimeField << " = 0 OR " << kNextTimeField <<
+      " > ? ", Poco::Data::use(time.serialize());
+  statement << ") ";
+  if (key != "") {
+    statement << " AND " << key << " LIKE ";
+    valueHolder.insertPlaceHolder(key, statement);
+  }
+  try{
+    statement.execute();
+  } catch (const std::exception& e){
+    LOG(FATAL) << "Find statement failed: " << statement.toString() <<
+        " with exception: " << e.what();
+  }
+  std::vector<std::shared_ptr<Revision> > from_poco;
+  poco_to_proto.toProto(&from_poco);
+  for (const std::shared_ptr<Revision>& item : from_poco) {
+    Id id;
+    item->get(kIdField, &id);
+    CHECK(id.isValid());
+    (*dest)[id] = item;
+  }
+  return from_poco.size();
 }
 
 bool CRUTableInterface::rawUpdate(Revision& query) const {
@@ -59,47 +87,37 @@ bool CRUTableInterface::rawUpdateImpl(Revision& query) const {
   Id id;
   query.get(kIdField, &id);
   ItemDebugInfo info(name(), id);
-  // 1. archive current
+  // 1. Check consistency of insert time field
+  // TODO(tcies) generalize this test by introducing a "const" trait to fields?
   std::shared_ptr<Revision> current = rawGetById(id, Time());
-  CHECK(current) << info << "Attempted to update nonexistent item";
-  std::shared_ptr<Revision> archive = history_->getTemplate();
-  Id archiveId = Id::random();
-  archive->set(kIdField, archiveId);
-  Id previous;
-  query.get(kPreviousField, &previous);
-  archive->set(History::kPreviousField, previous);
-  Time time;
-  query.get(kUpdateTimeField, &time);
-  archive->set(History::kRevisionTimeField, time);
-  archive->set(History::kRevisionField, *current);
-  if (!history_->rawInsert(*archive)) {
-    LOG(FATAL) << info << "Failed to insert current version into history";
-  }
-  // 2. overwrite
-  query.set(kUpdateTimeField, Time());
-  query.set(kPreviousField, archiveId);
-  // Bag for blobs that need to stay in scope until statement is executed
-  std::vector<std::shared_ptr<Poco::Data::BLOB> > placeholderBlobs;
+  Time query_insert_time;
+  query.get(CRTableInterface::kInsertTimeField, &query_insert_time);
+  CHECK(current->verify(CRTableInterface::kInsertTimeField, query_insert_time))
+  << " Insert time needs to remain same after update.";
+  // 2. Define update time, fetch previous time
+  Time update_time, previous_time;
+  current->get(kUpdateTimeField, &previous_time);
+  // 3. Write update time into "next_time" field of current revision
   Poco::Data::Statement statement(*session_);
-  statement << "UPDATE " << name() << " SET ";
-  for (int i = 0; i < query.fieldqueries_size(); ++i) {
-    if (i > 0) {
-      statement << ", ";
-    }
-    statement << query.fieldqueries(i).nametype().name() << " = ";
-    placeholderBlobs.push_back(query.insertPlaceHolder(i, statement));
-  }
-  statement << " WHERE " << kIdField << " LIKE ";
-  query.insertPlaceHolder(kIdField, statement);
-
+  statement << "UPDATE " << name() << " SET " << kNextTimeField << " = ? ",
+      Poco::Data::use(update_time.serialize());
+  statement << " WHERE ID = ";
+  query.insertPlaceHolder(CRTableInterface::kIdField, statement);
+  statement << " AND " << kUpdateTimeField << " = ? ",
+      Poco::Data::use(previous_time.serialize());
   try {
     statement.execute();
-  } catch (const std::exception &e) {
-    LOG(FATAL) << "Update failed with exception \"" << e.what() << "\", " <<
-        " statement was \"" << statement.toString() << "\" and query :" <<
-        query.DebugString();
+  } catch (const std::exception& e) {
+    LOG(FATAL) << info << kNextTimeField << " update failed with exception \""
+        << e.what() << "\", " << " statement was \"" << statement.toString() <<
+        "\" and query :" << query.DebugString();
   }
-
+  // 4. Insert updated row
+  query.set(kUpdateTimeField, update_time);
+  query.set(kPreviousTimeField, previous_time);
+  query.set(kNextTimeField, Time(0));
+  // calling insert implementation of CR to avoid these fields to be overwritten
+  CRTableInterface::rawInsertImpl(query);
   return true;
 }
 
