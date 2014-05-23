@@ -15,6 +15,9 @@ using namespace map_api;
  */
 class TransactionTest : public testing::Test {
  protected:
+  virtual void SetUp() override {
+    MapApiCore::getInstance().purgeDb();
+  }
   Transaction transaction_;
 };
 
@@ -55,7 +58,6 @@ TEST_F(TransactionTest, BeginCommit){
 
 TEST_F(TransactionTest, OperationsBeforeBegin){
   TransactionTestTable table;
-  system("cp database.db /tmp/trate0.db");
   EXPECT_TRUE(table.init());
   std::shared_ptr<Revision> data = table.sample(6.626e-34);
   EXPECT_EQ(Id(), transaction_.insert(table, data));
@@ -65,10 +67,9 @@ TEST_F(TransactionTest, OperationsBeforeBegin){
   EXPECT_TRUE(valid.begin());
   Id inserted = valid.insert(table, data);
   EXPECT_NE(inserted, Id());
-  system("cp database.db /tmp/trate.db");
   EXPECT_TRUE(valid.commit());
 
-  EXPECT_FALSE(transaction_.read<CRUTableInterface>(table, inserted));
+  EXPECT_FALSE(transaction_.read(table, inserted));
   EXPECT_FALSE(transaction_.update(table, inserted, data));
 }
 
@@ -92,12 +93,14 @@ class TransactionCRUTest : public TransactionTest {
     return transaction_.insert(table_, table_.sample(sample));
   }
   bool updateSample(const Id& id, double newValue){
-    return transaction_.update(table_, id, table_.sample(newValue));
+    std::shared_ptr<Revision> revision = transaction_.read(table_, id);
+    EXPECT_TRUE(static_cast<bool>(revision));
+    revision->set(table_.sampleField(), newValue);
+    return transaction_.update(table_, id, revision);
   }
   void verify(const Id& id, double expected){
     double actual;
-    std::shared_ptr<Revision> row = transaction_.read<CRUTableInterface>(
-        table_, id);
+    std::shared_ptr<Revision> row = transaction_.read(table_, id);
     ASSERT_TRUE(static_cast<bool>(row));
     EXPECT_TRUE(row->get(table_.sampleField(), &actual));
     EXPECT_EQ(expected, actual);
@@ -155,16 +158,14 @@ class MultiTransactionSingleCRUTest : public MultiTransactionTest {
     return transaction.insert(table_, table_.sample(sample));
   }
   bool updateSample(Transaction& transaction, const Id& id, double newValue){
-    std::shared_ptr<Revision> toUpdate =
-        transaction.read<CRUTableInterface>(table_, id);
+    std::shared_ptr<Revision> toUpdate = transaction.read(table_, id);
     CHECK(toUpdate);
     toUpdate->set("n", newValue);
     return transaction.update(table_, id, toUpdate);
   }
   void verify(Transaction& transaction, const Id& id, double expected){
     double actual;
-    std::shared_ptr<Revision> row = transaction.read<CRUTableInterface>(
-        table_, id);
+    std::shared_ptr<Revision> row = transaction.read(table_, id);
     ASSERT_TRUE(static_cast<bool>(row));
     EXPECT_TRUE(row->get(table_.sampleField(), &actual));
     EXPECT_EQ(expected, actual);

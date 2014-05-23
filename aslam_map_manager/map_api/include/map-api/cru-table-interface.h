@@ -22,7 +22,6 @@ namespace map_api {
 class CRUTableInterface : public CRTableInterface{
  public:
   virtual bool init();
-
   /**
    * ================================================
    * FUNCTIONS TO BE IMPLEMENTED BY THE DERIVED CLASS
@@ -42,27 +41,41 @@ class CRUTableInterface : public CRTableInterface{
 
  protected:
   /**
+   * Default table fields
+   */
+  static const std::string kUpdateTimeField;
+  static const std::string kPreviousField; // previous revision in history
+  /**
    * The following functions are to be used by transactions only. They pose a
    * very crude access straight to the database, without synchronization
    * and conflict checking - that is assumed to be done by the transaction.
    */
   friend class Transaction;
+  /**
+   * Insertion differs from CRTableInterface in that additional default field
+   * "previous" and "update_time" need to be set to 0 and now respectively.
+   */
   virtual bool rawInsertImpl(Revision& query) const override;
   /**
-   * Extension to CR interface: Get latest version at given time.
+   * For now, may find only values that don't get updated (that is, it
+   * looks up values in the current version of the table, then looks at the
+   * insert time and verifies that the element was present at the specified
+   * time). Otherwise, would
+   * need to search through entire history, which is not just painful to
+   * implement, but would also probably not work well on a distributed system.
+   * TODO(discuss) right?
+   * TODO(tcies) if yes, formalize and embed in code
    */
-  std::shared_ptr<Revision> rawGetRowAtTime(
-      const Id& id, const Time& time) const;
-  /**
-   * Dump table according to state at given time TODO(tcies) also in CR
-   */
-  void rawDumpAtTime(const Time& time,
-                     std::vector<std::shared_ptr<Revision> >* dest) const;
+  virtual int rawFindByRevisionImpl(
+      const std::string& key, const Revision& valueHolder, const Time& time,
+      std::unordered_map<Id, std::shared_ptr<Revision> >* dest)  const
+  override;
   /**
    * Field ID in revision must correspond to an already present item, revision
    * structure needs to match.
    */
-  bool rawUpdateQuery(Revision& query) const;
+  bool rawUpdate(Revision& query) const;
+  virtual bool rawUpdateImpl(Revision& query) const;
   bool rawLatestUpdateTime(const Id& id, Time* time) const;
 
  private:

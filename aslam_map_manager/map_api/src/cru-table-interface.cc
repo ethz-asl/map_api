@@ -16,12 +16,15 @@
 
 namespace map_api {
 
+const std::string CRUTableInterface::kUpdateTimeField = "update_time";
+const std::string CRUTableInterface::kPreviousField = "previous";
+
 CRUTableInterface::~CRUTableInterface() {}
 
 bool CRUTableInterface::init() {
   // adding fields that make this an updateable table
-  addField<Time>("time"); // time of update
-  addField<Id>("previous"); // id of previous revision in history table
+  addField<Time>(kUpdateTimeField);
+  addField<Id>(kPreviousField);
   history_.reset(new History(name()));
   bool history_initialized = history_->init();
   bool cr_initialized = CRTableInterface::init();
@@ -29,89 +32,86 @@ bool CRUTableInterface::init() {
 }
 
 bool CRUTableInterface::rawInsertImpl(Revision& query) const {
-  query.set("time", Time());
-  query.set("previous", Id());
+  query.set(kUpdateTimeField, Time());
+  query.set(kPreviousField, Id());
   return CRTableInterface::rawInsertImpl(query);
 }
 
-std::shared_ptr<Revision> CRUTableInterface::rawGetRowAtTime(
-    const Id& id, const Time& time) const {
-  // TODO(tcies) this could be SQL optimized by pre-fetching a couple of
-  // revisions atime, using the LIMIT statement and ordered be time, descending
-  std::shared_ptr<Revision> returnValue = rawGetById(id);
-  Time timeIteration;
-  for (returnValue->get("time", &timeIteration); timeIteration > time;
-      returnValue->get("time", &timeIteration)) {
-    Id previous;
-    returnValue->get("previous", &previous);
-    std::shared_ptr<Revision> archived = history_->rawGetById(previous);
-    archived->get("revision", returnValue.get());
-  }
-  return returnValue;
+int CRUTableInterface::rawFindByRevisionImpl(
+    const std::string& key, const Revision& valueHolder, const Time& time,
+    std::unordered_map<Id, std::shared_ptr<Revision> >* dest)  const {
+  // for now, no difference from CRTableInterface - see documentation at
+  // declaration
+  return CRTableInterface::rawFindByRevisionImpl(key, valueHolder, time, dest);
 }
 
-void CRUTableInterface::rawDumpAtTime(
-    const Time& time, std::vector<std::shared_ptr<Revision> >* dest) const {
-  PocoToProto pocoToProto(*this);
-  Poco::Data::Statement statement(*session_);
-  statement << "SELECT";
-  pocoToProto.into(statement);
-  statement << "FROM " << name();
-  int64_t serializedTime = time.serialize();
-  statement << " WHERE time < ?", Poco::Data::use(serializedTime) ;
-  try{
-    statement.execute();
-  } catch (const std::exception& e){
-    LOG(FATAL) << "Statement failed: " << statement.toString() <<
-        " with exception " << e.what();
-  }
-  pocoToProto.toProto(dest);
-}
-
-bool CRUTableInterface::rawUpdateQuery(Revision& query) const{
+bool CRUTableInterface::rawUpdate(Revision& query) const {
+  CHECK(isInitialized()) << "Attempted to update in non-initialized table";
+  std::shared_ptr<Revision> reference = getTemplate();
+  CHECK(reference->structureMatch(query)) << "Bad structure of update revision";
   Id id;
-  query.get("ID", &id);
+  query.get(kIdField, &id);
+  CHECK_NE(id, Id()) << "Attempted to update element with invalid ID";
+  return rawUpdateImpl(query);
+}
+
+bool CRUTableInterface::rawUpdateImpl(Revision& query) const {
+  Id id;
+  query.get(kIdField, &id);
   ItemDebugInfo info(name(), id);
   // 1. archive current
-  std::shared_ptr<Revision> current = rawGetById(id);
+  std::shared_ptr<Revision> current = rawGetById(id, Time());
   CHECK(current) << info << "Attempted to update nonexistent item";
   std::shared_ptr<Revision> archive = history_->getTemplate();
   Id archiveId = Id::random();
-  archive->set("ID", archiveId);
+  archive->set(kIdField, archiveId);
   Id previous;
-  query.get("previous", &previous);
-  archive->set("previous", previous);
+  query.get(kPreviousField, &previous);
+  archive->set(History::kPreviousField, previous);
   Time time;
-  query.get("time", &time);
-  archive->set("time", time);
-  archive->set("revision", *current);
+  query.get(kUpdateTimeField, &time);
+  archive->set(History::kRevisionTimeField, time);
+  archive->set(History::kRevisionField, *current);
   if (!history_->rawInsert(*archive)) {
     LOG(FATAL) << info << "Failed to insert current version into history";
   }
   // 2. overwrite
-  // TODO(tcies) this is the lazy way, to get it to work; use UPDATE query
-  try {
-    *session_ << "DELETE FROM " << name() << " WHERE ID LIKE ? ",
-        Poco::Data::use(id.hexString()), Poco::Data::now;
-  } catch (const std::exception& e) {
-    LOG(FATAL) << info << "Delete in update failed with exception " << e.what();
+  query.set(kUpdateTimeField, Time());
+  query.set(kPreviousField, archiveId);
+  // Bag for blobs that need to stay in scope until statement is executed
+  std::vector<std::shared_ptr<Poco::Data::BLOB> > placeholderBlobs;
+  Poco::Data::Statement statement(*session_);
+  statement << "UPDATE " << name() << " SET ";
+  for (int i = 0; i < query.fieldqueries_size(); ++i) {
+    if (i > 0) {
+      statement << ", ";
+    }
+    statement << query.fieldqueries(i).nametype().name() << " = ";
+    placeholderBlobs.push_back(query.insertPlaceHolder(i, statement));
   }
-  query.set("time", Time());
-  query.set("previous", archiveId);
-  // important: Needs to call CR implementation, not CRU implementation through
-  // non-virtual interface rawInsert(), to keep correct 'previous' field value
-  return CRTableInterface::rawInsertImpl(query);
+  statement << " WHERE " << kIdField << " LIKE ";
+  query.insertPlaceHolder(kIdField, statement);
+
+  try {
+    statement.execute();
+  } catch (const std::exception &e) {
+    LOG(FATAL) << "Update failed with exception \"" << e.what() << "\", " <<
+        " statement was \"" << statement.toString() << "\" and query :" <<
+        query.DebugString();
+  }
+
+  return true;
 }
 
 bool CRUTableInterface::rawLatestUpdateTime(
     const Id& id, Time* time) const{
-  std::shared_ptr<Revision> row = rawGetById(id);
+  std::shared_ptr<Revision> row = rawGetById(id, Time());
   ItemDebugInfo itemInfo(name(), id);
   if (!row){
     LOG(ERROR) << itemInfo << "Failed to retrieve row";
     return false;
   }
-  row->get("time", time);
+  row->get(kUpdateTimeField, time);
   return true;
 }
 

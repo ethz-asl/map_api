@@ -25,12 +25,12 @@ class ExpectedFieldCount {
 
 template<>
 int ExpectedFieldCount<CRTableInterface>::get() {
-  return 1;
+  return 2;
 }
 
 template<>
 int ExpectedFieldCount<CRUTableInterface>::get() {
-  return 3;
+  return 4;
 }
 
 template <typename TableType>
@@ -69,14 +69,18 @@ class TableDataTypes {
 template <typename TableDataType>
 class FieldTestTable : public TestTable<typename TableDataType::TableType> {
  public:
+  static const std::string kTestField;
   virtual const std::string name() const override {
     return "field_test_table";
   }
  protected:
   virtual void define() {
-    this->template addField<typename TableDataType::DataType>("test_field");
+    this->template addField<typename TableDataType::DataType>(kTestField);
   }
 };
+
+template <typename FieldType>
+const std::string FieldTestTable<FieldType>::kTestField = "test_field";
 
 template <typename TableDataType>
 class InsertReadFieldTestTable : public FieldTestTable<TableDataType> {
@@ -86,7 +90,7 @@ class InsertReadFieldTestTable : public FieldTestTable<TableDataType> {
   }
 
   bool updateQuery(Revision& query) {
-    return this->rawUpdateQuery(query);
+    return this->rawUpdate(query);
   }
 };
 
@@ -208,9 +212,10 @@ class FieldTestWithoutInit :
   Id fillRevision() {
     getTemplate();
     Id inserted = Id::random();
-    query_->set("ID", inserted);
+    query_->set(CRTableInterface::kIdField, inserted);
     // to_insert_->set("owner", Id::random()); TODO(tcies) later, from core
-    query_->set("test_field", this->sample_data_1());
+    query_->set(InsertReadFieldTestTable<TableDataType>::kTestField,
+                    this->sample_data_1());
     return inserted;
   }
 
@@ -282,17 +287,19 @@ TYPED_TEST(FieldTestWithoutInit, CreateBeforeInit) {
 
 TYPED_TEST(FieldTestWithoutInit, ReadBeforeInit) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH(this->table_->rawGetById(Id::random()), "^");
+  EXPECT_DEATH(this->table_->rawGetById(Id::random(), Time()), "^");
 }
 
 TYPED_TEST(FieldTestWithInit, CreateRead) {
   Id inserted = this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
-  std::shared_ptr<Revision> rowFromTable = this->table_->rawGetById(inserted);
+  std::shared_ptr<Revision> rowFromTable =
+      this->table_->rawGetById(inserted, Time());
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
-  rowFromTable->get("test_field", &dataFromTable);
+  rowFromTable->get(InsertReadFieldTestTable<TypeParam>::kTestField,
+                    &dataFromTable);
   EXPECT_EQ(this->sample_data_1(), dataFromTable);
 }
 
@@ -301,7 +308,7 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRow) {
   EXPECT_TRUE(this->insertRevision());
 
   Id other_id = Id::random();
-  EXPECT_FALSE(this->table_->rawGetById(other_id));
+  EXPECT_FALSE(this->table_->rawGetById(other_id, Time()));
 }
 
 TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
@@ -309,7 +316,8 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
   Id inserted = this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
-  std::shared_ptr<Revision> rowFromTable = this->table_->rawGetById(inserted);
+  std::shared_ptr<Revision> rowFromTable =
+      this->table_->rawGetById(inserted, Time());
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
   EXPECT_DEATH(rowFromTable->get("some_other_field", &dataFromTable), "^");
@@ -319,7 +327,8 @@ TYPED_TEST(UpdateFieldTestWithInit, UpdateRead) {
   Id inserted = this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
-  std::shared_ptr<Revision> rowFromTable = this->table_->rawGetById(inserted);
+  std::shared_ptr<Revision> rowFromTable =
+      this->table_->rawGetById(inserted, Time());
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
   rowFromTable->get("test_field", &dataFromTable);
@@ -327,7 +336,7 @@ TYPED_TEST(UpdateFieldTestWithInit, UpdateRead) {
 
   this->fillRevisionWithOtherData();
   this->updateRevision();
-  rowFromTable = this->table_->rawGetById(inserted);
+  rowFromTable = this->table_->rawGetById(inserted, Time());
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   rowFromTable->get("test_field", &dataFromTable);
   EXPECT_EQ(this->sample_data_2(), dataFromTable);
