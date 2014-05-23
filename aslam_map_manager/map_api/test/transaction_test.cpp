@@ -74,6 +74,7 @@ TEST_F(TransactionTest, OperationsBeforeBegin){
 }
 
 TEST_F(TransactionTest, InsertBeforeTableInit){
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   TransactionTestTable table;
   EXPECT_TRUE(transaction_.begin());
   EXPECT_DEATH(transaction_.insert(table, table.sample(3.14)), "^");
@@ -122,7 +123,7 @@ TEST_F(TransactionCRUTest, InsertUpdateReadBeforeCommit){
 }
 
 /**
- * Fixture for tests with multiple owners and transactions
+ * Fixture for tests with multiple agents and transactions
  */
 class MultiTransactionTest : public testing::Test {
  protected:
@@ -170,8 +171,21 @@ class MultiTransactionSingleCRUTest : public MultiTransactionTest {
     EXPECT_TRUE(row->get(table_.sampleField(), &actual));
     EXPECT_EQ(expected, actual);
   }
+  void dump(Transaction& transaction) {
+    dump_set_.clear();
+    std::unordered_map<Id, std::shared_ptr<Revision> > dump;
+    transaction.dumpTable(table_, &dump);
+    for (const std::pair<Id, std::shared_ptr<Revision> >& item : dump) {
+      double value;
+      item.second->get(table_.sampleField(), &value);
+      dump_set_.insert(value);
+    }
+  }
   TransactionTestTable table_;
+  std::set<double> dump_set_;
 };
+
+// INSERT
 
 TEST_F(MultiTransactionSingleCRUTest, SerialInsertRead) {
   // Insert by a
@@ -207,6 +221,8 @@ TEST_F(MultiTransactionSingleCRUTest, ParallelInsertRead) {
   verify(verification, aId, 3.14);
   verify(verification, bId, 42);
 }
+
+// UPDATE
 
 TEST_F(MultiTransactionSingleCRUTest, UpdateRead) {
   // Insert item to be updated
@@ -254,4 +270,165 @@ TEST_F(MultiTransactionSingleCRUTest, ParallelUpdate) {
   // make sure b has won
   Transaction& aCheck = a.beginNewTransaction();
   verify(aCheck, itemId, 12.34);
+}
+
+// DUMP
+
+TEST_F(MultiTransactionSingleCRUTest, InsertInsertCommitDump){
+  Agent& a = addAgent();
+  Transaction& a_insert = a.beginNewTransaction();
+  insertSample(a_insert, 3.14);
+  insertSample(a_insert, 5.67);
+  a_insert.commit();
+  Transaction& a_dump = a.beginNewTransaction();
+  dump(a_dump);
+  EXPECT_EQ(2u, dump_set_.size());
+  EXPECT_NE(dump_set_.end(), dump_set_.find(3.14));
+  EXPECT_NE(dump_set_.end(), dump_set_.find(5.67));
+}
+
+TEST_F(MultiTransactionSingleCRUTest, InsertCommitInsertDump){
+  Agent& a = addAgent();
+  Transaction& a_insert = a.beginNewTransaction();
+  insertSample(a_insert, 3.14);
+  a_insert.commit();
+  Transaction& a_dump = a.beginNewTransaction();
+  insertSample(a_dump, 5.67);
+  dump(a_dump);
+  EXPECT_EQ(2u, dump_set_.size());
+  EXPECT_NE(dump_set_.end(), dump_set_.find(3.14));
+  EXPECT_NE(dump_set_.end(), dump_set_.find(5.67));
+}
+
+TEST_F(MultiTransactionSingleCRUTest, InsertInsertCommitUpdateCommitDump){
+  Id to_update;
+  Agent& a = addAgent();
+  Transaction& a_insert = a.beginNewTransaction();
+  insertSample(a_insert, 3.14);
+  to_update = insertSample(a_insert, 5.67);
+  a_insert.commit();
+  Transaction& a_update = a.beginNewTransaction();
+  updateSample(a_update, to_update, 9.81);
+  a_update.commit();
+  Transaction& a_dump = a.beginNewTransaction();
+  dump(a_dump);
+  EXPECT_EQ(2u, dump_set_.size());
+  EXPECT_NE(dump_set_.end(), dump_set_.find(3.14));
+  EXPECT_NE(dump_set_.end(), dump_set_.find(9.81));
+}
+
+TEST_F(MultiTransactionSingleCRUTest, InsertInsertCommitUpdateDump){
+  Id to_update;
+  Agent& a = addAgent();
+  Transaction& a_insert = a.beginNewTransaction();
+  insertSample(a_insert, 3.14);
+  to_update = insertSample(a_insert, 5.67);
+  a_insert.commit();
+  Transaction& a_dump = a.beginNewTransaction();
+  updateSample(a_dump, to_update, 9.81);
+  dump(a_dump);
+  EXPECT_EQ(2u, dump_set_.size());
+  EXPECT_NE(dump_set_.end(), dump_set_.find(3.14));
+  EXPECT_NE(dump_set_.end(), dump_set_.find(9.81));
+}
+
+TEST_F(MultiTransactionSingleCRUTest, InsertCommitInsertUpdateDump){
+  Id to_update;
+  Agent& a = addAgent();
+  Transaction& a_insert = a.beginNewTransaction();
+  insertSample(a_insert, 3.14);
+  a_insert.commit();
+  Transaction& a_dump = a.beginNewTransaction();
+  to_update = insertSample(a_dump, 5.67);
+  updateSample(a_dump, to_update, 9.81);
+  dump(a_dump);
+  EXPECT_EQ(2u, dump_set_.size());
+  EXPECT_NE(dump_set_.end(), dump_set_.find(3.14));
+  EXPECT_NE(dump_set_.end(), dump_set_.find(9.81));
+}
+
+// FIND
+
+TEST_F(MultiTransactionSingleCRUTest, InsertCommitFindUnique){
+  Id expected_find;
+  Agent& a = addAgent();
+  Transaction& a_insert = a.beginNewTransaction();
+  insertSample(a_insert, 3.14);
+  insertSample(a_insert, 5.67);
+  expected_find = insertSample(a_insert, 9.81);
+  a_insert.commit();
+  Transaction& a_find = a.beginNewTransaction();
+  std::shared_ptr<Revision> found =
+      a_find.findUnique(table_, table_.sampleField(), 9.81);
+  EXPECT_TRUE(static_cast<bool>(found));
+  Id found_id;
+  found->get(CRTableInterface::kIdField, &found_id);
+  EXPECT_EQ(expected_find, found_id);
+}
+
+TEST_F(MultiTransactionSingleCRUTest, InsertCommitInsertFindUnique){
+  Id expected_find;
+  Agent& a = addAgent();
+  Transaction& a_insert = a.beginNewTransaction();
+  insertSample(a_insert, 3.14);
+  insertSample(a_insert, 5.67);
+  a_insert.commit();
+  Transaction& a_find = a.beginNewTransaction();
+  expected_find = insertSample(a_find, 9.81);
+  std::shared_ptr<Revision> found =
+      a_find.findUnique(table_, table_.sampleField(), 9.81);
+  EXPECT_TRUE(static_cast<bool>(found));
+  Id found_id;
+  found->get(CRTableInterface::kIdField, &found_id);
+  EXPECT_EQ(expected_find, found_id);
+}
+
+TEST_F(MultiTransactionSingleCRUTest, InsertCommitFindNotQuiteUnique){
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  Agent& a = addAgent();
+  Transaction& a_insert = a.beginNewTransaction();
+  insertSample(a_insert, 3.14);
+  insertSample(a_insert, 5.67);
+  insertSample(a_insert, 5.67);
+  a_insert.commit();
+  Transaction& a_find = a.beginNewTransaction();
+  EXPECT_DEATH(a_find.findUnique(table_, table_.sampleField(), 5.67), "^");
+}
+
+// InsertCommitInsertFindNotQuiteUnique test fails for now, see implementation
+// documentation of Transaction::findUnique
+
+TEST_F(MultiTransactionSingleCRUTest, FindMultiCommitetd){
+  std::set<Id> expected_find;
+  Agent& a = addAgent();
+  Transaction& a_insert = a.beginNewTransaction();
+  insertSample(a_insert, 3.14);
+  expected_find.insert(insertSample(a_insert, 5.67));
+  expected_find.insert(insertSample(a_insert, 5.67));
+  a_insert.commit();
+
+  Transaction& a_find = a.beginNewTransaction();
+  std::unordered_map<Id, std::shared_ptr<Revision> > found;
+  EXPECT_EQ(2u, a_find.find(table_, table_.sampleField(), 5.67, &found));
+  for (const Id& expected : expected_find) {
+    EXPECT_NE(found.end(), found.find(expected));
+  }
+}
+
+TEST_F(MultiTransactionSingleCRUTest, FindMultiMixed){
+  std::set<Id> expected_find;
+  Agent& a = addAgent();
+  Transaction& a_insert = a.beginNewTransaction();
+  insertSample(a_insert, 3.14);
+  expected_find.insert(insertSample(a_insert, 5.67));
+  a_insert.commit();
+
+  Transaction& a_find = a.beginNewTransaction();
+  expected_find.insert(insertSample(a_find, 5.67));
+  std::unordered_map<Id, std::shared_ptr<Revision> > found;
+  EXPECT_EQ(expected_find.size(),
+            a_find.find(table_, table_.sampleField(), 5.67, &found));
+  for (const Id& expected : expected_find) {
+    EXPECT_NE(found.end(), found.find(expected));
+  }
 }
