@@ -39,7 +39,7 @@ bool CRUTableInterface::rawInsertImpl(Revision& query) const {
 
 int CRUTableInterface::rawFindByRevisionImpl(
     const std::string& key, const Revision& valueHolder, const Time& time,
-    std::vector<std::shared_ptr<Revision> >* dest)  const {
+    std::unordered_map<Id, std::shared_ptr<Revision> >* dest)  const {
   // for now, no difference from CRTableInterface - see documentation at
   // declaration
   return CRTableInterface::rawFindByRevisionImpl(key, valueHolder, time, dest);

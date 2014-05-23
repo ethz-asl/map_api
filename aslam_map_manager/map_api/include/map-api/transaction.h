@@ -6,6 +6,7 @@
 #include <queue>
 #include <memory>
 #include <mutex>
+#include <unordered_map>
 
 #include "map-api/cr-table-interface.h"
 #include "map-api/cru-table-interface.h"
@@ -54,15 +55,13 @@ class Transaction {
   /**
    * Returns latest revision prior to transaction begin time
    */
-  template<typename TableInterfaceType>
-  SharedRevisionPointer read(TableInterfaceType& table, const Id& id);
+  SharedRevisionPointer read(CRTableInterface& table, const Id& id);
 
   /**
    * Returns latest revision prior to transaction begin time for all contents
    */
-  template<typename TableInterfaceType>
-  bool dumpTable(TableInterfaceType& table,
-                 std::vector<SharedRevisionPointer>* dest);
+  bool dumpTable(CRTableInterface& table,
+                 std::unordered_map<Id, SharedRevisionPointer>* dest);
 
   /**
    * Fails if global state differs from groundState before updating
@@ -76,9 +75,9 @@ class Transaction {
    * specialization of functions is not allowed in C++.
    */
   template<typename ValueType>
-  int find(CRTableInterface& table, const std::string& key,
-           const ValueType& value, std::vector<SharedRevisionPointer>* dest)
-  const;
+  int find(const CRTableInterface& table, const std::string& key,
+           const ValueType& value,
+           std::unordered_map<Id, SharedRevisionPointer>* dest) const;
   /**
    * Same as find(), but ensuring that there is only one result
    */
@@ -96,12 +95,17 @@ class Transaction {
   /**
    * Same as functionality as find(), but looks only in the uncommitted
    * (insertions and updates) revisions. Consequently, this is used in find(),
-   * among others.
+   * among others. If key is an empty string, no filter will be applied.
    */
   template<typename ValueType>
   int findInUncommitted(const CRTableInterface& table, const std::string& key,
                         const ValueType& value,
-                        std::vector<SharedRevisionPointer>* dest) const;
+                        std::unordered_map<Id, SharedRevisionPointer>* dest)
+  const;
+  template<typename ValueType>
+  SharedRevisionPointer findUniqueInUncommitted(
+      const CRTableInterface& table, const std::string& key,
+      const ValueType& value) const;
 
   class CRItemIdentifier : public std::pair<const CRTableInterface&, Id>{
    public:
