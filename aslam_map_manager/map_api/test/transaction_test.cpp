@@ -60,7 +60,7 @@ TEST_F(TransactionTest, OperationsBeforeBegin){
   TransactionTestTable table;
   EXPECT_TRUE(table.init());
   std::shared_ptr<Revision> data = table.sample(6.626e-34);
-  EXPECT_EQ(transaction_.insert(table, data), Id());
+  EXPECT_EQ(Id(), transaction_.insert(table, data));
   // read and update should fail only because transaction hasn't started yet,
   // so we need to insert some data
   Transaction valid;
@@ -103,7 +103,7 @@ class TransactionCRUTest : public TransactionTest {
     std::shared_ptr<Revision> row = transaction_.read(table_, id);
     ASSERT_TRUE(static_cast<bool>(row));
     EXPECT_TRUE(row->get(table_.sampleField(), &actual));
-    EXPECT_EQ(actual, expected);
+    EXPECT_EQ(expected, actual);
   }
   TransactionTestTable table_;
 };
@@ -168,7 +168,7 @@ class MultiTransactionSingleCRUTest : public MultiTransactionTest {
     std::shared_ptr<Revision> row = transaction.read(table_, id);
     ASSERT_TRUE(static_cast<bool>(row));
     EXPECT_TRUE(row->get(table_.sampleField(), &actual));
-    EXPECT_EQ(actual, expected);
+    EXPECT_EQ(expected, actual);
   }
   TransactionTestTable table_;
 };
