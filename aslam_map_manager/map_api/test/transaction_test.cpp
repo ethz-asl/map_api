@@ -74,7 +74,6 @@ TEST_F(TransactionTest, OperationsBeforeBegin){
 }
 
 TEST_F(TransactionTest, InsertBeforeTableInit){
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   TransactionTestTable table;
   EXPECT_TRUE(transaction_.begin());
   EXPECT_DEATH(transaction_.insert(table, table.sample(3.14)), "^");
@@ -110,7 +109,6 @@ class TransactionCRUTest : public TransactionTest {
 };
 
 TEST_F(TransactionCRUTest, InsertNonsense){
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   std::shared_ptr<Revision> nonsense(new Revision());
   EXPECT_DEATH(transaction_.insert(table_, nonsense), "^");
 }
@@ -185,8 +183,6 @@ class MultiTransactionSingleCRUTest : public MultiTransactionTest {
   std::set<double> dump_set_;
 };
 
-// INSERT
-
 TEST_F(MultiTransactionSingleCRUTest, SerialInsertRead) {
   // Insert by a
   Agent& a = addAgent();
@@ -221,8 +217,6 @@ TEST_F(MultiTransactionSingleCRUTest, ParallelInsertRead) {
   verify(verification, aId, 3.14);
   verify(verification, bId, 42);
 }
-
-// UPDATE
 
 TEST_F(MultiTransactionSingleCRUTest, UpdateRead) {
   // Insert item to be updated
@@ -271,8 +265,6 @@ TEST_F(MultiTransactionSingleCRUTest, ParallelUpdate) {
   Transaction& aCheck = a.beginNewTransaction();
   verify(aCheck, itemId, 12.34);
 }
-
-// DUMP
 
 TEST_F(MultiTransactionSingleCRUTest, InsertInsertCommitDump){
   Agent& a = addAgent();
@@ -347,8 +339,6 @@ TEST_F(MultiTransactionSingleCRUTest, InsertCommitInsertUpdateDump){
   EXPECT_NE(dump_set_.end(), dump_set_.find(9.81));
 }
 
-// FIND
-
 TEST_F(MultiTransactionSingleCRUTest, InsertCommitFindUnique){
   Id expected_find;
   Agent& a = addAgent();
@@ -384,7 +374,6 @@ TEST_F(MultiTransactionSingleCRUTest, InsertCommitInsertFindUnique){
 }
 
 TEST_F(MultiTransactionSingleCRUTest, InsertCommitFindNotQuiteUnique){
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   Agent& a = addAgent();
   Transaction& a_insert = a.beginNewTransaction();
   insertSample(a_insert, 3.14);
