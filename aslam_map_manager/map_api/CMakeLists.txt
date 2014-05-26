@@ -50,6 +50,10 @@ catkin_add_gtest(test_transaction_test test/test_main.cpp
   test/transaction_test.cpp)
 target_link_libraries(test_transaction_test ${PROJECT_NAME})
 
+catkin_add_gtest(test_hub_test test/test_main_multiprocess.cpp 
+  test/hub_test.cpp)
+target_link_libraries(test_hub_test ${PROJECT_NAME})
+
 ##########
 # EXPORT #
 ##########
