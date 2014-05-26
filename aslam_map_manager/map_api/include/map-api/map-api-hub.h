@@ -32,6 +32,10 @@ class MapApiHub final {
    * Re-enter server thread, unbind
    */
   void kill();
+  /**
+   * Get amount of peers
+   */
+  int peerSize();
  private:
   /**
    * Constructor: Performs discovery, fetches metadata and loads into database

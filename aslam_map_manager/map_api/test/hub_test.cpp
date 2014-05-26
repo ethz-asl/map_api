@@ -11,11 +11,13 @@ class MultiprocessTest;
 
 TEST_F(MultiprocessTest, LaunchTest) {
   MapApiCore::getInstance();
-  LOG(INFO) << "I am " << getSubprocessId();
+  // somehow this is necessary for the flag "ipPort" to be seen - a linker thing
   if (getSubprocessId() == 0) {
+    EXPECT_EQ(0, MapApiHub::getInstance().peerSize());
     uint64_t id = launchSubProcess();
-    EXPECT_TRUE(true);
+    sleep(1); // using cheap sleep tricks until I realize a IPC barrier
+    EXPECT_EQ(1, MapApiHub::getInstance().peerSize());
   } else {
-    EXPECT_TRUE(false);
+    sleep(2);
   }
 }

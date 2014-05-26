@@ -180,4 +180,12 @@ void MapApiHub::kill(){
   std::ofstream cleanDiscovery(FAKE_DISCOVERY, std::ios::trunc);
 }
 
+int MapApiHub::peerSize(){
+  int size;
+  peerLock_.readLock();
+  size = peers_.size();
+  peerLock_.unlock();
+  return size;
+}
+
 }
