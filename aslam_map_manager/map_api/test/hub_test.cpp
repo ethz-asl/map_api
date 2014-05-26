@@ -16,7 +16,7 @@ TEST_F(MultiprocessTest, LaunchTest) {
   MapApiCore::getInstance();
   if (getSubprocessId() == 0) {
     EXPECT_EQ(0, MapApiHub::getInstance().peerSize());
-    uint64_t id = launchSubProcess();
+    uint64_t id = launchSubprocess();
     IPC::barrier(BEFORE_COUNT, 1);
     EXPECT_EQ(1, MapApiHub::getInstance().peerSize());
     IPC::barrier(AFTER_COUNT, 1);

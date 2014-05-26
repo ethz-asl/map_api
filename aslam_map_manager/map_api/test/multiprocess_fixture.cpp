@@ -1,5 +1,8 @@
 #include <string>
 #include <sstream>
+#include <iostream>
+#include <cstdio>
+#include <fstream>
 #include <unistd.h>
 
 #include <gflags/gflags.h>
@@ -33,7 +36,7 @@ class MultiprocessTest : public ::testing::Test {
   /**
    * Launches a subprocess and returns its (internal, not process-) ID
    */
-  uint64_t launchSubProcess() {
+  uint64_t launchSubprocess() {
     uint64_t id = ++subprocess_count_;
     std::ostringstream command_ss;
     command_ss << getSelfpath() << " ";
@@ -45,9 +48,25 @@ class MultiprocessTest : public ::testing::Test {
         test_info->name() << " ";
     // set non-conflicting port for map api hub
     command_ss << "--ipPort=\"127.0.0.1:505" << id << "\" ";
-    popen(command_ss.str().c_str(), "r");
+    subprocesses_.push_back(popen(command_ss.str().c_str(), "r"));
     return id;
+  }
+  /**
+   * Gathers results from subprocess, forwarding them to stdout and
+   * propagating failures.
+   */
+  void collectSubprocess(uint64_t id) {
+    FILE* pipe = subprocesses_[id - 1];
+    CHECK(pipe);
+    while (!feof(pipe)) {
+      char buffer[1024];
+      char* bufptr = &buffer[0];
+      size_t size = 1024;
+      getline(&bufptr, &size, pipe);
+      // TODO(tcies) continue here
+    }
   }
  private:
   uint64_t subprocess_count_ = 0;
+  std::vector<FILE*> subprocesses_; // access: id-1 TODO(tcies) refactor
 };
