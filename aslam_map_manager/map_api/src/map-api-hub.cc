@@ -13,6 +13,9 @@
 
 namespace map_api {
 
+std::unordered_map<std::string, void(*)(const std::string&, zmq::socket_t*)>
+MapApiHub::handlers_;
+
 MapApiHub::MapApiHub() : terminate_(false) {
 
 }
@@ -24,6 +27,7 @@ MapApiHub::~MapApiHub(){
 bool MapApiHub::init(const std::string &ipPort){
   // FOR NOW: FAKE DISCOVERY
 
+  registerHandler("hello", helloHandler);
   // 1. create own server
   context_ = std::unique_ptr<zmq::context_t>(new zmq::context_t());
   listenerConnected_ = false;
@@ -73,10 +77,10 @@ bool MapApiHub::init(const std::string &ipPort){
 
   // 4. notify peers of self
   peerLock_.readLock();
-  for (auto peer : peers_){
-    proto::NodeQueryUnion query;
-    query.set_type(proto::NodeQueryUnion_Type_HELLO);
-    query.mutable_hello()->set_from(ipPort);
+  for (const std::shared_ptr<zmq::socket_t>& peer : peers_){
+    proto::HubMessage query;
+    query.set_name("hello");
+    query.set_serialized(ipPort);
     std::string queryString = query.SerializeAsString();
     zmq::message_t message((void*)queryString.c_str(),queryString.size(),NULL,
                            NULL);
@@ -92,6 +96,58 @@ bool MapApiHub::init(const std::string &ipPort){
 MapApiHub &MapApiHub::getInstance(){
   static MapApiHub instance;
   return instance;
+}
+
+void MapApiHub::kill(){
+  if (terminate_){
+    VLOG(3) << "Double termination";
+    return;
+  }
+  // unbind and re-enter server
+  terminate_ = true;
+  listener_.join();
+  // disconnect from peers
+  peerLock_.writeLock();
+  peers_.clear();
+  peerLock_.unlock();
+  // destroy context
+  context_ = std::unique_ptr<zmq::context_t>();
+  // clean discovery file
+  // TODO(tcies) now only remove own registry
+  std::ofstream cleanDiscovery(FAKE_DISCOVERY, std::ios::trunc);
+}
+
+int MapApiHub::peerSize(){
+  int size;
+  peerLock_.readLock();
+  size = peers_.size();
+  peerLock_.unlock();
+  return size;
+}
+
+bool MapApiHub::registerHandler(
+    const std::string& name,
+    void (*handler)(const std::string& serialized_type,
+        zmq::socket_t* socket)) {
+  // TODO(tcies) div. error handling
+  handlers_[name] = handler;
+  return true;
+}
+
+void MapApiHub::helloHandler(const std::string& peer,
+                                    zmq::socket_t* socket) {
+  zmq::message_t message;
+  LOG(INFO) << "Peer " << peer << " says hello, let's "\
+      "connect to it...";
+  // lock peer set lock so we can write without a race condition
+  getInstance().peerLock_.writeLock();
+  std::set<std::shared_ptr<zmq::socket_t> >::iterator it =
+      getInstance().peers_.insert(std::unique_ptr<zmq::socket_t>(
+          new zmq::socket_t(*(getInstance().context_), ZMQ_SUB))).first;
+  getInstance().peerLock_.unlock();
+  (*it)->connect(("tcp://" + peer).c_str());
+  // ack by resend
+  socket->send(message);
 }
 
 void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
@@ -128,64 +184,20 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
       else
         continue;
     }
-    proto::NodeQueryUnion query;
+    proto::HubMessage query;
     query.ParseFromArray(message.data(), message.size());
 
     // Query handler
-    // TODO(tcies): Move handler elsewhere?
-    // TODO(tcies): Use http://code.google.com/p/rpcz/ ?
-    switch(query.type()){
-
-      // A new node says Hello: Connect to its publisher
-      case proto::NodeQueryUnion_Type_HELLO:{
-        LOG(INFO) << "Peer " << query.hello().from() << " says hello, let's "\
-            "connect to it...";
-        // lock peer set lock so we can write without a race condition
-        self->peerLock_.writeLock();
-        auto it = self->peers_.insert(std::unique_ptr<zmq::socket_t>(
-            new zmq::socket_t(*(self->context_), ZMQ_SUB))).first;
-        self->peerLock_.unlock();
-        (*it)->connect(("tcp://" + query.hello().from()).c_str());
-        // ack by resend
-        server.send(message);
-        break;
-      }
-
-      // Not recognized:
-      default:{
-        LOG(ERROR) << "Message " << query.type() << " not recognized";
-      }
-    }
+    // TODO(tcies): http://code.google.com/p/rpcz/ ?
+    std::unordered_map<std::string,
+    void(*)(const std::string&, zmq::socket_t*)>::iterator handler =
+        handlers_.find(query.name());
+    CHECK(handlers_.end() != handler) << "Handler for message type " <<
+        query.name() << " not registered";
+    (handler->second)(query.serialized(), &server);
   }
   server.unbind(("tcp://" + ipPort).c_str());
   LOG(INFO) << "Listener terminated\n";
-}
-
-void MapApiHub::kill(){
-  if (terminate_){
-    VLOG(3) << "Double termination";
-    return;
-  }
-  // unbind and re-enter server
-  terminate_ = true;
-  listener_.join();
-  // disconnect from peers
-  peerLock_.writeLock();
-  peers_.clear();
-  peerLock_.unlock();
-  // destroy context
-  context_ = std::unique_ptr<zmq::context_t>();
-  // clean discovery file
-  // TODO(tcies) now only remove own registry
-  std::ofstream cleanDiscovery(FAKE_DISCOVERY, std::ios::trunc);
-}
-
-int MapApiHub::peerSize(){
-  int size;
-  peerLock_.readLock();
-  size = peers_.size();
-  peerLock_.unlock();
-  return size;
 }
 
 }

@@ -8,6 +8,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <set>
+#include <unordered_map>
 
 #include <zeromq_cpp/zmq.hpp>
 #include <Poco/RWLock.h>
@@ -36,6 +37,16 @@ class MapApiHub final {
    * Get amount of peers
    */
   int peerSize();
+  /**
+   * Registers a handler for messages titled with the given name
+   * TODO(tcies) create a metatable directory for these types as well
+   */
+  bool registerHandler(const std::string& name,
+                       void (*handler)(const std::string& serialized_type,
+                           zmq::socket_t* socket));
+
+  static void helloHandler(const std::string& peer, zmq::socket_t* socket);
+
  private:
   /**
    * Constructor: Performs discovery, fetches metadata and loads into database
@@ -55,7 +66,13 @@ class MapApiHub final {
    */
   std::unique_ptr<zmq::context_t> context_;
   Poco::RWLock peerLock_;
-  std::set<std::shared_ptr<zmq::socket_t>> peers_;
+  std::set<std::shared_ptr<zmq::socket_t> > peers_;
+  /**
+   * Handler utilities
+   */
+  static std::unordered_map<std::string,
+  void(*)(const std::string&, zmq::socket_t*)>
+  handlers_;
 };
 
 }
