@@ -11,6 +11,8 @@
 #include "map-api/metatable.h"
 #include "core.pb.h"
 
+DECLARE_string(ipPort);
+
 namespace map_api {
 
 /**

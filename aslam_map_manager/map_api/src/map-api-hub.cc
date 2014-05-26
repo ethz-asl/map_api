@@ -144,6 +144,7 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
         self->peerLock_.writeLock();
         auto it = self->peers_.insert(std::unique_ptr<zmq::socket_t>(
             new zmq::socket_t(*(self->context_), ZMQ_SUB))).first;
+        self->peerLock_.unlock();
         (*it)->connect(("tcp://" + query.hello().from()).c_str());
         // ack by resend
         server.send(message);
