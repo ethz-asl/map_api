@@ -22,7 +22,6 @@ add_definitions(--std=c++0x -Wall -Wextra -pedantic -Wno-unused-local-typedefs)
 # Core Library available to all applications
 SET(CORE_SOURCE  src/cr-table-interface.cc
                  src/cru-table-interface.cc
-                 src/history.cc
                  src/map-api-core.cc
                  src/map-api-hub.cc
                  src/metatable.cc

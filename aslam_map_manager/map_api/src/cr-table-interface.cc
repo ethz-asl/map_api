@@ -122,9 +122,6 @@ bool CRTableInterface::createQuery(){
       default:
         LOG(FATAL) << "Field type not handled";
     }
-    if (fieldDescriptor.name().compare(kIdField) == 0){
-      stat << " PRIMARY KEY";
-    }
   }
   stat << ");";
 
@@ -216,7 +213,7 @@ int CRTableInterface::rawFindByRevisionImpl(
   pocoToProto.into(statement);
   statement << "FROM " << name() << " WHERE " << kInsertTimeField << " <= ? ",
       Poco::Data::use(time.serialize());
-  if (key != ""){
+  if (key != "") {
     statement << " AND " << key << " LIKE ";
     valueHolder.insertPlaceHolder(key, statement);
   }
