@@ -45,7 +45,7 @@ class MultiprocessTest : public ::testing::Test {
         test_info->name() << " ";
     // set non-conflicting port for map api hub
     command_ss << "--ipPort=\"127.0.0.1:505" << id << "\" ";
-    system(command_ss.str().c_str());
+    popen(command_ss.str().c_str(), "r");
     return id;
   }
  private:

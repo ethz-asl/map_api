@@ -76,19 +76,7 @@ bool MapApiHub::init(const std::string &ipPort){
   }
 
   // 4. notify peers of self
-  peerLock_.readLock();
-  for (const std::shared_ptr<zmq::socket_t>& peer : peers_){
-    proto::HubMessage query;
-    query.set_name("hello");
-    query.set_serialized(ipPort);
-    std::string queryString = query.SerializeAsString();
-    zmq::message_t message((void*)queryString.c_str(),queryString.size(),NULL,
-                           NULL);
-    peer->send(message);
-    LOG(INFO) << "Peer notified of self" << std::endl;
-    peer->recv(&message);
-  }
-  peerLock_.unlock();
+  broadcast("hello", ipPort);
 
   return true;
 }
@@ -134,19 +122,39 @@ bool MapApiHub::registerHandler(
   return true;
 }
 
+void MapApiHub::broadcast(const std::string& type,
+                          const std::string& serialized) {
+  try {
+  peerLock_.readLock();
+  for (const std::shared_ptr<zmq::socket_t>& peer : peers_){
+    proto::HubMessage query;
+    query.set_name(type);
+    query.set_serialized(serialized);
+    std::string queryString = query.SerializeAsString();
+    zmq::message_t message((void*)queryString.c_str(),queryString.size(),NULL,
+                           NULL);
+    peer->send(message);
+    peer->recv(&message);
+  }
+  peerLock_.unlock();
+  } catch (const std::exception& e) {
+    LOG(FATAL) << e.what();
+  }
+}
+
 void MapApiHub::helloHandler(const std::string& peer,
-                                    zmq::socket_t* socket) {
-  zmq::message_t message;
+                             zmq::socket_t* socket) {
   LOG(INFO) << "Peer " << peer << " says hello, let's "\
       "connect to it...";
   // lock peer set lock so we can write without a race condition
   getInstance().peerLock_.writeLock();
   std::set<std::shared_ptr<zmq::socket_t> >::iterator it =
       getInstance().peers_.insert(std::unique_ptr<zmq::socket_t>(
-          new zmq::socket_t(*(getInstance().context_), ZMQ_SUB))).first;
+          new zmq::socket_t(*(getInstance().context_), ZMQ_REQ))).first;
   getInstance().peerLock_.unlock();
   (*it)->connect(("tcp://" + peer).c_str());
   // ack by resend
+  zmq::message_t message;
   socket->send(message);
 }
 
@@ -173,7 +181,7 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
   }
   int timeOutMs = 100;
   server.setsockopt(ZMQ_RCVTIMEO, &timeOutMs, sizeof(timeOutMs));
-  LOG(INFO) << "Server launched...";
+  LOG(INFO) << "Server launched on " << ipPort;
 
   while (true){
     zmq::message_t message;

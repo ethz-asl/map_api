@@ -95,10 +95,6 @@ bool MapApiCore::init(const std::string &ipPort) {
   Poco::Data::SQLite::Connector::registerConnector();
   dbSess_ = std::shared_ptr<Poco::Data::Session>(
         new Poco::Data::Session("SQLite", ":memory:"));
-  LOG(INFO)<< "Connected to database..." << std::endl;
-
-  // TODO(tcies) metatable
-
   initialized_ = true;
   return true;
 }

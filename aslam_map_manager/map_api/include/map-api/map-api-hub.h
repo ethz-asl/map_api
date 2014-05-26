@@ -40,12 +40,21 @@ class MapApiHub final {
   /**
    * Registers a handler for messages titled with the given name
    * TODO(tcies) create a metatable directory for these types as well
+   * The handler must take two arguments: A string which contains the
+   * serialized data to be treated and a socket pointer to which a message MUST
+   * be sent at the end of the handler
+   * TODO(tcies) distinguish between pub/sub and rpc
    */
   bool registerHandler(const std::string& name,
                        void (*handler)(const std::string& serialized_type,
                            zmq::socket_t* socket));
+  /**
+   * Sends out the specified message to all connected peers
+   */
+  void broadcast(const std::string& type, const std::string& serialized);
 
   static void helloHandler(const std::string& peer, zmq::socket_t* socket);
+
 
  private:
   /**
