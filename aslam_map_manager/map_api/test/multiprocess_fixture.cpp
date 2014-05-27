@@ -63,7 +63,8 @@ class MultiprocessTest : public ::testing::Test {
       char* bufptr = &buffer[0];
       size_t size = 1024;
       getline(&bufptr, &size, pipe);
-      // TODO(tcies) continue here
+      std::cout << "Sub " << id << ": " << buffer;
+      EXPECT_EQ(NULL, strstr(buffer, "[  FAILED  ]"));
     }
   }
  private:

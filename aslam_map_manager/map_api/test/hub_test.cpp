@@ -20,6 +20,7 @@ TEST_F(MultiprocessTest, LaunchTest) {
     IPC::barrier(BEFORE_COUNT, 1);
     EXPECT_EQ(1, MapApiHub::getInstance().peerSize());
     IPC::barrier(AFTER_COUNT, 1);
+    collectSubprocess(id);
   } else {
     IPC::barrier(BEFORE_COUNT, 1);
     IPC::barrier(AFTER_COUNT, 1);

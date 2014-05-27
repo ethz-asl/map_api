@@ -197,7 +197,6 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
     query.ParseFromArray(message.data(), message.size());
 
     // Query handler
-    // TODO(tcies): http://code.google.com/p/rpcz/ ?
     std::unordered_map<std::string,
     std::function<void(const std::string&, zmq::socket_t*)> >::iterator
     handler =
