@@ -2,6 +2,7 @@
 #define MAP_API_HUB_H_
 
 #include <cstddef>
+#include <functional>
 #include <string>
 #include <memory>
 #include <thread>
@@ -46,8 +47,8 @@ class MapApiHub final {
    * TODO(tcies) distinguish between pub/sub and rpc
    */
   bool registerHandler(const std::string& name,
-                       void (*handler)(const std::string& serialized_type,
-                           zmq::socket_t* socket));
+                       std::function<void(const std::string& serialized_type,
+                                          zmq::socket_t* socket)> handler);
   /**
    * Sends out the specified message to all connected peers
    */
@@ -80,7 +81,7 @@ class MapApiHub final {
    * Handler utilities
    */
   static std::unordered_map<std::string,
-  void(*)(const std::string&, zmq::socket_t*)>
+  std::function<void(const std::string&, zmq::socket_t*)> >
   handlers_;
 };
 

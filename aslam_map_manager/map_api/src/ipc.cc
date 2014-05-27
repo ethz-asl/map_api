@@ -1,6 +1,7 @@
 #include "map-api/ipc.h"
 
 #include <sstream>
+#include <string>
 
 #include <glog/logging.h>
 
@@ -22,7 +23,9 @@ void IPC::barrier(int id, int n_peers) {
   std::ostringstream ss;
   ss << id;
   // TODO(tcies) smarter, cv on peer increase instead of spinning
-  while (MapApiHub::getInstance().peerSize() < n_peers);
+  while (MapApiHub::getInstance().peerSize() < n_peers) {
+    usleep(10);
+  }
   MapApiHub::getInstance().broadcast("barrier", ss.str());
   std::unique_lock<std::mutex> lock(barrier_mutex_);
   while (barrier_map_[id] < n_peers) {
@@ -33,12 +36,10 @@ void IPC::barrier(int id, int n_peers) {
 }
 
 void IPC::barrierHandler(const std::string& id_string, zmq::socket_t* socket) {
-  int id;
-  std::istringstream ss(id_string);
-  ss >> id;
+  int id = std::stoi(id_string);
   {
     std::lock_guard<std::mutex> lock(barrier_mutex_);
-    barrier_map_[id]++;
+    ++barrier_map_[id];
   }
   barrier_cv_.notify_one();
   zmq::message_t message;

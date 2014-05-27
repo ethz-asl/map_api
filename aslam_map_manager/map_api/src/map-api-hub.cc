@@ -13,8 +13,8 @@
 
 namespace map_api {
 
-std::unordered_map<std::string, void(*)(const std::string&, zmq::socket_t*)>
-MapApiHub::handlers_;
+std::unordered_map<std::string,
+std::function<void(const std::string&, zmq::socket_t*)> > MapApiHub::handlers_;
 
 MapApiHub::MapApiHub() : terminate_(false) {
 
@@ -99,7 +99,7 @@ void MapApiHub::kill(){
   peers_.clear();
   peerLock_.unlock();
   // destroy context
-  context_ = std::unique_ptr<zmq::context_t>();
+  context_.reset();
   // clean discovery file
   // TODO(tcies) now only remove own registry
   std::ofstream cleanDiscovery(FAKE_DISCOVERY, std::ios::trunc);
@@ -115,8 +115,8 @@ int MapApiHub::peerSize(){
 
 bool MapApiHub::registerHandler(
     const std::string& name,
-    void (*handler)(const std::string& serialized_type,
-        zmq::socket_t* socket)) {
+    std::function<void(const std::string& serialized_type,
+                       zmq::socket_t* socket)> handler) {
   // TODO(tcies) div. error handling
   handlers_[name] = handler;
   return true;
@@ -125,18 +125,19 @@ bool MapApiHub::registerHandler(
 void MapApiHub::broadcast(const std::string& type,
                           const std::string& serialized) {
   try {
-  peerLock_.readLock();
-  for (const std::shared_ptr<zmq::socket_t>& peer : peers_){
-    proto::HubMessage query;
-    query.set_name(type);
-    query.set_serialized(serialized);
-    std::string queryString = query.SerializeAsString();
-    zmq::message_t message((void*)queryString.c_str(),queryString.size(),NULL,
-                           NULL);
-    peer->send(message);
-    peer->recv(&message);
-  }
-  peerLock_.unlock();
+    peerLock_.readLock();
+    for (const std::shared_ptr<zmq::socket_t>& peer : peers_){
+      proto::HubMessage query;
+      query.set_name(type);
+      query.set_serialized(serialized);
+      int size = query.ByteSize();
+      void* buffer = malloc(size);
+      query.SerializeToArray(buffer, size);
+      zmq::message_t message(buffer, size, NULL, NULL);
+      peer->send(message);
+      peer->recv(&message);
+    }
+    peerLock_.unlock();
   } catch (const std::exception& e) {
     LOG(FATAL) << e.what();
   }
@@ -198,11 +199,12 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
     // Query handler
     // TODO(tcies): http://code.google.com/p/rpcz/ ?
     std::unordered_map<std::string,
-    void(*)(const std::string&, zmq::socket_t*)>::iterator handler =
+    std::function<void(const std::string&, zmq::socket_t*)> >::iterator
+    handler =
         handlers_.find(query.name());
     CHECK(handlers_.end() != handler) << "Handler for message type " <<
         query.name() << " not registered";
-    (handler->second)(query.serialized(), &server);
+    handler->second(query.serialized(), &server);
   }
   server.unbind(("tcp://" + ipPort).c_str());
   LOG(INFO) << "Listener terminated\n";

@@ -11,7 +11,7 @@ namespace map_api {
 
 /**
  * Class containing diverse inter-process communication utilities, tailored
- * for map-api
+ * to map-api
  */
 class IPC {
  public:
