@@ -11,7 +11,7 @@
 #include "map-api/map-api-hub.h"
 #include "map-api/transaction.h"
 
-DEFINE_string(ipPort, "127.0.0.1:5050", "Define node ip and port");
+DEFINE_string(ip_port, "127.0.0.1:5050", "Define node ip and port");
 
 namespace map_api {
 
@@ -20,7 +20,7 @@ MapApiCore &MapApiCore::getInstance() {
   static std::mutex initMutex;
   initMutex.lock();
   if (!instance.isInitialized()) {
-    if (!instance.init(FLAGS_ipPort)){
+    if (!instance.init(FLAGS_ip_port)){
       LOG(FATAL) << "Failed to initialize Map Api Core.";
     }
   }
@@ -95,10 +95,6 @@ bool MapApiCore::init(const std::string &ipPort) {
   Poco::Data::SQLite::Connector::registerConnector();
   dbSess_ = std::shared_ptr<Poco::Data::Session>(
         new Poco::Data::Session("SQLite", ":memory:"));
-  LOG(INFO)<< "Connected to database..." << std::endl;
-
-  // TODO(tcies) metatable
-
   initialized_ = true;
   return true;
 }
