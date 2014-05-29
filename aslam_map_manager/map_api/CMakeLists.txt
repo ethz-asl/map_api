@@ -30,7 +30,7 @@ SET(CORE_SOURCE  src/cr-table-interface.cc
                  src/time.cc
                  src/transaction.cc)
                  
-cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS})
+cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
 # we need to add dependencies of external project packages to fetch headers
 # before compilation
 add_dependencies(${PROJECT_NAME} zeromq_catkin gflags_catkin glog_catkin)
