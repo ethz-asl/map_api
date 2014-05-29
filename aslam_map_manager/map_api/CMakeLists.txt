@@ -40,19 +40,16 @@ target_link_libraries(${PROJECT_NAME} ${POCO_LIBRARIES})
 # GTESTS #
 ##########
 
-catkin_add_gtest(test_table_interface_test test/test_main.cpp
-  test/table_interface_test.cpp)
+catkin_add_gtest(test_table_interface_test test/table_interface_test.cpp)
 target_link_libraries(test_table_interface_test ${PROJECT_NAME})
 
-catkin_add_gtest(test_core_test test/test_main.cpp test/core_test.cpp)
+catkin_add_gtest(test_core_test test/core_test.cpp)
 target_link_libraries(test_core_test ${PROJECT_NAME})
 
-catkin_add_gtest(test_transaction_test test/test_main.cpp 
-  test/transaction_test.cpp)
+catkin_add_gtest(test_transaction_test test/transaction_test.cpp)
 target_link_libraries(test_transaction_test ${PROJECT_NAME})
 
-catkin_add_gtest(test_hub_test test/test_main_multiprocess.cpp 
-  test/hub_test.cpp)
+catkin_add_gtest(test_hub_test test/hub_test.cpp)
 target_link_libraries(test_hub_test ${PROJECT_NAME})
 
 ##########

@@ -1,8 +1,10 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include <map-api/ipc.h>
-#include <map-api/map-api-core.h>
+#include <multiagent_mapping_common/test/testing_entrypoint.h>
+
+#include "map-api/ipc.h"
+#include "map-api/map-api-core.h"
 
 #include "multiprocess_fixture.cpp"
 
@@ -26,3 +28,5 @@ TEST_F(MultiprocessTest, LaunchTest) {
     IPC::barrier(AFTER_COUNT, 1);
   }
 }
+
+MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT

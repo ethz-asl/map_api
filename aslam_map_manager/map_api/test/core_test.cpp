@@ -1,7 +1,9 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include <map-api/map-api-core.h>
+#include <multiagent_mapping_common/test/testing_entrypoint.h>
+
+#include "map-api/map-api-core.h"
 
 using namespace map_api;
 
@@ -17,3 +19,5 @@ TEST(MapApiCore, invalidInit) {
   FLAGS_ip_port = "Not an IP-port string";
   EXPECT_DEATH(MapApiCore::getInstance(),"^");
 }
+
+MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
