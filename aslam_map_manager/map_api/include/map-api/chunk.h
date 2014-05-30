@@ -6,7 +6,7 @@
 
 #include <zeromq_cpp/zmq.hpp>
 
-typedef void* Peer; //TODO(tcies) define
+typedef void* Peer; //TODO(tcies) define, also use in MapApiHub
 
 namespace map_api{
 /**
@@ -14,13 +14,13 @@ namespace map_api{
  * item in a table belongs to some chunk, and each chunk contains data from only
  * one table. A chunk size should be chosen that allows reasonably fast data
  * exchange per chunk while at the same time keeping the amount of chunks to
- * be managed at a peer at a reasonable leve. For
+ * be managed at a peer at a reasonable level. For
  * each chunk, a peer maintains a list of other peers holding the same chunk.
  * By holding a chunk, each peer agrees to the following contract:
  *
  * 1) It always maintains the latest version of the data contained in the chunk
  * 2) It always shares the latest version of the data with the other peers
- *    holding the same chunk that it is connected to.
+ *    (holding the same chunk) that it is connected to.
  * 3) If any peer that is not yet a chunk holder requests any data contained in
  *    the chunk, it sends the entire chunk to that peer. That peer is then
  *    obligated to become a chunk holder as well
@@ -41,21 +41,32 @@ namespace map_api{
  * holders and/or a preferred sharing ratio.
  *
  * TODO(tcies) will need a central place to keep track of all chunks - to
- * ensure uniqueness and maybe to enable automatic management.
+ * ensure uniqueness and maybe to enable automatic management. Maybe MapApiHub
  */
 class Chunk {
  public:
   /**
+   * NB it's easier to start reading the comments on other functions.
+   *
    * A chunk is typically initialized as a consequence of data lookup across
-   * the network. If a peer wants to access data it does not posess, it requests
-   * all other peers it is connected to through map_api (alternatively: all
-   * other peers that hold chunks in the table that the data is looked up in)
+   * the network. If a peer a wants to access data it does not posess, it
+   * requests all other peers it is connected to through map_api (alternatively:
+   * all other peers that hold chunks in the table that the data is looked up
+   * in). If one of those peers, b, has the data it looks for, b sends a the
+   * data of the entire chunk and its peer list while it adds a to its own peer
+   * list and shares the news about a joining with its peers.
+   *
+   * Peer addition is subject to synchronization as well, at least in the first
+   * implementation that assumes full connectedness among peers (see writeLock()
+   * comments). b needs to perform a lock with its peers just at it would for
+   * modifying chunk data.
    */
   bool init();
   /**
    * The holder may acquire a read lock without the need to communicate with
    * the other peers - a read lock manifests itself only in that the holder
-   * defers distributed write lock requests until unlocking.
+   * defers distributed write lock requests until unlocking or denies them
+   * altogether.
    */
   void readLock();
   /**
@@ -88,9 +99,7 @@ class Chunk {
    * aforementioned contract.
    */
   void unlock();
-  /**
-   *
-   */
+
   static void handleConnectRequest(const std::string& serialized_request,
                                  zmq::socket_t* socket);
 
@@ -100,6 +109,9 @@ class Chunk {
   static void handleUnlockRequest(const std::string& serialized_request,
                                      zmq::socket_t* socket);
 
+  /**
+   * Propagates removal of peers from the network.
+   */
   static void handleRelinquishNotification(
       const std::string& serialized_notification);
 
