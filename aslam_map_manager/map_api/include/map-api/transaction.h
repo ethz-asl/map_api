@@ -10,6 +10,7 @@
 
 #include "map-api/cr-table-interface.h"
 #include "map-api/cru-table-interface.h"
+#include "map-api/item-id.h"
 #include "map-api/revision.h"
 #include "map-api/time.h"
 
@@ -107,36 +108,10 @@ class Transaction {
       const CRTableInterface& table, const std::string& key,
       const ValueType& value) const;
 
-  class CRItemIdentifier : public std::pair<const CRTableInterface&, Id>{
-   public:
-    inline CRItemIdentifier(const CRTableInterface& table, const Id& id) :
-    std::pair<const CRTableInterface&, Id>(table, id) {}
-    // required for set
-    inline bool operator <(const CRItemIdentifier& other) const{
-      if (first.name() == other.first.name())
-        return second < other.second;
-      return first.name() < other.first.name();
-    }
-
+  class InsertMap : public std::map<ItemId, const SharedRevisionPointer>{
   };
-  class CRUItemIdentifier :
-      public std::pair<const CRUTableInterface&, Id>{
-       public:
-    inline CRUItemIdentifier(const CRUTableInterface& table, const Id& id) :
-    std::pair<const CRUTableInterface&, Id>(table, id){}
-    // required for map
-    inline bool operator <(const CRUItemIdentifier& other) const{
-      if (first.name() == other.first.name())
-        return second < other.second;
-      return first.name() < other.first.name();
-    }
+  class UpdateMap : public std::map<ItemId, const SharedRevisionPointer>{
   };
-
-  typedef std::map<CRItemIdentifier, const SharedRevisionPointer>
-  InsertMap;
-
-  typedef std::map<CRUItemIdentifier, SharedRevisionPointer>
-  UpdateMap;
 
   bool notifyAbortedOrInactive() const;
   /**
@@ -149,8 +124,6 @@ class Transaction {
    */
   template<typename Container>
   inline bool hasContainerConflict(const Container& container);
-  template<typename Map>
-  inline bool hasMapConflict(const Map& map); // map subspecialization
 
   /**
    * Maps of insert queries requested over the course of the

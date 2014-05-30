@@ -71,29 +71,28 @@ int Transaction::findInUncommitted(
 const {
   CHECK_NOTNULL(dest);
   dest->clear();
-  for (const std::pair<CRItemIdentifier, SharedRevisionPointer> &insertion :
+  for (const std::pair<ItemId, SharedRevisionPointer> &insertion :
       insertions_) {
-    if (insertion.first.first.name() == table.name()){
+    if (insertion.first.table.name() == table.name()){
       if (key != "") {
         if (insertion.second->verify(key, value)) {
-          (*dest)[insertion.first.second] = insertion.second;
+          (*dest)[insertion.first.id] = insertion.second;
         }
       } else {
-        (*dest)[insertion.first.second] = insertion.second;
+        (*dest)[insertion.first.id] = insertion.second;
       }
     }
   }
   // possible optimization: don't browse updates if CRTable
   // (template this function or dynamic cast)
-  for (const std::pair<CRUItemIdentifier, SharedRevisionPointer> &update :
-      updates_) {
-    if (update.first.first.name() == table.name()){
+  for (const std::pair<ItemId, SharedRevisionPointer> &update : updates_) {
+    if (update.first.table.name() == table.name()){
       if (key != "") {
         if (update.second->verify(key, value)) {
-          (*dest)[update.first.second] = update.second;
+          (*dest)[update.first.id] = update.second;
         }
       } else {
-        (*dest)[update.first.second] = update.second;
+        (*dest)[update.first.id] = update.second;
       }
     }
   }
