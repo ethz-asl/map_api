@@ -85,7 +85,7 @@ const {
   }
   // possible optimization: don't browse updates if CRTable
   // (template this function or dynamic cast)
-  for (const std::pair<ItemId, SharedRevisionPointer> &update : updates_) {
+  for (const std::pair<ItemId, SharedRevisionPointer>& update : updates_) {
     if (update.first.table.name() == table.name()){
       if (key != "") {
         if (update.second->verify(key, value)) {

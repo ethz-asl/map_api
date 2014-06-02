@@ -1,5 +1,5 @@
-#ifndef ITEM_ID_H
-#define ITEM_ID_H
+#ifndef MAP_API_ITEM_ID_H
+#define MAP_API_ITEM_ID_H
 
 #include "map-api/id.h"
 #include "map-api/cr-table-interface.h"
@@ -43,4 +43,4 @@ struct hash<map_api::ItemId>{
 };
 } // namespace std
 
-#endif // ITEM_ID_H
+#endif // MAP_API_ITEM_ID_H

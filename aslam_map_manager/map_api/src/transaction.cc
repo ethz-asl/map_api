@@ -73,16 +73,20 @@ bool Transaction::commit(){
     // ...then updates
     for (const std::pair<ItemId, SharedRevisionPointer> &update :
         updates_){
-      const CRUTableInterface& table =
-          static_cast<const CRUTableInterface&>(update.first.table);
-      const Id& id = update.first.id;
-      CRTableInterface::ItemDebugInfo debugInfo(table.name(), id);
-      const SharedRevisionPointer &revision = update.second;
-      CHECK(revision->verify(CRTableInterface::kIdField, id)) <<
-          "Identifier ID does not match revision ID";
-      if (!table.rawUpdate(*revision)){
-        LOG(ERROR) << debugInfo << "Update failed, aborting commit.";
-        return false;
+      try {
+        const CRUTableInterface& table =
+            dynamic_cast<const CRUTableInterface&>(update.first.table);
+        const Id& id = update.first.id;
+        CRTableInterface::ItemDebugInfo debugInfo(table.name(), id);
+        const SharedRevisionPointer &revision = update.second;
+        CHECK(revision->verify(CRTableInterface::kIdField, id)) <<
+            "Identifier ID does not match revision ID";
+        if (!table.rawUpdate(*revision)){
+          LOG(ERROR) << debugInfo << "Update failed, aborting commit.";
+          return false;
+        }
+      } catch (const std::bad_cast& e) {
+        LOG(FATAL) << "Cast to CRUTableInterface reference failed";
       }
     }
   }
@@ -200,17 +204,21 @@ inline bool Transaction::hasContainerConflict<Transaction::UpdateMap>(
     const Transaction::UpdateMap& container){
   for (const std::pair<ItemId, const SharedRevisionPointer>& item :
       container){
-    const CRUTableInterface& table = static_cast<const CRUTableInterface&>(
-        item.first.table);
-    if (this->insertions_.find(item.first) != this->insertions_.end()){
-      return false;
-    }
-    Time latestUpdate;
-    if (!table.rawLatestUpdateTime(item.first.id, &latestUpdate)){
-      LOG(FATAL) << "Error retrieving update time";
-    }
-    if (latestUpdate >= beginTime_) {
-      return true;
+    try {
+      const CRUTableInterface& table = static_cast<const CRUTableInterface&>(
+          item.first.table);
+      if (this->insertions_.find(item.first) != this->insertions_.end()){
+        return false;
+      }
+      Time latestUpdate;
+      if (!table.rawLatestUpdateTime(item.first.id, &latestUpdate)){
+        LOG(FATAL) << "Error retrieving update time";
+      }
+      if (latestUpdate >= beginTime_) {
+        return true;
+      }
+    } catch (const std::bad_cast& e) {
+      LOG(FATAL) << "Cast to CRUTableInterface reference failed";
     }
   }
   return false;
