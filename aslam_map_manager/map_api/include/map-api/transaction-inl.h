@@ -4,7 +4,7 @@
 namespace map_api {
 
 template<typename ValueType>
-bool Transaction::addConflictCondition(CRTableInterface& table,
+bool Transaction::addConflictCondition(CRTable& table,
                                        const std::string& key,
                                        const ValueType& value) {
   if (Transaction::notifyAbortedOrInactive()) {
@@ -19,8 +19,7 @@ bool Transaction::addConflictCondition(CRTableInterface& table,
 
 template<typename ValueType>
 int Transaction::find(
-    const CRTableInterface& table, const std::string& key,
-    const ValueType& value,
+    const CRTable& table, const std::string& key, const ValueType& value,
     std::unordered_map<Id, SharedRevisionPointer>* dest) const {
   CHECK_NOTNULL(dest);
   if (Transaction::notifyAbortedOrInactive()){
@@ -47,8 +46,7 @@ int Transaction::find(
 
 template<typename ValueType>
 Transaction::SharedRevisionPointer Transaction::findUnique(
-    CRTableInterface& table, const std::string& key, const ValueType& value)
-const {
+    CRTable& table, const std::string& key, const ValueType& value) const {
   if (Transaction::notifyAbortedOrInactive()){
     return false;
   }
@@ -66,9 +64,8 @@ const {
 
 template<typename ValueType>
 int Transaction::findInUncommitted(
-    const CRTableInterface& table, const std::string& key,
-    const ValueType& value, std::unordered_map<Id, SharedRevisionPointer>* dest)
-const {
+    const CRTable& table, const std::string& key, const ValueType& value,
+    std::unordered_map<Id, SharedRevisionPointer>* dest) const {
   CHECK_NOTNULL(dest);
   dest->clear();
   for (const std::pair<ItemId, SharedRevisionPointer> &insertion :
@@ -101,8 +98,8 @@ const {
 
 template<typename ValueType>
 Transaction::SharedRevisionPointer Transaction::findUniqueInUncommitted(
-    const CRTableInterface& table, const std::string& key,
-    const ValueType& value) const {
+    const CRTable& table, const std::string& key, const ValueType& value)
+const {
   std::unordered_map<Id, SharedRevisionPointer> results;
   int count = this->findInUncommitted(table, key, value, &results);
   CHECK_LT(count, 2) << "Required unique find in uncommitted queries for " <<

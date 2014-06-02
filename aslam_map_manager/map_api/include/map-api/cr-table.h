@@ -1,5 +1,5 @@
-#ifndef WRITE_ONLY_TABLE_INTERFACE_H_
-#define WRITE_ONLY_TABLE_INTERFACE_H_
+#ifndef MAP_API_CR_TABLE_H_
+#define MAP_API_CR_TABLE_H_
 
 #include <vector>
 #include <memory>
@@ -11,12 +11,11 @@
 
 #include "map-api/id.h"
 #include "map-api/revision.h"
-#include "map-api/cr-table-interface.h"
 #include "core.pb.h"
 
 namespace map_api {
 
-class CRTableInterface {
+class CRTable {
  public:
   /**
    * Default fields
@@ -47,7 +46,7 @@ class CRTableInterface {
    * calls to addField()
    */
   virtual void define() = 0;
-  virtual ~CRTableInterface();
+  virtual ~CRTable();
 
   /**
    * Returns an empty revision having the structure as defined by the user
@@ -147,7 +146,7 @@ class CRTableInterface {
     /**
      * Associating with Table interface object to get template
      */
-    PocoToProto(const CRTableInterface& table);
+    PocoToProto(const CRTable& table);
     /**
      * To be inserted between "SELECT" and "FROM": Bind database outputs to
      * own structure.
@@ -159,7 +158,7 @@ class CRTableInterface {
      */
     int toProto(std::vector<std::shared_ptr<Revision> >* dest);
    private:
-    const CRTableInterface& table_;
+    const CRTable& table_;
     /**
      * Maps where the data is store intermediately
      */
@@ -190,10 +189,10 @@ class CRTableInterface {
 };
 
 std::ostream& operator<< (std::ostream& stream, const
-                          CRTableInterface::ItemDebugInfo& info);
+                          CRTable::ItemDebugInfo& info);
 
 } /* namespace map_api */
 
-#include "map-api/cr-table-interface-inl.h"
+#include "map-api/cr-table-inl.h"
 
-#endif /* WRITE_ONLY_TABLE_INTERFACE_H_ */
+#endif /* MAP_API_CR_TABLE_H_ */

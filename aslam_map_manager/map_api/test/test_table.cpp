@@ -1,4 +1,4 @@
-#include <map-api/cru-table-interface.h>
+#include <map-api/cru-table.h>
 #include <glog/logging.h>
 
 /**

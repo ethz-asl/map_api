@@ -9,7 +9,7 @@
 #include <Poco/Data/BLOB.h>
 #include <Poco/Data/Statement.h>
 
-#include "map-api/cru-table-interface.h"
+#include "map-api/cru-table.h"
 #include "map-api/id.h"
 #include "map-api/map-api-core.h"
 #include "map-api/time.h"
@@ -26,12 +26,12 @@ class ExpectedFieldCount {
 };
 
 template<>
-int ExpectedFieldCount<CRTableInterface>::get() {
+int ExpectedFieldCount<CRTable>::get() {
   return 2;
 }
 
 template<>
-int ExpectedFieldCount<CRUTableInterface>::get() {
+int ExpectedFieldCount<CRUTable>::get() {
   return 5;
 }
 
@@ -43,7 +43,7 @@ class TableInterfaceTest : public ::testing::Test {
   }
 };
 
-typedef ::testing::Types<CRTableInterface, CRUTableInterface> TableTypes;
+typedef ::testing::Types<CRTable, CRUTable> TableTypes;
 TYPED_TEST_CASE(TableInterfaceTest, TableTypes);
 
 TYPED_TEST(TableInterfaceTest, initEmpty) {
@@ -214,7 +214,7 @@ class FieldTestWithoutInit :
   Id fillRevision() {
     getTemplate();
     Id inserted = Id::random();
-    query_->set(CRTableInterface::kIdField, inserted);
+    query_->set(CRTable::kIdField, inserted);
     // to_insert_->set("owner", Id::random()); TODO(tcies) later, from core
     query_->set(InsertReadFieldTestTable<TableDataType>::kTestField,
                     this->sample_data_1());
@@ -267,11 +267,11 @@ class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
     TableDataTypes<table_type, map_api::Time>
 
 typedef ::testing::Types<
-    ALL_DATA_TYPES(CRTableInterface),
-    ALL_DATA_TYPES(CRUTableInterface)> CrAndCruTypes;
+    ALL_DATA_TYPES(CRTable),
+    ALL_DATA_TYPES(CRUTable)> CrAndCruTypes;
 
 typedef ::testing::Types<
-    ALL_DATA_TYPES(CRUTableInterface)> CruTypes;
+    ALL_DATA_TYPES(CRUTable)> CruTypes;
 
 TYPED_TEST_CASE(FieldTestWithoutInit, CrAndCruTypes);
 TYPED_TEST_CASE(FieldTestWithInit, CrAndCruTypes);

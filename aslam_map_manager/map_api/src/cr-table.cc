@@ -1,4 +1,4 @@
-#include <map-api/cru-table-interface.h>
+#include "map-api/cr-table.h"
 
 #include <cstdio>
 #include <map>
@@ -16,17 +16,17 @@
 
 namespace map_api {
 
-const std::string CRTableInterface::kIdField = "ID";
-const std::string CRTableInterface::kInsertTimeField = "insert_time";
+const std::string CRTable::kIdField = "ID";
+const std::string CRTable::kInsertTimeField = "insert_time";
 
-CRTableInterface::~CRTableInterface() {}
+CRTable::~CRTable() {}
 
-bool CRTableInterface::isInitialized() const{
+bool CRTable::isInitialized() const{
   return initialized_;
 }
 
-void CRTableInterface::addField(const std::string& name,
-                                proto::TableFieldDescriptor_Type type){
+void CRTable::addField(const std::string& name,
+                       proto::TableFieldDescriptor_Type type){
   // make sure the field has not been defined yet
   for (int i = 0; i < structure_.fields_size(); ++i){
     if (structure_.fields(i).name().compare(name) == 0){
@@ -40,7 +40,7 @@ void CRTableInterface::addField(const std::string& name,
   field->set_type(type);
 }
 
-bool CRTableInterface::init() {
+bool CRTable::init() {
   const std::string tableName(name());
   // verify name is SQL friendly: For now very tight constraints:
   for (const char& character : tableName) {
@@ -78,7 +78,7 @@ bool CRTableInterface::init() {
   return true;
 }
 
-std::shared_ptr<Revision> CRTableInterface::getTemplate() const{
+std::shared_ptr<Revision> CRTable::getTemplate() const{
   CHECK(isInitialized()) << "Can't get template of non-initialized table";
   std::shared_ptr<Revision> ret =
       std::shared_ptr<Revision>(
@@ -92,11 +92,11 @@ std::shared_ptr<Revision> CRTableInterface::getTemplate() const{
   return ret;
 }
 
-bool CRTableInterface::sync() {
+bool CRTable::sync() {
   return MapApiCore::getInstance().syncTableDefinition(structure_);
 }
 
-bool CRTableInterface::createQuery(){
+bool CRTable::createQuery(){
   Poco::Data::Statement stat(*session_);
   stat << "CREATE TABLE IF NOT EXISTS " << name() << " (";
   // parse fields from descriptor as database fields
@@ -134,7 +134,7 @@ bool CRTableInterface::createQuery(){
   return true;
 }
 
-bool CRTableInterface::rawInsert(Revision& query) const {
+bool CRTable::rawInsert(Revision& query) const {
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(reference->structureMatch(query)) << "Bad structure of insert revision";
@@ -144,7 +144,7 @@ bool CRTableInterface::rawInsert(Revision& query) const {
   query.set(kInsertTimeField, Time());
   return rawInsertImpl(query);
 }
-bool CRTableInterface::rawInsertImpl(Revision& query) const{
+bool CRTable::rawInsertImpl(Revision& query) const{
   // Bag for blobs that need to stay in scope until statement is executed
   std::vector<std::shared_ptr<Poco::Data::BLOB> > placeholderBlobs;
 
@@ -180,18 +180,18 @@ bool CRTableInterface::rawInsertImpl(Revision& query) const{
   return true;
 }
 
-std::shared_ptr<Revision> CRTableInterface::rawGetById(
+std::shared_ptr<Revision> CRTable::rawGetById(
     const Id &id, const Time& time) const{
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   CHECK_NE(id, Id()) << "Supplied invalid ID";
   return rawGetByIdImpl(id, time);
 }
-std::shared_ptr<Revision> CRTableInterface::rawGetByIdImpl(
+std::shared_ptr<Revision> CRTable::rawGetByIdImpl(
     const Id &id, const Time& time) const{
   return rawFindUnique(kIdField, id, time);
 }
 
-int CRTableInterface::rawFindByRevision(
+int CRTable::rawFindByRevision(
     const std::string& key, const Revision& valueHolder, const Time& time,
     std::unordered_map<Id, std::shared_ptr<Revision> >* dest) const {
   CHECK(isInitialized()) << "Attempted to find in non-initialized table";
@@ -204,7 +204,7 @@ int CRTableInterface::rawFindByRevision(
   return rawFindByRevisionImpl(key, valueHolder, time, dest);
 }
 
-int CRTableInterface::rawFindByRevisionImpl(
+int CRTable::rawFindByRevisionImpl(
     const std::string& key, const Revision& valueHolder, const Time& time,
     std::unordered_map<Id, std::shared_ptr<Revision> >* dest) const {
   PocoToProto pocoToProto(*this);
@@ -236,18 +236,17 @@ int CRTableInterface::rawFindByRevisionImpl(
 
 // although this is very similar to rawGetRow(), I don't see how to share the
 // features without loss of performance TODO(discuss)
-void CRTableInterface::rawDump(
+void CRTable::rawDump(
     const Time& time, std::unordered_map<Id, std::shared_ptr<Revision> >* dest)
 const{
   std::shared_ptr<Revision> valueHolder = getTemplate();
   rawFindByRevision("", *valueHolder, time, dest);
 }
 
-CRTableInterface::PocoToProto::PocoToProto(
-    const CRTableInterface& table) :
-                            table_(table) {}
+CRTable::PocoToProto::PocoToProto(const CRTable& table) :
+                                table_(table) {}
 
-void CRTableInterface::PocoToProto::into(Poco::Data::Statement& statement) {
+void CRTable::PocoToProto::into(Poco::Data::Statement& statement) {
   statement << " ";
   std::shared_ptr<Revision> dummy = table_.getTemplate();
   for (int i = 0; i < dummy->fieldqueries_size(); ++i) {
@@ -289,7 +288,7 @@ void CRTableInterface::PocoToProto::into(Poco::Data::Statement& statement) {
   statement << " ";
 }
 
-int CRTableInterface::PocoToProto::toProto(
+int CRTable::PocoToProto::toProto(
     std::vector<std::shared_ptr<Revision> >* dest) {
   CHECK_NOTNULL(dest);
   // reserve output size
@@ -335,7 +334,7 @@ int CRTableInterface::PocoToProto::toProto(
 }
 
 std::ostream& operator<< (std::ostream& stream,
-                          const CRTableInterface::ItemDebugInfo& info){
+                          const CRTable::ItemDebugInfo& info){
   return stream << "For table " << info.table << ", item " << info.id << ": ";
 }
 

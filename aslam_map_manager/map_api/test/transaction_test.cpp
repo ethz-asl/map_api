@@ -26,7 +26,7 @@ class TransactionTest : public testing::Test {
 /**
  * CRU table for query tests TODO(tcies) test a CRTable
  */
-class TransactionTestTable : public TestTable<CRUTableInterface> {
+class TransactionTestTable : public TestTable<CRUTable> {
  public:
   std::shared_ptr<Revision> sample(double n){
     std::shared_ptr<Revision> revision = getTemplate();
@@ -354,7 +354,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertCommitFindUnique){
       a_find.findUnique(table_, table_.sampleField(), 9.81);
   EXPECT_TRUE(static_cast<bool>(found));
   Id found_id;
-  found->get(CRTableInterface::kIdField, &found_id);
+  found->get(CRTable::kIdField, &found_id);
   EXPECT_EQ(expected_find, found_id);
 }
 
@@ -371,7 +371,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertCommitInsertFindUnique){
       a_find.findUnique(table_, table_.sampleField(), 9.81);
   EXPECT_TRUE(static_cast<bool>(found));
   Id found_id;
-  found->get(CRTableInterface::kIdField, &found_id);
+  found->get(CRTable::kIdField, &found_id);
   EXPECT_EQ(expected_find, found_id);
 }
 

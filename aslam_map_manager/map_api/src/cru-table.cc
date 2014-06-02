@@ -1,4 +1,4 @@
-#include "map-api/cru-table-interface.h"
+#include "map-api/cru-table.h"
 
 #include <cstdio>
 #include <map>
@@ -16,28 +16,28 @@
 
 namespace map_api {
 
-const std::string CRUTableInterface::kUpdateTimeField = "update_time";
-const std::string CRUTableInterface::kPreviousTimeField = "previous_time";
-const std::string CRUTableInterface::kNextTimeField = "next_time";
+const std::string CRUTable::kUpdateTimeField = "update_time";
+const std::string CRUTable::kPreviousTimeField = "previous_time";
+const std::string CRUTable::kNextTimeField = "next_time";
 
-CRUTableInterface::~CRUTableInterface() {}
+CRUTable::~CRUTable() {}
 
-bool CRUTableInterface::init() {
+bool CRUTable::init() {
   // adding fields that make this an updateable table
   addField<Time>(kUpdateTimeField);
   addField<Time>(kPreviousTimeField);
   addField<Time>(kNextTimeField);
-  return CRTableInterface::init();
+  return CRTable::init();
 }
 
-bool CRUTableInterface::rawInsertImpl(Revision& query) const {
+bool CRUTable::rawInsertImpl(Revision& query) const {
   query.set(kUpdateTimeField, Time());
   query.set(kPreviousTimeField, Time(0));
   query.set(kNextTimeField, Time(0));
-  return CRTableInterface::rawInsertImpl(query);
+  return CRTable::rawInsertImpl(query);
 }
 
-int CRUTableInterface::rawFindByRevisionImpl(
+int CRUTable::rawFindByRevisionImpl(
     const std::string& key, const Revision& valueHolder, const Time& time,
     std::unordered_map<Id, std::shared_ptr<Revision> >* dest)  const {
   // TODO(tcies) apart from the more sophisticated time query, this is very
@@ -73,7 +73,7 @@ int CRUTableInterface::rawFindByRevisionImpl(
   return from_poco.size();
 }
 
-bool CRUTableInterface::rawUpdate(Revision& query) const {
+bool CRUTable::rawUpdate(Revision& query) const {
   CHECK(isInitialized()) << "Attempted to update in non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(reference->structureMatch(query)) << "Bad structure of update revision";
@@ -83,7 +83,7 @@ bool CRUTableInterface::rawUpdate(Revision& query) const {
   return rawUpdateImpl(query);
 }
 
-bool CRUTableInterface::rawUpdateImpl(Revision& query) const {
+bool CRUTable::rawUpdateImpl(Revision& query) const {
   Id id;
   query.get(kIdField, &id);
   ItemDebugInfo info(name(), id);
@@ -91,8 +91,8 @@ bool CRUTableInterface::rawUpdateImpl(Revision& query) const {
   // TODO(tcies) generalize this test by introducing a "const" trait to fields?
   std::shared_ptr<Revision> current = rawGetById(id, Time());
   Time query_insert_time;
-  query.get(CRTableInterface::kInsertTimeField, &query_insert_time);
-  CHECK(current->verify(CRTableInterface::kInsertTimeField, query_insert_time))
+  query.get(CRTable::kInsertTimeField, &query_insert_time);
+  CHECK(current->verify(CRTable::kInsertTimeField, query_insert_time))
   << " Insert time needs to remain same after update.";
   // 2. Define update time, fetch previous time
   Time update_time, previous_time;
@@ -102,7 +102,7 @@ bool CRUTableInterface::rawUpdateImpl(Revision& query) const {
   statement << "UPDATE " << name() << " SET " << kNextTimeField << " = ? ",
       Poco::Data::use(update_time.serialize());
   statement << " WHERE ID = ";
-  query.insertPlaceHolder(CRTableInterface::kIdField, statement);
+  query.insertPlaceHolder(CRTable::kIdField, statement);
   statement << " AND " << kUpdateTimeField << " = ? ",
       Poco::Data::use(previous_time.serialize());
   try {
@@ -117,11 +117,11 @@ bool CRUTableInterface::rawUpdateImpl(Revision& query) const {
   query.set(kPreviousTimeField, previous_time);
   query.set(kNextTimeField, Time(0));
   // calling insert implementation of CR to avoid these fields to be overwritten
-  CRTableInterface::rawInsertImpl(query);
+  CRTable::rawInsertImpl(query);
   return true;
 }
 
-bool CRUTableInterface::rawLatestUpdateTime(
+bool CRUTable::rawLatestUpdateTime(
     const Id& id, Time* time) const{
   std::shared_ptr<Revision> row = rawGetById(id, Time());
   ItemDebugInfo itemInfo(name(), id);

@@ -59,11 +59,11 @@ bool Transaction::commit(){
     // the SQL built-in transactions
     for (const std::pair<ItemId, SharedRevisionPointer> &insertion :
         insertions_){
-      const CRTableInterface& table = insertion.first.table;
+      const CRTable& table = insertion.first.table;
       const Id& id = insertion.first.id;
-      CRTableInterface::ItemDebugInfo debugInfo(table.name(), id);
+      CRTable::ItemDebugInfo debugInfo(table.name(), id);
       const SharedRevisionPointer &revision = insertion.second;
-      CHECK(revision->verify(CRTableInterface::kIdField, id)) <<
+      CHECK(revision->verify(CRTable::kIdField, id)) <<
           "Identifier ID does not match revision ID";
       if (!table.rawInsert(*revision)){
         LOG(ERROR) << debugInfo << "Insertion failed, aborting commit.";
@@ -74,12 +74,12 @@ bool Transaction::commit(){
     for (const std::pair<ItemId, SharedRevisionPointer> &update :
         updates_){
       try {
-        const CRUTableInterface& table =
-            dynamic_cast<const CRUTableInterface&>(update.first.table);
+        const CRUTable& table =
+            dynamic_cast<const CRUTable&>(update.first.table);
         const Id& id = update.first.id;
-        CRTableInterface::ItemDebugInfo debugInfo(table.name(), id);
+        CRTable::ItemDebugInfo debugInfo(table.name(), id);
         const SharedRevisionPointer &revision = update.second;
-        CHECK(revision->verify(CRTableInterface::kIdField, id)) <<
+        CHECK(revision->verify(CRTable::kIdField, id)) <<
             "Identifier ID does not match revision ID";
         if (!table.rawUpdate(*revision)){
           LOG(ERROR) << debugInfo << "Update failed, aborting commit.";
@@ -102,7 +102,7 @@ bool Transaction::abort(){
   return true;
 }
 
-Id Transaction::insert(CRTableInterface& table,
+Id Transaction::insert(CRTable& table,
                        const SharedRevisionPointer& item){
   Id id(Id::random());
   if (!insert(table, id, item)){
@@ -112,7 +112,7 @@ Id Transaction::insert(CRTableInterface& table,
 }
 
 
-bool Transaction::insert(CRTableInterface& table, const Id& id,
+bool Transaction::insert(CRTable& table, const Id& id,
                          const SharedRevisionPointer& item){
   if (notifyAbortedOrInactive()){
     return false;
@@ -126,7 +126,7 @@ bool Transaction::insert(CRTableInterface& table, const Id& id,
   CHECK(item->structureMatch(*reference)) <<
       "Structure of item to be inserted: " << item->DebugString() <<
       " doesn't match table template " << reference->DebugString();
-  item->set(CRTableInterface::kIdField, id);
+  item->set(CRTable::kIdField, id);
   // item->set("owner",owner_); TODO(tcies) later, fetch from core
   CHECK(insertions_.insert(std::make_pair(ItemId(table, id), item)).second)
   << "You seem to already have inserted " << ItemId(table, id);
@@ -134,16 +134,16 @@ bool Transaction::insert(CRTableInterface& table, const Id& id,
 }
 
 Transaction::SharedRevisionPointer Transaction::read(
-    CRTableInterface& table, const Id& id){
-  return findUnique(table, CRTableInterface::kIdField, id);
+    CRTable& table, const Id& id){
+  return findUnique(table, CRTable::kIdField, id);
 }
 
-bool Transaction::dumpTable(CRTableInterface& table,
-                            std::unordered_map<Id, SharedRevisionPointer>* dest) {
+bool Transaction::dumpTable(
+    CRTable& table, std::unordered_map<Id, SharedRevisionPointer>* dest) {
   return find(table, "", 0, dest);
 }
 
-bool Transaction::update(CRUTableInterface& table, const Id& id,
+bool Transaction::update(CRUTable& table, const Id& id,
                          const SharedRevisionPointer& newRevision){
   if (notifyAbortedOrInactive()){
     return false;
@@ -205,8 +205,7 @@ inline bool Transaction::hasContainerConflict<Transaction::UpdateMap>(
   for (const std::pair<ItemId, const SharedRevisionPointer>& item :
       container){
     try {
-      const CRUTableInterface& table = static_cast<const CRUTableInterface&>(
-          item.first.table);
+      const CRUTable& table = static_cast<const CRUTable&>(item.first.table);
       if (this->insertions_.find(item.first) != this->insertions_.end()){
         return false;
       }

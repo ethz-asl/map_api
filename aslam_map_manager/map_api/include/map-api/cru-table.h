@@ -1,5 +1,5 @@
-#ifndef TABLE_INTERFACE_H
-#define TABLE_INTERFACE_H
+#ifndef MAP_API_CRU_TABLE_H_
+#define MAP_API_CRU_TABLE_H_
 
 #include <vector>
 #include <memory>
@@ -8,7 +8,7 @@
 #include <Poco/Data/Common.h>
 #include <gflags/gflags.h>
 
-#include "map-api/cr-table-interface.h"
+#include "map-api/cr-table.h"
 #include "map-api/revision.h"
 #include "map-api/time.h"
 #include "core.pb.h"
@@ -18,7 +18,7 @@ namespace map_api {
 /**
  * Provides interface to map api tables.
  */
-class CRUTableInterface : public CRTableInterface{
+class CRUTable : public CRTable {
  public:
   virtual bool init();
   /**
@@ -36,7 +36,7 @@ class CRUTableInterface : public CRTableInterface{
    * calls to addField()
    */
   virtual void define() = 0;
-  virtual ~CRUTableInterface();
+  virtual ~CRUTable();
 
  protected:
   /**
@@ -69,4 +69,4 @@ class CRUTableInterface : public CRTableInterface{
 
 }
 
-#endif  // TABLE_INTERFACE_H
+#endif  // MAP_API_CRU_TABLE_H_

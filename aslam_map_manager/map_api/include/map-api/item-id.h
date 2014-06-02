@@ -2,7 +2,7 @@
 #define MAP_API_ITEM_ID_H
 
 #include "map-api/id.h"
-#include "map-api/cr-table-interface.h"
+#include "map-api/cr-table.h"
 
 namespace map_api {
 
@@ -11,9 +11,9 @@ namespace map_api {
  * so ordering and hashing operations are provided.
  */
 struct ItemId {
-  CRTableInterface& table;
+  CRTable& table;
   Id id;
-  ItemId(CRTableInterface& _table, const Id& _id) : table(_table), id(_id) {}
+  ItemId(CRTable& _table, const Id& _id) : table(_table), id(_id) {}
   inline bool operator <(const ItemId& other) const {
     if (table.name() == other.table.name()) {
       return id < other.id;
