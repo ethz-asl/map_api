@@ -40,8 +40,9 @@ namespace map_api{
  * TODO(tcies). It may consist of requests to random peers to become chunk
  * holders and/or a preferred sharing ratio.
  *
- * TODO(tcies) will need a central place to keep track of all chunks - to
- * ensure uniqueness and maybe to enable automatic management. Maybe MapApiHub
+ * TODO(tcies) will need a central place to keep track of all (active) chunks -
+ * to ensure uniqueness and maybe to enable automatic management. Maybe
+ * MapApiHub
  */
 class Chunk {
  public:
@@ -87,7 +88,10 @@ class Chunk {
    * It yet needs to be specified what to do in the general case when a conflict
    * is returned. I suggest to assume full connectedness in the first version.
    * This will lead to a star topology instead of a tree topology, allowing to
-   * use majority count for conflict resolution.
+   * use majority count for conflict resolution: In case of conflict, each
+   * "locker" calculates the ratio of #GRANTED/#CONFLICT. If it is > 1, it
+   * assumes it has acquired the lock - if it is exactly 1, the "locking" peer
+   * with the lexicographically lower socket identification takes the lock.
    *
    * To be robust against loss of connectivity, each request should have a
    * timeout that uses the synchronized clock.
@@ -101,13 +105,13 @@ class Chunk {
   void unlock();
 
   static void handleConnectRequest(const std::string& serialized_request,
-                                 zmq::socket_t* socket);
-
-  static void handleLockRequest(const std::string& serialized_request,
                                    zmq::socket_t* socket);
 
+  static void handleLockRequest(const std::string& serialized_request,
+                                zmq::socket_t* socket);
+
   static void handleUnlockRequest(const std::string& serialized_request,
-                                     zmq::socket_t* socket);
+                                  zmq::socket_t* socket);
 
   /**
    * Propagates removal of peers from the network.
