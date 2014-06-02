@@ -11,7 +11,7 @@
 #include <gflags/gflags.h>
 
 #include "map-api/map-api-core.h"
-#include "map-api/transaction.h"
+#include "map-api/local-transaction.h"
 #include "core.pb.h"
 
 namespace map_api {

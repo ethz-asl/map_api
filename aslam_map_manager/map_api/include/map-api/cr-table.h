@@ -86,7 +86,7 @@ class CRTable {
    * and conflict checking - that is assumed to be done by the transaction.
    * History is another example at it is managed by the transaction.
    */
-  friend class Transaction;
+  friend class LocalTransaction;
   friend class History;
   /**
    * Commits an insert query. ID has to be defined in the query. Non-virtual

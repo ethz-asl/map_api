@@ -50,7 +50,7 @@ class CRUTable : public CRTable {
    * very crude access straight to the database, without synchronization
    * and conflict checking - that is assumed to be done by the transaction.
    */
-  friend class Transaction;
+  friend class LocalTransaction;
 
   virtual bool rawInsertImpl(Revision& query) const override;
 

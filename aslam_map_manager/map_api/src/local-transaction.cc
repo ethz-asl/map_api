@@ -1,4 +1,4 @@
-#include "map-api/transaction.h"
+#include "map-api/local-transaction.h"
 
 #include <memory>
 #include <unordered_set>
@@ -10,9 +10,9 @@
 
 namespace map_api {
 
-std::recursive_mutex Transaction::dbMutex_;
+std::recursive_mutex LocalTransaction::dbMutex_;
 
-bool Transaction::begin(){
+bool LocalTransaction::begin(){
   session_ = MapApiCore::getInstance().getSession();
   active_ = true;
   beginTime_ = Time();
@@ -21,16 +21,16 @@ bool Transaction::begin(){
 
 // forward declaration required, else "specialization after instantiation"
 template<>
-inline bool Transaction::hasContainerConflict(
-    const Transaction::ConflictConditionVector& container);
+inline bool LocalTransaction::hasContainerConflict(
+    const LocalTransaction::ConflictConditionVector& container);
 template<>
-inline bool Transaction::hasContainerConflict(
-    const Transaction::InsertMap& container);
+inline bool LocalTransaction::hasContainerConflict(
+    const LocalTransaction::InsertMap& container);
 template<>
-inline bool Transaction::hasContainerConflict(
-    const Transaction::UpdateMap& container);
+inline bool LocalTransaction::hasContainerConflict(
+    const LocalTransaction::UpdateMap& container);
 
-bool Transaction::commit(){
+bool LocalTransaction::commit(){
   if (notifyAbortedOrInactive()){
     return false;
   }
@@ -94,7 +94,7 @@ bool Transaction::commit(){
   return true;
 }
 
-bool Transaction::abort(){
+bool LocalTransaction::abort(){
   if (notifyAbortedOrInactive()){
     return false;
   }
@@ -102,7 +102,7 @@ bool Transaction::abort(){
   return true;
 }
 
-Id Transaction::insert(CRTable& table,
+Id LocalTransaction::insert(CRTable& table,
                        const SharedRevisionPointer& item){
   Id id(Id::random());
   if (!insert(table, id, item)){
@@ -112,7 +112,7 @@ Id Transaction::insert(CRTable& table,
 }
 
 
-bool Transaction::insert(CRTable& table, const Id& id,
+bool LocalTransaction::insert(CRTable& table, const Id& id,
                          const SharedRevisionPointer& item){
   if (notifyAbortedOrInactive()){
     return false;
@@ -133,17 +133,17 @@ bool Transaction::insert(CRTable& table, const Id& id,
   return true;
 }
 
-Transaction::SharedRevisionPointer Transaction::read(
+LocalTransaction::SharedRevisionPointer LocalTransaction::read(
     CRTable& table, const Id& id){
   return findUnique(table, CRTable::kIdField, id);
 }
 
-bool Transaction::dumpTable(
+bool LocalTransaction::dumpTable(
     CRTable& table, std::unordered_map<Id, SharedRevisionPointer>* dest) {
   return find(table, "", 0, dest);
 }
 
-bool Transaction::update(CRUTable& table, const Id& id,
+bool LocalTransaction::update(CRUTable& table, const Id& id,
                          const SharedRevisionPointer& newRevision){
   if (notifyAbortedOrInactive()){
     return false;
@@ -163,7 +163,7 @@ bool Transaction::update(CRUTable& table, const Id& id,
 //   return fields;
 // }
 
-bool Transaction::notifyAbortedOrInactive() const {
+bool LocalTransaction::notifyAbortedOrInactive() const {
   if (!active_){
     LOG(ERROR) << "Transaction has not been initialized";
     return true;
@@ -176,16 +176,16 @@ bool Transaction::notifyAbortedOrInactive() const {
 }
 
 template<>
-bool Transaction::hasItemConflict(
-    const Transaction::ConflictCondition& item) {
+bool LocalTransaction::hasItemConflict(
+    const LocalTransaction::ConflictCondition& item) {
   std::unordered_map<Id, SharedRevisionPointer> results;
   return item.table.rawFindByRevision(item.key, *item.valueHolder, Time(),
                                       &results);
 }
 
 template<>
-inline bool Transaction::hasContainerConflict<Transaction::InsertMap>(
-    const Transaction::InsertMap& container){
+inline bool LocalTransaction::hasContainerConflict<LocalTransaction::InsertMap>(
+    const LocalTransaction::InsertMap& container){
   for (const std::pair<ItemId, const SharedRevisionPointer>& item :
       container){
     std::lock_guard<std::recursive_mutex> lock(dbMutex_);
@@ -200,8 +200,8 @@ inline bool Transaction::hasContainerConflict<Transaction::InsertMap>(
   return false;
 }
 template<>
-inline bool Transaction::hasContainerConflict<Transaction::UpdateMap>(
-    const Transaction::UpdateMap& container){
+inline bool LocalTransaction::hasContainerConflict<LocalTransaction::UpdateMap>(
+    const LocalTransaction::UpdateMap& container){
   for (const std::pair<ItemId, const SharedRevisionPointer>& item :
       container){
     try {
@@ -223,10 +223,11 @@ inline bool Transaction::hasContainerConflict<Transaction::UpdateMap>(
   return false;
 }
 template<>
-inline bool Transaction::hasContainerConflict<
-Transaction::ConflictConditionVector>(
-    const Transaction::ConflictConditionVector& container){
-  for (const Transaction::ConflictCondition& conflictCondition : container){
+inline bool LocalTransaction::hasContainerConflict<
+LocalTransaction::ConflictConditionVector>(
+    const LocalTransaction::ConflictConditionVector& container){
+  for (const LocalTransaction::ConflictCondition& conflictCondition :
+      container){
     if (hasItemConflict(conflictCondition)){
       return true;
     }

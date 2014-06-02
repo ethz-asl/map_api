@@ -59,7 +59,7 @@ class MapApiCore final {
   std::shared_ptr<Poco::Data::Session> getSession();
   friend class CRTable;
   friend class CRUTable;
-  friend class Transaction;
+  friend class LocalTransaction;
   /**
    * Initializes metatable if not initialized. Unfortunately, the metatable
    * can't be initialized in init, as the initializer of metatable calls init

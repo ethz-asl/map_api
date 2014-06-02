@@ -1,5 +1,5 @@
-#ifndef TRANSACTION_H_
-#define TRANSACTION_H_
+#ifndef MAP_API_LOCAL_TRANSACTION_H_
+#define MAP_API_LOCAL_TRANSACTION_H_
 
 #include <map>
 #include <set>
@@ -16,7 +16,12 @@
 
 namespace map_api {
 
-class Transaction {
+/**
+ * This transaction class has only been here for Transaction proof-of concept
+ * work on a single process; it should eventually been removed when moving
+ * to proper networking.
+ */
+class LocalTransaction {
  public:
   typedef std::shared_ptr<Revision> SharedRevisionPointer;
 
@@ -166,6 +171,6 @@ class Transaction {
 
 } /* namespace map_api */
 
-#include "map-api/transaction-inl.h"
+#include "map-api/local-transaction-inl.h"
 
-#endif /* TRANSACTION_H_ */
+#endif /* MAP_API_LOCAL_TRANSACTION_H_ */

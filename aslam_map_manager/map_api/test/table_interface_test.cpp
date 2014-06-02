@@ -13,7 +13,6 @@
 #include "map-api/id.h"
 #include "map-api/map-api-core.h"
 #include "map-api/time.h"
-#include "map-api/transaction.h"
 
 #include "test_table.cpp"
 

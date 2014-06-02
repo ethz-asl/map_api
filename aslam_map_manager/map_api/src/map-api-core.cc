@@ -9,7 +9,7 @@
 #include <zeromq_cpp/zmq.hpp>
 
 #include "map-api/map-api-hub.h"
-#include "map-api/transaction.h"
+#include "map-api/local-transaction.h"
 
 DEFINE_string(ip_port, "127.0.0.1:5050", "Define node ip and port");
 
@@ -35,7 +35,7 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
   // init metatable if not yet initialized TODO(tcies) better solution?
   ensureMetatable();
   // insert table definition if not exists
-  Transaction tryInsert;
+  LocalTransaction tryInsert;
   tryInsert.begin();
   std::shared_ptr<Revision> attempt = metatable_->getTemplate();
   attempt->set(Metatable::kNameField, descriptor.name());
@@ -48,7 +48,7 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
     return true;
   }
   // if has existed, verify descriptors match
-  Transaction reader;
+  LocalTransaction reader;
   reader.begin();
   std::shared_ptr<Revision> previous = reader.findUnique(
       *metatable_, Metatable::kNameField, descriptor.name());
@@ -69,7 +69,7 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
 void MapApiCore::purgeDb() {
   // the following is possible if no table has been initialized yet:
   ensureMetatable();
-  Transaction reader;
+  LocalTransaction reader;
   reader.begin();
   std::unordered_map<Id, std::shared_ptr<Revision> > tables;
   reader.dumpTable(*metatable_, &tables);
