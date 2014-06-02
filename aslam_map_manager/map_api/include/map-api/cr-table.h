@@ -35,6 +35,12 @@ class CRTable {
    * ================================================
    * FUNCTIONS TO BE IMPLEMENTED BY THE DERIVED CLASS
    * ================================================
+   * N.b. the singleton pattern protected functions should also be implemented,
+   * see below
+   * The singleton's static instance() also needs to be implemented, can't be
+   * done here for static functions can't be virtual. Recommended to use
+   * meyersInstance() to save typing.
+   * Use protected destructor.
    */
   /**
    * This table name will appear in the database, so it must be chosen SQL
@@ -46,7 +52,6 @@ class CRTable {
    * calls to addField()
    */
   virtual void define() = 0;
-  virtual ~CRTable();
 
   /**
    * Returns an empty revision having the structure as defined by the user
@@ -65,6 +70,23 @@ class CRTable {
   } ItemDebugInfo;
 
  protected:
+  /**
+   * =====================================
+   * Singleton pattern protected functions
+   * =====================================
+   */
+  CRTable() = default;
+  CRTable(const CRTable&) = delete;
+  CRTable& operator=(const CRTable&) = delete;
+  virtual ~CRTable();
+  /**
+   * Allows derived classes to implement Meyer's singleton pattern without need
+   * to retype the entire instance() function
+   * TODO(tcies) this could be a common, free function (rather: a macro)
+   */
+  template<typename ClassType>
+  static ClassType& meyersInstance();
+
   /**
    * Function to be called at definition:  Adds field to table. This only calls
    * the other addField function with the proper enum, see implementation
@@ -171,7 +193,12 @@ class CRTable {
   };
 
  private:
-  friend class CRUTableInterface;
+  /**
+   * Handle with care - this in not thread-safe and is only intended to be used
+   * for testing. It also doesn't synchronize with the metatable, so the latter
+   * MUST BE KILLED BY THE USER.
+   */
+  void kill();
   /**
    * Synchronize with cluster: Check if table already present in cluster
    * metatable, add user to distributed table. Virtual so that the metatable

@@ -96,6 +96,11 @@ bool CRTable::sync() {
   return MapApiCore::getInstance().syncTableDefinition(structure_);
 }
 
+void CRTable::kill() {
+  *session_ << "DROP TABLE IF EXISTS " << name(), Poco::Data::now;
+  initialized_ = false;
+}
+
 bool CRTable::createQuery(){
   Poco::Data::Statement stat(*session_);
   stat << "CREATE TABLE IF NOT EXISTS " << name() << " (";

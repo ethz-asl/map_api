@@ -35,23 +35,19 @@ int ExpectedFieldCount<CRUTable>::get() {
 }
 
 template <typename TableType>
-class TableInterfaceTest : public ::testing::Test {
- protected:
-  virtual void SetUp() {
-    MapApiCore::getInstance().purgeDb();
-  }
-};
+class TableInterfaceTest : public ::testing::Test {};
 
 typedef ::testing::Types<CRTable, CRUTable> TableTypes;
 TYPED_TEST_CASE(TableInterfaceTest, TableTypes);
 
 TYPED_TEST(TableInterfaceTest, initEmpty) {
-  TestTable<TypeParam> table;
-  EXPECT_TRUE(table.init());
-  std::shared_ptr<Revision> structure = table.getTemplate();
+  EXPECT_TRUE(TestTable<TypeParam>::instance().init());
+  std::shared_ptr<Revision> structure =
+      TestTable<TypeParam>::instance().getTemplate();
   ASSERT_TRUE(static_cast<bool>(structure));
   EXPECT_EQ(ExpectedFieldCount<TypeParam>::get(),
             structure->fieldqueries_size());
+  TestTable<TypeParam>::instance().kill();
 }
 
 /**
@@ -202,7 +198,7 @@ class FieldTestWithoutInit :
     public FieldTest<typename TableDataType::DataType> {
  protected:
   virtual void SetUp() {
-    this->table_.reset(new InsertReadFieldTestTable<TableDataType>);
+    table_ = &InsertReadFieldTestTable<TableDataType>::instance();
   }
 
   std::shared_ptr<Revision> getTemplate() {
@@ -224,7 +220,7 @@ class FieldTestWithoutInit :
     return this->table_->insertQuery(*query_);
   }
 
-  std::shared_ptr<InsertReadFieldTestTable<TableDataType> > table_;
+  InsertReadFieldTestTable<TableDataType>* table_;
   std::shared_ptr<Revision> query_;
 };
 
@@ -232,9 +228,11 @@ template <typename TableDataType>
 class FieldTestWithInit : public FieldTestWithoutInit<TableDataType> {
  protected:
   virtual void SetUp() {
-    MapApiCore::getInstance().purgeDb();
     this->table_.reset(new InsertReadFieldTestTable<TableDataType>);
     this->table_->init();
+  }
+  virtual void TearDown() {
+    // TODO(tcies) kill table
   }
 };
 

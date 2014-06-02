@@ -14,9 +14,19 @@ class Metatable final : public CRTable {
  public:
   static const std::string kNameField;
   static const std::string kDescriptorField;
-  virtual ~Metatable();
+
   virtual const std::string name() const override;
   virtual void define();
+  static Metatable& instance();
+ protected:
+  /**
+   * Singleton pattern
+   */
+  friend class CRTable;
+  Metatable() = default;
+  Metatable(const Metatable&) = delete;
+  Metatable& operator=(const Metatable&) = delete;
+  virtual ~Metatable();
  private:
   /**
    * Overriding sync to do nothing - we don't want an infinite recursion

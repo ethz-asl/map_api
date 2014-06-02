@@ -3,6 +3,8 @@
 
 #include <string>
 
+#include "map-api/cr-table.h"
+
 namespace map_api {
 
 /**
@@ -19,11 +21,18 @@ class SimpleTable : public TableType {
    * passing string literals through templates.
    */
   virtual const std::string name() const override;
-  virtual ~SimpleTable() {}
- protected:
   virtual void define() {
     this->template addField<DataType>(kDataField);
   }
+  static SimpleTable& instance() {
+    return CRTable::meyersInstance<SimpleTable>();
+  }
+ protected:
+  friend class CRTable;
+  SimpleTable() = default;
+  SimpleTable(const SimpleTable&) = delete;
+  SimpleTable& operator=(const SimpleTable&) = delete;
+  virtual ~SimpleTable() {}
 };
 
 template<typename TableType, typename DataType>

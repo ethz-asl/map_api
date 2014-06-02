@@ -33,7 +33,6 @@ class MapApiCore final {
    * by using standard table operations on the metatable
    */
   bool syncTableDefinition(const proto::TableDescriptor& descriptor);
-  void purgeDb();
   /**
    * Initializer
    */
@@ -77,7 +76,6 @@ class MapApiCore final {
    */
   MapApiHub &hub_;
 
-  std::unique_ptr<Metatable> metatable_;
   /**
    * initialized?
    */

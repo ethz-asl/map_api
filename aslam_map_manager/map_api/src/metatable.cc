@@ -20,4 +20,8 @@ void Metatable::define() {
   addField<proto::TableDescriptor>(kDescriptorField);
 }
 
+Metatable& Metatable::instance() {
+  return CRTable::meyersInstance<Metatable>();
+}
+
 } /* namespace map_api */

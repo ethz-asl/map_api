@@ -25,6 +25,12 @@ class CRUTable : public CRTable {
    * ================================================
    * FUNCTIONS TO BE IMPLEMENTED BY THE DERIVED CLASS
    * ================================================
+   * N.b. the singleton pattern protected functions should also be implemented,
+   * see below
+   * The singleton's static instance() also needs to be implemented, can't be
+   * done here for static functions can't be virtual. Recommended to use
+   * meyersInstance() to save typing.
+   * Use protected destructor.
    */
   /**
    * This table name will appear in the database, so it must be chosen SQL
@@ -36,9 +42,17 @@ class CRUTable : public CRTable {
    * calls to addField()
    */
   virtual void define() = 0;
-  virtual ~CRUTable();
 
  protected:
+  /**
+   * =====================================
+   * Singleton pattern protected functions
+   * =====================================
+   */
+  CRUTable() = default;
+  CRUTable(const CRTable&) = delete;
+  CRUTable& operator=(const CRTable&) = delete;
+  virtual ~CRUTable();
   /**
    * Default table fields
    */
