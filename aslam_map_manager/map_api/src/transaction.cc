@@ -1,13 +1,12 @@
 #include "map-api/transaction.h"
 
+#include <memory>
 #include <unordered_set>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
 #include "map-api/map-api-core.h"
-
-DECLARE_string(ipPort);
 
 namespace map_api {
 
@@ -24,6 +23,12 @@ bool Transaction::begin(){
 template<>
 inline bool Transaction::hasContainerConflict(
     const Transaction::ConflictConditionVector& container);
+template<>
+inline bool Transaction::hasContainerConflict(
+    const Transaction::InsertMap& container);
+template<>
+inline bool Transaction::hasContainerConflict(
+    const Transaction::UpdateMap& container);
 
 bool Transaction::commit(){
   if (notifyAbortedOrInactive()){
@@ -37,11 +42,11 @@ bool Transaction::commit(){
   // Acquire lock for database updates TODO(tcies) per-item locks
   {
     std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-    if (hasMapConflict(insertions_)) {
+    if (hasContainerConflict(insertions_)) {
       VLOG(3) << "Insert conflict, commit fails";
       return false;
     }
-    if (hasMapConflict(updates_)){
+    if (hasContainerConflict(updates_)){
       VLOG(3) << "Update conflict, commit fails";
       return false;
     }
@@ -52,10 +57,10 @@ bool Transaction::commit(){
     // if no conflicts were found, apply changes, starting from inserts...
     // TODO(tcies) ideally, this should be rollback-able, e.g. by using
     // the SQL built-in transactions
-    for (const std::pair<CRItemIdentifier, SharedRevisionPointer> &insertion :
+    for (const std::pair<ItemId, SharedRevisionPointer> &insertion :
         insertions_){
-      const CRTableInterface& table = insertion.first.first;
-      const Id& id = insertion.first.second;
+      const CRTableInterface& table = insertion.first.table;
+      const Id& id = insertion.first.id;
       CRTableInterface::ItemDebugInfo debugInfo(table.name(), id);
       const SharedRevisionPointer &revision = insertion.second;
       CHECK(revision->verify(CRTableInterface::kIdField, id)) <<
@@ -66,17 +71,22 @@ bool Transaction::commit(){
       }
     }
     // ...then updates
-    for (const std::pair<CRUItemIdentifier, SharedRevisionPointer> &update :
+    for (const std::pair<ItemId, SharedRevisionPointer> &update :
         updates_){
-      const CRUTableInterface& table = update.first.first;
-      const Id& id = update.first.second;
-      CRTableInterface::ItemDebugInfo debugInfo(table.name(), id);
-      const SharedRevisionPointer &revision = update.second;
-      CHECK(revision->verify(CRTableInterface::kIdField, id)) <<
-          "Identifier ID does not match revision ID";
-      if (!table.rawUpdate(*revision)){
-        LOG(ERROR) << debugInfo << "Update failed, aborting commit.";
-        return false;
+      try {
+        const CRUTableInterface& table =
+            dynamic_cast<const CRUTableInterface&>(update.first.table);
+        const Id& id = update.first.id;
+        CRTableInterface::ItemDebugInfo debugInfo(table.name(), id);
+        const SharedRevisionPointer &revision = update.second;
+        CHECK(revision->verify(CRTableInterface::kIdField, id)) <<
+            "Identifier ID does not match revision ID";
+        if (!table.rawUpdate(*revision)){
+          LOG(ERROR) << debugInfo << "Update failed, aborting commit.";
+          return false;
+        }
+      } catch (const std::bad_cast& e) {
+        LOG(FATAL) << "Cast to CRUTableInterface reference failed";
       }
     }
   }
@@ -118,8 +128,8 @@ bool Transaction::insert(CRTableInterface& table, const Id& id,
       " doesn't match table template " << reference->DebugString();
   item->set(CRTableInterface::kIdField, id);
   // item->set("owner",owner_); TODO(tcies) later, fetch from core
-  insertions_.insert(InsertMap::value_type(
-      CRItemIdentifier(table, id), item));
+  CHECK(insertions_.insert(std::make_pair(ItemId(table, id), item)).second)
+  << "You seem to already have inserted " << ItemId(table, id);
   return true;
 }
 
@@ -138,7 +148,7 @@ bool Transaction::update(CRUTableInterface& table, const Id& id,
   if (notifyAbortedOrInactive()){
     return false;
   }
-  updates_[CRUItemIdentifier(table, id)] = newRevision;
+  updates_.insert(std::make_pair(ItemId(table, id), newRevision));
   return true;
 }
 
@@ -165,42 +175,6 @@ bool Transaction::notifyAbortedOrInactive() const {
   return false;
 }
 
-/**
- * Insert requests conflict only if the id is already present
- */
-template<>
-bool Transaction::hasItemConflict<Transaction::CRItemIdentifier>(
-    const Transaction::CRItemIdentifier& item) {
-  std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-  // Conflict if id present in table
-  if (item.first.rawGetById(item.second, Time())){
-    LOG(WARNING) << "Table " << item.first.name() << " already contains id " <<
-        item.second.hexString() << ", transaction conflict!";
-    return true;
-  }
-  return false;
-}
-
-/**
- * Update requests conflict if there is a revision that is later than the
- * transaction begin time
- */
-template<>
-bool Transaction::hasItemConflict<Transaction::CRUItemIdentifier>(
-    const Transaction::CRUItemIdentifier& item) {
-  // no problem anyways if item inserted within same transaction
-  CRItemIdentifier crItem(item.first, item.second);
-  if (this->insertions_.find(crItem) != this->insertions_.end()){
-    return false;
-  }
-  Time latestUpdate;
-  if (!item.first.rawLatestUpdateTime(item.second, &latestUpdate)){
-    LOG(FATAL) << "Error retrieving update time";
-  }
-  return latestUpdate >= beginTime_;
-}
-
-
 template<>
 bool Transaction::hasItemConflict(
     const Transaction::ConflictCondition& item) {
@@ -212,18 +186,39 @@ bool Transaction::hasItemConflict(
 template<>
 inline bool Transaction::hasContainerConflict<Transaction::InsertMap>(
     const Transaction::InsertMap& container){
-  return Transaction::hasMapConflict(container);
+  for (const std::pair<ItemId, const SharedRevisionPointer>& item :
+      container){
+    std::lock_guard<std::recursive_mutex> lock(dbMutex_);
+    // Conflict if id present in table
+    if (item.first.table.rawGetById(item.first.id, Time())){
+      LOG(WARNING) << "Table " << item.first.table.name() <<
+          " already contains id " << item.first.id.hexString() <<
+          ", transaction conflict!";
+      return true;
+    }
+  }
+  return false;
 }
 template<>
 inline bool Transaction::hasContainerConflict<Transaction::UpdateMap>(
     const Transaction::UpdateMap& container){
-  return Transaction::hasMapConflict(container);
-}
-template<typename Map>
-inline bool Transaction::hasMapConflict(const Map& map){
-  for (const typename Map::value_type& item : map){
-    if (hasItemConflict(item.first)){
-      return true;
+  for (const std::pair<ItemId, const SharedRevisionPointer>& item :
+      container){
+    try {
+      const CRUTableInterface& table = static_cast<const CRUTableInterface&>(
+          item.first.table);
+      if (this->insertions_.find(item.first) != this->insertions_.end()){
+        return false;
+      }
+      Time latestUpdate;
+      if (!table.rawLatestUpdateTime(item.first.id, &latestUpdate)){
+        LOG(FATAL) << "Error retrieving update time";
+      }
+      if (latestUpdate >= beginTime_) {
+        return true;
+      }
+    } catch (const std::bad_cast& e) {
+      LOG(FATAL) << "Cast to CRUTableInterface reference failed";
     }
   }
   return false;
