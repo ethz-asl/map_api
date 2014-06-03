@@ -6,6 +6,8 @@
 
 #include <zeromq_cpp/zmq.hpp>
 
+#include "map-api/revision.h"
+
 typedef void* Peer; //TODO(tcies) define, also use in MapApiHub
 
 namespace map_api{
@@ -64,6 +66,10 @@ class Chunk {
    */
   bool init();
   /**
+   * Insert new item into this chunk: Item gets sent to all peers
+   */
+  bool insert(const Revision& item);
+  /**
    * The holder may acquire a read lock without the need to communicate with
    * the other peers - a read lock manifests itself only in that the holder
    * defers distributed write lock requests until unlocking or denies them
@@ -106,6 +112,9 @@ class Chunk {
 
   static void handleConnectRequest(const std::string& serialized_request,
                                    zmq::socket_t* socket);
+
+  static void handleInsertRequest(const std::string& serialized_request,
+                                  zmq::socket_t* socket);
 
   static void handleLockRequest(const std::string& serialized_request,
                                 zmq::socket_t* socket);
