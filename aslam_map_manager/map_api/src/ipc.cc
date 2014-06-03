@@ -16,17 +16,17 @@ std::unordered_map<int, int> IPC::barrier_map_;
 IPC::~IPC() {}
 
 void IPC::init() {
-  MapApiHub::getInstance().registerHandler("barrier", barrierHandler);
+  MapApiHub::instance().registerHandler("barrier", barrierHandler);
 }
 
 void IPC::barrier(int id, int n_peers) {
   std::ostringstream ss;
   ss << id;
   // TODO(tcies) smarter, cv on peer increase instead of spinning
-  while (MapApiHub::getInstance().peerSize() < n_peers) {
+  while (MapApiHub::instance().peerSize() < n_peers) {
     usleep(10);
   }
-  MapApiHub::getInstance().broadcast("barrier", ss.str());
+  MapApiHub::instance().broadcast("barrier", ss.str());
   std::unique_lock<std::mutex> lock(barrier_mutex_);
   while (barrier_map_[id] < n_peers) {
     barrier_cv_.wait(lock);

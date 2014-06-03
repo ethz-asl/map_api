@@ -15,18 +15,11 @@ class Metatable final : public CRTable {
   static const std::string kNameField;
   static const std::string kDescriptorField;
 
-  virtual const std::string name() const override;
-  virtual void define();
+  virtual const std::string name() const final override;
+  virtual void defineFieldsCRDerived() final override;
   static Metatable& instance();
  protected:
-  /**
-   * Singleton pattern
-   */
-  friend class CRTable;
-  Metatable() = default;
-  Metatable(const Metatable&) = delete;
-  Metatable& operator=(const Metatable&) = delete;
-  virtual ~Metatable();
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(Metatable);
  private:
   /**
    * Overriding sync to do nothing - we don't want an infinite recursion

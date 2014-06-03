@@ -32,12 +32,6 @@ std::shared_ptr<Revision> CRTable::rawFindUnique(
   }
 }
 
-template<typename ClassType>
-ClassType& CRTable::meyersInstance() {
-  static ClassType object;
-  return object;
-}
-
 } // namespace map_api
 
 #endif /* MAP_API_CR_TABLE_INL_H_ */

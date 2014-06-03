@@ -15,7 +15,7 @@ DEFINE_string(ip_port, "127.0.0.1:5050", "Define node ip and port");
 
 namespace map_api {
 
-MapApiCore &MapApiCore::getInstance() {
+MapApiCore &MapApiCore::instance() {
   static MapApiCore instance;
   static std::mutex initMutex;
   initMutex.lock();
@@ -29,7 +29,7 @@ MapApiCore &MapApiCore::getInstance() {
 }
 
 MapApiCore::MapApiCore() : owner_(Id::random()),
-    hub_(MapApiHub::getInstance()), initialized_(false){}
+    hub_(MapApiHub::instance()), initialized_(false){}
 
 bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
   // init metatable if not yet initialized TODO(tcies) better solution?
@@ -76,13 +76,12 @@ bool MapApiCore::init(const std::string &ipPort) {
   }
   // TODO(titus) SigAbrt handler?
   Poco::Data::SQLite::Connector::registerConnector();
-  dbSess_ = std::shared_ptr<Poco::Data::Session>(
-      new Poco::Data::Session("SQLite", ":memory:"));
+  dbSess_ = std::make_shared<Poco::Data::Session>("SQLite", ":memory:");
   initialized_ = true;
   return true;
 }
 
-std::shared_ptr<Poco::Data::Session> MapApiCore::getSession(){
+std::weak_ptr<Poco::Data::Session> MapApiCore::getSession() {
   return dbSess_;
 }
 
@@ -94,14 +93,20 @@ inline void MapApiCore::ensureMetatable() {
   }
 }
 
-bool MapApiCore::isInitialized() const{
+bool MapApiCore::isInitialized() const {
   return initialized_;
 }
 
-void MapApiCore::kill(){
+void MapApiCore::kill() {
   hub_.kill();
   dbSess_.reset();
   initialized_ = false;
+}
+
+void MapApiCore::resetDb() {
+  CHECK_EQ(1, dbSess_.use_count());
+  dbSess_.reset(new Poco::Data::Session("SQLite", ":memory:"));
+  Metatable::instance().init();
 }
 
 }

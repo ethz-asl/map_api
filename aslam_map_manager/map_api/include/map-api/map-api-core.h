@@ -27,7 +27,7 @@ class MapApiCore final {
    * Get singleton instance of Map Api Core
    * TODO(tcies) just make all functions static (thread-safety!)...
    */
-  static MapApiCore& getInstance();
+  static MapApiCore& instance();
   /**
    * Synchronizes table definition with peers
    * by using standard table operations on the metatable
@@ -45,6 +45,12 @@ class MapApiCore final {
    * Makes the server thread re-enter, disconnects from database
    */
   void kill();
+  /**
+   * Resets the database, clearing all its contents. TO BE USED FOR TESTING
+   * ONLY. After a call to this function ALL TABLES MUST BE RE-INITIALIZED.
+   * resetDb already re-initializes the metatable
+   */
+  void resetDb();
 
  private:
   /**
@@ -53,9 +59,9 @@ class MapApiCore final {
    */
   MapApiCore();
   /**
-   * Returns a shared pointer to the database session
+   * Returns a weak pointer to the database session
    */
-  std::shared_ptr<Poco::Data::Session> getSession();
+  std::weak_ptr<Poco::Data::Session> getSession();
   friend class CRTable;
   friend class CRUTable;
   friend class LocalTransaction;

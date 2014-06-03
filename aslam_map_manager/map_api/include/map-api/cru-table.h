@@ -20,7 +20,10 @@ namespace map_api {
  */
 class CRUTable : public CRTable {
  public:
-  virtual bool init();
+  /**
+   * Sets CRU default fields and calls defineFieldsCRUDerived().
+   */
+  virtual void defineFieldsCRDerived() final override;
   /**
    * ================================================
    * FUNCTIONS TO BE IMPLEMENTED BY THE DERIVED CLASS
@@ -38,10 +41,10 @@ class CRUTable : public CRTable {
    */
   virtual const std::string name() const = 0;
   /**
-   * Function to be implemented by derivations: Define table by repeated
+   * Function to be implemented by derivations: Define table fields by repeated
    * calls to addField()
    */
-  virtual void define() = 0;
+  virtual void defineFieldsCRUDerived() = 0;
 
  protected:
   /**

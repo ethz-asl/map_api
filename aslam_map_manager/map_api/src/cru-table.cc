@@ -22,12 +22,11 @@ const std::string CRUTable::kNextTimeField = "next_time";
 
 CRUTable::~CRUTable() {}
 
-bool CRUTable::init() {
-  // adding fields that make this an updateable table
+void CRUTable::defineFieldsCRDerived() {
   addField<Time>(kUpdateTimeField);
   addField<Time>(kPreviousTimeField);
   addField<Time>(kNextTimeField);
-  return CRTable::init();
+  defineFieldsCRUDerived();
 }
 
 bool CRUTable::rawInsertImpl(Revision& query) const {
@@ -43,7 +42,9 @@ int CRUTable::rawFindByRevisionImpl(
   // TODO(tcies) apart from the more sophisticated time query, this is very
   // similar to its CR equivalent. Maybe refactor at some time?
   PocoToProto poco_to_proto(*this);
-  Poco::Data::Statement statement(*session_);
+  std::shared_ptr<Poco::Data::Session> session = session_.lock();
+  CHECK(session) << "Couldn't lock session weak pointer";
+  Poco::Data::Statement statement(*session);
   // TODO(tcies) evt. optimizations from http://www.sqlite.org/queryplanner.html
   statement << "SELECT ";
   poco_to_proto.into(statement);
@@ -98,7 +99,9 @@ bool CRUTable::rawUpdateImpl(Revision& query) const {
   Time update_time, previous_time;
   current->get(kUpdateTimeField, &previous_time);
   // 3. Write update time into "next_time" field of current revision
-  Poco::Data::Statement statement(*session_);
+  std::shared_ptr<Poco::Data::Session> session = session_.lock();
+  CHECK(session) << "Couldn't lock session weak pointer";
+  Poco::Data::Statement statement(*session);
   statement << "UPDATE " << name() << " SET " << kNextTimeField << " = ? ",
       Poco::Data::use(update_time.serialize());
   statement << " WHERE ID = ";

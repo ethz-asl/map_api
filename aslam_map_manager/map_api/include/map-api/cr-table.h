@@ -13,6 +13,28 @@
 #include "map-api/revision.h"
 #include "core.pb.h"
 
+/**
+ * Allows the class "class_type" to implement meyers singleton instance
+ */
+#define MEYERS_SINGLETON_INSTANCE_FUNCTION_IMPLEMENTATION(class_type) \
+    class_type& class_type::instance() { \
+  static class_type object; \
+  return object; \
+}
+#define MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(class_type) \
+    static class_type& instance() { \
+  static class_type object; \
+  return object; \
+}
+/**
+ * Singleton function declarations, to be put in the protected segment
+ */
+#define MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(class_type) \
+    class_type() = default; \
+    class_type(const class_type&) = delete; \
+    class_type& operator=(const class_type&) = delete; \
+    virtual ~class_type() = default
+
 namespace map_api {
 
 class CRTable {
@@ -28,6 +50,12 @@ class CRTable {
    * tableName() and define()
    */
   virtual bool init();
+
+  /**
+   * Defines default table fields. Virtual-final in order to make absolutely
+   * sure that this doesn't get overridden.
+   */
+  virtual void defineFields() final;
 
   bool isInitialized() const;
 
@@ -48,10 +76,12 @@ class CRTable {
    */
   virtual const std::string name() const = 0;
   /**
-   * Function to be implemented by derivations: Define table by repeated
-   * calls to addField()
+   * Function to be implemented by derivations: Define fields by repeated
+   * calls to addField().
+   * TODO(simon) implemented cascaded NVI, do you see a
+   * cleaner way to force derived classes to also call define() of base class?
    */
-  virtual void define() = 0;
+  virtual void defineFieldsCRDerived() = 0;
 
   /**
    * Returns an empty revision having the structure as defined by the user
@@ -75,17 +105,7 @@ class CRTable {
    * Singleton pattern protected functions
    * =====================================
    */
-  CRTable() = default;
-  CRTable(const CRTable&) = delete;
-  CRTable& operator=(const CRTable&) = delete;
-  virtual ~CRTable();
-  /**
-   * Allows derived classes to implement Meyer's singleton pattern without need
-   * to retype the entire instance() function
-   * TODO(tcies) this could be a common, free function (rather: a macro)
-   */
-  template<typename ClassType>
-  static ClassType& meyersInstance();
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(CRTable);
 
   /**
    * Function to be called at definition:  Adds field to table. This only calls
@@ -100,7 +120,7 @@ class CRTable {
    * Shared pointer to database session
    * TODO(tcies) move to private, remove from testtable, replace by purgedb
    */
-  std::shared_ptr<Poco::Data::Session> session_;
+  std::weak_ptr<Poco::Data::Session> session_;
 
   /**
    * The following functions are to be used by transactions only. They pose a
@@ -193,12 +213,6 @@ class CRTable {
   };
 
  private:
-  /**
-   * Handle with care - this in not thread-safe and is only intended to be used
-   * for testing. It also doesn't synchronize with the metatable, so the latter
-   * MUST BE KILLED BY THE USER.
-   */
-  void kill();
   /**
    * Synchronize with cluster: Check if table already present in cluster
    * metatable, add user to distributed table. Virtual so that the metatable

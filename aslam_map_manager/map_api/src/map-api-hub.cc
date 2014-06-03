@@ -81,7 +81,7 @@ bool MapApiHub::init(const std::string &ipPort){
   return true;
 }
 
-MapApiHub &MapApiHub::getInstance(){
+MapApiHub &MapApiHub::instance(){
   static MapApiHub instance;
   return instance;
 }
@@ -148,11 +148,11 @@ void MapApiHub::helloHandler(const std::string& peer,
   LOG(INFO) << "Peer " << peer << " says hello, let's "\
       "connect to it...";
   // lock peer set lock so we can write without a race condition
-  getInstance().peerLock_.writeLock();
+  instance().peerLock_.writeLock();
   std::set<std::shared_ptr<zmq::socket_t> >::iterator it =
-      getInstance().peers_.insert(std::unique_ptr<zmq::socket_t>(
-          new zmq::socket_t(*(getInstance().context_), ZMQ_REQ))).first;
-  getInstance().peerLock_.unlock();
+      instance().peers_.insert(std::unique_ptr<zmq::socket_t>(
+          new zmq::socket_t(*(instance().context_), ZMQ_REQ))).first;
+  instance().peerLock_.unlock();
   (*it)->connect(("tcp://" + peer).c_str());
   // ack by resend
   zmq::message_t message;

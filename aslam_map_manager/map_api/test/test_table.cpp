@@ -7,21 +7,38 @@
  * template, database session and cleanup.
  */
 template <typename TableInterfaceType>
-class TestTable : public TableInterfaceType {
+class TestTable;
+
+template<>
+class TestTable<map_api::CRTable> : public map_api::CRTable {
  public:
   virtual const std::string name() const override {
     return "test_table";
   }
-  virtual void define(){}
-  using TableInterfaceType::rawInsert;
-  using TableInterfaceType::rawGetById;
-  static TestTable& instance() {
-    return map_api::CRTable::meyersInstance<TestTable<TableInterfaceType> >();
+  virtual void defineTestTableFields() {}
+  virtual void defineFieldsCRDerived() final override {
+    defineTestTableFields();
   }
+  using map_api::CRTable::rawInsert;
+  using map_api::CRTable::rawGetById;
+  MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(TestTable)
  protected:
-  friend class CRTable;
-  TestTable() = default;
-  TestTable(const TestTable&) = delete;
-  TestTable& operator=(const TestTable&) = delete;
-  virtual ~TestTable() {}
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(TestTable);
+};
+
+template<>
+class TestTable<map_api::CRUTable> : public map_api::CRUTable {
+ public:
+  virtual const std::string name() const override {
+    return "test_table";
+  }
+  virtual void defineTestTableFields() {}
+  virtual void defineFieldsCRUDerived() final override {
+    defineTestTableFields();
+  }
+  using map_api::CRUTable::rawInsert;
+  using map_api::CRUTable::rawGetById;
+  MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(TestTable)
+ protected:
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(TestTable);
 };

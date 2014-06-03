@@ -47,7 +47,7 @@ TYPED_TEST(TableInterfaceTest, initEmpty) {
   ASSERT_TRUE(static_cast<bool>(structure));
   EXPECT_EQ(ExpectedFieldCount<TypeParam>::get(),
             structure->fieldqueries_size());
-  TestTable<TypeParam>::instance().kill();
+  MapApiCore::instance().resetDb();
 }
 
 /**
@@ -70,8 +70,10 @@ class FieldTestTable : public TestTable<typename TableDataType::TableType> {
   virtual const std::string name() const override {
     return "field_test_table";
   }
+  MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(FieldTestTable)
  protected:
-  virtual void define() {
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(FieldTestTable);
+  virtual void defineTestTableFields() {
     this->template addField<typename TableDataType::DataType>(kTestField);
   }
 };
@@ -89,6 +91,9 @@ class InsertReadFieldTestTable : public FieldTestTable<TableDataType> {
   bool updateQuery(Revision& query) {
     return this->rawUpdate(query);
   }
+  MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(InsertReadFieldTestTable)
+ protected:
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(InsertReadFieldTestTable);
 };
 
 /**
@@ -196,7 +201,7 @@ class FieldTest<testBlob> : public ::testing::Test {
 template <typename TableDataType>
 class FieldTestWithoutInit :
     public FieldTest<typename TableDataType::DataType> {
- protected:
+     protected:
   virtual void SetUp() {
     table_ = &InsertReadFieldTestTable<TableDataType>::instance();
   }
@@ -212,7 +217,7 @@ class FieldTestWithoutInit :
     query_->set(CRTable::kIdField, inserted);
     // to_insert_->set("owner", Id::random()); TODO(tcies) later, from core
     query_->set(InsertReadFieldTestTable<TableDataType>::kTestField,
-                    this->sample_data_1());
+                this->sample_data_1());
     return inserted;
   }
 
@@ -226,13 +231,13 @@ class FieldTestWithoutInit :
 
 template <typename TableDataType>
 class FieldTestWithInit : public FieldTestWithoutInit<TableDataType> {
+ public:
+  virtual ~FieldTestWithInit() {}
  protected:
   virtual void SetUp() {
-    this->table_.reset(new InsertReadFieldTestTable<TableDataType>);
+    FieldTestWithoutInit<TableDataType>::SetUp();
+    MapApiCore::instance().resetDb();
     this->table_->init();
-  }
-  virtual void TearDown() {
-    // TODO(tcies) kill table
   }
 };
 

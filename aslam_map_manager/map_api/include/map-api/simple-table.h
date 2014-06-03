@@ -24,15 +24,9 @@ class SimpleTable : public TableType {
   virtual void define() {
     this->template addField<DataType>(kDataField);
   }
-  static SimpleTable& instance() {
-    return CRTable::meyersInstance<SimpleTable>();
-  }
+  MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(SimpleTable)
  protected:
-  friend class CRTable;
-  SimpleTable() = default;
-  SimpleTable(const SimpleTable&) = delete;
-  SimpleTable& operator=(const SimpleTable&) = delete;
-  virtual ~SimpleTable() {}
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(SimpleTable);
 };
 
 template<typename TableType, typename DataType>
