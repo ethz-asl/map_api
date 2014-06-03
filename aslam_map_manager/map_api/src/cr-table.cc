@@ -19,8 +19,6 @@ namespace map_api {
 const std::string CRTable::kIdField = "ID";
 const std::string CRTable::kInsertTimeField = "insert_time";
 
-CRTable::~CRTable() {}
-
 bool CRTable::isInitialized() const{
   return initialized_;
 }
@@ -49,33 +47,26 @@ bool CRTable::init() {
           (character == '_')) << "Desired table name \"" << tableName <<
               "\" ill-suited for SQL database";
   }
+  structure_.Clear();
   structure_.set_name(tableName);
   // Define table fields
-  // enforced fields id (hash) and owner
-  addField<Id>(kIdField);
-  addField<Time>(kInsertTimeField);
-  // addField<Id>("owner"); TODO(tcies) later, when owner will be used for
-  // synchronization accross the network, or for its POC
-  // transaction-enforced fields TODO(tcies) later
-  // std::shared_ptr<std::vector<proto::TableFieldDescriptor> >
-  // transactionFields(Transaction::requiredTableFields());
-  // for (const proto::TableFieldDescriptor& descriptor :
-  //     *transactionFields){
-  //   addField(descriptor.name(), descriptor.type());
-  // }
-  // user-defined fields
-  define();
-
+  defineFields();
   // connect to database & create table
-  session_ = MapApiCore::getInstance().getSession();
+  session_ = MapApiCore::instance().getSession();
   createQuery();
 
-  // Sync with cluster TODO(tcies)
   if (!sync()){
     return false;
   }
   initialized_ = true;
   return true;
+}
+
+void CRTable::defineFields() {
+  addField<Id>(kIdField);
+  addField<Time>(kInsertTimeField);
+  // addField<Id>("owner"); TODO(tcies) later, when owner will be used for
+  defineFieldsCRDerived();
 }
 
 std::shared_ptr<Revision> CRTable::getTemplate() const{
@@ -93,11 +84,13 @@ std::shared_ptr<Revision> CRTable::getTemplate() const{
 }
 
 bool CRTable::sync() {
-  return MapApiCore::getInstance().syncTableDefinition(structure_);
+  return MapApiCore::instance().syncTableDefinition(structure_);
 }
 
 bool CRTable::createQuery(){
-  Poco::Data::Statement stat(*session_);
+  std::shared_ptr<Poco::Data::Session> session = session_.lock();
+  CHECK(session) << "Couldn't lock session weak pointer";
+  Poco::Data::Statement stat(*session);
   stat << "CREATE TABLE IF NOT EXISTS " << name() << " (";
   // parse fields from descriptor as database fields
   for (int i = 0; i < structure_.fields_size(); ++i){
@@ -150,7 +143,9 @@ bool CRTable::rawInsertImpl(Revision* query) const{
   std::vector<std::shared_ptr<Poco::Data::BLOB> > placeholderBlobs;
 
   // assemble SQLite statement
-  Poco::Data::Statement statement(*session_);
+  std::shared_ptr<Poco::Data::Session> session = session_.lock();
+  CHECK(session) << "Couldn't lock session weak pointer!";
+  Poco::Data::Statement statement(*session);
   // NB: sqlite placeholders work only for column values
   statement << "INSERT INTO " << name() << " ";
 
@@ -209,7 +204,9 @@ int CRTable::rawFindByRevisionImpl(
     const std::string& key, const Revision& valueHolder, const Time& time,
     std::unordered_map<Id, std::shared_ptr<Revision> >* dest) const {
   PocoToProto pocoToProto(*this);
-  Poco::Data::Statement statement(*session_);
+  std::shared_ptr<Poco::Data::Session> session = session_.lock();
+  CHECK(session) << "Couldn't lock session weak pointer";
+  Poco::Data::Statement statement(*session);
   statement << "SELECT";
   pocoToProto.into(statement);
   statement << "FROM " << name() << " WHERE " << kInsertTimeField << " <= ? ",
@@ -245,7 +242,7 @@ const{
 }
 
 CRTable::PocoToProto::PocoToProto(const CRTable& table) :
-                                table_(table) {}
+                                        table_(table) {}
 
 void CRTable::PocoToProto::into(Poco::Data::Statement& statement) {
   statement << " ";

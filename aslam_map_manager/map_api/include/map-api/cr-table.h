@@ -13,6 +13,28 @@
 #include "map-api/revision.h"
 #include "core.pb.h"
 
+/**
+ * Allows the class "class_type" to implement meyers singleton instance
+ */
+#define MEYERS_SINGLETON_INSTANCE_FUNCTION_IMPLEMENTATION(class_type) \
+    class_type& class_type::instance() { \
+  static class_type object; \
+  return object; \
+}
+#define MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(class_type) \
+    static class_type& instance() { \
+  static class_type object; \
+  return object; \
+}
+/**
+ * Singleton function declarations, to be put in the protected segment
+ */
+#define MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(class_type) \
+    class_type() = default; \
+    class_type(const class_type&) = delete; \
+    class_type& operator=(const class_type&) = delete; \
+    virtual ~class_type() = default
+
 namespace map_api {
 
 class CRTable {
@@ -29,12 +51,24 @@ class CRTable {
    */
   virtual bool init();
 
+  /**
+   * Defines default table fields. Virtual-final in order to make absolutely
+   * sure that this doesn't get overridden.
+   */
+  virtual void defineFields() final;
+
   bool isInitialized() const;
 
   /**
    * ================================================
    * FUNCTIONS TO BE IMPLEMENTED BY THE DERIVED CLASS
    * ================================================
+   * N.b. the singleton pattern protected functions should also be implemented,
+   * see below
+   * The singleton's static instance() also needs to be implemented, can't be
+   * done here for static functions can't be virtual. Recommended to use
+   * meyersInstance() to save typing.
+   * Use protected destructor.
    */
   /**
    * This table name will appear in the database, so it must be chosen SQL
@@ -42,11 +76,12 @@ class CRTable {
    */
   virtual const std::string name() const = 0;
   /**
-   * Function to be implemented by derivations: Define table by repeated
-   * calls to addField()
+   * Function to be implemented by derivations: Define fields by repeated
+   * calls to addField().
+   * TODO(simon) implemented cascaded NVI, do you see a
+   * cleaner way to force derived classes to also call define() of base class?
    */
-  virtual void define() = 0;
-  virtual ~CRTable();
+  virtual void defineFieldsCRDerived() = 0;
 
   /**
    * Returns an empty revision having the structure as defined by the user
@@ -66,6 +101,13 @@ class CRTable {
 
  protected:
   /**
+   * =====================================
+   * Singleton pattern protected functions
+   * =====================================
+   */
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(CRTable);
+
+  /**
    * Function to be called at definition:  Adds field to table. This only calls
    * the other addField function with the proper enum, see implementation
    * header.
@@ -78,7 +120,7 @@ class CRTable {
    * Shared pointer to database session
    * TODO(tcies) move to private, remove from testtable, replace by purgedb
    */
-  std::shared_ptr<Poco::Data::Session> session_;
+  std::weak_ptr<Poco::Data::Session> session_;
 
   /**
    * The following functions are to be used by transactions only. They pose a
@@ -172,7 +214,6 @@ class CRTable {
   };
 
  private:
-  friend class CRUTableInterface;
   /**
    * Synchronize with cluster: Check if table already present in cluster
    * metatable, add user to distributed table. Virtual so that the metatable

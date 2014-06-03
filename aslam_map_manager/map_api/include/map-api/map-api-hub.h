@@ -24,7 +24,7 @@ class MapApiHub final {
   /**
    * Get singleton instance of Map Api Hub
    */
-  static MapApiHub& getInstance();
+  static MapApiHub& instance();
   /**
    * Initialize hub with given IP and port
    */

@@ -18,7 +18,7 @@ using namespace map_api;
 class TransactionTest : public testing::Test {
  protected:
   virtual void SetUp() override {
-    MapApiCore::getInstance().purgeDb();
+    MapApiCore::instance().resetDb();
   }
   LocalTransaction transaction_;
 };
@@ -39,11 +39,13 @@ class TransactionTestTable : public TestTable<CRUTable> {
   inline static const std::string sampleField(){
     return "n";
   }
+  MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(TransactionTestTable)
  protected:
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(TransactionTestTable);
   virtual const std::string name() const override {
     return "transaction_test_table";
   }
-  virtual void define() {
+  virtual void defineTestTableFields() {
     addField<double>(sampleField());
   }
 };
@@ -59,7 +61,7 @@ TEST_F(TransactionTest, BeginCommit){
 }
 
 TEST_F(TransactionTest, OperationsBeforeBegin){
-  TransactionTestTable table;
+  TransactionTestTable& table = TransactionTestTable::instance();
   EXPECT_TRUE(table.init());
   std::shared_ptr<Revision> data = table.sample(6.626e-34);
   EXPECT_EQ(Id(), transaction_.insert(table, data));
@@ -76,7 +78,7 @@ TEST_F(TransactionTest, OperationsBeforeBegin){
 }
 
 TEST_F(TransactionTest, InsertBeforeTableInit){
-  TransactionTestTable table;
+  TransactionTestTable& table = TransactionTestTable::instance();
   EXPECT_TRUE(transaction_.begin());
   EXPECT_DEATH(transaction_.insert(table, table.sample(3.14)), "^");
 }
@@ -87,32 +89,33 @@ TEST_F(TransactionTest, InsertBeforeTableInit){
 class TransactionCRUTest : public TransactionTest {
  protected:
   virtual void SetUp() {
-    MapApiCore::getInstance().purgeDb();
-    table_.init();
+    MapApiCore::instance().resetDb();
+    table_ = &TransactionTestTable::instance();
+    table_->init();
     transaction_.begin();
   }
   Id insertSample(double sample){
-    return transaction_.insert(table_, table_.sample(sample));
+    return transaction_.insert(*table_, table_->sample(sample));
   }
   bool updateSample(const Id& id, double newValue){
-    std::shared_ptr<Revision> revision = transaction_.read(table_, id);
+    std::shared_ptr<Revision> revision = transaction_.read(*table_, id);
     EXPECT_TRUE(static_cast<bool>(revision));
-    revision->set(table_.sampleField(), newValue);
-    return transaction_.update(table_, id, revision);
+    revision->set(table_->sampleField(), newValue);
+    return transaction_.update(*table_, id, revision);
   }
   void verify(const Id& id, double expected){
     double actual;
-    std::shared_ptr<Revision> row = transaction_.read(table_, id);
+    std::shared_ptr<Revision> row = transaction_.read(*table_, id);
     ASSERT_TRUE(static_cast<bool>(row));
-    EXPECT_TRUE(row->get(table_.sampleField(), &actual));
+    EXPECT_TRUE(row->get(table_->sampleField(), &actual));
     EXPECT_EQ(expected, actual);
   }
-  TransactionTestTable table_;
+  TransactionTestTable* table_;
 };
 
 TEST_F(TransactionCRUTest, InsertNonsense){
   std::shared_ptr<Revision> nonsense(new Revision());
-  EXPECT_DEATH(transaction_.insert(table_, nonsense), "^");
+  EXPECT_DEATH(transaction_.insert(*table_, nonsense), "^");
 }
 
 TEST_F(TransactionCRUTest, InsertUpdateReadBeforeCommit){
@@ -152,37 +155,41 @@ class MultiTransactionTest : public testing::Test {
 class MultiTransactionSingleCRUTest : public MultiTransactionTest {
  protected:
   virtual void SetUp()  {
-    MapApiCore::getInstance().purgeDb();
-    table_.init();
+    MapApiCore::instance().resetDb();
+    table_ = &TransactionTestTable::instance();
+    table_->init();
   }
+
+
   Id insertSample(double sample, LocalTransaction* transaction){
-    return transaction->insert(table_, table_.sample(sample));
+    return transaction->insert(*table_, table_->sample(sample));
   }
+
   bool updateSample(const Id& id, double newValue,
                     LocalTransaction* transaction){
-    std::shared_ptr<Revision> toUpdate = transaction->read(table_, id);
+    std::shared_ptr<Revision> toUpdate = transaction->read(*table_, id);
     CHECK(toUpdate);
     toUpdate->set("n", newValue);
-    return transaction->update(table_, id, toUpdate);
+    return transaction->update(*table_, id, toUpdate);
   }
   void verify(const Id& id, double expected, LocalTransaction* transaction){
     double actual;
-    std::shared_ptr<Revision> row = transaction->read(table_, id);
+    std::shared_ptr<Revision> row = transaction->read(*table_, id);
     ASSERT_TRUE(static_cast<bool>(row));
-    EXPECT_TRUE(row->get(table_.sampleField(), &actual));
+    EXPECT_TRUE(row->get(table_->sampleField(), &actual));
     EXPECT_EQ(expected, actual);
   }
   void dump(LocalTransaction& transaction) {
     dump_set_.clear();
     std::unordered_map<Id, std::shared_ptr<Revision> > dump;
-    transaction.dumpTable(table_, &dump);
+    transaction.dumpTable(*table_, &dump);
     for (const std::pair<Id, std::shared_ptr<Revision> >& item : dump) {
       double value;
-      item.second->get(table_.sampleField(), &value);
+      item.second->get(table_->sampleField(), &value);
       dump_set_.insert(value);
     }
   }
-  TransactionTestTable table_;
+  TransactionTestTable* table_;
   std::set<double> dump_set_;
 };
 
@@ -352,7 +359,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertCommitFindUnique){
   a_insert.commit();
   LocalTransaction& a_find = a.beginNewTransaction();
   std::shared_ptr<Revision> found =
-      a_find.findUnique(table_, table_.sampleField(), 9.81);
+      a_find.findUnique(*table_, table_->sampleField(), 9.81);
   EXPECT_TRUE(static_cast<bool>(found));
   Id found_id;
   found->get(CRTable::kIdField, &found_id);
@@ -369,7 +376,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertCommitInsertFindUnique){
   LocalTransaction& a_find = a.beginNewTransaction();
   expected_find = insertSample(9.81, &a_find);
   std::shared_ptr<Revision> found =
-      a_find.findUnique(table_, table_.sampleField(), 9.81);
+      a_find.findUnique(*table_, table_->sampleField(), 9.81);
   EXPECT_TRUE(static_cast<bool>(found));
   Id found_id;
   found->get(CRTable::kIdField, &found_id);
@@ -384,7 +391,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertCommitFindNotQuiteUnique){
   insertSample(5.67, &a_insert);
   a_insert.commit();
   LocalTransaction& a_find = a.beginNewTransaction();
-  EXPECT_DEATH(a_find.findUnique(table_, table_.sampleField(), 5.67), "^");
+  EXPECT_DEATH(a_find.findUnique(*table_, table_->sampleField(), 5.67), "^");
 }
 
 // InsertCommitInsertFindNotQuiteUnique test fails for now, see implementation
@@ -401,7 +408,7 @@ TEST_F(MultiTransactionSingleCRUTest, FindMultiCommitetd){
 
   LocalTransaction& a_find = a.beginNewTransaction();
   std::unordered_map<Id, std::shared_ptr<Revision> > found;
-  EXPECT_EQ(2u, a_find.find(table_, table_.sampleField(), 5.67, &found));
+  EXPECT_EQ(2u, a_find.find(*table_, table_->sampleField(), 5.67, &found));
   for (const Id& expected : expected_find) {
     EXPECT_NE(found.end(), found.find(expected));
   }
@@ -419,7 +426,7 @@ TEST_F(MultiTransactionSingleCRUTest, FindMultiMixed){
   expected_find.insert(insertSample(5.67, &a_find));
   std::unordered_map<Id, std::shared_ptr<Revision> > found;
   EXPECT_EQ(expected_find.size(),
-            a_find.find(table_, table_.sampleField(), 5.67, &found));
+            a_find.find(*table_, table_->sampleField(), 5.67, &found));
   for (const Id& expected : expected_find) {
     EXPECT_NE(found.end(), found.find(expected));
   }

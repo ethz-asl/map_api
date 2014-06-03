@@ -35,23 +35,19 @@ int ExpectedFieldCount<CRUTable>::get() {
 }
 
 template <typename TableType>
-class TableInterfaceTest : public ::testing::Test {
- protected:
-  virtual void SetUp() {
-    MapApiCore::getInstance().purgeDb();
-  }
-};
+class TableInterfaceTest : public ::testing::Test {};
 
 typedef ::testing::Types<CRTable, CRUTable> TableTypes;
 TYPED_TEST_CASE(TableInterfaceTest, TableTypes);
 
 TYPED_TEST(TableInterfaceTest, initEmpty) {
-  TestTable<TypeParam> table;
-  EXPECT_TRUE(table.init());
-  std::shared_ptr<Revision> structure = table.getTemplate();
+  EXPECT_TRUE(TestTable<TypeParam>::instance().init());
+  std::shared_ptr<Revision> structure =
+      TestTable<TypeParam>::instance().getTemplate();
   ASSERT_TRUE(static_cast<bool>(structure));
   EXPECT_EQ(ExpectedFieldCount<TypeParam>::get(),
             structure->fieldqueries_size());
+  MapApiCore::instance().resetDb();
 }
 
 /**
@@ -74,8 +70,10 @@ class FieldTestTable : public TestTable<typename TableDataType::TableType> {
   virtual const std::string name() const override {
     return "field_test_table";
   }
+  MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(FieldTestTable)
  protected:
-  virtual void define() {
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(FieldTestTable);
+  virtual void defineTestTableFields() {
     this->template addField<typename TableDataType::DataType>(kTestField);
   }
 };
@@ -85,6 +83,10 @@ const std::string FieldTestTable<FieldType>::kTestField = "test_field";
 
 template <typename TableDataType>
 class InsertReadFieldTestTable : public FieldTestTable<TableDataType> {
+ public:
+  MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(InsertReadFieldTestTable)
+ protected:
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(InsertReadFieldTestTable);
 };
 
 /**
@@ -192,9 +194,9 @@ class FieldTest<testBlob> : public ::testing::Test {
 template <typename TableDataType>
 class FieldTestWithoutInit :
     public FieldTest<typename TableDataType::DataType> {
- protected:
+     protected:
   virtual void SetUp() {
-    this->table_.reset(new InsertReadFieldTestTable<TableDataType>);
+    table_ = &InsertReadFieldTestTable<TableDataType>::instance();
   }
 
   std::shared_ptr<Revision> getTemplate() {
@@ -208,7 +210,7 @@ class FieldTestWithoutInit :
     query_->set(CRTable::kIdField, inserted);
     // to_insert_->set("owner", Id::random()); TODO(tcies) later, from core
     query_->set(InsertReadFieldTestTable<TableDataType>::kTestField,
-                    this->sample_data_1());
+                this->sample_data_1());
     return inserted;
   }
 
@@ -216,16 +218,18 @@ class FieldTestWithoutInit :
     return this->table_->rawInsert(query_.get());
   }
 
-  std::shared_ptr<InsertReadFieldTestTable<TableDataType> > table_;
+  InsertReadFieldTestTable<TableDataType>* table_;
   std::shared_ptr<Revision> query_;
 };
 
 template <typename TableDataType>
 class FieldTestWithInit : public FieldTestWithoutInit<TableDataType> {
+ public:
+  virtual ~FieldTestWithInit() {}
  protected:
   virtual void SetUp() {
-    MapApiCore::getInstance().purgeDb();
-    this->table_.reset(new InsertReadFieldTestTable<TableDataType>);
+    FieldTestWithoutInit<TableDataType>::SetUp();
+    MapApiCore::instance().resetDb();
     this->table_->init();
   }
 };

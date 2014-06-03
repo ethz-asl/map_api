@@ -14,9 +14,12 @@ class Metatable final : public CRTable {
  public:
   static const std::string kNameField;
   static const std::string kDescriptorField;
-  virtual ~Metatable();
-  virtual const std::string name() const override;
-  virtual void define();
+
+  virtual const std::string name() const final override;
+  virtual void defineFieldsCRDerived() final override;
+  static Metatable& instance();
+ protected:
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(Metatable);
  private:
   /**
    * Overriding sync to do nothing - we don't want an infinite recursion
