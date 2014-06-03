@@ -11,9 +11,9 @@ namespace map_api {
  * so ordering and hashing operations are provided.
  */
 struct ItemId {
-  CRTable& table;
+  const CRTable& table;
   Id id;
-  ItemId(CRTable& _table, const Id& _id) : table(_table), id(_id) {}
+  ItemId(const CRTable& _table, const Id& _id) : table(_table), id(_id) {}
   inline bool operator <(const ItemId& other) const {
     if (table.name() == other.table.name()) {
       return id < other.id;

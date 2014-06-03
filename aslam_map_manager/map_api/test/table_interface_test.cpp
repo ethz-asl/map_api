@@ -85,14 +85,6 @@ const std::string FieldTestTable<FieldType>::kTestField = "test_field";
 
 template <typename TableDataType>
 class InsertReadFieldTestTable : public FieldTestTable<TableDataType> {
- public:
-  bool insertQuery(Revision& query) const {
-    return this->rawInsert(query);
-  }
-
-  bool updateQuery(Revision& query) {
-    return this->rawUpdate(query);
-  }
 };
 
 /**
@@ -221,7 +213,7 @@ class FieldTestWithoutInit :
   }
 
   bool insertRevision() {
-    return this->table_->insertQuery(*query_);
+    return this->table_->rawInsert(query_.get());
   }
 
   std::shared_ptr<InsertReadFieldTestTable<TableDataType> > table_;
@@ -239,10 +231,11 @@ class FieldTestWithInit : public FieldTestWithoutInit<TableDataType> {
 };
 
 template <typename TableDataType>
-class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
+class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType>,
+CRUTester {
  protected:
   bool updateRevision() {
-    return this->table_->updateQuery(*this->query_);
+    return this->rawUpdate(*this->table_, this->query_.get());
   }
 
   void fillRevisionWithOtherData() {

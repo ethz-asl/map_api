@@ -72,7 +72,7 @@ extern void revEnum ## __FILE__ ## __LINE__(void)
   /**
    * Returns true if Revision contains same fields as other
    */
-  bool structureMatch(Revision& other);
+  bool structureMatch(const Revision& other) const;
 
   /**
    * Overriding parsing from string in order to add indexing.

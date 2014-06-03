@@ -134,17 +134,18 @@ bool CRTable::createQuery(){
   return true;
 }
 
-bool CRTable::rawInsert(Revision& query) const {
+bool CRTable::rawInsert(Revision* query) const {
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
-  CHECK(reference->structureMatch(query)) << "Bad structure of insert revision";
+  CHECK(reference->structureMatch(*query)) <<
+      "Bad structure of insert revision";
   Id id;
-  query.get(kIdField, &id);
+  query->get(kIdField, &id);
   CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
-  query.set(kInsertTimeField, Time());
+  query->set(kInsertTimeField, Time());
   return rawInsertImpl(query);
 }
-bool CRTable::rawInsertImpl(Revision& query) const{
+bool CRTable::rawInsertImpl(Revision* query) const{
   // Bag for blobs that need to stay in scope until statement is executed
   std::vector<std::shared_ptr<Poco::Data::BLOB> > placeholderBlobs;
 
@@ -154,18 +155,18 @@ bool CRTable::rawInsertImpl(Revision& query) const{
   statement << "INSERT INTO " << name() << " ";
 
   statement << "(";
-  for (int i = 0; i < query.fieldqueries_size(); ++i) {
+  for (int i = 0; i < query->fieldqueries_size(); ++i) {
     if (i > 0){
       statement << ", ";
     }
-    statement << query.fieldqueries(i).nametype().name();
+    statement << query->fieldqueries(i).nametype().name();
   }
   statement << ") VALUES ( ";
-  for (int i = 0; i < query.fieldqueries_size(); ++i) {
+  for (int i = 0; i < query->fieldqueries_size(); ++i) {
     if (i > 0){
       statement << " , ";
     }
-    placeholderBlobs.push_back(query.insertPlaceHolder(i, statement));
+    placeholderBlobs.push_back(query->insertPlaceHolder(i, statement));
   }
   statement << " ); ";
 
@@ -174,7 +175,7 @@ bool CRTable::rawInsertImpl(Revision& query) const{
   } catch(const std::exception &e) {
     LOG(FATAL) << "Insert failed with exception \"" << e.what() << "\", " <<
         " statement was \"" << statement.toString() << "\" and query :" <<
-        query.DebugString();
+        query->DebugString();
   }
 
   return true;
