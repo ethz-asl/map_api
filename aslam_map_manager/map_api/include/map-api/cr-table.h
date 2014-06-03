@@ -1,5 +1,5 @@
-#ifndef WRITE_ONLY_TABLE_INTERFACE_H_
-#define WRITE_ONLY_TABLE_INTERFACE_H_
+#ifndef MAP_API_CR_TABLE_H_
+#define MAP_API_CR_TABLE_H_
 
 #include <vector>
 #include <memory>
@@ -11,12 +11,11 @@
 
 #include "map-api/id.h"
 #include "map-api/revision.h"
-#include "map-api/cr-table-interface.h"
 #include "core.pb.h"
 
 namespace map_api {
 
-class CRTableInterface {
+class CRTable {
  public:
   /**
    * Default fields
@@ -47,7 +46,7 @@ class CRTableInterface {
    * calls to addField()
    */
   virtual void define() = 0;
-  virtual ~CRTableInterface();
+  virtual ~CRTable();
 
   /**
    * Returns an empty revision having the structure as defined by the user
@@ -87,14 +86,15 @@ class CRTableInterface {
    * and conflict checking - that is assumed to be done by the transaction.
    * History is another example at it is managed by the transaction.
    */
-  friend class Transaction;
+  friend class LocalTransaction;
   friend class History;
   /**
    * Commits an insert query. ID has to be defined in the query. Non-virtual
-   * interface design pattern.
+   * interface design pattern. Pointer to query, as it is modified according
+   * to the default field policies of the respective implementation.
    */
-  bool rawInsert(Revision& query) const;
-  virtual bool rawInsertImpl(Revision& query) const;
+  bool rawInsert(Revision* query) const;
+  virtual bool rawInsertImpl(Revision* query) const;
   /**
    * Fetches row by ID and returns it as revision. Non-virtual interface
    * design pattern. "Sees" only values with lower or equal insert time.
@@ -147,7 +147,7 @@ class CRTableInterface {
     /**
      * Associating with Table interface object to get template
      */
-    PocoToProto(const CRTableInterface& table);
+    PocoToProto(const CRTable& table);
     /**
      * To be inserted between "SELECT" and "FROM": Bind database outputs to
      * own structure.
@@ -159,7 +159,7 @@ class CRTableInterface {
      */
     int toProto(std::vector<std::shared_ptr<Revision> >* dest);
    private:
-    const CRTableInterface& table_;
+    const CRTable& table_;
     /**
      * Maps where the data is store intermediately
      */
@@ -190,10 +190,10 @@ class CRTableInterface {
 };
 
 std::ostream& operator<< (std::ostream& stream, const
-                          CRTableInterface::ItemDebugInfo& info);
+                          CRTable::ItemDebugInfo& info);
 
 } /* namespace map_api */
 
-#include "map-api/cr-table-interface-inl.h"
+#include "map-api/cr-table-inl.h"
 
-#endif /* WRITE_ONLY_TABLE_INTERFACE_H_ */
+#endif /* MAP_API_CR_TABLE_H_ */

@@ -1,5 +1,5 @@
-#ifndef TRANSACTION_H_
-#define TRANSACTION_H_
+#ifndef MAP_API_LOCAL_TRANSACTION_H_
+#define MAP_API_LOCAL_TRANSACTION_H_
 
 #include <map>
 #include <set>
@@ -8,15 +8,20 @@
 #include <mutex>
 #include <unordered_map>
 
-#include "map-api/cr-table-interface.h"
-#include "map-api/cru-table-interface.h"
+#include "map-api/cr-table.h"
+#include "map-api/cru-table.h"
 #include "map-api/item-id.h"
 #include "map-api/revision.h"
 #include "map-api/time.h"
 
 namespace map_api {
 
-class Transaction {
+/**
+ * This transaction class has only been here for Transaction proof-of concept
+ * work on a single process; it should eventually been removed when moving
+ * to proper networking. TODO(tcies)
+ */
+class LocalTransaction {
  public:
   typedef std::shared_ptr<Revision> SharedRevisionPointer;
 
@@ -28,14 +33,13 @@ class Transaction {
    * Sets a hash ID for the table to be inserted. Returns that ID, such that
    * the item can be subsequently referred to.
    */
-  Id insert(CRTableInterface& table,
-            const SharedRevisionPointer& item);
+  Id insert(const CRTable& table, const SharedRevisionPointer& item);
 
   /**
    * Allows the user to preset a Hash ID. Will fail in commit if there is a
    * conflict.
    */
-  bool insert(CRTableInterface& table, const Id& id,
+  bool insert(const CRTable& table, const Id& id,
               const SharedRevisionPointer& item);
 
   /**
@@ -50,24 +54,24 @@ class Transaction {
    * MapApiCore::syncTableDefinition)
    */
   template<typename ValueType>
-  bool addConflictCondition(CRTableInterface& table,
-                            const std::string& key, const ValueType& value);
+  bool addConflictCondition(const CRTable& table, const std::string& key,
+                            const ValueType& value);
 
   /**
    * Returns latest revision prior to transaction begin time
    */
-  SharedRevisionPointer read(CRTableInterface& table, const Id& id);
+  SharedRevisionPointer read(const CRTable& table, const Id& id);
 
   /**
    * Returns latest revision prior to transaction begin time for all contents
    */
-  bool dumpTable(CRTableInterface& table,
+  bool dumpTable(const CRTable& table,
                  std::unordered_map<Id, SharedRevisionPointer>* dest);
 
   /**
    * Fails if global state differs from groundState before updating
    */
-  bool update(CRUTableInterface& table, const Id& id,
+  bool update(const CRUTable& table, const Id& id,
               const SharedRevisionPointer& newRevision);
 
   /**
@@ -76,16 +80,15 @@ class Transaction {
    * specialization of functions is not allowed in C++.
    */
   template<typename ValueType>
-  int find(const CRTableInterface& table, const std::string& key,
-           const ValueType& value,
+  int find(const CRTable& table, const std::string& key, const ValueType& value,
            std::unordered_map<Id, SharedRevisionPointer>* dest) const;
   /**
    * Same as find(), but ensuring that there is only one result
    */
   template<typename ValueType>
-  SharedRevisionPointer findUnique(CRTableInterface& table,
-                                   const std::string& key,
-                                   const ValueType& value) const;
+  SharedRevisionPointer findUnique(
+      const CRTable& table, const std::string& key,
+      const ValueType& value) const;
   /**
    * Define own fields for database tables, such as for locks.
    */
@@ -99,14 +102,14 @@ class Transaction {
    * among others. If key is an empty string, no filter will be applied.
    */
   template<typename ValueType>
-  int findInUncommitted(const CRTableInterface& table, const std::string& key,
+  int findInUncommitted(const CRTable& table, const std::string& key,
                         const ValueType& value,
                         std::unordered_map<Id, SharedRevisionPointer>* dest)
   const;
   template<typename ValueType>
   SharedRevisionPointer findUniqueInUncommitted(
-      const CRTableInterface& table, const std::string& key,
-      const ValueType& value) const;
+      const CRTable& table, const std::string& key, const ValueType& value)
+  const;
 
   class InsertMap : public std::map<ItemId, const SharedRevisionPointer>{
   };
@@ -146,10 +149,10 @@ class Transaction {
    * type, thanks to the Revision template specializations.
    */
   struct ConflictCondition {
-    const CRTableInterface& table;
+    const CRTable& table;
     const std::string key;
     const SharedRevisionPointer valueHolder;
-    ConflictCondition(const CRTableInterface& _table, const std::string& _key,
+    ConflictCondition(const CRTable& _table, const std::string& _key,
                       const SharedRevisionPointer& _valueHolder) :
                         table(_table), key(_key), valueHolder(_valueHolder) {}
   };
@@ -169,6 +172,6 @@ class Transaction {
 
 } /* namespace map_api */
 
-#include "map-api/transaction-inl.h"
+#include "map-api/local-transaction-inl.h"
 
-#endif /* TRANSACTION_H_ */
+#endif /* MAP_API_LOCAL_TRANSACTION_H_ */

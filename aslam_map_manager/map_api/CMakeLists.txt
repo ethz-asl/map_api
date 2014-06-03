@@ -20,15 +20,15 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 add_definitions(--std=c++0x -Wall -Wextra -pedantic -Wno-unused-local-typedefs)
 
 # Core Library available to all applications
-SET(CORE_SOURCE  src/cr-table-interface.cc
-                 src/cru-table-interface.cc
+SET(CORE_SOURCE  src/cr-table.cc
+                 src/cru-table.cc
                  src/ipc.cc
                  src/map-api-core.cc
                  src/map-api-hub.cc
                  src/metatable.cc
                  src/revision.cc
                  src/time.cc
-                 src/transaction.cc)
+                 src/local-transaction.cc)
                  
 cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
 # we need to add dependencies of external project packages to fetch headers
@@ -46,8 +46,8 @@ target_link_libraries(test_table_interface_test ${PROJECT_NAME})
 catkin_add_gtest(test_core_test test/core_test.cpp)
 target_link_libraries(test_core_test ${PROJECT_NAME})
 
-catkin_add_gtest(test_transaction_test test/transaction_test.cpp)
-target_link_libraries(test_transaction_test ${PROJECT_NAME})
+catkin_add_gtest(test_local_transaction_test test/local_transaction_test.cpp)
+target_link_libraries(test_local_transaction_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_hub_test test/hub_test.cpp)
 target_link_libraries(test_hub_test ${PROJECT_NAME})

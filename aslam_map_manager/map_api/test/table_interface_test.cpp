@@ -9,11 +9,10 @@
 #include <Poco/Data/BLOB.h>
 #include <Poco/Data/Statement.h>
 
-#include "map-api/cru-table-interface.h"
+#include "map-api/cru-table.h"
 #include "map-api/id.h"
 #include "map-api/map-api-core.h"
 #include "map-api/time.h"
-#include "map-api/transaction.h"
 
 #include "test_table.cpp"
 
@@ -26,12 +25,12 @@ class ExpectedFieldCount {
 };
 
 template<>
-int ExpectedFieldCount<CRTableInterface>::get() {
+int ExpectedFieldCount<CRTable>::get() {
   return 2;
 }
 
 template<>
-int ExpectedFieldCount<CRUTableInterface>::get() {
+int ExpectedFieldCount<CRUTable>::get() {
   return 5;
 }
 
@@ -43,7 +42,7 @@ class TableInterfaceTest : public ::testing::Test {
   }
 };
 
-typedef ::testing::Types<CRTableInterface, CRUTableInterface> TableTypes;
+typedef ::testing::Types<CRTable, CRUTable> TableTypes;
 TYPED_TEST_CASE(TableInterfaceTest, TableTypes);
 
 TYPED_TEST(TableInterfaceTest, initEmpty) {
@@ -86,14 +85,6 @@ const std::string FieldTestTable<FieldType>::kTestField = "test_field";
 
 template <typename TableDataType>
 class InsertReadFieldTestTable : public FieldTestTable<TableDataType> {
- public:
-  bool insertQuery(Revision& query) const {
-    return this->rawInsert(query);
-  }
-
-  bool updateQuery(Revision& query) {
-    return this->rawUpdate(query);
-  }
 };
 
 /**
@@ -214,7 +205,7 @@ class FieldTestWithoutInit :
   Id fillRevision() {
     getTemplate();
     Id inserted = Id::random();
-    query_->set(CRTableInterface::kIdField, inserted);
+    query_->set(CRTable::kIdField, inserted);
     // to_insert_->set("owner", Id::random()); TODO(tcies) later, from core
     query_->set(InsertReadFieldTestTable<TableDataType>::kTestField,
                     this->sample_data_1());
@@ -222,7 +213,7 @@ class FieldTestWithoutInit :
   }
 
   bool insertRevision() {
-    return this->table_->insertQuery(*query_);
+    return this->table_->rawInsert(query_.get());
   }
 
   std::shared_ptr<InsertReadFieldTestTable<TableDataType> > table_;
@@ -240,10 +231,11 @@ class FieldTestWithInit : public FieldTestWithoutInit<TableDataType> {
 };
 
 template <typename TableDataType>
-class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
+class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType>,
+CRUTester {
  protected:
   bool updateRevision() {
-    return this->table_->updateQuery(*this->query_);
+    return this->rawUpdate(*this->table_, this->query_.get());
   }
 
   void fillRevisionWithOtherData() {
@@ -267,11 +259,11 @@ class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
     TableDataTypes<table_type, map_api::Time>
 
 typedef ::testing::Types<
-    ALL_DATA_TYPES(CRTableInterface),
-    ALL_DATA_TYPES(CRUTableInterface)> CrAndCruTypes;
+    ALL_DATA_TYPES(CRTable),
+    ALL_DATA_TYPES(CRUTable)> CrAndCruTypes;
 
 typedef ::testing::Types<
-    ALL_DATA_TYPES(CRUTableInterface)> CruTypes;
+    ALL_DATA_TYPES(CRUTable)> CruTypes;
 
 TYPED_TEST_CASE(FieldTestWithoutInit, CrAndCruTypes);
 TYPED_TEST_CASE(FieldTestWithInit, CrAndCruTypes);

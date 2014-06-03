@@ -5,7 +5,7 @@
 
 #include <Poco/Data/Common.h>
 
-#include "map-api/cru-table-interface.h"
+#include "map-api/cru-table.h"
 #include "map-api/id.h"
 #include "map-api/map-api-hub.h"
 #include "map-api/metatable.h"
@@ -57,9 +57,9 @@ class MapApiCore final {
    * Returns a shared pointer to the database session
    */
   std::shared_ptr<Poco::Data::Session> getSession();
-  friend class CRTableInterface;
-  friend class CRUTableInterface;
-  friend class Transaction;
+  friend class CRTable;
+  friend class CRUTable;
+  friend class LocalTransaction;
   /**
    * Initializes metatable if not initialized. Unfortunately, the metatable
    * can't be initialized in init, as the initializer of metatable calls init
