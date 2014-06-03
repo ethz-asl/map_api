@@ -3,8 +3,10 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include <map-api/map-api-core.h>
-#include <map-api/transaction.h>
+#include <multiagent_mapping_common/test/testing_entrypoint.h>
+
+#include "map-api/map-api-core.h"
+#include "map-api/transaction.h"
 
 #include "test_table.cpp"
 
@@ -421,3 +423,5 @@ TEST_F(MultiTransactionSingleCRUTest, FindMultiMixed){
     EXPECT_NE(found.end(), found.find(expected));
   }
 }
+
+MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
