@@ -3,6 +3,8 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <multiagent_mapping_common/test/testing_entrypoint.h>
+
 #include <Poco/Data/Common.h>
 #include <Poco/Data/BLOB.h>
 #include <Poco/Data/Statement.h>
@@ -341,3 +343,5 @@ TYPED_TEST(UpdateFieldTestWithInit, UpdateRead) {
   rowFromTable->get("test_field", &dataFromTable);
   EXPECT_EQ(this->sample_data_2(), dataFromTable);
 }
+
+MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
