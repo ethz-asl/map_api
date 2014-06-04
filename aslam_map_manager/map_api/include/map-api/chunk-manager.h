@@ -1,7 +1,11 @@
 #ifndef MAP_API_CHUNK_MANAGER_H_
 #define MAP_API_CHUNK_MANAGER_H_
 
-#include <set>
+#include <memory>
+#include <unordered_map>
+#include <unordered_set>
+#include <string>
+
 
 #include "map-api/chunk.h"
 #include "map-api/cr-table.h" // for singleton macros TODO(tcies) move
@@ -17,7 +21,7 @@ class ChunkManager {
   /**
    * Looks for items among the peers and fetches chunks if they have matching
    * items.
-   * Puts items into dest. As we assume full connectedness for now, this
+   * Puts items into dest. As we assume full connectivity for now, this
    * basically requests all peers and collects the data from them.
    */
   int findAmongPeers(
@@ -28,7 +32,7 @@ class ChunkManager {
    * Counterpart to findAmongPeers
    */
   static void handleFindRequest(const std::string& serialized_request,
-                                     zmq::socket_t* socket);
+                                zmq::socket_t* socket);
   /**
    * Returns singleton instance
    */
@@ -38,7 +42,7 @@ class ChunkManager {
   /**
    * TODO(tcies) will probably become a LRU structure at some point
    */
-  std::set<std::shared_ptr<Chunk> > active_chunks_;
+  std::unordered_set<std::shared_ptr<Chunk> > active_chunks_;
 };
 
 } // namespace map_api

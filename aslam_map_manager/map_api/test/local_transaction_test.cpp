@@ -160,7 +160,6 @@ class MultiTransactionSingleCRUTest : public MultiTransactionTest {
     table_->init();
   }
 
-
   Id insertSample(double sample, LocalTransaction* transaction){
     return transaction->insert(*table_, table_->sample(sample));
   }

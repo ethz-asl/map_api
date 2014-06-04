@@ -20,7 +20,9 @@
     class_type& class_type::instance() { \
   static class_type object; \
   return object; \
-}
+} \
+extern void __FILE__ ## __LINE__(void)
+// last line serves to swallow the semicolon
 #define MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(class_type) \
     static class_type& instance() { \
   static class_type object; \

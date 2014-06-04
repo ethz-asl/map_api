@@ -18,8 +18,8 @@ namespace map_api {
 
 /**
  * This transaction class has only been here for Transaction proof-of concept
- * work on a single process; it should eventually been removed when moving
- * to proper networking. TODO(tcies)
+ * work on a single process; TODO(tcies) it should eventually be removed when
+ * moving to proper networking.
  */
 class LocalTransaction {
  public:

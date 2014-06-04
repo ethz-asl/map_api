@@ -29,7 +29,7 @@ class NetCRTable : public CRTable {
    */
   virtual bool rawInsertImpl(Revision* query) const override;
   /**
-   * Finding: If can't find locally, request at peers. There are subtleties
+   * Finding: If can't find item locally, request at peers. There are subtleties
    * here: Is it enough to get data only from one chunk? I.e. shouldn't we
    * theoretically request data from all peers, even if we found some matching
    * items locally? Yes, we should - this would be horribly inefficient though.
@@ -37,7 +37,7 @@ class NetCRTable : public CRTable {
    * functions in the Net-CR-table: For instance, FastFind and ThoroughFind
    * (and of course FindUnique, which is a special case of FastFind). FastFind
    * would then only look until results from only one chunk have been found -
-   * the chunk possibly being local.
+   * the chunk possibly already being held.
    * For the time being implementing FastFind for simplicity.
    */
   virtual int rawFindByRevisionImpl(
