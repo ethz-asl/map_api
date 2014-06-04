@@ -3,12 +3,12 @@
 
 #include <memory>
 #include <string>
+#include <set>
 
 #include <zeromq_cpp/zmq.hpp>
 
+#include "map-api/peer.h"
 #include "map-api/revision.h"
-
-typedef void* Peer; //TODO(tcies) define, also use in MapApiHub
 
 namespace map_api{
 /**
@@ -111,16 +111,16 @@ class Chunk {
   void unlock();
 
   static void handleConnectRequest(const std::string& serialized_request,
-                                   zmq::socket_t* socket);
+                                   proto::HubMessage* socket);
 
   static void handleInsertRequest(const std::string& serialized_request,
-                                  zmq::socket_t* socket);
+                                  proto::HubMessage* socket);
 
   static void handleLockRequest(const std::string& serialized_request,
-                                zmq::socket_t* socket);
+                                proto::HubMessage* socket);
 
   static void handleUnlockRequest(const std::string& serialized_request,
-                                  zmq::socket_t* socket);
+                                  proto::HubMessage* socket);
 
   /**
    * Propagates removal of peers from the network.
