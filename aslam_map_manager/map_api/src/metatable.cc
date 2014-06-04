@@ -18,6 +18,6 @@ void Metatable::defineFieldsCRDerived() {
   addField<proto::TableDescriptor>(kDescriptorField);
 }
 
-MEYERS_SINGLETON_INSTANCE_FUNCTION_IMPLEMENTATION(Metatable)
+MEYERS_SINGLETON_INSTANCE_FUNCTION_IMPLEMENTATION(Metatable);
 
 } /* namespace map_api */
