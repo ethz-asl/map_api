@@ -19,6 +19,8 @@ namespace map_api {
 const std::string CRTable::kIdField = "ID";
 const std::string CRTable::kInsertTimeField = "insert_time";
 
+CRTable::~CRTable() {}
+
 bool CRTable::isInitialized() const{
   return initialized_;
 }

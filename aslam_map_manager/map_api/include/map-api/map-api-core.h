@@ -3,6 +3,8 @@
 
 #include <memory>
 
+#include <gtest/gtest.h>
+
 #include <Poco/Data/Common.h>
 
 #include "map-api/cru-table.h"
@@ -45,12 +47,15 @@ class MapApiCore final {
    * Makes the server thread re-enter, disconnects from database
    */
   void kill();
+
+ protected:
   /**
    * Resets the database, clearing all its contents. TO BE USED FOR TESTING
    * ONLY. After a call to this function ALL TABLES MUST BE RE-INITIALIZED.
    * resetDb already re-initializes the metatable
    */
   void resetDb();
+  friend class CoreTester;
 
  private:
   /**
@@ -86,6 +91,13 @@ class MapApiCore final {
    * initialized?
    */
   bool initialized_;
+};
+
+class CoreTester {
+ protected:
+  inline void resetDb() {
+    MapApiCore::instance().resetDb();
+  }
 };
 
 }

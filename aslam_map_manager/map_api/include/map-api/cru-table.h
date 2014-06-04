@@ -47,15 +47,7 @@ class CRUTable : public CRTable {
   virtual void defineFieldsCRUDerived() = 0;
 
  protected:
-  /**
-   * =====================================
-   * Singleton pattern protected functions
-   * =====================================
-   */
-  CRUTable() = default;
-  CRUTable(const CRTable&) = delete;
-  CRUTable& operator=(const CRTable&) = delete;
-  virtual ~CRUTable();
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(CRUTable);
   /**
    * Default table fields
    */

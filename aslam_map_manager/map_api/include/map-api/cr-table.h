@@ -35,7 +35,12 @@ extern void __FILE__ ## __LINE__(void)
     class_type() = default; \
     class_type(const class_type&) = delete; \
     class_type& operator=(const class_type&) = delete; \
-    virtual ~class_type() = default
+    virtual ~class_type()
+#define MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS_DIRECT(class_type) \
+    class_type() = default; \
+    class_type(const class_type&) = delete; \
+    virtual ~class_type() {} \
+    class_type& operator=(const class_type&) = delete
 
 namespace map_api {
 
@@ -102,11 +107,6 @@ class CRTable {
   } ItemDebugInfo;
 
  protected:
-  /**
-   * =====================================
-   * Singleton pattern protected functions
-   * =====================================
-   */
   MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(CRTable);
 
   /**
