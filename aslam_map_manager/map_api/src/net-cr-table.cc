@@ -6,6 +6,8 @@ namespace map_api {
 
 const std::string NetCRTable::kChunkIdField = "chunk_id";
 
+NetCRTable::~NetCRTable() {}
+
 bool NetCRTable::init() {
   active_chunks_.clear();
   insert_chunk_.reset();
