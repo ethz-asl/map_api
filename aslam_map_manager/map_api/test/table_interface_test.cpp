@@ -35,7 +35,7 @@ int ExpectedFieldCount<CRUTable>::get() {
 }
 
 template <typename TableType>
-class TableInterfaceTest : public ::testing::Test {};
+class TableInterfaceTest : public ::testing::Test, protected CoreTester {};
 
 typedef ::testing::Types<CRTable, CRUTable> TableTypes;
 TYPED_TEST_CASE(TableInterfaceTest, TableTypes);
@@ -47,7 +47,7 @@ TYPED_TEST(TableInterfaceTest, initEmpty) {
   ASSERT_TRUE(static_cast<bool>(structure));
   EXPECT_EQ(ExpectedFieldCount<TypeParam>::get(),
             structure->fieldqueries_size());
-  MapApiCore::instance().resetDb();
+  this->resetDb();
 }
 
 /**
@@ -72,7 +72,7 @@ class FieldTestTable : public TestTable<typename TableDataType::TableType> {
   }
   MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(FieldTestTable)
  protected:
-  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(FieldTestTable);
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS_DIRECT(FieldTestTable);
   virtual void defineTestTableFields() {
     this->template addField<typename TableDataType::DataType>(kTestField);
   }
@@ -93,7 +93,8 @@ class InsertReadFieldTestTable : public FieldTestTable<TableDataType> {
   }
   MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(InsertReadFieldTestTable)
  protected:
-  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(InsertReadFieldTestTable);
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS_DIRECT(
+       InsertReadFieldTestTable);
 };
 
 /**
@@ -230,13 +231,14 @@ class FieldTestWithoutInit :
 };
 
 template <typename TableDataType>
-class FieldTestWithInit : public FieldTestWithoutInit<TableDataType> {
+class FieldTestWithInit : public FieldTestWithoutInit<TableDataType>,
+protected CoreTester {
  public:
   virtual ~FieldTestWithInit() {}
  protected:
   virtual void SetUp() {
     FieldTestWithoutInit<TableDataType>::SetUp();
-    MapApiCore::instance().resetDb();
+    resetDb();
     this->table_->init();
   }
 };

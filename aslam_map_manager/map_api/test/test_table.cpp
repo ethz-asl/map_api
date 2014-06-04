@@ -23,7 +23,7 @@ class TestTable<map_api::CRTable> : public map_api::CRTable {
   using map_api::CRTable::rawGetById;
   MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(TestTable)
  protected:
-  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(TestTable);
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS_DIRECT(TestTable);
 };
 
 template<>
@@ -40,5 +40,5 @@ class TestTable<map_api::CRUTable> : public map_api::CRUTable {
   using map_api::CRUTable::rawGetById;
   MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(TestTable)
  protected:
-  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(TestTable);
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS_DIRECT(TestTable);
 };

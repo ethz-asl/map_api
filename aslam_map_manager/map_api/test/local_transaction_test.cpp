@@ -15,10 +15,10 @@ using namespace map_api;
 /**
  * Fixture for simple transaction tests
  */
-class TransactionTest : public testing::Test {
+class TransactionTest : public testing::Test, protected CoreTester {
  protected:
   virtual void SetUp() override {
-    MapApiCore::instance().resetDb();
+    resetDb();
   }
   LocalTransaction transaction_;
 };
@@ -41,7 +41,8 @@ class TransactionTestTable : public TestTable<CRUTable> {
   }
   MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(TransactionTestTable)
  protected:
-  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(TransactionTestTable);
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS_DIRECT(
+      TransactionTestTable);
   virtual const std::string name() const override {
     return "transaction_test_table";
   }
@@ -89,7 +90,7 @@ TEST_F(TransactionTest, InsertBeforeTableInit){
 class TransactionCRUTest : public TransactionTest {
  protected:
   virtual void SetUp() {
-    MapApiCore::instance().resetDb();
+    resetDb();
     table_ = &TransactionTestTable::instance();
     table_->init();
     transaction_.begin();
@@ -152,10 +153,11 @@ class MultiTransactionTest : public testing::Test {
  * Fixture for multi-transaction tests on a single CRU table interface
  * TODO(tcies) multiple table interfaces (test definition sync)
  */
-class MultiTransactionSingleCRUTest : public MultiTransactionTest {
+class MultiTransactionSingleCRUTest : public MultiTransactionTest,
+protected CoreTester {
  protected:
   virtual void SetUp()  {
-    MapApiCore::instance().resetDb();
+    resetDb();
     table_ = &TransactionTestTable::instance();
     table_->init();
   }

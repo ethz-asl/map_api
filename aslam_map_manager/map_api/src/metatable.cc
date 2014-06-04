@@ -9,6 +9,8 @@ static const std::string kDescriptorField;
 const std::string Metatable::kNameField = "name";
 const std::string Metatable::kDescriptorField = "descriptor";
 
+Metatable::~Metatable() {}
+
 const std::string Metatable::name() const {
   return "metatable";
 }
