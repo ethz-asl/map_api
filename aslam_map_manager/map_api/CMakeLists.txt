@@ -28,6 +28,7 @@ SET(CORE_SOURCE  src/chunk.cc
                  src/map-api-core.cc
                  src/map-api-hub.cc
                  src/metatable.cc
+                 src/message.cc
                  src/net-cr-table.cc
                  src/peer.cc
                  src/revision.cc

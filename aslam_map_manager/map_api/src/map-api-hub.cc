@@ -29,7 +29,7 @@ MapApiHub::~MapApiHub(){
 bool MapApiHub::init(const std::string &ipPort){
   // FOR NOW: FAKE DISCOVERY
 
-  registerHandler("hello", helloHandler);
+  registerHandler(kHello, helloHandler);
   // 1. create own server
   context_ = std::unique_ptr<zmq::context_t>(new zmq::context_t());
   listenerConnected_ = false;
