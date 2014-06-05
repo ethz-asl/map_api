@@ -35,7 +35,7 @@ message Revision {
 // NODE TO NODE QUERY MESSAGES
 //==============================
 message HubMessage {
-  required string name = 1;
+  required string type = 1;
   required string serialized = 2;
 }
 

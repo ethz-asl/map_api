@@ -7,7 +7,7 @@ namespace map_api {
 const char Chunk::kInsertRequest[] = "map_api_chunk_insert";
 template<>
 void Message::impose<Chunk::kInsertRequest,Revision>(const Revision& item) {
-  this->set_name(Chunk::kInsertRequest);
+  this->set_type(Chunk::kInsertRequest);
   this->set_serialized(item.SerializeAsString());
 }
 

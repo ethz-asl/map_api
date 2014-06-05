@@ -33,7 +33,7 @@ class Message : public proto::HubMessage {
     template<> \
     void Message::impose<message_name, \
     std::string>(const std::string& payload) { \
-  this->set_name(message_name); \
+  this->set_type(message_name); \
   this->set_serialized(payload); \
 } \
 extern void __FILE__ ## __LINE__(void)

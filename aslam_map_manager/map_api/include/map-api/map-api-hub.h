@@ -49,7 +49,7 @@ class MapApiHub final {
    * be sent at the end of the handler
    * TODO(tcies) distinguish between pub/sub and rpc
    */
-  bool registerHandler(const char* name,
+  bool registerHandler(const char* type,
                        std::function<void(const std::string& serialized_type,
                                           Message* response)> handler);
   /**
@@ -57,7 +57,7 @@ class MapApiHub final {
    */
   void broadcast(const Message& message);
 
-  static void helloHandler(const std::string& peer, Message* socket);
+  static void helloHandler(const std::string& peer, Message* response);
 
   /**
    * Message for discovery
@@ -85,8 +85,7 @@ class MapApiHub final {
   Poco::RWLock peerLock_;
   std::set<std::shared_ptr<zmq::socket_t> > peers_;
   /**
-   * Handler map. Note: Must need same C string pointer, typically the name
-   * constant
+   * Maps message types denominations to handler functions
    */
   static std::unordered_map<std::string,
   std::function<void(const std::string&, Message*)> >

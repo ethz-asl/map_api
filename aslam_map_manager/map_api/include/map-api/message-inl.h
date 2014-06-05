@@ -3,9 +3,9 @@
 
 namespace map_api {
 
-template <const char* message_name>
+template <const char* message_type>
 void Message::impose() {
-  this->set_name(message_name);
+  this->set_type(message_type);
   this->set_serialized("");
 }
 

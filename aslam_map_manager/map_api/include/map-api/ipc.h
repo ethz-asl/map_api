@@ -33,7 +33,7 @@ class IPC {
   /**
    * Handles barrier calls from other peers
    */
-  static void barrierHandler(const std::string& id, Message* response);
+  static void barrierHandler(const std::string& id_string, Message* response);
   /**
    * Barrier message declaration
    */

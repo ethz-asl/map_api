@@ -112,17 +112,17 @@ class Chunk {
   void unlock();
 
   static void handleConnectRequest(const std::string& serialized_request,
-                                   Message* socket);
+                                   Message* response);
 
   static const char kInsertRequest[];
   static void handleInsertRequest(const std::string& serialized_request,
-                                  Message* socket);
+                                  Message* response);
 
   static void handleLockRequest(const std::string& serialized_request,
-                                Message* socket);
+                                Message* response);
 
   static void handleUnlockRequest(const std::string& serialized_request,
-                                  Message* socket);
+                                  Message* response);
 
   /**
    * Propagates removal of peers from the network.

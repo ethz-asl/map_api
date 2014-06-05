@@ -17,7 +17,7 @@ const char IPC::kBarrierMessage[] = "map_api_ipc_barrier";
 template<>
 void Message::impose<IPC::kBarrierMessage, std::string>(
     const std::string& payload) {
-  this->set_name(IPC::kBarrierMessage);
+  this->set_type(IPC::kBarrierMessage);
   this->set_serialized(payload);
 }
 

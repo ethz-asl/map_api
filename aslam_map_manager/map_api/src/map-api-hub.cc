@@ -197,9 +197,9 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
     // Query handler
     std::unordered_map<std::string,
     std::function<void(const std::string&, Message*)> >::iterator handler =
-        handlers_.find(query.name());
+        handlers_.find(query.type());
     CHECK(handlers_.end() != handler) << "Handler for message type " <<
-        query.name() << " not registered";
+        query.type() << " not registered";
     Message response;
     handler->second(query.serialized(), &response);
     std::string serialized_response = response.SerializeAsString();
