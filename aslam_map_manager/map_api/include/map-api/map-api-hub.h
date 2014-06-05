@@ -14,6 +14,7 @@
 #include <Poco/RWLock.h>
 #include <zeromq_cpp/zmq.hpp>
 
+#include "map-api/message.h"
 #include "core.pb.h"
 
 namespace map_api {
@@ -48,16 +49,20 @@ class MapApiHub final {
    * be sent at the end of the handler
    * TODO(tcies) distinguish between pub/sub and rpc
    */
-  bool registerHandler(const std::string& name,
+  bool registerHandler(const char* name,
                        std::function<void(const std::string& serialized_type,
-                                          proto::HubMessage* socket)> handler);
+                                          Message* response)> handler);
   /**
    * Sends out the specified message to all connected peers
    */
-  void broadcast(const std::string& type, const std::string& serialized);
+  void broadcast(const Message& message);
 
-  static void helloHandler(const std::string& peer, proto::HubMessage* socket);
+  static void helloHandler(const std::string& peer, Message* socket);
 
+  /**
+   * Message for discovery
+   */
+  static const char kHello[];
 
  private:
   /**
@@ -80,10 +85,11 @@ class MapApiHub final {
   Poco::RWLock peerLock_;
   std::set<std::shared_ptr<zmq::socket_t> > peers_;
   /**
-   * Handler utilities
+   * Handler map. Note: Must need same C string pointer, typically the name
+   * constant
    */
   static std::unordered_map<std::string,
-  std::function<void(const std::string&, proto::HubMessage*)> >
+  std::function<void(const std::string&, Message*)> >
   handlers_;
 };
 

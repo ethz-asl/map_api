@@ -13,10 +13,18 @@ std::mutex IPC::barrier_mutex_;
 std::condition_variable IPC::barrier_cv_;
 std::unordered_map<int, int> IPC::barrier_map_;
 
+const char IPC::kBarrierMessage[] = "map_api_ipc_barrier";
+template<>
+void Message::impose<IPC::kBarrierMessage, std::string>(
+    const std::string& payload) {
+  this->set_name(IPC::kBarrierMessage);
+  this->set_serialized(payload);
+}
+
 IPC::~IPC() {}
 
 void IPC::init() {
-  MapApiHub::instance().registerHandler("barrier", barrierHandler);
+  MapApiHub::instance().registerHandler(kBarrierMessage, barrierHandler);
 }
 
 void IPC::barrier(int id, int n_peers) {
@@ -26,7 +34,9 @@ void IPC::barrier(int id, int n_peers) {
   while (MapApiHub::instance().peerSize() < n_peers) {
     usleep(10);
   }
-  MapApiHub::instance().broadcast("barrier", ss.str());
+  Message barrier_message;
+  barrier_message.impose<kBarrierMessage,std::string>(ss.str());
+  MapApiHub::instance().broadcast(barrier_message);
   std::unique_lock<std::mutex> lock(barrier_mutex_);
   while (barrier_map_[id] < n_peers) {
     barrier_cv_.wait(lock);
@@ -36,15 +46,14 @@ void IPC::barrier(int id, int n_peers) {
 }
 
 void IPC::barrierHandler(
-    const std::string& id_string, proto::HubMessage* response) {
+    const std::string& id_string, Message* response) {
   int id = std::stoi(id_string);
   {
     std::lock_guard<std::mutex> lock(barrier_mutex_);
     ++barrier_map_[id];
   }
   barrier_cv_.notify_one();
-  response->set_name(""); // FIXME(tcies) centralize declarations
-  response->set_serialized("");
+  response->impose<Message::kAck>();
 }
 
 } /* namespace map_api */

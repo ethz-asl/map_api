@@ -4,28 +4,32 @@
 
 namespace map_api {
 
+const char Chunk::kInsertRequest[] = "map_api_chunk_insert";
+template<>
+void Message::impose<Chunk::kInsertRequest,Revision>(const Revision& item) {
+  this->set_name(Chunk::kInsertRequest);
+  this->set_serialized(item.SerializeAsString());
+}
+
 bool Chunk::insert(const Revision& item) {
-  std::string serialized = item.SerializeAsString();
-  proto::HubMessage request;
-  request.set_name("net_insert_request"); // TODO(tcies) central declarations
-  request.set_serialized(serialized);
+  Message request;
+  request.impose<kInsertRequest, Revision>(item);
   for (const std::weak_ptr<Peer> weak_peer : peers_) {
     std::shared_ptr<Peer> locked_peer = weak_peer.lock();
     CHECK(locked_peer);
-    proto::HubMessage response;
+    Message response;
     CHECK(locked_peer->request(request, &response));
-    CHECK_EQ("ack", response.serialized()); // TODO(tcies) string constant
+    // TODO(tcies) means to verify Message type
   }
   return false;
 }
 
 void Chunk::handleInsertRequest(
-    const std::string& serialized_request, proto::HubMessage* response) {
+    const std::string& serialized_request, Message* response) {
   Revision received;
   CHECK(received.ParseFromString(serialized_request));
   // TODO(tcies) put revision into managed database
-  response->set_name("");
-  response->set_serialized("ack"); // TODO(tcies) string constant
+  response->impose<Message::kAck>();
 }
 
 } // namespace map_api

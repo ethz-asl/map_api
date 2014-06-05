@@ -8,6 +8,7 @@
 #include <zeromq_cpp/zmq.hpp>
 
 #include "map-api/peer.h"
+#include "map-api/message.h"
 #include "map-api/revision.h"
 
 namespace map_api{
@@ -111,16 +112,17 @@ class Chunk {
   void unlock();
 
   static void handleConnectRequest(const std::string& serialized_request,
-                                   proto::HubMessage* socket);
+                                   Message* socket);
 
+  static const char kInsertRequest[];
   static void handleInsertRequest(const std::string& serialized_request,
-                                  proto::HubMessage* socket);
+                                  Message* socket);
 
   static void handleLockRequest(const std::string& serialized_request,
-                                proto::HubMessage* socket);
+                                Message* socket);
 
   static void handleUnlockRequest(const std::string& serialized_request,
-                                  proto::HubMessage* socket);
+                                  Message* socket);
 
   /**
    * Propagates removal of peers from the network.

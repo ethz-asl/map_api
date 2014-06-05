@@ -13,13 +13,14 @@
 
 namespace map_api {
 
+const char MapApiHub::kHello[] = "map_api_hub_hello";
+MAP_API_MESSAGE_IMPOSE_STRING_MESSAGE(MapApiHub::kHello);
+
 std::unordered_map<std::string,
-std::function<void(const std::string&, proto::HubMessage*)> >
+std::function<void(const std::string&, Message*)> >
 MapApiHub::handlers_;
 
-MapApiHub::MapApiHub() : terminate_(false) {
-
-}
+MapApiHub::MapApiHub() : terminate_(false) {}
 
 MapApiHub::~MapApiHub(){
   kill();
@@ -77,7 +78,9 @@ bool MapApiHub::init(const std::string &ipPort){
   }
 
   // 4. notify peers of self
-  broadcast("hello", ipPort);
+  Message announce_self;
+  announce_self.impose<kHello>(ipPort);
+  broadcast(announce_self);
 
   return true;
 }
@@ -115,22 +118,18 @@ int MapApiHub::peerSize(){
 }
 
 bool MapApiHub::registerHandler(
-    const std::string& name,
+    const char* name,
     std::function<void(const std::string& serialized_type,
-                       proto::HubMessage* socket)> handler) {
+                       Message* response)> handler) {
   // TODO(tcies) div. error handling
   handlers_[name] = handler;
   return true;
 }
 
-void MapApiHub::broadcast(const std::string& type,
-                          const std::string& serialized) {
+void MapApiHub::broadcast(const Message& query) {
   try {
     peerLock_.readLock();
     for (const std::shared_ptr<zmq::socket_t>& peer : peers_){
-      proto::HubMessage query;
-      query.set_name(type);
-      query.set_serialized(serialized);
       int size = query.ByteSize();
       void* buffer = malloc(size);
       query.SerializeToArray(buffer, size);
@@ -144,8 +143,7 @@ void MapApiHub::broadcast(const std::string& type,
   }
 }
 
-void MapApiHub::helloHandler(const std::string& peer,
-                             proto::HubMessage* response) {
+void MapApiHub::helloHandler(const std::string& peer, Message* response) {
   LOG(INFO) << "Peer " << peer << " says hello, let's "\
       "connect to it...";
   // lock peer set lock so we can write without a race condition
@@ -156,8 +154,7 @@ void MapApiHub::helloHandler(const std::string& peer,
   instance().peerLock_.unlock();
   (*it)->connect(("tcp://" + peer).c_str());
   // ack by resend
-  response->set_name(""); // TODO(tcies) central declaration
-  response->set_serialized(""); // TODO(tcies) central declaration
+  response->impose<Message::kAck>();
 }
 
 void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
@@ -199,12 +196,11 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
 
     // Query handler
     std::unordered_map<std::string,
-    std::function<void(const std::string&, proto::HubMessage*)> >::iterator
-    handler =
+    std::function<void(const std::string&, Message*)> >::iterator handler =
         handlers_.find(query.name());
     CHECK(handlers_.end() != handler) << "Handler for message type " <<
         query.name() << " not registered";
-    proto::HubMessage response;
+    Message response;
     handler->second(query.serialized(), &response);
     std::string serialized_response = response.SerializeAsString();
     zmq::message_t response_message(serialized_response.size());

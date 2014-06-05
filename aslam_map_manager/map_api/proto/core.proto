@@ -45,7 +45,3 @@ message ListTablesQuery {
 message CreateTableQuery {
 	required TableDescriptor description = 1;
 }
-
-message Hello {
-  required string from = 1;
-}
