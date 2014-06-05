@@ -35,15 +35,16 @@ void IPC::barrier(int id, int n_peers) {
   lock.unlock();
 }
 
-void IPC::barrierHandler(const std::string& id_string, zmq::socket_t* socket) {
+void IPC::barrierHandler(
+    const std::string& id_string, proto::HubMessage* response) {
   int id = std::stoi(id_string);
   {
     std::lock_guard<std::mutex> lock(barrier_mutex_);
     ++barrier_map_[id];
   }
   barrier_cv_.notify_one();
-  zmq::message_t message;
-  socket->send(message);
+  response->set_name(""); // FIXME(tcies) centralize declarations
+  response->set_serialized("");
 }
 
 } /* namespace map_api */

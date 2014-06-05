@@ -11,8 +11,10 @@
 #include <set>
 #include <unordered_map>
 
-#include <zeromq_cpp/zmq.hpp>
 #include <Poco/RWLock.h>
+#include <zeromq_cpp/zmq.hpp>
+
+#include "core.pb.h"
 
 namespace map_api {
 
@@ -48,13 +50,13 @@ class MapApiHub final {
    */
   bool registerHandler(const std::string& name,
                        std::function<void(const std::string& serialized_type,
-                                          zmq::socket_t* socket)> handler);
+                                          proto::HubMessage* socket)> handler);
   /**
    * Sends out the specified message to all connected peers
    */
   void broadcast(const std::string& type, const std::string& serialized);
 
-  static void helloHandler(const std::string& peer, zmq::socket_t* socket);
+  static void helloHandler(const std::string& peer, proto::HubMessage* socket);
 
 
  private:
@@ -81,7 +83,7 @@ class MapApiHub final {
    * Handler utilities
    */
   static std::unordered_map<std::string,
-  std::function<void(const std::string&, zmq::socket_t*)> >
+  std::function<void(const std::string&, proto::HubMessage*)> >
   handlers_;
 };
 

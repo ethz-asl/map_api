@@ -14,7 +14,8 @@
 namespace map_api {
 
 std::unordered_map<std::string,
-std::function<void(const std::string&, zmq::socket_t*)> > MapApiHub::handlers_;
+std::function<void(const std::string&, proto::HubMessage*)> >
+MapApiHub::handlers_;
 
 MapApiHub::MapApiHub() : terminate_(false) {
 
@@ -116,7 +117,7 @@ int MapApiHub::peerSize(){
 bool MapApiHub::registerHandler(
     const std::string& name,
     std::function<void(const std::string& serialized_type,
-                       zmq::socket_t* socket)> handler) {
+                       proto::HubMessage* socket)> handler) {
   // TODO(tcies) div. error handling
   handlers_[name] = handler;
   return true;
@@ -144,7 +145,7 @@ void MapApiHub::broadcast(const std::string& type,
 }
 
 void MapApiHub::helloHandler(const std::string& peer,
-                             zmq::socket_t* socket) {
+                             proto::HubMessage* response) {
   LOG(INFO) << "Peer " << peer << " says hello, let's "\
       "connect to it...";
   // lock peer set lock so we can write without a race condition
@@ -155,8 +156,8 @@ void MapApiHub::helloHandler(const std::string& peer,
   instance().peerLock_.unlock();
   (*it)->connect(("tcp://" + peer).c_str());
   // ack by resend
-  zmq::message_t message;
-  socket->send(message);
+  response->set_name(""); // TODO(tcies) central declaration
+  response->set_serialized(""); // TODO(tcies) central declaration
 }
 
 void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
@@ -185,8 +186,8 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
   LOG(INFO) << "Server launched on " << ipPort;
 
   while (true){
-    zmq::message_t message;
-    if (!server.recv(&message)){
+    zmq::message_t request;
+    if (!server.recv(&request)){
       //timeout, check if termination flag?
       if (self->terminate_)
         break;
@@ -194,16 +195,22 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
         continue;
     }
     proto::HubMessage query;
-    query.ParseFromArray(message.data(), message.size());
+    query.ParseFromArray(request.data(), request.size());
 
     // Query handler
     std::unordered_map<std::string,
-    std::function<void(const std::string&, zmq::socket_t*)> >::iterator
+    std::function<void(const std::string&, proto::HubMessage*)> >::iterator
     handler =
         handlers_.find(query.name());
     CHECK(handlers_.end() != handler) << "Handler for message type " <<
         query.name() << " not registered";
-    handler->second(query.serialized(), &server);
+    proto::HubMessage response;
+    handler->second(query.serialized(), &response);
+    std::string serialized_response = response.SerializeAsString();
+    zmq::message_t response_message(serialized_response.size());
+    memcpy((void *) response_message.data(), serialized_response.c_str(),
+           serialized_response.size());
+    server.send(response_message);
   }
   server.unbind(("tcp://" + ipPort).c_str());
   LOG(INFO) << "Listener terminated\n";

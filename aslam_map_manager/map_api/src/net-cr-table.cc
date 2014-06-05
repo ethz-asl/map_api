@@ -19,30 +19,26 @@ void NetCRTable::defineFieldsCRDerived() {
   defineFieldsNetCRDerived();
 }
 
-bool NetCRTable::rawInsertImpl(Revision* query) const {
+bool NetCRTable::netInsert(const std::weak_ptr<Chunk>& chunk, Revision* query) {
+  // TODO(tcies) ensureDefaultFields
+  // TODO(tcies) set chunk id fields -> add ID property to Chunk
   // insertion into local table
   if (!CRTable::rawInsertImpl(query)) {
     return false;
   }
-  // connect to a chunk to insert the query to
-  std::shared_ptr<Chunk> insert_chunk = insert_chunk_.lock();
-  if (!insert_chunk) {
-    // TODO(tcies) can't because const, fix this (temporary: assign in init())
-    //insert_chunk_ = ChunkManager::instance().newChunk(*this);
-    //insert_chunk = insert_chunk_.lock();
-    CHECK(insert_chunk) << "Couldn't get a new chunk from the manager";
+  std::shared_ptr<Chunk> locked_chunk = chunk.lock();
+  if (!locked_chunk) {
+    //TODO(tcies) rollback? fatal? same below
+    return false;
   }
-
-  CHECK(insert_chunk->insert(*query)) << "Couldn't share newly inserted item";
-  return true;
+  return locked_chunk->insert(*query);
 }
 
-int NetCRTable::rawFindByRevisionImpl(
+int NetCRTable::netFindFast(
     const std::string& key, const Revision& valueHolder, const Time& time,
-    std::unordered_map<Id, std::shared_ptr<Revision> >* dest)  const {
-  // FastFind-flavor: look locally first
-  int local_result = CRTable::rawFindByRevisionImpl(key, valueHolder, time,
-                                                    dest);
+    std::unordered_map<Id, std::shared_ptr<Revision> >* dest) {
+  int local_result =
+      CRTable::rawFindByRevisionImpl(key, valueHolder, time, dest);
   if (local_result) {
     return local_result;
   }

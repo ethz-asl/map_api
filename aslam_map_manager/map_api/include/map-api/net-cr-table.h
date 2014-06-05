@@ -5,6 +5,7 @@
 
 #include "map-api/chunk.h"
 #include "map-api/cr-table.h"
+#include "map-api/revision.h"
 
 namespace map_api {
 
@@ -27,7 +28,7 @@ class NetCRTable : public CRTable {
   /**
    * Insertion: Also sends data to chunk-mates
    */
-  virtual bool rawInsertImpl(Revision* query) const override;
+  bool netInsert(const std::weak_ptr<Chunk>& chunk, Revision* query);
   /**
    * Finding: If can't find item locally, request at peers. There are subtleties
    * here: Is it enough to get data only from one chunk? I.e. shouldn't we
@@ -40,13 +41,24 @@ class NetCRTable : public CRTable {
    * the chunk possibly already being held.
    * For the time being implementing FastFind for simplicity.
    */
-  virtual int rawFindByRevisionImpl(
+  int netFindFast(
       const std::string& key, const Revision& valueHolder, const Time& time,
-      std::unordered_map<Id, std::shared_ptr<Revision> >* dest)  const
-  override;
+      std::unordered_map<Id, std::shared_ptr<Revision> >* dest);
 
 
  private:
+  /**
+   * Hiding some of CRTable's functions in favor of their net-flavors.
+   * Mostly, these consist in not being const any more.
+   * TODO(tcies) base table class instead?
+   */
+  using CRTable::rawInsert; // netInsert
+  using CRTable::rawGetById; // netGetById
+  using CRTable::rawFind; // netFindFast, netFindThorough
+  using CRTable::rawFindByRevision; // TODO(tcies) can we get rid of this?
+  using CRTable::rawFindUnique; // netFindUnique
+  // keeping rawDump, which now reflects the currently cached table contents
+
   /**
    * Weak pointers to chunks held by ChunkManager that correspond to this table
    */
