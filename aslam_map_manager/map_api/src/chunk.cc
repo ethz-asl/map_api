@@ -5,11 +5,7 @@
 namespace map_api {
 
 const char Chunk::kInsertRequest[] = "map_api_chunk_insert";
-template<>
-void Message::impose<Chunk::kInsertRequest,Revision>(const Revision& item) {
-  this->set_type(Chunk::kInsertRequest);
-  this->set_serialized(item.SerializeAsString());
-}
+MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(Chunk::kInsertRequest,Revision);
 
 bool Chunk::insert(const Revision& item) {
   Message request;
@@ -19,7 +15,7 @@ bool Chunk::insert(const Revision& item) {
     CHECK(locked_peer);
     Message response;
     CHECK(locked_peer->request(request, &response));
-    // TODO(tcies) means to verify Message type
+    CHECK(response.isType<Message::kAck>());
   }
   return false;
 }

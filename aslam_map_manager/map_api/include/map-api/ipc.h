@@ -35,7 +35,7 @@ class IPC {
    */
   static void barrierHandler(const std::string& id_string, Message* response);
   /**
-   * Barrier message declaration
+   * Barrier message type denomination constant
    */
   static const char kBarrierMessage[];
 

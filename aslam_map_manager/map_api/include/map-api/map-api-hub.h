@@ -60,7 +60,7 @@ class MapApiHub final {
   static void helloHandler(const std::string& peer, Message* response);
 
   /**
-   * Message for discovery
+   * Discovery message type denomination constant
    */
   static const char kHello[];
 

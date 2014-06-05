@@ -14,12 +14,7 @@ std::condition_variable IPC::barrier_cv_;
 std::unordered_map<int, int> IPC::barrier_map_;
 
 const char IPC::kBarrierMessage[] = "map_api_ipc_barrier";
-template<>
-void Message::impose<IPC::kBarrierMessage, std::string>(
-    const std::string& payload) {
-  this->set_type(IPC::kBarrierMessage);
-  this->set_serialized(payload);
-}
+MAP_API_MESSAGE_IMPOSE_STRING_MESSAGE(IPC::kBarrierMessage);
 
 IPC::~IPC() {}
 
