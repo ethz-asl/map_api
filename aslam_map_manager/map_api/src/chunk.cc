@@ -14,7 +14,7 @@ bool Chunk::insert(const Revision& item) {
     CHECK(locked_peer);
     proto::HubMessage response;
     CHECK(locked_peer->request(request, &response));
-    CHECK_EQ("ack", response.serialized());
+    CHECK_EQ("ack", response.serialized()); // TODO(tcies) string constant
   }
   return false;
 }
@@ -25,7 +25,7 @@ void Chunk::handleInsertRequest(
   CHECK(received.ParseFromString(serialized_request));
   // TODO(tcies) put revision into managed database
   response->set_name("");
-  response->set_serialized("ack");
+  response->set_serialized("ack"); // TODO(tcies) string constant
 }
 
 } // namespace map_api
