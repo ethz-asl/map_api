@@ -34,15 +34,33 @@ class ChunkManager {
       std::unordered_map<Id, std::shared_ptr<Revision> >* dest);
 
   /**
-   * Counterpart to findAmongPeers
+   * Requests all peers in MapApiCore to participate in given chunk.
+   * Returns how many peers accepted participation.
+   * For the time being this causes the peers to send an independent connect
+   * request, which should be handled by the requester before this function
+   * returns (in the handler thread).
+   * TODO(tcies) down the road, request only table peers
+   * TODO(tcies) ability to respond with a request, instead of sending an
+   * independent one?
    */
-  static void handleFindRequest(const std::string& serialized_request,
-                                zmq::socket_t* socket);
+  int requestParticipation(const Chunk& chunk) const;
+
+  /**
+   * ==========================
+   * REQUEST HANDLERS AND TYPES
+   * ==========================
+   */
   /**
    * Requesting peer specifies which chunk it want to connect to
    */
   static void handleConnectRequest(const std::string& serialized_request,
                                    Message* response);
+
+  /**
+   * Counterpart to findAmongPeers
+   */
+  static void handleFindRequest(const std::string& serialized_request,
+                                zmq::socket_t* socket);
 
   /**
    * Requesting peer specifies which chunk it wants to add the data to and
@@ -51,7 +69,12 @@ class ChunkManager {
   static void handleInsertRequest(const std::string& serialized_request,
                                   Message* response);
   static const char kInsertRequest[]; // request type
-  static const char kChunkNotOwned[]; // response type
+  static const char kChunkNotOwned[]; // response type, also has kAck
+
+  static void handleParticipationRequest(const std::string& serialized_request,
+                                         Message* response);
+  static const char kParticipationRequest[]; // request type
+  // response types: Message::kAck, Message::kDecline
 
   static void handleLockRequest(const std::string& serialized_request,
                                 Message* response);
@@ -71,6 +94,7 @@ class ChunkManager {
   static ChunkManager& instance();
  private:
   MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(ChunkManager);
+
   /**
    * TODO(tcies) will probably become a LRU structure at some point
    */

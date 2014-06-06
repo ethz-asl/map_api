@@ -4,3 +4,8 @@ message InsertRequest {
   required string chunk_id = 1;
   required bytes serialized_revision = 2;
 }
+
+message ParticipationRequest {
+  required string chunk_id = 1;
+  required string from_peer = 2; // TODO(tcies) should be message meta
+}

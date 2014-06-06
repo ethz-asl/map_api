@@ -8,7 +8,7 @@
 #include <zeromq_cpp/zmq.hpp>
 
 #include "map-api/id.h"
-#include "map-api/peer.h"
+#include "map-api/peer-handler.h"
 #include "map-api/message.h"
 #include "map-api/revision.h"
 
@@ -133,15 +133,8 @@ class Chunk {
    */
   bool handleInsert(const Revision& item);
 
-  /**
-   * Own id
-   */
   Id id_;
-  /**
-   * Weak pointer because a list of all peers that are connected in map_api is
-   * expected to be maintained centrally at MapApiHub.
-   */
-  std::set<std::weak_ptr<Peer> > peers_;
+  PeerHandler<std::weak_ptr<Peer>> peers_;
 
   enum LockStatus {
     UNLOCKED,
@@ -150,7 +143,7 @@ class Chunk {
     WRITE_LOCKED
   };
   LockStatus lock_status_;
-  std::weak_ptr<Peer> lock_holder_;
+  std::string lock_holder_;
 
 };
 

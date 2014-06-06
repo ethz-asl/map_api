@@ -1,8 +1,12 @@
 #include "map-api/chunk-manager.h"
 
+#include <gflags/gflags.h>
+
 #include "map-api/cr-table.h"
 #include "map-api/map-api-hub.h"
 #include "chunk.pb.h"
+
+DECLARE_string(ip_port);
 
 namespace map_api {
 
@@ -12,6 +16,8 @@ ChunkManager::~ChunkManager() {}
 
 bool ChunkManager::init() {
   MapApiHub::instance().registerHandler(kInsertRequest, handleInsertRequest);
+  MapApiHub::instance().registerHandler(kParticipationRequest,
+                                        handleParticipationRequest);
   return true;
 }
 
@@ -30,10 +36,34 @@ int ChunkManager::findAmongPeers(
   return 0;
 }
 
+const char ChunkManager::kParticipationRequest[] =
+    "map_api_chunk_participation";
+MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(ChunkManager::kParticipationRequest,
+                                     proto::ParticipationRequest);
+int ChunkManager::requestParticipation(const Chunk& chunk) const {
+  proto::ParticipationRequest participation_request;
+  participation_request.set_chunk_id(chunk.id().hexString());
+  participation_request.set_from_peer(FLAGS_ip_port);
+  Message request;
+  request.impose<kParticipationRequest, proto::ParticipationRequest>(
+      participation_request);
+  // TODO(tcies) strongly type peer address or, better, use peer weak pointer
+  std::unordered_map<std::string, Message> responses;
+  MapApiHub::instance().broadcast(request, &responses);
+  // at this point, the server handler should have processed all ensuing
+  // chunk connection requests
+  int new_participant_count = 0;
+  for (const std::pair<std::string, Message>& response : responses) {
+    if (response.second.isType<Message::kAck>()){
+      ++new_participant_count;
+    }
+  }
+  return new_participant_count;
+}
+
 // ==============
 // INSERT REQUEST
 // ==============
-
 void ChunkManager::handleInsertRequest(
     const std::string& serialized_request, Message* response) {
   CHECK_NOTNULL(response);
@@ -56,10 +86,18 @@ void ChunkManager::handleInsertRequest(
   CHECK(addressedChunk->handleInsert(to_insert));
   response->impose<Message::kAck>();
 }
-
 const char ChunkManager::kInsertRequest[] = "map_api_chunk_insert";
 MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(ChunkManager::kInsertRequest,
                                      proto::InsertRequest);
 const char ChunkManager::kChunkNotOwned[] = "map_api_chunk_not_owned";
 
+// =====================
+// PARTICIPATION REQUEST
+// =====================
+void ChunkManager::handleParticipationRequest(
+    const std::string& serialized_request, Message* response) {
+  CHECK_NOTNULL(response);
+  // TODO(tcies) implement
+  response->impose<Message::kAck>();
+}
 } // namespace map_api

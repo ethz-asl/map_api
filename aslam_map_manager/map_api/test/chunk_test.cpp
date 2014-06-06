@@ -25,25 +25,43 @@ class ChunkTestTable : public NetCRTable {
   MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS_DIRECT(ChunkTestTable);
 };
 
-/**
- * NB: The second process is not used TODO(tcies) remove
- */
 TEST_F(MultiprocessTest, NetCRInsert) {
+  MapApiCore::instance();
+  ChunkTestTable& table = ChunkTestTable::instance();
+  table.init();
+  std::weak_ptr<Chunk> my_chunk_weak =
+      ChunkManager::instance().newChunk(table);
+  std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
+  EXPECT_TRUE(static_cast<bool>(my_chunk));
+  std::shared_ptr<Revision> to_insert = table.getTemplate();
+  EXPECT_TRUE(table.netInsert(my_chunk_weak, to_insert.get()));
+  resetDb();
+}
+
+/**
+ * TODO(tcies) verify chunk confirms peer, not just whether peer Acks the
+ * participation request
+ */
+TEST_F(MultiprocessTest, ParticipationRequest) {
   enum Barriers {INIT, DIE};
   IPC::init();
   MapApiCore::instance();
   if (getSubprocessId() == 0) {
     uint64_t id = launchSubprocess();
-    IPC::barrier(INIT, 1);
     ChunkTestTable& table = ChunkTestTable::instance();
     table.init();
     std::weak_ptr<Chunk> my_chunk_weak =
         ChunkManager::instance().newChunk(table);
     std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
     EXPECT_TRUE(static_cast<bool>(my_chunk));
-    std::shared_ptr<Revision> to_insert = table.getTemplate();
-    EXPECT_TRUE(table.netInsert(my_chunk_weak, to_insert.get()));
+
+    IPC::barrier(INIT, 1);
+
+    EXPECT_EQ(1, MapApiHub::instance().peerSize());
+    EXPECT_EQ(1, ChunkManager::instance().requestParticipation(*my_chunk));
+
     IPC::barrier(DIE, 1);
+
     collectSubprocess(id);
     resetDb();
   } else {

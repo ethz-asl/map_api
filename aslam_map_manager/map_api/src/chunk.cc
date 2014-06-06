@@ -19,13 +19,7 @@ bool Chunk::insert(const Revision& item) {
   Message request;
   request.impose<ChunkManager::kInsertRequest, proto::InsertRequest>(
       insert_request);
-  for (const std::weak_ptr<Peer> weak_peer : peers_) {
-    std::shared_ptr<Peer> locked_peer = weak_peer.lock();
-    CHECK(locked_peer);
-    Message response;
-    CHECK(locked_peer->request(request, &response));
-    CHECK(response.isType<Message::kAck>());
-  }
+  CHECK(peers_.undisputable_broadcast(request));
   return true;
 }
 
