@@ -35,7 +35,7 @@ message Revision {
 // NODE TO NODE QUERY MESSAGES
 //==============================
 message HubMessage {
-  required string name = 1;
+  required string type = 1;
   required string serialized = 2;
 }
 
@@ -44,8 +44,4 @@ message ListTablesQuery {
 
 message CreateTableQuery {
 	required TableDescriptor description = 1;
-}
-
-message Hello {
-  required string from = 1;
 }

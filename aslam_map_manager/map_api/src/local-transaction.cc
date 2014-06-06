@@ -13,7 +13,6 @@ namespace map_api {
 std::recursive_mutex LocalTransaction::dbMutex_;
 
 bool LocalTransaction::begin(){
-  session_ = MapApiCore::getInstance().getSession();
   active_ = true;
   beginTime_ = Time();
   return true;

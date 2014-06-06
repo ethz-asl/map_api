@@ -10,7 +10,8 @@ catkin_simple()
 ############
 # PROTOBUF #
 ############
-file (GLOB_RECURSE PROTO_DEFNS proto/*.proto)
+SET(PROTO_DEFNS proto/core.proto
+                proto/chunk.proto)
 PROTOBUF_CATKIN_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
@@ -20,12 +21,17 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 add_definitions(--std=c++0x -Wall -Wextra -pedantic -Wno-unused-local-typedefs)
 
 # Core Library available to all applications
-SET(CORE_SOURCE  src/cr-table.cc
+SET(CORE_SOURCE  src/chunk.cc
+                 src/chunk-manager.cc
+                 src/cr-table.cc
                  src/cru-table.cc
                  src/ipc.cc
                  src/map-api-core.cc
                  src/map-api-hub.cc
                  src/metatable.cc
+                 src/message.cc
+                 src/net-cr-table.cc
+                 src/peer.cc
                  src/revision.cc
                  src/time.cc
                  src/local-transaction.cc)
@@ -39,6 +45,9 @@ target_link_libraries(${PROJECT_NAME} ${POCO_LIBRARIES})
 ##########
 # GTESTS #
 ##########
+
+catkin_add_gtest(test_chunk_test test/chunk_test.cpp)
+target_link_libraries(test_chunk_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_table_interface_test test/table_interface_test.cpp)
 target_link_libraries(test_table_interface_test ${PROJECT_NAME})

@@ -15,7 +15,7 @@ DEFINE_string(ip_port, "127.0.0.1:5050", "Define node ip and port");
 
 namespace map_api {
 
-MapApiCore &MapApiCore::getInstance() {
+MapApiCore &MapApiCore::instance() {
   static MapApiCore instance;
   static std::mutex initMutex;
   initMutex.lock();
@@ -29,7 +29,8 @@ MapApiCore &MapApiCore::getInstance() {
 }
 
 MapApiCore::MapApiCore() : owner_(Id::random()),
-    hub_(MapApiHub::getInstance()), metatable_(), initialized_(false){}
+    hub_(MapApiHub::instance()), chunk_manager_(ChunkManager::instance()),
+    initialized_(false){}
 
 bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
   // init metatable if not yet initialized TODO(tcies) better solution?
@@ -37,11 +38,11 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
   // insert table definition if not exists
   LocalTransaction tryInsert;
   tryInsert.begin();
-  std::shared_ptr<Revision> attempt = metatable_->getTemplate();
+  std::shared_ptr<Revision> attempt = Metatable::instance().getTemplate();
   attempt->set(Metatable::kNameField, descriptor.name());
   attempt->set(Metatable::kDescriptorField, descriptor);
-  tryInsert.insert(*metatable_, attempt);
-  tryInsert.addConflictCondition(*metatable_, Metatable::kNameField,
+  tryInsert.insert(Metatable::instance(), attempt);
+  tryInsert.addConflictCondition(Metatable::instance(), Metatable::kNameField,
                                  descriptor.name());
   bool success = tryInsert.commit();
   if (success){
@@ -51,7 +52,7 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
   LocalTransaction reader;
   reader.begin();
   std::shared_ptr<Revision> previous = reader.findUnique(
-      *metatable_, Metatable::kNameField, descriptor.name());
+      Metatable::instance(), Metatable::kNameField, descriptor.name());
   CHECK(previous) << "Can't find table " << descriptor.name() <<
       " even though its presence seemingly caused a conflict";
   proto::TableDescriptor previousDescriptor;
@@ -66,23 +67,6 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
   return true;
 }
 
-void MapApiCore::purgeDb() {
-  // the following is possible if no table has been initialized yet:
-  ensureMetatable();
-  LocalTransaction reader;
-  reader.begin();
-  std::unordered_map<Id, std::shared_ptr<Revision> > tables;
-  reader.dumpTable(*metatable_, &tables);
-  for (const std::pair<Id, std::shared_ptr<Revision> >& idTable : tables) {
-    const std::shared_ptr<Revision>& table = idTable.second;
-    std::string name;
-    table->get(Metatable::kNameField, &name);
-    *dbSess_ << "DROP TABLE IF EXISTS " << name, Poco::Data::now;
-  }
-  *dbSess_ << "DROP TABLE metatable", Poco::Data::now;
-  metatable_.reset();
-}
-
 // can't initialize metatable in init, as its initialization calls
 // MapApiCore::getInstance, which again calls this
 bool MapApiCore::init(const std::string &ipPort) {
@@ -91,33 +75,40 @@ bool MapApiCore::init(const std::string &ipPort) {
         ipPort;
     return false;
   }
+  chunk_manager_.init();
   // TODO(titus) SigAbrt handler?
   Poco::Data::SQLite::Connector::registerConnector();
-  dbSess_ = std::shared_ptr<Poco::Data::Session>(
-        new Poco::Data::Session("SQLite", ":memory:"));
+  dbSess_ = std::make_shared<Poco::Data::Session>("SQLite", ":memory:");
   initialized_ = true;
   return true;
 }
 
-std::shared_ptr<Poco::Data::Session> MapApiCore::getSession(){
+std::weak_ptr<Poco::Data::Session> MapApiCore::getSession() {
   return dbSess_;
 }
 
 inline void MapApiCore::ensureMetatable() {
-  if (!metatable_){
-    metatable_ = std::unique_ptr<Metatable>(new Metatable);
-    metatable_->init();
+  // TODO(tcies) put this in Metatable::instance, resp. create an
+  // initializedMeyersInstance() function
+  if (!Metatable::instance().isInitialized()) {
+    CHECK(Metatable::instance().init());
   }
 }
 
-bool MapApiCore::isInitialized() const{
+bool MapApiCore::isInitialized() const {
   return initialized_;
 }
 
-void MapApiCore::kill(){
+void MapApiCore::kill() {
   hub_.kill();
   dbSess_.reset();
   initialized_ = false;
+}
+
+void MapApiCore::resetDb() {
+  CHECK_EQ(1, dbSess_.use_count());
+  dbSess_.reset(new Poco::Data::Session("SQLite", ":memory:"));
+  Metatable::instance().init();
 }
 
 }

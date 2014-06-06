@@ -9,6 +9,8 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include "map-api/map-api-core.h"
+
 DEFINE_uint64(subprocess_id, 0, "Identification of subprocess in case of "\
               "multiprocess testing. 0 if master process.");
 
@@ -25,7 +27,7 @@ std::string getSelfpath() {
   }
 }
 
-class MultiprocessTest : public ::testing::Test {
+class MultiprocessTest : public ::testing::Test, public map_api::CoreTester {
  protected:
   /**
    * Return own ID: 0 if master

@@ -20,11 +20,20 @@ namespace map_api {
  */
 class CRUTable : public CRTable {
  public:
-  virtual bool init();
+  /**
+   * Sets CRU default fields and calls defineFieldsCRUDerived().
+   */
+  virtual void defineFieldsCRDerived() final override;
   /**
    * ================================================
    * FUNCTIONS TO BE IMPLEMENTED BY THE DERIVED CLASS
    * ================================================
+   * N.b. the singleton pattern protected functions should also be implemented,
+   * see below
+   * The singleton's static instance() also needs to be implemented, can't be
+   * done here for static functions can't be virtual. Recommended to use
+   * meyersInstance() to save typing.
+   * Use protected destructor.
    */
   /**
    * This table name will appear in the database, so it must be chosen SQL
@@ -32,13 +41,13 @@ class CRUTable : public CRTable {
    */
   virtual const std::string name() const = 0;
   /**
-   * Function to be implemented by derivations: Define table by repeated
+   * Function to be implemented by derivations: Define table fields by repeated
    * calls to addField()
    */
-  virtual void define() = 0;
-  virtual ~CRUTable();
+  virtual void defineFieldsCRUDerived() = 0;
 
  protected:
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(CRUTable);
   /**
    * Default table fields
    */

@@ -3,8 +3,11 @@
 
 #include <memory>
 
+#include <gtest/gtest.h>
+
 #include <Poco/Data/Common.h>
 
+#include "map-api/chunk-manager.h"
 #include "map-api/cru-table.h"
 #include "map-api/id.h"
 #include "map-api/map-api-hub.h"
@@ -27,13 +30,12 @@ class MapApiCore final {
    * Get singleton instance of Map Api Core
    * TODO(tcies) just make all functions static (thread-safety!)...
    */
-  static MapApiCore& getInstance();
+  static MapApiCore& instance();
   /**
    * Synchronizes table definition with peers
    * by using standard table operations on the metatable
    */
   bool syncTableDefinition(const proto::TableDescriptor& descriptor);
-  void purgeDb();
   /**
    * Initializer
    */
@@ -47,6 +49,15 @@ class MapApiCore final {
    */
   void kill();
 
+ protected:
+  /**
+   * Resets the database, clearing all its contents. TO BE USED FOR TESTING
+   * ONLY. After a call to this function ALL TABLES MUST BE RE-INITIALIZED.
+   * resetDb already re-initializes the metatable
+   */
+  void resetDb();
+  friend class CoreTester;
+
  private:
   /**
    * Constructor: Creates database if not existing, launches a new thread
@@ -54,9 +65,9 @@ class MapApiCore final {
    */
   MapApiCore();
   /**
-   * Returns a shared pointer to the database session
+   * Returns a weak pointer to the database session
    */
-  std::shared_ptr<Poco::Data::Session> getSession();
+  std::weak_ptr<Poco::Data::Session> getSession();
   friend class CRTable;
   friend class CRUTable;
   friend class LocalTransaction;
@@ -76,12 +87,22 @@ class MapApiCore final {
    * Hub instance
    */
   MapApiHub &hub_;
+  /**
+   * Chunk manager instance
+   */
+  ChunkManager &chunk_manager_;
 
-  std::unique_ptr<Metatable> metatable_;
   /**
    * initialized?
    */
   bool initialized_;
+};
+
+class CoreTester {
+ protected:
+  inline void resetDb() {
+    MapApiCore::instance().resetDb();
+  }
 };
 
 }
