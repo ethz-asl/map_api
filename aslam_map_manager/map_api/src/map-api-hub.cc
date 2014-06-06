@@ -13,8 +13,8 @@
 
 namespace map_api {
 
-const char MapApiHub::kHello[] = "map_api_hub_hello";
-MAP_API_MESSAGE_IMPOSE_STRING_MESSAGE(MapApiHub::kHello);
+const char MapApiHub::kDiscovery[] = "map_api_hub_discovery";
+MAP_API_MESSAGE_IMPOSE_STRING_MESSAGE(MapApiHub::kDiscovery);
 
 std::unordered_map<std::string,
 std::function<void(const std::string&, Message*)> >
@@ -22,14 +22,14 @@ MapApiHub::handlers_;
 
 MapApiHub::MapApiHub() : terminate_(false) {}
 
-MapApiHub::~MapApiHub(){
+MapApiHub::~MapApiHub() {
   kill();
 }
 
-bool MapApiHub::init(const std::string &ipPort){
+bool MapApiHub::init(const std::string &ipPort) {
   // FOR NOW: FAKE DISCOVERY
 
-  registerHandler(kHello, helloHandler);
+  registerHandler(kDiscovery, discoveryHandler);
   // 1. create own server
   context_ = std::unique_ptr<zmq::context_t>(new zmq::context_t());
   listenerConnected_ = false;
@@ -47,7 +47,7 @@ bool MapApiHub::init(const std::string &ipPort){
   std::ifstream discovery(FAKE_DISCOVERY, std::ios::in);
   bool is_already_registered = false;
   peerLock_.writeLock();
-  for (std::string other; getline(discovery,other);){
+  for (std::string other; getline(discovery,other);) {
     if (other.compare("") == 0) continue;
     if (other.compare(ipPort) == 0){
       LOG(INFO) << "Found registration of self from previous dead run, will "\
@@ -71,7 +71,7 @@ bool MapApiHub::init(const std::string &ipPort){
   discovery.close();
 
   // 3. put own socket into discovery file
-  if (!is_already_registered){
+  if (!is_already_registered) {
     std::ofstream report(FAKE_DISCOVERY, std::ios::out | std::ios::app);
     report << ipPort << std::endl;
     report.close();
@@ -79,18 +79,18 @@ bool MapApiHub::init(const std::string &ipPort){
 
   // 4. notify peers of self
   Message announce_self;
-  announce_self.impose<kHello>(ipPort);
+  announce_self.impose<kDiscovery>(ipPort);
   broadcast(announce_self);
 
   return true;
 }
 
-MapApiHub &MapApiHub::instance(){
+MapApiHub &MapApiHub::instance() {
   static MapApiHub instance;
   return instance;
 }
 
-void MapApiHub::kill(){
+void MapApiHub::kill() {
   if (terminate_){
     VLOG(3) << "Double termination";
     return;
@@ -109,7 +109,7 @@ void MapApiHub::kill(){
   std::ofstream cleanDiscovery(FAKE_DISCOVERY, std::ios::trunc);
 }
 
-int MapApiHub::peerSize(){
+int MapApiHub::peerSize() {
   int size;
   peerLock_.readLock();
   size = peers_.size();
@@ -121,6 +121,8 @@ bool MapApiHub::registerHandler(
     const char* name,
     std::function<void(const std::string& serialized_type,
                        Message* response)> handler) {
+  CHECK_NOTNULL(name);
+  CHECK(handler);
   // TODO(tcies) div. error handling
   handlers_[name] = handler;
   return true;
@@ -143,8 +145,9 @@ void MapApiHub::broadcast(const Message& query) {
   }
 }
 
-void MapApiHub::helloHandler(const std::string& peer, Message* response) {
-  LOG(INFO) << "Peer " << peer << " says hello, let's "\
+void MapApiHub::discoveryHandler(const std::string& peer, Message* response) {
+  CHECK_NOTNULL(response);
+  LOG(INFO) << "Peer " << peer << " requests discovery, let's "\
       "connect to it...";
   // lock peer set lock so we can write without a race condition
   instance().peerLock_.writeLock();
@@ -157,7 +160,7 @@ void MapApiHub::helloHandler(const std::string& peer, Message* response) {
   response->impose<Message::kAck>();
 }
 
-void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
+void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort) {
   zmq::socket_t server(*(self->context_), ZMQ_REP);
   {
     std::unique_lock<std::mutex> lock(self->condVarMutex_);
@@ -169,7 +172,7 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
       lock.unlock();
       self->listenerStatus_.notify_one();
     }
-    catch (const std::exception &e){
+    catch (const std::exception &e) {
       LOG(ERROR) << "Server bind failed with exception \"" << e.what() <<
           "\", ipPort string was " << ipPort;
       self->listenerConnected_ = false;
@@ -182,9 +185,9 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort){
   server.setsockopt(ZMQ_RCVTIMEO, &timeOutMs, sizeof(timeOutMs));
   LOG(INFO) << "Server launched on " << ipPort;
 
-  while (true){
+  while (true) {
     zmq::message_t request;
-    if (!server.recv(&request)){
+    if (!server.recv(&request)) {
       //timeout, check if termination flag?
       if (self->terminate_)
         break;

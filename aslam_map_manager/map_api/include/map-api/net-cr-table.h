@@ -22,9 +22,8 @@ class NetCRTable : public CRTable {
   virtual void defineFieldsNetCRDerived() = 0;
   // Don't forget MEYERS_SINGLETON_INSTANCE_FUNCTION and the protected methods
 
- protected:
-  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(NetCRTable);
-
+  // TODO(tcies) move the following methods to protected once we have net-
+  // transactions
   /**
    * Insertion: Also sends data to chunk-mates
    */
@@ -45,7 +44,8 @@ class NetCRTable : public CRTable {
       const std::string& key, const Revision& valueHolder, const Time& time,
       std::unordered_map<Id, std::shared_ptr<Revision> >* dest);
 
-
+ protected:
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(NetCRTable);
  private:
   /**
    * Hiding some of CRTable's functions in favor of their net-flavors.
