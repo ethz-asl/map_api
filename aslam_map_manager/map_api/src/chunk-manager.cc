@@ -17,7 +17,7 @@ bool ChunkManager::init() {
 
 std::weak_ptr<Chunk> ChunkManager::newChunk(const CRTable& table) {
   Id chunk_id = Id::random();
-  std::shared_ptr<Chunk> chunk = std::make_shared<Chunk>();
+  std::shared_ptr<Chunk> chunk = std::shared_ptr<Chunk>(new Chunk);
   active_chunks_[chunk_id] = chunk;
   return std::weak_ptr<Chunk>(chunk);
 }
