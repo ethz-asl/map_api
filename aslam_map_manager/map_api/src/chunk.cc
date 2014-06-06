@@ -7,9 +7,9 @@
 
 namespace map_api {
 
-Id Chunk::id() {
+Id Chunk::id() const {
   // TODO(tcies) implement
-  return Id();
+  return id_;
 }
 
 bool Chunk::insert(const Revision& item) {

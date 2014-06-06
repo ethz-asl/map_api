@@ -70,7 +70,7 @@ class Chunk {
   /**
    * Returns own identification
    */
-  Id id();
+  Id id() const;
   /**
    * Insert new item into this chunk: Item gets sent to all peers
    */
@@ -133,6 +133,10 @@ class Chunk {
    */
   bool handleInsert(const Revision& item);
 
+  /**
+   * Own id
+   */
+  Id id_;
   /**
    * Weak pointer because a list of all peers that are connected in map_api is
    * expected to be maintained centrally at MapApiHub.
