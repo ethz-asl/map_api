@@ -1,5 +1,5 @@
-#ifndef WRITE_ONLY_TABLE_INTERFACE_H_
-#define WRITE_ONLY_TABLE_INTERFACE_H_
+#ifndef MAP_API_CR_TABLE_H_
+#define MAP_API_CR_TABLE_H_
 
 #include <vector>
 #include <memory>
@@ -11,12 +11,40 @@
 
 #include "map-api/id.h"
 #include "map-api/revision.h"
-#include "map-api/cr-table-interface.h"
 #include "core.pb.h"
+
+/**
+ * Allows the class "class_type" to implement meyers singleton instance
+ */
+#define MEYERS_SINGLETON_INSTANCE_FUNCTION_IMPLEMENTATION(class_type) \
+    class_type& class_type::instance() { \
+  static class_type object; \
+  return object; \
+} \
+extern void __FILE__ ## __LINE__(void)
+// last line serves to swallow the semicolon
+#define MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(class_type) \
+    static class_type& instance() { \
+  static class_type object; \
+  return object; \
+}
+/**
+ * Singleton function declarations, to be put in the protected segment
+ */
+#define MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(class_type) \
+    class_type() = default; \
+    class_type(const class_type&) = delete; \
+    class_type& operator=(const class_type&) = delete; \
+    virtual ~class_type()
+#define MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS_DIRECT(class_type) \
+    class_type() = default; \
+    class_type(const class_type&) = delete; \
+    virtual ~class_type() {} \
+    class_type& operator=(const class_type&) = delete
 
 namespace map_api {
 
-class CRTableInterface {
+class CRTable {
  public:
   /**
    * Default fields
@@ -30,12 +58,24 @@ class CRTableInterface {
    */
   virtual bool init();
 
+  /**
+   * Defines default table fields. Virtual-final in order to make absolutely
+   * sure that this doesn't get overridden.
+   */
+  virtual void defineFields() final;
+
   bool isInitialized() const;
 
   /**
    * ================================================
    * FUNCTIONS TO BE IMPLEMENTED BY THE DERIVED CLASS
    * ================================================
+   * N.b. the singleton pattern protected functions should also be implemented,
+   * see below
+   * The singleton's static instance() also needs to be implemented, can't be
+   * done here for static functions can't be virtual. Recommended to use
+   * meyersInstance() to save typing.
+   * Use protected destructor.
    */
   /**
    * This table name will appear in the database, so it must be chosen SQL
@@ -43,11 +83,12 @@ class CRTableInterface {
    */
   virtual const std::string name() const = 0;
   /**
-   * Function to be implemented by derivations: Define table by repeated
-   * calls to addField()
+   * Function to be implemented by derivations: Define fields by repeated
+   * calls to addField().
+   * TODO(simon) implemented cascaded NVI, do you see a
+   * cleaner way to force derived classes to also call define() of base class?
    */
-  virtual void define() = 0;
-  virtual ~CRTableInterface();
+  virtual void defineFieldsCRDerived() = 0;
 
   /**
    * Returns an empty revision having the structure as defined by the user
@@ -66,6 +107,8 @@ class CRTableInterface {
   } ItemDebugInfo;
 
  protected:
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(CRTable);
+
   /**
    * Function to be called at definition:  Adds field to table. This only calls
    * the other addField function with the proper enum, see implementation
@@ -79,7 +122,7 @@ class CRTableInterface {
    * Shared pointer to database session
    * TODO(tcies) move to private, remove from testtable, replace by purgedb
    */
-  std::shared_ptr<Poco::Data::Session> session_;
+  std::weak_ptr<Poco::Data::Session> session_;
 
   /**
    * The following functions are to be used by transactions only. They pose a
@@ -87,14 +130,15 @@ class CRTableInterface {
    * and conflict checking - that is assumed to be done by the transaction.
    * History is another example at it is managed by the transaction.
    */
-  friend class Transaction;
+  friend class LocalTransaction;
   friend class History;
   /**
    * Commits an insert query. ID has to be defined in the query. Non-virtual
-   * interface design pattern.
+   * interface design pattern. Pointer to query, as it is modified according
+   * to the default field policies of the respective implementation.
    */
-  bool rawInsert(Revision& query) const;
-  virtual bool rawInsertImpl(Revision& query) const;
+  bool rawInsert(Revision* query) const;
+  virtual bool rawInsertImpl(Revision* query) const;
   /**
    * Fetches row by ID and returns it as revision. Non-virtual interface
    * design pattern. "Sees" only values with lower or equal insert time.
@@ -147,7 +191,7 @@ class CRTableInterface {
     /**
      * Associating with Table interface object to get template
      */
-    PocoToProto(const CRTableInterface& table);
+    PocoToProto(const CRTable& table);
     /**
      * To be inserted between "SELECT" and "FROM": Bind database outputs to
      * own structure.
@@ -159,7 +203,7 @@ class CRTableInterface {
      */
     int toProto(std::vector<std::shared_ptr<Revision> >* dest);
    private:
-    const CRTableInterface& table_;
+    const CRTable& table_;
     /**
      * Maps where the data is store intermediately
      */
@@ -172,7 +216,6 @@ class CRTableInterface {
   };
 
  private:
-  friend class CRUTableInterface;
   /**
    * Synchronize with cluster: Check if table already present in cluster
    * metatable, add user to distributed table. Virtual so that the metatable
@@ -190,10 +233,10 @@ class CRTableInterface {
 };
 
 std::ostream& operator<< (std::ostream& stream, const
-                          CRTableInterface::ItemDebugInfo& info);
+                          CRTable::ItemDebugInfo& info);
 
 } /* namespace map_api */
 
-#include "map-api/cr-table-interface-inl.h"
+#include "map-api/cr-table-inl.h"
 
-#endif /* WRITE_ONLY_TABLE_INTERFACE_H_ */
+#endif /* MAP_API_CR_TABLE_H_ */

@@ -1,7 +1,7 @@
 #ifndef METATABLE_H_
 #define METATABLE_H_
 
-#include "map-api/cr-table-interface.h"
+#include "map-api/cr-table.h"
 
 namespace map_api {
 
@@ -10,13 +10,16 @@ namespace map_api {
  * all application-defined tables. It is used to synchronize table definitions
  * across the peers
  */
-class Metatable final : public CRTableInterface {
+class Metatable final : public CRTable {
  public:
   static const std::string kNameField;
   static const std::string kDescriptorField;
-  virtual ~Metatable();
-  virtual const std::string name() const override;
-  virtual void define();
+
+  virtual const std::string name() const final override;
+  virtual void defineFieldsCRDerived() final override;
+  static Metatable& instance();
+ protected:
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(Metatable);
  private:
   /**
    * Overriding sync to do nothing - we don't want an infinite recursion

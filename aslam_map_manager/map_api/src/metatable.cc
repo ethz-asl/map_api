@@ -15,9 +15,11 @@ const std::string Metatable::name() const {
   return "metatable";
 }
 
-void Metatable::define() {
+void Metatable::defineFieldsCRDerived() {
   addField<std::string>(kNameField);
   addField<proto::TableDescriptor>(kDescriptorField);
 }
+
+MEYERS_SINGLETON_INSTANCE_FUNCTION_IMPLEMENTATION(Metatable);
 
 } /* namespace map_api */
