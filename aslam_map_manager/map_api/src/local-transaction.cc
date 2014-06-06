@@ -64,7 +64,7 @@ bool LocalTransaction::commit(){
       const SharedRevisionPointer &revision = insertion.second;
       CHECK(revision->verify(CRTable::kIdField, id)) <<
           "Identifier ID does not match revision ID";
-      if (!table.rawInsert(*revision)){
+      if (!table.rawInsert(revision.get())){
         LOG(ERROR) << debugInfo << "Insertion failed, aborting commit.";
         return false;
       }
@@ -80,7 +80,7 @@ bool LocalTransaction::commit(){
         const SharedRevisionPointer &revision = update.second;
         CHECK(revision->verify(CRTable::kIdField, id)) <<
             "Identifier ID does not match revision ID";
-        if (!table.rawUpdate(*revision)){
+        if (!table.rawUpdate(revision.get())){
           LOG(ERROR) << debugInfo << "Update failed, aborting commit.";
           return false;
         }
@@ -101,7 +101,7 @@ bool LocalTransaction::abort(){
   return true;
 }
 
-Id LocalTransaction::insert(CRTable& table,
+Id LocalTransaction::insert(const CRTable& table,
                        const SharedRevisionPointer& item){
   Id id(Id::random());
   if (!insert(table, id, item)){
@@ -111,7 +111,7 @@ Id LocalTransaction::insert(CRTable& table,
 }
 
 
-bool LocalTransaction::insert(CRTable& table, const Id& id,
+bool LocalTransaction::insert(const CRTable& table, const Id& id,
                          const SharedRevisionPointer& item){
   if (notifyAbortedOrInactive()){
     return false;
@@ -133,16 +133,17 @@ bool LocalTransaction::insert(CRTable& table, const Id& id,
 }
 
 LocalTransaction::SharedRevisionPointer LocalTransaction::read(
-    CRTable& table, const Id& id){
+    const CRTable& table, const Id& id){
   return findUnique(table, CRTable::kIdField, id);
 }
 
 bool LocalTransaction::dumpTable(
-    CRTable& table, std::unordered_map<Id, SharedRevisionPointer>* dest) {
+    const CRTable& table,
+    std::unordered_map<Id, SharedRevisionPointer>* dest) {
   return find(table, "", 0, dest);
 }
 
-bool LocalTransaction::update(CRUTable& table, const Id& id,
+bool LocalTransaction::update(const CRUTable& table, const Id& id,
                          const SharedRevisionPointer& newRevision){
   if (notifyAbortedOrInactive()){
     return false;

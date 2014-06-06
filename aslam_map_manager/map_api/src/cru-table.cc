@@ -29,10 +29,10 @@ void CRUTable::defineFieldsCRDerived() {
   defineFieldsCRUDerived();
 }
 
-bool CRUTable::rawInsertImpl(Revision& query) const {
-  query.set(kUpdateTimeField, Time());
-  query.set(kPreviousTimeField, Time(0));
-  query.set(kNextTimeField, Time(0));
+bool CRUTable::rawInsertImpl(Revision* query) const {
+  query->set(kUpdateTimeField, Time());
+  query->set(kPreviousTimeField, Time(0));
+  query->set(kNextTimeField, Time(0));
   return CRTable::rawInsertImpl(query);
 }
 
@@ -74,25 +74,26 @@ int CRUTable::rawFindByRevisionImpl(
   return from_poco.size();
 }
 
-bool CRUTable::rawUpdate(Revision& query) const {
+bool CRUTable::rawUpdate(Revision* query) const {
   CHECK(isInitialized()) << "Attempted to update in non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
-  CHECK(reference->structureMatch(query)) << "Bad structure of update revision";
+  CHECK(reference->structureMatch(*query)) <<
+      "Bad structure of update revision";
   Id id;
-  query.get(kIdField, &id);
+  query->get(kIdField, &id);
   CHECK_NE(id, Id()) << "Attempted to update element with invalid ID";
   return rawUpdateImpl(query);
 }
 
-bool CRUTable::rawUpdateImpl(Revision& query) const {
+bool CRUTable::rawUpdateImpl(Revision* query) const {
   Id id;
-  query.get(kIdField, &id);
+  query->get(kIdField, &id);
   ItemDebugInfo info(name(), id);
   // 1. Check consistency of insert time field
   // TODO(tcies) generalize this test by introducing a "const" trait to fields?
   std::shared_ptr<Revision> current = rawGetById(id, Time());
   Time query_insert_time;
-  query.get(CRTable::kInsertTimeField, &query_insert_time);
+  query->get(CRTable::kInsertTimeField, &query_insert_time);
   CHECK(current->verify(CRTable::kInsertTimeField, query_insert_time))
   << " Insert time needs to remain same after update.";
   // 2. Define update time, fetch previous time
@@ -105,7 +106,7 @@ bool CRUTable::rawUpdateImpl(Revision& query) const {
   statement << "UPDATE " << name() << " SET " << kNextTimeField << " = ? ",
       Poco::Data::use(update_time.serialize());
   statement << " WHERE ID = ";
-  query.insertPlaceHolder(CRTable::kIdField, statement);
+  query->insertPlaceHolder(CRTable::kIdField, statement);
   statement << " AND " << kUpdateTimeField << " = ? ",
       Poco::Data::use(previous_time.serialize());
   try {
@@ -113,12 +114,12 @@ bool CRUTable::rawUpdateImpl(Revision& query) const {
   } catch (const std::exception& e) {
     LOG(FATAL) << info << kNextTimeField << " update failed with exception \""
         << e.what() << "\", " << " statement was \"" << statement.toString() <<
-        "\" and query :" << query.DebugString();
+        "\" and query :" << query->DebugString();
   }
   // 4. Insert updated row
-  query.set(kUpdateTimeField, update_time);
-  query.set(kPreviousTimeField, previous_time);
-  query.set(kNextTimeField, Time(0));
+  query->set(kUpdateTimeField, update_time);
+  query->set(kPreviousTimeField, previous_time);
+  query->set(kNextTimeField, Time(0));
   // calling insert implementation of CR to avoid these fields to be overwritten
   CRTable::rawInsertImpl(query);
   return true;

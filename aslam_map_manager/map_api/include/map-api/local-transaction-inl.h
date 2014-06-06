@@ -4,7 +4,7 @@
 namespace map_api {
 
 template<typename ValueType>
-bool LocalTransaction::addConflictCondition(CRTable& table,
+bool LocalTransaction::addConflictCondition(const CRTable& table,
                                             const std::string& key,
                                             const ValueType& value) {
   if (LocalTransaction::notifyAbortedOrInactive()) {
@@ -46,7 +46,8 @@ int LocalTransaction::find(
 
 template<typename ValueType>
 LocalTransaction::SharedRevisionPointer LocalTransaction::findUnique(
-    CRTable& table, const std::string& key, const ValueType& value) const {
+    const CRTable& table, const std::string& key, const ValueType& value)
+const {
   if (LocalTransaction::notifyAbortedOrInactive()){
     return false;
   }

@@ -3,10 +3,14 @@
 
 #include <memory>
 #include <string>
+#include <set>
 
 #include <zeromq_cpp/zmq.hpp>
 
-typedef void* Peer; //TODO(tcies) define, also use in MapApiHub
+#include "map-api/id.h"
+#include "map-api/peer.h"
+#include "map-api/message.h"
+#include "map-api/revision.h"
 
 namespace map_api{
 /**
@@ -64,6 +68,14 @@ class Chunk {
    */
   bool init();
   /**
+   * Returns own identification
+   */
+  Id id() const;
+  /**
+   * Insert new item into this chunk: Item gets sent to all peers
+   */
+  bool insert(const Revision& item);
+  /**
    * The holder may acquire a read lock without the need to communicate with
    * the other peers - a read lock manifests itself only in that the holder
    * defers distributed write lock requests until unlocking or denies them
@@ -104,22 +116,27 @@ class Chunk {
    */
   void unlock();
 
-  static void handleConnectRequest(const std::string& serialized_request,
-                                   zmq::socket_t* socket);
-
-  static void handleLockRequest(const std::string& serialized_request,
-                                zmq::socket_t* socket);
-
-  static void handleUnlockRequest(const std::string& serialized_request,
-                                  zmq::socket_t* socket);
-
   /**
-   * Propagates removal of peers from the network.
+   * Request handlers are in the ChunkManager class, as all request arrive to
+   * a peer centrally.
    */
-  static void handleRelinquishNotification(
-      const std::string& serialized_notification);
 
  private:
+  /**
+   * ===================================================================
+   * Handles for ChunkManager requests that are addressed at this Chunk.
+   * ===================================================================
+   */
+  friend class ChunkManager;
+  /**
+   * Handles insert requests
+   */
+  bool handleInsert(const Revision& item);
+
+  /**
+   * Own id
+   */
+  Id id_;
   /**
    * Weak pointer because a list of all peers that are connected in map_api is
    * expected to be maintained centrally at MapApiHub.

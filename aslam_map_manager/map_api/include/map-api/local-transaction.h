@@ -18,8 +18,8 @@ namespace map_api {
 
 /**
  * This transaction class has only been here for Transaction proof-of concept
- * work on a single process; it should eventually been removed when moving
- * to proper networking.
+ * work on a single process; TODO(tcies) it should eventually be removed when
+ * moving to proper networking.
  */
 class LocalTransaction {
  public:
@@ -33,13 +33,13 @@ class LocalTransaction {
    * Sets a hash ID for the table to be inserted. Returns that ID, such that
    * the item can be subsequently referred to.
    */
-  Id insert(CRTable& table, const SharedRevisionPointer& item);
+  Id insert(const CRTable& table, const SharedRevisionPointer& item);
 
   /**
    * Allows the user to preset a Hash ID. Will fail in commit if there is a
    * conflict.
    */
-  bool insert(CRTable& table, const Id& id,
+  bool insert(const CRTable& table, const Id& id,
               const SharedRevisionPointer& item);
 
   /**
@@ -54,24 +54,24 @@ class LocalTransaction {
    * MapApiCore::syncTableDefinition)
    */
   template<typename ValueType>
-  bool addConflictCondition(CRTable& table, const std::string& key,
+  bool addConflictCondition(const CRTable& table, const std::string& key,
                             const ValueType& value);
 
   /**
    * Returns latest revision prior to transaction begin time
    */
-  SharedRevisionPointer read(CRTable& table, const Id& id);
+  SharedRevisionPointer read(const CRTable& table, const Id& id);
 
   /**
    * Returns latest revision prior to transaction begin time for all contents
    */
-  bool dumpTable(CRTable& table,
+  bool dumpTable(const CRTable& table,
                  std::unordered_map<Id, SharedRevisionPointer>* dest);
 
   /**
    * Fails if global state differs from groundState before updating
    */
-  bool update(CRUTable& table, const Id& id,
+  bool update(const CRUTable& table, const Id& id,
               const SharedRevisionPointer& newRevision);
 
   /**
@@ -86,8 +86,9 @@ class LocalTransaction {
    * Same as find(), but ensuring that there is only one result
    */
   template<typename ValueType>
-  SharedRevisionPointer findUnique(CRTable& table, const std::string& key,
-                                   const ValueType& value) const;
+  SharedRevisionPointer findUnique(
+      const CRTable& table, const std::string& key,
+      const ValueType& value) const;
   /**
    * Define own fields for database tables, such as for locks.
    */

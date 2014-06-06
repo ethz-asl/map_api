@@ -20,7 +20,9 @@
     class_type& class_type::instance() { \
   static class_type object; \
   return object; \
-}
+} \
+extern void __FILE__ ## __LINE__(void)
+// last line serves to swallow the semicolon
 #define MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(class_type) \
     static class_type& instance() { \
   static class_type object; \
@@ -132,10 +134,11 @@ class CRTable {
   friend class History;
   /**
    * Commits an insert query. ID has to be defined in the query. Non-virtual
-   * interface design pattern.
+   * interface design pattern. Pointer to query, as it is modified according
+   * to the default field policies of the respective implementation.
    */
-  bool rawInsert(Revision& query) const;
-  virtual bool rawInsertImpl(Revision& query) const;
+  bool rawInsert(Revision* query) const;
+  virtual bool rawInsertImpl(Revision* query) const;
   /**
    * Fetches row by ID and returns it as revision. Non-virtual interface
    * design pattern. "Sees" only values with lower or equal insert time.

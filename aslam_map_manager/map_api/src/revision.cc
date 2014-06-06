@@ -88,12 +88,12 @@ void Revision::addField(const proto::TableFieldDescriptor& descriptor){
   fields_[descriptor.name()] = fieldqueries_size() - 1;
 }
 
-bool Revision::structureMatch(Revision& other){
+bool Revision::structureMatch(const Revision& other) const {
   if (fields_.size() != other.fields_.size()){
     LOG(INFO) << "Field count does not match";
     return false;
   }
-  FieldMap::iterator leftIterator = fields_.begin(),
+  FieldMap::const_iterator leftIterator = fields_.begin(),
       rightIterator = other.fields_.begin();
   while (leftIterator != fields_.end()){
     if (leftIterator->first != rightIterator->first){

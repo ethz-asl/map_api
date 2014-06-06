@@ -7,6 +7,7 @@
 
 #include <Poco/Data/Common.h>
 
+#include "map-api/chunk-manager.h"
 #include "map-api/cru-table.h"
 #include "map-api/id.h"
 #include "map-api/map-api-hub.h"
@@ -86,6 +87,10 @@ class MapApiCore final {
    * Hub instance
    */
   MapApiHub &hub_;
+  /**
+   * Chunk manager instance
+   */
+  ChunkManager &chunk_manager_;
 
   /**
    * initialized?

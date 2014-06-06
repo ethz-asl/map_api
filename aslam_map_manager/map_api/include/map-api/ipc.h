@@ -7,6 +7,9 @@
 
 #include <zeromq_cpp/zmq.hpp>
 
+#include "map-api/message.h"
+#include "core.pb.h"
+
 namespace map_api {
 
 /**
@@ -30,7 +33,11 @@ class IPC {
   /**
    * Handles barrier calls from other peers
    */
-  static void barrierHandler(const std::string& id, zmq::socket_t* socket);
+  static void barrierHandler(const std::string& id_string, Message* response);
+  /**
+   * Barrier message type denomination constant
+   */
+  static const char kBarrierMessage[];
 
  private:
   static std::mutex barrier_mutex_;

@@ -61,7 +61,7 @@ class CRUTable : public CRTable {
    */
   friend class LocalTransaction;
 
-  virtual bool rawInsertImpl(Revision& query) const override;
+  virtual bool rawInsertImpl(Revision* query) const override;
 
   virtual int rawFindByRevisionImpl(
       const std::string& key, const Revision& valueHolder, const Time& time,
@@ -69,11 +69,20 @@ class CRUTable : public CRTable {
   override;
   /**
    * Field ID in revision must correspond to an already present item, revision
-   * structure needs to match.
+   * structure needs to match. Query may be modified according to the default
+   * field policy.
    */
-  bool rawUpdate(Revision& query) const;
-  virtual bool rawUpdateImpl(Revision& query) const;
+  friend class CRUTester;
+  bool rawUpdate(Revision* query) const;
+  virtual bool rawUpdateImpl(Revision* query) const;
   bool rawLatestUpdateTime(const Id& id, Time* time) const;
+};
+
+class CRUTester {
+ public:
+  bool rawUpdate(const CRUTable& table, Revision* query) const {
+    return table.rawUpdate(query);
+  }
 };
 
 }
