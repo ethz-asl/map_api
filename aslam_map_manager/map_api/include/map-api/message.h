@@ -42,8 +42,7 @@ class Message : public proto::HubMessage {
   this->set_type(type_denomination); \
   this->set_serialized(payload); \
 } \
-extern void __FILE__ ## __LINE__(void)
-// last line swallows the semicolon
+extern void __FILE__ ## __LINE__(void) // swallows the semicolon
 #define MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(type_denomination, proto_type) \
     template<> \
     void Message::impose<type_denomination, \
@@ -51,7 +50,7 @@ extern void __FILE__ ## __LINE__(void)
   this->set_type(type_denomination); \
   this->set_serialized(payload.SerializeAsString()); \
 } \
-extern void __FILE__ ## __LINE__(void)
+extern void __FILE__ ## __LINE__(void) // swallows the semicolon
 
 } // namespace map_api
 

@@ -57,12 +57,12 @@ class MapApiHub final {
    */
   void broadcast(const Message& message);
 
-  static void helloHandler(const std::string& peer, Message* response);
+  static void discoveryHandler(const std::string& peer, Message* response);
 
   /**
    * Discovery message type denomination constant
    */
-  static const char kHello[];
+  static const char kDiscovery[];
 
  private:
   /**

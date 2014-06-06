@@ -20,6 +20,7 @@ void NetCRTable::defineFieldsCRDerived() {
 }
 
 bool NetCRTable::netInsert(const std::weak_ptr<Chunk>& chunk, Revision* query) {
+  CHECK_NOTNULL(query);
   std::shared_ptr<Chunk> locked_chunk = chunk.lock();
   if (!locked_chunk) {
     //TODO(tcies) rollback? fatal? same below
@@ -40,6 +41,7 @@ bool NetCRTable::netInsert(const std::weak_ptr<Chunk>& chunk, Revision* query) {
 int NetCRTable::netFindFast(
     const std::string& key, const Revision& valueHolder, const Time& time,
     std::unordered_map<Id, std::shared_ptr<Revision> >* dest) {
+  CHECK_NOTNULL(dest);
   int local_result =
       CRTable::rawFindByRevisionImpl(key, valueHolder, time, dest);
   if (local_result) {

@@ -36,6 +36,7 @@ int ChunkManager::findAmongPeers(
 
 void ChunkManager::handleInsertRequest(
     const std::string& serialized_request, Message* response) {
+  CHECK_NOTNULL(response);
   // parse message TODO(tcies) centralize process?
   proto::InsertRequest insert_request;
   CHECK(insert_request.ParseFromString(serialized_request));

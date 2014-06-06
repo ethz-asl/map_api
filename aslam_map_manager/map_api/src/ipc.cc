@@ -42,6 +42,7 @@ void IPC::barrier(int id, int n_peers) {
 
 void IPC::barrierHandler(
     const std::string& id_string, Message* response) {
+  CHECK_NOTNULL(response);
   int id = std::stoi(id_string);
   {
     std::lock_guard<std::mutex> lock(barrier_mutex_);
