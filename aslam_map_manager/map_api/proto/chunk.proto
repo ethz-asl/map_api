@@ -1,0 +1,6 @@
+package map_api.proto;
+
+message InsertRequest {
+  required string chunk_id = 1;
+  required bytes serialized_revision = 2;
+}
