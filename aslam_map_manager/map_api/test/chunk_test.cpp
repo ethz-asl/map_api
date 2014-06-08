@@ -46,10 +46,14 @@ TEST_F(MultiprocessTest, ParticipationRequest) {
   enum Barriers {INIT, DIE};
   IPC::init();
   MapApiCore::instance();
+  ChunkTestTable& table = ChunkTestTable::instance();
+  table.init();
+  CRTable* raw_cr_table = dynamic_cast<CRTable*>(&table);
+  ASSERT_TRUE(static_cast<bool>(raw_cr_table));
+  // the following is a hack until FIXME(tcies) TableManager is instantiated
+  ChunkManager::instance().init(raw_cr_table);
   if (getSubprocessId() == 0) {
     uint64_t id = launchSubprocess();
-    ChunkTestTable& table = ChunkTestTable::instance();
-    table.init();
     std::weak_ptr<Chunk> my_chunk_weak =
         ChunkManager::instance().newChunk(table);
     std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();

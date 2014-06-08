@@ -17,7 +17,7 @@ class ChunkManager {
   /**
    * Registers handlers
    */
-  bool init();
+  bool init(CRTable* underlying_table);
 
   /**
    * Connects to the given chunk via the given peer.
@@ -109,6 +109,7 @@ class ChunkManager {
    */
   typedef std::unordered_map<Id, std::shared_ptr<Chunk> > ChunkMap;
   ChunkMap active_chunks_;
+  CRTable* underlying_table_;
 };
 
 } // namespace map_api
