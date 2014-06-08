@@ -57,7 +57,7 @@ class MapApiHub final {
    * Sends out the specified message to all connected peers
    */
   void broadcast(const Message& request,
-                   std::unordered_map<std::string, Message>* responses);
+                 std::unordered_map<std::string, Message>* responses);
 
   static void discoveryHandler(const std::string& peer, Message* response);
 
@@ -85,7 +85,7 @@ class MapApiHub final {
    */
   std::unique_ptr<zmq::context_t> context_;
   Poco::RWLock peerLock_;
-  PeerHandler<std::shared_ptr<Peer>> peers_;
+  PeerHandler<std::shared_ptr<Peer> > peers_;
   /**
    * Maps message types denominations to handler functions
    */

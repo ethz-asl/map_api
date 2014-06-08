@@ -11,7 +11,7 @@ void PeerHandler<PeerPointerType>::broadcast(
     std::unordered_map<std::string, Message>* responses) {
   CHECK_NOTNULL(responses);
   responses->clear();
-  // TODO(tcies) parallelize
+  // TODO(tcies) parallelize using std::future
   for (const std::pair<std::string, PeerPointerType>& peer_pair : peers_) {
     std::shared_ptr<Peer> shared_peer = this->lock(peer_pair.second);
     CHECK(shared_peer);

@@ -41,7 +41,7 @@ class ChunkManager {
       std::unordered_map<Id, std::shared_ptr<Revision> >* dest);
 
   /**
-   * Requests all peers in MapApiCore to participate in given chunk.
+   * Requests all peers in MapApiCore to participate in a given chunk.
    * Returns how many peers accepted participation.
    * For the time being this causes the peers to send an independent connect
    * request, which should be handled by the requester before this function

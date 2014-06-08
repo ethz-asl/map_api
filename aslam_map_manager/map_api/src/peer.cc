@@ -27,11 +27,15 @@ bool Peer::request(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
   int size = request.ByteSize();
   void* buffer = malloc(size);
-  request.SerializeToArray(buffer, size);
-  zmq::message_t message(buffer, size, NULL, NULL);
-  socket_.send(message);
-  socket_.recv(&message);
-  CHECK(response->ParseFromArray(message.data(), message.size()));
+  CHECK(request.SerializeToArray(buffer, size));
+  try {
+    zmq::message_t message(buffer, size, NULL, NULL);
+    CHECK(socket_.send(message));
+    CHECK(socket_.recv(&message));
+    CHECK(response->ParseFromArray(message.data(), message.size()));
+  } catch(const zmq::error_t& e) {
+    LOG(FATAL) << e.what();
+  }
   return true;
 }
 

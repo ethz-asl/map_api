@@ -134,7 +134,7 @@ class Chunk {
   bool handleInsert(const Revision& item);
 
   Id id_;
-  PeerHandler<std::weak_ptr<Peer>> peers_;
+  PeerHandler<std::weak_ptr<Peer> > peers_;
 
   enum LockStatus {
     UNLOCKED,
