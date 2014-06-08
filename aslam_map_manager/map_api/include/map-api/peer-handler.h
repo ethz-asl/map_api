@@ -11,7 +11,6 @@
 
 namespace map_api {
 
-
 /**
  * Allows to hold shared or weak pointers to peers and exposes common operations
  * on the peers. TODO(tcies) synchronization

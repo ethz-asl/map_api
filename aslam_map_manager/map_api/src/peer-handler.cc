@@ -21,16 +21,7 @@ void PeerHandler<std::weak_ptr<Peer>>::insert(
   CHECK(peers_.insert(
       std::make_pair(locked_pointer->address(), peer_pointer)).second);
 }
-template <>
-void PeerHandler<std::shared_ptr<Peer>>::insert(
-    std::shared_ptr<Peer> peer_pointer) {
-  LOG(FATAL) << "This flavor of insert should never be called!";
-}
-template <>
-void PeerHandler<std::weak_ptr<Peer>>::insert(
-    const std::string& address, zmq::context_t& context, int socket_type) {
-  LOG(FATAL) << "This flavor of insert should never be called!";
-}
+
 template <>
 void PeerHandler<std::shared_ptr<Peer>>::insert(
     const std::string& address, zmq::context_t& context, int socket_type) {

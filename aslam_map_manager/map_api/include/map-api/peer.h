@@ -13,14 +13,6 @@ class Peer {
 
   bool request(const Message& request, Message* response);
 
-  /**
-   * Peer delete function that can be passed to a shared pointer constructor,
-   * otherwise can't make shared pointers of peers with private-ization of
-   * CTOR/DTOR below.
-   * http://stackoverflow.com/questions/8202530
-   */
-  static void deleteFunction(Peer* peer_pointer);
-
  private:
   /**
    * Life cycle management of Peer objects reserved for PeerHandler
@@ -32,6 +24,13 @@ class Peer {
   Peer(const Peer&) = default;
   Peer& operator=(const Peer&) = default;
   ~Peer() = default;
+  /**
+   * Peer delete function that can be passed to a shared pointer constructor,
+   * otherwise can't make shared pointers of peers with private-ization of
+   * CTOR/DTOR.
+   * http://stackoverflow.com/questions/8202530
+   */
+  static void deleteFunction(Peer* peer_pointer);
 
   std::string address_;
   zmq::socket_t socket_;
