@@ -102,7 +102,10 @@ class ChunkManager {
    */
   static ChunkManager& instance();
  private:
-  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(ChunkManager);
+  ChunkManager() = default;
+  ChunkManager(const ChunkManager&) = delete;
+  ChunkManager& operator =(const ChunkManager&) = delete;
+  ~ChunkManager();
 
   /**
    * TODO(tcies) will probably become a LRU structure at some point

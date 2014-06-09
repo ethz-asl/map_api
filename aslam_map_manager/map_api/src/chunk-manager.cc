@@ -10,7 +10,10 @@ DECLARE_string(ip_port);
 
 namespace map_api {
 
-MEYERS_SINGLETON_INSTANCE_FUNCTION_IMPLEMENTATION(ChunkManager);
+ChunkManager& ChunkManager::instance() {
+  static ChunkManager object;
+  return object;
+}
 
 ChunkManager::~ChunkManager() {}
 
