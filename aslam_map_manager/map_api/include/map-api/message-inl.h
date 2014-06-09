@@ -10,7 +10,7 @@ void Message::impose() {
 }
 
 template <const char* message_type>
-bool Message::isType() {
+bool Message::isType() const {
   std::string expected_type(message_type);
   return this->type() == expected_type;
 }

@@ -16,6 +16,18 @@ namespace map_api {
 const char MapApiHub::kDiscovery[] = "map_api_hub_discovery";
 MAP_API_MESSAGE_IMPOSE_STRING_MESSAGE(MapApiHub::kDiscovery);
 
+/**
+ * FIXME(tcies) the next two functions will need to go away!!
+ */
+std::weak_ptr<Peer> MapApiHub::ensure(const std::string& address) {
+  return peers_.ensure(address);
+}
+void MapApiHub::getContextAndSocketType(
+    zmq::context_t** context, int* socket_type) {
+  *context = context_.get();
+  *socket_type = ZMQ_REQ;
+}
+
 std::unordered_map<std::string,
 std::function<void(const std::string&, Message*)> >
 MapApiHub::handlers_;
@@ -56,16 +68,7 @@ bool MapApiHub::init(const std::string &ipPort) {
       continue;
     }
     LOG(INFO) << "Found peer " << other << ", connecting...";
-    std::shared_ptr<zmq::socket_t> newPeer =
-        std::make_shared<zmq::socket_t>(zmq::socket_t(*context_, ZMQ_REQ));
-    try {
-      newPeer->connect(("tcp://" + other).c_str());
-    } catch (const std::exception& e){
-      LOG(WARNING) << "Attempted to connect to invalid socket " << other <<
-          ", discarding...";
-      continue;
-    }
-    peers_.insert(newPeer);
+    peers_.insert(other, *context_, ZMQ_REQ);
   }
   peerLock_.unlock();
   discovery.close();
@@ -80,8 +83,7 @@ bool MapApiHub::init(const std::string &ipPort) {
   // 4. notify peers of self
   Message announce_self;
   announce_self.impose<kDiscovery>(ipPort);
-  broadcast(announce_self);
-
+  CHECK(peers_.undisputable_broadcast(announce_self));
   return true;
 }
 
@@ -128,21 +130,19 @@ bool MapApiHub::registerHandler(
   return true;
 }
 
-void MapApiHub::broadcast(const Message& query) {
-  try {
-    peerLock_.readLock();
-    for (const std::shared_ptr<zmq::socket_t>& peer : peers_){
-      int size = query.ByteSize();
-      void* buffer = malloc(size);
-      query.SerializeToArray(buffer, size);
-      zmq::message_t message(buffer, size, NULL, NULL);
-      peer->send(message);
-      peer->recv(&message);
-    }
-    peerLock_.unlock();
-  } catch (const std::exception& e) {
-    LOG(FATAL) << e.what();
-  }
+void MapApiHub::request(
+    const std::string& peer_address, const Message& request,
+    Message* response) {
+  peerLock_.readLock();
+  peers_.request(peer_address, request, response);
+  peerLock_.unlock();
+}
+
+void MapApiHub::broadcast(const Message& request,
+                          std::unordered_map<std::string, Message>* responses) {
+  peerLock_.readLock();
+  peers_.broadcast(request, responses);
+  peerLock_.unlock();
 }
 
 void MapApiHub::discoveryHandler(const std::string& peer, Message* response) {
@@ -151,11 +151,8 @@ void MapApiHub::discoveryHandler(const std::string& peer, Message* response) {
       "connect to it...";
   // lock peer set lock so we can write without a race condition
   instance().peerLock_.writeLock();
-  std::set<std::shared_ptr<zmq::socket_t> >::iterator it =
-      instance().peers_.insert(std::unique_ptr<zmq::socket_t>(
-          new zmq::socket_t(*(instance().context_), ZMQ_REQ))).first;
+  instance().peers_.insert(peer, *instance().context_, ZMQ_REQ);
   instance().peerLock_.unlock();
-  (*it)->connect(("tcp://" + peer).c_str());
   // ack by resend
   response->impose<Message::kAck>();
 }

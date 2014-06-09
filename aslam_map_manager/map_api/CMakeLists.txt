@@ -32,6 +32,7 @@ SET(CORE_SOURCE  src/chunk.cc
                  src/message.cc
                  src/net-cr-table.cc
                  src/peer.cc
+                 src/peer-handler.cc
                  src/revision.cc
                  src/time.cc
                  src/local-transaction.cc)

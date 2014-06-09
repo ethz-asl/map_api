@@ -15,6 +15,7 @@
 #include <zeromq_cpp/zmq.hpp>
 
 #include "map-api/message.h"
+#include "map-api/peer-handler.h"
 #include "core.pb.h"
 
 namespace map_api {
@@ -55,7 +56,20 @@ class MapApiHub final {
   /**
    * Sends out the specified message to all connected peers
    */
-  void broadcast(const Message& message);
+  void broadcast(const Message& request,
+                 std::unordered_map<std::string, Message>* responses);
+
+  /**
+   * FIXME(tcies) the next two functions will need to go away!!
+   */
+  std::weak_ptr<Peer> ensure(const std::string& address);
+  void getContextAndSocketType(zmq::context_t** context, int* socket_type);
+
+  /**
+   * TODO(tcies) this cascade of calls smells...
+   */
+  void request(const std::string& peer_address, const Message& request,
+               Message* response);
 
   static void discoveryHandler(const std::string& peer, Message* response);
 
@@ -83,7 +97,7 @@ class MapApiHub final {
    */
   std::unique_ptr<zmq::context_t> context_;
   Poco::RWLock peerLock_;
-  std::set<std::shared_ptr<zmq::socket_t> > peers_;
+  PeerHandler<std::shared_ptr<Peer> > peers_;
   /**
    * Maps message types denominations to handler functions
    */

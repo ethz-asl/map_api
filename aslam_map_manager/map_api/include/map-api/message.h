@@ -24,12 +24,13 @@ class Message : public proto::HubMessage {
   void impose();
 
   template <const char* message_type>
-  bool isType();
+  bool isType() const;
 
   /**
    * General-purpose message types
    */
   static const char kAck[];
+  static const char kDecline[];
 };
 
 /**

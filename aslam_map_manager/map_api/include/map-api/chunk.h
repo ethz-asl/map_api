@@ -7,10 +7,12 @@
 
 #include <zeromq_cpp/zmq.hpp>
 
+#include "map-api/cr-table.h"
 #include "map-api/id.h"
-#include "map-api/peer.h"
+#include "map-api/peer-handler.h"
 #include "map-api/message.h"
 #include "map-api/revision.h"
+#include "chunk.pb.h"
 
 namespace map_api{
 /**
@@ -54,7 +56,7 @@ class Chunk {
    * NB it's easier to start reading the comments on other functions.
    *
    * A chunk is typically initialized as a consequence of data lookup across
-   * the network. If a peer a wants to access data it does not posess, it
+   * the network. If a peer a wants to access data it does not possess, it
    * requests all other peers it is connected to through map_api (alternatively:
    * all other peers that hold chunks in the table that the data is looked up
    * in). If one of those peers, b, has the data it looks for, b sends a the
@@ -66,7 +68,8 @@ class Chunk {
    * comments). b needs to perform a lock with its peers just at it would for
    * modifying chunk data.
    */
-  bool init();
+  bool init(const Id& id, const proto::ConnectResponse& connect_response,
+            CRTable* underlying_table);
   /**
    * Returns own identification
    */
@@ -133,15 +136,9 @@ class Chunk {
    */
   bool handleInsert(const Revision& item);
 
-  /**
-   * Own id
-   */
   Id id_;
-  /**
-   * Weak pointer because a list of all peers that are connected in map_api is
-   * expected to be maintained centrally at MapApiHub.
-   */
-  std::set<std::weak_ptr<Peer> > peers_;
+  PeerHandler<std::weak_ptr<Peer> > peers_;
+  CRTable* underlying_table_;
 
   enum LockStatus {
     UNLOCKED,
@@ -150,7 +147,7 @@ class Chunk {
     WRITE_LOCKED
   };
   LockStatus lock_status_;
-  std::weak_ptr<Peer> lock_holder_;
+  std::string lock_holder_;
 
 };
 

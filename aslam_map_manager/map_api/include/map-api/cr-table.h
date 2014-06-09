@@ -131,7 +131,7 @@ class CRTable {
    * History is another example at it is managed by the transaction.
    */
   friend class LocalTransaction;
-  friend class History;
+  friend class Chunk;
   /**
    * Commits an insert query. ID has to be defined in the query. Non-virtual
    * interface design pattern. Pointer to query, as it is modified according

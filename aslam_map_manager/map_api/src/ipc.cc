@@ -31,7 +31,11 @@ void IPC::barrier(int id, int n_peers) {
   }
   Message barrier_message;
   barrier_message.impose<kBarrierMessage,std::string>(ss.str());
-  MapApiHub::instance().broadcast(barrier_message);
+  std::unordered_map<std::string, Message> responses;
+  MapApiHub::instance().broadcast(barrier_message, &responses);
+  for (const std::pair<std::string, Message>& response : responses) {
+    CHECK(response.second.isType<Message::kAck>());
+  }
   std::unique_lock<std::mutex> lock(barrier_mutex_);
   while (barrier_map_[id] < n_peers) {
     barrier_cv_.wait(lock);

@@ -7,6 +7,26 @@
 
 namespace map_api {
 
+bool Chunk::init(const Id& id, const proto::ConnectResponse& connect_response,
+                 CRTable* underlying_table) {
+  id_ = id;
+  CHECK_NOTNULL(underlying_table);
+  underlying_table_ = underlying_table;
+  // connect to peers from connect_response TODO(tcies) notify of self
+  CHECK_LT(0, connect_response.peer_address_size());
+  for (int i = 0; i < connect_response.peer_address_size(); ++i) {
+    peers_.ensure(connect_response.peer_address(i));
+  }
+  // feed data from connect_response into underlying table TODO(tcies) piecewise
+  for (int i = 0; i < connect_response.serialized_revision_size(); ++i) {
+    Revision data;
+    CHECK(data.ParseFromString((connect_response.serialized_revision(i))));
+    CHECK(underlying_table->rawInsert(&data));
+    //TODO(tcies) problematic with CRU tables
+  }
+  return true;
+}
+
 Id Chunk::id() const {
   // TODO(tcies) implement
   return id_;
@@ -19,13 +39,7 @@ bool Chunk::insert(const Revision& item) {
   Message request;
   request.impose<ChunkManager::kInsertRequest, proto::InsertRequest>(
       insert_request);
-  for (const std::weak_ptr<Peer> weak_peer : peers_) {
-    std::shared_ptr<Peer> locked_peer = weak_peer.lock();
-    CHECK(locked_peer);
-    Message response;
-    CHECK(locked_peer->request(request, &response));
-    CHECK(response.isType<Message::kAck>());
-  }
+  CHECK(peers_.undisputable_broadcast(request));
   return true;
 }
 
