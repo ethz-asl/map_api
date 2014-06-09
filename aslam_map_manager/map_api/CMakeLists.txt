@@ -24,6 +24,7 @@ add_definitions(--std=c++0x -Wall -Wextra -pedantic -Wno-unused-local-typedefs)
 SET(CORE_SOURCE  src/chunk.cc
                  src/chunk-manager.cc
                  src/cr-table.cc
+                 src/cr-table-ram-cache.cc
                  src/cru-table.cc
                  src/ipc.cc
                  src/map-api-core.cc
@@ -34,6 +35,8 @@ SET(CORE_SOURCE  src/chunk.cc
                  src/peer.cc
                  src/peer-handler.cc
                  src/revision.cc
+                 src/sqlite-interface.cc
+                 src/table-descriptor.cc
                  src/time.cc
                  src/local-transaction.cc)
                  
