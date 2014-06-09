@@ -39,9 +39,6 @@ std::weak_ptr<Peer> PeerHandler<std::weak_ptr<Peer> >::ensure(
   std::unordered_map<std::string, std::weak_ptr<Peer> >::iterator found =
       peers_.find(address);
   if (found == peers_.end()) {
-    // TODO(slynen) in some sense, it would be cleaner for the weak flavor of
-    // PeerHandler to have a reference/pointer to its corresponding strong
-    // flavor object, instead of this hardcoded reference to MapApiHub. Wdyt?
     std::weak_ptr<Peer> requested_peer = MapApiHub::instance().ensure(address);
     CHECK(!requested_peer.expired());
     peers_[address] = requested_peer;
