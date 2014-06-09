@@ -16,6 +16,18 @@ namespace map_api {
 const char MapApiHub::kDiscovery[] = "map_api_hub_discovery";
 MAP_API_MESSAGE_IMPOSE_STRING_MESSAGE(MapApiHub::kDiscovery);
 
+/**
+ * FIXME(tcies) the next two functions will need to go away!!
+ */
+std::weak_ptr<Peer> MapApiHub::ensure(const std::string& address) {
+  return peers_.ensure(address);
+}
+void MapApiHub::getContextAndSocketType(
+    zmq::context_t** context, int* socket_type) {
+  *context = context_.get();
+  *socket_type = ZMQ_REQ;
+}
+
 std::unordered_map<std::string,
 std::function<void(const std::string&, Message*)> >
 MapApiHub::handlers_;
@@ -116,6 +128,14 @@ bool MapApiHub::registerHandler(
   // TODO(tcies) div. error handling
   handlers_[name] = handler;
   return true;
+}
+
+void MapApiHub::request(
+    const std::string& peer_address, const Message& request,
+    Message* response) {
+  peerLock_.readLock();
+  peers_.request(peer_address, request, response);
+  peerLock_.unlock();
 }
 
 void MapApiHub::broadcast(const Message& request,

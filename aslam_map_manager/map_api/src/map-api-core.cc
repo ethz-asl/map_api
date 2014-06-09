@@ -75,7 +75,7 @@ bool MapApiCore::init(const std::string &ipPort) {
         ipPort;
     return false;
   }
-  chunk_manager_.init();
+  // chunk_manager_.init(); TODO(tcies) reactivate once TableManager ready
   // TODO(titus) SigAbrt handler?
   Poco::Data::SQLite::Connector::registerConnector();
   dbSess_ = std::make_shared<Poco::Data::Session>("SQLite", ":memory:");

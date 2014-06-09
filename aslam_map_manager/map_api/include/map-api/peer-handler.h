@@ -28,6 +28,15 @@ class PeerHandler {
    */
   void clear();
   /**
+   * Ensures that peer with given address is among those handled
+   */
+  std::weak_ptr<Peer> ensure(const std::string& address);
+  /**
+   * TODO(tcies) this cascade of calls smells...
+   */
+  void request(const std::string& peer_address, const Message& request,
+               Message* response);
+  /**
    * Returns true if all peers have acknowledged, false otherwise.
    * TODO(tcies) timeouts?
    */

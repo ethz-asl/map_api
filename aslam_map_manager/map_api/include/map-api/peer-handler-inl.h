@@ -25,6 +25,19 @@ void PeerHandler<PeerPointerType>::clear() {
 }
 
 template <typename PeerPointerType>
+void PeerHandler<PeerPointerType>::request(
+    const std::string& peer_address, const Message& request,
+    Message* response) {
+  CHECK_NOTNULL(response);
+  typename std::unordered_map<std::string, PeerPointerType>::iterator found =
+      this->peers_.find(peer_address);
+  CHECK(this->peers_.end() != found);
+  std::shared_ptr<Peer> shared_peer = this->lock(found->second);
+  CHECK(shared_peer);
+  shared_peer->request(request, response);
+}
+
+template <typename PeerPointerType>
 size_t PeerHandler<PeerPointerType>::size() const {
   return this->peers_.size();
 }

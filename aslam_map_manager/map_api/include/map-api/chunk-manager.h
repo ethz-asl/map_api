@@ -17,9 +17,16 @@ class ChunkManager {
   /**
    * Registers handlers
    */
-  bool init();
+  bool init(CRTable* underlying_table);
+
+  /**
+   * Connects to the given chunk via the given peer.
+   */
+  std::weak_ptr<Chunk> connectTo(const Id& chunk_id,
+                                 const std::string& peer);
   /**
    * Allows a peer to initiate a new chunk belonging to the given table
+   * TODO(tcies) ChunkManager should BELONG TO a table
    */
   std::weak_ptr<Chunk> newChunk(const CRTable& table);
   /**
@@ -55,6 +62,8 @@ class ChunkManager {
    */
   static void handleConnectRequest(const std::string& serialized_request,
                                    Message* response);
+  static const char kConnectRequest[];
+  static const char kConnectResponse[];
 
   /**
    * Counterpart to findAmongPeers
@@ -100,6 +109,7 @@ class ChunkManager {
    */
   typedef std::unordered_map<Id, std::shared_ptr<Chunk> > ChunkMap;
   ChunkMap active_chunks_;
+  CRTable* underlying_table_;
 };
 
 } // namespace map_api
