@@ -22,7 +22,7 @@ bool CRTableRAMCache::insertCRDerived(Revision* query) {
 int CRTableRAMCache::findByRevisionCRDerived(
     const std::string& key, const Revision& valueHolder, const Time& time,
     std::unordered_map<Id, std::shared_ptr<Revision> >* dest) {
-  SqliteInterface::PocoToProto pocoToProto(*getTemplate());
+  SqliteInterface::PocoToProto pocoToProto(getTemplate());
   std::shared_ptr<Poco::Data::Session> session =
       sqlite_interface_.getSession().lock();
   CHECK(session) << "Couldn't lock session weak pointer";

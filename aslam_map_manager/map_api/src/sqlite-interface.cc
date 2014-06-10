@@ -95,6 +95,7 @@ bool SqliteInterface::insert(const Revision& to_insert) {
     LOG(FATAL) << "Insert failed with exception \"" << e.what() << "\", " <<
         " statement was \"" << statement.toString() << "\" and query :" <<
         to_insert.DebugString();
+    system("cp database.db /tmp");
   }
 
   return true;
@@ -115,16 +116,17 @@ bool SqliteInterface::isSqlSafe(const std::string& string) const {
   return true;
 }
 
-SqliteInterface::PocoToProto::PocoToProto(const Revision& reference)
+SqliteInterface::PocoToProto::PocoToProto(
+    const std::shared_ptr<Revision>& reference)
 : reference_(reference) {}
 
 void SqliteInterface::PocoToProto::into(Poco::Data::Statement& statement) {
   statement << " ";
-  for (int i = 0; i < reference_.fieldqueries_size(); ++i) {
+  for (int i = 0; i < reference_->fieldqueries_size(); ++i) {
     if (i > 0) {
       statement << ", ";
     }
-    const proto::TableField& field = reference_.fieldqueries(i);
+    const proto::TableField& field = reference_->fieldqueries(i);
     statement << field.nametype().name();
     switch(field.nametype().type()){
       case (proto::TableFieldDescriptor_Type_BLOB):{
@@ -177,7 +179,7 @@ int SqliteInterface::PocoToProto::toProto(
 
   // write values
   for (size_t i = 0; i < dest->size(); ++i) {
-    (*dest)[i] = std::make_shared<Revision>(reference_);
+    (*dest)[i] = std::make_shared<Revision>(*reference_);
     for (const std::pair<std::string, std::vector<double> >& fieldDouble :
         doubles_){
       (*dest)[i]->set(fieldDouble.first, fieldDouble.second[i]);

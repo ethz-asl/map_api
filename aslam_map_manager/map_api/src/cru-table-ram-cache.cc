@@ -22,7 +22,7 @@ int CRUTableRAMCache::findByRevisionCRUDerived(
     std::unordered_map<Id, std::shared_ptr<Revision> >* dest) {
   // TODO(tcies) apart from the more sophisticated time query, this is very
   // similar to its CR equivalent. Maybe refactor at some time?
-  SqliteInterface::PocoToProto poco_to_proto(*getTemplate());
+  SqliteInterface::PocoToProto poco_to_proto(getTemplate());
   std::shared_ptr<Poco::Data::Session> session =
       sqlite_interface_.getSession().lock();
   CHECK(session) << "Couldn't lock session weak pointer";
