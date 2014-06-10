@@ -49,7 +49,7 @@ class SqliteInterface {
     /**
      * Associating with Table interface object to get template
      */
-    PocoToProto(const CRTable& table);
+    explicit PocoToProto(const Revision& reference);
     /**
      * To be inserted between "SELECT" and "FROM": Bind database outputs to
      * own structure.
@@ -61,7 +61,8 @@ class SqliteInterface {
      */
     int toProto(std::vector<std::shared_ptr<Revision> >* dest);
    private:
-    const CRTable& table_;
+    int resultSize();
+    const Revision& reference_;
     /**
      * Maps where the data is store intermediately
      */

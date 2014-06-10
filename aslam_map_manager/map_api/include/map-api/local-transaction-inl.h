@@ -4,7 +4,7 @@
 namespace map_api {
 
 template<typename ValueType>
-bool LocalTransaction::addConflictCondition(const CRTable& table,
+bool LocalTransaction::addConflictCondition(CRTable& table,
                                             const std::string& key,
                                             const ValueType& value) {
   if (LocalTransaction::notifyAbortedOrInactive()) {
@@ -19,7 +19,7 @@ bool LocalTransaction::addConflictCondition(const CRTable& table,
 
 template<typename ValueType>
 int LocalTransaction::find(
-    const CRTable& table, const std::string& key, const ValueType& value,
+    CRTable& table, const std::string& key, const ValueType& value,
     std::unordered_map<Id, SharedRevisionPointer>* dest) const {
   CHECK_NOTNULL(dest);
   if (LocalTransaction::notifyAbortedOrInactive()){
@@ -31,7 +31,7 @@ int LocalTransaction::find(
     std::unordered_map<Id, SharedRevisionPointer> from_database;
     {
       std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-      table.rawFind(key, value, this->beginTime_, &from_database);
+      table.find(key, value, this->beginTime_, &from_database);
     }
     // this implementation of unordered_map::insert is specified to skip
     // duplicates, not override them, at least according to MSDN
@@ -39,14 +39,14 @@ int LocalTransaction::find(
     dest->insert(from_database.begin(), from_database.end());
   } else {  // no results in uncommitted, forward db directly
     std::lock_guard < std::recursive_mutex > lock(dbMutex_);
-    table.rawFind(key, value, this->beginTime_, dest);
+    table.find(key, value, this->beginTime_, dest);
   }
   return dest->size();
 }
 
 template<typename ValueType>
 LocalTransaction::SharedRevisionPointer LocalTransaction::findUnique(
-    const CRTable& table, const std::string& key, const ValueType& value)
+    CRTable& table, const std::string& key, const ValueType& value)
 const {
   if (LocalTransaction::notifyAbortedOrInactive()){
     return false;
@@ -60,7 +60,7 @@ const {
     return uncommitted;
   }
   std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-  return table.rawFindUnique(key, value, this->beginTime_);
+  return table.findUnique(key, value, this->beginTime_);
 }
 
 template<typename ValueType>

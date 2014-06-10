@@ -1,11 +1,6 @@
-/*
- * cru-table-ram-cache.cc
- *
- *  Created on: Jun 10, 2014
- *      Author: titus
- */
+#include "map-api/cru-table-ram-cache.h"
 
-#include "cru-table-ram-cache.h"
+#include "map-api/map-api-core.h"
 
 namespace map_api {
 
@@ -27,7 +22,7 @@ int CRUTableRAMCache::findByRevisionCRUDerived(
     std::unordered_map<Id, std::shared_ptr<Revision> >* dest) {
   // TODO(tcies) apart from the more sophisticated time query, this is very
   // similar to its CR equivalent. Maybe refactor at some time?
-  SqliteInterface::PocoToProto poco_to_proto(*this);
+  SqliteInterface::PocoToProto poco_to_proto(*getTemplate());
   std::shared_ptr<Poco::Data::Session> session =
       sqlite_interface_.getSession().lock();
   CHECK(session) << "Couldn't lock session weak pointer";
@@ -62,6 +57,9 @@ int CRUTableRAMCache::findByRevisionCRUDerived(
 }
 
 bool CRUTableRAMCache::updateCRUDerived(Revision* query) {
+  Id id;
+  query->get(kIdField, &id);
+  ItemDebugInfo info(name(), id);
   // Write update time into "next_time" field of current revision
   Time update_time, previous_time;
   query->get(kUpdateTimeField, &update_time);

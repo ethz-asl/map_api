@@ -21,10 +21,6 @@ const std::string CRTable::kInsertTimeField = "insert_time";
 
 CRTable::~CRTable() {}
 
-bool CRTable::isInitialized() const{
-  return initialized_;
-}
-
 bool CRTable::init(std::unique_ptr<TableDescriptor>* descriptor) {
   CHECK_NOTNULL(descriptor);
   CHECK((*descriptor)->has_name());
@@ -34,6 +30,14 @@ bool CRTable::init(std::unique_ptr<TableDescriptor>* descriptor) {
   CHECK(initCRDerived());
   initialized_ = true;
   return true;
+}
+
+bool CRTable::isInitialized() const{
+  return initialized_;
+}
+
+const std::string& CRTable::name() const {
+  return descriptor_->name();
 }
 
 std::shared_ptr<Revision> CRTable::getTemplate() const{

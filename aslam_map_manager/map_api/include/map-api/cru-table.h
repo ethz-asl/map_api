@@ -29,7 +29,7 @@ class CRUTable : public CRTable {
   bool update(Revision* query);
   bool latestUpdateTime(const Id& id, Time* time);
 
- private:
+ protected:
   /**
    * Default fields for internal management,
    */
@@ -37,6 +37,7 @@ class CRUTable : public CRTable {
   static const std::string kPreviousTimeField; // time of previous revision
   static const std::string kNextTimeField; // time of next revision
 
+ private:
   virtual bool initCRDerived() final override;
   virtual bool insertCRDerived(Revision* query) final override;
   virtual int findByRevisionCRDerived(

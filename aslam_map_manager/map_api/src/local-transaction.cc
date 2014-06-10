@@ -21,13 +21,13 @@ bool LocalTransaction::begin(){
 // forward declaration required, else "specialization after instantiation"
 template<>
 inline bool LocalTransaction::hasContainerConflict(
-    const LocalTransaction::ConflictConditionVector& container);
+    LocalTransaction::ConflictConditionVector& container);
 template<>
 inline bool LocalTransaction::hasContainerConflict(
-    const LocalTransaction::InsertMap& container);
+    LocalTransaction::InsertMap& container);
 template<>
 inline bool LocalTransaction::hasContainerConflict(
-    const LocalTransaction::UpdateMap& container);
+    LocalTransaction::UpdateMap& container);
 
 bool LocalTransaction::commit(){
   if (notifyAbortedOrInactive()){
@@ -58,13 +58,13 @@ bool LocalTransaction::commit(){
     // the SQL built-in transactions
     for (const std::pair<ItemId, SharedRevisionPointer> &insertion :
         insertions_){
-      const CRTable& table = insertion.first.table;
+      CRTable& table = insertion.first.table;
       const Id& id = insertion.first.id;
       CRTable::ItemDebugInfo debugInfo(table.name(), id);
       const SharedRevisionPointer &revision = insertion.second;
       CHECK(revision->verify(CRTable::kIdField, id)) <<
           "Identifier ID does not match revision ID";
-      if (!table.rawInsert(revision.get())){
+      if (!table.insert(revision.get())){
         LOG(ERROR) << debugInfo << "Insertion failed, aborting commit.";
         return false;
       }
@@ -73,14 +73,14 @@ bool LocalTransaction::commit(){
     for (const std::pair<ItemId, SharedRevisionPointer> &update :
         updates_){
       try {
-        const CRUTable& table =
-            dynamic_cast<const CRUTable&>(update.first.table);
+        CRUTable& table =
+            dynamic_cast<CRUTable&>(update.first.table);
         const Id& id = update.first.id;
         CRTable::ItemDebugInfo debugInfo(table.name(), id);
         const SharedRevisionPointer &revision = update.second;
         CHECK(revision->verify(CRTable::kIdField, id)) <<
             "Identifier ID does not match revision ID";
-        if (!table.rawUpdate(revision.get())){
+        if (!table.update(revision.get())){
           LOG(ERROR) << debugInfo << "Update failed, aborting commit.";
           return false;
         }
@@ -101,8 +101,8 @@ bool LocalTransaction::abort(){
   return true;
 }
 
-Id LocalTransaction::insert(const CRTable& table,
-                       const SharedRevisionPointer& item){
+Id LocalTransaction::insert(CRTable& table,
+                            const SharedRevisionPointer& item){
   Id id(Id::random());
   if (!insert(table, id, item)){
     return Id();
@@ -111,8 +111,8 @@ Id LocalTransaction::insert(const CRTable& table,
 }
 
 
-bool LocalTransaction::insert(const CRTable& table, const Id& id,
-                         const SharedRevisionPointer& item){
+bool LocalTransaction::insert(CRTable& table, const Id& id,
+                              const SharedRevisionPointer& item){
   if (notifyAbortedOrInactive()){
     return false;
   }
@@ -133,18 +133,18 @@ bool LocalTransaction::insert(const CRTable& table, const Id& id,
 }
 
 LocalTransaction::SharedRevisionPointer LocalTransaction::read(
-    const CRTable& table, const Id& id){
+    CRTable& table, const Id& id){
   return findUnique(table, CRTable::kIdField, id);
 }
 
 bool LocalTransaction::dumpTable(
-    const CRTable& table,
+    CRTable& table,
     std::unordered_map<Id, SharedRevisionPointer>* dest) {
   return find(table, "", 0, dest);
 }
 
-bool LocalTransaction::update(const CRUTable& table, const Id& id,
-                         const SharedRevisionPointer& newRevision){
+bool LocalTransaction::update(CRUTable& table, const Id& id,
+                              const SharedRevisionPointer& newRevision){
   if (notifyAbortedOrInactive()){
     return false;
   }
@@ -177,20 +177,20 @@ bool LocalTransaction::notifyAbortedOrInactive() const {
 
 template<>
 bool LocalTransaction::hasItemConflict(
-    const LocalTransaction::ConflictCondition& item) {
+    LocalTransaction::ConflictCondition& item) {
   std::unordered_map<Id, SharedRevisionPointer> results;
-  return item.table.rawFindByRevision(item.key, *item.valueHolder, Time(),
-                                      &results);
+  return item.table.findByRevision(item.key, *item.valueHolder, Time(),
+                                   &results);
 }
 
 template<>
 inline bool LocalTransaction::hasContainerConflict<LocalTransaction::InsertMap>(
-    const LocalTransaction::InsertMap& container){
+    LocalTransaction::InsertMap& container){
   for (const std::pair<ItemId, const SharedRevisionPointer>& item :
       container){
     std::lock_guard<std::recursive_mutex> lock(dbMutex_);
     // Conflict if id present in table
-    if (item.first.table.rawGetById(item.first.id, Time())){
+    if (item.first.table.getById(item.first.id, Time())){
       LOG(WARNING) << "Table " << item.first.table.name() <<
           " already contains id " << item.first.id.hexString() <<
           ", transaction conflict!";
@@ -201,16 +201,16 @@ inline bool LocalTransaction::hasContainerConflict<LocalTransaction::InsertMap>(
 }
 template<>
 inline bool LocalTransaction::hasContainerConflict<LocalTransaction::UpdateMap>(
-    const LocalTransaction::UpdateMap& container){
+    LocalTransaction::UpdateMap& container){
   for (const std::pair<ItemId, const SharedRevisionPointer>& item :
       container){
     try {
-      const CRUTable& table = static_cast<const CRUTable&>(item.first.table);
+      CRUTable& table = static_cast<CRUTable&>(item.first.table);
       if (this->insertions_.find(item.first) != this->insertions_.end()){
         return false;
       }
       Time latestUpdate;
-      if (!table.rawLatestUpdateTime(item.first.id, &latestUpdate)){
+      if (!table.latestUpdateTime(item.first.id, &latestUpdate)){
         LOG(FATAL) << "Error retrieving update time";
       }
       if (latestUpdate >= beginTime_) {
@@ -225,8 +225,8 @@ inline bool LocalTransaction::hasContainerConflict<LocalTransaction::UpdateMap>(
 template<>
 inline bool LocalTransaction::hasContainerConflict<
 LocalTransaction::ConflictConditionVector>(
-    const LocalTransaction::ConflictConditionVector& container){
-  for (const LocalTransaction::ConflictCondition& conflictCondition :
+    LocalTransaction::ConflictConditionVector& container){
+  for (LocalTransaction::ConflictCondition& conflictCondition :
       container){
     if (hasItemConflict(conflictCondition)){
       return true;

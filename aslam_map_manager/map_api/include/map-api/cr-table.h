@@ -110,6 +110,9 @@ class CRTable {
       table(_table), id(_id.hexString()) {}
   } ItemDebugInfo;
 
+ protected:
+  std::unique_ptr<TableDescriptor> descriptor_;
+
  private:
   /**
    * ================================================
@@ -131,7 +134,6 @@ class CRTable {
       const std::string& key, const Revision& valueHolder, const Time& time,
       std::unordered_map<Id, std::shared_ptr<Revision> >* dest) = 0;
 
-  std::unique_ptr<TableDescriptor> descriptor_;
   bool initialized_ = false;
 };
 

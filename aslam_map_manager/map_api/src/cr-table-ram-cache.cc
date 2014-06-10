@@ -2,6 +2,8 @@
 
 #include <glog/logging.h>
 
+#include "map-api/map-api-core.h"
+
 namespace map_api {
 
 CRTableRAMCache::~CRTableRAMCache() {}
@@ -13,9 +15,6 @@ bool CRTableRAMCache::initCRDerived() {
   return true;
 }
 
-void CRTableRAMCache::defineDefaultFieldsCRDerived() {}
-void CRTableRAMCache::ensureDefaulFieldsCRDerived(Revision* query) const {}
-
 bool CRTableRAMCache::insertCRDerived(Revision* query) {
   return sqlite_interface_.insert(*query);
 }
@@ -23,7 +22,7 @@ bool CRTableRAMCache::insertCRDerived(Revision* query) {
 int CRTableRAMCache::findByRevisionCRDerived(
     const std::string& key, const Revision& valueHolder, const Time& time,
     std::unordered_map<Id, std::shared_ptr<Revision> >* dest) {
-  SqliteInterface::PocoToProto pocoToProto(*this);
+  SqliteInterface::PocoToProto pocoToProto(*getTemplate());
   std::shared_ptr<Poco::Data::Session> session =
       sqlite_interface_.getSession().lock();
   CHECK(session) << "Couldn't lock session weak pointer";

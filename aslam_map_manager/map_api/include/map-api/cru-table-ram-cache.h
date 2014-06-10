@@ -24,7 +24,6 @@ class CRUTableRAMCache : public CRUTable {
       std::unordered_map<Id, std::shared_ptr<Revision> >* dest) final override;
 
   virtual bool updateCRUDerived(Revision* query) final override;
-  virtual bool latestUpdateTimeCRUDerived(const Id& id, Time* time) const final override;
 
   SqliteInterface sqlite_interface_;
 };

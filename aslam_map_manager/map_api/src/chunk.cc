@@ -21,7 +21,7 @@ bool Chunk::init(const Id& id, const proto::ConnectResponse& connect_response,
   for (int i = 0; i < connect_response.serialized_revision_size(); ++i) {
     Revision data;
     CHECK(data.ParseFromString((connect_response.serialized_revision(i))));
-    CHECK(underlying_table->rawInsert(&data));
+    CHECK(underlying_table->insert(&data));
     //TODO(tcies) problematic with CRU tables
   }
   return true;
