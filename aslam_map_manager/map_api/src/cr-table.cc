@@ -29,26 +29,11 @@ bool CRTable::init(std::unique_ptr<TableDescriptor>* descriptor) {
   CHECK_NOTNULL(descriptor);
   CHECK((*descriptor)->has_name());
   descriptor_ = std::move(*descriptor);
-  defineDefaultFields();
+  descriptor_->addField<Id>(kIdField);
+  descriptor_->addField<Time>(kInsertTimeField);
   CHECK(initCRDerived());
   initialized_ = true;
   return true;
-}
-
-void CRTable::defineDefaultFields() {
-  descriptor_->addField<Id>(kIdField);
-  descriptor_->addField<Time>(kInsertTimeField);
-  // addField<Id>("owner"); TODO(tcies) later, when owner will be used for
-  defineDefaultFieldsCRDerived();
-}
-
-void CRTable::ensureDefaultFields(Revision* query) const {
-  CHECK_NOTNULL(query);
-  Id id;
-  query->get(kIdField, &id);
-  CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
-  query->set(kInsertTimeField, Time()); // FIXME(tcies) Time::now()
-  ensureDefaulFieldsCRDerived(query);
 }
 
 std::shared_ptr<Revision> CRTable::getTemplate() const{
@@ -71,7 +56,10 @@ bool CRTable::insert(Revision* query) {
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(reference->structureMatch(*query)) <<
       "Bad structure of insert revision";
-  ensureDefaultFields(query);
+  Id id;
+  query->get(kIdField, &id);
+  CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
+  query->set(kInsertTimeField, Time()); // FIXME(tcies) Time::now()
   return insertCRDerived(query);
 }
 
@@ -99,7 +87,7 @@ int CRTable::findByRevision(
 // although this is very similar to rawGetRow(), I don't see how to share the
 // features without loss of performance TODO(discuss)
 void CRTable::dump(const Time& time,
-                      std::unordered_map<Id, std::shared_ptr<Revision> >* dest)
+                   std::unordered_map<Id, std::shared_ptr<Revision> >* dest)
 {
   std::shared_ptr<Revision> valueHolder = getTemplate();
   findByRevision("", *valueHolder, time, dest);

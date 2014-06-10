@@ -112,15 +112,6 @@ class CRTable {
 
  private:
   /**
-   * Defines default table fields.
-   */
-  virtual void defineDefaultFields() final;
-  /**
-   * Ensures the default fields are properly set
-   */
-  virtual void ensureDefaultFields(Revision* query) const final;
-
-  /**
    * ================================================
    * FUNCTIONS TO BE IMPLEMENTED BY THE DERIVED CLASS
    * ================================================
@@ -129,15 +120,6 @@ class CRTable {
    * Do here whatever is specific to initializing the derived type
    */
   virtual bool initCRDerived() = 0;
-  /**
-   * Define default fields by repeated calls to descriptor_.addField().
-   */
-  virtual void defineDefaultFieldsCRDerived() = 0;
-  /**
-   * Ensure fields set with defineDefaultFieldsCRDerived are properly set in the
-   * passed query.
-   */
-  virtual void ensureDefaulFieldsCRDerived(Revision* query) const = 0;
   /**
    * Minimal required table operations
    */
