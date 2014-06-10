@@ -187,8 +187,7 @@ REVISION_GET(int32_t){
 }
 REVISION_GET(Id){
   if (!value->fromHexString(field.stringvalue())){
-    LOG(ERROR) << "Failed to parse Hash id from string " << field.stringvalue();
-    return false;
+    LOG(FATAL) << "Failed to parse Hash id from string " << field.stringvalue();
   }
   return true;
 }
@@ -203,7 +202,7 @@ REVISION_GET(Time){
 REVISION_GET(Revision){
   bool parsed = value->ParseFromString(field.blobvalue());
   if (!parsed) {
-    LOG(ERROR) << "Failed to parse revision";
+    LOG(FATAL) << "Failed to parse revision";
     return false;
   }
   return true;
@@ -211,7 +210,7 @@ REVISION_GET(Revision){
 REVISION_GET(testBlob){
   bool parsed = value->ParseFromString(field.blobvalue());
   if (!parsed) {
-    LOG(ERROR) << "Failed to parse test blob";
+    LOG(FATAL) << "Failed to parse test blob";
     return false;
   }
   return true;

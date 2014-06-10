@@ -11,7 +11,7 @@
 #include "map-api/map-api-hub.h"
 #include "map-api/transaction.h"
 
-DEFINE_string(ipPort, "127.0.0.1:5050", "Define node ip and port");
+DEFINE_string(ip_port, "127.0.0.1:5050", "Define node ip and port");
 
 namespace map_api {
 
@@ -20,7 +20,7 @@ MapApiCore &MapApiCore::getInstance() {
   static std::mutex initMutex;
   initMutex.lock();
   if (!instance.isInitialized()) {
-    if (!instance.init(FLAGS_ipPort)){
+    if (!instance.init(FLAGS_ip_port)){
       LOG(FATAL) << "Failed to initialize Map Api Core.";
     }
   }
@@ -38,10 +38,11 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
   Transaction tryInsert;
   tryInsert.begin();
   std::shared_ptr<Revision> attempt = metatable_->getTemplate();
-  attempt->set("name", descriptor.name());
-  attempt->set("descriptor", descriptor);
+  attempt->set(Metatable::kNameField, descriptor.name());
+  attempt->set(Metatable::kDescriptorField, descriptor);
   tryInsert.insert(*metatable_, attempt);
-  tryInsert.addConflictCondition(*metatable_, "name", descriptor.name());
+  tryInsert.addConflictCondition(*metatable_, Metatable::kNameField,
+                                 descriptor.name());
   bool success = tryInsert.commit();
   if (success){
     return true;
@@ -49,12 +50,12 @@ bool MapApiCore::syncTableDefinition(const proto::TableDescriptor& descriptor) {
   // if has existed, verify descriptors match
   Transaction reader;
   reader.begin();
-  std::shared_ptr<Revision> previous = reader.findUnique(*metatable_, "name",
-                                                         descriptor.name());
+  std::shared_ptr<Revision> previous = reader.findUnique(
+      *metatable_, Metatable::kNameField, descriptor.name());
   CHECK(previous) << "Can't find table " << descriptor.name() <<
       " even though its presence seemingly caused a conflict";
   proto::TableDescriptor previousDescriptor;
-  previous->get("descriptor", &previousDescriptor);
+  previous->get(Metatable::kDescriptorField, &previousDescriptor);
   if (descriptor.SerializeAsString() !=
       previousDescriptor.SerializeAsString()) {
     LOG(ERROR) << "Table schema mismatch of table " << descriptor.name() << ": "
@@ -70,11 +71,12 @@ void MapApiCore::purgeDb() {
   ensureMetatable();
   Transaction reader;
   reader.begin();
-  std::vector<std::shared_ptr<Revision> > tables;
-  reader.dumpTable<CRTableInterface>(*metatable_, &tables);
-  for (const std::shared_ptr<Revision>& table : tables) {
+  std::unordered_map<Id, std::shared_ptr<Revision> > tables;
+  reader.dumpTable(*metatable_, &tables);
+  for (const std::pair<Id, std::shared_ptr<Revision> >& idTable : tables) {
+    const std::shared_ptr<Revision>& table = idTable.second;
     std::string name;
-    table->get("name", &name);
+    table->get(Metatable::kNameField, &name);
     *dbSess_ << "DROP TABLE IF EXISTS " << name, Poco::Data::now;
   }
   *dbSess_ << "DROP TABLE metatable", Poco::Data::now;
@@ -92,11 +94,7 @@ bool MapApiCore::init(const std::string &ipPort) {
   // TODO(titus) SigAbrt handler?
   Poco::Data::SQLite::Connector::registerConnector();
   dbSess_ = std::shared_ptr<Poco::Data::Session>(
-      new Poco::Data::Session("SQLite", "database.db"));
-  LOG(INFO)<< "Connected to database..." << std::endl;
-
-  // TODO(tcies) metatable
-
+        new Poco::Data::Session("SQLite", ":memory:"));
   initialized_ = true;
   return true;
 }

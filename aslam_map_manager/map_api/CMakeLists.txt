@@ -22,7 +22,7 @@ add_definitions(--std=c++0x -Wall -Wextra -pedantic -Wno-unused-local-typedefs)
 # Core Library available to all applications
 SET(CORE_SOURCE  src/cr-table-interface.cc
                  src/cru-table-interface.cc
-                 src/history.cc
+                 src/ipc.cc
                  src/map-api-core.cc
                  src/map-api-hub.cc
                  src/metatable.cc
@@ -30,7 +30,7 @@ SET(CORE_SOURCE  src/cr-table-interface.cc
                  src/time.cc
                  src/transaction.cc)
                  
-cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS})
+cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
 # we need to add dependencies of external project packages to fetch headers
 # before compilation
 add_dependencies(${PROJECT_NAME} zeromq_catkin gflags_catkin glog_catkin)
@@ -40,16 +40,17 @@ target_link_libraries(${PROJECT_NAME} ${POCO_LIBRARIES})
 # GTESTS #
 ##########
 
-catkin_add_gtest(test_table_interface_test test/test_main.cpp
-  test/table_interface_test.cpp)
+catkin_add_gtest(test_table_interface_test test/table_interface_test.cpp)
 target_link_libraries(test_table_interface_test ${PROJECT_NAME})
 
-catkin_add_gtest(test_core_test test/test_main.cpp test/core_test.cpp)
+catkin_add_gtest(test_core_test test/core_test.cpp)
 target_link_libraries(test_core_test ${PROJECT_NAME})
 
-catkin_add_gtest(test_transaction_test test/test_main.cpp 
-  test/transaction_test.cpp)
+catkin_add_gtest(test_transaction_test test/transaction_test.cpp)
 target_link_libraries(test_transaction_test ${PROJECT_NAME})
+
+catkin_add_gtest(test_hub_test test/hub_test.cpp)
+target_link_libraries(test_hub_test ${PROJECT_NAME})
 
 ##########
 # EXPORT #

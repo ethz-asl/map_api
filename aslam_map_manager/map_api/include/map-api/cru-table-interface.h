@@ -9,7 +9,6 @@
 #include <gflags/gflags.h>
 
 #include "map-api/cr-table-interface.h"
-#include "map-api/history.h"
 #include "map-api/revision.h"
 #include "map-api/time.h"
 #include "core.pb.h"
@@ -22,7 +21,6 @@ namespace map_api {
 class CRUTableInterface : public CRTableInterface{
  public:
   virtual bool init();
-
   /**
    * ================================================
    * FUNCTIONS TO BE IMPLEMENTED BY THE DERIVED CLASS
@@ -42,34 +40,31 @@ class CRUTableInterface : public CRTableInterface{
 
  protected:
   /**
+   * Default table fields
+   */
+  static const std::string kUpdateTimeField;
+  static const std::string kPreviousTimeField; // time of previous revision
+  static const std::string kNextTimeField; // time of next revision
+  /**
    * The following functions are to be used by transactions only. They pose a
    * very crude access straight to the database, without synchronization
    * and conflict checking - that is assumed to be done by the transaction.
    */
   friend class Transaction;
+
   virtual bool rawInsertImpl(Revision& query) const override;
-  /**
-   * Extension to CR interface: Get latest version at given time.
-   */
-  std::shared_ptr<Revision> rawGetRowAtTime(
-      const Id& id, const Time& time) const;
-  /**
-   * Dump table according to state at given time TODO(tcies) also in CR
-   */
-  void rawDumpAtTime(const Time& time,
-                     std::vector<std::shared_ptr<Revision> >* dest) const;
+
+  virtual int rawFindByRevisionImpl(
+      const std::string& key, const Revision& valueHolder, const Time& time,
+      std::unordered_map<Id, std::shared_ptr<Revision> >* dest)  const
+  override;
   /**
    * Field ID in revision must correspond to an already present item, revision
    * structure needs to match.
    */
-  bool rawUpdateQuery(Revision& query) const;
+  bool rawUpdate(Revision& query) const;
+  virtual bool rawUpdateImpl(Revision& query) const;
   bool rawLatestUpdateTime(const Id& id, Time* time) const;
-
- private:
-  /**
-   * Unique ptr for history needs to be initialized with the table name.
-   */
-  std::unique_ptr<History> history_;
 };
 
 }
