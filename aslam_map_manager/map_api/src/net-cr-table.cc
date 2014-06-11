@@ -9,17 +9,10 @@ const std::string NetCRTable::kChunkIdField = "chunk_id";
 NetCRTable::~NetCRTable() {}
 
 bool NetCRTable::init() {
-  active_chunks_.clear();
-  insert_chunk_.reset();
-  return CRTable::init();
+
 }
 
-void NetCRTable::defineFieldsCRDerived() {
-  addField<Id>(kChunkIdField);
-  defineFieldsNetCRDerived();
-}
-
-bool NetCRTable::netInsert(const std::weak_ptr<Chunk>& chunk, Revision* query) {
+bool NetCRTable::insert(const std::weak_ptr<Chunk>& chunk, Revision* query) {
   CHECK_NOTNULL(query);
   std::shared_ptr<Chunk> locked_chunk = chunk.lock();
   if (!locked_chunk) {

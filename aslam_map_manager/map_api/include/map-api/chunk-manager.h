@@ -28,7 +28,7 @@ class ChunkManager {
    * Allows a peer to initiate a new chunk belonging to the given table
    * TODO(tcies) ChunkManager should BELONG TO a table
    */
-  std::weak_ptr<Chunk> newChunk(const CRTable& table);
+  std::weak_ptr<Chunk> newChunk();
   /**
    * Looks for items among the peers and fetches chunks if they have matching
    * items.
