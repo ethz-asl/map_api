@@ -1,5 +1,5 @@
-#ifndef TABLE_INTERFACE_H
-#define TABLE_INTERFACE_H
+#ifndef MAP_API_CRU_TABLE_H_
+#define MAP_API_CRU_TABLE_H_
 
 #include <vector>
 #include <memory>
@@ -8,7 +8,7 @@
 #include <Poco/Data/Common.h>
 #include <gflags/gflags.h>
 
-#include "map-api/cr-table-interface.h"
+#include "map-api/cr-table.h"
 #include "map-api/revision.h"
 #include "map-api/time.h"
 #include "core.pb.h"
@@ -18,13 +18,22 @@ namespace map_api {
 /**
  * Provides interface to map api tables.
  */
-class CRUTableInterface : public CRTableInterface{
+class CRUTable : public CRTable {
  public:
-  virtual bool init();
+  /**
+   * Sets CRU default fields and calls defineFieldsCRUDerived().
+   */
+  virtual void defineFieldsCRDerived() final override;
   /**
    * ================================================
    * FUNCTIONS TO BE IMPLEMENTED BY THE DERIVED CLASS
    * ================================================
+   * N.b. the singleton pattern protected functions should also be implemented,
+   * see below
+   * The singleton's static instance() also needs to be implemented, can't be
+   * done here for static functions can't be virtual. Recommended to use
+   * meyersInstance() to save typing.
+   * Use protected destructor.
    */
   /**
    * This table name will appear in the database, so it must be chosen SQL
@@ -32,13 +41,13 @@ class CRUTableInterface : public CRTableInterface{
    */
   virtual const std::string name() const = 0;
   /**
-   * Function to be implemented by derivations: Define table by repeated
+   * Function to be implemented by derivations: Define table fields by repeated
    * calls to addField()
    */
-  virtual void define() = 0;
-  virtual ~CRUTableInterface();
+  virtual void defineFieldsCRUDerived() = 0;
 
  protected:
+  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS(CRUTable);
   /**
    * Default table fields
    */
@@ -50,9 +59,9 @@ class CRUTableInterface : public CRTableInterface{
    * very crude access straight to the database, without synchronization
    * and conflict checking - that is assumed to be done by the transaction.
    */
-  friend class Transaction;
+  friend class LocalTransaction;
 
-  virtual bool rawInsertImpl(Revision& query) const override;
+  virtual bool rawInsertImpl(Revision* query) const override;
 
   virtual int rawFindByRevisionImpl(
       const std::string& key, const Revision& valueHolder, const Time& time,
@@ -60,13 +69,22 @@ class CRUTableInterface : public CRTableInterface{
   override;
   /**
    * Field ID in revision must correspond to an already present item, revision
-   * structure needs to match.
+   * structure needs to match. Query may be modified according to the default
+   * field policy.
    */
-  bool rawUpdate(Revision& query) const;
-  virtual bool rawUpdateImpl(Revision& query) const;
+  friend class CRUTester;
+  bool rawUpdate(Revision* query) const;
+  virtual bool rawUpdateImpl(Revision* query) const;
   bool rawLatestUpdateTime(const Id& id, Time* time) const;
+};
+
+class CRUTester {
+ public:
+  bool rawUpdate(const CRUTable& table, Revision* query) const {
+    return table.rawUpdate(query);
+  }
 };
 
 }
 
-#endif  // TABLE_INTERFACE_H
+#endif  // MAP_API_CRU_TABLE_H_
