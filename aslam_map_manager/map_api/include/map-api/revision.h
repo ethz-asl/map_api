@@ -40,8 +40,7 @@ class Revision final : public proto::Revision {
 extern void revEnum ## __FILE__ ## __LINE__(void)
   // in order to swallow the semicolon
   // http://gcc.gnu.org/onlinedocs/cpp/Swallowing-the-Semicolon.html
-  // http://stackoverflow.com/questions/18786848/macro-that-swallows-semicolon-out
-  // side-of-function
+  // http://stackoverflow.com/questions/18786848
 
   /**
    * Overriding adding field in order to impose indexing
@@ -72,7 +71,7 @@ extern void revEnum ## __FILE__ ## __LINE__(void)
   /**
    * Returns true if Revision contains same fields as other
    */
-  bool structureMatch(Revision& other);
+  bool structureMatch(const Revision& other) const;
 
   /**
    * Overriding parsing from string in order to add indexing.
