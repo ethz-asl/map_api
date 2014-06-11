@@ -19,19 +19,14 @@ class Time {
    * To deserialize from database.
    */
   explicit Time(int64_t nanoseconds);
-  /**
-   * Returns current time
-   */
+
   static Time now();
 
   bool isValid() const;
-
   int64_t serialize() const;
 
   inline bool operator <=(const Time& other) const;
-
   inline bool operator >=(const Time& other) const;
-
   inline bool operator ==(const Time& other) const;
 
  private:

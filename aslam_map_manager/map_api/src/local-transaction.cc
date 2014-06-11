@@ -182,7 +182,7 @@ bool LocalTransaction::hasItemConflict(
     LocalTransaction::ConflictCondition& item) {
   std::unordered_map<Id, SharedRevisionPointer> results;
   return item.table->findByRevision(item.key, *item.valueHolder, Time::now(),
-                                   &results);
+                                    &results);
 }
 
 template<>
