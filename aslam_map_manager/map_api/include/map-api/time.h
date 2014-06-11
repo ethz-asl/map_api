@@ -12,13 +12,19 @@ namespace map_api {
 class Time {
  public:
   /**
+   * Invalid time
+   */
+  explicit Time();
+  /**
    * To deserialize from database.
    */
-  Time(int64_t nanoseconds);
+  explicit Time(int64_t nanoseconds);
   /**
-   * Current time
+   * Returns current time
    */
-  Time();
+  static Time now();
+
+  bool isValid() const;
 
   int64_t serialize() const;
 

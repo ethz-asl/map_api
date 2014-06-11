@@ -63,7 +63,7 @@ bool CRTable::insert(Revision* query) {
   Id id;
   query->get(kIdField, &id);
   CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
-  query->set(kInsertTimeField, Time()); // FIXME(tcies) Time::now()
+  query->set(kInsertTimeField, Time::now());
   return insertCRDerived(query);
 }
 
@@ -84,7 +84,7 @@ int CRTable::findByRevision(
   // implementation uses that - this would be rather cumbersome to check here
   CHECK_NOTNULL(dest);
   dest->clear();
-  CHECK(time <= Time()) << "Seeing the future is yet to be implemented ;)";
+  CHECK(time <= Time::now()) << "Seeing the future is yet to be implemented ;)";
   return findByRevisionCRDerived(key, valueHolder, time, dest);
 }
 
