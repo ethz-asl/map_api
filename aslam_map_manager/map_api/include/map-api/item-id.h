@@ -1,6 +1,8 @@
 #ifndef MAP_API_ITEM_ID_H
 #define MAP_API_ITEM_ID_H
 
+#include <glog/logging.h>
+
 #include "map-api/id.h"
 #include "map-api/cr-table.h"
 
@@ -11,14 +13,16 @@ namespace map_api {
  * so ordering and hashing operations are provided.
  */
 struct ItemId {
-  CRTable& table;
   Id id;
-  ItemId(CRTable& _table, const Id& _id) : table(_table), id(_id) {}
+  CRTable* table;
+  ItemId(const Id& _id, CRTable* _table) : table(_table), id(_id) {
+    CHECK_NOTNULL(table);
+  }
   inline bool operator <(const ItemId& other) const {
-    if (table.name() == other.table.name()) {
+    if (table->name() == other.table->name()) {
       return id < other.id;
     }
-    return table.name() < other.table.name();
+    return table->name() < other.table->name();
   }
 };
 
@@ -27,7 +31,7 @@ struct ItemId {
 namespace std{
 
 inline ostream& operator<<(ostream& out, const map_api::ItemId& item_id) {
-  out << "(Table: " << item_id.table.name() << ", ID: " << item_id.id << ")";
+  out << "(Table: " << item_id.table->name() << ", ID: " << item_id.id << ")";
   return out;
 }
 
@@ -37,7 +41,7 @@ struct hash<map_api::ItemId>{
   typedef std::size_t value_type;
 
   value_type operator()(const argument_type& item_id) const {
-    return std::hash<std::string>()(item_id.table.name()) ^
+    return std::hash<std::string>()(item_id.table->name()) ^
         std::hash<sm::HashId>()(item_id.id);
   }
 };

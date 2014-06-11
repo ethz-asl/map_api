@@ -46,9 +46,9 @@ bool MapApiCore::syncTableDefinition(const TableDescriptor& descriptor) {
   std::shared_ptr<Revision> attempt = metatable_->getTemplate();
   attempt->set(kMetatableNameField, descriptor.name());
   attempt->set(kMetatableDescriptorField, descriptor);
-  tryInsert.insert(*metatable_, attempt);
-  tryInsert.addConflictCondition(*metatable_, kMetatableNameField,
-                                 descriptor.name());
+  tryInsert.insert(attempt, metatable_.get());
+  tryInsert.addConflictCondition(kMetatableNameField, descriptor.name(),
+                                 metatable_.get());
   bool success = tryInsert.commit();
   if (success){
     return true;
@@ -57,7 +57,7 @@ bool MapApiCore::syncTableDefinition(const TableDescriptor& descriptor) {
   LocalTransaction reader;
   reader.begin();
   std::shared_ptr<Revision> previous = reader.findUnique(
-      *metatable_, kMetatableNameField, descriptor.name());
+      kMetatableNameField, descriptor.name(), metatable_.get());
   CHECK(previous) << "Can't find table " << descriptor.name() <<
       " even though its presence seemingly caused a conflict";
   TableDescriptor previousDescriptor;
