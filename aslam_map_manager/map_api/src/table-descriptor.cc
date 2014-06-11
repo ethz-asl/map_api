@@ -4,9 +4,7 @@
 
 namespace map_api {
 
-TableDescriptor::~TableDescriptor() {
-  // TODO Auto-generated destructor stub
-}
+TableDescriptor::~TableDescriptor() {}
 
 void TableDescriptor::addField(const std::string& name,
                        proto::TableFieldDescriptor_Type type){

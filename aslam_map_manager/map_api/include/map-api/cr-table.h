@@ -79,9 +79,8 @@ class CRTable {
    * dump())
    */
   template<typename ValueType>
-  int find(
-      const std::string& key, const ValueType& value, const Time& time,
-      std::unordered_map<Id, std::shared_ptr<Revision> >* dest);
+  int find(const std::string& key, const ValueType& value, const Time& time,
+           std::unordered_map<Id, std::shared_ptr<Revision> >* dest);
   /**
    * Same as find() but not typed. Value is looked up in the corresponding field
    * of valueHolder.
