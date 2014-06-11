@@ -30,18 +30,18 @@ bool CRUTable::update(Revision* query) {
   Time insert_time;
   query->get(kInsertTimeField, &insert_time);
   CHECK(current->verify(kInsertTimeField, insert_time));
-  Time previous_time; // TODO(tcies) invalid time, change Time intf.
+  Time previous_time, update_time = Time(); // FIXME(tcies) #66
   query->get(kUpdateTimeField, &previous_time);
-  CHECK(previous_time <= Time());
+  CHECK(previous_time <= update_time);
   query->set(kPreviousTimeField, previous_time);
-  query->set(kUpdateTimeField, Time());
+  query->set(kUpdateTimeField, update_time);
   query->set(kNextTimeField, Time(0));
-  // updateCRUDerived must set kNextTimeField of previous entry to
-  // kUpdateTimeField of the present one.
-  return updateCRUDerived(query);
+  CHECK(insertUpdatedCRUDerived(*query));
+  CHECK(updateCurrentReferToUpdatedCRUDerived(id, previous_time, update_time));
+  return true;
 }
 
-bool CRUTable::latestUpdateTime(const Id& id, Time* time) {
+bool CRUTable::getLatestUpdateTime(const Id& id, Time* time) {
   CHECK_NE(Id(), id);
   CHECK_NOTNULL(time);
   std::shared_ptr<Revision> row = getById(id, Time());

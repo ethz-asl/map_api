@@ -2,6 +2,7 @@
 #define TIME_H_
 
 #include <cstdint>
+#include <iostream>
 
 namespace map_api {
 
@@ -32,6 +33,15 @@ class Time {
 };
 
 } // namespace map_api
+
+namespace std {
+
+inline ostream& operator<<(ostream& out, const map_api::Time& time) {
+  out << "Time(" << time.serialize() << ")";
+  return out;
+}
+
+}
 
 #include "map-api/time-inl.h"
 

@@ -56,32 +56,32 @@ int CRUTableRAMCache::findByRevisionCRUDerived(
   return from_poco.size();
 }
 
-bool CRUTableRAMCache::updateCRUDerived(Revision* query) {
-  Id id;
-  query->get(kIdField, &id);
-  ItemDebugInfo info(name(), id);
-  // Write update time into "next_time" field of current revision
-  Time update_time, previous_time;
-  query->get(kUpdateTimeField, &update_time);
-  query->get(kPreviousTimeField, &previous_time);
+bool CRUTableRAMCache::insertUpdatedCRUDerived(const Revision& query) {
+  sqlite_interface_.insert(query);
+  return true;
+}
+
+bool CRUTableRAMCache::updateCurrentReferToUpdatedCRUDerived(
+    const Id& id, const Time& current_time, const Time& updated_time) {
+  ItemDebugInfo info(this->name(), id);
   std::shared_ptr<Poco::Data::Session> session =
       sqlite_interface_.getSession().lock();
   CHECK(session) << "Couldn't lock session weak pointer";
   Poco::Data::Statement statement(*session);
   statement << "UPDATE " << name() << " SET " << kNextTimeField << " = ? ",
-      Poco::Data::use(update_time.serialize());
-  statement << " WHERE ID = ";
-  query->insertPlaceHolder(kIdField, statement);
+      Poco::Data::use(updated_time.serialize());
+  statement << " WHERE ID = ? ",
+      Poco::Data::use(id.hexString());
   statement << " AND " << kUpdateTimeField << " = ? ",
-      Poco::Data::use(previous_time.serialize());
+      Poco::Data::use(current_time.serialize());
   try {
     statement.execute();
   } catch (const std::exception& e) {
     LOG(FATAL) << info << kNextTimeField << " update failed with exception \""
         << e.what() << "\", " << " statement was \"" << statement.toString() <<
-        "\" and query :" << query->DebugString();
+        "\" with Id and times: " << id << " " << current_time << " " <<
+        updated_time;
   }
-  sqlite_interface_.insert(*query);
   return true;
 }
 

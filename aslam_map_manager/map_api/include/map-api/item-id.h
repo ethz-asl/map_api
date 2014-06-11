@@ -15,7 +15,7 @@ namespace map_api {
 struct ItemId {
   Id id;
   CRTable* table;
-  ItemId(const Id& _id, CRTable* _table) : table(_table), id(_id) {
+  ItemId(const Id& _id, CRTable* _table) : id(_id), table(_table) {
     CHECK_NOTNULL(table);
   }
   inline bool operator <(const ItemId& other) const {

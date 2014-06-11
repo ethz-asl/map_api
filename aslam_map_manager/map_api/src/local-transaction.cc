@@ -213,7 +213,7 @@ inline bool LocalTransaction::hasContainerConflict<LocalTransaction::UpdateMap>(
         return false;
       }
       Time latestUpdate;
-      if (!table->latestUpdateTime(item.first.id, &latestUpdate)){
+      if (!table->getLatestUpdateTime(item.first.id, &latestUpdate)){
         LOG(FATAL) << "Error retrieving update time";
       }
       if (latestUpdate >= beginTime_) {
