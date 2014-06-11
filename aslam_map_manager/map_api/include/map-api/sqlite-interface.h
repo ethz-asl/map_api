@@ -59,9 +59,9 @@ class SqliteInterface {
      * Applies the data obtained after statement execution onto a vector of
      * Protos. Returns the element count.
      */
-    int toProto(std::vector<std::shared_ptr<Revision> >* dest);
+    int toProto(std::vector<std::shared_ptr<Revision> >* dest) const;
    private:
-    int resultSize();
+    int resultSize() const;
     std::shared_ptr<Revision> reference_;
     /**
      * Maps where the data is store intermediately

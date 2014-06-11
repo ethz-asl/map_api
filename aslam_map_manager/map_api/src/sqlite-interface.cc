@@ -161,7 +161,7 @@ void SqliteInterface::PocoToProto::into(Poco::Data::Statement& statement) {
   statement << " ";
 }
 
-int SqliteInterface::PocoToProto::resultSize() {
+int SqliteInterface::PocoToProto::resultSize() const {
   if (doubles_.size()) return doubles_.begin()->second.size();
   if (ints_.size()) return ints_.begin()->second.size();
   if (longs_.size()) return longs_.begin()->second.size();
@@ -172,7 +172,7 @@ int SqliteInterface::PocoToProto::resultSize() {
 }
 
 int SqliteInterface::PocoToProto::toProto(
-    std::vector<std::shared_ptr<Revision> >* dest) {
+    std::vector<std::shared_ptr<Revision> >* dest) const {
   CHECK_NOTNULL(dest);
   int size = resultSize();
   dest->resize(size);

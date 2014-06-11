@@ -242,9 +242,7 @@ protected CoreTester {
     FieldTestTable<TableDataType>::init();
     this->table_ = &FieldTestTable<TableDataType>::instance();
   }
-  virtual void TearDown() {
-
-  }
+  virtual void TearDown() {}
 };
 
 template <typename TableDataType>
