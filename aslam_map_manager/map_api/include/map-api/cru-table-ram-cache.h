@@ -1,10 +1,3 @@
-/*
- * cru-table-ram-cache.h
- *
- *  Created on: Jun 10, 2014
- *      Author: titus
- */
-
 #ifndef CRU_TABLE_RAM_CACHE_H_
 #define CRU_TABLE_RAM_CACHE_H_
 
@@ -23,8 +16,10 @@ class CRUTableRAMCache : public CRUTable {
       const std::string& key, const Revision& valueHolder, const Time& time,
       std::unordered_map<Id, std::shared_ptr<Revision> >* dest) final override;
 
-  virtual bool updateCRUDerived(Revision* query) final override;
-  virtual bool latestUpdateTimeCRUDerived(const Id& id, Time* time) const final override;
+  virtual bool insertUpdatedCRUDerived(const Revision& query) final override;
+  virtual bool updateCurrentReferToUpdatedCRUDerived(
+      const Id& id, const Time& current_time, const Time& updated_time)
+  final override;
 
   SqliteInterface sqlite_interface_;
 };

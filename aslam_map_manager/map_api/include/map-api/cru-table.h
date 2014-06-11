@@ -25,9 +25,10 @@ class CRUTable : public CRTable {
    * Field ID in revision must correspond to an already present item, revision
    * structure needs to match. Query may be modified according to the default
    * field policy.
+   * Calls insertUpdatedCRUDerived and updateCurrentReferToUpdatedCRUDerived.
    */
   bool update(Revision* query);
-  bool latestUpdateTime(const Id& id, Time* time);
+  bool getLatestUpdateTime(const Id& id, Time* time);
 
  private:
   /**
@@ -55,11 +56,15 @@ class CRUTable : public CRTable {
       std::unordered_map<Id, std::shared_ptr<Revision> >* dest) = 0;
 
   /**
-   * Apart from committing the query to memory, updateCRUDerived MUST update
-   * the previous entry and set kNextTimeField to kUpdateTimeField of the
-   * current one.
+   * Implement insertion of the updated revision
    */
-  virtual bool updateCRUDerived(Revision* query) = 0;
+  virtual bool insertUpdatedCRUDerived(const Revision& query) = 0;
+  /**
+   * Implement the maintenance of each revision referring to the next revision
+   * by setting kNextTimeField of (id, current_time) to updated_time
+   */
+  virtual bool updateCurrentReferToUpdatedCRUDerived(
+      const Id& id, const Time& current_time, const Time& updated_time) = 0;
 };
 
 }
