@@ -68,19 +68,22 @@ bool CRUTableRAMCache::updateCurrentReferToUpdatedCRUDerived(
       sqlite_interface_.getSession().lock();
   CHECK(session) << "Couldn't lock session weak pointer";
   Poco::Data::Statement statement(*session);
+  // caching of data needed for Poco::Data to work
+  int64_t serialized_update_time = updated_time.serialize(),
+      serialized_current_time = current_time.serialize();
+  std::string id_string = id.hexString();
   statement << "UPDATE " << name() << " SET " << kNextTimeField << " = ? ",
-      Poco::Data::use(updated_time.serialize());
+      Poco::Data::use(serialized_update_time);
   statement << " WHERE ID = ? ",
-      Poco::Data::use(id.hexString());
+      Poco::Data::use(id_string);
   statement << " AND " << kUpdateTimeField << " = ? ",
-      Poco::Data::use(current_time.serialize());
+      Poco::Data::use(serialized_current_time);
   try {
     statement.execute();
   } catch (const std::exception& e) {
     LOG(FATAL) << info << kNextTimeField << " update failed with exception \""
         << e.what() << "\", " << " statement was \"" << statement.toString() <<
-        "\" with Id and times: " << id << " " << current_time << " " <<
-        updated_time;
+        "\" with times: " << current_time << " " << updated_time;
   }
   return true;
 }
