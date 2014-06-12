@@ -32,6 +32,7 @@ SET(CORE_SOURCE  src/chunk.cc
                  src/map-api-hub.cc
                  src/message.cc
                  src/peer.cc
+                 src/peer-id.cc
                  src/peer-handler.cc
                  src/revision.cc
                  src/sqlite-interface.cc

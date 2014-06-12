@@ -8,7 +8,8 @@
 
 
 #include "map-api/chunk.h"
-#include "map-api/cr-table.h" // for singleton macros TODO(tcies) move
+#include "map-api/cr-table-ram-cache.h"
+#include "map-api/peer-id.h"
 
 namespace map_api {
 
@@ -17,13 +18,13 @@ class ChunkManager {
   /**
    * Registers handlers
    */
-  bool init(CRTable* underlying_table);
+  bool init(CRTableRAMCache* underlying_table);
 
   /**
    * Connects to the given chunk via the given peer.
    */
   std::weak_ptr<Chunk> connectTo(const Id& chunk_id,
-                                 const std::string& peer);
+                                 const PeerId& peer);
   /**
    * Allows a peer to initiate a new chunk belonging to the given table
    * TODO(tcies) ChunkManager should BELONG TO a table
@@ -112,7 +113,7 @@ class ChunkManager {
    */
   typedef std::unordered_map<Id, std::shared_ptr<Chunk> > ChunkMap;
   ChunkMap active_chunks_;
-  CRTable* underlying_table_;
+  CRTableRAMCache* cache_;
 };
 
 } // namespace map_api

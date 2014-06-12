@@ -137,7 +137,7 @@ class Chunk {
   bool handleInsert(const Revision& item);
 
   Id id_;
-  PeerHandler<std::weak_ptr<Peer> > peers_;
+  PeerHandler peers_;
   CRTable* underlying_table_;
 
   enum LockStatus {
