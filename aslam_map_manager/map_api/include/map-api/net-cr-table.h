@@ -19,7 +19,7 @@ class NetCRTable {
 
   // INSERTION
   std::shared_ptr<Revision> getTemplate() const;
-  std::weak_ptr<Chunk> newChunk();
+  std::weak_ptr<Chunk> newChunk() const;
   bool insert(const std::weak_ptr<Chunk>& chunk, Revision* query);
 
   // RETRIEVAL
@@ -39,15 +39,16 @@ class NetCRTable {
   template<typename ValueType>
   int findFast(
       const std::string& key, const ValueType& value, const Time& time,
-      std::unordered_map<Id, std::shared_ptr<Revision> >* dest);
+      std::unordered_map<Id, std::shared_ptr<Revision> >* destination);
   int findFastByRevision(
       const std::string& key, const Revision& valueHolder, const Time& time,
-      std::unordered_map<Id, std::shared_ptr<Revision> >* dest) final;
+      std::unordered_map<Id, std::shared_ptr<Revision> >* destination) final;
   template<typename ValueType>
   std::shared_ptr<Revision> findUnique(
       const std::string& key, const ValueType& value, const Time& time);
-  void dumpCache(const Time& time,
-                 std::unordered_map<Id, std::shared_ptr<Revision> >* dest);
+  void dumpCache(
+      const Time& time,
+      std::unordered_map<Id, std::shared_ptr<Revision> >* destination);
 
  private:
   std::unique_ptr<CRTableRAMCache> cache_;
