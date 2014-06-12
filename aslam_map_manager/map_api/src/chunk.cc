@@ -61,7 +61,7 @@ int Chunk::requestParticipation() const {
   // TODO(tcies) strongly type peer address or, better, use peer weak pointer
   std::unordered_map<PeerId, Message> responses;
   MapApiHub::instance().broadcast(request, &responses);
-  // at this point, the server handler should have processed all ensuing
+  // at this point, the handler thread should have processed all resulting
   // chunk connection requests
   int new_participant_count = 0;
   for (const std::pair<PeerId, Message>& response : responses) {

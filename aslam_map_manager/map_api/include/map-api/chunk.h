@@ -127,6 +127,8 @@ class Chunk {
    * TODO(tcies) down the road, request only table peers?
    * TODO(tcies) ability to respond with a request, instead of sending an
    * independent one?
+   * TODO(tcies) listing for peers that would be glad to participate in new
+   * chunks
    */
   int requestParticipation() const;
 
