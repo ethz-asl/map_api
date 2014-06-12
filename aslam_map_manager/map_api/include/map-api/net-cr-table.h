@@ -51,6 +51,11 @@ class NetCRTable {
       std::unordered_map<Id, std::shared_ptr<Revision> >* destination);
 
  private:
+  NetCRTable() = default;
+  NetCRTable(const NetCRTable&) = delete;
+  NetCRTable& operator =(const NetCRTable&) = delete;
+  friend class NetTableManager;
+
   std::unique_ptr<CRTableRAMCache> cache_;
   std::unique_ptr<ChunkManager> chunk_manager_;
   // TODO(tcies) insert PeerHandler here

@@ -3,18 +3,23 @@
 namespace map_api {
 
 void NetTableManager::addTable(std::unique_ptr<TableDescriptor>* descriptor) {
-  std::pair<std::unordered_map<std::string, NetCRTable>::iterator, bool>
-  inserted = tables_.insert(
-      std::make_pair((*descriptor)->name(), NetCRTable()));
+  std::pair<std::unordered_map<std::string, std::unique_ptr<NetCRTable> >::
+  iterator, bool> inserted = tables_.insert(
+      std::make_pair((*descriptor)->name(), std::unique_ptr<NetCRTable>()));
   CHECK(inserted.second);
-  CHECK(inserted.first->second.init(descriptor));
+  inserted.first->second.reset(new NetCRTable);
+  CHECK(inserted.first->second->init(descriptor));
 }
 
 NetCRTable& NetTableManager::getTable(const std::string& name) {
-  std::unordered_map<std::string, NetCRTable>::iterator found =
-      tables_.find(name);
+  std::unordered_map<std::string, std::unique_ptr<NetCRTable> >::iterator
+  found = tables_.find(name);
   CHECK(found != tables_.end());
-  return *found;
+  return *found->second;
+}
+
+void NetTableManager::clear() {
+  tables_.clear();
 }
 
 } /* namespace map_api */

@@ -12,8 +12,15 @@ class NetTableManager {
  public:
   void addTable(std::unique_ptr<TableDescriptor>* descriptor);
   NetCRTable& getTable(const std::string& name);
+  void clear();
  private:
-  std::unordered_map<std::string, NetCRTable> tables_;
+  NetTableManager() = default;
+  NetTableManager(const NetTableManager&) = delete;
+  NetTableManager& operator =(const NetTableManager&) = delete;
+  ~NetTableManager() = default;
+  friend class MapApiCore;
+
+  std::unordered_map<std::string, std::unique_ptr<NetCRTable> > tables_;
 };
 
 } /* namespace map_api */

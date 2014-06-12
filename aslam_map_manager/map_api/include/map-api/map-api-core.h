@@ -11,6 +11,7 @@
 #include "map-api/cr-table-ram-cache.h"
 #include "map-api/id.h"
 #include "map-api/map-api-hub.h"
+#include "map-api/net-table-manager.h"
 #include "core.pb.h"
 
 DECLARE_string(ip_port);
@@ -52,6 +53,8 @@ class MapApiCore final {
    */
   void kill();
 
+  NetTableManager& tableManager();
+
  protected:
   /**
    * Resets the database, clearing all its contents. TO BE USED FOR TESTING
@@ -91,7 +94,9 @@ class MapApiCore final {
   /**
    * Hub instance
    */
-  MapApiHub &hub_;
+  MapApiHub& hub_;
+
+  NetTableManager table_manager_;
 
   std::unique_ptr<CRTableRAMCache> metatable_; // TODO(tcies) eventually
   // net table in tableManager
