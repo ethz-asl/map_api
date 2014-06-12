@@ -118,6 +118,17 @@ class Chunk {
    * aforementioned contract.
    */
   void unlock();
+  /**
+   * Requests all peers in MapApiCore to participate in a given chunk.
+   * Returns how many peers accepted participation.
+   * For the time being this causes the peers to send an independent connect
+   * request, which should be handled by the requester before this function
+   * returns (in the handler thread).
+   * TODO(tcies) down the road, request only table peers?
+   * TODO(tcies) ability to respond with a request, instead of sending an
+   * independent one?
+   */
+  int requestParticipation() const;
 
   /**
    * Request handlers are in the ChunkManager class, as all request arrive to

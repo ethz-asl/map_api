@@ -42,18 +42,6 @@ class ChunkManager {
       std::unordered_map<Id, std::shared_ptr<Revision> >* dest);
 
   /**
-   * Requests all peers in MapApiCore to participate in a given chunk.
-   * Returns how many peers accepted participation.
-   * For the time being this causes the peers to send an independent connect
-   * request, which should be handled by the requester before this function
-   * returns (in the handler thread).
-   * TODO(tcies) down the road, request only table peers
-   * TODO(tcies) ability to respond with a request, instead of sending an
-   * independent one?
-   */
-  int requestParticipation(const Chunk& chunk) const;
-
-  /**
    * ==========================
    * REQUEST HANDLERS AND TYPES
    * ==========================
@@ -97,16 +85,11 @@ class ChunkManager {
    */
   static void handleRelinquishNotification(
       const std::string& serialized_notification);
-
-  /**
-   * Returns singleton instance
-   */
-  static ChunkManager& instance();
  private:
   ChunkManager() = default;
   ChunkManager(const ChunkManager&) = delete;
   ChunkManager& operator =(const ChunkManager&) = delete;
-  ~ChunkManager();
+  friend class NetCRTable;
 
   /**
    * TODO(tcies) will probably become a LRU structure at some point

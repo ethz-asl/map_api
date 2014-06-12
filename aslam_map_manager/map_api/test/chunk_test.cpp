@@ -14,27 +14,24 @@ using namespace map_api;
 
 class ChunkTestTable : public NetCRTable {
  public:
-  virtual const std::string name() const final override {
-    return "chunk_test_table";
+  static NetCRTable& instance() {
+    static NetCRTable table;
+    std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
+    descriptor->setName("chunk_test_table");
+    table.init(&descriptor);
+    return table;
   }
-  virtual void defineFieldsNetCRDerived() final override {
-
-  }
-  MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(ChunkTestTable);
- protected:
-  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS_DIRECT(ChunkTestTable);
 };
 
 TEST_F(MultiprocessTest, NetCRInsert) {
   MapApiCore::instance();
-  ChunkTestTable& table = ChunkTestTable::instance();
-  table.init();
-  std::weak_ptr<Chunk> my_chunk_weak =
-      ChunkManager::instance().newChunk(table);
+  NetCRTable& table = ChunkTestTable::instance();
+  std::weak_ptr<Chunk> my_chunk_weak = table.newChunk();
   std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
   EXPECT_TRUE(static_cast<bool>(my_chunk));
   std::shared_ptr<Revision> to_insert = table.getTemplate();
-  EXPECT_TRUE(table.netInsert(my_chunk_weak, to_insert.get()));
+  to_insert->set(CRTable::kIdField, Id::random());
+  EXPECT_TRUE(table.insert(my_chunk_weak, to_insert.get()));
   resetDb();
 }
 
@@ -46,23 +43,18 @@ TEST_F(MultiprocessTest, ParticipationRequest) {
   enum Barriers {INIT, DIE};
   IPC::init();
   MapApiCore::instance();
-  ChunkTestTable& table = ChunkTestTable::instance();
-  table.init();
-  CRTable* raw_cr_table = dynamic_cast<CRTable*>(&table);
-  ASSERT_TRUE(static_cast<bool>(raw_cr_table));
+  NetCRTable& table = ChunkTestTable::instance();
   // the following is a hack until FIXME(tcies) TableManager is instantiated
-  ChunkManager::instance().init(raw_cr_table);
   if (getSubprocessId() == 0) {
     uint64_t id = launchSubprocess();
-    std::weak_ptr<Chunk> my_chunk_weak =
-        ChunkManager::instance().newChunk(table);
+    std::weak_ptr<Chunk> my_chunk_weak = table.newChunk();
     std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
     EXPECT_TRUE(static_cast<bool>(my_chunk));
 
     IPC::barrier(INIT, 1);
 
     EXPECT_EQ(1, MapApiHub::instance().peerSize());
-    EXPECT_EQ(1, ChunkManager::instance().requestParticipation(*my_chunk));
+    EXPECT_EQ(1, my_chunk->requestParticipation());
 
     IPC::barrier(DIE, 1);
 

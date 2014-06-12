@@ -3,7 +3,10 @@
 #include "core.pb.h"
 
 #include "map-api/chunk-manager.h"
+#include "map-api/map-api-hub.h"
 #include "chunk.pb.h"
+
+DECLARE_string(ip_port);
 
 namespace map_api {
 
@@ -46,6 +49,27 @@ bool Chunk::insert(const Revision& item) {
 bool Chunk::handleInsert(const Revision& item) {
   // TODO(tcies) implement
   return false;
+}
+
+int Chunk::requestParticipation() const {
+  proto::ParticipationRequest participation_request;
+  participation_request.set_chunk_id(id().hexString()); // TODO(tcies) table
+  participation_request.set_from_peer(FLAGS_ip_port);
+  Message request;
+  request.impose<ChunkManager::kParticipationRequest,
+  proto::ParticipationRequest>(participation_request);
+  // TODO(tcies) strongly type peer address or, better, use peer weak pointer
+  std::unordered_map<PeerId, Message> responses;
+  MapApiHub::instance().broadcast(request, &responses);
+  // at this point, the server handler should have processed all ensuing
+  // chunk connection requests
+  int new_participant_count = 0;
+  for (const std::pair<PeerId, Message>& response : responses) {
+    if (response.second.isType<Message::kAck>()){
+      ++new_participant_count;
+    }
+  }
+  return new_participant_count;
 }
 
 } // namespace map_api

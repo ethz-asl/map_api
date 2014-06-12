@@ -42,7 +42,7 @@ class NetCRTable {
       std::unordered_map<Id, std::shared_ptr<Revision> >* destination);
   int findFastByRevision(
       const std::string& key, const Revision& valueHolder, const Time& time,
-      std::unordered_map<Id, std::shared_ptr<Revision> >* destination) final;
+      std::unordered_map<Id, std::shared_ptr<Revision> >* destination);
   template<typename ValueType>
   std::shared_ptr<Revision> findUnique(
       const std::string& key, const ValueType& value, const Time& time);
@@ -57,5 +57,7 @@ class NetCRTable {
 };
 
 } // namespace map_api
+
+#include "map-api/net-cr-table-inl.h"
 
 #endif /* NET_CR_TABLE_H_ */
