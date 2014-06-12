@@ -23,9 +23,7 @@ class Peer {
   explicit Peer(const std::string& address, zmq::context_t& context,
                 int socket_type);
 
-  /**
-   * ZMQ sockets are not inherently thread-safe
-   */
+  // ZMQ sockets are not inherently thread-safe
   std::mutex mutex_;
   std::string address_;
   zmq::socket_t socket_;
