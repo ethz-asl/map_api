@@ -34,8 +34,7 @@ MapApiCore &MapApiCore::instance() {
 }
 
 MapApiCore::MapApiCore() : owner_(Id::random()),
-    hub_(MapApiHub::instance()), chunk_manager_(ChunkManager::instance()),
-    initialized_(false){}
+    hub_(MapApiHub::instance()), initialized_(false){}
 
 bool MapApiCore::syncTableDefinition(const TableDescriptor& descriptor) {
   // init metatable if not yet initialized TODO(tcies) better solution?

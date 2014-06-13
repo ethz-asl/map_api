@@ -8,7 +8,8 @@
 
 
 #include "map-api/chunk.h"
-#include "map-api/cr-table.h" // for singleton macros TODO(tcies) move
+#include "map-api/cr-table-ram-cache.h"
+#include "map-api/peer-id.h"
 
 namespace map_api {
 
@@ -17,13 +18,13 @@ class ChunkManager {
   /**
    * Registers handlers
    */
-  bool init(CRTable* underlying_table);
+  bool init(CRTableRAMCache* underlying_table);
 
   /**
    * Connects to the given chunk via the given peer.
    */
   std::weak_ptr<Chunk> connectTo(const Id& chunk_id,
-                                 const std::string& peer);
+                                 const PeerId& peer);
   /**
    * Allows a peer to initiate a new chunk belonging to the given table
    * TODO(tcies) ChunkManager should BELONG TO a table
@@ -39,18 +40,6 @@ class ChunkManager {
       const CRTable& table, const std::string& key, const Revision& valueHolder,
       const Time& time,
       std::unordered_map<Id, std::shared_ptr<Revision> >* dest);
-
-  /**
-   * Requests all peers in MapApiCore to participate in a given chunk.
-   * Returns how many peers accepted participation.
-   * For the time being this causes the peers to send an independent connect
-   * request, which should be handled by the requester before this function
-   * returns (in the handler thread).
-   * TODO(tcies) down the road, request only table peers
-   * TODO(tcies) ability to respond with a request, instead of sending an
-   * independent one?
-   */
-  int requestParticipation(const Chunk& chunk) const;
 
   /**
    * ==========================
@@ -96,23 +85,18 @@ class ChunkManager {
    */
   static void handleRelinquishNotification(
       const std::string& serialized_notification);
-
-  /**
-   * Returns singleton instance
-   */
-  static ChunkManager& instance();
  private:
   ChunkManager() = default;
   ChunkManager(const ChunkManager&) = delete;
   ChunkManager& operator =(const ChunkManager&) = delete;
-  ~ChunkManager();
+  friend class NetCRTable;
 
   /**
    * TODO(tcies) will probably become a LRU structure at some point
    */
   typedef std::unordered_map<Id, std::shared_ptr<Chunk> > ChunkMap;
   ChunkMap active_chunks_;
-  CRTable* underlying_table_;
+  CRTableRAMCache* cache_;
 };
 
 } // namespace map_api
