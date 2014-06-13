@@ -33,14 +33,14 @@ class LocalTransaction {
    * Sets a hash ID for the table to be inserted. Returns that ID, such that
    * the item can be subsequently referred to.
    */
-  Id insert(const CRTable& table, const SharedRevisionPointer& item);
+  Id insert(const SharedRevisionPointer& item, CRTable* table);
 
   /**
    * Allows the user to preset a Hash ID. Will fail in commit if there is a
    * conflict.
    */
-  bool insert(const CRTable& table, const Id& id,
-              const SharedRevisionPointer& item);
+  bool insert(const Id& id, const SharedRevisionPointer& item,
+              CRTable* table);
 
   /**
    * Transaction will fail if a table item where key = value exists. The
@@ -54,25 +54,25 @@ class LocalTransaction {
    * MapApiCore::syncTableDefinition)
    */
   template<typename ValueType>
-  bool addConflictCondition(const CRTable& table, const std::string& key,
-                            const ValueType& value);
+  bool addConflictCondition(const std::string& key, const ValueType& value,
+                            CRTable* table);
 
   /**
    * Returns latest revision prior to transaction begin time
    */
-  SharedRevisionPointer read(const CRTable& table, const Id& id);
+  SharedRevisionPointer read(const Id& id, CRTable* table);
 
   /**
    * Returns latest revision prior to transaction begin time for all contents
    */
-  bool dumpTable(const CRTable& table,
+  bool dumpTable(CRTable* table,
                  std::unordered_map<Id, SharedRevisionPointer>* dest);
 
   /**
    * Fails if global state differs from groundState before updating
    */
-  bool update(const CRUTable& table, const Id& id,
-              const SharedRevisionPointer& newRevision);
+  bool update(const Id& id, const SharedRevisionPointer& newRevision,
+              CRUTable* table);
 
   /**
    * Looks for items where key = value. As with addConflictCondition(),
@@ -80,15 +80,14 @@ class LocalTransaction {
    * specialization of functions is not allowed in C++.
    */
   template<typename ValueType>
-  int find(const CRTable& table, const std::string& key, const ValueType& value,
+  int find(const std::string& key, const ValueType& value, CRTable* table,
            std::unordered_map<Id, SharedRevisionPointer>* dest) const;
   /**
    * Same as find(), but ensuring that there is only one result
    */
   template<typename ValueType>
   SharedRevisionPointer findUnique(
-      const CRTable& table, const std::string& key,
-      const ValueType& value) const;
+      const std::string& key, const ValueType& value, CRTable* table) const;
   /**
    * Define own fields for database tables, such as for locks.
    */
@@ -121,12 +120,12 @@ class LocalTransaction {
    * Returns true if the supplied insert/update request has a conflict
    */
   template<typename Identifier>
-  bool hasItemConflict(const Identifier& item);
+  bool hasItemConflict(Identifier& item);
   /**
    * Returns true if the supplied container has a conflict
    */
   template<typename Container>
-  inline bool hasContainerConflict(const Container& container);
+  inline bool hasContainerConflict(Container& container);
 
   /**
    * Maps of insert queries requested over the course of the
@@ -149,12 +148,15 @@ class LocalTransaction {
    * type, thanks to the Revision template specializations.
    */
   struct ConflictCondition {
-    const CRTable& table;
     const std::string key;
     const SharedRevisionPointer valueHolder;
-    ConflictCondition(const CRTable& _table, const std::string& _key,
-                      const SharedRevisionPointer& _valueHolder) :
-                        table(_table), key(_key), valueHolder(_valueHolder) {}
+    CRTable* table;
+    ConflictCondition(
+        const std::string& _key, const SharedRevisionPointer& _valueHolder,
+        CRTable* _table) :
+          key(_key), valueHolder(_valueHolder), table(_table) {
+      CHECK_NOTNULL(table);
+    }
   };
   typedef std::vector<ConflictCondition> ConflictConditionVector;
   ConflictConditionVector conflictConditions_;

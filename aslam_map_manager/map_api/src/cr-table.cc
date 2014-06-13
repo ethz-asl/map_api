@@ -21,10 +21,6 @@ const std::string CRTable::kInsertTimeField = "insert_time";
 
 CRTable::~CRTable() {}
 
-bool CRTable::isInitialized() const{
-  return initialized_;
-}
-
 bool CRTable::init(std::unique_ptr<TableDescriptor>* descriptor) {
   CHECK_NOTNULL(descriptor);
   CHECK((*descriptor)->has_name());
@@ -34,6 +30,14 @@ bool CRTable::init(std::unique_ptr<TableDescriptor>* descriptor) {
   CHECK(initCRDerived());
   initialized_ = true;
   return true;
+}
+
+bool CRTable::isInitialized() const{
+  return initialized_;
+}
+
+const std::string& CRTable::name() const {
+  return descriptor_->name();
 }
 
 std::shared_ptr<Revision> CRTable::getTemplate() const{
@@ -59,7 +63,7 @@ bool CRTable::insert(Revision* query) {
   Id id;
   query->get(kIdField, &id);
   CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
-  query->set(kInsertTimeField, Time()); // FIXME(tcies) Time::now()
+  query->set(kInsertTimeField, Time::now());
   return insertCRDerived(query);
 }
 
@@ -80,7 +84,7 @@ int CRTable::findByRevision(
   // implementation uses that - this would be rather cumbersome to check here
   CHECK_NOTNULL(dest);
   dest->clear();
-  CHECK(time <= Time()) << "Seeing the future is yet to be implemented ;)";
+  CHECK(time <= Time::now()) << "Seeing the future is yet to be implemented ;)";
   return findByRevisionCRDerived(key, valueHolder, time, dest);
 }
 
