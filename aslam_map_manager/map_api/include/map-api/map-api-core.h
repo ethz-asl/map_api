@@ -92,10 +92,6 @@ class MapApiCore final {
    * Hub instance
    */
   MapApiHub &hub_;
-  /**
-   * Chunk manager instance
-   */
-  ChunkManager &chunk_manager_;
 
   std::unique_ptr<CRTableRAMCache> metatable_; // TODO(tcies) eventually
   // net table in tableManager
