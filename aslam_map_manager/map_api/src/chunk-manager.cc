@@ -10,13 +10,6 @@ DECLARE_string(ip_port);
 
 namespace map_api {
 
-ChunkManager& ChunkManager::instance() {
-  static ChunkManager object;
-  return object;
-}
-
-ChunkManager::~ChunkManager() {}
-
 bool ChunkManager::init(CRTableRAMCache* underlying_table) {
   CHECK_NOTNULL(underlying_table);
   cache_ = underlying_table;
@@ -73,26 +66,6 @@ const char ChunkManager::kParticipationRequest[] =
     "map_api_chunk_participation";
 MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(ChunkManager::kParticipationRequest,
                                      proto::ParticipationRequest);
-int ChunkManager::requestParticipation(const Chunk& chunk) const {
-  proto::ParticipationRequest participation_request;
-  participation_request.set_chunk_id(chunk.id().hexString());
-  participation_request.set_from_peer(FLAGS_ip_port);
-  Message request;
-  request.impose<kParticipationRequest, proto::ParticipationRequest>(
-      participation_request);
-  // TODO(tcies) strongly type peer address or, better, use peer weak pointer
-  std::unordered_map<PeerId, Message> responses;
-  MapApiHub::instance().broadcast(request, &responses);
-  // at this point, the server handler should have processed all ensuing
-  // chunk connection requests
-  int new_participant_count = 0;
-  for (const std::pair<PeerId, Message>& response : responses) {
-    if (response.second.isType<Message::kAck>()){
-      ++new_participant_count;
-    }
-  }
-  return new_participant_count;
-}
 
 // ==================
 // CONNECTION REQUEST
@@ -108,6 +81,7 @@ void ChunkManager::handleConnectRequest(const std::string& serialized_request,
 void ChunkManager::handleInsertRequest(
     const std::string& serialized_request, Message* response) {
   CHECK_NOTNULL(response);
+  /** TODO(tcies) re-enable with TableManager
   // parse message TODO(tcies) centralize process?
   proto::InsertRequest insert_request;
   CHECK(insert_request.ParseFromString(serialized_request));
@@ -125,6 +99,7 @@ void ChunkManager::handleInsertRequest(
   Revision to_insert;
   to_insert.ParseFromString(insert_request.serialized_revision());
   CHECK(addressedChunk->handleInsert(to_insert));
+  */
   response->impose<Message::kAck>();
 }
 const char ChunkManager::kInsertRequest[] = "map_api_chunk_insert";
