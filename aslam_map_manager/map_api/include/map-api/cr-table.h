@@ -109,16 +109,10 @@ class CRTable {
       table(_table), id(_id.hexString()) {}
   } ItemDebugInfo;
 
- private:
-  /**
-   * Defines default table fields.
-   */
-  virtual void defineDefaultFields() final;
-  /**
-   * Ensures the default fields are properly set
-   */
-  virtual void ensureDefaultFields(Revision* query) const final;
+ protected:
+  std::unique_ptr<TableDescriptor> descriptor_;
 
+ private:
   /**
    * ================================================
    * FUNCTIONS TO BE IMPLEMENTED BY THE DERIVED CLASS
@@ -128,15 +122,6 @@ class CRTable {
    * Do here whatever is specific to initializing the derived type
    */
   virtual bool initCRDerived() = 0;
-  /**
-   * Define default fields by repeated calls to descriptor_.addField().
-   */
-  virtual void defineDefaultFieldsCRDerived() = 0;
-  /**
-   * Ensure fields set with defineDefaultFieldsCRDerived are properly set in the
-   * passed query.
-   */
-  virtual void ensureDefaulFieldsCRDerived(Revision* query) const = 0;
   /**
    * Minimal required table operations
    */
@@ -148,7 +133,6 @@ class CRTable {
       const std::string& key, const Revision& valueHolder, const Time& time,
       std::unordered_map<Id, std::shared_ptr<Revision> >* dest) = 0;
 
-  std::unique_ptr<TableDescriptor> descriptor_;
   bool initialized_ = false;
 };
 

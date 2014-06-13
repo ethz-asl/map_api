@@ -2,6 +2,7 @@
 #define TIME_H_
 
 #include <cstdint>
+#include <iostream>
 
 namespace map_api {
 
@@ -11,20 +12,21 @@ namespace map_api {
 class Time {
  public:
   /**
+   * Invalid time
+   */
+  explicit Time();
+  /**
    * To deserialize from database.
    */
-  Time(int64_t nanoseconds);
-  /**
-   * Current time
-   */
-  Time();
+  explicit Time(int64_t nanoseconds);
 
+  static Time now();
+
+  bool isValid() const;
   int64_t serialize() const;
 
   inline bool operator <=(const Time& other) const;
-
   inline bool operator >=(const Time& other) const;
-
   inline bool operator ==(const Time& other) const;
 
  private:
@@ -32,6 +34,15 @@ class Time {
 };
 
 } // namespace map_api
+
+namespace std {
+
+inline ostream& operator<<(ostream& out, const map_api::Time& time) {
+  out << "Time(" << time.serialize() << ")";
+  return out;
+}
+
+}
 
 #include "map-api/time-inl.h"
 

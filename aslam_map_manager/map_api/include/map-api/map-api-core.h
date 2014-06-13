@@ -8,10 +8,9 @@
 #include <Poco/Data/Common.h>
 
 #include "map-api/chunk-manager.h"
-#include "map-api/cru-table.h"
+#include "map-api/cr-table-ram-cache.h"
 #include "map-api/id.h"
 #include "map-api/map-api-hub.h"
-#include "map-api/metatable.h"
 #include "core.pb.h"
 
 DECLARE_string(ip_port);
@@ -35,11 +34,15 @@ class MapApiCore final {
    * Synchronizes table definition with peers
    * by using standard table operations on the metatable
    */
-  bool syncTableDefinition(const proto::TableDescriptor& descriptor);
+  bool syncTableDefinition(const TableDescriptor& descriptor);
   /**
    * Initializer
    */
   bool init(const std::string &ipPort);
+  /**
+   * Metatable definition TODO(tcies) in TableManager
+   */
+  void initMetatable();
   /**
    * Check if initialized
    */
@@ -59,6 +62,8 @@ class MapApiCore final {
   friend class CoreTester;
 
  private:
+  static const std::string kMetatableNameField;
+  static const std::string kMetatableDescriptorField;
   /**
    * Constructor: Creates database if not existing, launches a new thread
    * that takes care of handling requests from other nodes.
@@ -68,15 +73,15 @@ class MapApiCore final {
    * Returns a weak pointer to the database session
    */
   std::weak_ptr<Poco::Data::Session> getSession();
-  friend class CRTable;
-  friend class CRUTable;
+  friend class CRTableRAMCache;
+  friend class CRUTableRAMCache;
   friend class LocalTransaction;
   /**
    * Initializes metatable if not initialized. Unfortunately, the metatable
    * can't be initialized in init, as the initializer of metatable calls init
    * indirectly itself, so there would be an endless recursion.
    */
-  inline void ensureMetatable();
+  void ensureMetatable();
 
   Id owner_;
   /**
@@ -87,10 +92,9 @@ class MapApiCore final {
    * Hub instance
    */
   MapApiHub &hub_;
-  /**
-   * Chunk manager instance
-   */
-  ChunkManager &chunk_manager_;
+
+  std::unique_ptr<CRTableRAMCache> metatable_; // TODO(tcies) eventually
+  // net table in tableManager
 
   /**
    * initialized?

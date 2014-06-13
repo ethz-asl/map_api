@@ -20,6 +20,10 @@ class TableDescriptor : private proto::TableDescriptor {
   using proto::TableDescriptor::name;
   using proto::TableDescriptor::fields_size;
   using proto::TableDescriptor::fields;
+
+  using proto::TableDescriptor::DebugString;
+  using proto::TableDescriptor::ParseFromString;
+  using proto::TableDescriptor::SerializeAsString;
 };
 
 } /* namespace map_api */

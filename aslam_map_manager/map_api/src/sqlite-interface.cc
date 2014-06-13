@@ -1,5 +1,7 @@
 #include "map-api/sqlite-interface.h"
 
+#include "map-api/id.h"
+
 namespace map_api {
 
 SqliteInterface::~SqliteInterface() {}
@@ -7,8 +9,6 @@ SqliteInterface::~SqliteInterface() {}
 void SqliteInterface::init(std::weak_ptr<Poco::Data::Session> session) {
   session_ = session;
 }
-
-SqliteInterface::~SqliteInterface() {}
 
 bool SqliteInterface::isSqlSafe(const TableDescriptor& descriptor) const {
   if (!isSqlSafe(descriptor.name())) {
@@ -95,6 +95,7 @@ bool SqliteInterface::insert(const Revision& to_insert) {
     LOG(FATAL) << "Insert failed with exception \"" << e.what() << "\", " <<
         " statement was \"" << statement.toString() << "\" and query :" <<
         to_insert.DebugString();
+    system("cp database.db /tmp");
   }
 
   return true;
@@ -115,17 +116,17 @@ bool SqliteInterface::isSqlSafe(const std::string& string) const {
   return true;
 }
 
-SqliteInterface::PocoToProto::PocoToProto(const CRTable& table) :
-                                                            table_(table) {}
+SqliteInterface::PocoToProto::PocoToProto(
+    const std::shared_ptr<Revision>& reference)
+: reference_(reference) {}
 
 void SqliteInterface::PocoToProto::into(Poco::Data::Statement& statement) {
   statement << " ";
-  std::shared_ptr<Revision> dummy = table_.getTemplate();
-  for (int i = 0; i < dummy->fieldqueries_size(); ++i) {
+  for (int i = 0; i < reference_->fieldqueries_size(); ++i) {
     if (i > 0) {
       statement << ", ";
     }
-    const proto::TableField& field = dummy->fieldqueries(i);
+    const proto::TableField& field = reference_->fieldqueries(i);
     statement << field.nametype().name();
     switch(field.nametype().type()){
       case (proto::TableFieldDescriptor_Type_BLOB):{
@@ -160,19 +161,25 @@ void SqliteInterface::PocoToProto::into(Poco::Data::Statement& statement) {
   statement << " ";
 }
 
+int SqliteInterface::PocoToProto::resultSize() const {
+  if (doubles_.size()) return doubles_.begin()->second.size();
+  if (ints_.size()) return ints_.begin()->second.size();
+  if (longs_.size()) return longs_.begin()->second.size();
+  if (blobs_.size()) return blobs_.begin()->second.size();
+  if (strings_.size()) return strings_.begin()->second.size();
+  if (hashes_.size()) return hashes_.begin()->second.size();
+  return 0;
+}
+
 int SqliteInterface::PocoToProto::toProto(
-    std::vector<std::shared_ptr<Revision> >* dest) {
+    std::vector<std::shared_ptr<Revision> >* dest) const {
   CHECK_NOTNULL(dest);
-  // reserve output size
-  const std::map<std::string, std::vector<std::string> >::iterator
-  id_hashes_iterator = hashes_.find(kIdField);
-  CHECK(id_hashes_iterator != hashes_.end());
-  std::vector<std::string>& id_hashes = id_hashes_iterator->second;
-  dest->resize(id_hashes.size());
+  int size = resultSize();
+  dest->resize(size);
 
   // write values
   for (size_t i = 0; i < dest->size(); ++i) {
-    (*dest)[i] = table_.getTemplate();
+    (*dest)[i] = std::make_shared<Revision>(*reference_);
     for (const std::pair<std::string, std::vector<double> >& fieldDouble :
         doubles_){
       (*dest)[i]->set(fieldDouble.first, fieldDouble.second[i]);
@@ -202,7 +209,7 @@ int SqliteInterface::PocoToProto::toProto(
     }
   }
 
-  return id_hashes.size();
+  return size;
 }
 
 } /* namespace map_api */
