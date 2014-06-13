@@ -19,10 +19,6 @@ std::string Peer::address() const {
   return address_;
 }
 
-void Peer::deleteFunction(Peer* peer_pointer) {
-  delete peer_pointer;
-}
-
 bool Peer::request(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
   int size = request.ByteSize();

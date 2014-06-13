@@ -12,20 +12,21 @@ namespace map_api {
 class Time {
  public:
   /**
+   * Invalid time
+   */
+  explicit Time();
+  /**
    * To deserialize from database.
    */
-  Time(int64_t nanoseconds);
-  /**
-   * Current time
-   */
-  Time();
+  explicit Time(int64_t nanoseconds);
 
+  static Time now();
+
+  bool isValid() const;
   int64_t serialize() const;
 
   inline bool operator <=(const Time& other) const;
-
   inline bool operator >=(const Time& other) const;
-
   inline bool operator ==(const Time& other) const;
 
  private:

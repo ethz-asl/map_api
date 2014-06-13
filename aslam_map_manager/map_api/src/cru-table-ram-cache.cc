@@ -18,7 +18,7 @@ bool CRUTableRAMCache::insertCRUDerived(Revision* query) {
 }
 
 int CRUTableRAMCache::findByRevisionCRUDerived(
-    const std::string& key, const Revision& valueHolder, const Time& time,
+    const std::string& key, const Revision& value_holder, const Time& time,
     std::unordered_map<Id, std::shared_ptr<Revision> >* dest) {
   // TODO(tcies) apart from the more sophisticated time query, this is very
   // similar to its CR equivalent. Maybe refactor at some time?
@@ -27,17 +27,20 @@ int CRUTableRAMCache::findByRevisionCRUDerived(
       sqlite_interface_.getSession().lock();
   CHECK(session) << "Couldn't lock session weak pointer";
   Poco::Data::Statement statement(*session);
+  // caching of data needed for Poco::Data to work
+  int64_t serialized_time = time.serialize();
+  std::vector<std::shared_ptr<Poco::Data::BLOB> > data_holder;
   // TODO(tcies) evt. optimizations from http://www.sqlite.org/queryplanner.html
   statement << "SELECT ";
   poco_to_proto.into(statement);
   statement << " FROM " << name() << " WHERE " << kUpdateTimeField << " <  ? ",
-      Poco::Data::use(time.serialize());
+      Poco::Data::use(serialized_time);
   statement << " AND (" << kNextTimeField << " = 0 OR " << kNextTimeField <<
-      " > ? ", Poco::Data::use(time.serialize());
+      " > ? ", Poco::Data::use(serialized_time);
   statement << ") ";
   if (key != "") {
     statement << " AND " << key << " LIKE ";
-    valueHolder.insertPlaceHolder(key, statement);
+    data_holder.push_back(value_holder.insertPlaceHolder(key, statement));
   }
   try{
     statement.execute();
@@ -68,19 +71,22 @@ bool CRUTableRAMCache::updateCurrentReferToUpdatedCRUDerived(
       sqlite_interface_.getSession().lock();
   CHECK(session) << "Couldn't lock session weak pointer";
   Poco::Data::Statement statement(*session);
+  // caching of data needed for Poco::Data to work
+  int64_t serialized_update_time = updated_time.serialize(),
+      serialized_current_time = current_time.serialize();
+  std::string id_string = id.hexString();
   statement << "UPDATE " << name() << " SET " << kNextTimeField << " = ? ",
-      Poco::Data::use(updated_time.serialize());
+      Poco::Data::use(serialized_update_time);
   statement << " WHERE ID = ? ",
-      Poco::Data::use(id.hexString());
+      Poco::Data::use(id_string);
   statement << " AND " << kUpdateTimeField << " = ? ",
-      Poco::Data::use(current_time.serialize());
+      Poco::Data::use(serialized_current_time);
   try {
     statement.execute();
   } catch (const std::exception& e) {
     LOG(FATAL) << info << kNextTimeField << " update failed with exception \""
         << e.what() << "\", " << " statement was \"" << statement.toString() <<
-        "\" with Id and times: " << id << " " << current_time << " " <<
-        updated_time;
+        "\" with times: " << current_time << " " << updated_time;
   }
   return true;
 }

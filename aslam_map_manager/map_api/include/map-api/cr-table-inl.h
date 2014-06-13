@@ -1,6 +1,8 @@
 #ifndef MAP_API_CR_TABLE_INL_H_
 #define MAP_API_CR_TABLE_INL_H_
 
+#include <sstream>
+
 namespace map_api{
 
 template<typename ValueType>
@@ -19,8 +21,16 @@ std::shared_ptr<Revision> CRTable::findUnique(
     const std::string& key, const ValueType& value, const Time& time) {
   std::unordered_map<Id, std::shared_ptr<Revision>> results;
   int count = find(key, value, time, &results);
-  CHECK_LT(count, 2) << "There seems to be more than one item with given"\
-      " value of " << key << ", table " << descriptor_->name();
+  if (count > 1) {
+    std::stringstream report;
+    report << "There seems to be more than one item with given"\
+        " value of " << key << ", table " << descriptor_->name() << std::endl;
+    report << "Items found at " << time << " are:" << std::endl;
+    for (const std::pair<Id, std::shared_ptr<Revision> >& result : results) {
+      report << result.second->DebugString() << std::endl;
+    }
+    LOG(FATAL) << report.str();
+  }
   if (count == 0) {
     return std::shared_ptr<Revision>();
   } else {
