@@ -2,7 +2,7 @@
 
 #include "core.pb.h"
 
-#include "map-api/chunk-manager.h"
+#include "map-api/net-table-manager.h"
 #include "map-api/map-api-hub.h"
 #include "chunk.pb.h"
 
@@ -10,11 +10,16 @@ DECLARE_string(ip_port);
 
 namespace map_api {
 
-bool Chunk::init(const Id& id, const proto::ConnectResponse& connect_response,
-                 CRTable* underlying_table) {
+bool Chunk::init(const Id& id, CRTableRAMCache* underlying_table) {
   id_ = id;
   CHECK_NOTNULL(underlying_table);
   underlying_table_ = underlying_table;
+  return true;
+}
+
+bool Chunk::init(const Id& id, const proto::ConnectResponse& connect_response,
+                 CRTableRAMCache* underlying_table) {
+  CHECK(init(id, underlying_table));
   // connect to peers from connect_response TODO(tcies) notify of self
   CHECK_LT(0, connect_response.peer_address_size());
   for (int i = 0; i < connect_response.peer_address_size(); ++i) {
@@ -40,10 +45,14 @@ bool Chunk::insert(const Revision& item) {
   insert_request.set_chunk_id(id().hexString());
   insert_request.set_serialized_revision(item.SerializeAsString());
   Message request;
-  request.impose<ChunkManager::kInsertRequest, proto::InsertRequest>(
+  request.impose<NetTableManager::kInsertRequest, proto::InsertRequest>(
       insert_request);
   CHECK(peers_.undisputable_broadcast(request));
   return true;
+}
+
+int Chunk::peerSize() const {
+  return peers_.size();
 }
 
 bool Chunk::handleInsert(const Revision& item) {
@@ -53,12 +62,12 @@ bool Chunk::handleInsert(const Revision& item) {
 
 int Chunk::requestParticipation() const {
   proto::ParticipationRequest participation_request;
+  participation_request.set_table(underlying_table_->name());
   participation_request.set_chunk_id(id().hexString()); // TODO(tcies) table
   participation_request.set_from_peer(FLAGS_ip_port);
   Message request;
-  request.impose<ChunkManager::kParticipationRequest,
+  request.impose<NetTableManager::kParticipationRequest,
   proto::ParticipationRequest>(participation_request);
-  // TODO(tcies) strongly type peer address or, better, use peer weak pointer
   std::unordered_map<PeerId, Message> responses;
   MapApiHub::instance().broadcast(request, &responses);
   // at this point, the server handler should have processed all ensuing

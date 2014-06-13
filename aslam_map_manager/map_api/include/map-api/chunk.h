@@ -7,7 +7,7 @@
 
 #include <zeromq_cpp/zmq.hpp>
 
-#include "map-api/cr-table.h"
+#include "map-api/cr-table-ram-cache.h"
 #include "map-api/id.h"
 #include "map-api/peer-handler.h"
 #include "map-api/message.h"
@@ -68,8 +68,9 @@ class Chunk {
    * comments). b needs to perform a lock with its peers just at it would for
    * modifying chunk data.
    */
+  bool init(const Id& id, CRTableRAMCache* underlying_table);
   bool init(const Id& id, const proto::ConnectResponse& connect_response,
-            CRTable* underlying_table);
+            CRTableRAMCache* underlying_table);
   /**
    * Returns own identification
    */
@@ -118,6 +119,8 @@ class Chunk {
    * aforementioned contract.
    */
   void unlock();
+
+  int peerSize() const;
   /**
    * Requests all peers in MapApiCore to participate in a given chunk.
    * Returns how many peers accepted participation.
@@ -149,7 +152,7 @@ class Chunk {
 
   Id id_;
   PeerHandler peers_;
-  CRTable* underlying_table_;
+  CRTableRAMCache* underlying_table_;
 
   enum LockStatus {
     UNLOCKED,

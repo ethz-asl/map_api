@@ -58,7 +58,9 @@ TEST_F(ChunkTest, ParticipationRequest) {
     IPC::barrier(INIT, 1);
 
     EXPECT_EQ(1, MapApiHub::instance().peerSize());
+    EXPECT_EQ(0, my_chunk->peerSize());
     EXPECT_EQ(1, my_chunk->requestParticipation());
+    EXPECT_EQ(1, my_chunk->peerSize());
 
     IPC::barrier(DIE, 1);
 

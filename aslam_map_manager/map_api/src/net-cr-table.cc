@@ -35,4 +35,11 @@ bool NetCRTable::insert(const std::weak_ptr<Chunk>& chunk, Revision* query) {
   return true;
 }
 
+void NetCRTable::dumpCache(
+      const Time& time,
+      std::unordered_map<Id, std::shared_ptr<Revision> >* destination) {
+  CHECK_NOTNULL(destination);
+  cache_->dump(time, destination);
+}
+
 } // namespace map_api
