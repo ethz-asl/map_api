@@ -26,16 +26,16 @@ bool CRUTable::update(Revision* query) {
   Id id;
   query->get(kIdField, &id);
   CHECK_NE(id, Id()) << "Attempted to update element with invalid ID";
-  std::shared_ptr<Revision> current = getById(id, Time());
+  std::shared_ptr<Revision> current = getById(id, Time::now());
   Time insert_time;
   query->get(kInsertTimeField, &insert_time);
   CHECK(current->verify(kInsertTimeField, insert_time));
-  Time previous_time, update_time = Time(); // FIXME(tcies) #66
+  Time previous_time, update_time = Time::now();
   query->get(kUpdateTimeField, &previous_time);
   CHECK(previous_time <= update_time);
   query->set(kPreviousTimeField, previous_time);
   query->set(kUpdateTimeField, update_time);
-  query->set(kNextTimeField, Time(0));
+  query->set(kNextTimeField, Time());
   CHECK(insertUpdatedCRUDerived(*query));
   CHECK(updateCurrentReferToUpdatedCRUDerived(id, previous_time, update_time));
   return true;
@@ -44,7 +44,7 @@ bool CRUTable::update(Revision* query) {
 bool CRUTable::getLatestUpdateTime(const Id& id, Time* time) {
   CHECK_NE(Id(), id);
   CHECK_NOTNULL(time);
-  std::shared_ptr<Revision> row = getById(id, Time());
+  std::shared_ptr<Revision> row = getById(id, Time::now());
   ItemDebugInfo itemInfo(name(), id);
   if (!row){
     LOG(ERROR) << itemInfo << "Failed to retrieve row";
@@ -67,9 +67,9 @@ bool CRUTable::initCRDerived() {
 }
 
 bool CRUTable::insertCRDerived(Revision* query) {
-  query->set(kUpdateTimeField, Time());
-  query->set(kPreviousTimeField, Time(0));
-  query->set(kNextTimeField, Time(0));
+  query->set(kUpdateTimeField, Time::now());
+  query->set(kPreviousTimeField, Time());
+  query->set(kNextTimeField, Time());
   return insertCRUDerived(query);
 }
 

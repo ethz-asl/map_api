@@ -1,67 +1,51 @@
 #include "map-api/peer-handler.h"
 
+#include <glog/logging.h>
+
 #include "map-api/map-api-hub.h"
 
 namespace map_api {
 
-template <>
-std::shared_ptr<Peer> PeerHandler<std::shared_ptr<Peer> >::lock(
-    const std::shared_ptr<Peer>& pointer) const {
-  return pointer;
-}
-template <>
-std::shared_ptr<Peer> PeerHandler<std::weak_ptr<Peer> >::lock(
-    const std::weak_ptr<Peer>& pointer) const {
-  return pointer.lock();
+void PeerHandler::add(const PeerId& peer) {
+  peers_.insert(peer);
 }
 
-template <>
-void PeerHandler<std::weak_ptr<Peer> >::insert(
-    std::weak_ptr<Peer> peer_pointer) {
-  std::shared_ptr<Peer> locked_pointer = peer_pointer.lock();
-  CHECK(locked_pointer);
-  CHECK(peers_.insert(
-      std::make_pair(locked_pointer->address(), peer_pointer)).second);
-}
-
-template <>
-void PeerHandler<std::shared_ptr<Peer> >::insert(
-    const std::string& address, zmq::context_t& context, int socket_type) {
-  std::shared_ptr<Peer> to_insert =
-      std::shared_ptr<Peer>(new Peer(address, context, socket_type),
-                            Peer::deleteFunction);
-  CHECK(peers_.insert(std::make_pair(address, to_insert)).second);
-}
-
-template <>
-std::weak_ptr<Peer> PeerHandler<std::weak_ptr<Peer> >::ensure(
-    const std::string& address) {
-  std::unordered_map<std::string, std::weak_ptr<Peer> >::iterator found =
-      peers_.find(address);
-  if (found == peers_.end()) {
-    std::weak_ptr<Peer> requested_peer = MapApiHub::instance().ensure(address);
-    CHECK(!requested_peer.expired());
-    peers_[address] = requested_peer;
-    return requested_peer;
+void PeerHandler::broadcast(
+    const Message& request,
+    std::unordered_map<PeerId, Message>* responses) {
+  CHECK_NOTNULL(responses);
+  responses->clear();
+  // TODO(tcies) parallelize using std::future
+  for (const PeerId& peer: peers_) {
+    MapApiHub::instance().request(peer, request, &(*responses)[peer]);
   }
-  return found->second;
 }
 
-template <>
-std::weak_ptr<Peer> PeerHandler<std::shared_ptr<Peer> >::ensure(
-    const std::string& address) {
-  std::unordered_map<std::string, std::shared_ptr<Peer> >::iterator found =
-      peers_.find(address);
+void PeerHandler::request(
+    const PeerId& peer, const Message& request,
+    Message* response) {
+  CHECK_NOTNULL(response);
+  std::unordered_set<PeerId>::iterator found = peers_.find(peer);
   if (found == peers_.end()) {
-    // another fantastic display of the design flaw of PeerHandler
-    zmq::context_t* context;
-    int socket_type;
-    MapApiHub::instance().getContextAndSocketType(&context, &socket_type);
-    insert(address, *context, socket_type);
-    found = peers_.find(address);
-    CHECK(found != peers_.end());
+    found = peers_.insert(peer).first;
   }
-  return std::weak_ptr<Peer>(found->second);
+  MapApiHub::instance().request(peer, request, response);
+}
+
+size_t PeerHandler::size() const {
+  return peers_.size();
+}
+
+bool PeerHandler::undisputable_broadcast(
+    const Message& request) {
+  std::unordered_map<PeerId, Message> responses;
+  broadcast(request, &responses);
+  for (const std::pair<PeerId, Message>& response_pair : responses) {
+    if (!response_pair.second.isType<Message::kAck>()){
+      return false;
+    }
+  }
+  return true;
 }
 
 } /* namespace map_api */

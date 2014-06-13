@@ -20,20 +20,23 @@ bool CRTableRAMCache::insertCRDerived(Revision* query) {
 }
 
 int CRTableRAMCache::findByRevisionCRDerived(
-    const std::string& key, const Revision& valueHolder, const Time& time,
+    const std::string& key, const Revision& value_holder, const Time& time,
     std::unordered_map<Id, std::shared_ptr<Revision> >* dest) {
   SqliteInterface::PocoToProto pocoToProto(getTemplate());
   std::shared_ptr<Poco::Data::Session> session =
       sqlite_interface_.getSession().lock();
   CHECK(session) << "Couldn't lock session weak pointer";
   Poco::Data::Statement statement(*session);
+  // need to cache data for Poco
+  int64_t serialized_time = time.serialize();
+  std::vector<std::shared_ptr<Poco::Data::BLOB> > data_holder;
   statement << "SELECT";
   pocoToProto.into(statement);
   statement << "FROM " << name() << " WHERE " << kInsertTimeField << " <= ? ",
-      Poco::Data::use(time.serialize());
+      Poco::Data::use(serialized_time);
   if (key != "") {
     statement << " AND " << key << " LIKE ";
-    valueHolder.insertPlaceHolder(key, statement);
+    data_holder.push_back(value_holder.insertPlaceHolder(key, statement));
   }
   try{
     statement.execute();

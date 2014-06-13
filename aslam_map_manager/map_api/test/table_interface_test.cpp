@@ -199,6 +199,9 @@ class FieldTest<testBlob> : public ::testing::Test {
 template <typename TableDataType>
 class FieldTestWithoutInit :
     public FieldTest<typename TableDataType::DataType> {
+     public:
+  virtual ~FieldTestWithoutInit() {}
+
      protected:
   virtual void SetUp() {
     table_ = new typename TableDataType::TableType();
@@ -295,7 +298,7 @@ TYPED_TEST(FieldTestWithoutInit, CreateBeforeInit) {
 
 TYPED_TEST(FieldTestWithoutInit, ReadBeforeInit) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH(this->table_->getById(Id::random(), Time()), "^");
+  EXPECT_DEATH(this->table_->getById(Id::random(), Time::now()), "^");
 }
 
 TYPED_TEST(FieldTestWithInit, CreateRead) {
@@ -303,8 +306,8 @@ TYPED_TEST(FieldTestWithInit, CreateRead) {
   EXPECT_TRUE(this->insertRevision());
 
   std::shared_ptr<Revision> rowFromTable =
-      this->table_->getById(inserted, Time());
-  EXPECT_TRUE(static_cast<bool>(rowFromTable));
+      this->table_->getById(inserted, Time::now());
+  ASSERT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
   rowFromTable->get(FieldTestTable<TypeParam>::kTestField,
                     &dataFromTable);
@@ -316,7 +319,7 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRow) {
   EXPECT_TRUE(this->insertRevision());
 
   Id other_id = Id::random();
-  EXPECT_FALSE(this->table_->getById(other_id, Time()));
+  EXPECT_FALSE(this->table_->getById(other_id, Time::now()));
 }
 
 TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
@@ -325,7 +328,7 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
   EXPECT_TRUE(this->insertRevision());
 
   std::shared_ptr<Revision> rowFromTable =
-      this->table_->getById(inserted, Time());
+      this->table_->getById(inserted, Time::now());
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
   EXPECT_DEATH(rowFromTable->get("some_other_field", &dataFromTable), "^");
@@ -336,15 +339,15 @@ TYPED_TEST(UpdateFieldTestWithInit, UpdateRead) {
   EXPECT_TRUE(this->insertRevision());
 
   std::shared_ptr<Revision> rowFromTable =
-      this->table_->getById(inserted, Time());
-  EXPECT_TRUE(static_cast<bool>(rowFromTable));
+      this->table_->getById(inserted, Time::now());
+  ASSERT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
   rowFromTable->get("test_field", &dataFromTable);
   EXPECT_EQ(this->sample_data_1(), dataFromTable);
 
   this->fillRevisionWithOtherData();
   this->updateRevision();
-  rowFromTable = this->table_->getById(inserted, Time());
+  rowFromTable = this->table_->getById(inserted, Time::now());
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   rowFromTable->get("test_field", &dataFromTable);
   EXPECT_EQ(this->sample_data_2(), dataFromTable);
