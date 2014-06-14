@@ -22,16 +22,19 @@ std::weak_ptr<Chunk> ChunkManager::connectTo(const Id& chunk_id,
   Message request, response;
   // sends request of chunk info to peer
   proto::ConnectRequest connect_request;
+  connect_request.set_table(cache_->name());
   connect_request.set_chunk_id(chunk_id.hexString());
   connect_request.set_from_peer(FLAGS_ip_port);
   request.impose<NetTableManager::kConnectRequest, proto::ConnectRequest>(
       connect_request);
-  // TODO(tcies) add to local peer subset instead
+  // TODO(tcies) add to local peer subset instead - peers in ChunkManager?
+  // meld ChunkManager and NetCRTable?
   MapApiHub::instance().request(peer, request, &response);
   CHECK(response.isType<NetTableManager::kConnectResponse>());
   proto::ConnectResponse connect_response;
   CHECK(connect_response.ParseFromString(response.serialized()));
   // receives peer list and data from peer, forwards it to chunk init()
+  connect_response.add_peer_address(peer.ipPort()); // TODO(tcies) unhack
   std::shared_ptr<Chunk> chunk;
   chunk.reset(new Chunk);
   CHECK(chunk->init(chunk_id, connect_response, cache_));

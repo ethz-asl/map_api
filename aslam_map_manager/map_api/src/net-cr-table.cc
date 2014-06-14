@@ -42,4 +42,10 @@ void NetCRTable::dumpCache(
   cache_->dump(time, destination);
 }
 
+std::weak_ptr<Chunk> NetCRTable::connectTo(const Id& chunk_id,
+                                           const PeerId& peer) {
+  // TODO(tcies) ever slight code smell
+  return chunk_manager_->connectTo(chunk_id, peer);
+}
+
 } // namespace map_api

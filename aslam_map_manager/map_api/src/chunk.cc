@@ -21,7 +21,7 @@ bool Chunk::init(const Id& id, const proto::ConnectResponse& connect_response,
                  CRTableRAMCache* underlying_table) {
   CHECK(init(id, underlying_table));
   // connect to peers from connect_response TODO(tcies) notify of self
-  CHECK_LT(0, connect_response.peer_address_size());
+  CHECK_GT(0, connect_response.peer_address_size());
   for (int i = 0; i < connect_response.peer_address_size(); ++i) {
     peers_.add(PeerId(connect_response.peer_address(i)));
   }

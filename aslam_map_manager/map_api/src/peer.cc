@@ -10,6 +10,8 @@ Peer::Peer(const std::string& address, zmq::context_t& context,
   //TODO(tcies) init instead of aborting constructor
   try {
     socket_.connect(("tcp://" + address).c_str());
+    int timeOutMs = 1000; // TODO(tcies) extend once network
+    socket_.setsockopt(ZMQ_RCVTIMEO, &timeOutMs, sizeof(timeOutMs));
   } catch (const std::exception& e) {
     LOG(FATAL) << "Connection to " << address << " failed";
   }
@@ -27,7 +29,12 @@ bool Peer::request(const Message& request, Message* response) {
   try {
     zmq::message_t message(buffer, size, NULL, NULL);
     CHECK(socket_.send(message));
-    CHECK(socket_.recv(&message));
+    if (!socket_.recv(&message)) {
+      LOG(FATAL) << "Request was " << request.DebugString();
+    }
+    // catches silly bugs where a handler forgets to modify the response
+    // message, which could be a quite common bug
+    CHECK_GT(message.size(), 0) << "Request was " << request.DebugString();
     CHECK(response->ParseFromArray(message.data(), message.size()));
   } catch(const zmq::error_t& e) {
     LOG(FATAL) << e.what();

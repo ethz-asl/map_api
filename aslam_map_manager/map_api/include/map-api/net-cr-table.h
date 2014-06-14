@@ -49,6 +49,11 @@ class NetCRTable {
   void dumpCache(
       const Time& time,
       std::unordered_map<Id, std::shared_ptr<Revision> >* destination);
+  /**
+   * Connects to the given chunk via the given peer.
+   */
+  std::weak_ptr<Chunk> connectTo(const Id& chunk_id,
+                                 const PeerId& peer);
 
  private:
   NetCRTable() = default;

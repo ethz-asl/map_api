@@ -144,7 +144,7 @@ void MapApiHub::broadcast(const Message& request,
   // TODO(tcies) parallelize using std::future
   for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer_pair :
       peers_) {
-    peer_pair.second->request(request, &(*responses)[peer_pair.first]);
+    CHECK(peer_pair.second->request(request, &(*responses)[peer_pair.first]));
   }
 }
 

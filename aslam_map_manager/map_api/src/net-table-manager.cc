@@ -9,6 +9,8 @@ void NetTableManager::init() {
   MapApiHub::instance().registerHandler(kInsertRequest, handleInsertRequest);
   MapApiHub::instance().registerHandler(kParticipationRequest,
                                         handleParticipationRequest);
+  MapApiHub::instance().registerHandler(kConnectRequest,
+                                          handleConnectRequest);
 }
 
 void NetTableManager::addTable(std::unique_ptr<TableDescriptor>* descriptor) {
@@ -60,6 +62,7 @@ const char NetTableManager::kChunkNotOwned[] = "map_api_chunk_not_owned";
 void NetTableManager::handleConnectRequest(const std::string& serialized_request,
                                         Message* response) {
   // TODO(tcies) implement
+  response->impose<Message::kAck>();
 }
 
 void NetTableManager::handleInsertRequest(
@@ -99,7 +102,7 @@ void NetTableManager::handleParticipationRequest(
   // what if requested table is not loaded?
   // TODO(tcies) Load table schema from metatable
   MapApiCore::instance().tableManager().getTable(request.table()).connectTo(
-      chunk_id, request.from_peer());
+      chunk_id, PeerId(request.from_peer()));
   response->impose<Message::kAck>();
 }
 
