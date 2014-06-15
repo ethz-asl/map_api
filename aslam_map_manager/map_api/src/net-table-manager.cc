@@ -17,6 +17,12 @@ NetCRTable& NetTableManager::getTable(const std::string& name) {
   CHECK(found != tables_.end());
   return *found->second;
 }
+const NetCRTable& NetTableManager::getTable(const std::string& name) const {
+  std::unordered_map<std::string, std::unique_ptr<NetCRTable> >::iterator
+  found = tables_.find(name);
+  CHECK(found != tables_.end());
+  return *found->second;
+}
 
 void NetTableManager::clear() {
   tables_.clear();

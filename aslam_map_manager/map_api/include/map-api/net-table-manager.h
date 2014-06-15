@@ -12,6 +12,7 @@ class NetTableManager {
  public:
   void addTable(std::unique_ptr<TableDescriptor>* descriptor);
   NetCRTable& getTable(const std::string& name);
+  const NetCRTable& getTable(const std::string& name) const;
   void clear();
  private:
   NetTableManager() = default;
