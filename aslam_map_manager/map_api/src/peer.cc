@@ -34,7 +34,7 @@ bool Peer::request(const Message& request, Message* response) {
     }
     // catches silly bugs where a handler forgets to modify the response
     // message, which could be a quite common bug
-    CHECK_GT(message.size(), 0) << "Request was " << request.DebugString();
+    CHECK_GT(message.size(), 0u) << "Request was " << request.DebugString();
     CHECK(response->ParseFromArray(message.data(), message.size()));
   } catch(const zmq::error_t& e) {
     LOG(FATAL) << e.what();
