@@ -61,8 +61,20 @@ const char NetTableManager::kChunkNotOwned[] = "map_api_chunk_not_owned";
 
 void NetTableManager::handleConnectRequest(const std::string& serialized_request,
                                         Message* response) {
-  // TODO(tcies) implement
-  response->impose<Message::kAck>();
+  CHECK_NOTNULL(response);
+  proto::ConnectRequest connect_request;
+  CHECK(connect_request.ParseFromString(serialized_request));
+  const std::string& table = connect_request.table();
+  Id chunk_id;
+  CHECK(chunk_id.fromHexString(connect_request.chunk_id()));
+  PeerId from_peer(connect_request.from_peer());
+  std::unordered_map<std::string, std::unique_ptr<NetCRTable> >::iterator
+  found = MapApiCore::instance().tableManager().tables_.find(table);
+  if (found == MapApiCore::instance().tableManager().tables_.end()) {
+    response->impose<Message::kDecline>();
+    return;
+  }
+  found->second->handleConnectRequest(chunk_id, from_peer, response);
 }
 
 void NetTableManager::handleInsertRequest(

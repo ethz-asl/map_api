@@ -21,6 +21,10 @@ void PeerHandler::broadcast(
   }
 }
 
+const std::unordered_set<PeerId>& PeerHandler::peers() const {
+  return peers_;
+}
+
 void PeerHandler::request(
     const PeerId& peer, const Message& request,
     Message* response) {

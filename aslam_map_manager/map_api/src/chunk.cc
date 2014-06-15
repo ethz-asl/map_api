@@ -21,7 +21,7 @@ bool Chunk::init(const Id& id, const proto::ConnectResponse& connect_response,
                  CRTableRAMCache* underlying_table) {
   CHECK(init(id, underlying_table));
   // connect to peers from connect_response TODO(tcies) notify of self
-  CHECK_GT(0, connect_response.peer_address_size());
+  CHECK_GT(connect_response.peer_address_size(), 0);
   for (int i = 0; i < connect_response.peer_address_size(); ++i) {
     peers_.add(PeerId(connect_response.peer_address(i)));
   }
@@ -63,7 +63,7 @@ bool Chunk::handleInsert(const Revision& item) {
 int Chunk::requestParticipation() const {
   proto::ParticipationRequest participation_request;
   participation_request.set_table(underlying_table_->name());
-  participation_request.set_chunk_id(id().hexString()); // TODO(tcies) table
+  participation_request.set_chunk_id(id().hexString());
   participation_request.set_from_peer(FLAGS_ip_port);
   Message request;
   request.impose<NetTableManager::kParticipationRequest,
@@ -79,6 +79,23 @@ int Chunk::requestParticipation() const {
     }
   }
   return new_participant_count;
+}
+
+void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
+  CHECK_NOTNULL(response);
+  // TODO(tcies) what if peer already connected?
+  proto::ConnectResponse connect_response;
+  for (const PeerId& peer : peers_.peers()) {
+    connect_response.add_peer_address(peer.ipPort());
+  }
+  // TODO(tcies) will need more concurency control: What happens exactly if
+  // one peer wants to add/update data while another one is handling a
+  // connection request?
+  // TODO(tcies) populate connect_response with chunk revisions
+  response->impose<NetTableManager::kConnectResponse, proto::ConnectResponse>(
+      connect_response);
+  peers_.add(peer);
+  // TODO(tcies) notify other peers of this peer joining the swarm
 }
 
 } // namespace map_api

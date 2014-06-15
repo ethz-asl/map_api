@@ -42,6 +42,17 @@ std::weak_ptr<Chunk> ChunkManager::connectTo(const Id& chunk_id,
   return std::weak_ptr<Chunk>(chunk);
 }
 
+void ChunkManager::handleConnectRequest(const Id& chunk_id, const PeerId& peer,
+                                        Message* response) {
+  CHECK_NOTNULL(response);
+  ChunkMap::iterator found = active_chunks_.find(chunk_id);
+  if (found == active_chunks_.end()) {
+    response->impose<Message::kDecline>();
+    return;
+  }
+  found->second->handleConnectRequest(peer, response);
+}
+
 std::weak_ptr<Chunk> ChunkManager::newChunk() {
   Id chunk_id = Id::random();
   std::shared_ptr<Chunk> chunk = std::shared_ptr<Chunk>(new Chunk);

@@ -54,6 +54,8 @@ class NetCRTable {
    */
   std::weak_ptr<Chunk> connectTo(const Id& chunk_id,
                                  const PeerId& peer);
+  void handleConnectRequest(const Id& chunk_id, const PeerId& peer,
+                            Message* response);
 
  private:
   NetCRTable() = default;

@@ -133,10 +133,7 @@ class Chunk {
    */
   int requestParticipation() const;
 
-  /**
-   * Request handlers are in the ChunkManager class, as all request arrive to
-   * a peer centrally.
-   */
+  void handleConnectRequest(const PeerId& peer, Message* response);
 
  private:
   /**

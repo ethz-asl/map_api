@@ -25,6 +25,8 @@ class ChunkManager {
    */
   std::weak_ptr<Chunk> connectTo(const Id& chunk_id,
                                  const PeerId& peer);
+  void handleConnectRequest(const Id& chunk_id, const PeerId& peer,
+                            Message* response);
   /**
    * Allows a peer to initiate a new chunk belonging to the given table
    * TODO(tcies) ChunkManager should BELONG TO a table
