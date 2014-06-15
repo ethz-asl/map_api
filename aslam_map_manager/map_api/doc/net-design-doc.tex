@@ -1,0 +1,51 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{todonotes}
+\usepackage{a4wide}
+
+\title{Network design doc for review by Christian}
+\author{Titus Cieslewski}
+\date{Spring 2014}
+
+\setlength{\parindent}{0mm}
+%\setlength{\parskip}{3mm}
+
+\begin{document}
+
+\maketitle
+
+\section{Overview}
+
+The Map API is to provide a mean for robots to collaborate on maps on a large
+scale, in a distributed (peer to peer) manner. The reference mapping algorithm
+is (collaborative) keyframe bundle adjustment, but the design should allow the 
+use of any algorithm.
+
+In order to achieve that, the data that is shared among the robots is structured
+into tables that can be specified by the algorithms.
+
+In other words, thus, the goal is to develop an application-specific peer to
+peer database system.
+
+\subsection{Keyframe bundle adjustment}
+
+To illustrate use cases in this document, I will use a hypothetical application
+performing collaborative keyframe bundle adjustment. 
+
+The main data unit of the algorithm is what we call a mission. A mission
+represents a single robot's trajectory in the world, along with its perception
+during that trajectory.
+
+The first thing that is known about a mission is the raw sensor data. We assume
+that the robots participating in the application dispose of at least a camera
+and an inertial measurement unit (IMU). Without going into too much detail, the
+algotithm then generates a first 3D estimation of the trajectory and of salient
+features in the environment (landmarks). The trajectory is represented by a
+graph where each vertex represents a reasonably sampled pose (keyframe) of the
+robot during its trajectory, and each edge a spatial transformation between two 
+keyframes. Such a graph is also called "pose graph".
+
+Once a first estimate is given, the pose graph and landmark...
+
+
+\end{document}
