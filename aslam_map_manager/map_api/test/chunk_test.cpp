@@ -12,20 +12,22 @@
 
 using namespace map_api;
 
-class ChunkTestTable : public NetCRTable {
- public:
-  static NetCRTable& instance() {
-    static NetCRTable table;
+class ChunkTest : public MultiprocessTest {
+ protected:
+  virtual void SetUp() {
+    MultiprocessTest::SetUp();
+    MapApiCore::instance().tableManager().clear();
     std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
-    descriptor->setName("chunk_test_table");
-    table.init(&descriptor);
-    return table;
+    descriptor->setName(kTableName);
+    MapApiCore::instance().tableManager().addTable(&descriptor);
   }
+
+  const std::string kTableName = "chunk_test_table";
 };
 
-TEST_F(MultiprocessTest, NetCRInsert) {
-  MapApiCore::instance();
-  NetCRTable& table = ChunkTestTable::instance();
+TEST_F(ChunkTest, NetCRInsert) {
+  NetCRTable& table =
+      MapApiCore::instance().tableManager().getTable(kTableName);
   std::weak_ptr<Chunk> my_chunk_weak = table.newChunk();
   std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
   EXPECT_TRUE(static_cast<bool>(my_chunk));
@@ -39,14 +41,16 @@ TEST_F(MultiprocessTest, NetCRInsert) {
  * TODO(tcies) verify chunk confirms peer, not just whether peer Acks the
  * participation request
  */
-TEST_F(MultiprocessTest, ParticipationRequest) {
+TEST_F(ChunkTest, ParticipationRequest) {
   enum Barriers {INIT, DIE};
+  NetCRTable& table =
+      MapApiCore::instance().tableManager().getTable(kTableName);
   IPC::init();
-  MapApiCore::instance();
-  NetCRTable& table = ChunkTestTable::instance();
   // the following is a hack until FIXME(tcies) TableManager is instantiated
   if (getSubprocessId() == 0) {
     uint64_t id = launchSubprocess();
+    sleep(1); // TODO(tcies) problem: what if barrier message sent before
+    // subprocess initializes handler?
     std::weak_ptr<Chunk> my_chunk_weak = table.newChunk();
     std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
     EXPECT_TRUE(static_cast<bool>(my_chunk));
