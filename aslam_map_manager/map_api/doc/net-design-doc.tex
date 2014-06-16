@@ -19,17 +19,17 @@
 The Map API is to provide a mean for robots to collaborate on maps on a large
 scale, in a distributed (peer to peer) manner. The reference mapping algorithm
 is (collaborative) keyframe bundle adjustment, but the design should allow the 
-use of any algorithm.
+use of any algorithm down the road.
 
-In order to achieve that, the data that is shared among the robots is structured
-into tables that can be specified by the algorithms.
+In order to achieve such generality, the data that is shared among the robots is
+structured into tables that can be specified by the algorithms.
 
 In other words, thus, the goal is to develop an application-specific peer to
 peer database system.
 
 \subsection{Keyframe bundle adjustment}
 
-To illustrate use cases in this document, I will use a hypothetical application
+To illustrate use cases in this document, we will use a hypothetical application
 performing collaborative keyframe bundle adjustment. 
 
 The main data unit of the algorithm is what we call a mission. A mission
@@ -45,7 +45,55 @@ graph where each vertex represents a reasonably sampled pose (keyframe) of the
 robot during its trajectory, and each edge a spatial transformation between two 
 keyframes. Such a graph is also called "pose graph".
 
-Once a first estimate is given, the pose graph and landmark...
+Once a first estimate is given, the pose graph and landmark position estimations
+and other estimated parameters can then be further optimized using an algorithm
+called Bundle Adjustment. In particular, it is interesting to jointly optimize
+several missions - this is where the collaboration between robots happens.
+\todo{tcies: talk about transactions and views somewhere}
+
+\subsection{Implementation}
+
+The Map API is implemented as a C++ library, relying on Google Protocol buffers
+for serializable structures and ZeroMQ for networking purposes.
+
+\section{Data structure}
+
+To ensure flexibility, data is stored in tables that can be specified by
+applications. The table schemata are stored in a particular table (metatable) 
+that is hardcoded in the library and shared accross all peers. Rows in a table
+are referred to as "items".
+
+\subsection{Indexing}
+
+Each item is assigned an identifier/key that is supposed to be unique per table.
+To enable lock-free insertion, the identifier is a randomly generated 128 bit 
+byte string, and for the scope of this project the assumption is made that no
+conflicts will ever happen.
+
+We are aware that Distributed Hash Tables take the approach of choosing the key
+as a hash of the item data. However, we are not sure how that would relate to
+updates in the data, an operation that we would like to support.
+
+\subsection{Create-read VS Create-read-update tables}
+
+To make use of performance advantages that can be achieved when no update
+operation needs to be supported, the distinction is made between these two
+kinds of tables. Create-read-update tables keep their history. In particular,
+all revisions are stored in the same table, identifiable by a "update\_time" 
+field. The revisions furthermore keep references to previous and next revision.
+The first revision of an item has a nil previous reference while the latest
+revision has a nil next reference. \todo{tcies: diagram}
+
+As the naming suggests, delete operations are not explicitly supported. Instead,
+we hope to enforce network mechanisms that automatically "forget" irrelevant
+data.
+
+\section{Questions}
+
+\begin{itemize}
+  \item Could you tell me of a good paper analyzing network partitions, i.e.
+    giving a mathematical model describing their occurrence?
+\end{itemize}
 
 
 \end{document}
