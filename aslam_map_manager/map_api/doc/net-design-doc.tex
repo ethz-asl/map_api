@@ -5,10 +5,10 @@
 
 \title{Network design doc for review by Christian}
 \author{Titus Cieslewski}
-\date{Spring 2014}
+\date{\today}
 
 \setlength{\parindent}{0mm}
-%\setlength{\parskip}{3mm}
+\setlength{\parskip}{2mm}
 
 \begin{document}
 
@@ -102,9 +102,9 @@ We understand that both \ref{itm:robust} and \ref{itm:lookup} are very common
 problems in peer-to-peer networks and have been solved in multiple ways in
 e.g. different implementations of Dynamic Hash Tables.
 
-As for \ref{itm:update}, we believe it becomes a bit trickier. Bitcoin, for
-instance, solves this problem, but we are not sure whether we want to adapt
-their solution. We see the following differences to Bitcoin:
+As for \ref{itm:update}, we believe it becomes a bit trickier. Bitcoin 
+\cite{bitcoin}, for instance, solves this problem, but we are not sure whether
+we want to adapt its solution. We see the following differences to Bitcoin:
 
 \begin{itemize}
   \itemsep0em
@@ -112,8 +112,8 @@ their solution. We see the following differences to Bitcoin:
   \item Unless someone attempts a double-spending attack or initiates
     transactions from two different clients, there should be no conflicts in
     transactions, as each agent operates on their own account. A more often 
-    occuring conflict is blockchain forks (we have read your paper), and we
-    might use the Bitcoin solution for conflict resolution in the Map API.
+    occuring conflict is blockchain forks, and maybe the Bitcoin solution for 
+    those could be useful to us (need equivalent to longest chain)
   \item In Bitcoin, each agent knows about the full state of the transaction
     history. This is not required for the Map API
 \end{itemize}
@@ -133,12 +133,14 @@ is at the discretion of the node inserting the data. It is expected that:
   \item Data sharing the same chunk is related in some way: A client that
     performs an application-typical use case should not need to fetch more than
     a handful of chunks.
-  \item Chunk size does not exceed what can be shared reasonably fast, say
-    100MB tops
+  \item Chunk size does not exceed what can be shared reasonably fast for the
+    given application (e.g. map chunks should be small, but chunks of raw
+    sensor data, which are fetched for verification or optimization, 
+    could be bigger)
 \end{itemize}
 
 Then, a client desiring access to the latest version of some data in some chunk
-must agree to the following contract to the best of its knowledge:
+must agree to the following contract:
 
 \begin{itemize}
   \itemsep0em
@@ -207,8 +209,8 @@ broadcasts a redundant notification.
 Peers in the swarm have the ability to send out chunk participation requests
 to table peers (see below), even if the latter don't require access to chunk
 data. This gives content creators the ability to ensure that their newly created
-persists in the network even if nobody requests their data before they leave the
-network. 
+content persists in the network even if nobody requests their data before they
+leave the network. 
 
 For now, accpetation of participation requests relies on good will, i.e. it is 
 not incentivized. It is at this point that irrelevant data gets removed from the
@@ -225,7 +227,8 @@ swarm.
 \subsubsection{Updates}
 
 To update data, first the local peer addition lock must be read-locked, then a 
-distributed update lock must be acquired.
+distributed update lock must be acquired, then the update is shared with the 
+swarm.
 
 \subsection{Table}
 
@@ -237,8 +240,8 @@ to participation in the chunk of that data) and of sending participation
 requests. 
 
 Similarly, each client holds a peer list for the entire Map API, and the
-operation for finding tables are equivalent to the operations for finding
-chunks in the table.
+operation for joining tables in the Map API are equivalent to the operations for
+joining chunks in a table.
 
 \subsubsection{Naive index lookup}
 
@@ -251,22 +254,56 @@ rumor spreading fashion \cite{bitcoin}. This unfortunately eventually troubles
 the entire table swarm with the request, but the requester does not wait for the
 request to traverse the entire swarm, but only for the first positive response. 
 
-\subsubsection{Binary-tree (quadtree, octree) range lookup}
+\subsubsection{K-d tree ($2^k$ subnodes, symmetric split) range lookup}
 
-The ID of the item that is looked for is not always know a priori.
+The ID of the item that is looked for is not always know a priori. Sometimes
+it is interesting to do lookup in a bounding box. For instance, in keyframe
+bundle adjustment it is useful to find other missions that have been recorded
+in the same location as a freshly recorded mission, or to see what part of the
+world close to a certain location has not been explored yet.
+
+To that end, each table may have one or several k-d tree indices.
+The root node of the k-d tree is shared among all table participants. Each
+node then holds the peer list of its $2^k$ subnodes unless it is a leaf node,
+in which case it holds a list of chunks that have data present in the space
+represented by the leaf node.
+
+More details on how the k-d tree indices should work have not been fleshed out
+yet.
 
 \section{Ideas for later}
 
-\subsection{Disk caching and disk-peers}
+\subsection{Disk caching}
 
-\subsection{Chunk revival}
+Until now, we have implicitly assumed that the table data at the clients sits
+in RAM. However, this does not always make sense: Robots might want to store 
+data for subsequent offline lookup and volunteer chunk participants might not
+want to clutter their RAM with data they don't need anyways. It would thus make
+sense to come up with a scheme which decides when to commit data to the disk.
+
+\subsection{Chunk reactivation}
+
+Disk caching could allow to store data even of inactive chunks. It could happen
+that a chunk loses its entire swarm, but then a while later some client would
+like to reactivate it again (not necessarily the one holding the data on disk),
+because it needs to access the "latest" data again. Such a chunk reactivation
+would carry a lot of consequences with it that we haven't thought of yet, but 
+the ability to reactivate chunks would probably be very useful.
 
 \section{Questions}
 
 \begin{itemize}
   \itemsep0em
-  \item Could you recommend a paper analyzing network partitions?
+  \item Where do you see the biggest problems with the suggested system?
+  \item What literature could you recommend us?
+  \item Could you recommend a paper analyzing the occurrence of network
+    partitions?
   \item Could you recommend literature on distributed hash tables?
+  \item Right now we test on a local machine, but once we switch to a real
+    network: We thought of doing discovery similarly to the satoshi client
+    \cite{discovery}, or is there a better way? 
+    And how would you recommend to go about UPnP in C++ (assuming you have dealt
+    with that before, otherwise we can figure it out ourselves)?
 \end{itemize}
 
 \begin{thebibliography}{9}
@@ -278,6 +315,8 @@ The ID of the item that is looked for is not always know a priori.
     (2001, January). \emph{Freenet: A distributed anonymous information storage
     and retrieval system} Designing Privacy Enhancing Technologies (pp. 46-66).
     Springer Berlin Heidelberg.
+  \bibitem{discovery} 
+    https://en.bitcoin.it/wiki/Satoshi\_Client\_Node\_Discovery
 \end{thebibliography}
 
 \end{document}
