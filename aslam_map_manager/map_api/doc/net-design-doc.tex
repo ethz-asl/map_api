@@ -1,7 +1,7 @@
 \documentclass{article}
 \usepackage[utf8]{inputenc}
 \usepackage{todonotes}
-\usepackage{a4wide}
+%\usepackage{a4wide}
 
 \title{Network design doc for review by Christian}
 \author{Titus Cieslewski}
@@ -85,15 +85,199 @@ The first revision of an item has a nil previous reference while the latest
 revision has a nil next reference. \todo{tcies: diagram}
 
 As the naming suggests, delete operations are not explicitly supported. Instead,
-we hope to enforce network mechanisms that automatically "forget" irrelevant
-data.
+we hope to enforce network mechanisms that remove irrelevant data, as for
+instance described in 3.4 of \cite{freenet}.
+
+\section{Problems to solve}
+
+\begin{enumerate}
+  \itemsep0em
+  \item \label{itm:robust} How can data be stored in a way that is robust to 
+    loss of connectivity to peers?
+  \item \label{itm:lookup} How can data be looked up in an efficient way?
+  \item \label{itm:update} How can data be updated?
+\end{enumerate}
+
+We understand that both \ref{itm:robust} and \ref{itm:lookup} are very common
+problems in peer-to-peer networks and have been solved in multiple ways in
+e.g. different implementations of Dynamic Hash Tables.
+
+As for \ref{itm:update}, we believe it becomes a bit trickier. Bitcoin, for
+instance, solves this problem, but we are not sure whether we want to adapt
+their solution. We see the following differences to Bitcoin:
+
+\begin{itemize}
+  \itemsep0em
+  \item Bitcoin offers incentives for mining
+  \item Unless someone attempts a double-spending attack or initiates
+    transactions from two different clients, there should be no conflicts in
+    transactions, as each agent operates on their own account. A more often 
+    occuring conflict is blockchain forks (we have read your paper), and we
+    might use the Bitcoin solution for conflict resolution in the Map API.
+  \item In Bitcoin, each agent knows about the full state of the transaction
+    history. This is not required for the Map API
+\end{itemize}
+
+\section{Suggested solution}
+
+\subsection{Chunks}
+
+To help addressing \ref{itm:robust} and \ref{itm:lookup}, we would like to
+group items in a table in so-called "chunks". These are to be the smallest units
+of what is shared, i.e. if a client needs some data in chunk A, it must fetch
+the entire chunk. The association of data to a chunk
+is at the discretion of the node inserting the data. It is expected that:
+
+\begin{itemize}
+  \itemsep0em
+  \item Data sharing the same chunk is related in some way: A client that
+    performs an application-typical use case should not need to fetch more than
+    a handful of chunks.
+  \item Chunk size does not exceed what can be shared reasonably fast, say
+    100MB tops
+\end{itemize}
+
+Then, a client desiring access to the latest version of some data in some chunk
+must agree to the following contract to the best of its knowledge:
+
+\begin{itemize}
+  \itemsep0em
+  \item It must keep track of all other peers sharing the same chunk (swarm)
+  \item It must maintain the latest version of the data contained in the chunk
+  \item It must make sure that all changes to the chunk data are propagated to
+    the peers sharing the data.
+  \item If a new peer wants to join the chunk, it must provide that peer with
+    the necessary information for it to be able to comply with the contract
+\end{itemize}
+
+\subsubsection{Distributed locks in chunks}
+
+Instead of trying to come up with lock-free solutions, we admit the use of
+locks in order to synchronize diverse operations that need it. Because full
+connectivity is assumed among peers sharing a chunk, a peer can just ask all
+other peers to grant the lock. Conflicts can be resolved by majority. What peer
+votes for what peer to hold the lock creates a partition of the chunk network.
+A peer contending for a lock can then relinquish the lock if the partition 
+voting for it is not the largest one. In case of ties, a common arbitrary rule
+can be applied, such as that the peer with the smaller IP address obtains the
+lock.
+
+The lock is only considered aquired once all peers have confirmed the same lock
+holder.
+
+All locks are timed to ensure robustness in case that the lock holder leaves
+the network while holding the lock. A synchronized clock is used among the
+Map API clients.
+
+\subsubsection{Joining a chunk}
+
+In order to join a chunk, a client must at least know the address of one of the
+chunk participants. That peer, the "adder", locks the chunk such that the chunk
+data is not modified during the process of adding the new peer. This ensures
+conistency of the chunk state at the new peer, which could for instance be
+violated if some peer adds data to the chunk while the adder transmits its state
+to the new peer.
+
+Once the lock is acquired, the adder sends the address of the new peer to the
+chunk swarm, the addresses in the swarm to the new peer, and the chunk data to
+the new peer. As the lock is released, it is as if the new peer had always been
+in the swarm.
+
+Locally in the clients, the lock is a reader/writer lock: It is write-locked
+for peer addition and real-locked for all other operations.
+
+\subsubsection{Leaving a chunk and robustness to peer loss}
+
+Unlike with joining, leaving a chunk does not require maintaining a consistent
+state at the affected peer, and locking is not required. It may anyways be that
+a peer loses connection without intention. There are two ways a peer can leave
+the swarm: With or without notification.
+
+When the peer leaves with notification, it informs the swarm about leaving, and
+the peers in the swarm can simply remove the peer from their peer list.
+
+When the peer leaves without notification, the first peer that tries to connect
+with it notifies the swarm about the missing peer.
+
+Thus, even if the notification of a peer leaving does not reach all peers in the
+swarm, for instance if a new peer is being added to the swarm, the behavior
+is robust because in the worst case the peer that did not get notified
+broadcasts a redundant notification.
+
+Peers in the swarm have the ability to send out chunk participation requests
+to table peers (see below), even if the latter don't require access to chunk
+data. This gives content creators the ability to ensure that their newly created
+persists in the network even if nobody requests their data before they leave the
+network. 
+
+For now, accpetation of participation requests relies on good will, i.e. it is 
+not incentivized. It is at this point that irrelevant data gets removed from the
+network over time: Peers may decide to impose a limit on chunks held on good
+will, and periodically discard least recently accessed chunks, by monitoring
+chunk activity.
+
+\subsubsection{Data insertion}
+
+To insert data into a chunk, the peer addition lock must be read-locked, only 
+locally. Once that is the case, the inserted data is simply shared with the 
+swarm.
+
+\subsubsection{Updates}
+
+To update data, first the local peer addition lock must be read-locked, then a 
+distributed update lock must be acquired.
+
+\subsection{Table}
+
+Each client holds a peer list for each table that it participates in. Unlike
+chunk swarms, table swarms don't need to be fully connected. However, like in
+Bitcoin, each client should hold a minimum of connections. These connections
+serve the purpose of looking up data that is not in a held chunk (which leads
+to participation in the chunk of that data) and of sending participation
+requests. 
+
+Similarly, each client holds a peer list for the entire Map API, and the
+operation for finding tables are equivalent to the operations for finding
+chunks in the table.
+
+\subsubsection{Naive index lookup}
+
+If a client knows the ID of the table item it is looking for, e.g. by receiving
+a reference from somewhere else, it sends out a request to the table swarm. Each
+peer that receives such a request then looks for the data in its instance of the
+table and either responds with chunk identifier and its own address (so that the
+requester may send a chunk join request) or forwards the request to its peers in
+rumor spreading fashion \cite{bitcoin}. This unfortunately eventually troubles
+the entire table swarm with the request, but the requester does not wait for the
+request to traverse the entire swarm, but only for the first positive response. 
+
+\subsubsection{Binary-tree (quadtree, octree) range lookup}
+
+The ID of the item that is looked for is not always know a priori.
+
+\section{Ideas for later}
+
+\subsection{Disk caching and disk-peers}
+
+\subsection{Chunk revival}
 
 \section{Questions}
 
 \begin{itemize}
-  \item Could you tell me of a good paper analyzing network partitions, i.e.
-    giving a mathematical model describing their occurrence?
+  \itemsep0em
+  \item Could you recommend a paper analyzing network partitions?
+  \item Could you recommend literature on distributed hash tables?
 \end{itemize}
 
+\begin{thebibliography}{9}
+  \bibitem{bitcoin} Decker, C., Wattenhofer, R. (2013, September) 
+    \emph{Information propagation in the Bitcoin Network} 
+    Peer-to-Peer Computing (P2P), 2013 IEEE Thirteenth International Conference
+    on (pp. 1-10). IEEE.
+  \bibitem{freenet} Clarke, I., Sandberg, O., Wiley, B., Hong, T. W. 
+    (2001, January). \emph{Freenet: A distributed anonymous information storage
+    and retrieval system} Designing Privacy Enhancing Technologies (pp. 46-66).
+    Springer Berlin Heidelberg.
+\end{thebibliography}
 
 \end{document}
