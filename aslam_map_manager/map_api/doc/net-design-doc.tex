@@ -1,55 +1,57 @@
-\documentclass{article}
+\documentclass[a4paper, 10pt, conference]{ieeeconf}
+\overrideIEEEmargins
 \usepackage[utf8]{inputenc}
 \usepackage{todonotes}
-%\usepackage{a4wide}
 
 \title{Network design doc for review by Christian}
 \author{Titus Cieslewski}
 \date{\today}
 
-\setlength{\parindent}{0mm}
-\setlength{\parskip}{2mm}
-
 \begin{document}
 
 \maketitle
 
+\section{Questions}
+
+\begin{itemize}
+  \itemsep0em
+  \item Where do you see the biggest problems with the suggested system?
+  \item What literature could you recommend us?
+  \item Could you recommend a paper analyzing the occurrence of network
+    partitions?
+  \item Could you recommend literature on distributed hash tables?
+  \item (Technical) right now we test on a local machine, but once we switch to
+    a real network: We thought of doing discovery similarly to the satoshi
+    client \cite{discovery}, or is there a better way (Local net: Avahi)? 
+    And how would you recommend to go about UPnP in C++?
+\end{itemize}
+
 \section{Overview}
 
 The Map API is to provide a mean for robots to collaborate on maps on a large
-scale, in a distributed (peer to peer) manner. The reference mapping algorithm
-is (collaborative) keyframe bundle adjustment, but the design should allow the 
-use of any algorithm down the road.
+scale, in a distributed (peer to peer) manner. While the framework should be
+agnostic to the underlying algorithm, an algorithm based on visual and inertial
+sensor data will be implemented as reference.
 
 In order to achieve such generality, the data that is shared among the robots is
 structured into tables that can be specified by the algorithms.
 
-In other words, thus, the goal is to develop an application-specific peer to
-peer database system.
+\subsection{Data structure and flow in the mapping algorithm}
 
-\subsection{Keyframe bundle adjustment}
+The data is organized in units of missions, which represent the trajectory and
+sensor data of a single robot during a limited time span.
 
-To illustrate use cases in this document, we will use a hypothetical application
-performing collaborative keyframe bundle adjustment. 
+The mission data is layered, where in the lowest layer raw sensor data is
+stored. This raw data is consumed by several algorithms which form refined data
+from it. That data in turn is stored in higher order layers.
 
-The main data unit of the algorithm is what we call a mission. A mission
-represents a single robot's trajectory in the world, along with its perception
-during that trajectory.
-
-The first thing that is known about a mission is the raw sensor data. We assume
-that the robots participating in the application dispose of at least a camera
-and an inertial measurement unit (IMU). Without going into too much detail, the
-algotithm then generates a first 3D estimation of the trajectory and of salient
-features in the environment (landmarks). The trajectory is represented by a
-graph where each vertex represents a reasonably sampled pose (keyframe) of the
-robot during its trajectory, and each edge a spatial transformation between two 
-keyframes. Such a graph is also called "pose graph".
-
-Once a first estimate is given, the pose graph and landmark position estimations
-and other estimated parameters can then be further optimized using an algorithm
-called Bundle Adjustment. In particular, it is interesting to jointly optimize
-several missions - this is where the collaboration between robots happens.
-\todo{tcies: talk about transactions and views somewhere}
+Consistency between these algorithms, communication, synchronization, etc. are
+key challenges in the implementation of the proposed framework. To achieve
+consistency, for instance, we aim to provide the ability to fetch a view of the
+data at a defined timestamp, perform changes to that view in a transaction, and
+detect conflicts when the transaction is committed. To provide efficient
+communication among the robots, we plan to provide triggers on data that a
+robot can subscribe to, calling it when said data changes.
 
 \subsection{Implementation}
 
@@ -58,17 +60,17 @@ for serializable structures and ZeroMQ for networking purposes.
 
 \section{Data structure}
 
-To ensure flexibility, data is stored in tables that can be specified by
-applications. The table schemata are stored in a particular table (metatable) 
-that is hardcoded in the library and shared accross all peers. Rows in a table
-are referred to as "items".
+To ensure flexibility, raw and refined data is stored in tables that can be 
+specified by applications. The table schemata are stored in a particular table 
+(metatable) that is hardcoded in the library and shared accross all peers. Rows
+in a table are referred to as "items".
 
 \subsection{Indexing}
 
 Each item is assigned an identifier/key that is supposed to be unique per table.
 To enable lock-free insertion, the identifier is a randomly generated 128 bit 
 byte string, and for the scope of this project the assumption is made that no
-conflicts will ever happen.
+conflicts on the ID will ever happen.
 
 We are aware that Distributed Hash Tables take the approach of choosing the key
 as a hash of the item data. However, we are not sure how that would relate to
@@ -78,24 +80,22 @@ updates in the data, an operation that we would like to support.
 
 To make use of performance advantages that can be achieved when no update
 operation needs to be supported, the distinction is made between these two
-kinds of tables. Create-read-update tables keep their history. In particular,
-all revisions are stored in the same table, identifiable by a "update\_time" 
-field. The revisions furthermore keep references to previous and next revision.
-The first revision of an item has a nil previous reference while the latest
-revision has a nil next reference. \todo{tcies: diagram}
+kinds of tables. Create-read-update tables keep their history in order to
+allow the above-mentioned timed views.
 
 As the naming suggests, delete operations are not explicitly supported. Instead,
-we hope to enforce network mechanisms that remove irrelevant data, as for
+we plan to enforce network mechanisms that remove irrelevant data, as for
 instance described in 3.4 of \cite{freenet}.
 
 \section{Problems to solve}
 
 \begin{enumerate}
   \itemsep0em
-  \item \label{itm:robust} How can data be stored in a way that is robust to 
-    loss of connectivity to peers?
-  \item \label{itm:lookup} How can data be looked up in an efficient way?
-  \item \label{itm:update} How can data be updated?
+  \item \label{itm:robust} How can data be stored in a distributed way that is
+    robust to loss of connectivity to peers?
+  \item \label{itm:lookup} How can data be looked up in an efficient way over
+    the network?
+  \item \label{itm:update} How can data be updated while keeping traffic low?
 \end{enumerate}
 
 We understand that both \ref{itm:robust} and \ref{itm:lookup} are very common
@@ -136,7 +136,7 @@ is at the discretion of the node inserting the data. It is expected that:
   \item Chunk size does not exceed what can be shared reasonably fast for the
     given application (e.g. map chunks should be small, but chunks of raw
     sensor data, which are fetched for verification or optimization, 
-    could be bigger)
+    could be bigger).
 \end{itemize}
 
 Then, a client desiring access to the latest version of some data in some chunk
@@ -144,12 +144,13 @@ must agree to the following contract:
 
 \begin{itemize}
   \itemsep0em
-  \item It must keep track of all other peers sharing the same chunk (swarm)
-  \item It must maintain the latest version of the data contained in the chunk
+  \item It must keep track of all other peers sharing the same chunk (swarm).
+  \item It must maintain the latest version of the data contained in the chunk.
   \item It must make sure that all changes to the chunk data are propagated to
     the peers sharing the data.
-  \item If a new peer wants to join the chunk, it must provide that peer with
-    the necessary information for it to be able to comply with the contract
+  \item If a new peer wants to join (become a holder of) the chunk, it must 
+    provide that peer with the necessary information for it to be able to comply
+    with the contract.
 \end{itemize}
 
 \subsubsection{Distributed locks in chunks}
@@ -164,47 +165,29 @@ voting for it is not the largest one. In case of ties, a common arbitrary rule
 can be applied, such as that the peer with the smaller IP address obtains the
 lock.
 
-The lock is only considered aquired once all peers have confirmed the same lock
-holder.
-
-All locks are timed to ensure robustness in case that the lock holder leaves
-the network while holding the lock. A synchronized clock is used among the
-Map API clients.
+All locks are timed to ensure robustness to peer loss. A synchronized clock is
+used among the Map API clients.
 
 \subsubsection{Joining a chunk}
 
 In order to join a chunk, a client must at least know the address of one of the
 chunk participants. That peer, the "adder", locks the chunk such that the chunk
-data is not modified during the process of adding the new peer. This ensures
-conistency of the chunk state at the new peer, which could for instance be
-violated if some peer adds data to the chunk while the adder transmits its state
-to the new peer.
+data is not modified during the process of adding the new peer.
 
 Once the lock is acquired, the adder sends the address of the new peer to the
 chunk swarm, the addresses in the swarm to the new peer, and the chunk data to
-the new peer. As the lock is released, it is as if the new peer had always been
-in the swarm.
+the new peer.
 
 Locally in the clients, the lock is a reader/writer lock: It is write-locked
-for peer addition and real-locked for all other operations.
+for peer addition and read-locked for all other operations.
 
 \subsubsection{Leaving a chunk and robustness to peer loss}
 
-Unlike with joining, leaving a chunk does not require maintaining a consistent
-state at the affected peer, and locking is not required. It may anyways be that
-a peer loses connection without intention. There are two ways a peer can leave
-the swarm: With or without notification.
-
-When the peer leaves with notification, it informs the swarm about leaving, and
-the peers in the swarm can simply remove the peer from their peer list.
+Unlike with joining, locking is not required. There are two ways a peer can leave
+the swarm: With or without (swarm-broadcast) notification.
 
 When the peer leaves without notification, the first peer that tries to connect
-with it notifies the swarm about the missing peer.
-
-Thus, even if the notification of a peer leaving does not reach all peers in the
-swarm, for instance if a new peer is being added to the swarm, the behavior
-is robust because in the worst case the peer that did not get notified
-broadcasts a redundant notification.
+with it and fails sends out the notification.
 
 Peers in the swarm have the ability to send out chunk participation requests
 to table peers (see below), even if the latter don't require access to chunk
@@ -212,7 +195,7 @@ data. This gives content creators the ability to ensure that their newly created
 content persists in the network even if nobody requests their data before they
 leave the network. 
 
-For now, accpetation of participation requests relies on good will, i.e. it is 
+For now, acceptance of participation requests relies on good will, i.e. it is 
 not incentivized. It is at this point that irrelevant data gets removed from the
 network over time: Peers may decide to impose a limit on chunks held on good
 will, and periodically discard least recently accessed chunks, by monitoring
@@ -227,17 +210,21 @@ swarm.
 \subsubsection{Updates}
 
 To update data, first the local peer addition lock must be read-locked, then a 
-distributed update lock must be acquired, then the update is shared with the 
-swarm.
+distributed update lock must be acquired after which the update is shared with 
+the swarm.
+
+\subsubsection{Chunk age}
+
+Because chunk size of updatable table chunks could conceivably grow over time,
+we would like to introduce "chunk age": As a peer joins a chunk it may specify
+a time (typically "now"). Data that is outdated at that time is then not sent
+to the new peer.
 
 \subsection{Table}
 
 Each client holds a peer list for each table that it participates in. Unlike
-chunk swarms, table swarms don't need to be fully connected. However, like in
-Bitcoin, each client should hold a minimum of connections. These connections
-serve the purpose of looking up data that is not in a held chunk (which leads
-to participation in the chunk of that data) and of sending participation
-requests. 
+chunk swarms, table swarms don't need to be fully connected, but, like in
+Bitcoin, each client should hold a minimum of connections.
 
 Similarly, each client holds a peer list for the entire Map API, and the
 operation for joining tables in the Map API are equivalent to the operations for
@@ -245,66 +232,64 @@ joining chunks in a table.
 
 \subsubsection{Naive index lookup}
 
-If a client knows the ID of the table item it is looking for, e.g. by receiving
-a reference from somewhere else, it sends out a request to the table swarm. Each
-peer that receives such a request then looks for the data in its instance of the
-table and either responds with chunk identifier and its own address (so that the
-requester may send a chunk join request) or forwards the request to its peers in
-rumor spreading fashion \cite{bitcoin}. This unfortunately eventually troubles
-the entire table swarm with the request, but the requester does not wait for the
-request to traverse the entire swarm, but only for the first positive response. 
+If a client knows the ID of the table item it is looking for, it sends out a
+request to the table swarm. Each peer that receives such a request then looks 
+for the data in its instance of the table and either responds with chunk
+identifier and its own address or forwards the request to its own peers in
+rumor spreading fashion \cite{bitcoin}. While this might result in querying the
+entire table swarm with the request, the requester does not need to wait for the
+request to traverse the entire network, but only for a first positive response.
+Alternatively, $p$ could be assigned such that with probability $p$, each node
+receiving the request checks back with the requester whether the request is
+still valid.
 
 \subsubsection{K-d tree ($2^k$ subnodes, symmetric split) range lookup}
 
-The ID of the item that is looked for is not always know a priori. Sometimes
-it is interesting to do lookup in a bounding box. For instance, in keyframe
-bundle adjustment it is useful to find other missions that have been recorded
-in the same location as a freshly recorded mission, or to see what part of the
+The ID of the item that is looked for is not always known a priori. Sometimes
+it is interesting to do lookup in a bounding box. For instance, in roboting
+mapping applications it is useful to find other missions that have been recorded
+in the same location as an ongoing mission, or to see what part of the
 world close to a certain location has not been explored yet.
 
-To that end, each table may have one or several k-d tree indices.
+For such purposes, each table may have one or several k-d tree indices.
 The root node of the k-d tree is shared among all table participants. Each
 node then holds the peer list of its $2^k$ subnodes unless it is a leaf node,
 in which case it holds a list of chunks that have data present in the space
 represented by the leaf node.
 
-More details on how the k-d tree indices should work have not been fleshed out
-yet.
+Nodes in the k-d tree are similar to chunks and tables in terms of networking
+responsibilities of their participants. Leaf nodes are considered variable and
+are therefore similar to chunks for their update mechanism, while the other
+nodes are considered final and can therefore e.g. have not fully connected
+swarms. A current disadvantage of that would be that the maximal dimensions of
+the data would need to be know in advance.
 
-\section{Ideas for later}
+In order to enforce a healthy amount of peers in the index nodes, peers holding
+chunks could be made to hold the corresponding index nodes as well. A peer
+holding an index node must also hold all its ancestors.
 
-\subsection{Disk caching}
+\section{Ideas for later (not relevant to our questions - feel free to skip)}
 
+\paragraph{Chunk swarm not fully connected}
+What would be the implications?
+
+\paragraph{Joining a chunk: Fetching data from multiple peers} 
+BitTorrent-style
+
+\paragraph{Disk caching}
 Until now, we have implicitly assumed that the table data at the clients sits
 in RAM. However, this does not always make sense: Robots might want to store 
 data for subsequent offline lookup and volunteer chunk participants might not
 want to clutter their RAM with data they don't need anyways. It would thus make
 sense to come up with a scheme which decides when to commit data to the disk.
 
-\subsection{Chunk reactivation}
-
+\paragraph{Chunk reactivation}
 Disk caching could allow to store data even of inactive chunks. It could happen
 that a chunk loses its entire swarm, but then a while later some client would
 like to reactivate it again (not necessarily the one holding the data on disk),
 because it needs to access the "latest" data again. Such a chunk reactivation
 would carry a lot of consequences with it that we haven't thought of yet, but 
 the ability to reactivate chunks would probably be very useful.
-
-\section{Questions}
-
-\begin{itemize}
-  \itemsep0em
-  \item Where do you see the biggest problems with the suggested system?
-  \item What literature could you recommend us?
-  \item Could you recommend a paper analyzing the occurrence of network
-    partitions?
-  \item Could you recommend literature on distributed hash tables?
-  \item Right now we test on a local machine, but once we switch to a real
-    network: We thought of doing discovery similarly to the satoshi client
-    \cite{discovery}, or is there a better way? 
-    And how would you recommend to go about UPnP in C++ (assuming you have dealt
-    with that before, otherwise we can figure it out ourselves)?
-\end{itemize}
 
 \begin{thebibliography}{9}
   \bibitem{bitcoin} Decker, C., Wattenhofer, R. (2013, September) 
