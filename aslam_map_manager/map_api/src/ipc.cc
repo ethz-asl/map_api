@@ -38,6 +38,8 @@ void IPC::barrier(int id, int n_peers) {
     CHECK(response.second.isType<Message::kAck>());
   }
   std::unique_lock<std::mutex> lock(barrier_mutex_);
+  LOG(INFO) << "Reached barrier " << id << ", waiting for " <<
+      n_peers - barrier_map_[id] << " peers.";
   while (barrier_map_[id] < n_peers) {
     barrier_cv_.wait(lock);
   }

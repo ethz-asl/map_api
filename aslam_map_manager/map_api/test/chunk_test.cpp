@@ -20,55 +20,104 @@ class ChunkTest : public MultiprocessTest {
     std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
     descriptor->setName(kTableName);
     MapApiCore::instance().tableManager().addTable(&descriptor);
+    table_ = &MapApiCore::instance().tableManager().getTable(kTableName);
+    IPC::init();
+    LOG(INFO) << 1;
+    if (getSubprocessId() == 0) {
+      for (int i = 1; i < nProcesses(); ++i) {
+        launchSubprocess();
+      }
+    }
+  }
+
+  virtual void TearDown() {
+    if (getSubprocessId() == 0) {
+      for (int i = 1; i < nProcesses(); ++i) {
+        collectSubprocess(i);
+      }
+      resetDb();
+    }
+  }
+
+  void barrier(int barrier_id) {
+    IPC::barrier(barrier_id, nProcesses() - 1);
   }
 
   const std::string kTableName = "chunk_test_table";
+  NetCRTable* table_;
+
+ private:
+  virtual int nProcesses() = 0;
 };
 
-TEST_F(ChunkTest, NetCRInsert) {
-  NetCRTable& table =
-      MapApiCore::instance().tableManager().getTable(kTableName);
-  std::weak_ptr<Chunk> my_chunk_weak = table.newChunk();
+// templating ChunkTest doesn't work, parametrized tests aren't what we want
+class ChunkTest1 : public ChunkTest {
+  virtual int nProcesses() { return 1; }
+};
+class ChunkTest2 : public ChunkTest {
+  virtual int nProcesses() { return 2; }
+};
+class ChunkTest3 : public ChunkTest {
+  virtual int nProcesses() { return 3; }
+};
+
+TEST_F(ChunkTest1, NetCRInsert) {
+  std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
   std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
   EXPECT_TRUE(static_cast<bool>(my_chunk));
-  std::shared_ptr<Revision> to_insert = table.getTemplate();
+  std::shared_ptr<Revision> to_insert = table_->getTemplate();
   to_insert->set(CRTable::kIdField, Id::random());
-  EXPECT_TRUE(table.insert(my_chunk_weak, to_insert.get()));
-  resetDb();
+  EXPECT_TRUE(table_->insert(my_chunk_weak, to_insert.get()));
 }
 
-/**
- * TODO(tcies) verify chunk confirms peer, not just whether peer Acks the
- * participation request
- */
-TEST_F(ChunkTest, ParticipationRequest) {
+TEST_F(ChunkTest2, ParticipationRequest) {
   enum Barriers {INIT, DIE};
-  NetCRTable& table =
-      MapApiCore::instance().tableManager().getTable(kTableName);
-  IPC::init();
-  // the following is a hack until FIXME(tcies) TableManager is instantiated
   if (getSubprocessId() == 0) {
-    uint64_t id = launchSubprocess();
     sleep(1); // TODO(tcies) problem: what if barrier message sent before
     // subprocess initializes handler?
-    std::weak_ptr<Chunk> my_chunk_weak = table.newChunk();
+    std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
     std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
     EXPECT_TRUE(static_cast<bool>(my_chunk));
 
-    IPC::barrier(INIT, 1);
+    barrier(INIT);
 
     EXPECT_EQ(1, MapApiHub::instance().peerSize());
     EXPECT_EQ(0, my_chunk->peerSize());
     EXPECT_EQ(1, my_chunk->requestParticipation());
     EXPECT_EQ(1, my_chunk->peerSize());
 
-    IPC::barrier(DIE, 1);
-
-    collectSubprocess(id);
-    resetDb();
+    barrier(DIE);
   } else {
-    IPC::barrier(INIT, 1);
-    IPC::barrier(DIE, 1);
+    barrier(INIT);
+    barrier(DIE);
+  }
+}
+
+TEST_F(ChunkTest3, FullJoinTwice) {
+  enum Barriers {INIT, A_JOINED, A_ADDED, B_JOINED, DIE};
+  if (getSubprocessId() == 0) {
+    sleep(1); // TODO(tcies) problem: what if barrier message sent before
+    // subprocess initializes handler?
+    std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
+    std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
+    EXPECT_TRUE(static_cast<bool>(my_chunk));
+
+    barrier(INIT);
+
+    EXPECT_EQ(2, MapApiHub::instance().peerSize());
+    EXPECT_EQ(0, my_chunk->peerSize());
+    EXPECT_EQ(2, my_chunk->requestParticipation());
+    EXPECT_EQ(2, my_chunk->peerSize());
+
+    barrier(DIE);
+  }
+  if(getSubprocessId() == 1){
+    barrier(INIT);
+    barrier(DIE);
+  }
+  if(getSubprocessId() == 2){
+    barrier(INIT);
+    barrier(DIE);
   }
 }
 

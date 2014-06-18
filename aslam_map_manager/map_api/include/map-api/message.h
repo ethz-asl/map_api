@@ -31,6 +31,8 @@ class Message : public proto::HubMessage {
    */
   static const char kAck[];
   static const char kDecline[];
+  // not a real response, but indicates failed connection
+  static const char kCantReach[];
 };
 
 /**

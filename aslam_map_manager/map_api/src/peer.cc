@@ -35,7 +35,8 @@ bool Peer::request(const Message& request, Message* response) {
     zmq::message_t message(buffer, size, NULL, NULL);
     CHECK(socket_.send(message));
     if (!socket_.recv(&message)) {
-      LOG(FATAL) << "Request was " << request.DebugString();
+      LOG(WARNING) << "Request " << request.DebugString() << " timed out!";
+      return false;
     }
     // catches silly bugs where a handler forgets to modify the response
     // message, which could be a quite common bug

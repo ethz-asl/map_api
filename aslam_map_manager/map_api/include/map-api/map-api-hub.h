@@ -59,6 +59,10 @@ class MapApiHub final {
    */
   void broadcast(const Message& request,
                  std::unordered_map<PeerId, Message>* responses);
+  /**
+   * Returns false if a response was not Message::kAck or Message::kCantReach.
+   * In the latter case, the peer is removed.
+   */
   bool undisputableBroadcast(const Message& request);
 
   /**
@@ -85,6 +89,10 @@ class MapApiHub final {
    * Constructor: Performs discovery, fetches metadata and loads into database
    */
   MapApiHub();
+  /**
+   * Removes the peer, trusting that the connection to it failed.
+   */
+  void removeUnreachable(const PeerId& peer);
   /**
    * Thread for listening to peers
    */
