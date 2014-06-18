@@ -144,7 +144,8 @@ must agree to the following contract:
 
 \begin{itemize}
   \itemsep0em
-  \item It must keep track of all other peers sharing the same chunk (swarm).
+  \item It must keep track of all other peers sharing the same chunk (fully
+    connected swarm).
   \item It must maintain the latest version of the data contained in the chunk.
   \item It must make sure that all changes to the chunk data are propagated to
     the peers sharing the data.
@@ -243,7 +244,7 @@ Alternatively, $p$ could be assigned such that with probability $p$, each node
 receiving the request checks back with the requester whether the request is
 still valid.
 
-\subsubsection{K-d tree ($2^k$ subnodes, symmetric split) range lookup}
+\subsubsection{K-d tree (binary tree, quadtree, octree) range lookup}
 
 The ID of the item that is looked for is not always known a priori. Sometimes
 it is interesting to do lookup in a bounding box. For instance, in roboting
