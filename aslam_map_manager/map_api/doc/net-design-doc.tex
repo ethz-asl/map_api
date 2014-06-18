@@ -1,6 +1,8 @@
 \documentclass[a4paper, 10pt, conference]{ieeeconf}
 \overrideIEEEmargins
 \usepackage[utf8]{inputenc}
+\usepackage{float}
+\usepackage{graphicx}
 \usepackage{todonotes}
 
 \title{Network design doc for review by Christian}
@@ -166,6 +168,12 @@ voting for it is not the largest one. In case of ties, a common arbitrary rule
 can be applied, such as that the peer with the smaller IP address obtains the
 lock.
 
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{lock-partition.jpg}
+  \caption{Possible partitioning when two nodes try to lock in a chunk swarm}
+\end{figure}
+
 All locks are timed to ensure robustness to peer loss. A synchronized clock is
 used among the Map API clients.
 
@@ -178,6 +186,12 @@ data is not modified during the process of adding the new peer.
 Once the lock is acquired, the adder sends the address of the new peer to the
 chunk swarm, the addresses in the swarm to the new peer, and the chunk data to
 the new peer.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{joining.jpg}
+  \caption{Schema of a peer joining a chunk swarm}
+\end{figure}
 
 Locally in the clients, the lock is a reader/writer lock: It is write-locked
 for peer addition and read-locked for all other operations.
