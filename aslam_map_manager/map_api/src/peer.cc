@@ -1,6 +1,11 @@
 #include "map-api/peer.h"
 
+#include <gflags/gflags.h>
 #include <glog/logging.h>
+
+// TODO(tcies) extend default
+DEFINE_int32(request_timeout, 1000, "Amount of miliseconds after which a "\
+             "non-responsive peer is considered disconnected");
 
 namespace map_api {
 
@@ -10,7 +15,7 @@ Peer::Peer(const std::string& address, zmq::context_t& context,
   //TODO(tcies) init instead of aborting constructor
   try {
     socket_.connect(("tcp://" + address).c_str());
-    int timeOutMs = 1000; // TODO(tcies) extend once network
+    int timeOutMs = FLAGS_request_timeout; // TODO(tcies) allow custom
     socket_.setsockopt(ZMQ_RCVTIMEO, &timeOutMs, sizeof(timeOutMs));
   } catch (const std::exception& e) {
     LOG(FATAL) << "Connection to " << address << " failed";

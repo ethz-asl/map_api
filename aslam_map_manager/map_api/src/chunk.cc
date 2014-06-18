@@ -90,7 +90,7 @@ void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
   }
   // TODO(tcies) will need more concurency control: What happens exactly if
   // one peer wants to add/update data while another one is handling a
-  // connection request?
+  // connection request? : Lock chunk
   // TODO(tcies) populate connect_response with chunk revisions
   response->impose<NetTableManager::kConnectResponse, proto::ConnectResponse>(
       connect_response);

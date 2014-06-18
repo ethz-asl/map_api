@@ -39,19 +39,20 @@ void NetCRTable::dumpCache(
     const Time& time,
     std::unordered_map<Id, std::shared_ptr<Revision> >* destination) {
   CHECK_NOTNULL(destination);
+  // TODO(tcies) lock cache access
   cache_->dump(time, destination);
 }
 
 std::weak_ptr<Chunk> NetCRTable::connectTo(const Id& chunk_id,
                                            const PeerId& peer) {
-  // TODO(tcies) ever slight code smell
+  // TODO(tcies) merge net table and chunk manager?
   return chunk_manager_->connectTo(chunk_id, peer);
 }
 
 void NetCRTable::handleConnectRequest(const Id& chunk_id, const PeerId& peer,
                                       Message* response) {
   CHECK_NOTNULL(response);
-  // TODO(tcies) and the code smell gets more intense...
+  // TODO(tcies) merge net table and chunk manager?
   chunk_manager_->handleConnectRequest(chunk_id, peer, response);
 }
 

@@ -60,7 +60,7 @@ const char NetTableManager::kChunkNotOwned[] = "map_api_chunk_not_owned";
 // ========
 
 void NetTableManager::handleConnectRequest(const std::string& serialized_request,
-                                        Message* response) {
+                                           Message* response) {
   CHECK_NOTNULL(response);
   proto::ConnectRequest connect_request;
   CHECK(connect_request.ParseFromString(serialized_request));

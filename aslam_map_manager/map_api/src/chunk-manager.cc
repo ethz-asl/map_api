@@ -33,10 +33,11 @@ std::weak_ptr<Chunk> ChunkManager::connectTo(const Id& chunk_id,
   CHECK(response.isType<NetTableManager::kConnectResponse>());
   proto::ConnectResponse connect_response;
   CHECK(connect_response.ParseFromString(response.serialized()));
-  // receives peer list and data from peer, forwards it to chunk init()
-  connect_response.add_peer_address(peer.ipPort()); // TODO(tcies) unhack
-  std::shared_ptr<Chunk> chunk;
-  chunk.reset(new Chunk);
+  // receives peer list and data from peer, forwards it to chunk init().
+  // Also need to add the peer we have been communicating with to the swarm
+  // list, as it doesn't have itself in its swarm list
+  connect_response.add_peer_address(peer.ipPort());
+  std::shared_ptr<Chunk> chunk(new Chunk);
   CHECK(chunk->init(chunk_id, connect_response, cache_));
   active_chunks_[chunk_id] = chunk;
   return std::weak_ptr<Chunk>(chunk);
@@ -45,6 +46,7 @@ std::weak_ptr<Chunk> ChunkManager::connectTo(const Id& chunk_id,
 void ChunkManager::handleConnectRequest(const Id& chunk_id, const PeerId& peer,
                                         Message* response) {
   CHECK_NOTNULL(response);
+  // TODO(tcies) lock chunk against removal, monitor style access to chunks
   ChunkMap::iterator found = active_chunks_.find(chunk_id);
   if (found == active_chunks_.end()) {
     response->impose<Message::kDecline>();
