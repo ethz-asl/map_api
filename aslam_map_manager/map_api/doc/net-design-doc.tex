@@ -178,19 +178,21 @@ All locks are timed to ensure robustness to peer loss. A synchronized clock is
 used among the Map API clients.
 
 \subsubsection{Joining a chunk}
-
-In order to join a chunk, a client must at least know the address of one of the
-chunk participants. That peer, the "adder", locks the chunk such that the chunk
+See figure \ref{fig:join}.
+In order to join a chunk, a client (D) must at least know the address of one of
+the chunk participants. That peer, the "adder" (A), locks the chunk such that
+the chunk
 data is not modified during the process of adding the new peer.
 
 Once the lock is acquired, the adder sends the address of the new peer to the
-chunk swarm, the addresses in the swarm to the new peer, and the chunk data to
-the new peer.
+chunk swarm (B,C), the addresses in the swarm to the new peer, and the chunk 
+data to the new peer.
 
 \begin{figure}[H]
   \centering
   \includegraphics[width=\linewidth]{joining.jpg}
   \caption{Schema of a peer joining a chunk swarm}
+  \label{fig:join}
 \end{figure}
 
 Locally in the clients, the lock is a reader/writer lock: It is write-locked
@@ -261,7 +263,7 @@ still valid.
 \subsubsection{K-d tree (binary tree, quadtree, octree) range lookup}
 
 The ID of the item that is looked for is not always known a priori. Sometimes
-it is interesting to do lookup in a bounding box. For instance, in roboting
+it is interesting to do lookup in a bounding box. For instance, in robotic
 mapping applications it is useful to find other missions that have been recorded
 in the same location as an ongoing mission, or to see what part of the
 world close to a certain location has not been explored yet.
