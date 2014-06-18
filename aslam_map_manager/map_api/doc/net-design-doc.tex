@@ -3,7 +3,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage{todonotes}
 
-\title{Network design doc for review by Christian}
+\title{Map API: Network design doc for review by Christian Decker}
 \author{Titus Cieslewski}
 \date{\today}
 
@@ -31,7 +31,7 @@
 The Map API is to provide a mean for robots to collaborate on maps on a large
 scale, in a distributed (peer to peer) manner. While the framework should be
 agnostic to the underlying algorithm, an algorithm based on visual and inertial
-sensor data will be implemented as reference.
+sensor data will be implemented as a reference.
 
 In order to achieve such generality, the data that is shared among the robots is
 structured into tables that can be specified by the algorithms.
@@ -62,7 +62,7 @@ for serializable structures and ZeroMQ for networking purposes.
 
 To ensure flexibility, raw and refined data is stored in tables that can be 
 specified by applications. The table schemata are stored in a particular table 
-(metatable) that is hardcoded in the library and shared accross all peers. Rows
+(metatable) that is predefined in the library and shared accross all peers. Rows
 in a table are referred to as "items".
 
 \subsection{Indexing}
