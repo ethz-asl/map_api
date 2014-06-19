@@ -43,6 +43,10 @@ void NetCRTable::dumpCache(
   cache_->dump(time, destination);
 }
 
+bool NetCRTable::has(const Id& chunk_id) const {
+  return chunk_manager_->has(chunk_id);
+}
+
 std::weak_ptr<Chunk> NetCRTable::connectTo(const Id& chunk_id,
                                            const PeerId& peer) {
   // TODO(tcies) merge net table and chunk manager?

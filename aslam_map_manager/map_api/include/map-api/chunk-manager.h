@@ -43,6 +43,8 @@ class ChunkManager {
       const Time& time,
       std::unordered_map<Id, std::shared_ptr<Revision> >* dest);
 
+  bool has(const Id& chunk_id) const;
+
  private:
   ChunkManager() = default;
   ChunkManager(const ChunkManager&) = delete;

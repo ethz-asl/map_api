@@ -71,4 +71,8 @@ int ChunkManager::findAmongPeers(
   return 0;
 }
 
+bool ChunkManager::has(const Id& chunk_id) const {
+  return active_chunks_.find(chunk_id) != active_chunks_.end();
+}
+
 } // namespace map_api

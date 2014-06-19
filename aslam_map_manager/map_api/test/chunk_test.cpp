@@ -84,6 +84,9 @@ TEST_F(ChunkTest, FullJoinTwice) {
     IPC::barrier(A_ADDED_B_INIT, 2);
 
     EXPECT_EQ(2, MapApiHub::instance().peerSize());
+    EXPECT_EQ(1, my_chunk->peerSize());
+    EXPECT_EQ(1, my_chunk->requestParticipation());
+    EXPECT_EQ(2, my_chunk->peerSize());
 
     IPC::barrier(B_JOINED, 2);
 

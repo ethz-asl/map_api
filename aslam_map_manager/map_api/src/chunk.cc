@@ -70,6 +70,7 @@ int Chunk::requestParticipation() const {
   proto::ParticipationRequest>(participation_request);
   std::unordered_map<PeerId, Message> responses;
   MapApiHub::instance().broadcast(request, &responses);
+  // TODO(tcies) only request those who are not present yet
   // at this point, the server handler should have processed all ensuing
   // chunk connection requests
   int new_participant_count = 0;
