@@ -82,13 +82,6 @@ class Chunk {
    */
   bool insert(const Revision& item);
 
-  /**
-   * Unlocking a lock should be coupled to sending the updated data TODO(tcies)
-   * This would ensure that all peers can satisfy 1) and 2) of the
-   * aforementioned contract.
-   */
-  void unlock();
-
   int peerSize() const;
   /**
    * Requests all peers in MapApiCore to participate in a given chunk.
@@ -106,46 +99,88 @@ class Chunk {
 
  private:
   /**
+   * Distributed RW lock structure. Because it is distributed, unlocking from
+   * a remote peer can potentially be handler by a different thread than the
+   * locking - thus an extra layer of lock is needed. The lock sate is
+   * represented by an enum variable.
+   */
+  typedef struct DistributedRWLock {
+    enum LockStatus {
+      UNLOCKED,
+      READ_LOCKED,
+      ATTEMPTING,
+      WRITE_LOCKED
+    };
+    LockStatus state;
+    PeerId holder;
+    std::mutex mutex;
+    DistributedRWLock() : state(UNLOCKED) {}
+  } DistributedRWLock;
+  /**
    * The holder may acquire a read lock without the need to communicate with
    * the other peers - a read lock manifests itself only in that the holder
    * defers distributed write lock requests until unlocking or denies them
-   * altogether. This function can be applied to both join_lock_ and
-   * update_lock_.
+   * altogether.
    */
-  void distributedReadLock(Poco::RWLock* lock);
+  void distributedReadLock(DistributedRWLock* lock);
   /**
-   * Acquiring write locks happens over the network: A spanning tree among the
-   * peers is created, where each peer connects with all other peers that are
-   * known to it that aren't yet in the spanning tree. The locking request is
-   * propagated from root to leaves (down the tree) while the lock is granted
-   * up the tree. The following responses to a lock request are possible:
-   * - AM_READING, alternatively the request could also be blocked until
-   *               the read lock is released
-   * - HAVE_SEEN_THIS_REQUEST ensuring that the tree remains acyclic. This ends
-   *               lock-related communication with the corresponding peer.
-   * - GRANTED the lock is granted recursively: A node responds with GRANTED
-   *               if all the peers it has contacted have responded with
-   *               GRANTED or HAVE_SEEN_THIS_REQUEST (upward propagation)
-   * - CONFLICT if the peer maintains another lock holder or lock requester
+   * Acquiring write locks happens over the network: Unless the caller knows
+   * that the lock is held by some other peer, a lock request is broadcast to
+   * the chunk swarm, and the peers reply with a lock response which contains
+   * the address of the peer they consider the lock holder, or either
+   * acknowledge or decline, depending on the used strategy.
    *
-   * It yet needs to be specified what to do in the general case when a conflict
-   * is returned. I suggest to assume full connectedness in the first version.
-   * This will lead to a star topology instead of a tree topology, allowing to
-   * use majority count for conflict resolution: In case of conflict, each
-   * "locker" calculates the ratio of #GRANTED/#CONFLICT. If it is > 1, it
-   * assumes it has acquired the lock - if it is exactly 1, the "locking" peer
-   * with the lexicographically lower socket identification takes the lock.
+   * SERIAL LOCK STRATEGY (the one used now, for simplicity):
+   * We know the chunk swarm is fully connected, and assume the broadcast is
+   * performed serially, in lexicographical order of peer addresses.
+   * Then, we can either stop the broadcast when we receive a negative response
+   * from the peer with the lowest address, or, once we pass this first burden,
+   * may assume that all other peers will respond positively, as no other peer
+   * could have gotten to them (as they would have needed to lock the first
+   * peer as well). Consequently, the lock must be released in reverse
+   * lexicographical order.
    *
-   * To be robust against loss of connectivity, each request should have a
-   * timeout that uses the synchronized clock.
+   * PARALLEL LOCK STRATEGY (probably faster with many peers and little lock
+   * contention):
+   * Peers are requested in parallel and respond with the address of the peer
+   * they consider lock holder.
+   * If all peers respond with the address of the caller, the caller considers
+   * the lock acquired.
+   * In all other cases, at least one other peer is also attempting to get the
+   * lock and will respond with an invalid address. TODO(tcies) what if
+   * disconnected? Depending on the responses of the remaining peers:
+   * - If more of them have returned the address of the other peer, the caller
+   * sends a lock redirect request asking the peers accepting the caller as
+   * lock holder to yield the lock to the other peer. It then also yields to
+   * the other peer with lock yield request.
+   * - If more of them have returned the caller address, the caller waits for
+   * the remaining peers to yield.
+   * - If the votes are split equally, the lock contender with the lower
+   * IP:port string yields.
+   * Unlocking is tricky.
+   *
+   * TODO(tcies) benchmark serial VS parallel lock strategy?
+   * TODO(tcies) define timeout after which the lock is released automatically
    */
-  void distributedWriteLock();
+  void distributedWriteLock(DistributedRWLock* lock);
+  void handleLockRequest(const PeerId& locker, Message* response);
+  static const char kLockRequest[];
+
+  /**
+   * Unlocking a lock should be coupled to sending the updated data TODO(tcies)
+   * This would ensure that all peers can satisfy 1) and 2) of the
+   * aforementioned contract.
+   */
+  void distributedUnlock(DistributedRWLock* lock);
+  void handleUnlockRequest(const PeerId& locker, Message* response);
+  static const char kUnlockRequest[];
+
   /**
    * ===================================================================
    * Handles for ChunkManager requests that are addressed at this Chunk.
    * ===================================================================
    */
-  friend class ChunkManager;
+  friend class NetCRTable;
   /**
    * Handles insert requests
    */
@@ -155,15 +190,8 @@ class Chunk {
   PeerHandler peers_;
   CRTableRAMCache* underlying_table_;
 
-  enum LockStatus {
-    UNLOCKED,
-    READ_LOCKED,
-    WRITE_LOCK_REQUESTED,
-    WRITE_LOCKED
-  };
-  LockStatus lock_status_;
-  std::string lock_holder_;
-
+  DistributedRWLock join_lock_;
+  DistributedRWLock update_lock_;
 };
 
 } //namespace map_api

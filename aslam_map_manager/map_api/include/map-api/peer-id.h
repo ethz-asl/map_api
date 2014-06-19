@@ -8,11 +8,19 @@ namespace map_api {
 
 class PeerId {
  public:
+  PeerId();
+
   explicit PeerId(const std::string& ip_port);
+
+  PeerId& operator =(const PeerId& other);
+
+  static PeerId self();
 
   const std::string& ipPort() const;
 
   bool operator ==(const PeerId& other) const;
+
+  bool isValid() const;
 
  private:
   std::string ip_port_;
