@@ -1,9 +1,11 @@
 #ifndef CHUNK_H
 #define CHUNK_H
 
+#include <condition_variable>
 #include <memory>
-#include <string>
+#include <mutex>
 #include <set>
+#include <string>
 
 #include <Poco/RWLock.h>
 
