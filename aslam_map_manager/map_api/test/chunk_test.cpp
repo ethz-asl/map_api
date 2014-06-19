@@ -21,47 +21,13 @@ class ChunkTest : public MultiprocessTest {
     descriptor->setName(kTableName);
     MapApiCore::instance().tableManager().addTable(&descriptor);
     table_ = &MapApiCore::instance().tableManager().getTable(kTableName);
-    IPC::init();
-    LOG(INFO) << 1;
-    if (getSubprocessId() == 0) {
-      for (int i = 1; i < nProcesses(); ++i) {
-        launchSubprocess();
-      }
-    }
-  }
-
-  virtual void TearDown() {
-    if (getSubprocessId() == 0) {
-      for (int i = 1; i < nProcesses(); ++i) {
-        collectSubprocess(i);
-      }
-      resetDb();
-    }
-  }
-
-  void barrier(int barrier_id) {
-    IPC::barrier(barrier_id, nProcesses() - 1);
   }
 
   const std::string kTableName = "chunk_test_table";
   NetCRTable* table_;
-
- private:
-  virtual int nProcesses() = 0;
 };
 
-// templating ChunkTest doesn't work, parametrized tests aren't what we want
-class ChunkTest1 : public ChunkTest {
-  virtual int nProcesses() { return 1; }
-};
-class ChunkTest2 : public ChunkTest {
-  virtual int nProcesses() { return 2; }
-};
-class ChunkTest3 : public ChunkTest {
-  virtual int nProcesses() { return 3; }
-};
-
-TEST_F(ChunkTest1, NetCRInsert) {
+TEST_F(ChunkTest, NetCRInsert) {
   std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
   std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
   EXPECT_TRUE(static_cast<bool>(my_chunk));
@@ -70,54 +36,70 @@ TEST_F(ChunkTest1, NetCRInsert) {
   EXPECT_TRUE(table_->insert(my_chunk_weak, to_insert.get()));
 }
 
-TEST_F(ChunkTest2, ParticipationRequest) {
+TEST_F(ChunkTest, ParticipationRequest) {
+  enum SubProcesses {ROOT, A};
   enum Barriers {INIT, DIE};
-  if (getSubprocessId() == 0) {
-    sleep(1); // TODO(tcies) problem: what if barrier message sent before
-    // subprocess initializes handler?
+  if (getSubprocessId() == ROOT) {
+    launchSubprocess(A);
     std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
     std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
     EXPECT_TRUE(static_cast<bool>(my_chunk));
 
-    barrier(INIT);
+    IPC::barrier(INIT, 1);
 
     EXPECT_EQ(1, MapApiHub::instance().peerSize());
     EXPECT_EQ(0, my_chunk->peerSize());
     EXPECT_EQ(1, my_chunk->requestParticipation());
     EXPECT_EQ(1, my_chunk->peerSize());
 
-    barrier(DIE);
+    LOG(INFO) << "oi";
+    IPC::barrier(DIE, 1);
+    LOG(INFO) << "oi";
   } else {
-    barrier(INIT);
-    barrier(DIE);
+    IPC::barrier(INIT, 1);
+    IPC::barrier(DIE, 1);
   }
 }
 
-TEST_F(ChunkTest3, FullJoinTwice) {
-  enum Barriers {INIT, A_JOINED, A_ADDED, B_JOINED, DIE};
-  if (getSubprocessId() == 0) {
-    sleep(1); // TODO(tcies) problem: what if barrier message sent before
-    // subprocess initializes handler?
+TEST_F(ChunkTest, FullJoinTwice) {
+  enum SubProcesses {ROOT, A, B};
+  enum Barriers {ROOT_A_INIT, A_JOINED, A_ADDED_B_INIT, B_JOINED, DIE};
+  if (getSubprocessId() == ROOT) {
+    launchSubprocess(A);
     std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
     std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
     EXPECT_TRUE(static_cast<bool>(my_chunk));
 
-    barrier(INIT);
+    IPC::barrier(ROOT_A_INIT, 1);
+
+    EXPECT_EQ(1, MapApiHub::instance().peerSize());
+    EXPECT_EQ(0, my_chunk->peerSize());
+    EXPECT_EQ(1, my_chunk->requestParticipation());
+    EXPECT_EQ(1, my_chunk->peerSize());
+
+    IPC::barrier(A_JOINED, 1);
+
+    launchSubprocess(B);
+
+    IPC::barrier(A_ADDED_B_INIT, 2);
 
     EXPECT_EQ(2, MapApiHub::instance().peerSize());
-    EXPECT_EQ(0, my_chunk->peerSize());
-    EXPECT_EQ(2, my_chunk->requestParticipation());
-    EXPECT_EQ(2, my_chunk->peerSize());
 
-    barrier(DIE);
+    IPC::barrier(B_JOINED, 2);
+
+    IPC::barrier(DIE, 2);
   }
-  if(getSubprocessId() == 1){
-    barrier(INIT);
-    barrier(DIE);
+  if(getSubprocessId() == A){
+    IPC::barrier(ROOT_A_INIT, 1);
+    IPC::barrier(A_JOINED, 1);
+    IPC::barrier(A_ADDED_B_INIT, 2);
+    IPC::barrier(B_JOINED, 2);
+    IPC::barrier(DIE, 2);
   }
-  if(getSubprocessId() == 2){
-    barrier(INIT);
-    barrier(DIE);
+  if(getSubprocessId() == B){
+    IPC::barrier(A_ADDED_B_INIT, 2);
+    IPC::barrier(B_JOINED, 2);
+    IPC::barrier(DIE, 2);
   }
 }
 

@@ -90,6 +90,13 @@ class MapApiHub final {
    */
   MapApiHub();
   /**
+   * May only be called if we are sure to be the sole Map API process. Will
+   * replace the entire contents of the discovery file by only the IP and port
+   * of self
+   */
+  void rootPurgeDiscovery();
+  friend class HubTester;
+  /**
    * Removes the peer, trusting that the connection to it failed.
    */
   void removeUnreachable(const PeerId& peer);
@@ -118,6 +125,13 @@ class MapApiHub final {
   static std::unordered_map<std::string,
   std::function<void(const std::string&, Message*)> >
   handlers_;
+};
+
+class HubTester {
+ protected:
+  inline void rootPurgeDiscovery() {
+    MapApiHub::instance().rootPurgeDiscovery();
+  }
 };
 
 }

@@ -7,6 +7,7 @@
 
 #include <glog/logging.h>
 
+#include "map-api/ipc.h"
 #include "core.pb.h"
 
 #define FAKE_DISCOVERY "/tmp/mapapi-discovery.txt"
@@ -29,8 +30,8 @@ MapApiHub::~MapApiHub() {
 }
 
 bool MapApiHub::init(const std::string &ipPort) {
-  // FOR NOW: FAKE DISCOVERY
-
+  // Handlers must be initialized before handler thread is started
+  IPC::init(); // TODO(tcies) more apprioprate place for this - gflags style?
   registerHandler(kDiscovery, discoveryHandler);
   // 1. create own server
   context_ = std::unique_ptr<zmq::context_t>(new zmq::context_t());
@@ -189,6 +190,11 @@ void MapApiHub::discoveryHandler(const std::string& peer, Message* response) {
   instance().peer_mutex_.unlock();
   // ack by resend
   response->impose<Message::kAck>();
+}
+
+void MapApiHub::rootPurgeDiscovery() {
+  std::ofstream discovery(FAKE_DISCOVERY, std::ios::out | std::ios::trunc);
+  discovery << FLAGS_ip_port << std::endl;
 }
 
 void MapApiHub::removeUnreachable(const PeerId& peer) {
