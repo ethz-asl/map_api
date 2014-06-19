@@ -1,4 +1,4 @@
-#include "map-api/cru-table-interface.h"
+#include "map-api/cru-table.h"
 
 #include <cstdio>
 #include <map>
@@ -11,39 +11,40 @@
 #include <gflags/gflags.h>
 
 #include "map-api/map-api-core.h"
-#include "map-api/transaction.h"
+#include "map-api/local-transaction.h"
 #include "core.pb.h"
 
 namespace map_api {
 
-const std::string CRUTableInterface::kUpdateTimeField = "update_time";
-const std::string CRUTableInterface::kPreviousTimeField = "previous_time";
-const std::string CRUTableInterface::kNextTimeField = "next_time";
+const std::string CRUTable::kUpdateTimeField = "update_time";
+const std::string CRUTable::kPreviousTimeField = "previous_time";
+const std::string CRUTable::kNextTimeField = "next_time";
 
-CRUTableInterface::~CRUTableInterface() {}
+CRUTable::~CRUTable() {}
 
-bool CRUTableInterface::init() {
-  // adding fields that make this an updateable table
+void CRUTable::defineFieldsCRDerived() {
   addField<Time>(kUpdateTimeField);
   addField<Time>(kPreviousTimeField);
   addField<Time>(kNextTimeField);
-  return CRTableInterface::init();
+  defineFieldsCRUDerived();
 }
 
-bool CRUTableInterface::rawInsertImpl(Revision& query) const {
-  query.set(kUpdateTimeField, Time());
-  query.set(kPreviousTimeField, Time(0));
-  query.set(kNextTimeField, Time(0));
-  return CRTableInterface::rawInsertImpl(query);
+bool CRUTable::rawInsertImpl(Revision* query) const {
+  query->set(kUpdateTimeField, Time());
+  query->set(kPreviousTimeField, Time(0));
+  query->set(kNextTimeField, Time(0));
+  return CRTable::rawInsertImpl(query);
 }
 
-int CRUTableInterface::rawFindByRevisionImpl(
+int CRUTable::rawFindByRevisionImpl(
     const std::string& key, const Revision& valueHolder, const Time& time,
     std::unordered_map<Id, std::shared_ptr<Revision> >* dest)  const {
   // TODO(tcies) apart from the more sophisticated time query, this is very
   // similar to its CR equivalent. Maybe refactor at some time?
   PocoToProto poco_to_proto(*this);
-  Poco::Data::Statement statement(*session_);
+  std::shared_ptr<Poco::Data::Session> session = session_.lock();
+  CHECK(session) << "Couldn't lock session weak pointer";
+  Poco::Data::Statement statement(*session);
   // TODO(tcies) evt. optimizations from http://www.sqlite.org/queryplanner.html
   statement << "SELECT ";
   poco_to_proto.into(statement);
@@ -73,36 +74,39 @@ int CRUTableInterface::rawFindByRevisionImpl(
   return from_poco.size();
 }
 
-bool CRUTableInterface::rawUpdate(Revision& query) const {
+bool CRUTable::rawUpdate(Revision* query) const {
   CHECK(isInitialized()) << "Attempted to update in non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
-  CHECK(reference->structureMatch(query)) << "Bad structure of update revision";
+  CHECK(reference->structureMatch(*query)) <<
+      "Bad structure of update revision";
   Id id;
-  query.get(kIdField, &id);
+  query->get(kIdField, &id);
   CHECK_NE(id, Id()) << "Attempted to update element with invalid ID";
   return rawUpdateImpl(query);
 }
 
-bool CRUTableInterface::rawUpdateImpl(Revision& query) const {
+bool CRUTable::rawUpdateImpl(Revision* query) const {
   Id id;
-  query.get(kIdField, &id);
+  query->get(kIdField, &id);
   ItemDebugInfo info(name(), id);
   // 1. Check consistency of insert time field
   // TODO(tcies) generalize this test by introducing a "const" trait to fields?
   std::shared_ptr<Revision> current = rawGetById(id, Time());
   Time query_insert_time;
-  query.get(CRTableInterface::kInsertTimeField, &query_insert_time);
-  CHECK(current->verify(CRTableInterface::kInsertTimeField, query_insert_time))
+  query->get(CRTable::kInsertTimeField, &query_insert_time);
+  CHECK(current->verify(CRTable::kInsertTimeField, query_insert_time))
   << " Insert time needs to remain same after update.";
   // 2. Define update time, fetch previous time
   Time update_time, previous_time;
   current->get(kUpdateTimeField, &previous_time);
   // 3. Write update time into "next_time" field of current revision
-  Poco::Data::Statement statement(*session_);
+  std::shared_ptr<Poco::Data::Session> session = session_.lock();
+  CHECK(session) << "Couldn't lock session weak pointer";
+  Poco::Data::Statement statement(*session);
   statement << "UPDATE " << name() << " SET " << kNextTimeField << " = ? ",
       Poco::Data::use(update_time.serialize());
   statement << " WHERE ID = ";
-  query.insertPlaceHolder(CRTableInterface::kIdField, statement);
+  query->insertPlaceHolder(CRTable::kIdField, statement);
   statement << " AND " << kUpdateTimeField << " = ? ",
       Poco::Data::use(previous_time.serialize());
   try {
@@ -110,18 +114,18 @@ bool CRUTableInterface::rawUpdateImpl(Revision& query) const {
   } catch (const std::exception& e) {
     LOG(FATAL) << info << kNextTimeField << " update failed with exception \""
         << e.what() << "\", " << " statement was \"" << statement.toString() <<
-        "\" and query :" << query.DebugString();
+        "\" and query :" << query->DebugString();
   }
   // 4. Insert updated row
-  query.set(kUpdateTimeField, update_time);
-  query.set(kPreviousTimeField, previous_time);
-  query.set(kNextTimeField, Time(0));
+  query->set(kUpdateTimeField, update_time);
+  query->set(kPreviousTimeField, previous_time);
+  query->set(kNextTimeField, Time(0));
   // calling insert implementation of CR to avoid these fields to be overwritten
-  CRTableInterface::rawInsertImpl(query);
+  CRTable::rawInsertImpl(query);
   return true;
 }
 
-bool CRUTableInterface::rawLatestUpdateTime(
+bool CRUTable::rawLatestUpdateTime(
     const Id& id, Time* time) const{
   std::shared_ptr<Revision> row = rawGetById(id, Time());
   ItemDebugInfo itemInfo(name(), id);
