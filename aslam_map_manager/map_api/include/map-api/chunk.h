@@ -5,6 +5,8 @@
 #include <string>
 #include <set>
 
+#include <Poco/RWLock.h>
+
 #include <zeromq_cpp/zmq.hpp>
 
 #include "map-api/cr-table-ram-cache.h"
@@ -79,13 +81,38 @@ class Chunk {
    * Insert new item into this chunk: Item gets sent to all peers
    */
   bool insert(const Revision& item);
+
+  /**
+   * Unlocking a lock should be coupled to sending the updated data TODO(tcies)
+   * This would ensure that all peers can satisfy 1) and 2) of the
+   * aforementioned contract.
+   */
+  void unlock();
+
+  int peerSize() const;
+  /**
+   * Requests all peers in MapApiCore to participate in a given chunk.
+   * Returns how many peers accepted participation.
+   * For the time being this causes the peers to send an independent connect
+   * request, which should be handled by the requester before this function
+   * returns (in the handler thread).
+   * TODO(tcies) down the road, request only table peers?
+   * TODO(tcies) ability to respond with a request, instead of sending an
+   * independent one?
+   */
+  int requestParticipation() const;
+
+  void handleConnectRequest(const PeerId& peer, Message* response);
+
+ private:
   /**
    * The holder may acquire a read lock without the need to communicate with
    * the other peers - a read lock manifests itself only in that the holder
    * defers distributed write lock requests until unlocking or denies them
-   * altogether.
+   * altogether. This function can be applied to both join_lock_ and
+   * update_lock_.
    */
-  void readLock();
+  void distributedReadLock(Poco::RWLock* lock);
   /**
    * Acquiring write locks happens over the network: A spanning tree among the
    * peers is created, where each peer connects with all other peers that are
@@ -112,30 +139,7 @@ class Chunk {
    * To be robust against loss of connectivity, each request should have a
    * timeout that uses the synchronized clock.
    */
-  void writeLock();
-  /**
-   * Unlocking a lock should be coupled to sending the updated data TODO(tcies)
-   * This would ensure that all peers can satisfy 1) and 2) of the
-   * aforementioned contract.
-   */
-  void unlock();
-
-  int peerSize() const;
-  /**
-   * Requests all peers in MapApiCore to participate in a given chunk.
-   * Returns how many peers accepted participation.
-   * For the time being this causes the peers to send an independent connect
-   * request, which should be handled by the requester before this function
-   * returns (in the handler thread).
-   * TODO(tcies) down the road, request only table peers?
-   * TODO(tcies) ability to respond with a request, instead of sending an
-   * independent one?
-   */
-  int requestParticipation() const;
-
-  void handleConnectRequest(const PeerId& peer, Message* response);
-
- private:
+  void distributedWriteLock();
   /**
    * ===================================================================
    * Handles for ChunkManager requests that are addressed at this Chunk.

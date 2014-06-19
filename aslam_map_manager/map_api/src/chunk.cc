@@ -1,9 +1,8 @@
 #include "map-api/chunk.h"
 
-#include "core.pb.h"
-
 #include "map-api/net-table-manager.h"
 #include "map-api/map-api-hub.h"
+#include "core.pb.h"
 #include "chunk.pb.h"
 
 DECLARE_string(ip_port);
