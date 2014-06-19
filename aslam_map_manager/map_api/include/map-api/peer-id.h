@@ -18,6 +18,8 @@ class PeerId {
 
   const std::string& ipPort() const;
 
+  bool operator <(const PeerId& other) const;
+
   bool operator ==(const PeerId& other) const;
 
   bool isValid() const;
