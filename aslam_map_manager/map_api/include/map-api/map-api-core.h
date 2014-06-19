@@ -7,7 +7,6 @@
 
 #include <Poco/Data/Common.h>
 
-#include "map-api/chunk-manager.h"
 #include "map-api/cr-table-ram-cache.h"
 #include "map-api/id.h"
 #include "map-api/map-api-hub.h"

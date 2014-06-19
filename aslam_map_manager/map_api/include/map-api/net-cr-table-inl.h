@@ -15,8 +15,8 @@ int NetCRTable::findFast(
   }
   std::shared_ptr<Revision> value_holder = getTemplate();
   value_holder->set(key, value);
-  return chunk_manager_->findAmongPeers(
-      *cache_, key, *value_holder, time, dest);
+  // TODO(tcies) implement rest
+  return 0;
 }
 
 } // namespace map_api
