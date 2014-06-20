@@ -3,7 +3,6 @@
 
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 
-#include "map-api/chunk-manager.h"
 #include "map-api/ipc.h"
 #include "map-api/map-api-core.h"
 #include "map-api/net-cr-table.h"
