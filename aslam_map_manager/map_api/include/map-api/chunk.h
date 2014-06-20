@@ -118,7 +118,7 @@ class Chunk {
     PeerId holder;
     std::mutex mutex;
     std::condition_variable cv; // in case lock can't be acquired
-    DistributedRWLock() : state(UNLOCKED), n_readers(0) {}
+    DistributedRWLock() : state(State::UNLOCKED), n_readers(0) {}
   };
   /**
    * The holder may acquire a read lock without the need to communicate with

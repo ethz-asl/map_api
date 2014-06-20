@@ -101,11 +101,11 @@ void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
 void Chunk::distributedReadLock(DistributedRWLock* lock) {
   CHECK_NOTNULL(lock);
   std::unique_lock<std::mutex> metalock(lock->mutex);
-  while (lock->state != DistributedRWLock::UNLOCKED &&
-      lock->state != DistributedRWLock::READ_LOCKED) {
+  while (lock->state != DistributedRWLock::State::UNLOCKED &&
+      lock->state != DistributedRWLock::State::READ_LOCKED) {
     lock->cv.wait(metalock);
   }
-  lock->state = DistributedRWLock::READ_LOCKED;
+  lock->state = DistributedRWLock::State::READ_LOCKED;
   ++lock->n_readers;
   metalock.unlock();
 }
