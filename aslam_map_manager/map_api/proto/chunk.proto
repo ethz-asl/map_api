@@ -1,21 +1,35 @@
 package map_api.proto;
 
 message InsertRequest {
-  required string chunk_id = 1;
-  required bytes serialized_revision = 2;
+  required string table = 1;
+  required string chunk_id = 2;
+  required bytes serialized_revision = 3;
 }
 
 message ParticipationRequest {
-  required string chunk_id = 1;
-  required string from_peer = 2; // TODO(tcies) should be message meta
+  required string table = 1;
+  required string chunk_id = 2;
+  required string from_peer = 3; // TODO(tcies) should be message meta
 }
 
 message ConnectRequest {
-  required string chunk_id = 1;
-  required string from_peer = 2; // TODO(tcies) should be message meta
+  required string table = 1;
+  required string chunk_id = 2; // TODO(tcies) chunk identification as message
+  required string from_peer = 3; // TODO(tcies) should be message meta
 }
 
 message ConnectResponse {
   repeated string peer_address = 1; // List of peers participating in chunk
   repeated string serialized_revision = 2; // All revisions in chunk (to change)
+}
+
+message LockRequest {
+  enum Type {
+    JOIN = 0;
+    UPDATE = 1;
+  }
+  required string table = 1;
+  required string chunk_id = 2; // TODO(tcies) chunk identification as message
+  required string from_peer = 3; // TODO(tcies) should be message meta
+  required Type type = 4;
 }

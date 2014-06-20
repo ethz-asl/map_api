@@ -59,6 +59,10 @@ class MapApiHub final {
    */
   void broadcast(const Message& request,
                  std::unordered_map<PeerId, Message>* responses);
+  /**
+   * Returns false if a response was not Message::kAck or Message::kCantReach.
+   * In the latter case, the peer is removed.
+   */
   bool undisputableBroadcast(const Message& request);
 
   /**
@@ -86,6 +90,17 @@ class MapApiHub final {
    */
   MapApiHub();
   /**
+   * May only be called if we are sure to be the sole Map API process. Will
+   * replace the entire contents of the discovery file by only the IP and port
+   * of self
+   */
+  void rootPurgeDiscovery();
+  friend class HubTester;
+  /**
+   * Removes the peer, assuming that the connection to it failed.
+   */
+  void removeUnreachable(const PeerId& peer);
+  /**
    * Thread for listening to peers
    */
   static void listenThread(MapApiHub *self, const std::string &ipPort);
@@ -110,6 +125,13 @@ class MapApiHub final {
   static std::unordered_map<std::string,
   std::function<void(const std::string&, Message*)> >
   handlers_;
+};
+
+class HubTester {
+ protected:
+  inline void rootPurgeDiscovery() {
+    MapApiHub::instance().rootPurgeDiscovery();
+  }
 };
 
 }

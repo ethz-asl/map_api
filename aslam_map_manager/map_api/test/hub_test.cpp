@@ -13,16 +13,14 @@ using namespace map_api;
 class MultiprocessTest;
 
 TEST_F(MultiprocessTest, LaunchTest) {
+  enum Processes {ROOT, SLAVE};
   enum Barriers {BEFORE_COUNT, AFTER_COUNT};
-  IPC::init();
-  MapApiCore::instance();
-  if (getSubprocessId() == 0) {
+  if (getSubprocessId() == ROOT) {
     EXPECT_EQ(0, MapApiHub::instance().peerSize());
-    uint64_t id = launchSubprocess();
+    launchSubprocess(SLAVE);
     IPC::barrier(BEFORE_COUNT, 1);
     EXPECT_EQ(1, MapApiHub::instance().peerSize());
     IPC::barrier(AFTER_COUNT, 1);
-    collectSubprocess(id);
   } else {
     IPC::barrier(BEFORE_COUNT, 1);
     IPC::barrier(AFTER_COUNT, 1);

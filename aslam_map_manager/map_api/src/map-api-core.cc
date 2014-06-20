@@ -82,6 +82,7 @@ bool MapApiCore::init(const std::string &ipPort) {
   Poco::Data::SQLite::Connector::registerConnector();
   dbSess_ = std::make_shared<Poco::Data::Session>("SQLite", ":memory:");
   // ready metatable
+  table_manager_.init();
   metatable_.reset(new CRTableRAMCache);
   initialized_ = true;
   return true;

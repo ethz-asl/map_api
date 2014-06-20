@@ -17,16 +17,16 @@ class Peer {
 
  private:
   /**
-   * Life cycle management of Peer objects reserved for MapApiHub
+   * Life cycle management of Peer objects reserved for MapApiHub.
    */
   friend class MapApiHub;
   explicit Peer(const std::string& address, zmq::context_t& context,
                 int socket_type);
 
   // ZMQ sockets are not inherently thread-safe
-  std::mutex mutex_;
   std::string address_;
   zmq::socket_t socket_;
+  std::mutex socket_mutex_;
 };
 
 } // namespace map_api
