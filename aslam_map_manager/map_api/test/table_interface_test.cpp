@@ -201,6 +201,7 @@ class FieldTestWithoutInit :
     public FieldTest<typename TableDataType::DataType> {
      public:
   virtual ~FieldTestWithoutInit() {}
+
      protected:
   virtual void SetUp() {
     table_ = new typename TableDataType::TableType();

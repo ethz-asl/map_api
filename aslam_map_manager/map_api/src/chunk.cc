@@ -70,7 +70,7 @@ int Chunk::requestParticipation() const {
   std::unordered_map<PeerId, Message> responses;
   MapApiHub::instance().broadcast(request, &responses);
   // TODO(tcies) only request those who are not present yet
-  // at this point, the server handler should have processed all ensuing
+  // at this point, the handler thread should have processed all resulting
   // chunk connection requests
   int new_participant_count = 0;
   for (const std::pair<PeerId, Message>& response : responses) {

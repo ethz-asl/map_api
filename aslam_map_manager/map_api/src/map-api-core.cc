@@ -119,6 +119,9 @@ void MapApiCore::kill() {
 NetTableManager& MapApiCore::tableManager() {
   return table_manager_;
 }
+const NetTableManager& MapApiCore::tableManager() const {
+  return table_manager_;
+}
 
 void MapApiCore::resetDb() {
   CHECK_EQ(1, dbSess_.use_count());

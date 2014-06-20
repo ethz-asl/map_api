@@ -54,6 +54,7 @@ class MapApiCore final {
   void kill();
 
   NetTableManager& tableManager();
+  const NetTableManager& tableManager() const;
 
  protected:
   /**
