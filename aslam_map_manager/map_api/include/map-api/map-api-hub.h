@@ -14,6 +14,7 @@
 #include <Poco/RWLock.h>
 #include <zeromq_cpp/zmq.hpp>
 
+#include "map-api/discovery.h"
 #include "map-api/message.h"
 #include "map-api/peer.h"
 #include "map-api/peer-id.h"
@@ -109,9 +110,7 @@ class MapApiHub final {
   std::condition_variable listenerStatus_;
   volatile bool listenerConnected_;
   volatile bool terminate_;
-  /**
-   * Context and list of peers
-   */
+
   std::unique_ptr<zmq::context_t> context_;
   /**
    * For now, peers may only be added or accessed, so peer mutex only used for
@@ -125,6 +124,8 @@ class MapApiHub final {
   static std::unordered_map<std::string,
   std::function<void(const std::string&, Message*)> >
   handlers_;
+
+  Discovery discovery_;
 };
 
 class HubTester {

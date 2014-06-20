@@ -10,8 +10,6 @@
 #include "map-api/ipc.h"
 #include "core.pb.h"
 
-#define FAKE_DISCOVERY "/tmp/mapapi-discovery.txt"
-
 DECLARE_string(ip_port);
 
 namespace map_api {
@@ -47,19 +45,14 @@ bool MapApiHub::init(const std::string &ipPort) {
   }
 
   // 2. connect to servers already on network (discovery from file)
-  std::ifstream discovery(FAKE_DISCOVERY, std::ios::in);
-  bool already_registered = false;
+  std::vector<PeerId> discovery_peers;
+  discovery_.getPeers(&discovery_peers);
   peer_mutex_.lock();
-  for (std::string other; getline(discovery,other);) {
-    if (other.compare("") == 0) continue; // empty line in file
-    if (other.compare(ipPort) == 0) { // self
-      already_registered = true;
-      continue;
-    }
-    // also don't attempt to connect if already connected
-    if (peers_.find(PeerId(other)) != peers_.end()) continue;
+  for (PeerId peer : discovery_peers) {
+    // don't attempt to connect if already connected
+    if (peers_.find(peer) != peers_.end()) continue;
 
-    LOG(INFO) << FLAGS_ip_port << ": Found peer " << other << ", connecting...";
+    LOG(INFO) << FLAGS_ip_port << ": Found peer " << peer << ", connecting...";
     std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator inserted =
         peers_.insert(std::make_pair(
             PeerId(other),

@@ -26,6 +26,7 @@ SET(CORE_SOURCE  src/chunk.cc
                  src/cr-table-ram-cache.cc
                  src/cru-table.cc
                  src/cru-table-ram-cache.cc
+                 src/discovery.cc
                  src/ipc.cc
                  src/map-api-core.cc
                  src/map-api-hub.cc
