@@ -88,7 +88,7 @@ void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
   for (const PeerId& peer : peers_.peers()) {
     connect_response.add_peer_address(peer.ipPort());
   }
-  // TODO(tcies) will need more concurency control: What happens exactly if
+  // TODO(tcies) will need more concurrency control: What happens exactly if
   // one peer wants to add/update data while another one is handling a
   // connection request? : Lock chunk
   // TODO(tcies) populate connect_response with chunk revisions
