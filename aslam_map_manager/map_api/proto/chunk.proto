@@ -24,12 +24,8 @@ message ConnectResponse {
 }
 
 message LockRequest {
-  enum Type {
-    JOIN = 0;
-    UPDATE = 1;
-  }
   required string table = 1;
   required string chunk_id = 2; // TODO(tcies) chunk identification as message
   required string from_peer = 3; // TODO(tcies) should be message meta
-  required Type type = 4;
+  required string type = 4; // TODO(tcies) all optional
 }

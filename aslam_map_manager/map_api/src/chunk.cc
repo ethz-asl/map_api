@@ -9,10 +9,15 @@ DECLARE_string(ip_port);
 
 namespace map_api {
 
+const std::string Chunk::kJoinLock = "join";
+const std::string Chunk::kUpdateLock = "update";
+
 bool Chunk::init(const Id& id, CRTableRAMCache* underlying_table) {
-  id_ = id;
   CHECK_NOTNULL(underlying_table);
+  id_ = id;
   underlying_table_ = underlying_table;
+  locks_[kJoinLock];
+  locks_[kUpdateLock];
   return true;
 }
 
@@ -98,36 +103,78 @@ void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
   // TODO(tcies) notify other peers of this peer joining the swarm
 }
 
-void Chunk::distributedReadLock(DistributedRWLock* lock) {
-  CHECK_NOTNULL(lock);
-  std::unique_lock<std::mutex> metalock(lock->mutex);
-  while (lock->state != DistributedRWLock::State::UNLOCKED &&
-      lock->state != DistributedRWLock::State::READ_LOCKED) {
-    lock->cv.wait(metalock);
+void Chunk::distributedReadLock(const std::string& lock_name) {
+  DistributedRWLock& lock = getLock(lock_name);
+  std::unique_lock<std::mutex> metalock(lock.mutex);
+  while (lock.state != DistributedRWLock::State::UNLOCKED &&
+      lock.state != DistributedRWLock::State::READ_LOCKED) {
+    lock.cv.wait(metalock);
   }
-  lock->state = DistributedRWLock::State::READ_LOCKED;
-  ++lock->n_readers;
+  lock.state = DistributedRWLock::State::READ_LOCKED;
+  ++lock.n_readers;
   metalock.unlock();
 }
 
-void Chunk::distributedWriteLock(DistributedRWLock* lock) {
-  CHECK_NOTNULL(lock);
+void Chunk::distributedWriteLock(const std::string& lock_name) {
+  DistributedRWLock& lock = getLock(lock_name);
+  std::unique_lock<std::mutex> metalock(lock.mutex);
+
 }
 
-void Chunk::handleLockRequest(const PeerId& locker, Message* response) {
+void Chunk::handleLockRequest(const PeerId& locker,
+                              const std::string& lock_name, Message* response) {
   CHECK_NOTNULL(response);
+  DistributedRWLock& lock = getLock(lock_name);
 }
 
 const char Chunk::kLockRequest[] = "map_api_chunk_lock_request";
 
-void Chunk::distributedUnlock(DistributedRWLock* lock) {
-  CHECK_NOTNULL(lock);
+void Chunk::distributedUnlock(const std::string& lock_name) {
+  DistributedRWLock& lock = getLock(lock_name);
+  std::unique_lock<std::mutex> metalock(lock.mutex);
+  switch (lock.state) {
+    case DistributedRWLock::State::UNLOCKED:
+      LOG(FATAL) << "Attempted to unlock already unlocked lock";
+      break;
+    case DistributedRWLock::State::READ_LOCKED:
+      if (!--lock.n_readers) {
+        lock.state = DistributedRWLock::State::UNLOCKED;
+        metalock.unlock();
+        lock.cv.notify_one();
+        return;
+      }
+      break;
+    case DistributedRWLock::State::ATTEMPTING:
+      LOG(FATAL) << "Can't abort lock request";
+      break;
+    case DistributedRWLock::State::WRITE_LOCKED:
+      CHECK(false);
+      // TODO(tcies) implement
+      break;
+  }
+  metalock.unlock();
 }
 
-void Chunk::handleUnlockRequest(const PeerId& locker, Message* response) {
+void Chunk::handleUnlockRequest(
+    const PeerId& locker, const std::string& lock_name, Message* response) {
   CHECK_NOTNULL(response);
+  DistributedRWLock& lock = getLock(lock_name);
 }
 
 const char Chunk::kUnlockRequest[] = "map_api_chunk_unlock_request";
+
+Chunk::DistributedRWLock& Chunk::getLock(const std::string& lock_name) {
+  std::unordered_map<std::string, DistributedRWLock>::iterator found =
+      locks_.find(lock_name);
+  CHECK(found != locks_.end());
+  return found->second;
+}
+const Chunk::DistributedRWLock& Chunk::getLock(const std::string& lock_name)
+const {
+  std::unordered_map<std::string, DistributedRWLock>::const_iterator found =
+      locks_.find(lock_name);
+  CHECK(found != locks_.end());
+  return found->second;
+}
 
 } // namespace map_api

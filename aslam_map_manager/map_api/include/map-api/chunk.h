@@ -6,6 +6,7 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <unordered_map>
 
 #include <Poco/RWLock.h>
 
@@ -112,7 +113,6 @@ class Chunk {
     enum class State {
       UNLOCKED,
       READ_LOCKED,
-      ATTEMPTING,
       WRITE_LOCKED
     };
     State state;
@@ -128,7 +128,7 @@ class Chunk {
    * defers distributed write lock requests until unlocking or denies them
    * altogether.
    */
-  void distributedReadLock(DistributedRWLock* lock);
+  void distributedReadLock(const std::string& lock_name);
   /**
    * Acquiring write locks happens over the network: Unless the caller knows
    * that the lock is held by some other peer, a lock request is broadcast to
@@ -169,8 +169,9 @@ class Chunk {
    * TODO(tcies) define timeout after which the lock is released automatically
    * TODO(tcies) option to renew lock if operations take a long time
    */
-  void distributedWriteLock(DistributedRWLock* lock);
-  void handleLockRequest(const PeerId& locker, Message* response);
+  void distributedWriteLock(const std::string& lock_name);
+  void handleLockRequest(const PeerId& locker, const std::string& lock_name,
+                         Message* response);
   static const char kLockRequest[];
 
   /**
@@ -178,9 +179,13 @@ class Chunk {
    * This would ensure that all peers can satisfy 1) and 2) of the
    * aforementioned contract.
    */
-  void distributedUnlock(DistributedRWLock* lock);
-  void handleUnlockRequest(const PeerId& locker, Message* response);
+  void distributedUnlock(const std::string& lock_name);
+  void handleUnlockRequest(const PeerId& locker, const std::string& lock_name,
+                           Message* response);
   static const char kUnlockRequest[];
+
+  DistributedRWLock& getLock(const std::string& lock_name);
+  const DistributedRWLock& getLock(const std::string& lock_name) const;
 
   /**
    * ===================================================================
@@ -197,8 +202,9 @@ class Chunk {
   PeerHandler peers_;
   CRTableRAMCache* underlying_table_;
 
-  DistributedRWLock join_lock_;
-  DistributedRWLock update_lock_;
+  std::unordered_map<std::string, DistributedRWLock> locks_;
+  static const std::string kJoinLock;
+  static const std::string kUpdateLock;
 };
 
 } //namespace map_api
