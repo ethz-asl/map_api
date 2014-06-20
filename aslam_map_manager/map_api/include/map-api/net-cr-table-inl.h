@@ -16,6 +16,7 @@ int NetCRTable::findFast(
   std::shared_ptr<Revision> value_holder = getTemplate();
   value_holder->set(key, value);
   // TODO(tcies) implement rest
+  CHECK(false);
   return 0;
 }
 
