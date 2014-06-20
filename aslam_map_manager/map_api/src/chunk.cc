@@ -1,9 +1,8 @@
 #include "map-api/chunk.h"
 
-#include "core.pb.h"
-
 #include "map-api/net-table-manager.h"
 #include "map-api/map-api-hub.h"
+#include "core.pb.h"
 #include "chunk.pb.h"
 
 DECLARE_string(ip_port);
@@ -47,7 +46,7 @@ bool Chunk::insert(const Revision& item) {
   Message request;
   request.impose<NetTableManager::kInsertRequest, proto::InsertRequest>(
       insert_request);
-  CHECK(peers_.undisputable_broadcast(request));
+  CHECK(peers_.undisputableBroadcast(request));
   return true;
 }
 
@@ -98,5 +97,37 @@ void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
   peers_.add(peer);
   // TODO(tcies) notify other peers of this peer joining the swarm
 }
+
+void Chunk::distributedReadLock(DistributedRWLock* lock) {
+  CHECK_NOTNULL(lock);
+  std::unique_lock<std::mutex> metalock(lock->mutex);
+  while (lock->state != DistributedRWLock::State::UNLOCKED &&
+      lock->state != DistributedRWLock::State::READ_LOCKED) {
+    lock->cv.wait(metalock);
+  }
+  lock->state = DistributedRWLock::State::READ_LOCKED;
+  ++lock->n_readers;
+  metalock.unlock();
+}
+
+void Chunk::distributedWriteLock(DistributedRWLock* lock) {
+  CHECK_NOTNULL(lock);
+}
+
+void Chunk::handleLockRequest(const PeerId& locker, Message* response) {
+  CHECK_NOTNULL(response);
+}
+
+const char Chunk::kLockRequest[] = "map_api_chunk_lock_request";
+
+void Chunk::distributedUnlock(DistributedRWLock* lock) {
+  CHECK_NOTNULL(lock);
+}
+
+void Chunk::handleUnlockRequest(const PeerId& locker, Message* response) {
+  CHECK_NOTNULL(response);
+}
+
+const char Chunk::kUnlockRequest[] = "map_api_chunk_unlock_request";
 
 } // namespace map_api
