@@ -1,5 +1,7 @@
 #include "map-api/peer-id.h"
 
+#include <string>
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
@@ -7,7 +9,7 @@ DECLARE_string(ip_port);
 
 namespace map_api {
 
-PeerId::PeerId() : ip_port_("") {}
+PeerId::PeerId() : ip_port_(kInvalidAdress) {}
 
 PeerId::PeerId(const std::string& ip_port) : ip_port_(ip_port) {}
 
@@ -34,7 +36,9 @@ bool PeerId::operator ==(const PeerId& other) const {
 }
 
 bool PeerId::isValid() const {
-  return ip_port_ != "";
+  return ip_port_ != kInvalidAdress;
 }
+
+const std::string PeerId::kInvalidAdress = "";
 
 } /* namespace map_api */

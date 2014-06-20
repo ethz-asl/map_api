@@ -102,24 +102,24 @@ class Chunk {
  private:
   /**
    * Distributed RW lock structure. Because it is distributed, unlocking from
-   * a remote peer can potentially be handler by a different thread than the
-   * locking - thus an extra layer of lock is needed. The lock sate is
+   * a remote peer can potentially be handled by a different thread than the
+   * locking one - thus an extra layer of lock is needed. The lock state is
    * represented by an enum variable.
    */
-  typedef struct DistributedRWLock {
-    enum LockStatus {
+  struct DistributedRWLock {
+    enum class State {
       UNLOCKED,
       READ_LOCKED,
       ATTEMPTING,
       WRITE_LOCKED
     };
-    LockStatus state;
+    State state;
     int n_readers;
     PeerId holder;
     std::mutex mutex;
     std::condition_variable cv; // in case lock can't be acquired
     DistributedRWLock() : state(UNLOCKED), n_readers(0) {}
-  } DistributedRWLock;
+  };
   /**
    * The holder may acquire a read lock without the need to communicate with
    * the other peers - a read lock manifests itself only in that the holder
@@ -151,7 +151,7 @@ class Chunk {
    * If all peers respond with the address of the caller, the caller considers
    * the lock acquired.
    * In all other cases, at least one other peer is also attempting to get the
-   * lock and will respond with an invalid address. TODO(tcies) what if
+   * lock and will respond with an invalid ("") address. TODO(tcies) what if
    * disconnected? Depending on the responses of the remaining peers:
    * - If more of them have returned the address of the other peer, the caller
    * sends a lock redirect request asking the peers accepting the caller as
@@ -165,6 +165,7 @@ class Chunk {
    *
    * TODO(tcies) benchmark serial VS parallel lock strategy?
    * TODO(tcies) define timeout after which the lock is released automatically
+   * TODO(tcies) option to renew lock if operations take a long time
    */
   void distributedWriteLock(DistributedRWLock* lock);
   void handleLockRequest(const PeerId& locker, Message* response);

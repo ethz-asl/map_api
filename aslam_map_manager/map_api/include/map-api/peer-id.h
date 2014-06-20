@@ -25,6 +25,8 @@ class PeerId {
   bool isValid() const;
 
  private:
+  static const std::string kInvalidAdress;
+
   std::string ip_port_;
 };
 
