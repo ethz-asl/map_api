@@ -3,7 +3,6 @@
 
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 
-#include "map-api/chunk-manager.h"
 #include "map-api/ipc.h"
 #include "map-api/map-api-core.h"
 #include "map-api/net-cr-table.h"
@@ -84,6 +83,9 @@ TEST_F(ChunkTest, FullJoinTwice) {
     IPC::barrier(A_ADDED_B_INIT, 2);
 
     EXPECT_EQ(2, MapApiHub::instance().peerSize());
+    EXPECT_EQ(1, my_chunk->peerSize());
+    EXPECT_EQ(1, my_chunk->requestParticipation());
+    EXPECT_EQ(2, my_chunk->peerSize());
 
     IPC::barrier(B_JOINED, 2);
 

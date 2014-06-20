@@ -4,7 +4,7 @@
 #include <memory>
 #include <vector>
 #include <unordered_map>
-#include <unordered_set>
+#include <set>
 #include <string>
 
 #include "map-api/message.h"
@@ -31,21 +31,28 @@ class PeerHandler {
    * TODO(simon) is this cheap? What else to fill ConnectResponse with
    * addresses?
    */
-  const std::unordered_set<PeerId>& peers() const;
+  const std::set<PeerId>& peers() const;
   /**
    * Sends request to specified peer. If peer not among peers_, adds it.
    */
   void request(const PeerId& peer_address, const Message& request,
                Message* response);
   /**
+   * Traversing the peers in order, sends attached request while responses
+   * are positive. Useful for circumventing deadlocks by using Dijkstra's
+   * resource hierarchy solution.
+   */
+  bool forwardOrderSerialBroadcast(const Message& request);
+  bool reverseOrderSerialBroadcast(const Message& request);
+  /**
    * Returns true if all peers have acknowledged, false otherwise.
    * TODO(tcies) timeouts?
    */
-  bool undisputable_broadcast(const Message& request);
+  bool undisputableBroadcast(const Message& request);
 
   size_t size() const;
  private:
-  std::unordered_set<PeerId> peers_;
+  std::set<PeerId> peers_; // std::set to ensure uniform ordering
 };
 
 } /* namespace map_api */

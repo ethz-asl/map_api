@@ -111,6 +111,11 @@ void NetTableManager::handleParticipationRequest(
       << " from peer " << request.from_peer();
   Id chunk_id;
   CHECK(chunk_id.fromHexString(request.chunk_id()));
+  if (MapApiCore::instance().tableManager().getTable(request.table()).
+      has(chunk_id)) {
+    response->impose<Message::kRedundant>();
+    return;
+  }
   // what if requested table is not loaded?
   // TODO(tcies) Load table schema from metatable
   MapApiCore::instance().tableManager().getTable(request.table()).connectTo(

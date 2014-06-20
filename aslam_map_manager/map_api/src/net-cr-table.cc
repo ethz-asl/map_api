@@ -2,7 +2,10 @@
 
 #include <glog/logging.h>
 
-#include "map-api/chunk-manager.h"
+#include "map-api/map-api-hub.h"
+#include "map-api/net-table-manager.h"
+
+DECLARE_string(ip_port);
 
 namespace map_api {
 
@@ -11,9 +14,7 @@ const std::string NetCRTable::kChunkIdField = "chunk_id";
 bool NetCRTable::init(std::unique_ptr<TableDescriptor>* descriptor) {
   (*descriptor)->addField<Id>(kChunkIdField);
   cache_.reset(new CRTableRAMCache);
-  chunk_manager_.reset(new ChunkManager);
   CHECK(cache_->init(descriptor));
-  CHECK(chunk_manager_->init(cache_.get()));
   return true;
 }
 
@@ -21,8 +22,12 @@ std::shared_ptr<Revision> NetCRTable::getTemplate() const {
   return cache_->getTemplate();
 }
 
-std::weak_ptr<Chunk> NetCRTable::newChunk() const {
-  return chunk_manager_->newChunk();
+std::weak_ptr<Chunk> NetCRTable::newChunk() {
+  Id chunk_id = Id::random();
+  std::shared_ptr<Chunk> chunk = std::shared_ptr<Chunk>(new Chunk);
+  CHECK(chunk->init(chunk_id, cache_.get()));
+  active_chunks_[chunk_id] = chunk;
+  return std::weak_ptr<Chunk>(chunk);
 }
 
 bool NetCRTable::insert(const std::weak_ptr<Chunk>& chunk, Revision* query) {
@@ -43,17 +48,46 @@ void NetCRTable::dumpCache(
   cache_->dump(time, destination);
 }
 
+bool NetCRTable::has(const Id& chunk_id) const {
+  return active_chunks_.find(chunk_id) != active_chunks_.end();
+}
+
 std::weak_ptr<Chunk> NetCRTable::connectTo(const Id& chunk_id,
                                            const PeerId& peer) {
-  // TODO(tcies) merge net table and chunk manager?
-  return chunk_manager_->connectTo(chunk_id, peer);
+  Message request, response;
+  // sends request of chunk info to peer
+  proto::ConnectRequest connect_request;
+  connect_request.set_table(cache_->name());
+  connect_request.set_chunk_id(chunk_id.hexString());
+  connect_request.set_from_peer(FLAGS_ip_port);
+  request.impose<NetTableManager::kConnectRequest, proto::ConnectRequest>(
+      connect_request);
+  // TODO(tcies) add to local peer subset instead - peers in ChunkManager?
+  // meld ChunkManager and NetCRTable?
+  MapApiHub::instance().request(peer, request, &response);
+  CHECK(response.isType<NetTableManager::kConnectResponse>());
+  proto::ConnectResponse connect_response;
+  CHECK(connect_response.ParseFromString(response.serialized()));
+  // receives peer list and data from peer, forwards it to chunk init().
+  // Also need to add the peer we have been communicating with to the swarm
+  // list, as it doesn't have itself in its swarm list
+  connect_response.add_peer_address(peer.ipPort());
+  std::shared_ptr<Chunk> chunk(new Chunk);
+  CHECK(chunk->init(chunk_id, connect_response, cache_.get()));
+  active_chunks_[chunk_id] = chunk;
+  return std::weak_ptr<Chunk>(chunk);
 }
 
 void NetCRTable::handleConnectRequest(const Id& chunk_id, const PeerId& peer,
                                       Message* response) {
   CHECK_NOTNULL(response);
-  // TODO(tcies) merge net table and chunk manager?
-  chunk_manager_->handleConnectRequest(chunk_id, peer, response);
+  // TODO(tcies) lock chunk against removal, monitor style access to chunks
+  ChunkMap::iterator found = active_chunks_.find(chunk_id);
+  if (found == active_chunks_.end()) {
+    response->impose<Message::kDecline>();
+    return;
+  }
+  found->second->handleConnectRequest(peer, response);
 }
 
 } // namespace map_api

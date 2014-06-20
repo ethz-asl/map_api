@@ -3,7 +3,7 @@
 
 #include <unordered_map>
 
-#include "map-api/chunk-manager.h"
+#include "map-api/chunk.h"
 #include "map-api/cr-table.h"
 #include "map-api/cr-table-ram-cache.h"
 #include "map-api/revision.h"
@@ -19,7 +19,7 @@ class NetCRTable {
 
   // INSERTION
   std::shared_ptr<Revision> getTemplate() const;
-  std::weak_ptr<Chunk> newChunk() const;
+  std::weak_ptr<Chunk> newChunk();
   bool insert(const std::weak_ptr<Chunk>& chunk, Revision* query);
 
   // RETRIEVAL
@@ -49,6 +49,7 @@ class NetCRTable {
   void dumpCache(
       const Time& time,
       std::unordered_map<Id, std::shared_ptr<Revision> >* destination);
+  bool has(const Id& chunk_id) const;
   /**
    * Connects to the given chunk via the given peer.
    */
@@ -64,7 +65,8 @@ class NetCRTable {
   friend class NetTableManager;
 
   std::unique_ptr<CRTableRAMCache> cache_;
-  std::unique_ptr<ChunkManager> chunk_manager_;
+  typedef std::unordered_map<Id, std::shared_ptr<Chunk> > ChunkMap;
+  ChunkMap active_chunks_;
   // TODO(tcies) insert PeerHandler here
 };
 
