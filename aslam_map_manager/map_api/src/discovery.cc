@@ -58,7 +58,9 @@ void Discovery::getFileContents(std::string* result) const {
   std::ifstream in(kFileName, std::ios::in);
   std::string line;
   while (getline(in, line)) {
-    *result += line + "\n";
+    if (line != "") {
+      *result += line + "\n";
+    }
   }
   in.close();
 }

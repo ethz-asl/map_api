@@ -22,6 +22,10 @@ class Peer {
   friend class MapApiHub;
   explicit Peer(const std::string& address, zmq::context_t& context,
                 int socket_type);
+  /**
+   * Closes the peer socket.
+   */
+  bool disconnect();
 
   // ZMQ sockets are not inherently thread-safe
   std::string address_;

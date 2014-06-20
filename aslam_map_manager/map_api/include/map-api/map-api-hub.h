@@ -91,13 +91,6 @@ class MapApiHub final {
    */
   MapApiHub();
   /**
-   * May only be called if we are sure to be the sole Map API process. Will
-   * replace the entire contents of the discovery file by only the IP and port
-   * of self
-   */
-  void rootPurgeDiscovery();
-  friend class HubTester;
-  /**
    * Removes the peer, assuming that the connection to it failed.
    */
   void removeUnreachable(const PeerId& peer);
@@ -126,13 +119,6 @@ class MapApiHub final {
   handlers_;
 
   Discovery discovery_;
-};
-
-class HubTester {
- protected:
-  inline void rootPurgeDiscovery() {
-    MapApiHub::instance().rootPurgeDiscovery();
-  }
 };
 
 }
