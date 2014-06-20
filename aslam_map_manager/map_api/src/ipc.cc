@@ -6,6 +6,7 @@
 #include <glog/logging.h>
 
 #include "map-api/map-api-hub.h"
+#include "map-api/peer-id.h"
 
 namespace map_api {
 
@@ -31,12 +32,14 @@ void IPC::barrier(int id, int n_peers) {
   }
   Message barrier_message;
   barrier_message.impose<kBarrierMessage,std::string>(ss.str());
-  std::unordered_map<std::string, Message> responses;
+  std::unordered_map<PeerId, Message> responses;
   MapApiHub::instance().broadcast(barrier_message, &responses);
-  for (const std::pair<std::string, Message>& response : responses) {
+  for (const std::pair<PeerId, Message>& response : responses) {
     CHECK(response.second.isType<Message::kAck>());
   }
   std::unique_lock<std::mutex> lock(barrier_mutex_);
+  LOG(INFO) << "Reached barrier " << id << ", waiting for " <<
+      n_peers - barrier_map_[id] << " peers.";
   while (barrier_map_[id] < n_peers) {
     barrier_cv_.wait(lock);
   }

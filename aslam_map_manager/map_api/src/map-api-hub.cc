@@ -7,26 +7,17 @@
 
 #include <glog/logging.h>
 
+#include "map-api/ipc.h"
 #include "core.pb.h"
 
 #define FAKE_DISCOVERY "/tmp/mapapi-discovery.txt"
+
+DECLARE_string(ip_port);
 
 namespace map_api {
 
 const char MapApiHub::kDiscovery[] = "map_api_hub_discovery";
 MAP_API_MESSAGE_IMPOSE_STRING_MESSAGE(MapApiHub::kDiscovery);
-
-/**
- * FIXME(tcies) the next two functions will need to go away!!
- */
-std::weak_ptr<Peer> MapApiHub::ensure(const std::string& address) {
-  return peers_.ensure(address);
-}
-void MapApiHub::getContextAndSocketType(
-    zmq::context_t** context, int* socket_type) {
-  *context = context_.get();
-  *socket_type = ZMQ_REQ;
-}
 
 std::unordered_map<std::string,
 std::function<void(const std::string&, Message*)> >
@@ -39,8 +30,8 @@ MapApiHub::~MapApiHub() {
 }
 
 bool MapApiHub::init(const std::string &ipPort) {
-  // FOR NOW: FAKE DISCOVERY
-
+  // Handlers must be initialized before handler thread is started
+  IPC::init(); // TODO(tcies) more apprioprate place for this - gflags style?
   registerHandler(kDiscovery, discoveryHandler);
   // 1. create own server
   context_ = std::unique_ptr<zmq::context_t>(new zmq::context_t());
@@ -57,33 +48,45 @@ bool MapApiHub::init(const std::string &ipPort) {
 
   // 2. connect to servers already on network (discovery from file)
   std::ifstream discovery(FAKE_DISCOVERY, std::ios::in);
-  bool is_already_registered = false;
-  peerLock_.writeLock();
+  bool already_registered = false;
+  peer_mutex_.lock();
   for (std::string other; getline(discovery,other);) {
-    if (other.compare("") == 0) continue;
-    if (other.compare(ipPort) == 0){
-      LOG(INFO) << "Found registration of self from previous dead run, will "\
-          "not register...";
-      is_already_registered = true;
+    if (other.compare("") == 0) continue; // empty line in file
+    if (other.compare(ipPort) == 0) { // self
+      already_registered = true;
       continue;
     }
-    LOG(INFO) << "Found peer " << other << ", connecting...";
-    peers_.insert(other, *context_, ZMQ_REQ);
+    // also don't attempt to connect if already connected
+    if (peers_.find(PeerId(other)) != peers_.end()) continue;
+
+    LOG(INFO) << FLAGS_ip_port << ": Found peer " << other << ", connecting...";
+    std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator inserted =
+        peers_.insert(std::make_pair(
+            PeerId(other),
+            std::unique_ptr<Peer>(new Peer(other, *context_, ZMQ_REQ)))).first;
+    // connection request is sent outside the peer_mutex_ lock to avoid
+    // deadlocks where two peers try to connect to each other:
+    // P1                           P2
+    // main thread locks mutex      main thread locks mutex
+    // sends out c.req. to P2       sends out c.req. to P1
+    // c.hand. tries to lock        c.hand. tries to lock
+    // ----------------> DEADLOCK!!! <----------------------
   }
-  peerLock_.unlock();
+  peer_mutex_.unlock();
   discovery.close();
 
-  // 3. put own socket into discovery file
-  if (!is_already_registered) {
+  // 3. Report self to discovery
+  if (!already_registered) {
     std::ofstream report(FAKE_DISCOVERY, std::ios::out | std::ios::app);
     report << ipPort << std::endl;
     report.close();
   }
 
-  // 4. notify peers of self
+  // 4. Announce self to peers
   Message announce_self;
   announce_self.impose<kDiscovery>(ipPort);
-  CHECK(peers_.undisputable_broadcast(announce_self));
+  CHECK(undisputableBroadcast(announce_self));
+
   return true;
 }
 
@@ -100,22 +103,17 @@ void MapApiHub::kill() {
   // unbind and re-enter server
   terminate_ = true;
   listener_.join();
-  // disconnect from peers
-  peerLock_.writeLock();
+  // disconnect from peers (no need to lock as listener should be only other
+  // thread)
   peers_.clear();
-  peerLock_.unlock();
   // destroy context
   context_.reset();
-  // clean discovery file
-  // TODO(tcies) now only remove own registry
-  std::ofstream cleanDiscovery(FAKE_DISCOVERY, std::ios::trunc);
 }
 
 int MapApiHub::peerSize() {
   int size;
-  peerLock_.readLock();
+  std::lock_guard<std::mutex> lock(peer_mutex_);
   size = peers_.size();
-  peerLock_.unlock();
   return size;
 }
 
@@ -131,18 +129,51 @@ bool MapApiHub::registerHandler(
 }
 
 void MapApiHub::request(
-    const std::string& peer_address, const Message& request,
-    Message* response) {
-  peerLock_.readLock();
-  peers_.request(peer_address, request, response);
-  peerLock_.unlock();
+    const PeerId& peer, const Message& request, Message* response) {
+  CHECK_NOTNULL(response);
+  std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
+      peers_.find(peer);
+  if (found == peers_.end()) {
+    std::lock_guard<std::mutex> lock(peer_mutex_);
+    // double-checked locking pattern
+    std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
+        peers_.find(peer);
+    if (found == peers_.end()) {
+      found = peers_.insert(std::make_pair(
+          peer, std::unique_ptr<Peer>(
+              new Peer(peer.ipPort(), *context_, ZMQ_REQ)))).first;
+    }
+  }
+  CHECK(found->second->request(request, response));
 }
 
 void MapApiHub::broadcast(const Message& request,
-                          std::unordered_map<std::string, Message>* responses) {
-  peerLock_.readLock();
-  peers_.broadcast(request, responses);
-  peerLock_.unlock();
+                          std::unordered_map<PeerId, Message>* responses) {
+  CHECK_NOTNULL(responses);
+  responses->clear();
+  // TODO(tcies) parallelize using std::future
+  for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer_pair :
+      peers_) {
+    if (!peer_pair.second->request(request, &(*responses)[peer_pair.first])) {
+      (*responses)[peer_pair.first].impose<Message::kCantReach>();
+    }
+  }
+}
+
+bool MapApiHub::undisputableBroadcast(const Message& request) {
+  std::unordered_map<PeerId, Message> responses;
+  broadcast(request, &responses);
+  for (const std::pair<PeerId, Message>& response : responses) {
+    if (!response.second.isType<Message::kAck>()) {
+      if (response.second.isType<Message::kCantReach>()) {
+        removeUnreachable(response.first);
+      }
+      else {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 void MapApiHub::discoveryHandler(const std::string& peer, Message* response) {
@@ -150,11 +181,29 @@ void MapApiHub::discoveryHandler(const std::string& peer, Message* response) {
   LOG(INFO) << "Peer " << peer << " requests discovery, let's "\
       "connect to it...";
   // lock peer set lock so we can write without a race condition
-  instance().peerLock_.writeLock();
-  instance().peers_.insert(peer, *instance().context_, ZMQ_REQ);
-  instance().peerLock_.unlock();
+  instance().peer_mutex_.lock();
+  if (!instance().peers_.insert(
+      std::make_pair(PeerId(peer), std::unique_ptr<Peer>(
+          new Peer(peer, *instance().context_, ZMQ_REQ)))).second) {
+    LOG(INFO) << peer << " requested discovery, but we have already connected";
+  }
+  instance().peer_mutex_.unlock();
   // ack by resend
   response->impose<Message::kAck>();
+}
+
+void MapApiHub::rootPurgeDiscovery() {
+  std::ofstream discovery(FAKE_DISCOVERY, std::ios::out | std::ios::trunc);
+  discovery << FLAGS_ip_port << std::endl;
+}
+
+void MapApiHub::removeUnreachable(const PeerId& peer) {
+  LOG(INFO) << "Removing unreachable peer " << peer;
+  std::lock_guard<std::mutex> lock(peer_mutex_);
+  std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
+      peers_.find(peer);
+  CHECK(found != peers_.end());
+  peers_.erase(found);
 }
 
 void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort) {

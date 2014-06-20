@@ -22,18 +22,22 @@ add_definitions(--std=c++0x -Wall -Wextra -pedantic -Wno-unused-local-typedefs)
 
 # Core Library available to all applications
 SET(CORE_SOURCE  src/chunk.cc
-                 src/chunk-manager.cc
                  src/cr-table.cc
+                 src/cr-table-ram-cache.cc
                  src/cru-table.cc
+                 src/cru-table-ram-cache.cc
                  src/ipc.cc
                  src/map-api-core.cc
                  src/map-api-hub.cc
-                 src/metatable.cc
                  src/message.cc
                  src/net-cr-table.cc
+                 src/net-table-manager.cc
                  src/peer.cc
+                 src/peer-id.cc
                  src/peer-handler.cc
                  src/revision.cc
+                 src/sqlite-interface.cc
+                 src/table-descriptor.cc
                  src/time.cc
                  src/local-transaction.cc)
                  

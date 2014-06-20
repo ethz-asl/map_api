@@ -3,7 +3,6 @@
 
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 
-#include "map-api/chunk-manager.h"
 #include "map-api/ipc.h"
 #include "map-api/map-api-core.h"
 #include "map-api/net-cr-table.h"
@@ -12,65 +11,95 @@
 
 using namespace map_api;
 
-class ChunkTestTable : public NetCRTable {
- public:
-  virtual const std::string name() const final override {
-    return "chunk_test_table";
-  }
-  virtual void defineFieldsNetCRDerived() final override {
-
-  }
-  MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(ChunkTestTable);
+class ChunkTest : public MultiprocessTest {
  protected:
-  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS_DIRECT(ChunkTestTable);
+  virtual void SetUp() {
+    MultiprocessTest::SetUp();
+    MapApiCore::instance().tableManager().clear();
+    std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
+    descriptor->setName(kTableName);
+    MapApiCore::instance().tableManager().addTable(&descriptor);
+    table_ = &MapApiCore::instance().tableManager().getTable(kTableName);
+  }
+
+  const std::string kTableName = "chunk_test_table";
+  NetCRTable* table_;
 };
 
-TEST_F(MultiprocessTest, NetCRInsert) {
-  MapApiCore::instance();
-  ChunkTestTable& table = ChunkTestTable::instance();
-  table.init();
-  std::weak_ptr<Chunk> my_chunk_weak =
-      ChunkManager::instance().newChunk(table);
+TEST_F(ChunkTest, NetCRInsert) {
+  std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
   std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
   EXPECT_TRUE(static_cast<bool>(my_chunk));
-  std::shared_ptr<Revision> to_insert = table.getTemplate();
-  EXPECT_TRUE(table.netInsert(my_chunk_weak, to_insert.get()));
-  resetDb();
+  std::shared_ptr<Revision> to_insert = table_->getTemplate();
+  to_insert->set(CRTable::kIdField, Id::random());
+  EXPECT_TRUE(table_->insert(my_chunk_weak, to_insert.get()));
 }
 
-/**
- * TODO(tcies) verify chunk confirms peer, not just whether peer Acks the
- * participation request
- */
-TEST_F(MultiprocessTest, ParticipationRequest) {
+TEST_F(ChunkTest, ParticipationRequest) {
+  enum SubProcesses {ROOT, A};
   enum Barriers {INIT, DIE};
-  IPC::init();
-  MapApiCore::instance();
-  ChunkTestTable& table = ChunkTestTable::instance();
-  table.init();
-  CRTable* raw_cr_table = dynamic_cast<CRTable*>(&table);
-  ASSERT_TRUE(static_cast<bool>(raw_cr_table));
-  // the following is a hack until FIXME(tcies) TableManager is instantiated
-  ChunkManager::instance().init(raw_cr_table);
-  if (getSubprocessId() == 0) {
-    uint64_t id = launchSubprocess();
-    std::weak_ptr<Chunk> my_chunk_weak =
-        ChunkManager::instance().newChunk(table);
+  if (getSubprocessId() == ROOT) {
+    launchSubprocess(A);
+    std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
     std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
     EXPECT_TRUE(static_cast<bool>(my_chunk));
 
     IPC::barrier(INIT, 1);
 
     EXPECT_EQ(1, MapApiHub::instance().peerSize());
-    EXPECT_EQ(1, ChunkManager::instance().requestParticipation(*my_chunk));
+    EXPECT_EQ(0, my_chunk->peerSize());
+    EXPECT_EQ(1, my_chunk->requestParticipation());
+    EXPECT_EQ(1, my_chunk->peerSize());
 
     IPC::barrier(DIE, 1);
-
-    collectSubprocess(id);
-    resetDb();
   } else {
     IPC::barrier(INIT, 1);
     IPC::barrier(DIE, 1);
+  }
+}
+
+TEST_F(ChunkTest, FullJoinTwice) {
+  enum SubProcesses {ROOT, A, B};
+  enum Barriers {ROOT_A_INIT, A_JOINED, A_ADDED_B_INIT, B_JOINED, DIE};
+  if (getSubprocessId() == ROOT) {
+    launchSubprocess(A);
+    std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
+    std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
+    EXPECT_TRUE(static_cast<bool>(my_chunk));
+
+    IPC::barrier(ROOT_A_INIT, 1);
+
+    EXPECT_EQ(1, MapApiHub::instance().peerSize());
+    EXPECT_EQ(0, my_chunk->peerSize());
+    EXPECT_EQ(1, my_chunk->requestParticipation());
+    EXPECT_EQ(1, my_chunk->peerSize());
+
+    IPC::barrier(A_JOINED, 1);
+
+    launchSubprocess(B);
+
+    IPC::barrier(A_ADDED_B_INIT, 2);
+
+    EXPECT_EQ(2, MapApiHub::instance().peerSize());
+    EXPECT_EQ(1, my_chunk->peerSize());
+    EXPECT_EQ(1, my_chunk->requestParticipation());
+    EXPECT_EQ(2, my_chunk->peerSize());
+
+    IPC::barrier(B_JOINED, 2);
+
+    IPC::barrier(DIE, 2);
+  }
+  if(getSubprocessId() == A){
+    IPC::barrier(ROOT_A_INIT, 1);
+    IPC::barrier(A_JOINED, 1);
+    IPC::barrier(A_ADDED_B_INIT, 2);
+    IPC::barrier(B_JOINED, 2);
+    IPC::barrier(DIE, 2);
+  }
+  if(getSubprocessId() == B){
+    IPC::barrier(A_ADDED_B_INIT, 2);
+    IPC::barrier(B_JOINED, 2);
+    IPC::barrier(DIE, 2);
   }
 }
 

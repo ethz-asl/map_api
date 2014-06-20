@@ -15,7 +15,8 @@
 #include <zeromq_cpp/zmq.hpp>
 
 #include "map-api/message.h"
-#include "map-api/peer-handler.h"
+#include "map-api/peer.h"
+#include "map-api/peer-id.h"
 #include "core.pb.h"
 
 namespace map_api {
@@ -57,7 +58,12 @@ class MapApiHub final {
    * Sends out the specified message to all connected peers
    */
   void broadcast(const Message& request,
-                 std::unordered_map<std::string, Message>* responses);
+                 std::unordered_map<PeerId, Message>* responses);
+  /**
+   * Returns false if a response was not Message::kAck or Message::kCantReach.
+   * In the latter case, the peer is removed.
+   */
+  bool undisputableBroadcast(const Message& request);
 
   /**
    * FIXME(tcies) the next two functions will need to go away!!
@@ -66,10 +72,10 @@ class MapApiHub final {
   void getContextAndSocketType(zmq::context_t** context, int* socket_type);
 
   /**
-   * TODO(tcies) this cascade of calls smells...
+   * Sends a request to the single specified peer. If the peer is not connected
+   * yet, adds permanent connection to the peer.
    */
-  void request(const std::string& peer_address, const Message& request,
-               Message* response);
+  void request(const PeerId& peer, const Message& request, Message* response);
 
   static void discoveryHandler(const std::string& peer, Message* response);
 
@@ -84,6 +90,17 @@ class MapApiHub final {
    */
   MapApiHub();
   /**
+   * May only be called if we are sure to be the sole Map API process. Will
+   * replace the entire contents of the discovery file by only the IP and port
+   * of self
+   */
+  void rootPurgeDiscovery();
+  friend class HubTester;
+  /**
+   * Removes the peer, assuming that the connection to it failed.
+   */
+  void removeUnreachable(const PeerId& peer);
+  /**
    * Thread for listening to peers
    */
   static void listenThread(MapApiHub *self, const std::string &ipPort);
@@ -96,14 +113,25 @@ class MapApiHub final {
    * Context and list of peers
    */
   std::unique_ptr<zmq::context_t> context_;
-  Poco::RWLock peerLock_;
-  PeerHandler<std::shared_ptr<Peer> > peers_;
+  /**
+   * For now, peers may only be added or accessed, so peer mutex only used for
+   * atomic addition of peers.
+   */
+  std::mutex peer_mutex_;
+  std::unordered_map<PeerId, std::unique_ptr<Peer> > peers_;
   /**
    * Maps message types denominations to handler functions
    */
   static std::unordered_map<std::string,
   std::function<void(const std::string&, Message*)> >
   handlers_;
+};
+
+class HubTester {
+ protected:
+  inline void rootPurgeDiscovery() {
+    MapApiHub::instance().rootPurgeDiscovery();
+  }
 };
 
 }

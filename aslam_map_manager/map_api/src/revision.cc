@@ -187,7 +187,8 @@ REVISION_GET(int32_t){
 }
 REVISION_GET(Id){
   if (!value->fromHexString(field.stringvalue())){
-    LOG(FATAL) << "Failed to parse Hash id from string " << field.stringvalue();
+    LOG(FATAL) << "Failed to parse Hash id from string \"" <<
+        field.stringvalue() << "\" for field " << field.nametype().name();
   }
   return true;
 }
