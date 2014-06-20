@@ -1,8 +1,9 @@
-#include <string>
-#include <sstream>
-#include <iostream>
 #include <cstdio>
 #include <fstream>
+#include <iostream>
+#include <map>
+#include <sstream>
+#include <string>
 #include <unistd.h>
 
 #include <gflags/gflags.h>
@@ -10,6 +11,7 @@
 #include <gtest/gtest.h>
 
 #include "map-api/map-api-core.h"
+#include "map-api/ipc.h"
 
 DEFINE_uint64(subprocess_id, 0, "Identification of subprocess in case of "\
               "multiprocess testing. 0 if master process.");
@@ -24,10 +26,12 @@ std::string getSelfpath() {
     return std::string(buff);
   } else {
     LOG(FATAL) << "Failed to read link of /proc/self/exe";
+    return "";
   }
 }
 
-class MultiprocessTest : public ::testing::Test, public map_api::CoreTester {
+class MultiprocessTest : public ::testing::Test, public map_api::CoreTester,
+public map_api::HubTester {
  protected:
   /**
    * Return own ID: 0 if master
@@ -36,10 +40,12 @@ class MultiprocessTest : public ::testing::Test, public map_api::CoreTester {
     return FLAGS_subprocess_id;
   }
   /**
-   * Launches a subprocess and returns its (internal, not process-) ID
+   * Launches a subprocess with given ID. ID can be any positive integer.
+   * Dies if ID already used
    */
-  uint64_t launchSubprocess() {
-    uint64_t id = ++subprocess_count_;
+  void launchSubprocess(uint64_t id) {
+    CHECK_NE(0u, id) << "ID 0 reserved for root process";
+    CHECK(subprocesses_.find(id) == subprocesses_.end());
     std::ostringstream command_ss;
     command_ss << getSelfpath() << " ";
     command_ss << "--subprocess_id=" << id << " ";
@@ -50,26 +56,67 @@ class MultiprocessTest : public ::testing::Test, public map_api::CoreTester {
         test_info->name() << " ";
     // set non-conflicting port for map api hub
     command_ss << "--ip_port=\"127.0.0.1:505" << id << "\" ";
-    subprocesses_.push_back(popen(command_ss.str().c_str(), "r"));
-    return id;
+    FILE* subprocess = popen(command_ss.str().c_str(), "r");
+    setvbuf(subprocess, NULL, _IOLBF, 1024);
+    CHECK(subprocesses_.insert(
+        std::make_pair(id, subprocess)).second);
   }
+
   /**
-   * Gathers results from subprocess, forwarding them to stdout and
+   * Gathers results from all subprocesses, forwarding them to stdout and
    * propagating failures.
    */
-  void collectSubprocess(uint64_t id) {
-    FILE* pipe = subprocesses_[id - 1];
-    CHECK(pipe);
-    while (!feof(pipe)) {
-      char buffer[1024];
-      char* bufptr = &buffer[0];
-      size_t size = 1024;
-      getline(&bufptr, &size, pipe);
-      std::cout << "Sub " << id << ": " << buffer;
-      EXPECT_EQ(NULL, strstr(buffer, "[  FAILED  ]"));
+  void harvest() {
+    for (const std::pair<uint64_t, FILE*>& id_pipe : subprocesses_) {
+      FILE* pipe = id_pipe.second;
+      CHECK(pipe);
+      const size_t size = 1024;
+      char buffer[size];
+      while (timedFGetS(buffer, size, pipe) != NULL) {
+        std::cout << "Sub " << id_pipe.first << ": " << buffer;
+        EXPECT_EQ(NULL, strstr(buffer, "[  FAILED  ]"));
+      }
+    }
+  }
+
+  /**
+   * Because in some situations in harvesting it occurs that fgets() hangs
+   * even if the subprocess is already dead, this is added to ensure the
+   * continuation of the test.
+   */
+  char* timedFGetS(char* out_buffer, int size, FILE* stream) {
+    char* result;
+    std::timed_mutex mutex;
+    mutex.lock();
+    std::thread thread(fGetSThread, out_buffer, size, stream, &mutex, &result);
+    thread.detach();
+    if (mutex.try_lock_for(std::chrono::milliseconds(1000))) {
+      return result;
+    }
+    else {
+      LOG(FATAL) << "Seems like fgets hangs, something went awry with " <<
+          "subprocess exit!";
+      return NULL;
+    }
+  }
+  static void fGetSThread(char* out_buffer, int size, FILE* stream,
+                           std::timed_mutex* mutex, char** result) {
+    CHECK_NOTNULL(mutex);
+    *result = fgets(out_buffer, size, stream);
+    mutex->unlock();
+  }
+
+  virtual void SetUp() {
+    map_api::MapApiCore::instance(); // core init
+  }
+
+  virtual void TearDown() {
+    if (getSubprocessId() == 0) {
+      harvest();
+      resetDb();
+      rootPurgeDiscovery();
     }
   }
  private:
-  uint64_t subprocess_count_ = 0;
-  std::vector<FILE*> subprocesses_; // access: id-1 TODO(tcies) refactor
+  std::map<uint64_t, FILE*> subprocesses_; // map to maintain ordering
 };

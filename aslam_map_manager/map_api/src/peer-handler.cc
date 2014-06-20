@@ -21,7 +21,7 @@ void PeerHandler::broadcast(
   }
 }
 
-const std::unordered_set<PeerId>& PeerHandler::peers() const {
+const std::set<PeerId>& PeerHandler::peers() const {
   return peers_;
 }
 
@@ -29,7 +29,7 @@ void PeerHandler::request(
     const PeerId& peer, const Message& request,
     Message* response) {
   CHECK_NOTNULL(response);
-  std::unordered_set<PeerId>::iterator found = peers_.find(peer);
+  std::set<PeerId>::iterator found = peers_.find(peer);
   if (found == peers_.end()) {
     found = peers_.insert(peer).first;
   }
@@ -40,7 +40,37 @@ size_t PeerHandler::size() const {
   return peers_.size();
 }
 
-bool PeerHandler::undisputable_broadcast(
+bool PeerHandler::forwardOrderSerialBroadcast(const Message& request) {
+  if (!peers_.size()) return true;
+  Message response;
+  std::set<PeerId>::iterator it = peers_.begin();
+  MapApiHub::instance().request(*it, request, &response);
+  if (!response.isType<Message::kAck>()) {
+    return false;
+  }
+  for (++it; it != peers_.end(); ++it) {
+    MapApiHub::instance().request(*it, request, &response);
+    CHECK(response.isType<Message::kAck>());
+  }
+  return true;
+}
+
+bool PeerHandler::reverseOrderSerialBroadcast(const Message& request) {
+  if (!peers_.size()) return true;
+  Message response;
+  std::set<PeerId>::reverse_iterator it = peers_.rbegin();
+  MapApiHub::instance().request(*it, request, &response);
+  if (!response.isType<Message::kAck>()) {
+    return false;
+  }
+  for (++it; it != peers_.rend(); ++it) {
+    MapApiHub::instance().request(*it, request, &response);
+    CHECK(response.isType<Message::kAck>());
+  }
+  return true;
+}
+
+bool PeerHandler::undisputableBroadcast(
     const Message& request) {
   std::unordered_map<PeerId, Message> responses;
   broadcast(request, &responses);

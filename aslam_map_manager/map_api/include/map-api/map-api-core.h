@@ -7,7 +7,6 @@
 
 #include <Poco/Data/Common.h>
 
-#include "map-api/chunk-manager.h"
 #include "map-api/cr-table-ram-cache.h"
 #include "map-api/id.h"
 #include "map-api/map-api-hub.h"
@@ -49,7 +48,8 @@ class MapApiCore final {
    */
   bool isInitialized() const;
   /**
-   * Makes the server thread re-enter, disconnects from database
+   * Makes the server thread re-enter, disconnects from database and removes
+   * own address from discovery file.
    */
   void kill();
 
