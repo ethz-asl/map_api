@@ -2,8 +2,8 @@
 #include <fstream>
 #include <iostream>
 #include <map>
-#include <string>
 #include <sstream>
+#include <string>
 #include <unistd.h>
 
 #include <gflags/gflags.h>
@@ -96,8 +96,6 @@ public map_api::HubTester {
     else {
       LOG(FATAL) << "Seems like fgets hangs, something went awry with " <<
           "subprocess exit!";
-      // TODO(tcies) this seems to occur when the "fake discovery" file from
-      // the Hub has not been cleaned out.
       return NULL;
     }
   }

@@ -51,9 +51,7 @@ TEST_F(ChunkTest, ParticipationRequest) {
     EXPECT_EQ(1, my_chunk->requestParticipation());
     EXPECT_EQ(1, my_chunk->peerSize());
 
-    LOG(INFO) << "oi";
     IPC::barrier(DIE, 1);
-    LOG(INFO) << "oi";
   } else {
     IPC::barrier(INIT, 1);
     IPC::barrier(DIE, 1);

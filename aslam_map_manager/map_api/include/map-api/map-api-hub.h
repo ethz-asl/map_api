@@ -97,7 +97,7 @@ class MapApiHub final {
   void rootPurgeDiscovery();
   friend class HubTester;
   /**
-   * Removes the peer, trusting that the connection to it failed.
+   * Removes the peer, assuming that the connection to it failed.
    */
   void removeUnreachable(const PeerId& peer);
   /**

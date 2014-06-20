@@ -48,7 +48,8 @@ class MapApiCore final {
    */
   bool isInitialized() const;
   /**
-   * Makes the server thread re-enter, disconnects from database
+   * Makes the server thread re-enter, disconnects from database and removes
+   * own address from discovery file.
    */
   void kill();
 
