@@ -4,7 +4,7 @@
 #include <sstream>
 #include <string>
 
-#include <sys/file.h> // linux-specific TODO(simon) problem?
+#include <sys/file.h> // linux-specific
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -69,7 +69,7 @@ void Discovery::lock() const {
   int fd;
   while (((fd = open(kLockFileName, O_WRONLY | O_EXCL | O_CREAT, 0)) == -1)
       && errno == EEXIST) {
-    usleep(100);
+    usleep(10000);
   }
 }
 
