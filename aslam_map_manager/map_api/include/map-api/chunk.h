@@ -205,7 +205,7 @@ class Chunk {
   PeerHandler peers_;
   CRTableRAMCache* underlying_table_;
 
-  std::unordered_map<std::string, DistributedRWLock> locks_;
+  std::unordered_map<std::string, std::unique_ptr<DistributedRWLock> > locks_;
   static const std::string kJoinLock;
   static const std::string kUpdateLock;
 };

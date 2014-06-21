@@ -16,8 +16,8 @@ bool Chunk::init(const Id& id, CRTableRAMCache* underlying_table) {
   CHECK_NOTNULL(underlying_table);
   id_ = id;
   underlying_table_ = underlying_table;
-  locks_[kJoinLock];
-  locks_[kUpdateLock];
+  locks_[kJoinLock].reset(new DistributedRWLock);
+  locks_[kUpdateLock].reset(new DistributedRWLock);
   return true;
 }
 
@@ -288,17 +288,21 @@ void Chunk::handleUnlockRequest(
 }
 
 Chunk::DistributedRWLock& Chunk::getLock(const std::string& lock_name) {
-  std::unordered_map<std::string, DistributedRWLock>::iterator found =
+  std::unordered_map<std::string,
+  std::unique_ptr<DistributedRWLock> >::iterator found =
       locks_.find(lock_name);
   CHECK(found != locks_.end());
-  return found->second;
+  CHECK_NOTNULL(found->second.get());
+  return *found->second;
 }
 const Chunk::DistributedRWLock& Chunk::getLock(const std::string& lock_name)
 const {
-  std::unordered_map<std::string, DistributedRWLock>::const_iterator found =
+  std::unordered_map<std::string,
+  std::unique_ptr<DistributedRWLock> >::const_iterator found =
       locks_.find(lock_name);
   CHECK(found != locks_.end());
-  return found->second;
+  CHECK_NOTNULL(found->second.get());
+  return *found->second;
 }
 
 } // namespace map_api
