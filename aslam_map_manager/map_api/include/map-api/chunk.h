@@ -113,6 +113,7 @@ class Chunk {
     enum class State {
       UNLOCKED,
       READ_LOCKED,
+      ATTEMPTING,
       WRITE_LOCKED
     };
     State state;
@@ -173,6 +174,8 @@ class Chunk {
   void handleLockRequest(const PeerId& locker, const std::string& lock_name,
                          Message* response);
   static const char kLockRequest[];
+  // response to lock request indicating that the peer is trying to lock itself
+  static const char kAttemptingMyself[];
 
   /**
    * Unlocking a lock should be coupled to sending the updated data TODO(tcies)

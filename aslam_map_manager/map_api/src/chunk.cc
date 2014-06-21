@@ -117,8 +117,42 @@ void Chunk::distributedReadLock(const std::string& lock_name) {
 
 void Chunk::distributedWriteLock(const std::string& lock_name) {
   DistributedRWLock& lock = getLock(lock_name);
-  std::unique_lock<std::mutex> metalock(lock.mutex);
+  while(true) { // lock: attempt until success
+    std::unique_lock<std::mutex> metalock(lock.mutex);
+    while (lock.state != DistributedRWLock::State::UNLOCKED) {
+      lock.cv.wait(metalock);
+    }
+    lock.state = DistributedRWLock::State::ATTEMPTING;
+    // unlocking metalock to avoid deadlocks when two peers try to acquire the
+    // lock
+    metalock.unlock();
 
+    Message request, response;
+    proto::LockRequest lock_request;
+    lock_request.set_table(underlying_table_->name());
+    lock_request.set_chunk_id(id().hexString());
+    lock_request.set_from_peer(FLAGS_ip_port);
+    lock_request.set_type(lock_name);
+    request.impose<kLockRequest>(lock_request);
+    // in the general case, the peer with lowest address decides
+    // TODO(tcies) lock peers_ during the scope of this function
+    std::set<PeerId>::const_iterator it = peers_.peers().cbegin();
+    MapApiHub::instance().request(*it, request, &response);
+    if (response.isType<Message::kDecline>()) {
+      // TODO(tcies) what if we have responded negatively to a lock request
+      // before? If we do not have the lowest or second-to lowest adress,
+      // this should not happen
+      CHECK(false);
+      continue;
+    }
+    if (response.isType<kAttemptingMyself>()) {
+      // TODO(tcies) conflict resolution: generally, the other should win,
+      // except if both peers have the two lowest adresses
+      CHECK(false);
+      continue;
+    }
+
+  }
 }
 
 void Chunk::handleLockRequest(const PeerId& locker,
@@ -128,6 +162,7 @@ void Chunk::handleLockRequest(const PeerId& locker,
 }
 
 const char Chunk::kLockRequest[] = "map_api_chunk_lock_request";
+MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(Chunk::kLockRequest, proto::LockRequest);
 
 void Chunk::distributedUnlock(const std::string& lock_name) {
   DistributedRWLock& lock = getLock(lock_name);
