@@ -103,6 +103,9 @@ void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
   // TODO(tcies) notify other peers of this peer joining the swarm
 }
 
+const char Chunk::kLockRequest[] = "map_api_chunk_lock_request";
+MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(Chunk::kLockRequest, proto::LockRequest);
+
 void Chunk::distributedReadLock(const std::string& lock_name) {
   DistributedRWLock& lock = getLock(lock_name);
   std::unique_lock<std::mutex> metalock(lock.mutex);
@@ -119,7 +122,8 @@ void Chunk::distributedWriteLock(const std::string& lock_name) {
   DistributedRWLock& lock = getLock(lock_name);
   while(true) { // lock: attempt until success
     std::unique_lock<std::mutex> metalock(lock.mutex);
-    while (lock.state != DistributedRWLock::State::UNLOCKED) {
+    while (lock.state != DistributedRWLock::State::UNLOCKED &&
+        lock.state != DistributedRWLock::State::ATTEMPTING) {
       lock.cv.wait(metalock);
     }
     lock.state = DistributedRWLock::State::ATTEMPTING;
@@ -134,25 +138,41 @@ void Chunk::distributedWriteLock(const std::string& lock_name) {
     lock_request.set_from_peer(FLAGS_ip_port);
     lock_request.set_type(lock_name);
     request.impose<kLockRequest>(lock_request);
-    // in the general case, the peer with lowest address decides
-    // TODO(tcies) lock peers_ during the scope of this function
-    std::set<PeerId>::const_iterator it = peers_.peers().cbegin();
-    MapApiHub::instance().request(*it, request, &response);
-    if (response.isType<Message::kDecline>()) {
-      // TODO(tcies) what if we have responded negatively to a lock request
-      // before? If we do not have the lowest or second-to lowest adress,
-      // this should not happen
-      CHECK(false);
-      continue;
-    }
-    if (response.isType<kAttemptingMyself>()) {
-      // TODO(tcies) conflict resolution: generally, the other should win,
-      // except if both peers have the two lowest adresses
-      CHECK(false);
-      continue;
-    }
 
+    bool declined = false;
+    for (const PeerId& peer : peers_.peers()) {
+      MapApiHub::instance().request(peer, request, &response);
+      if (response.isType<Message::kDecline>()) {
+        // in the general case, a lock may only be declined by the lowest peer.
+        // if it has been accepted by the lowest peer but declined by a higher
+        // peer, this implies that all peers below the declining peer have gone
+        // offline (it is assumed that a peer is visible to all peers iff
+        // online), as the only allowed reason to decline a lock request is
+        // maintaining that another peer holds the lock, which is possible only
+        // if that other peer has contacted all peers lower than the declining
+        // peer.
+        // This also implies that no rollback mechanism is needed, as all peers
+        // that have accepted the lock before must be offline
+        declined = true;
+        break;
+      }
+      // TODO(tcies) kReading & pulse
+      CHECK(response.isType<Message::kAck>());
+    }
+    if (declined) {
+      // if we fail to acquire the lock we return to "conditional wait if not
+      // UNLOCKED or ATTEMPTING". Either the state has changed to "locked by
+      // other" until then, or we will fail again.
+      // TODO(tcies) would probably make sense to sleep a bit - formalize
+      continue;
+    }
+    break;
   }
+  // once all peers have accepted, the lock is considered acquired
+  std::lock_guard<std::mutex> metalock_guard(lock.mutex);
+  CHECK(lock.state == DistributedRWLock::State::ATTEMPTING);
+  lock.state = DistributedRWLock::State::WRITE_LOCKED;
+  lock.holder = PeerId::self();
 }
 
 void Chunk::handleLockRequest(const PeerId& locker,
@@ -160,9 +180,6 @@ void Chunk::handleLockRequest(const PeerId& locker,
   CHECK_NOTNULL(response);
   DistributedRWLock& lock = getLock(lock_name);
 }
-
-const char Chunk::kLockRequest[] = "map_api_chunk_lock_request";
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(Chunk::kLockRequest, proto::LockRequest);
 
 void Chunk::distributedUnlock(const std::string& lock_name) {
   DistributedRWLock& lock = getLock(lock_name);

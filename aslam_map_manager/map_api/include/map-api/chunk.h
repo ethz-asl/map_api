@@ -102,6 +102,9 @@ class Chunk {
 
   void handleConnectRequest(const PeerId& peer, Message* response);
 
+  static const char kLockRequest[];
+  static const char kUnlockRequest[];
+
  private:
   /**
    * Distributed RW lock structure. Because it is distributed, unlocking from
@@ -173,9 +176,6 @@ class Chunk {
   void distributedWriteLock(const std::string& lock_name);
   void handleLockRequest(const PeerId& locker, const std::string& lock_name,
                          Message* response);
-  static const char kLockRequest[];
-  // response to lock request indicating that the peer is trying to lock itself
-  static const char kAttemptingMyself[];
 
   /**
    * Unlocking a lock should be coupled to sending the updated data TODO(tcies)
@@ -185,7 +185,6 @@ class Chunk {
   void distributedUnlock(const std::string& lock_name);
   void handleUnlockRequest(const PeerId& locker, const std::string& lock_name,
                            Message* response);
-  static const char kUnlockRequest[];
 
   DistributedRWLock& getLock(const std::string& lock_name);
   const DistributedRWLock& getLock(const std::string& lock_name) const;
