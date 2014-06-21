@@ -14,6 +14,7 @@
 #include <Poco/RWLock.h>
 #include <zeromq_cpp/zmq.hpp>
 
+#include "map-api/discovery.h"
 #include "map-api/message.h"
 #include "map-api/peer.h"
 #include "map-api/peer-id.h"
@@ -90,13 +91,6 @@ class MapApiHub final {
    */
   MapApiHub();
   /**
-   * May only be called if we are sure to be the sole Map API process. Will
-   * replace the entire contents of the discovery file by only the IP and port
-   * of self
-   */
-  void rootPurgeDiscovery();
-  friend class HubTester;
-  /**
    * Removes the peer, assuming that the connection to it failed.
    */
   void removeUnreachable(const PeerId& peer);
@@ -109,9 +103,7 @@ class MapApiHub final {
   std::condition_variable listenerStatus_;
   volatile bool listenerConnected_;
   volatile bool terminate_;
-  /**
-   * Context and list of peers
-   */
+
   std::unique_ptr<zmq::context_t> context_;
   /**
    * For now, peers may only be added or accessed, so peer mutex only used for
@@ -125,13 +117,8 @@ class MapApiHub final {
   static std::unordered_map<std::string,
   std::function<void(const std::string&, Message*)> >
   handlers_;
-};
 
-class HubTester {
- protected:
-  inline void rootPurgeDiscovery() {
-    MapApiHub::instance().rootPurgeDiscovery();
-  }
+  Discovery discovery_;
 };
 
 }

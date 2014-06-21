@@ -10,8 +10,6 @@
 #include "map-api/ipc.h"
 #include "core.pb.h"
 
-#define FAKE_DISCOVERY "/tmp/mapapi-discovery.txt"
-
 DECLARE_string(ip_port);
 
 namespace map_api {
@@ -30,11 +28,12 @@ MapApiHub::~MapApiHub() {
 }
 
 bool MapApiHub::init(const std::string &ipPort) {
+  terminate_ = false;
   // Handlers must be initialized before handler thread is started
   IPC::init(); // TODO(tcies) more apprioprate place for this - gflags style?
   registerHandler(kDiscovery, discoveryHandler);
   // 1. create own server
-  context_ = std::unique_ptr<zmq::context_t>(new zmq::context_t());
+  context_.reset(new zmq::context_t());
   listenerConnected_ = false;
   listener_ = std::thread(listenThread, this, ipPort);
   {
@@ -47,23 +46,18 @@ bool MapApiHub::init(const std::string &ipPort) {
   }
 
   // 2. connect to servers already on network (discovery from file)
-  std::ifstream discovery(FAKE_DISCOVERY, std::ios::in);
-  bool already_registered = false;
+  std::vector<PeerId> discovery_peers;
+  discovery_.getPeers(&discovery_peers);
   peer_mutex_.lock();
-  for (std::string other; getline(discovery,other);) {
-    if (other.compare("") == 0) continue; // empty line in file
-    if (other.compare(ipPort) == 0) { // self
-      already_registered = true;
-      continue;
-    }
-    // also don't attempt to connect if already connected
-    if (peers_.find(PeerId(other)) != peers_.end()) continue;
+  for (const PeerId& peer : discovery_peers) {
+    // don't attempt to connect if already connected
+    if (peers_.find(peer) != peers_.end()) continue;
 
-    LOG(INFO) << FLAGS_ip_port << ": Found peer " << other << ", connecting...";
+    LOG(INFO) << FLAGS_ip_port << ": Found peer " << peer << ", connecting...";
     std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator inserted =
         peers_.insert(std::make_pair(
-            PeerId(other),
-            std::unique_ptr<Peer>(new Peer(other, *context_, ZMQ_REQ)))).first;
+            peer, std::unique_ptr<Peer>(new Peer(peer.ipPort(), *context_,
+                                                 ZMQ_REQ)))).first;
     // connection request is sent outside the peer_mutex_ lock to avoid
     // deadlocks where two peers try to connect to each other:
     // P1                           P2
@@ -73,16 +67,11 @@ bool MapApiHub::init(const std::string &ipPort) {
     // ----------------> DEADLOCK!!! <----------------------
   }
   peer_mutex_.unlock();
-  discovery.close();
 
   // 3. Report self to discovery
-  if (!already_registered) {
-    std::ofstream report(FAKE_DISCOVERY, std::ios::out | std::ios::app);
-    report << ipPort << std::endl;
-    report.close();
-  }
+  discovery_.announce();
 
-  // 4. Announce self to peers
+  // 4. Announce self to peers (who will not revisit discovery)
   Message announce_self;
   announce_self.impose<kDiscovery>(ipPort);
   CHECK(undisputableBroadcast(announce_self));
@@ -96,8 +85,9 @@ MapApiHub &MapApiHub::instance() {
 }
 
 void MapApiHub::kill() {
+  LOG(INFO) << "Terminate called in " << FLAGS_ip_port;
   if (terminate_){
-    VLOG(3) << "Double termination";
+    LOG(WARNING) << "Double termination";
     return;
   }
   // unbind and re-enter server
@@ -105,9 +95,13 @@ void MapApiHub::kill() {
   listener_.join();
   // disconnect from peers (no need to lock as listener should be only other
   // thread)
+  for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer : peers_) {
+    peer.second->disconnect();
+  }
   peers_.clear();
   // destroy context
   context_.reset();
+  discovery_.leave();
 }
 
 int MapApiHub::peerSize() {
@@ -192,11 +186,6 @@ void MapApiHub::discoveryHandler(const std::string& peer, Message* response) {
   response->impose<Message::kAck>();
 }
 
-void MapApiHub::rootPurgeDiscovery() {
-  std::ofstream discovery(FAKE_DISCOVERY, std::ios::out | std::ios::trunc);
-  discovery << FLAGS_ip_port << std::endl;
-}
-
 void MapApiHub::removeUnreachable(const PeerId& peer) {
   LOG(INFO) << "Removing unreachable peer " << peer;
   std::lock_guard<std::mutex> lock(peer_mutex_);
@@ -257,7 +246,7 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort) {
            serialized_response.size());
     server.send(response_message);
   }
-  server.unbind(("tcp://" + ipPort).c_str());
+  server.close();
   LOG(INFO) << "Listener terminated\n";
 }
 

@@ -30,8 +30,7 @@ std::string getSelfpath() {
   }
 }
 
-class MultiprocessTest : public ::testing::Test, public map_api::CoreTester,
-public map_api::HubTester {
+class MultiprocessTest : public ::testing::Test, public map_api::CoreTester {
  protected:
   /**
    * Return own ID: 0 if master
@@ -113,8 +112,8 @@ public map_api::HubTester {
   virtual void TearDown() {
     if (getSubprocessId() == 0) {
       harvest();
-      resetDb();
-      rootPurgeDiscovery();
+      // explicit kill for core in order to carry nothing over to next test
+      map_api::MapApiCore::instance().kill();
     }
   }
  private:
