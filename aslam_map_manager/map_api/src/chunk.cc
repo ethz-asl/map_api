@@ -238,19 +238,6 @@ void Chunk::handleLockRequest(const PeerId& locker,
   metalock.unlock();
 }
 
-void Chunk::handleLockConfirmRequest(
-    const PeerId& locker, const std::string& lock_name, Message* response) {
-  DistributedRWLock& lock = getLock(lock_name);
-  std::lock_guard<std::mutex> metalock_guard(lock.mutex);
-  if (lock.state == DistributedRWLock::State::WRITE_LOCKED &&
-      lock.holder == locker) {
-    response->impose<Message::kAck>();
-  }
-  else {
-    response->impose<Message::kDecline>();
-  }
-}
-
 void Chunk::distributedUnlock(const std::string& lock_name) {
   DistributedRWLock& lock = getLock(lock_name);
   std::unique_lock<std::mutex> metalock(lock.mutex);
