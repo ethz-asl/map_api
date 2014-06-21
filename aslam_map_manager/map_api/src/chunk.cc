@@ -104,9 +104,13 @@ void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
 }
 
 const char Chunk::kLockRequest[] = "map_api_chunk_lock_request";
+const char Chunk::kUnlockRequest[] = "map_api_chunk_unlock_request";
 MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(Chunk::kLockRequest, proto::LockRequest);
+// Same proto intended - information content is the same
+MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(Chunk::kUnlockRequest, proto::LockRequest);
 
 void Chunk::distributedReadLock(const std::string& lock_name) {
+  CHECK(false);
   DistributedRWLock& lock = getLock(lock_name);
   std::unique_lock<std::mutex> metalock(lock.mutex);
   while (lock.state != DistributedRWLock::State::UNLOCKED &&
@@ -156,7 +160,11 @@ void Chunk::distributedWriteLock(const std::string& lock_name) {
         declined = true;
         break;
       }
-      // TODO(tcies) kReading & pulse
+      // TODO(tcies) READ_LOCKED case - kReading & pulse - it would be favorable
+      // for peers that have the lock read-locked to respond lest they be
+      // considered disconnected due to timeout. A good solution should be to
+      // have a custom response "reading, please stand by" with lease & pulse to
+      // renew the reading lease
       CHECK(response.isType<Message::kAck>());
     }
     if (declined) {
@@ -179,6 +187,32 @@ void Chunk::handleLockRequest(const PeerId& locker,
                               const std::string& lock_name, Message* response) {
   CHECK_NOTNULL(response);
   DistributedRWLock& lock = getLock(lock_name);
+  std::unique_lock<std::mutex> metalock(lock.mutex);
+  // TODO(tcies) as mentioned before - respond immediately and pulse instead
+  while (lock.state == DistributedRWLock::State::READ_LOCKED) {
+    lock.cv.wait(metalock);
+  }
+  switch (lock.state) {
+    case DistributedRWLock::State::UNLOCKED:
+      lock.state = DistributedRWLock::State::WRITE_LOCKED;
+      lock.holder = locker;
+      response->impose<Message::kAck>();
+      break;
+    case DistributedRWLock::State::READ_LOCKED:
+      LOG(FATAL) << "This should never happen";
+      break;
+    case DistributedRWLock::State::ATTEMPTING:
+      // special case: if address of requester is lower than self, may not
+      // decline. If it is higher, it may decline only if lowest active peer
+      // has already voiced their opinion in favor of us
+      // TODO(tcies) implement
+      CHECK(false);
+      break;
+    case DistributedRWLock::State::WRITE_LOCKED:
+      response->impose<Message::kDecline>();
+      break;
+  }
+  metalock.unlock();
 }
 
 void Chunk::distributedUnlock(const std::string& lock_name) {
@@ -200,9 +234,19 @@ void Chunk::distributedUnlock(const std::string& lock_name) {
       LOG(FATAL) << "Can't abort lock request";
       break;
     case DistributedRWLock::State::WRITE_LOCKED:
-      CHECK(false);
-      // TODO(tcies) implement
-      break;
+      CHECK(lock.holder == PeerId::self());
+      Message request;
+      proto::LockRequest unlock_request;
+      unlock_request.set_table(underlying_table_->name());
+      unlock_request.set_chunk_id(id().hexString());
+      unlock_request.set_from_peer(FLAGS_ip_port);
+      unlock_request.set_type(lock_name);
+      request.impose<kUnlockRequest>(unlock_request);
+      CHECK(peers_.undisputableBroadcast(request));
+      lock.state = DistributedRWLock::State::UNLOCKED;
+      metalock.unlock();
+      lock.cv.notify_one();
+      return;
   }
   metalock.unlock();
 }
@@ -211,9 +255,13 @@ void Chunk::handleUnlockRequest(
     const PeerId& locker, const std::string& lock_name, Message* response) {
   CHECK_NOTNULL(response);
   DistributedRWLock& lock = getLock(lock_name);
+  std::unique_lock<std::mutex> metalock(lock.mutex);
+  CHECK(lock.state == DistributedRWLock::State::WRITE_LOCKED);
+  CHECK(lock.holder == locker);
+  lock.state = DistributedRWLock::State::UNLOCKED;
+  metalock.unlock();
+  lock.cv.notify_one();
 }
-
-const char Chunk::kUnlockRequest[] = "map_api_chunk_unlock_request";
 
 Chunk::DistributedRWLock& Chunk::getLock(const std::string& lock_name) {
   std::unordered_map<std::string, DistributedRWLock>::iterator found =

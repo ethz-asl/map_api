@@ -122,6 +122,7 @@ class Chunk {
     State state;
     int n_readers;
     PeerId holder;
+    // to avoid deadlocks, this mutex may not be locked while awaiting replies
     std::mutex mutex;
     std::condition_variable cv; // in case lock can't be acquired
     DistributedRWLock() : state(State::UNLOCKED), n_readers(0) {}
