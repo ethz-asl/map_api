@@ -147,16 +147,8 @@ void Chunk::distributedWriteLock(const std::string& lock_name) {
     for (const PeerId& peer : peers_.peers()) {
       MapApiHub::instance().request(peer, request, &response);
       if (response.isType<Message::kDecline>()) {
-        // in the general case, a lock may only be declined by the lowest peer.
-        // if it has been accepted by the lowest peer but declined by a higher
-        // peer, this implies that all peers below the declining peer have gone
-        // offline (it is assumed that a peer is visible to all peers iff
-        // online), as the only allowed reason to decline a lock request is
-        // maintaining that another peer holds the lock, which is possible only
-        // if that other peer has contacted all peers lower than the declining
-        // peer.
-        // This also implies that no roll back mechanism is needed, as all peers
-        // that have accepted the lock before must be offline
+        // assuming no connection loss, a lock may only be declined by the peer
+        // with lowest address
         declined = true;
         break;
       }
@@ -166,13 +158,12 @@ void Chunk::distributedWriteLock(const std::string& lock_name) {
       // have a custom response "reading, please stand by" with lease & pulse to
       // renew the reading lease
       CHECK(response.isType<Message::kAck>());
-      // TODO(tcies) handle Message::kCantReach
     }
     if (declined) {
       // if we fail to acquire the lock we return to "conditional wait if not
       // UNLOCKED or ATTEMPTING". Either the state has changed to "locked by
       // other" until then, or we will fail again.
-      // TODO(tcies) would probably make sense to sleep a bit - formalize
+      usleep(10000);
       continue;
     }
     break;
@@ -204,12 +195,15 @@ void Chunk::handleLockRequest(const PeerId& locker,
       break;
     case DistributedRWLock::State::ATTEMPTING:
       // special case: if address of requester is lower than self, may not
-      // decline. If it is higher, it may decline only if lowest active peer
-      // has already voiced their opinion in favor of us (or we are the lowest
-      // active peer).
+      // decline. If it is higher, it may decline only if we are the lowest
+      // active peer.
       // This case occurs if two peers try to lock at the same time, and the
-      // losing peer doesn't know that it's loosing yet.
-      if (locker < PeerId::self()) {
+      // losing peer doesn't know that it's losing yet.
+      if (PeerId::self() < *peers_.peers().begin()) {
+        CHECK(PeerId::self() < locker);
+        response->impose<Message::kDecline>();
+      }
+      else {
         // we DON'T need to roll back possible past requests. The current
         // situation can only happen if the requester has successfully achieved
         // the lock at all low-address peers, otherwise this situation couldn't
@@ -217,18 +211,6 @@ void Chunk::handleLockRequest(const PeerId& locker,
         lock.state = DistributedRWLock::State::WRITE_LOCKED;
         lock.holder = locker;
         response->impose<Message::kAck>();
-        break;
-      }
-      else {
-        if (PeerId::self() < *peers_.peers().begin()) {
-          // TODO(tcies) or if lower not reachable (implement ping)
-          response->impose<Message::kDecline>();
-        }
-        else {
-          lock.state = DistributedRWLock::State::WRITE_LOCKED;
-          lock.holder = locker;
-          response->impose<Message::kAck>();
-        }
       }
       break;
     case DistributedRWLock::State::WRITE_LOCKED:
@@ -258,16 +240,31 @@ void Chunk::distributedUnlock(const std::string& lock_name) {
       break;
     case DistributedRWLock::State::WRITE_LOCKED:
       CHECK(lock.holder == PeerId::self());
-      Message request;
+      Message request, response;
       proto::LockRequest unlock_request;
       unlock_request.set_table(underlying_table_->name());
       unlock_request.set_chunk_id(id().hexString());
       unlock_request.set_from_peer(FLAGS_ip_port);
       unlock_request.set_type(lock_name);
       request.impose<kUnlockRequest>(unlock_request);
-      CHECK(peers_.undisputableBroadcast(request));
-      // TODO(tcies) handle Message::kCantReach
-      lock.state = DistributedRWLock::State::UNLOCKED;
+      // to make sure that possibly concurrent locking works correctly, we
+      // need to unlock in reverse order of locking, i.e. we must ensure that
+      // if peer with address A considers the lock unlocked, any peer B > A
+      // (including the local one) does as well
+      bool self_unlocked = false;
+      if (*peers_.peers().end() < PeerId::self()) {
+        lock.state = DistributedRWLock::State::UNLOCKED;
+        self_unlocked = true;
+      }
+      for (std::set<PeerId>::const_reverse_iterator rit =
+          peers_.peers().rbegin(); rit != peers_.peers().rend(); ++rit) {
+        if (!self_unlocked && *rit < PeerId::self()) {
+          lock.state = DistributedRWLock::State::UNLOCKED;
+          self_unlocked = true;
+        }
+        MapApiHub::instance().request(*rit, request, &response);
+        CHECK(response.isType<Message::kAck>());
+      }
       metalock.unlock();
       lock.cv.notify_one();
       return;
@@ -285,6 +282,7 @@ void Chunk::handleUnlockRequest(
   lock.state = DistributedRWLock::State::UNLOCKED;
   metalock.unlock();
   lock.cv.notify_one();
+  response->impose<Message::kAck>();
 }
 
 Chunk::DistributedRWLock& Chunk::getLock(const std::string& lock_name) {

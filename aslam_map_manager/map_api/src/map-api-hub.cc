@@ -148,9 +148,7 @@ void MapApiHub::broadcast(const Message& request,
   // TODO(tcies) parallelize using std::future
   for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer_pair :
       peers_) {
-    if (!peer_pair.second->request(request, &(*responses)[peer_pair.first])) {
-      (*responses)[peer_pair.first].impose<Message::kCantReach>();
-    }
+    CHECK(peer_pair.second->request(request, &(*responses)[peer_pair.first]));
   }
 }
 
@@ -159,12 +157,7 @@ bool MapApiHub::undisputableBroadcast(const Message& request) {
   broadcast(request, &responses);
   for (const std::pair<PeerId, Message>& response : responses) {
     if (!response.second.isType<Message::kAck>()) {
-      if (response.second.isType<Message::kCantReach>()) {
-        removeUnreachable(response.first);
-      }
-      else {
-        return false;
-      }
+      return false;
     }
   }
   return true;

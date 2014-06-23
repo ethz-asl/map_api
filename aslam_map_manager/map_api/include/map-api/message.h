@@ -33,8 +33,6 @@ class Message : public proto::HubMessage {
   static const char kDecline[];
   static const char kInvalid[];
   static const char kRedundant[];
-  // not a real response, but indicates failed connection
-  static const char kCantReach[];
 };
 
 /**
