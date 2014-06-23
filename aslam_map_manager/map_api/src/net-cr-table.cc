@@ -80,14 +80,63 @@ std::weak_ptr<Chunk> NetCRTable::connectTo(const Id& chunk_id,
 
 void NetCRTable::handleConnectRequest(const Id& chunk_id, const PeerId& peer,
                                       Message* response) {
-  CHECK_NOTNULL(response);
-  // TODO(tcies) lock chunk against removal, monitor style access to chunks
-  ChunkMap::iterator found = active_chunks_.find(chunk_id);
-  if (found == active_chunks_.end()) {
-    response->impose<Message::kDecline>();
-    return;
+  ChunkMap::iterator found;
+  if (routingBasics(chunk_id, response, &found)) {
+    found->second->handleConnectRequest(peer, response);
   }
-  found->second->handleConnectRequest(peer, response);
+}
+
+void NetCRTable::handleInsertRequest(
+    const Id& chunk_id, const Revision& item, Message* response) {
+  ChunkMap::iterator found;
+  if (routingBasics(chunk_id, response, &found)) {
+    found->second->handleInsertRequest(item, response);
+  }
+}
+
+void NetCRTable::handleLeaveRequest(
+    const Id& chunk_id, const PeerId& leaver, Message* response) {
+  ChunkMap::iterator found;
+  if (routingBasics(chunk_id, response, &found)) {
+    found->second->handleLeaveRequest(leaver, response);
+  }
+}
+
+void NetCRTable::handleLockRequest(
+    const Id& chunk_id, const PeerId& locker, Message* response) {
+  ChunkMap::iterator found;
+  if (routingBasics(chunk_id, response, &found)) {
+    found->second->handleLockRequest(locker, response);
+  }
+}
+
+void NetCRTable::handleNewPeerRequest(
+    const Id& chunk_id, const PeerId& peer, const PeerId& sender,
+    Message* response) {
+  ChunkMap::iterator found;
+  if (routingBasics(chunk_id, response, &found)) {
+    found->second->handleNewPeerRequest(peer, sender, response);
+  }
+}
+
+void NetCRTable::handleUnlockRequest(
+    const Id& chunk_id, const PeerId& locker, Message* response) {
+  ChunkMap::iterator found;
+  if (routingBasics(chunk_id, response, &found)) {
+    found->second->handleUnlockRequest(locker, response);
+  }
+}
+
+bool NetCRTable::routingBasics(
+    const Id& chunk_id, Message* response, ChunkMap::iterator* found) {
+  CHECK_NOTNULL(response);
+  CHECK_NOTNULL(found);
+  *found = active_chunks_.find(chunk_id);
+  if (*found == active_chunks_.end()) {
+    response->impose<Message::kDecline>();
+    return false;
+  }
+  return true;
 }
 
 } // namespace map_api

@@ -27,7 +27,7 @@ message NewPeerRequest {
   optional string table = 1;
   optional string chunk_id = 2; // TODO(tcies) chunk identification as message
   optional string new_peer = 3;
-  optional string sender = 4;
+  optional string from_peer = 4;
 }
 
 message ChunkRequestMetadata {

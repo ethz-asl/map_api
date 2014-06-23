@@ -55,8 +55,26 @@ class NetCRTable {
    */
   std::weak_ptr<Chunk> connectTo(const Id& chunk_id,
                                  const PeerId& peer);
+
+  /**
+   * ========================
+   * Diverse request handlers
+   * ========================
+   * TODO(tcies) somehow unify all routing to chunks?
+   */
   void handleConnectRequest(const Id& chunk_id, const PeerId& peer,
                             Message* response);
+  void handleInsertRequest(
+      const Id& chunk_id, const Revision& item, Message* response);
+  void handleLeaveRequest(
+      const Id& chunk_id, const PeerId& leaver, Message* response);
+  void handleLockRequest(
+      const Id& chunk_id, const PeerId& locker, Message* response);
+  void handleNewPeerRequest(
+      const Id& chunk_id, const PeerId& peer, const PeerId& sender,
+      Message* response);
+  void handleUnlockRequest(
+      const Id& chunk_id, const PeerId& locker, Message* response);
 
  private:
   NetCRTable() = default;
@@ -64,8 +82,11 @@ class NetCRTable {
   NetCRTable& operator =(const NetCRTable&) = delete;
   friend class NetTableManager;
 
-  std::unique_ptr<CRTableRAMCache> cache_;
   typedef std::unordered_map<Id, std::shared_ptr<Chunk> > ChunkMap;
+  bool routingBasics(
+      const Id& chunk_id, Message* response, ChunkMap::iterator* found);
+
+  std::unique_ptr<CRTableRAMCache> cache_;
   ChunkMap active_chunks_;
   // TODO(tcies) insert PeerHandler here
 };

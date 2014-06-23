@@ -198,7 +198,7 @@ class Chunk {
    * Handles insert requests
    */
   void handleConnectRequest(const PeerId& peer, Message* response);
-  bool handleInsert(const Revision& item);
+  void handleInsertRequest(const Revision& item, Message* response);
   void handleLeaveRequest(const PeerId& leaver, Message* response);
   void handleLockRequest(const PeerId& locker, Message* response);
   void handleNewPeerRequest(const PeerId& peer, const PeerId& sender,

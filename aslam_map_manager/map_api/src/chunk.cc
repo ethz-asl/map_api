@@ -253,7 +253,7 @@ void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
   new_peer_request.set_table(underlying_table_->name());
   new_peer_request.set_chunk_id(id().hexString());
   new_peer_request.set_new_peer(peer.ipPort());
-  new_peer_request.set_sender(FLAGS_ip_port);
+  new_peer_request.set_from_peer(FLAGS_ip_port);
   request.impose<kNewPeerRequest>(new_peer_request);
   CHECK(peers_.undisputableBroadcast(request));
   // add peer
@@ -261,9 +261,10 @@ void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
   distributedUnlock();
 }
 
-bool Chunk::handleInsert(const Revision& item) {
+void Chunk::handleInsertRequest(const Revision& item, Message* response) {
+  CHECK_NOTNULL(response);
   // TODO(tcies) implement
-  return false;
+  CHECK(false);
 }
 
 void Chunk::handleLeaveRequest(const PeerId& leaver, Message* response) {
