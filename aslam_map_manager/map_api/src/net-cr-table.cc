@@ -73,7 +73,7 @@ std::weak_ptr<Chunk> NetCRTable::connectTo(const Id& chunk_id,
   // list, as it doesn't have itself in its swarm list
   connect_response.add_peer_address(peer.ipPort());
   std::shared_ptr<Chunk> chunk(new Chunk);
-  CHECK(chunk->init(chunk_id, connect_response, cache_.get()));
+  CHECK(chunk->init(chunk_id, connect_response, peer, cache_.get()));
   active_chunks_[chunk_id] = chunk;
   return std::weak_ptr<Chunk>(chunk);
 }

@@ -23,9 +23,15 @@ message ConnectResponse {
   repeated string serialized_revision = 2; // All revisions in chunk (to change)
 }
 
-message LockRequest {
+message NewPeerRequest {
+  optional string table = 1;
+  optional string chunk_id = 2; // TODO(tcies) chunk identification as message
+  optional string new_peer = 3;
+  optional string sender = 4;
+}
+
+message ChunkRequestMetadata {
   required string table = 1;
   required string chunk_id = 2; // TODO(tcies) chunk identification as message
   required string from_peer = 3; // TODO(tcies) should be message meta
-  required string type = 4; // TODO(tcies) all optional
 }

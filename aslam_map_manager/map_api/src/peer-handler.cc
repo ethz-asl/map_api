@@ -25,6 +25,12 @@ const std::set<PeerId>& PeerHandler::peers() const {
   return peers_;
 }
 
+void PeerHandler::remove(const PeerId& peer) {
+  std::set<PeerId>::iterator found = peers_.find(peer);
+  CHECK(found != peers_.end());
+  peers_.erase(peer);
+}
+
 void PeerHandler::request(
     const PeerId& peer, const Message& request,
     Message* response) {

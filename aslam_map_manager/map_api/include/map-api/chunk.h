@@ -75,7 +75,7 @@ class Chunk {
    */
   bool init(const Id& id, CRTableRAMCache* underlying_table);
   bool init(const Id& id, const proto::ConnectResponse& connect_response,
-            CRTableRAMCache* underlying_table);
+            const PeerId& adder, CRTableRAMCache* underlying_table);
   /**
    * Returns own identification
    */
@@ -86,6 +86,9 @@ class Chunk {
   bool insert(const Revision& item);
 
   int peerSize() const;
+
+  void leave();
+
   /**
    * Requests all peers in MapApiCore to participate in a given chunk.
    * Returns how many peers accepted participation.
@@ -100,9 +103,9 @@ class Chunk {
    */
   int requestParticipation() const;
 
-  void handleConnectRequest(const PeerId& peer, Message* response);
-
+  static const char kLeaveRequest[];
   static const char kLockRequest[];
+  static const char kNewPeerRequest[];
   static const char kUnlockRequest[];
 
  private:
@@ -133,7 +136,7 @@ class Chunk {
    * defers distributed write lock requests until unlocking or denies them
    * altogether.
    */
-  void distributedReadLock(const std::string& lock_name);
+  void distributedReadLock();
   /**
    * Acquiring write locks happens over the network: Unless the caller knows
    * that the lock is held by some other peer, a lock request is broadcast to
@@ -174,21 +177,16 @@ class Chunk {
    * TODO(tcies) define timeout after which the lock is released automatically
    * TODO(tcies) option to renew lock if operations take a long time
    */
-  void distributedWriteLock(const std::string& lock_name);
-  void handleLockRequest(const PeerId& locker, const std::string& lock_name,
-                         Message* response);
+  void distributedWriteLock();
 
   /**
    * Unlocking a lock should be coupled to sending the updated data TODO(tcies)
    * This would ensure that all peers can satisfy 1) and 2) of the
    * aforementioned contract.
    */
-  void distributedUnlock(const std::string& lock_name);
-  void handleUnlockRequest(const PeerId& locker, const std::string& lock_name,
-                           Message* response);
+  void distributedUnlock();
 
-  DistributedRWLock& getLock(const std::string& lock_name);
-  const DistributedRWLock& getLock(const std::string& lock_name) const;
+  void fillMetadata(proto::ChunkRequestMetadata* destination);
 
   /**
    * ===================================================================
@@ -199,15 +197,19 @@ class Chunk {
   /**
    * Handles insert requests
    */
+  void handleConnectRequest(const PeerId& peer, Message* response);
   bool handleInsert(const Revision& item);
+  void handleLeaveRequest(const PeerId& leaver, Message* response);
+  void handleLockRequest(const PeerId& locker, Message* response);
+  void handleNewPeerRequest(const PeerId& peer, const PeerId& sender,
+                            Message* response);
+  void handleUnlockRequest(const PeerId& locker, Message* response);
 
   Id id_;
   PeerHandler peers_;
   CRTableRAMCache* underlying_table_;
-
-  std::unordered_map<std::string, std::unique_ptr<DistributedRWLock> > locks_;
-  static const std::string kJoinLock;
-  static const std::string kUpdateLock;
+  DistributedRWLock lock_;
+  bool relinquished_ = false;
 };
 
 } //namespace map_api
