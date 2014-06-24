@@ -37,7 +37,7 @@ bool Peer::request(const Message& request, Message* response) {
       std::lock_guard<std::mutex> lock(socket_mutex_);
       CHECK(socket_.send(message));
       if (!socket_.recv(&message)) {
-        LOG(WARNING) << "Request " << request.DebugString() << " to " <<
+        LOG(FATAL) << "Request " << request.DebugString() << " to " <<
             address() << " timed out!";
         return false;
       }

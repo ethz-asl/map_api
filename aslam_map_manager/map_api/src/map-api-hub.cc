@@ -21,12 +21,6 @@ std::unordered_map<std::string,
 std::function<void(const std::string&, Message*)> >
 MapApiHub::handlers_;
 
-MapApiHub::MapApiHub() : terminate_(false) {}
-
-MapApiHub::~MapApiHub() {
-  kill();
-}
-
 bool MapApiHub::init(const std::string &ipPort) {
   terminate_ = false;
   // Handlers must be initialized before handler thread is started
@@ -104,6 +98,19 @@ void MapApiHub::kill() {
   discovery_.leave();
 }
 
+bool MapApiHub::ackRequest(const PeerId& peer, const Message& request) {
+  Message response;
+  this->request(peer, request, &response);
+  return response.isType<Message::kAck>();
+}
+
+void MapApiHub::getPeers(std::set<PeerId>* destination) const {
+  CHECK_NOTNULL(destination);
+  for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer : peers_) {
+    destination->insert(peer.first);
+  }
+}
+
 int MapApiHub::peerSize() {
   int size;
   std::lock_guard<std::mutex> lock(peer_mutex_);
@@ -148,9 +155,7 @@ void MapApiHub::broadcast(const Message& request,
   // TODO(tcies) parallelize using std::future
   for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer_pair :
       peers_) {
-    if (!peer_pair.second->request(request, &(*responses)[peer_pair.first])) {
-      (*responses)[peer_pair.first].impose<Message::kCantReach>();
-    }
+    CHECK(peer_pair.second->request(request, &(*responses)[peer_pair.first]));
   }
 }
 
@@ -159,12 +164,7 @@ bool MapApiHub::undisputableBroadcast(const Message& request) {
   broadcast(request, &responses);
   for (const std::pair<PeerId, Message>& response : responses) {
     if (!response.second.isType<Message::kAck>()) {
-      if (response.second.isType<Message::kCantReach>()) {
-        removeUnreachable(response.first);
-      }
-      else {
-        return false;
-      }
+      return false;
     }
   }
   return true;
@@ -239,7 +239,9 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort) {
     CHECK(handlers_.end() != handler) << "Handler for message type " <<
         query.type() << " not registered";
     Message response;
+    VLOG(3) << PeerId::self() << " received request " << query.type();
     handler->second(query.serialized(), &response);
+    VLOG(3) << PeerId::self() << " handled request " << query.type();
     std::string serialized_response = response.SerializeAsString();
     zmq::message_t response_message(serialized_response.size());
     memcpy((void *) response_message.data(), serialized_response.c_str(),

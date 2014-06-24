@@ -111,9 +111,9 @@ class MultiprocessTest : public ::testing::Test, public map_api::CoreTester {
 
   virtual void TearDown() {
     if (getSubprocessId() == 0) {
-      harvest();
       // explicit kill for core in order to carry nothing over to next test
       map_api::MapApiCore::instance().kill();
+      harvest();
     }
   }
  private:

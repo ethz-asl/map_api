@@ -32,6 +32,8 @@ class PeerHandler {
    * addresses?
    */
   const std::set<PeerId>& peers() const;
+
+  void remove(const PeerId& peer);
   /**
    * Sends request to specified peer. If peer not among peers_, adds it.
    */

@@ -8,6 +8,11 @@ namespace map_api {
 class Message : public proto::HubMessage {
  public:
   /**
+   * Imposes Message::kAck on the message. Shorthand, as this is expected to
+   * be used often.
+   */
+  inline void ack();
+  /**
    * Templated on type denomination because we might want to do different things
    * with the same payload type. Because this is templated on a const char*, the
    * template matches only if the pointer matches: This is great because it
@@ -33,8 +38,6 @@ class Message : public proto::HubMessage {
   static const char kDecline[];
   static const char kInvalid[];
   static const char kRedundant[];
-  // not a real response, but indicates failed connection
-  static const char kCantReach[];
 };
 
 /**
