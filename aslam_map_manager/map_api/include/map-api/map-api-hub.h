@@ -35,11 +35,19 @@ class MapApiHub final {
    * Initialize hub with given IP and port
    */
   bool init(const std::string &ipPort);
-  ~MapApiHub();
   /**
    * Re-enter server thread, unbind
    */
   void kill();
+  /**
+   * Same as request(), but expects Message::kAck as response and returns false
+   * if something else is received
+   */
+  bool ackRequest(const PeerId& peer, const Message& request);
+  /**
+   * Lists the addresses of connected peers, ordered set for user convenience
+   */
+  void getPeers(std::set<PeerId>* destination) const;
   /**
    * Get amount of peers
    */
@@ -89,7 +97,7 @@ class MapApiHub final {
   /**
    * Constructor: Performs discovery, fetches metadata and loads into database
    */
-  MapApiHub();
+  MapApiHub() = default;
   /**
    * Removes the peer, assuming that the connection to it failed.
    */
@@ -102,7 +110,7 @@ class MapApiHub final {
   std::mutex condVarMutex_;
   std::condition_variable listenerStatus_;
   volatile bool listenerConnected_;
-  volatile bool terminate_;
+  volatile bool terminate_ = false;
 
   std::unique_ptr<zmq::context_t> context_;
   /**

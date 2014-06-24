@@ -74,8 +74,8 @@ class Chunk {
    * modifying chunk data.
    */
   bool init(const Id& id, CRTableRAMCache* underlying_table);
-  bool init(const Id& id, const proto::ConnectResponse& connect_response,
-            const PeerId& adder, CRTableRAMCache* underlying_table);
+  bool init(const Id& id, const proto::InitRequest& init_request,
+            CRTableRAMCache* underlying_table);
   /**
    * Returns own identification
    */
@@ -90,25 +90,34 @@ class Chunk {
   void leave();
 
   /**
-   * Requests all peers in MapApiCore to participate in a given chunk.
-   * Returns how many peers accepted participation.
-   * For the time being this causes the peers to send an independent connect
-   * request, which should be handled by the requester before this function
-   * returns (in the handler thread).
-   * TODO(tcies) down the road, request only table peers?
-   * TODO(tcies) ability to respond with a request, instead of sending an
-   * independent one?
-   * TODO(tcies) listing for peers that would be glad to participate in new
-   * chunks
+   * Requests all peers in MapApiHub to participate in a given chunk.
+   * This write-locks the chunk and directly sends init requests to the affected
+   * peers. Those that respond with ACK are added to the swarm and the chunk
+   * is unlocked.
    */
-  int requestParticipation() const;
+  int requestParticipation();
 
+  static const char kConnectRequest[];
+  static const char kInitRequest[];
+  static const char kInsertRequest[];
   static const char kLeaveRequest[];
   static const char kLockRequest[];
   static const char kNewPeerRequest[];
   static const char kUnlockRequest[];
 
  private:
+  /**
+   * Adds a peer to the chunk swarm by sending it an init request. Assumes
+   * lock_ is write-locked. I.e., this function is intended to be called from
+   * addPeer() and handleConnectRequest().
+   * This function MAY NOT be executed in parallel  for multiple peers, as each
+   * new peer must be immediately informed about the addresses of the full
+   * swarm. This is enforced by the add_peer_mutex.
+   * Also, while this function verifies that the chunk is locked at the
+   * beginning of execution, another thread MAY NOT unlock the chunk. This is
+   * enforced by having distributedUnlock() lock add_peer_mutex_.
+   */
+  bool addPeer(const PeerId& peer);
   /**
    * Distributed RW lock structure. Because it is distributed, unlocking from
    * a remote peer can potentially be handled by a different thread than the
@@ -189,6 +198,13 @@ class Chunk {
   void fillMetadata(proto::ChunkRequestMetadata* destination);
 
   /**
+   * Returns true iff lock status is WRITE_LOCKED and lock holder is self.
+   */
+  bool isWriter();
+
+  void prepareInitRequest(Message* request);
+
+  /**
    * ===================================================================
    * Handles for ChunkManager requests that are addressed at this Chunk.
    * ===================================================================
@@ -209,6 +225,7 @@ class Chunk {
   PeerHandler peers_;
   CRTableRAMCache* underlying_table_;
   DistributedRWLock lock_;
+  std::mutex add_peer_mutex_;
   bool relinquished_ = false;
 };
 

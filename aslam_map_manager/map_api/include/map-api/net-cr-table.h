@@ -15,7 +15,6 @@ class NetCRTable {
   static const std::string kChunkIdField;
 
   bool init(std::unique_ptr<TableDescriptor>* descriptor);
-  const std::string& name() const;
 
   // INSERTION
   std::shared_ptr<Revision> getTemplate() const;
@@ -56,6 +55,8 @@ class NetCRTable {
   std::weak_ptr<Chunk> connectTo(const Id& chunk_id,
                                  const PeerId& peer);
 
+  void leaveAllChunks();
+
   /**
    * ========================
    * Diverse request handlers
@@ -64,6 +65,8 @@ class NetCRTable {
    */
   void handleConnectRequest(const Id& chunk_id, const PeerId& peer,
                             Message* response);
+  void handleInitRequest(
+      const proto::InitRequest& request, Message* response);
   void handleInsertRequest(
       const Id& chunk_id, const Revision& item, Message* response);
   void handleLeaveRequest(

@@ -29,28 +29,18 @@ class NetTableManager {
    */
   static void handleConnectRequest(const std::string& serialized_request,
                                    Message* response);
-  static const char kConnectRequest[];
-  static const char kConnectResponse[];
-
   static void handleFindRequest(const std::string& serialized_request,
                                 Message* response);
+  static void handleInitRequest(const std::string& serialized_request,
+                                  Message* response);
   static void handleInsertRequest(const std::string& serialized_request,
                                   Message* response);
-  static const char kInsertRequest[]; // request type
-  static const char kChunkNotOwned[]; // response type, also has kAck
-
   static void handleLeaveRequest(const std::string& serialized_request,
                                  Message* response);
   static void handleLockRequest(const std::string& serialized_request,
                                 Message* response);
   static void handleNewPeerRequest(const std::string& serialized_request,
                                    Message* response);
-
-  static void handleParticipationRequest(const std::string& serialized_request,
-                                         Message* response);
-  static const char kParticipationRequest[]; // request type
-  // response types: Message::kAck, Message::kDecline
-
   static void handleUnlockRequest(const std::string& serialized_request,
                                   Message* response);
 
@@ -64,23 +54,23 @@ class NetTableManager {
   typedef std::unordered_map<std::string, std::unique_ptr<NetCRTable> >
   TableMap;
 
-   static bool routeChunkMetadataRequestOperations(
-       const std::string& serialized_request, Message* response,
-       TableMap::iterator* found, Id* chunk_id, PeerId* peer);
+  static bool routeChunkMetadataRequestOperations(
+      const std::string& serialized_request, Message* response,
+      TableMap::iterator* found, Id* chunk_id, PeerId* peer);
 
-   template<typename RequestType>
-   static bool routeChunkRequestOperations(
-       const RequestType& request, Message* response,
-       TableMap::iterator* found);
+  template<typename RequestType>
+  static bool routeChunkRequestOperations(
+      const RequestType& request, Message* response,
+      TableMap::iterator* found);
 
-   /**
-    * This function is necessary to keep MapApiCore out of the inlined
-    * routeChunkRequestOperations(), to avoid circular includes.
-    */
-   static bool findTable(const std::string& table_name,
-                         TableMap::iterator* found);
+  /**
+   * This function is necessary to keep MapApiCore out of the inlined
+   * routeChunkRequestOperations(), to avoid circular includes.
+   */
+  static bool findTable(const std::string& table_name,
+                        TableMap::iterator* found);
 
-   TableMap tables_;
+  TableMap tables_;
 };
 
 } /* namespace map_api */

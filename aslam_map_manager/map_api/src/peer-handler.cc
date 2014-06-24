@@ -27,7 +27,14 @@ const std::set<PeerId>& PeerHandler::peers() const {
 
 void PeerHandler::remove(const PeerId& peer) {
   std::set<PeerId>::iterator found = peers_.find(peer);
-  CHECK(found != peers_.end());
+  if (found == peers_.end()) {
+    std::stringstream report;
+    report << "Removing peer " << peer << " failed. Peers are:" << std::endl;
+    for (const PeerId& existing : peers_) {
+      report << existing << ", ";
+    }
+    LOG(FATAL) << report.str();
+  }
   peers_.erase(peer);
 }
 

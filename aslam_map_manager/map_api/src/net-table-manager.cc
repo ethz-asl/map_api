@@ -7,17 +7,17 @@ namespace map_api {
 
 void NetTableManager::init() {
   MapApiHub::instance().registerHandler(
-      kConnectRequest, handleConnectRequest);
+      Chunk::kConnectRequest, handleConnectRequest);
   MapApiHub::instance().registerHandler(
-      kInsertRequest, handleInsertRequest);
+      Chunk::kInitRequest, handleInitRequest);
+  MapApiHub::instance().registerHandler(
+      Chunk::kInsertRequest, handleInsertRequest);
   MapApiHub::instance().registerHandler(
       Chunk::kLeaveRequest, handleLeaveRequest);
   MapApiHub::instance().registerHandler(
       Chunk::kLockRequest, handleLockRequest);
   MapApiHub::instance().registerHandler(
       Chunk::kNewPeerRequest, handleNewPeerRequest);
-  MapApiHub::instance().registerHandler(
-      kParticipationRequest, handleParticipationRequest);
   MapApiHub::instance().registerHandler(
       Chunk::kUnlockRequest, handleUnlockRequest);
 }
@@ -46,29 +46,12 @@ const NetCRTable& NetTableManager::getTable(const std::string& name) const {
 }
 
 void NetTableManager::clear() {
+  for(const std::pair<const std::string, std::unique_ptr<NetCRTable> >& table :
+      tables_) {
+    table.second->leaveAllChunks();
+  }
   tables_.clear();
 }
-
-// ======================
-// MESSAGE SPECIFICATIONS
-// ======================
-
-const char NetTableManager::kConnectRequest[] = "map_api_chunk_connect";
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(NetTableManager::kConnectRequest,
-                                     proto::ConnectRequest);
-const char NetTableManager::kConnectResponse[] =
-    "map_api_chunk_connect_response";
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(NetTableManager::kConnectResponse,
-                                     proto::ConnectResponse);
-const char NetTableManager::kParticipationRequest[] =
-    "map_api_chunk_participation";
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(NetTableManager::kParticipationRequest,
-                                     proto::ParticipationRequest);
-const char NetTableManager::kInsertRequest[] = "map_api_chunk_insert";
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(NetTableManager::kInsertRequest,
-                                     proto::InsertRequest);
-const char NetTableManager::kChunkNotOwned[] = "map_api_chunk_not_owned";
-
 
 // ========
 // HANDLERS
@@ -90,6 +73,16 @@ void NetTableManager::handleConnectRequest(const std::string& serialized_request
     return;
   }
   found->second->handleConnectRequest(chunk_id, from_peer, response);
+}
+
+void NetTableManager::handleInitRequest(
+    const std::string& serialized_request, Message* response) {
+  proto::InitRequest request;
+  CHECK(request.ParseFromString(serialized_request));
+  TableMap::iterator found;
+  if (routeChunkRequestOperations(request, response, &found)) {
+    found->second->handleInitRequest(request, response);
+  }
 }
 
 void NetTableManager::handleInsertRequest(
@@ -135,7 +128,7 @@ void NetTableManager::handleLockRequest(
   PeerId peer;
   if (routeChunkMetadataRequestOperations(
       serialized_request, response, &found, &chunk_id, &peer)) {
-    found->second->handleLeaveRequest(chunk_id, peer, response);
+    found->second->handleLockRequest(chunk_id, peer, response);
   }
 }
 void NetTableManager::handleNewPeerRequest(
@@ -157,29 +150,8 @@ void NetTableManager::handleUnlockRequest(
   PeerId peer;
   if (routeChunkMetadataRequestOperations(
       serialized_request, response, &found, &chunk_id, &peer)) {
-    found->second->handleLeaveRequest(chunk_id, peer, response);
+    found->second->handleUnlockRequest(chunk_id, peer, response);
   }
-}
-
-void NetTableManager::handleParticipationRequest(
-    const std::string& serialized_request, Message* response) {
-  CHECK_NOTNULL(response);
-  proto::ParticipationRequest request;
-  CHECK(request.ParseFromString(serialized_request));
-  LOG(INFO) << "Received participation request for table " << request.table()
-                              << " from peer " << request.from_peer();
-  Id chunk_id;
-  CHECK(chunk_id.fromHexString(request.chunk_id()));
-  if (MapApiCore::instance().tableManager().getTable(request.table()).
-      has(chunk_id)) {
-    response->impose<Message::kRedundant>();
-    return;
-  }
-  // what if requested table is not loaded?
-  // TODO(tcies) Load table schema from metatable
-  MapApiCore::instance().tableManager().getTable(request.table()).connectTo(
-      chunk_id, PeerId(request.from_peer()));
-  response->impose<Message::kAck>();
 }
 
 bool NetTableManager::routeChunkMetadataRequestOperations(
