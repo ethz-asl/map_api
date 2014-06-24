@@ -11,13 +11,14 @@
 
 using namespace map_api;
 
-class ChunkTest : public MultiprocessTest {
+class ChunkTest : public MultiprocessTest,
+public ::testing::WithParamInterface<bool> {
  protected:
   virtual void SetUp() {
     MultiprocessTest::SetUp();
     std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
     descriptor->setName(kTableName);
-    MapApiCore::instance().tableManager().addTable(false, &descriptor);
+    MapApiCore::instance().tableManager().addTable(GetParam(), &descriptor);
     table_ = &MapApiCore::instance().tableManager().getTable(kTableName);
   }
 
@@ -25,7 +26,7 @@ class ChunkTest : public MultiprocessTest {
   NetTable* table_;
 };
 
-TEST_F(ChunkTest, NetCRInsert) {
+TEST_P(ChunkTest, NetInsert) {
   std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
   std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
   EXPECT_TRUE(static_cast<bool>(my_chunk));
@@ -34,7 +35,7 @@ TEST_F(ChunkTest, NetCRInsert) {
   EXPECT_TRUE(table_->insert(my_chunk_weak, to_insert.get()));
 }
 
-TEST_F(ChunkTest, ParticipationRequest) {
+TEST_P(ChunkTest, ParticipationRequest) {
   enum SubProcesses {ROOT, A};
   enum Barriers {INIT, DIE};
   if (getSubprocessId() == ROOT) {
@@ -57,7 +58,7 @@ TEST_F(ChunkTest, ParticipationRequest) {
   }
 }
 
-TEST_F(ChunkTest, FullJoinTwice) {
+TEST_P(ChunkTest, FullJoinTwice) {
   enum SubProcesses {ROOT, A, B};
   enum Barriers {ROOT_A_INIT, A_JOINED_B_INIT, B_JOINED, DIE};
   if (getSubprocessId() == ROOT) {
@@ -107,7 +108,7 @@ TEST_F(ChunkTest, FullJoinTwice) {
   }
 }
 
-TEST_F(ChunkTest, RemoteInsert) {
+TEST_P(ChunkTest, RemoteInsert) {
   enum Subprocesses {ROOT, A};
   enum Barriers {INIT, A_JOINED, A_ADDED, DIE};
   if (getSubprocessId() == ROOT) {
@@ -142,5 +143,7 @@ TEST_F(ChunkTest, RemoteInsert) {
     IPC::barrier(DIE, 1);
   }
 }
+
+INSTANTIATE_TEST_CASE_P(Default, ChunkTest, ::testing::Values(true, false));
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT

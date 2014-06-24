@@ -89,6 +89,7 @@ class MultiprocessTest : public ::testing::Test, public map_api::CoreTester {
     mutex.lock();
     std::thread thread(fGetSThread, out_buffer, size, stream, &mutex, &result);
     thread.detach();
+    usleep(10000); // strangely enough, try_lock_for doesn't work in my vbox...
     if (mutex.try_lock_for(std::chrono::milliseconds(1000))) {
       return result;
     }
