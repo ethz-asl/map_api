@@ -147,7 +147,7 @@ bool Chunk::update(Revision* item) {
 
 bool Chunk::addPeer(const PeerId& peer) {
   std::lock_guard<std::mutex> add_peer_lock(add_peer_mutex_);
-  CHECK(isWriter());
+  CHECK(isWriter(PeerId::self()));
   Message request;
   if (peers_.peers().find(peer) != peers_.peers().end()) {
     LOG(WARNING) << "Peer already in swarm!";
@@ -344,10 +344,11 @@ void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
 
 void Chunk::handleInsertRequest(const Revision& item, Message* response) {
   CHECK_NOTNULL(response);
-  CHECK(!isWriter()); // an insert request may not happen while another peer
-  // holds the write lock (i.e. inserts must be read-locked). Note that this is
-  // not equivalent to checking state != WRITE_LOCKED, as the state may be
-  // WRITE_LOCKED at some peers while in reality the lock is not write locked:
+  CHECK(!isWriter(PeerId::self())); // an insert request may not happen while
+  // another peer holds the write lock (i.e. inserts must be read-locked). Note
+  // that this is not equivalent to checking state != WRITE_LOCKED, as the state
+  // may be WRITE_LOCKED at some peers while in reality the lock is not write
+  // locked:
   // A lock is only really WRITE_LOCKED when all peers agree that it is.
   // no further locking needed, elegantly
   underlying_table_->patch(item);
