@@ -32,7 +32,7 @@ class NetTableManager {
   static void handleFindRequest(const std::string& serialized_request,
                                 Message* response);
   static void handleInitRequest(const std::string& serialized_request,
-                                  Message* response);
+                                Message* response);
   static void handleInsertRequest(const std::string& serialized_request,
                                   Message* response);
   static void handleLeaveRequest(const std::string& serialized_request,
@@ -42,6 +42,8 @@ class NetTableManager {
   static void handleNewPeerRequest(const std::string& serialized_request,
                                    Message* response);
   static void handleUnlockRequest(const std::string& serialized_request,
+                                  Message* response);
+  static void handleUpdateRequest(const std::string& serialized_request,
                                   Message* response);
 
  private:

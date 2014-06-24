@@ -83,6 +83,9 @@ class NetTable {
       Message* response);
   void handleUnlockRequest(
       const Id& chunk_id, const PeerId& locker, Message* response);
+  void handleUpdateRequest(
+      const Id& chunk_id, const Revision& item, const PeerId& sender,
+      Message* response);
 
  private:
   NetTable() = default;

@@ -20,6 +20,8 @@ void NetTableManager::init() {
       Chunk::kNewPeerRequest, handleNewPeerRequest);
   MapApiHub::instance().registerHandler(
       Chunk::kUnlockRequest, handleUnlockRequest);
+  MapApiHub::instance().registerHandler(
+        Chunk::kUpdateRequest, handleUpdateRequest);
 }
 
 void NetTableManager::addTable(
@@ -140,6 +142,21 @@ void NetTableManager::handleUnlockRequest(
   if (routeChunkMetadataRequestOperations(
       serialized_request, response, &found, &chunk_id, &peer)) {
     found->second->handleUnlockRequest(chunk_id, peer, response);
+  }
+}
+
+void NetTableManager::handleUpdateRequest(
+    const std::string& serialized_request, Message* response) {
+  proto::PatchRequest request;
+  CHECK(request.ParseFromString(serialized_request));
+  TableMap::iterator found;
+  if (routeChunkRequestOperations(request, response, &found)) {
+    Id chunk_id;
+    CHECK(chunk_id.fromHexString(request.chunk_id()));
+    Revision to_insert;
+    CHECK(to_insert.ParseFromString(request.serialized_revision()));
+    PeerId sender(request.from_peer());
+    found->second->handleUpdateRequest(chunk_id, to_insert, sender, response);
   }
 }
 

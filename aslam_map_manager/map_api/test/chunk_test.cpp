@@ -18,11 +18,13 @@ public ::testing::WithParamInterface<bool> {
     MultiprocessTest::SetUp();
     std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
     descriptor->setName(kTableName);
+    descriptor->addField<int>(kFieldName);
     MapApiCore::instance().tableManager().addTable(GetParam(), &descriptor);
     table_ = &MapApiCore::instance().tableManager().getTable(kTableName);
   }
 
   const std::string kTableName = "chunk_test_table";
+  const std::string kFieldName = "chunk_test_field";
   NetTable* table_;
 };
 
@@ -32,6 +34,7 @@ TEST_P(ChunkTest, NetInsert) {
   EXPECT_TRUE(static_cast<bool>(my_chunk));
   std::shared_ptr<Revision> to_insert = table_->getTemplate();
   to_insert->set(CRTable::kIdField, Id::random());
+  to_insert->set(kFieldName, 42);
   EXPECT_TRUE(table_->insert(my_chunk_weak, to_insert.get()));
 }
 
@@ -68,6 +71,7 @@ TEST_P(ChunkTest, FullJoinTwice) {
     EXPECT_TRUE(static_cast<bool>(my_chunk));
     std::shared_ptr<Revision> to_insert = table_->getTemplate();
     to_insert->set(CRTable::kIdField, Id::random());
+    to_insert->set(kFieldName, 42);
     EXPECT_TRUE(table_->insert(my_chunk_weak, to_insert.get()));
 
     IPC::barrier(ROOT_A_INIT, 1);
@@ -137,6 +141,7 @@ TEST_P(ChunkTest, RemoteInsert) {
     chunk_id.fromHexString(chunk_id_string);
     std::shared_ptr<Revision> to_insert = table_->getTemplate();
     to_insert->set(CRTable::kIdField, Id::random());
+    to_insert->set(kFieldName, 42);
     EXPECT_TRUE(table_->insert(table_->getChunk(chunk_id), to_insert.get()));
 
     IPC::barrier(A_ADDED, 1);
@@ -144,6 +149,49 @@ TEST_P(ChunkTest, RemoteInsert) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(Default, ChunkTest, ::testing::Values(true, false));
+TEST_P(ChunkTest, RemoteUpdate) {
+  if (!GetParam()) { // not updateable - just pass test
+    return;
+  }
+  enum Subprocesses {ROOT, A};
+  enum Barriers {INIT, A_JOINED, A_UPDATED, DIE};
+  std::unordered_map<Id, std::shared_ptr<Revision> > results;
+  if (getSubprocessId() == ROOT) {
+    launchSubprocess(A);
+    std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
+    std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
+    EXPECT_TRUE(static_cast<bool>(my_chunk));
+    std::shared_ptr<Revision> to_insert = table_->getTemplate();
+    to_insert->set(CRTable::kIdField, Id::random());
+    to_insert->set(kFieldName, 42);
+    EXPECT_TRUE(table_->insert(my_chunk_weak, to_insert.get()));
+    table_->dumpCache(Time::now(), &results);
+    EXPECT_EQ(1, results.size());
+    EXPECT_TRUE(results.begin()->second->verify(kFieldName, 42));
+    IPC::barrier(INIT, 1);
+
+    my_chunk->requestParticipation();
+    IPC::barrier(A_JOINED, 1);
+    IPC::barrier(A_UPDATED, 1);
+    table_->dumpCache(Time::now(), &results);
+    EXPECT_EQ(1, results.size());
+    EXPECT_TRUE(results.begin()->second->verify(kFieldName, 21));
+
+    IPC::barrier(DIE, 1);
+  }
+  if (getSubprocessId() == A) {
+    IPC::barrier(INIT, 1);
+    IPC::barrier(A_JOINED, 1);
+    table_->dumpCache(Time::now(), &results);
+    EXPECT_EQ(1, results.size());
+    results.begin()->second->set(kFieldName, 21); // only half the truth...
+    EXPECT_TRUE(table_->update(results.begin()->second.get()));
+
+    IPC::barrier(A_UPDATED, 1);
+    IPC::barrier(DIE, 1);
+  }
+}
+
+INSTANTIATE_TEST_CASE_P(Default, ChunkTest, ::testing::Values(false, true));
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT

@@ -79,7 +79,7 @@ bool NetTable::has(const Id& chunk_id) const {
 }
 
 std::weak_ptr<Chunk> NetTable::connectTo(const Id& chunk_id,
-                                           const PeerId& peer) {
+                                         const PeerId& peer) {
   Message request, response;
   // sends request of chunk info to peer
   proto::ConnectRequest connect_request;
@@ -106,7 +106,7 @@ void NetTable::leaveAllChunks() {
 }
 
 void NetTable::handleConnectRequest(const Id& chunk_id, const PeerId& peer,
-                                      Message* response) {
+                                    Message* response) {
   ChunkMap::iterator found;
   if (routingBasics(chunk_id, response, &found)) {
     found->second->handleConnectRequest(peer, response);
@@ -171,6 +171,15 @@ void NetTable::handleUnlockRequest(
   ChunkMap::iterator found;
   if (routingBasics(chunk_id, response, &found)) {
     found->second->handleUnlockRequest(locker, response);
+  }
+}
+
+void NetTable::handleUpdateRequest(
+    const Id& chunk_id, const Revision& item, const PeerId& sender,
+    Message* response) {
+  ChunkMap::iterator found;
+  if (routingBasics(chunk_id, response, &found)) {
+    found->second->handleUpdateRequest(item, sender, response);
   }
 }
 
