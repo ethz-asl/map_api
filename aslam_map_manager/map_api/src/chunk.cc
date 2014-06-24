@@ -71,7 +71,7 @@ Id Chunk::id() const {
 
 bool Chunk::insert(Revision* item) {
   CHECK_NOTNULL(item);
-  item->set(NetCRTable::kChunkIdField, id());
+  item->set(NetTable::kChunkIdField, id());
   proto::PatchRequest insert_request;
   insert_request.set_table(underlying_table_->name());
   insert_request.set_chunk_id(id().hexString());
@@ -127,7 +127,7 @@ bool Chunk::update(Revision* item) {
   CHECK_NOTNULL(item);
   CRUTable* table = dynamic_cast<CRUTable*>(underlying_table_);
   CHECK(table);
-  CHECK(item->verify(NetCRTable::kChunkIdField, id()));
+  CHECK(item->verify(NetTable::kChunkIdField, id()));
   proto::PatchRequest update_request;
   update_request.set_table(underlying_table_->name());
   update_request.set_chunk_id(id().hexString());

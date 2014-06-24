@@ -5,7 +5,7 @@
 
 #include "map-api/ipc.h"
 #include "map-api/map-api-core.h"
-#include "map-api/net-cr-table.h"
+#include "map-api/net-table.h"
 
 #include "multiprocess_fixture.cpp"
 
@@ -17,12 +17,12 @@ class ChunkTest : public MultiprocessTest {
     MultiprocessTest::SetUp();
     std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
     descriptor->setName(kTableName);
-    MapApiCore::instance().tableManager().addTable(&descriptor);
+    MapApiCore::instance().tableManager().addTable(false, &descriptor);
     table_ = &MapApiCore::instance().tableManager().getTable(kTableName);
   }
 
   const std::string kTableName = "chunk_test_table";
-  NetCRTable* table_;
+  NetTable* table_;
 };
 
 TEST_F(ChunkTest, NetCRInsert) {
