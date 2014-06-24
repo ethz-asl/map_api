@@ -181,7 +181,7 @@ void Chunk::distributedWriteLock() {
       // for peers that have the lock read-locked to respond lest they be
       // considered disconnected due to timeout. A good solution should be to
       // have a custom response "reading, please stand by" with lease & pulse to
-      // renew the reading lease
+      // renew the reading lease.
       CHECK(response.isType<Message::kAck>());
     }
     if (declined) {
