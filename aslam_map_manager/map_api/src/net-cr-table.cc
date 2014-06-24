@@ -30,13 +30,17 @@ std::weak_ptr<Chunk> NetCRTable::newChunk() {
   return std::weak_ptr<Chunk>(chunk);
 }
 
+std::weak_ptr<Chunk> NetCRTable::getChunk(const Id& chunk_id) {
+  ChunkMap::iterator found = active_chunks_.find(chunk_id);
+  CHECK(found != active_chunks_.end());
+  return std::weak_ptr<Chunk>(found->second);
+}
+
 bool NetCRTable::insert(const std::weak_ptr<Chunk>& chunk, Revision* query) {
   CHECK_NOTNULL(query);
   std::shared_ptr<Chunk> locked_chunk = chunk.lock();
   CHECK(locked_chunk);
-  query->set(kChunkIdField, locked_chunk->id());
-  CHECK(cache_->insert(query));
-  CHECK(locked_chunk->insert(*query)); // TODO(tcies) insert into cache in here
+  CHECK(locked_chunk->insert(query)); // TODO(tcies) insert into cache in here
   return true;
 }
 

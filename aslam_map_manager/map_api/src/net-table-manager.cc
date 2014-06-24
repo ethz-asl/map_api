@@ -87,28 +87,16 @@ void NetTableManager::handleInitRequest(
 
 void NetTableManager::handleInsertRequest(
     const std::string& serialized_request, Message* response) {
-  CHECK_NOTNULL(response);
-  CHECK(false);
-  /** TODO(tcies) re-enable with TableManager
-  // parse message TODO(tcies) centralize process?
-  proto::InsertRequest insert_request;
-  CHECK(insert_request.ParseFromString(serialized_request));
-  // determine addressed chunk
-  Id requested_chunk;
-  CHECK(requested_chunk.fromHexString(insert_request.chunk_id()));
-  ChunkMap::iterator chunk_iterator =
-      instance().active_chunks_.find(requested_chunk);
-  if (chunk_iterator == instance().active_chunks_.end()) {
-    response->impose<kChunkNotOwned>();
-    return;
+  proto::InsertRequest request;
+  CHECK(request.ParseFromString(serialized_request));
+  TableMap::iterator found;
+  if (routeChunkRequestOperations(request, response, &found)) {
+    Id chunk_id;
+    CHECK(chunk_id.fromHexString(request.chunk_id()));
+    Revision to_insert;
+    CHECK(to_insert.ParseFromString(request.serialized_revision()));
+    found->second->handleInsertRequest(chunk_id, to_insert, response);
   }
-  std::shared_ptr<Chunk> addressedChunk = chunk_iterator->second;
-  // insert revision into chunk
-  Revision to_insert;
-  to_insert.ParseFromString(insert_request.serialized_revision());
-  CHECK(addressedChunk->handleInsert(to_insert));
-   */
-  response->impose<Message::kAck>();
 }
 
 void NetTableManager::handleLeaveRequest(
@@ -138,7 +126,7 @@ void NetTableManager::handleNewPeerRequest(
   TableMap::iterator found;
   if (routeChunkRequestOperations(request, response, &found)) {
     Id chunk_id;
-    chunk_id.fromHexString(request.chunk_id());
+    CHECK(chunk_id.fromHexString(request.chunk_id()));
     PeerId new_peer(request.new_peer()), sender(request.from_peer());
     found->second->handleNewPeerRequest(chunk_id, new_peer, sender, response);
   }

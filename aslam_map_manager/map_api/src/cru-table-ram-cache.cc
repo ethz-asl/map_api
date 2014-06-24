@@ -17,6 +17,10 @@ bool CRUTableRAMCache::insertCRUDerived(Revision* query) {
   return sqlite_interface_.insert(*query);
 }
 
+bool CRUTableRAMCache::patchCRDerived(const Revision& query) {
+  return sqlite_interface_.insert(query);
+}
+
 int CRUTableRAMCache::findByRevisionCRUDerived(
     const std::string& key, const Revision& value_holder, const Time& time,
     std::unordered_map<Id, std::shared_ptr<Revision> >* dest) {

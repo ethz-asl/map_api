@@ -107,4 +107,40 @@ TEST_F(ChunkTest, FullJoinTwice) {
   }
 }
 
+TEST_F(ChunkTest, RemoteInsert) {
+  enum Subprocesses {ROOT, A};
+  enum Barriers {INIT, A_JOINED, A_ADDED, DIE};
+  if (getSubprocessId() == ROOT) {
+    launchSubprocess(A);
+    std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
+    std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
+    EXPECT_TRUE(static_cast<bool>(my_chunk));
+    IPC::barrier(INIT, 1);
+
+    my_chunk->requestParticipation();
+    IPC::push(my_chunk->id().hexString());
+    IPC::barrier(A_JOINED, 1);
+    IPC::barrier(A_ADDED, 1);
+
+    std::unordered_map<Id, std::shared_ptr<Revision> > dummy;
+    table_->dumpCache(Time::now(), &dummy);
+    EXPECT_EQ(1, dummy.size());
+    IPC::barrier(DIE, 1);
+  }
+  if (getSubprocessId() == A) {
+    IPC::barrier(INIT, 1);
+    IPC::barrier(A_JOINED, 1);
+    std::string chunk_id_string;
+    Id chunk_id;
+    IPC::pop(&chunk_id_string);
+    chunk_id.fromHexString(chunk_id_string);
+    std::shared_ptr<Revision> to_insert = table_->getTemplate();
+    to_insert->set(CRTable::kIdField, Id::random());
+    EXPECT_TRUE(table_->insert(table_->getChunk(chunk_id), to_insert.get()));
+
+    IPC::barrier(A_ADDED, 1);
+    IPC::barrier(DIE, 1);
+  }
+}
+
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT

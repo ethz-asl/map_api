@@ -67,6 +67,15 @@ bool CRTable::insert(Revision* query) {
   return insertCRDerived(query);
 }
 
+bool CRTable::patch(const Revision& query) {
+  CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
+  std::shared_ptr<Revision> reference = getTemplate();
+  CHECK(reference->structureMatch(query)) << "Bad structure of patch revision";
+  Id id;
+  query.get(kIdField, &id);
+  CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
+  return patchCRDerived(query);
+}
 
 std::shared_ptr<Revision> CRTable::getById(
     const Id &id, const Time& time) {

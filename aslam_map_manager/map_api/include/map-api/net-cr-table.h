@@ -19,6 +19,7 @@ class NetCRTable {
   // INSERTION
   std::shared_ptr<Revision> getTemplate() const;
   std::weak_ptr<Chunk> newChunk();
+  std::weak_ptr<Chunk> getChunk(const Id& chunk_id);
   bool insert(const std::weak_ptr<Chunk>& chunk, Revision* query);
 
   // RETRIEVAL

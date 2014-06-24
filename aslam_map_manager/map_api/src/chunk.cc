@@ -52,8 +52,7 @@ bool Chunk::init(
   for (int i = 0; i < init_request.serialized_revision_size(); ++i) {
     Revision data;
     CHECK(data.ParseFromString((init_request.serialized_revision(i))));
-    CHECK(underlying_table->insert(&data));
-    //TODO(tcies) problematic with CRU tables, table::serialize()
+    CHECK(underlying_table->patch(data));
   }
   std::lock_guard<std::mutex> metalock(lock_.mutex);
   lock_.state = DistributedRWLock::State::WRITE_LOCKED;
@@ -66,13 +65,23 @@ Id Chunk::id() const {
   return id_;
 }
 
-bool Chunk::insert(const Revision& item) {
+bool Chunk::insert(Revision* item) {
+  CHECK_NOTNULL(item);
+  item->set(NetCRTable::kChunkIdField, id());
   proto::InsertRequest insert_request;
+  insert_request.set_table(underlying_table_->name());
   insert_request.set_chunk_id(id().hexString());
-  insert_request.set_serialized_revision(item.SerializeAsString());
+  insert_request.set_from_peer(PeerId::self().ipPort());
   Message request;
+  distributedReadLock(); // avoid adding of new peers while inserting
+  underlying_table_->insert(item);
+  // at this point, insert() has modified the revision such that all default
+  // fields are also set, which allows remote peers to just patch the revision
+  // into their table.
+  insert_request.set_serialized_revision(item->SerializeAsString());
   request.impose<kInsertRequest, proto::InsertRequest>(insert_request);
   CHECK(peers_.undisputableBroadcast(request));
+  distributedUnlock();
   return true;
 }
 
@@ -309,8 +318,14 @@ void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
 
 void Chunk::handleInsertRequest(const Revision& item, Message* response) {
   CHECK_NOTNULL(response);
-  // TODO(tcies) implement
-  CHECK(false);
+  CHECK(!isWriter()); // an insert request may not happen while another peer
+  // holds the write lock (i.e. inserts must be read-locked). Note that this is
+  // not equivalent to checking state != WRITE_LOCKED, as the state may be
+  // WRITE_LOCKED at some peers while in reality the lock is not write locked:
+  // A lock is only really WRITE_LOCKED when all peers agree that it is.
+  // no further locking needed, elegantly
+  underlying_table_->patch(item);
+  response->ack();
 }
 
 void Chunk::handleLeaveRequest(const PeerId& leaver, Message* response) {

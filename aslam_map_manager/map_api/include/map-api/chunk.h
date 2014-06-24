@@ -83,7 +83,7 @@ class Chunk {
   /**
    * Insert new item into this chunk: Item gets sent to all peers
    */
-  bool insert(const Revision& item);
+  bool insert(Revision* item);
 
   int peerSize() const;
 
