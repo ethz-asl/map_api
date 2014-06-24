@@ -87,7 +87,7 @@ void NetTableManager::handleInitRequest(
 
 void NetTableManager::handleInsertRequest(
     const std::string& serialized_request, Message* response) {
-  proto::InsertRequest request;
+  proto::PatchRequest request;
   CHECK(request.ParseFromString(serialized_request));
   TableMap::iterator found;
   if (routeChunkRequestOperations(request, response, &found)) {

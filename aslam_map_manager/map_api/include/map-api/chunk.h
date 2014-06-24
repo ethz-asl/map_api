@@ -73,9 +73,9 @@ class Chunk {
    * comments). b needs to perform a lock with its peers just at it would for
    * modifying chunk data.
    */
-  bool init(const Id& id, CRTableRAMCache* underlying_table);
+  bool init(const Id& id, CRTable* underlying_table);
   bool init(const Id& id, const proto::InitRequest& init_request,
-            CRTableRAMCache* underlying_table);
+            CRTable* underlying_table);
   /**
    * Returns own identification
    */
@@ -97,6 +97,12 @@ class Chunk {
    */
   int requestParticipation();
 
+  /**
+   * Update: First locks chunk, then sends update to all peers for patching.
+   * Requires underlying table to be CRU (verified with dynamic cast).
+   */
+  bool update(Revision* item);
+
   static const char kConnectRequest[];
   static const char kInitRequest[];
   static const char kInsertRequest[];
@@ -104,6 +110,7 @@ class Chunk {
   static const char kLockRequest[];
   static const char kNewPeerRequest[];
   static const char kUnlockRequest[];
+  static const char kUpdateRequest[];
 
  private:
   /**
@@ -200,7 +207,7 @@ class Chunk {
   /**
    * Returns true iff lock status is WRITE_LOCKED and lock holder is self.
    */
-  bool isWriter();
+  bool isWriter(const PeerId& peer);
 
   void prepareInitRequest(Message* request);
 
@@ -220,10 +227,12 @@ class Chunk {
   void handleNewPeerRequest(const PeerId& peer, const PeerId& sender,
                             Message* response);
   void handleUnlockRequest(const PeerId& locker, Message* response);
+  void handleUpdateRequest(const Revision& item, const PeerId& sender,
+                           Message* response);
 
   Id id_;
   PeerHandler peers_;
-  CRTableRAMCache* underlying_table_;
+  CRTable* underlying_table_;
   DistributedRWLock lock_;
   std::mutex add_peer_mutex_;
   bool relinquished_ = false;
