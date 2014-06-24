@@ -111,9 +111,14 @@ bool MapApiCore::isInitialized() const {
 }
 
 void MapApiCore::kill() {
+  table_manager_.clear();
   hub_.kill();
   dbSess_.reset();
   initialized_ = false;
+}
+
+MapApiCore::~MapApiCore() {
+  kill(); // TODO(tcies) could fail - require of user to invoke instead?
 }
 
 NetTableManager& MapApiCore::tableManager() {

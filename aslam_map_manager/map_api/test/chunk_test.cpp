@@ -15,7 +15,6 @@ class ChunkTest : public MultiprocessTest {
  protected:
   virtual void SetUp() {
     MultiprocessTest::SetUp();
-    MapApiCore::instance().tableManager().clear();
     std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
     descriptor->setName(kTableName);
     MapApiCore::instance().tableManager().addTable(&descriptor);

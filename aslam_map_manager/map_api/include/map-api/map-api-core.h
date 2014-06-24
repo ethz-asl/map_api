@@ -73,6 +73,7 @@ class MapApiCore final {
    * that takes care of handling requests from other nodes.
    */
   MapApiCore();
+  ~MapApiCore();
   /**
    * Returns a weak pointer to the database session
    */
@@ -105,7 +106,7 @@ class MapApiCore final {
   /**
    * initialized?
    */
-  bool initialized_;
+  bool initialized_ = false;
 };
 
 class CoreTester {

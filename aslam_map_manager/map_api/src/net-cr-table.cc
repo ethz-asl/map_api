@@ -2,7 +2,7 @@
 
 #include <glog/logging.h>
 
-#include "map-api/map-api-hub.h"
+#include "map-api/map-api-core.h"
 #include "map-api/net-table-manager.h"
 
 DECLARE_string(ip_port);
@@ -60,34 +60,104 @@ std::weak_ptr<Chunk> NetCRTable::connectTo(const Id& chunk_id,
   connect_request.set_table(cache_->name());
   connect_request.set_chunk_id(chunk_id.hexString());
   connect_request.set_from_peer(FLAGS_ip_port);
-  request.impose<NetTableManager::kConnectRequest, proto::ConnectRequest>(
+  request.impose<Chunk::kConnectRequest, proto::ConnectRequest>(
       connect_request);
   // TODO(tcies) add to local peer subset instead - peers in ChunkManager?
   // meld ChunkManager and NetCRTable?
   MapApiHub::instance().request(peer, request, &response);
-  CHECK(response.isType<NetTableManager::kConnectResponse>());
-  proto::ConnectResponse connect_response;
-  CHECK(connect_response.ParseFromString(response.serialized()));
-  // receives peer list and data from peer, forwards it to chunk init().
-  // Also need to add the peer we have been communicating with to the swarm
-  // list, as it doesn't have itself in its swarm list
-  connect_response.add_peer_address(peer.ipPort());
-  std::shared_ptr<Chunk> chunk(new Chunk);
-  CHECK(chunk->init(chunk_id, connect_response, cache_.get()));
-  active_chunks_[chunk_id] = chunk;
-  return std::weak_ptr<Chunk>(chunk);
+  CHECK(response.isType<Message::kAck>());
+  ChunkMap::iterator found = active_chunks_.find(chunk_id);
+  CHECK(found != active_chunks_.end());
+  return std::weak_ptr<Chunk>(found->second);
+}
+
+void NetCRTable::leaveAllChunks() {
+  for (const std::pair<const Id, std::shared_ptr<Chunk> >& chunk :
+      active_chunks_) {
+    chunk.second->leave();
+  }
+  active_chunks_.clear();
 }
 
 void NetCRTable::handleConnectRequest(const Id& chunk_id, const PeerId& peer,
                                       Message* response) {
+  ChunkMap::iterator found;
+  if (routingBasics(chunk_id, response, &found)) {
+    found->second->handleConnectRequest(peer, response);
+  }
+}
+
+void NetCRTable::handleInitRequest(
+    const proto::InitRequest& request, Message* response) {
   CHECK_NOTNULL(response);
-  // TODO(tcies) lock chunk against removal, monitor style access to chunks
-  ChunkMap::iterator found = active_chunks_.find(chunk_id);
-  if (found == active_chunks_.end()) {
-    response->impose<Message::kDecline>();
+  LOG(INFO) << "Received init request for table " << request.table() <<
+      " chunk " << request.chunk_id();
+  Id chunk_id;
+  CHECK(chunk_id.fromHexString(request.chunk_id()));
+  if (MapApiCore::instance().tableManager().getTable(request.table()).
+      has(chunk_id)) {
+    response->impose<Message::kRedundant>();
     return;
   }
-  found->second->handleConnectRequest(peer, response);
+  std::shared_ptr<Chunk> chunk = std::shared_ptr<Chunk>(new Chunk);
+  CHECK(chunk->init(chunk_id, request, cache_.get()));
+  active_chunks_[chunk_id] = chunk;
+  LOG(INFO) << PeerId::self() << " now has " << active_chunks_.size() <<
+      " chunks in table " << cache_->name();
+  response->impose<Message::kAck>();
+}
+
+void NetCRTable::handleInsertRequest(
+    const Id& chunk_id, const Revision& item, Message* response) {
+  ChunkMap::iterator found;
+  if (routingBasics(chunk_id, response, &found)) {
+    found->second->handleInsertRequest(item, response);
+  }
+}
+
+void NetCRTable::handleLeaveRequest(
+    const Id& chunk_id, const PeerId& leaver, Message* response) {
+  ChunkMap::iterator found;
+  if (routingBasics(chunk_id, response, &found)) {
+    found->second->handleLeaveRequest(leaver, response);
+  }
+}
+
+void NetCRTable::handleLockRequest(
+    const Id& chunk_id, const PeerId& locker, Message* response) {
+  ChunkMap::iterator found;
+  if (routingBasics(chunk_id, response, &found)) {
+    found->second->handleLockRequest(locker, response);
+  }
+}
+
+void NetCRTable::handleNewPeerRequest(
+    const Id& chunk_id, const PeerId& peer, const PeerId& sender,
+    Message* response) {
+  ChunkMap::iterator found;
+  if (routingBasics(chunk_id, response, &found)) {
+    found->second->handleNewPeerRequest(peer, sender, response);
+  }
+}
+
+void NetCRTable::handleUnlockRequest(
+    const Id& chunk_id, const PeerId& locker, Message* response) {
+  ChunkMap::iterator found;
+  if (routingBasics(chunk_id, response, &found)) {
+    found->second->handleUnlockRequest(locker, response);
+  }
+}
+
+bool NetCRTable::routingBasics(
+    const Id& chunk_id, Message* response, ChunkMap::iterator* found) {
+  CHECK_NOTNULL(response);
+  CHECK_NOTNULL(found);
+  *found = active_chunks_.find(chunk_id);
+  if (*found == active_chunks_.end()) {
+    response->impose<Message::kDecline>();
+    return false;
+  }
+  return true;
 }
 
 } // namespace map_api
