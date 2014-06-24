@@ -59,12 +59,15 @@ TEST_F(ChunkTest, ParticipationRequest) {
 
 TEST_F(ChunkTest, FullJoinTwice) {
   enum SubProcesses {ROOT, A, B};
-  enum Barriers {ROOT_A_INIT, A_JOINED, A_ADDED_B_INIT, B_JOINED, DIE};
+  enum Barriers {ROOT_A_INIT, A_JOINED_B_INIT, B_JOINED, DIE};
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
     std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
     std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
     EXPECT_TRUE(static_cast<bool>(my_chunk));
+    std::shared_ptr<Revision> to_insert = table_->getTemplate();
+    to_insert->set(CRTable::kIdField, Id::random());
+    EXPECT_TRUE(table_->insert(my_chunk_weak, to_insert.get()));
 
     IPC::barrier(ROOT_A_INIT, 1);
 
@@ -72,12 +75,9 @@ TEST_F(ChunkTest, FullJoinTwice) {
     EXPECT_EQ(0, my_chunk->peerSize());
     EXPECT_EQ(1, my_chunk->requestParticipation());
     EXPECT_EQ(1, my_chunk->peerSize());
-
-    IPC::barrier(A_JOINED, 1);
-
     launchSubprocess(B);
 
-    IPC::barrier(A_ADDED_B_INIT, 2);
+    IPC::barrier(A_JOINED_B_INIT, 2);
 
     EXPECT_EQ(2, MapApiHub::instance().peerSize());
     EXPECT_EQ(1, my_chunk->peerSize());
@@ -90,14 +90,19 @@ TEST_F(ChunkTest, FullJoinTwice) {
   }
   if(getSubprocessId() == A){
     IPC::barrier(ROOT_A_INIT, 1);
-    IPC::barrier(A_JOINED, 1);
-    IPC::barrier(A_ADDED_B_INIT, 2);
+    IPC::barrier(A_JOINED_B_INIT, 2);
+    std::unordered_map<Id, std::shared_ptr<Revision> > dummy;
+    table_->dumpCache(Time::now(), &dummy);
+    EXPECT_EQ(1, dummy.size());
     IPC::barrier(B_JOINED, 2);
     IPC::barrier(DIE, 2);
   }
   if(getSubprocessId() == B){
-    IPC::barrier(A_ADDED_B_INIT, 2);
+    IPC::barrier(A_JOINED_B_INIT, 2);
     IPC::barrier(B_JOINED, 2);
+    std::unordered_map<Id, std::shared_ptr<Revision> > dummy;
+    table_->dumpCache(Time::now(), &dummy);
+    EXPECT_EQ(1, dummy.size());
     IPC::barrier(DIE, 2);
   }
 }
