@@ -19,8 +19,7 @@ bool NetTable::init(
   (*descriptor)->addField<Id>(kChunkIdField);
   if (updateable) {
     cache_.reset(new CRUTableRAMCache);
-  }
-  else {
+  } else {
     cache_.reset(new CRTableRAMCache);
   }
   CHECK(cache_->init(descriptor));
@@ -59,7 +58,6 @@ bool NetTable::update(Revision* query) {
   Id chunk_id;
   query->get(kChunkIdField, &chunk_id);
   std::weak_ptr<Chunk> chunk = getChunk(chunk_id);
-  // TODO(tcies) revisit weak pointer business
   std::shared_ptr<Chunk> locked_chunk = chunk.lock();
   CHECK(locked_chunk);
   CHECK(locked_chunk->update(query));

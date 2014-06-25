@@ -184,7 +184,7 @@ TEST_P(ChunkTest, RemoteUpdate) {
     IPC::barrier(A_JOINED, 1);
     table_->dumpCache(Time::now(), &results);
     EXPECT_EQ(1, results.size());
-    results.begin()->second->set(kFieldName, 21); // only half the truth...
+    results.begin()->second->set(kFieldName, 21);
     EXPECT_TRUE(table_->update(results.begin()->second.get()));
 
     IPC::barrier(A_UPDATED, 1);

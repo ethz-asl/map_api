@@ -85,25 +85,32 @@ class MultiprocessTest : public ::testing::Test, public map_api::CoreTester {
    */
   char* timedFGetS(char* out_buffer, int size, FILE* stream) {
     char* result;
-    std::timed_mutex mutex;
-    mutex.lock();
-    std::thread thread(fGetSThread, out_buffer, size, stream, &mutex, &result);
+    std::mutex mutex;
+    std::condition_variable cv;
+    std::unique_lock<std::mutex> lock(mutex);
+    std::thread thread(
+        fGetSThread, out_buffer, size, stream, &mutex, &cv, &result);
     thread.detach();
-    usleep(10000); // strangely enough, try_lock_for doesn't work in my vbox...
-    if (mutex.try_lock_for(std::chrono::milliseconds(1000))) {
+    if (cv.wait_for(lock, std::chrono::milliseconds(1000)) ==
+        std::cv_status::no_timeout) {
       return result;
-    }
-    else {
+    } else {
       LOG(FATAL) << "Seems like fgets hangs, something went awry with " <<
           "subprocess exit!";
       return NULL;
     }
   }
-  static void fGetSThread(char* out_buffer, int size, FILE* stream,
-                           std::timed_mutex* mutex, char** result) {
+  static void fGetSThread(
+      char* out_buffer, int size, FILE* stream, std::mutex* mutex,
+      std::condition_variable* cv, char** result) {
+    CHECK_NOTNULL(stream);
     CHECK_NOTNULL(mutex);
+    CHECK_NOTNULL(cv);
+    CHECK_NOTNULL(result);
+    std::unique_lock<std::mutex> lock(*mutex);
     *result = fgets(out_buffer, size, stream);
-    mutex->unlock();
+    lock.unlock();
+    cv->notify_one();
   }
 
   virtual void SetUp() {
