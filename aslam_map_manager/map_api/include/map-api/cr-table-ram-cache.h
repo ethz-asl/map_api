@@ -14,11 +14,12 @@ class CRTableRAMCache final : public CRTable {
  public:
   virtual ~CRTableRAMCache();
  private:
-  virtual bool initCRDerived() override;
-  virtual bool insertCRDerived(Revision* query) override;
+  virtual bool initCRDerived() final override;
+  virtual bool insertCRDerived(Revision* query) final override;
+  virtual bool patchCRDerived(const Revision& query) final override;
   virtual int findByRevisionCRDerived(
       const std::string& key, const Revision& valueHolder, const Time& time,
-      std::unordered_map<Id, std::shared_ptr<Revision> >* dest) override;
+      std::unordered_map<Id, std::shared_ptr<Revision> >* dest) final override;
  private:
   SqliteInterface sqlite_interface_;
 };

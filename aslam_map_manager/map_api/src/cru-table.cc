@@ -54,6 +54,10 @@ bool CRUTable::getLatestUpdateTime(const Id& id, Time* time) {
   return true;
 }
 
+CRUTable::Type CRUTable::type() const {
+  return Type::CRU;
+}
+
 const std::string CRUTable::kUpdateTimeField = "update_time";
 const std::string CRUTable::kPreviousTimeField = "previous_time";
 const std::string CRUTable::kNextTimeField = "next_time";

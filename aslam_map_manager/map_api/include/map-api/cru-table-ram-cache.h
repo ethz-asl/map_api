@@ -12,6 +12,7 @@ class CRUTableRAMCache : public CRUTable {
  private:
   virtual bool initCRUDerived() final override;
   virtual bool insertCRUDerived(Revision* query) final override;
+  virtual bool patchCRDerived(const Revision& query) final override;
   virtual int findByRevisionCRUDerived(
       const std::string& key, const Revision& valueHolder, const Time& time,
       std::unordered_map<Id, std::shared_ptr<Revision> >* dest) final override;

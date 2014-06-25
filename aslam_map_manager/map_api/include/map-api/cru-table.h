@@ -30,6 +30,8 @@ class CRUTable : public CRTable {
   bool update(Revision* query);
   bool getLatestUpdateTime(const Id& id, Time* time);
 
+  virtual Type type() const final override;
+
  protected:
   /**
    * Default fields for internal management,
@@ -52,6 +54,7 @@ class CRUTable : public CRTable {
    */
   virtual bool initCRUDerived() = 0;
   virtual bool insertCRUDerived(Revision* query) = 0;
+  virtual bool patchCRDerived(const Revision& query) override = 0;
   virtual int findByRevisionCRUDerived(
       const std::string& key, const Revision& valueHolder, const Time& time,
       std::unordered_map<Id, std::shared_ptr<Revision> >* dest) = 0;

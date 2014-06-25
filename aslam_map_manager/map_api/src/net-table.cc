@@ -1,7 +1,9 @@
-#include "map-api/net-cr-table.h"
+#include "map-api/net-table.h"
 
 #include <glog/logging.h>
 
+#include "map-api/cr-table-ram-cache.h"
+#include "map-api/cru-table-ram-cache.h"
 #include "map-api/map-api-core.h"
 #include "map-api/net-table-manager.h"
 
@@ -9,20 +11,26 @@ DECLARE_string(ip_port);
 
 namespace map_api {
 
-const std::string NetCRTable::kChunkIdField = "chunk_id";
+const std::string NetTable::kChunkIdField = "chunk_id";
 
-bool NetCRTable::init(std::unique_ptr<TableDescriptor>* descriptor) {
+bool NetTable::init(
+    bool updateable, std::unique_ptr<TableDescriptor>* descriptor) {
+  updateable_ = updateable;
   (*descriptor)->addField<Id>(kChunkIdField);
-  cache_.reset(new CRTableRAMCache);
+  if (updateable) {
+    cache_.reset(new CRUTableRAMCache);
+  } else {
+    cache_.reset(new CRTableRAMCache);
+  }
   CHECK(cache_->init(descriptor));
   return true;
 }
 
-std::shared_ptr<Revision> NetCRTable::getTemplate() const {
+std::shared_ptr<Revision> NetTable::getTemplate() const {
   return cache_->getTemplate();
 }
 
-std::weak_ptr<Chunk> NetCRTable::newChunk() {
+std::weak_ptr<Chunk> NetTable::newChunk() {
   Id chunk_id = Id::random();
   std::shared_ptr<Chunk> chunk = std::shared_ptr<Chunk>(new Chunk);
   CHECK(chunk->init(chunk_id, cache_.get()));
@@ -30,17 +38,33 @@ std::weak_ptr<Chunk> NetCRTable::newChunk() {
   return std::weak_ptr<Chunk>(chunk);
 }
 
-bool NetCRTable::insert(const std::weak_ptr<Chunk>& chunk, Revision* query) {
+std::weak_ptr<Chunk> NetTable::getChunk(const Id& chunk_id) {
+  ChunkMap::iterator found = active_chunks_.find(chunk_id);
+  CHECK(found != active_chunks_.end());
+  return std::weak_ptr<Chunk>(found->second);
+}
+
+bool NetTable::insert(const std::weak_ptr<Chunk>& chunk, Revision* query) {
   CHECK_NOTNULL(query);
   std::shared_ptr<Chunk> locked_chunk = chunk.lock();
   CHECK(locked_chunk);
-  query->set(kChunkIdField, locked_chunk->id());
-  CHECK(cache_->insert(query));
-  CHECK(locked_chunk->insert(*query)); // TODO(tcies) insert into cache in here
+  CHECK(locked_chunk->insert(query)); // TODO(tcies) insert into cache in here
   return true;
 }
 
-void NetCRTable::dumpCache(
+bool NetTable::update(Revision* query) {
+  CHECK_NOTNULL(query);
+  CHECK(updateable_);
+  Id chunk_id;
+  query->get(kChunkIdField, &chunk_id);
+  std::weak_ptr<Chunk> chunk = getChunk(chunk_id);
+  std::shared_ptr<Chunk> locked_chunk = chunk.lock();
+  CHECK(locked_chunk);
+  locked_chunk->update(query);
+  return true;
+}
+
+void NetTable::dumpCache(
     const Time& time,
     std::unordered_map<Id, std::shared_ptr<Revision> >* destination) {
   CHECK_NOTNULL(destination);
@@ -48,12 +72,12 @@ void NetCRTable::dumpCache(
   cache_->dump(time, destination);
 }
 
-bool NetCRTable::has(const Id& chunk_id) const {
+bool NetTable::has(const Id& chunk_id) const {
   return active_chunks_.find(chunk_id) != active_chunks_.end();
 }
 
-std::weak_ptr<Chunk> NetCRTable::connectTo(const Id& chunk_id,
-                                           const PeerId& peer) {
+std::weak_ptr<Chunk> NetTable::connectTo(const Id& chunk_id,
+                                         const PeerId& peer) {
   Message request, response;
   // sends request of chunk info to peer
   proto::ConnectRequest connect_request;
@@ -71,7 +95,7 @@ std::weak_ptr<Chunk> NetCRTable::connectTo(const Id& chunk_id,
   return std::weak_ptr<Chunk>(found->second);
 }
 
-void NetCRTable::leaveAllChunks() {
+void NetTable::leaveAllChunks() {
   for (const std::pair<const Id, std::shared_ptr<Chunk> >& chunk :
       active_chunks_) {
     chunk.second->leave();
@@ -79,15 +103,15 @@ void NetCRTable::leaveAllChunks() {
   active_chunks_.clear();
 }
 
-void NetCRTable::handleConnectRequest(const Id& chunk_id, const PeerId& peer,
-                                      Message* response) {
+void NetTable::handleConnectRequest(const Id& chunk_id, const PeerId& peer,
+                                    Message* response) {
   ChunkMap::iterator found;
   if (routingBasics(chunk_id, response, &found)) {
     found->second->handleConnectRequest(peer, response);
   }
 }
 
-void NetCRTable::handleInitRequest(
+void NetTable::handleInitRequest(
     const proto::InitRequest& request, Message* response) {
   CHECK_NOTNULL(response);
   LOG(INFO) << "Received init request for table " << request.table() <<
@@ -107,7 +131,7 @@ void NetCRTable::handleInitRequest(
   response->impose<Message::kAck>();
 }
 
-void NetCRTable::handleInsertRequest(
+void NetTable::handleInsertRequest(
     const Id& chunk_id, const Revision& item, Message* response) {
   ChunkMap::iterator found;
   if (routingBasics(chunk_id, response, &found)) {
@@ -115,7 +139,7 @@ void NetCRTable::handleInsertRequest(
   }
 }
 
-void NetCRTable::handleLeaveRequest(
+void NetTable::handleLeaveRequest(
     const Id& chunk_id, const PeerId& leaver, Message* response) {
   ChunkMap::iterator found;
   if (routingBasics(chunk_id, response, &found)) {
@@ -123,7 +147,7 @@ void NetCRTable::handleLeaveRequest(
   }
 }
 
-void NetCRTable::handleLockRequest(
+void NetTable::handleLockRequest(
     const Id& chunk_id, const PeerId& locker, Message* response) {
   ChunkMap::iterator found;
   if (routingBasics(chunk_id, response, &found)) {
@@ -131,7 +155,7 @@ void NetCRTable::handleLockRequest(
   }
 }
 
-void NetCRTable::handleNewPeerRequest(
+void NetTable::handleNewPeerRequest(
     const Id& chunk_id, const PeerId& peer, const PeerId& sender,
     Message* response) {
   ChunkMap::iterator found;
@@ -140,7 +164,7 @@ void NetCRTable::handleNewPeerRequest(
   }
 }
 
-void NetCRTable::handleUnlockRequest(
+void NetTable::handleUnlockRequest(
     const Id& chunk_id, const PeerId& locker, Message* response) {
   ChunkMap::iterator found;
   if (routingBasics(chunk_id, response, &found)) {
@@ -148,7 +172,16 @@ void NetCRTable::handleUnlockRequest(
   }
 }
 
-bool NetCRTable::routingBasics(
+void NetTable::handleUpdateRequest(
+    const Id& chunk_id, const Revision& item, const PeerId& sender,
+    Message* response) {
+  ChunkMap::iterator found;
+  if (routingBasics(chunk_id, response, &found)) {
+    found->second->handleUpdateRequest(item, sender, response);
+  }
+}
+
+bool NetTable::routingBasics(
     const Id& chunk_id, Message* response, ChunkMap::iterator* found) {
   CHECK_NOTNULL(response);
   CHECK_NOTNULL(found);

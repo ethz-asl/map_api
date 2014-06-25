@@ -1,9 +1,10 @@
 package map_api.proto;
 
-message InsertRequest {
+message PatchRequest {
   required string table = 1;
   required string chunk_id = 2;
-  required bytes serialized_revision = 3;
+  required string from_peer = 3;
+  required bytes serialized_revision = 4;
 }
 
 message ConnectRequest {
@@ -17,7 +18,7 @@ message InitRequest {
   required string chunk_id = 2; // TODO(tcies) chunk identification as message
   required string from_peer = 3;
   repeated string peer_address = 4; // List of peers participating in chunk
-  repeated string serialized_revision = 5; // All revisions in chunk (to change)
+  repeated bytes serialized_revision = 5; // All revisions in chunk (to change)
 }
 
 message NewPeerRequest {
