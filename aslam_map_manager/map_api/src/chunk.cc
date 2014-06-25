@@ -162,8 +162,7 @@ void Chunk::distributedWriteLock() {
         lock_.state != DistributedRWLock::State::ATTEMPTING) {
       lock_.cv.wait(metalock);
     }
-    CHECK(!relinquished_); // TODO(tcies) might actually happen when receiving
-    // connect request while leaving, will need to handle
+    CHECK(!relinquished_);
     lock_.state = DistributedRWLock::State::ATTEMPTING;
     // unlocking metalock to avoid deadlocks when two peers try to acquire the
     // lock
@@ -235,7 +234,7 @@ void Chunk::distributedUnlock() {
       // need to unlock in reverse order of locking, i.e. we must ensure that
       // if peer with address A considers the lock unlocked, any peer B > A
       // (including the local one) does as well
-      if (peers_.size() == 0) {
+      if (peers_.empty()) {
         lock_.state = DistributedRWLock::State::UNLOCKED;
       }
       else {

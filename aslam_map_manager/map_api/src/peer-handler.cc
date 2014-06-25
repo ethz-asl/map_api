@@ -21,6 +21,10 @@ void PeerHandler::broadcast(
   }
 }
 
+bool PeerHandler::empty() const {
+  return peers_.empty();
+}
+
 const std::set<PeerId>& PeerHandler::peers() const {
   return peers_;
 }
