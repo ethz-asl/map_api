@@ -60,7 +60,7 @@ bool NetTable::update(Revision* query) {
   std::weak_ptr<Chunk> chunk = getChunk(chunk_id);
   std::shared_ptr<Chunk> locked_chunk = chunk.lock();
   CHECK(locked_chunk);
-  CHECK(locked_chunk->update(query));
+  locked_chunk->update(query);
   return true;
 }
 

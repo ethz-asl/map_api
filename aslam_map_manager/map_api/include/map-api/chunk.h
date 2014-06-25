@@ -99,9 +99,9 @@ class Chunk {
 
   /**
    * Update: First locks chunk, then sends update to all peers for patching.
-   * Requires underlying table to be CRU (verified with dynamic cast).
+   * Requires underlying table to be CRU (verified).
    */
-  bool update(Revision* item);
+  void update(Revision* item);
 
   static const char kConnectRequest[];
   static const char kInitRequest[];

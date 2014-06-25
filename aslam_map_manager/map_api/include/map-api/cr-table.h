@@ -22,6 +22,7 @@ namespace map_api {
  */
 class CRTable {
  public:
+  enum class Type{CR, CRU};
   /**
    * Default fields
    */
@@ -113,6 +114,8 @@ class CRTable {
     ItemDebugInfo(const std::string& _table, const Id& _id) :
       table(_table), id(_id.hexString()) {}
   } ItemDebugInfo;
+
+  virtual Type type() const;
 
  protected:
   std::unique_ptr<TableDescriptor> descriptor_;
