@@ -1,6 +1,6 @@
 package map_api.proto;
 
-message InsertRequest {
+message PatchRequest {
   required string table = 1;
   required string chunk_id = 2;
   required string from_peer = 3;

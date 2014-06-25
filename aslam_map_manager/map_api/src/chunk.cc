@@ -1,5 +1,6 @@
 #include "map-api/chunk.h"
 
+#include "map-api/cru-table.h"
 #include "map-api/net-table-manager.h"
 #include "map-api/map-api-hub.h"
 #include "core.pb.h"
@@ -16,13 +17,14 @@ const char Chunk::kLeaveRequest[] = "map_api_chunk_leave_request";
 const char Chunk::kLockRequest[] = "map_api_chunk_lock_request";
 const char Chunk::kNewPeerRequest[] = "map_api_chunk_new_peer_request";
 const char Chunk::kUnlockRequest[] = "map_api_chunk_unlock_request";
+const char Chunk::kUpdateRequest[] = "map_api_chunk_update_request";
 
 MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
     Chunk::kConnectRequest, proto::ConnectRequest);
 MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
     Chunk::kInitRequest, proto::InitRequest);
 MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
-    Chunk::kInsertRequest, proto::InsertRequest);
+    Chunk::kInsertRequest, proto::PatchRequest);
 MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
     Chunk::kLeaveRequest, proto::ChunkRequestMetadata);
 MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
@@ -31,8 +33,10 @@ MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
     Chunk::kNewPeerRequest, proto::NewPeerRequest);
 MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
     Chunk::kUnlockRequest, proto::ChunkRequestMetadata);
+MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
+    Chunk::kUpdateRequest, proto::PatchRequest);
 
-bool Chunk::init(const Id& id, CRTableRAMCache* underlying_table) {
+bool Chunk::init(const Id& id, CRTable* underlying_table) {
   CHECK_NOTNULL(underlying_table);
   id_ = id;
   underlying_table_ = underlying_table;
@@ -41,7 +45,7 @@ bool Chunk::init(const Id& id, CRTableRAMCache* underlying_table) {
 
 bool Chunk::init(
     const Id& id, const proto::InitRequest& init_request,
-    CRTableRAMCache* underlying_table) {
+    CRTable* underlying_table) {
   CHECK(init(id, underlying_table));
   // connect to peers from connect_response TODO(tcies) notify of self
   CHECK_GT(init_request.peer_address_size(), 0);
@@ -67,8 +71,8 @@ Id Chunk::id() const {
 
 bool Chunk::insert(Revision* item) {
   CHECK_NOTNULL(item);
-  item->set(NetCRTable::kChunkIdField, id());
-  proto::InsertRequest insert_request;
+  item->set(NetTable::kChunkIdField, id());
+  proto::PatchRequest insert_request;
   insert_request.set_table(underlying_table_->name());
   insert_request.set_chunk_id(id().hexString());
   insert_request.set_from_peer(PeerId::self().ipPort());
@@ -79,7 +83,7 @@ bool Chunk::insert(Revision* item) {
   // fields are also set, which allows remote peers to just patch the revision
   // into their table.
   insert_request.set_serialized_revision(item->SerializeAsString());
-  request.impose<kInsertRequest, proto::InsertRequest>(insert_request);
+  request.impose<kInsertRequest>(insert_request);
   CHECK(peers_.undisputableBroadcast(request));
   distributedUnlock();
   return true;
@@ -119,9 +123,30 @@ int Chunk::requestParticipation() {
   return new_participant_count;
 }
 
+void Chunk::update(Revision* item) {
+  CHECK_NOTNULL(item);
+  CHECK(underlying_table_->type() == CRTable::Type::CRU);
+  CRUTable* table = static_cast<CRUTable*>(underlying_table_);
+  CHECK(item->verify(NetTable::kChunkIdField, id()));
+  proto::PatchRequest update_request;
+  update_request.set_table(underlying_table_->name());
+  update_request.set_chunk_id(id().hexString());
+  update_request.set_from_peer(PeerId::self().ipPort());
+  Message request;
+  distributedWriteLock(); // avoid adding of new peers while inserting
+  table->update(item);
+  // at this point, update() has modified the revision such that all default
+  // fields are also set, which allows remote peers to just patch the revision
+  // into their table.
+  update_request.set_serialized_revision(item->SerializeAsString());
+  request.impose<kUpdateRequest>(update_request);
+  CHECK(peers_.undisputableBroadcast(request));
+  distributedUnlock();
+}
+
 bool Chunk::addPeer(const PeerId& peer) {
   std::lock_guard<std::mutex> add_peer_lock(add_peer_mutex_);
-  CHECK(isWriter());
+  CHECK(isWriter(PeerId::self()));
   Message request;
   if (peers_.peers().find(peer) != peers_.peers().end()) {
     LOG(WARNING) << "Peer already in swarm!";
@@ -271,10 +296,10 @@ void Chunk::fillMetadata(proto::ChunkRequestMetadata* destination) {
   destination->set_from_peer(FLAGS_ip_port);
 }
 
-bool Chunk::isWriter() {
+bool Chunk::isWriter(const PeerId& peer) {
   std::lock_guard<std::mutex> metalock(lock_.mutex);
   return (lock_.state == DistributedRWLock::State::WRITE_LOCKED &&
-      lock_.holder == PeerId::self());
+      lock_.holder == peer);
 }
 
 void Chunk::prepareInitRequest(Message* request) {
@@ -318,10 +343,11 @@ void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
 
 void Chunk::handleInsertRequest(const Revision& item, Message* response) {
   CHECK_NOTNULL(response);
-  CHECK(!isWriter()); // an insert request may not happen while another peer
-  // holds the write lock (i.e. inserts must be read-locked). Note that this is
-  // not equivalent to checking state != WRITE_LOCKED, as the state may be
-  // WRITE_LOCKED at some peers while in reality the lock is not write locked:
+  CHECK(!isWriter(PeerId::self())); // an insert request may not happen while
+  // another peer holds the write lock (i.e. inserts must be read-locked). Note
+  // that this is not equivalent to checking state != WRITE_LOCKED, as the state
+  // may be WRITE_LOCKED at some peers while in reality the lock is not write
+  // locked:
   // A lock is only really WRITE_LOCKED when all peers agree that it is.
   // no further locking needed, elegantly
   underlying_table_->patch(item);
@@ -399,6 +425,15 @@ void Chunk::handleUnlockRequest(const PeerId& locker, Message* response) {
   metalock.unlock();
   lock_.cv.notify_one();
   response->impose<Message::kAck>();
+}
+
+void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
+                                Message* response) {
+  CHECK_NOTNULL(response);
+  CHECK(isWriter(sender));
+  CHECK(underlying_table_->type() == CRTable::Type::CRU);
+  underlying_table_->patch(item);
+  response->ack();
 }
 
 } // namespace map_api
