@@ -103,9 +103,6 @@ class MapApiCore final {
   std::unique_ptr<CRTableRAMCache> metatable_; // TODO(tcies) eventually
   // net table in tableManager
 
-  /**
-   * initialized?
-   */
   bool initialized_ = false;
 };
 

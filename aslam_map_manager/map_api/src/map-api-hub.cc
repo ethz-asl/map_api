@@ -106,6 +106,7 @@ bool MapApiHub::ackRequest(const PeerId& peer, const Message& request) {
 
 void MapApiHub::getPeers(std::set<PeerId>* destination) const {
   CHECK_NOTNULL(destination);
+  destination->clear();
   for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer : peers_) {
     destination->insert(peer.first);
   }

@@ -87,10 +87,16 @@ void Chunk::leave() {
   fillMetadata(&metadata);
   request.impose<kLeaveRequest>(metadata);
   distributedWriteLock();
+  // leaving must be atomic wrt request handlers to prevent conflicts
+  // this must happen after acquring the write lock to avoid deadlocks, should
+  // two peers try to leave at the same time.
+  leave_lock_.writeLock();
   CHECK(peers_.undisputableBroadcast(request));
   relinquished_ = true;
+  leave_lock_.unlock();
   distributedUnlock(); // i.e. must be able to handle unlocks from outside
-  // the swarm. Slightly unclean design maybe but IMO not too disturbing
+  // the swarm. Should this pose problems in the future, we could tie unlocking
+  // to leaving.
   LOG(INFO) << PeerId::self() << " left chunk " << id();
 }
 
@@ -115,7 +121,7 @@ bool Chunk::addPeer(const PeerId& peer) {
   CHECK(isWriter());
   Message request;
   if (peers_.peers().find(peer) != peers_.peers().end()) {
-    LOG(WARNING) << "Peer already in swarm!";
+    LOG(FATAL) << "Peer already in swarm!";
     return false;
   }
   prepareInitRequest(&request);
@@ -132,7 +138,7 @@ bool Chunk::addPeer(const PeerId& peer) {
   new_peer_request.set_from_peer(FLAGS_ip_port);
   request.impose<kNewPeerRequest>(new_peer_request);
   CHECK(peers_.undisputableBroadcast(request));
-  // add peer
+
   peers_.add(peer);
   return true;
 }
@@ -188,7 +194,7 @@ void Chunk::distributedWriteLock() {
       // if we fail to acquire the lock we return to "conditional wait if not
       // UNLOCKED or ATTEMPTING". Either the state has changed to "locked by
       // other" until then, or we will fail again.
-      usleep(10000);
+      usleep(1000);
       continue;
     }
     break;
@@ -210,7 +216,7 @@ void Chunk::distributedUnlock() {
       if (!--lock_.n_readers) {
         lock_.state = DistributedRWLock::State::UNLOCKED;
         metalock.unlock();
-        lock_.cv.notify_one();
+        lock_.cv.notify_all();
         return;
       }
       break;
@@ -249,7 +255,7 @@ void Chunk::distributedUnlock() {
         }
       }
       metalock.unlock();
-      lock_.cv.notify_one();
+      lock_.cv.notify_all();
       return;
   }
   metalock.unlock();
@@ -295,35 +301,64 @@ void Chunk::prepareInitRequest(Message* request) {
 void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
   LOG(INFO) << "Received connect request from " << peer;
   CHECK_NOTNULL(response);
+  leave_lock_.readLock();
+  if (relinquished_) {
+    leave_lock_.unlock();
+    response->decline();
+    return;
+  }
 
   distributedWriteLock();
-  if (peers_.peers().find(peer) != peers_.peers().end()) {
-    distributedUnlock();
-    LOG(FATAL) << "Peer requesting to join already in swarm!";
+  if (peers_.peers().find(peer) == peers_.peers().end()) {
+    CHECK(addPeer(peer)); // peer has no reason to refuse the init request
+  } else {
+    LOG(INFO) << "Peer requesting to join already in swarm, could have been "\
+        "added by some requestParticipation() call.";
   }
-  CHECK(addPeer(peer));
   distributedUnlock();
 
+  leave_lock_.unlock();
   response->ack();
 }
 
 void Chunk::handleInsertRequest(const Revision& item, Message* response) {
   CHECK_NOTNULL(response);
+  leave_lock_.readLock();
+  if (relinquished_) {
+    leave_lock_.unlock();
+    response->decline();
+    return;
+  }
+
   // TODO(tcies) implement
   CHECK(false);
+
+  leave_lock_.unlock();
 }
 
 void Chunk::handleLeaveRequest(const PeerId& leaver, Message* response) {
   CHECK_NOTNULL(response);
+  leave_lock_.readLock();
+  CHECK(!relinquished_); // sending a leave request to a disconnected peer
+  // should be impossible by design
   std::lock_guard<std::mutex> metalock(lock_.mutex);
   CHECK(lock_.state == DistributedRWLock::State::WRITE_LOCKED);
   CHECK_EQ(lock_.holder, leaver);
   peers_.remove(leaver);
+  leave_lock_.unlock();
   response->impose<Message::kAck>();
 }
 
 void Chunk::handleLockRequest(const PeerId& locker, Message* response) {
   CHECK_NOTNULL(response);
+  leave_lock_.readLock();
+  if(relinquished_) {
+    // possible if two peer try to lock for leaving at the same time
+    leave_lock_.unlock();
+    response->decline();
+    return;
+  }
+  // should be impossible by design
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   // TODO(tcies) as mentioned before - respond immediately and pulse instead
   while (lock_.state == DistributedRWLock::State::READ_LOCKED) {
@@ -363,26 +398,35 @@ void Chunk::handleLockRequest(const PeerId& locker, Message* response) {
       break;
   }
   metalock.unlock();
+  leave_lock_.unlock();
 }
 
 void Chunk::handleNewPeerRequest(const PeerId& peer, const PeerId& sender,
                                  Message* response) {
   CHECK_NOTNULL(response);
+  leave_lock_.readLock();
+  CHECK(!relinquished_); // sending a new peer request to a disconnected peer
+  // should be impossible by design
   std::lock_guard<std::mutex> metalock(lock_.mutex);
   CHECK(lock_.state == DistributedRWLock::State::WRITE_LOCKED);
   CHECK_EQ(lock_.holder, sender);
   peers_.add(peer);
+  leave_lock_.unlock();
   response->impose<Message::kAck>();
 }
 
 void Chunk::handleUnlockRequest(const PeerId& locker, Message* response) {
   CHECK_NOTNULL(response);
+  leave_lock_.readLock();
+  CHECK(!relinquished_); // sending a leave request to a disconnected peer
+  // should be impossible by design
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   CHECK(lock_.state == DistributedRWLock::State::WRITE_LOCKED);
   CHECK(lock_.holder == locker);
   lock_.state = DistributedRWLock::State::UNLOCKED;
   metalock.unlock();
-  lock_.cv.notify_one();
+  leave_lock_.unlock();
+  lock_.cv.notify_all();
   response->impose<Message::kAck>();
 }
 

@@ -111,7 +111,7 @@ bool MapApiCore::isInitialized() const {
 }
 
 void MapApiCore::kill() {
-  table_manager_.clear();
+  table_manager_.leaveAllChunks();
   hub_.kill();
   dbSess_.reset();
   initialized_ = false;

@@ -36,7 +36,7 @@ class MapApiHub final {
    */
   bool init(const std::string &ipPort);
   /**
-   * Re-enter server thread, unbind
+   * Re-enter server thread, disconnect from peers, leave discovery
    */
   void kill();
   /**

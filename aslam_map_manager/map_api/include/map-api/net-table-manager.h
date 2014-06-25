@@ -15,9 +15,11 @@ class NetTableManager {
    */
   void init();
   void addTable(std::unique_ptr<TableDescriptor>* descriptor);
+  /**
+   * Can leave dangling reference
+   */
   NetCRTable& getTable(const std::string& name);
-  const NetCRTable& getTable(const std::string& name) const;
-  void clear();
+  void leaveAllChunks();
 
   /**
    * ==========================
@@ -71,6 +73,7 @@ class NetTableManager {
                         TableMap::iterator* found);
 
   TableMap tables_;
+  Poco::RWLock tables_lock_;
 };
 
 } /* namespace map_api */

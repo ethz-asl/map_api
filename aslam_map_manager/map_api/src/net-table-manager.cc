@@ -20,37 +20,52 @@ void NetTableManager::init() {
       Chunk::kNewPeerRequest, handleNewPeerRequest);
   MapApiHub::instance().registerHandler(
       Chunk::kUnlockRequest, handleUnlockRequest);
+  tables_lock_.writeLock();
+  tables_.clear();
+  tables_lock_.unlock();
 }
 
 void NetTableManager::addTable(std::unique_ptr<TableDescriptor>* descriptor) {
-  std::pair<std::unordered_map<std::string, std::unique_ptr<NetCRTable> >::
-  iterator, bool> inserted = tables_.insert(
-      std::make_pair((*descriptor)->name(), std::unique_ptr<NetCRTable>()));
-  CHECK(inserted.second);
-  inserted.first->second.reset(new NetCRTable);
-  CHECK(inserted.first->second->init(descriptor));
+  CHECK_NOTNULL(descriptor);
+  CHECK(*descriptor);
+  tables_lock_.readLock();
+  TableMap::iterator found = tables_.find((*descriptor)->name());
+  if (found != tables_.end()) {
+    LOG(INFO) << "Table already active";
+    NetCRTable* temp = new NetCRTable;
+    temp->init(descriptor);
+    std::shared_ptr<Revision> left = found->second->getTemplate(),
+        right = temp->getTemplate();
+    CHECK(left->structureMatch(*right));
+    delete temp;
+  } else {
+    std::pair<std::unordered_map<std::string, std::unique_ptr<NetCRTable> >::
+    iterator, bool> inserted = tables_.insert(
+        std::make_pair((*descriptor)->name(), std::unique_ptr<NetCRTable>()));
+    CHECK(inserted.second) << tables_.size();
+    inserted.first->second.reset(new NetCRTable);
+    CHECK(inserted.first->second->init(descriptor));
+  }
+  tables_lock_.unlock();
 }
 
 NetCRTable& NetTableManager::getTable(const std::string& name) {
+  tables_lock_.readLock();
   std::unordered_map<std::string, std::unique_ptr<NetCRTable> >::iterator
   found = tables_.find(name);
   // TODO(tcies) load table schema from metatable if not active
   CHECK(found != tables_.end());
-  return *found->second;
-}
-const NetCRTable& NetTableManager::getTable(const std::string& name) const {
-  std::unordered_map<std::string, std::unique_ptr<NetCRTable> >::const_iterator
-  found = tables_.find(name);
-  CHECK(found != tables_.end());
+  tables_lock_.unlock();
   return *found->second;
 }
 
-void NetTableManager::clear() {
+void NetTableManager::leaveAllChunks() {
+  tables_lock_.readLock();
   for(const std::pair<const std::string, std::unique_ptr<NetCRTable> >& table :
       tables_) {
     table.second->leaveAllChunks();
   }
-  tables_.clear();
+  tables_lock_.unlock();
 }
 
 // ========
@@ -66,13 +81,16 @@ void NetTableManager::handleConnectRequest(const std::string& serialized_request
   Id chunk_id;
   CHECK(chunk_id.fromHexString(connect_request.chunk_id()));
   PeerId from_peer(connect_request.from_peer());
+  MapApiCore::instance().tableManager().tables_lock_.readLock();
   std::unordered_map<std::string, std::unique_ptr<NetCRTable> >::iterator
   found = MapApiCore::instance().tableManager().tables_.find(table);
   if (found == MapApiCore::instance().tableManager().tables_.end()) {
+    MapApiCore::instance().tableManager().tables_lock_.unlock();
     response->impose<Message::kDecline>();
     return;
   }
   found->second->handleConnectRequest(chunk_id, from_peer, response);
+  MapApiCore::instance().tableManager().tables_lock_.unlock();
 }
 
 void NetTableManager::handleInitRequest(
@@ -121,6 +139,7 @@ void NetTableManager::handleLeaveRequest(
     found->second->handleLeaveRequest(chunk_id, peer, response);
   }
 }
+
 void NetTableManager::handleLockRequest(
     const std::string& serialized_request, Message* response) {
   TableMap::iterator found;
@@ -131,6 +150,7 @@ void NetTableManager::handleLockRequest(
     found->second->handleLockRequest(chunk_id, peer, response);
   }
 }
+
 void NetTableManager::handleNewPeerRequest(
     const std::string& serialized_request, Message* response) {
   proto::NewPeerRequest request;
@@ -143,6 +163,7 @@ void NetTableManager::handleNewPeerRequest(
     found->second->handleNewPeerRequest(chunk_id, new_peer, sender, response);
   }
 }
+
 void NetTableManager::handleUnlockRequest(
     const std::string& serialized_request, Message* response) {
   TableMap::iterator found;
@@ -169,10 +190,13 @@ bool NetTableManager::routeChunkMetadataRequestOperations(
 bool NetTableManager::findTable(const std::string& table_name,
                                 TableMap::iterator* found) {
   CHECK_NOTNULL(found);
+  MapApiCore::instance().tableManager().tables_lock_.readLock();
   *found = MapApiCore::instance().tableManager().tables_.find(table_name);
   if (*found == MapApiCore::instance().tableManager().tables_.end()) {
+    MapApiCore::instance().tableManager().tables_lock_.unlock();
     return false;
   }
+  MapApiCore::instance().tableManager().tables_lock_.unlock();
   return true;
 }
 
