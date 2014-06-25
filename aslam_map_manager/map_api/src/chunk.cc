@@ -123,10 +123,10 @@ int Chunk::requestParticipation() {
   return new_participant_count;
 }
 
-bool Chunk::update(Revision* item) {
+void Chunk::update(Revision* item) {
   CHECK_NOTNULL(item);
-  CRUTable* table = dynamic_cast<CRUTable*>(underlying_table_);
-  CHECK(table);
+  CHECK(underlying_table_->type() == CRTable::Type::CRU);
+  CRUTable* table = static_cast<CRUTable*>(underlying_table_);
   CHECK(item->verify(NetCRTable::kChunkIdField, id()));
   proto::PatchRequest update_request;
   update_request.set_table(underlying_table_->name());
@@ -142,7 +142,6 @@ bool Chunk::update(Revision* item) {
   request.impose<kUpdateRequest>(update_request);
   CHECK(peers_.undisputableBroadcast(request));
   distributedUnlock();
-  return true;
 }
 
 bool Chunk::addPeer(const PeerId& peer) {
@@ -432,7 +431,7 @@ void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
                                 Message* response) {
   CHECK_NOTNULL(response);
   CHECK(isWriter(sender));
-  CHECK(dynamic_cast<CRUTable*>(underlying_table_));
+  CHECK(underlying_table_->type() == CRTable::Type::CRU);
   underlying_table_->patch(item);
   response->ack();
 }
