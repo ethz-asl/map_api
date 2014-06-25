@@ -30,6 +30,8 @@ class CRUTable : public CRTable {
   bool update(Revision* query);
   bool getLatestUpdateTime(const Id& id, Time* time);
 
+  virtual Type type() const final override;
+
  protected:
   /**
    * Default fields for internal management,

@@ -106,6 +106,10 @@ void CRTable::dump(const Time& time,
   findByRevision("", *valueHolder, time, dest);
 }
 
+CRTable::Type CRTable::type() const {
+  return Type::CR;
+}
+
 std::ostream& operator<< (std::ostream& stream,
                           const CRTable::ItemDebugInfo& info){
   return stream << "For table " << info.table << ", item " << info.id << ": ";
