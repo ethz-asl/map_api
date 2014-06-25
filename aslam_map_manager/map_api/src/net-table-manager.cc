@@ -20,33 +20,36 @@ void NetTableManager::init() {
       Chunk::kNewPeerRequest, handleNewPeerRequest);
   MapApiHub::instance().registerHandler(
       Chunk::kUnlockRequest, handleUnlockRequest);
+  MapApiHub::instance().registerHandler(
+        Chunk::kUpdateRequest, handleUpdateRequest);
 }
 
-void NetTableManager::addTable(std::unique_ptr<TableDescriptor>* descriptor) {
-  std::pair<std::unordered_map<std::string, std::unique_ptr<NetCRTable> >::
+void NetTableManager::addTable(
+    bool updateable, std::unique_ptr<TableDescriptor>* descriptor) {
+  std::pair<std::unordered_map<std::string, std::unique_ptr<NetTable> >::
   iterator, bool> inserted = tables_.insert(
-      std::make_pair((*descriptor)->name(), std::unique_ptr<NetCRTable>()));
+      std::make_pair((*descriptor)->name(), std::unique_ptr<NetTable>()));
   CHECK(inserted.second);
-  inserted.first->second.reset(new NetCRTable);
-  CHECK(inserted.first->second->init(descriptor));
+  inserted.first->second.reset(new NetTable);
+  CHECK(inserted.first->second->init(updateable, descriptor));
 }
 
-NetCRTable& NetTableManager::getTable(const std::string& name) {
-  std::unordered_map<std::string, std::unique_ptr<NetCRTable> >::iterator
+NetTable& NetTableManager::getTable(const std::string& name) {
+  std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = tables_.find(name);
   // TODO(tcies) load table schema from metatable if not active
   CHECK(found != tables_.end());
   return *found->second;
 }
-const NetCRTable& NetTableManager::getTable(const std::string& name) const {
-  std::unordered_map<std::string, std::unique_ptr<NetCRTable> >::const_iterator
+const NetTable& NetTableManager::getTable(const std::string& name) const {
+  std::unordered_map<std::string, std::unique_ptr<NetTable> >::const_iterator
   found = tables_.find(name);
   CHECK(found != tables_.end());
   return *found->second;
 }
 
 void NetTableManager::clear() {
-  for(const std::pair<const std::string, std::unique_ptr<NetCRTable> >& table :
+  for(const std::pair<const std::string, std::unique_ptr<NetTable> >& table :
       tables_) {
     table.second->leaveAllChunks();
   }
@@ -66,7 +69,7 @@ void NetTableManager::handleConnectRequest(const std::string& serialized_request
   Id chunk_id;
   CHECK(chunk_id.fromHexString(connect_request.chunk_id()));
   PeerId from_peer(connect_request.from_peer());
-  std::unordered_map<std::string, std::unique_ptr<NetCRTable> >::iterator
+  std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = MapApiCore::instance().tableManager().tables_.find(table);
   if (found == MapApiCore::instance().tableManager().tables_.end()) {
     response->impose<Message::kDecline>();
@@ -139,6 +142,21 @@ void NetTableManager::handleUnlockRequest(
   if (routeChunkMetadataRequestOperations(
       serialized_request, response, &found, &chunk_id, &peer)) {
     found->second->handleUnlockRequest(chunk_id, peer, response);
+  }
+}
+
+void NetTableManager::handleUpdateRequest(
+    const std::string& serialized_request, Message* response) {
+  proto::PatchRequest request;
+  CHECK(request.ParseFromString(serialized_request));
+  TableMap::iterator found;
+  if (routeChunkRequestOperations(request, response, &found)) {
+    Id chunk_id;
+    CHECK(chunk_id.fromHexString(request.chunk_id()));
+    Revision to_insert;
+    CHECK(to_insert.ParseFromString(request.serialized_revision()));
+    PeerId sender(request.from_peer());
+    found->second->handleUpdateRequest(chunk_id, to_insert, sender, response);
   }
 }
 

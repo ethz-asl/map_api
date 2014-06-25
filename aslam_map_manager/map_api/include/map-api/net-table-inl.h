@@ -1,10 +1,10 @@
-#ifndef MAP_API_NET_CR_TABLE_INL_H_
-#define MAP_API_NET_CR_TABLE_INL_H_
+#ifndef MAP_API_NET_TABLE_INL_H_
+#define MAP_API_NET_TABLE_INL_H_
 
 namespace map_api {
 
 template<typename ValueType>
-int NetCRTable::findFast(
+int NetTable::findFast(
     const std::string& key, const ValueType& value, const Time& time,
     std::unordered_map<Id, std::shared_ptr<Revision> >* dest) {
   CHECK_NOTNULL(dest);
@@ -22,4 +22,4 @@ int NetCRTable::findFast(
 
 } // namespace map_api
 
-#endif /* MAP_API_NET_CR_TABLE_INL_H_ */
+#endif /* MAP_API_NET_TABLE_INL_H_ */

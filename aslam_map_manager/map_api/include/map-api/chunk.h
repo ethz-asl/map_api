@@ -216,7 +216,7 @@ class Chunk {
    * Handles for ChunkManager requests that are addressed at this Chunk.
    * ===================================================================
    */
-  friend class NetCRTable;
+  friend class NetTable;
   /**
    * Handles insert requests
    */
