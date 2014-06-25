@@ -26,6 +26,8 @@ class PeerHandler {
    */
   void broadcast(const Message& request,
                  std::unordered_map<PeerId, Message>* responses);
+
+  bool empty() const;
   /**
    * Allows user to view peers, e.g. for ConnectResponse
    * TODO(simon) is this cheap? What else to fill ConnectResponse with

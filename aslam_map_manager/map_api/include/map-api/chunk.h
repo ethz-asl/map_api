@@ -116,13 +116,17 @@ class Chunk {
   /**
    * Adds a peer to the chunk swarm by sending it an init request. Assumes
    * lock_ is write-locked. I.e., this function is intended to be called from
-   * addPeer() and handleConnectRequest().
+   * handleConnectRequest() and requestParticipation().
    * This function MAY NOT be executed in parallel  for multiple peers, as each
    * new peer must be immediately informed about the addresses of the full
    * swarm. This is enforced by the add_peer_mutex.
    * Also, while this function verifies that the chunk is locked at the
    * beginning of execution, another thread MAY NOT unlock the chunk. This is
    * enforced by having distributedUnlock() lock add_peer_mutex_.
+   * Finally, the peer MAY NOT be already in the swarm. Functions calling this
+   * function should check for that themselves if it is OK by them.
+   * The function returns false iff the peer is not in the swarm but refuses
+   * to join it by responding with Message::kDecline.
    */
   bool addPeer(const PeerId& peer);
   /**
@@ -235,6 +239,7 @@ class Chunk {
   CRTable* underlying_table_;
   DistributedRWLock lock_;
   std::mutex add_peer_mutex_;
+  Poco::RWLock leave_lock_;
   bool relinquished_ = false;
 };
 

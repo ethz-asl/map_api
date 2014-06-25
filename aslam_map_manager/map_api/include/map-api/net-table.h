@@ -53,12 +53,14 @@ class NetTable {
   void dumpCache(
       const Time& time,
       std::unordered_map<Id, std::shared_ptr<Revision> >* destination);
-  bool has(const Id& chunk_id) const;
+  bool has(const Id& chunk_id);
   /**
    * Connects to the given chunk via the given peer.
    */
   std::weak_ptr<Chunk> connectTo(const Id& chunk_id,
                                  const PeerId& peer);
+
+  bool structureMatch(std::unique_ptr<TableDescriptor>* descriptor) const;
 
   void leaveAllChunks();
 
@@ -100,6 +102,7 @@ class NetTable {
   bool updateable_;
   std::unique_ptr<CRTable> cache_;
   ChunkMap active_chunks_;
+  Poco::RWLock active_chunks_lock_;
   // TODO(tcies) insert PeerHandler here
 };
 

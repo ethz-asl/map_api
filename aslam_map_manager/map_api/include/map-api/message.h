@@ -8,10 +8,10 @@ namespace map_api {
 class Message : public proto::HubMessage {
  public:
   /**
-   * Imposes Message::kAck on the message. Shorthand, as this is expected to
-   * be used often.
+   * Message impose shorthands for common messages
    */
   inline void ack();
+  inline void decline();
   /**
    * Templated on type denomination because we might want to do different things
    * with the same payload type. Because this is templated on a const char*, the
