@@ -9,26 +9,24 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-DECLARE_string(ip_port);
+#include "map-api/map-api-hub.h"
 
 namespace map_api {
 
 void Discovery::announce() const {
-  lock();
-  append(FLAGS_ip_port);
-  unlock();
+  append(MapApiHub::instance().ownAddress());
 }
 
 int Discovery::getPeers(std::vector<PeerId>* peers) const {
   CHECK_NOTNULL(peers);
   std::string file_contents;
-  lock();
   getFileContents(&file_contents);
-  unlock();
   std::istringstream discovery_stream(file_contents);
   std::string address;
   while (discovery_stream >> address) {
-    if (address == FLAGS_ip_port || address == "") continue;
+    if (address == MapApiHub::instance().ownAddress() || address == "") {
+      continue;
+    }
     peers->push_back(PeerId(address));
   }
   return peers->size();
@@ -36,15 +34,14 @@ int Discovery::getPeers(std::vector<PeerId>* peers) const {
 
 void Discovery::leave() const {
   std::string file_contents;
-  lock();
   getFileContents(&file_contents);
   size_t position = 0;
-  while ((position = file_contents.find(FLAGS_ip_port + "\n")) !=
-      std::string::npos) {
-    file_contents.replace(position, FLAGS_ip_port.length() + 1, "");
+  while ((position = file_contents.find(
+      MapApiHub::instance().ownAddress() + "\n")) != std::string::npos) {
+    file_contents.replace(position,
+                          MapApiHub::instance().ownAddress().length() + 1, "");
   }
   replace(file_contents);
-  unlock();
 }
 
 void Discovery::append(const std::string& new_content) const {

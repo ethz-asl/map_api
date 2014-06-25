@@ -54,7 +54,6 @@ bool Peer::request(const Message& request, Message* response) {
 
 bool Peer::disconnect() {
   try {
-    LOG(INFO) << "Closing connection to " << address_;
     socket_.close();
   } catch (const zmq::error_t& e) {
     LOG(FATAL) << e.what();

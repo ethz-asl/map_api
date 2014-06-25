@@ -13,8 +13,6 @@
 #include "map-api/net-table-manager.h"
 #include "core.pb.h"
 
-DECLARE_string(ip_port);
-
 namespace map_api {
 
 /**
@@ -38,7 +36,7 @@ class MapApiCore final {
   /**
    * Initializer
    */
-  bool init(const std::string &ipPort);
+  bool init();
   /**
    * Metatable definition TODO(tcies) in TableManager
    */
@@ -88,7 +86,6 @@ class MapApiCore final {
    */
   void ensureMetatable();
 
-  Id owner_;
   /**
    * Session of local database
    */

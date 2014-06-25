@@ -10,8 +10,6 @@
 #include "map-api/ipc.h"
 #include "core.pb.h"
 
-DECLARE_string(ip_port);
-
 namespace map_api {
 
 const char MapApiHub::kDiscovery[] = "map_api_hub_discovery";
@@ -21,7 +19,7 @@ std::unordered_map<std::string,
 std::function<void(const std::string&, Message*)> >
 MapApiHub::handlers_;
 
-bool MapApiHub::init(const std::string &ipPort) {
+bool MapApiHub::init() {
   terminate_ = false;
   // Handlers must be initialized before handler thread is started
   IPC::init(); // TODO(tcies) more apprioprate place for this - gflags style?
@@ -29,7 +27,7 @@ bool MapApiHub::init(const std::string &ipPort) {
   // 1. create own server
   context_.reset(new zmq::context_t());
   listenerConnected_ = false;
-  listener_ = std::thread(listenThread, this, ipPort);
+  listener_ = std::thread(listenThread, this);
   {
     std::unique_lock<std::mutex> lock(condVarMutex_);
     listenerStatus_.wait(lock);
@@ -40,6 +38,7 @@ bool MapApiHub::init(const std::string &ipPort) {
   }
 
   // 2. connect to servers already on network (discovery from file)
+  discovery_.lock();
   std::vector<PeerId> discovery_peers;
   discovery_.getPeers(&discovery_peers);
   peer_mutex_.lock();
@@ -47,7 +46,7 @@ bool MapApiHub::init(const std::string &ipPort) {
     // don't attempt to connect if already connected
     if (peers_.find(peer) != peers_.end()) continue;
 
-    LOG(INFO) << FLAGS_ip_port << ": Found peer " << peer << ", connecting...";
+    //    LOG(INFO) << FLAGS_ip_port << ": Found peer " << peer << ", connecting...";
     std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator inserted =
         peers_.insert(std::make_pair(
             peer, std::unique_ptr<Peer>(new Peer(peer.ipPort(), *context_,
@@ -67,9 +66,10 @@ bool MapApiHub::init(const std::string &ipPort) {
 
   // 4. Announce self to peers (who will not revisit discovery)
   Message announce_self;
-  announce_self.impose<kDiscovery>(ipPort);
+  announce_self.impose<kDiscovery>(self_address_);
   CHECK(undisputableBroadcast(announce_self));
 
+  discovery_.unlock();
   return true;
 }
 
@@ -79,7 +79,6 @@ MapApiHub &MapApiHub::instance() {
 }
 
 void MapApiHub::kill() {
-  LOG(INFO) << "Terminate called in " << FLAGS_ip_port;
   if (terminate_){
     LOG(WARNING) << "Double termination";
     return;
@@ -95,7 +94,9 @@ void MapApiHub::kill() {
   peers_.clear();
   // destroy context
   context_.reset();
+  discovery_.lock();
   discovery_.leave();
+  discovery_.unlock();
 }
 
 bool MapApiHub::ackRequest(const PeerId& peer, const Message& request) {
@@ -117,6 +118,10 @@ int MapApiHub::peerSize() {
   std::lock_guard<std::mutex> lock(peer_mutex_);
   size = peers_.size();
   return size;
+}
+
+const std::string& MapApiHub::ownAddress() const {
+  return self_address_;
 }
 
 bool MapApiHub::registerHandler(
@@ -173,14 +178,14 @@ bool MapApiHub::undisputableBroadcast(const Message& request) {
 
 void MapApiHub::discoveryHandler(const std::string& peer, Message* response) {
   CHECK_NOTNULL(response);
-  LOG(INFO) << "Peer " << peer << " requests discovery, let's "\
-      "connect to it...";
+  //  LOG(INFO) << "Peer " << peer << " requests discovery, let's "\
+  //      "connect to it...";
   // lock peer set lock so we can write without a race condition
   instance().peer_mutex_.lock();
   if (!instance().peers_.insert(
       std::make_pair(PeerId(peer), std::unique_ptr<Peer>(
           new Peer(peer, *instance().context_, ZMQ_REQ)))).second) {
-    LOG(INFO) << peer << " requested discovery, but we have already connected";
+    //    LOG(INFO) << peer << " requested discovery, but we have already connected";
   }
   instance().peer_mutex_.unlock();
   // ack by resend
@@ -196,30 +201,33 @@ void MapApiHub::removeUnreachable(const PeerId& peer) {
   peers_.erase(found);
 }
 
-void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort) {
+void MapApiHub::listenThread(MapApiHub *self) {
   zmq::socket_t server(*(self->context_), ZMQ_REP);
   {
     std::unique_lock<std::mutex> lock(self->condVarMutex_);
-    // server only lives in this thread
-    VLOG(3) << "Bind to " << ipPort;
-    try {
-      server.bind(("tcp://" + ipPort).c_str());
-      self->listenerConnected_ = true;
-      lock.unlock();
-      self->listenerStatus_.notify_one();
+
+    std::mt19937_64 rng(
+        std::chrono::high_resolution_clock::now().time_since_epoch().count());
+    while (true) {
+      int port = 1024 + (rng() % (65536 - 1024));
+      try {
+        std::ostringstream address;
+        address << "127.0.0.1:" << port;
+        server.bind(("tcp://" + address.str()).c_str());
+        self->self_address_ = address.str();
+        break;
+      }
+      catch (const std::exception &e) {
+        port = 1024 + (rng() % (65536 - 1024));
+      }
     }
-    catch (const std::exception &e) {
-      LOG(ERROR) << "Server bind failed with exception \"" << e.what() <<
-          "\", ipPort string was " << ipPort;
-      self->listenerConnected_ = false;
-      lock.unlock();
-      self->listenerStatus_.notify_one();
-      return;
-    }
+    self->listenerConnected_ = true;
+    lock.unlock();
+    self->listenerStatus_.notify_one();
   }
   int timeOutMs = 100;
   server.setsockopt(ZMQ_RCVTIMEO, &timeOutMs, sizeof(timeOutMs));
-  LOG(INFO) << "Server launched on " << ipPort;
+  //  LOG(INFO) << "Server launched on " << ipPort;
 
   while (true) {
     zmq::message_t request;
@@ -250,7 +258,6 @@ void MapApiHub::listenThread(MapApiHub *self, const std::string &ipPort) {
     server.send(response_message);
   }
   server.close();
-  LOG(INFO) << "Listener terminated\n";
 }
 
 }
