@@ -26,7 +26,12 @@ std::string Peer::address() const {
   return address_;
 }
 
-bool Peer::request(const Message& request, Message* response) {
+void Peer::request(const Message& request, Message* response) {
+  CHECK(try_request(request, response)) << "Message " <<
+      request.DebugString() << " timed out!";
+}
+
+bool Peer::try_request(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
   int size = request.ByteSize();
   void* buffer = malloc(size);
@@ -37,8 +42,6 @@ bool Peer::request(const Message& request, Message* response) {
       std::lock_guard<std::mutex> lock(socket_mutex_);
       CHECK(socket_.send(message));
       if (!socket_.recv(&message)) {
-        LOG(FATAL) << "Request " << request.DebugString() << " to " <<
-            address() << " timed out!";
         return false;
       }
     }

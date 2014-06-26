@@ -33,20 +33,12 @@ int Discovery::getPeers(std::vector<PeerId>* peers) const {
 }
 
 void Discovery::leave() const {
-  std::string file_contents;
-  getFileContents(&file_contents);
-  size_t position = 0;
-  while ((position = file_contents.find(
-      MapApiHub::instance().ownAddress() + "\n")) != std::string::npos) {
-    file_contents.replace(position,
-                          MapApiHub::instance().ownAddress().length() + 1, "");
-  }
-  replace(file_contents);
+  remove(PeerId::self());
 }
 
 void Discovery::append(const std::string& new_content) const {
   std::ofstream out(kFileName, std::ios::out | std::ios::app);
-  out << new_content << std::endl;
+  out << new_content << "\n";
   out.close();
 }
 
@@ -62,10 +54,10 @@ void Discovery::getFileContents(std::string* result) const {
   in.close();
 }
 
-void Discovery::lock() const {
-  int fd;
-  while (((fd = open(kLockFileName, O_WRONLY | O_EXCL | O_CREAT, 0)) == -1)
-      && errno == EEXIST) {
+void Discovery::lock() {
+  while (((lock_file_descriptor_ =
+      open(kLockFileName, O_WRONLY | O_EXCL | O_CREAT, 0)) == -1) &&
+      errno == EEXIST) {
     usleep(100);
   }
 }
@@ -76,7 +68,19 @@ void Discovery::replace(const std::string& new_content) const {
   out.close();
 }
 
-void Discovery::unlock() const {
+void Discovery::remove(const PeerId& peer) const {
+  std::string file_contents;
+  getFileContents(&file_contents);
+  size_t position = 0;
+  while ((position = file_contents.find(peer.ipPort() + "\n"))
+      != std::string::npos) {
+    file_contents.replace(position, peer.ipPort().length() + 1, "");
+  }
+  replace(file_contents);
+}
+
+void Discovery::unlock() {
+  CHECK(close(lock_file_descriptor_) != -1);
   CHECK(unlink(kLockFileName) != -1);
 }
 

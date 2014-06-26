@@ -121,7 +121,8 @@ class MapApiHub final {
    * atomic addition of peers.
    */
   std::mutex peer_mutex_;
-  std::unordered_map<PeerId, std::unique_ptr<Peer> > peers_;
+  typedef std::unordered_map<PeerId, std::unique_ptr<Peer> > PeerMap;
+  PeerMap peers_;
   /**
    * Maps message types denominations to handler functions
    */

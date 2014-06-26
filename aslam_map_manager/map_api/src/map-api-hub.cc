@@ -4,6 +4,7 @@
 #include <fstream>
 #include <memory>
 #include <thread>
+#include <unordered_set>
 
 #include <glog/logging.h>
 
@@ -27,6 +28,7 @@ bool MapApiHub::init() {
   // 1. create own server
   context_.reset(new zmq::context_t());
   listenerConnected_ = false;
+  CHECK(peers_.empty());
   listener_ = std::thread(listenThread, this);
   {
     std::unique_lock<std::mutex> lock(condVarMutex_);
@@ -46,11 +48,9 @@ bool MapApiHub::init() {
     // don't attempt to connect if already connected
     if (peers_.find(peer) != peers_.end()) continue;
 
-    //    LOG(INFO) << FLAGS_ip_port << ": Found peer " << peer << ", connecting...";
-    std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator inserted =
-        peers_.insert(std::make_pair(
-            peer, std::unique_ptr<Peer>(new Peer(peer.ipPort(), *context_,
-                                                 ZMQ_REQ)))).first;
+    PeerMap::iterator inserted = peers_.insert(std::make_pair(
+        peer, std::unique_ptr<Peer>(new Peer(peer.ipPort(), *context_,
+                                             ZMQ_REQ)))).first;
     // connection request is sent outside the peer_mutex_ lock to avoid
     // deadlocks where two peers try to connect to each other:
     // P1                           P2
@@ -65,9 +65,25 @@ bool MapApiHub::init() {
   discovery_.announce();
 
   // 4. Announce self to peers (who will not revisit discovery)
-  Message announce_self;
+  Message announce_self, response;
   announce_self.impose<kDiscovery>(self_address_);
-  CHECK(undisputableBroadcast(announce_self));
+  std::unordered_set<PeerId> unreachable;
+  for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer : peers_) {
+    if (!peer.second->try_request(announce_self, &response)) {
+      discovery_.remove(peer.first);
+      unreachable.insert(peer.first);
+    }
+  }
+  // 5. Remove peers that were not reachable
+  if (!unreachable.empty()) {
+    std::lock_guard<std::mutex> lock(peer_mutex_);
+    for (const PeerId& peer : unreachable) {
+      PeerMap::iterator found = peers_.find(peer);
+      CHECK(found != peers_.end());
+      found->second->disconnect();
+      peers_.erase(found);
+    }
+  }
 
   discovery_.unlock();
   return true;
@@ -151,7 +167,7 @@ void MapApiHub::request(
               new Peer(peer.ipPort(), *context_, ZMQ_REQ)))).first;
     }
   }
-  CHECK(found->second->request(request, response));
+  found->second->request(request, response);
 }
 
 void MapApiHub::broadcast(const Message& request,
@@ -161,7 +177,7 @@ void MapApiHub::broadcast(const Message& request,
   // TODO(tcies) parallelize using std::future
   for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer_pair :
       peers_) {
-    CHECK(peer_pair.second->request(request, &(*responses)[peer_pair.first]));
+    peer_pair.second->request(request, &(*responses)[peer_pair.first]);
   }
 }
 
@@ -178,27 +194,14 @@ bool MapApiHub::undisputableBroadcast(const Message& request) {
 
 void MapApiHub::discoveryHandler(const std::string& peer, Message* response) {
   CHECK_NOTNULL(response);
-  //  LOG(INFO) << "Peer " << peer << " requests discovery, let's "\
-  //      "connect to it...";
   // lock peer set lock so we can write without a race condition
   instance().peer_mutex_.lock();
-  if (!instance().peers_.insert(
+  instance().peers_.insert(
       std::make_pair(PeerId(peer), std::unique_ptr<Peer>(
-          new Peer(peer, *instance().context_, ZMQ_REQ)))).second) {
-    //    LOG(INFO) << peer << " requested discovery, but we have already connected";
-  }
+          new Peer(peer, *instance().context_, ZMQ_REQ))));
   instance().peer_mutex_.unlock();
   // ack by resend
   response->impose<Message::kAck>();
-}
-
-void MapApiHub::removeUnreachable(const PeerId& peer) {
-  LOG(INFO) << "Removing unreachable peer " << peer;
-  std::lock_guard<std::mutex> lock(peer_mutex_);
-  std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
-      peers_.find(peer);
-  CHECK(found != peers_.end());
-  peers_.erase(found);
 }
 
 void MapApiHub::listenThread(MapApiHub *self) {
@@ -227,7 +230,6 @@ void MapApiHub::listenThread(MapApiHub *self) {
   }
   int timeOutMs = 100;
   server.setsockopt(ZMQ_RCVTIMEO, &timeOutMs, sizeof(timeOutMs));
-  //  LOG(INFO) << "Server launched on " << ipPort;
 
   while (true) {
     zmq::message_t request;

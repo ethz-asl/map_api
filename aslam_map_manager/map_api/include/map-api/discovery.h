@@ -32,8 +32,9 @@ class Discovery {
    * Removes own address from discovery
    */
   void leave() const;
-  void lock() const;
-  void unlock() const;
+  void lock();
+  void remove(const PeerId& peer) const;
+  void unlock();
  private:
   void append(const std::string& new_content) const;
   void getFileContents(std::string* result) const;
@@ -42,6 +43,7 @@ class Discovery {
   static const std::string kFileName;
   static const char kLockFileName[];
 
+  int lock_file_descriptor_;
   /**
    * May only be used by the Hub
    */
