@@ -36,13 +36,20 @@ int ExpectedFieldCount<CRUTableRAMCache>::get() {
 }
 
 template <typename TableType>
-class TableInterfaceTest : public ::testing::Test, protected CoreTester {};
+class TableInterfaceTest : public ::testing::Test {
+ public:
+  virtual void SetUp() final override {
+    MapApiCore::instance();
+  }
+  virtual void TearDown() final override {
+    MapApiCore::instance().kill();
+  }
+};
 
 typedef ::testing::Types<CRTableRAMCache, CRUTableRAMCache> TableTypes;
 TYPED_TEST_CASE(TableInterfaceTest, TableTypes);
 
 TYPED_TEST(TableInterfaceTest, initEmpty) {
-  this->resetDb();
   TestTable<TypeParam>::instance();
   std::shared_ptr<Revision> structure =
       TestTable<TypeParam>::instance().getTemplate();
@@ -202,15 +209,18 @@ class FieldTestWithoutInit :
      public:
   virtual ~FieldTestWithoutInit() {}
 
-     protected:
-  virtual void SetUp() {
+  virtual void SetUp() override {
+    FieldTest<typename TableDataType::DataType>::SetUp();
     table_ = new typename TableDataType::TableType();
   }
 
-  virtual void TearDown() {
+  virtual void TearDown() override {
+    LOG(INFO) << "top";
     delete table_;
+    FieldTest<typename TableDataType::DataType>::TearDown();
   }
 
+     protected:
   std::shared_ptr<Revision> getTemplate() {
     query_ = this->table_->getTemplate();
     return query_;
@@ -235,17 +245,18 @@ class FieldTestWithoutInit :
 };
 
 template <typename TableDataType>
-class FieldTestWithInit : public FieldTestWithoutInit<TableDataType>,
-protected CoreTester {
+class FieldTestWithInit : public FieldTestWithoutInit<TableDataType> {
  public:
   virtual ~FieldTestWithInit() {}
  protected:
-  virtual void SetUp() {
-    resetDb();
+  virtual void SetUp() override {
+    MapApiCore::instance();
     FieldTestTable<TableDataType>::init();
     this->table_ = &FieldTestTable<TableDataType>::instance();
   }
-  virtual void TearDown() {}
+  virtual void TearDown() override {
+    MapApiCore::instance().kill();
+  }
 };
 
 template <typename TableDataType>
@@ -292,13 +303,15 @@ TYPED_TEST(FieldTestWithInit, Init) {
 }
 
 TYPED_TEST(FieldTestWithoutInit, CreateBeforeInit) {
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  ::testing::FLAGS_gtest_death_test_style = "fast";
   EXPECT_DEATH(this->fillRevision(),"^");
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 }
 
 TYPED_TEST(FieldTestWithoutInit, ReadBeforeInit) {
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  ::testing::FLAGS_gtest_death_test_style = "fast";
   EXPECT_DEATH(this->table_->getById(Id::random(), Time::now()), "^");
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 }
 
 TYPED_TEST(FieldTestWithInit, CreateRead) {
@@ -323,7 +336,6 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRow) {
 }
 
 TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   Id inserted = this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
@@ -331,7 +343,9 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
       this->table_->getById(inserted, Time::now());
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
+  ::testing::FLAGS_gtest_death_test_style = "fast";
   EXPECT_DEATH(rowFromTable->get("some_other_field", &dataFromTable), "^");
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 }
 
 TYPED_TEST(UpdateFieldTestWithInit, UpdateRead) {

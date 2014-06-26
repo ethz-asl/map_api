@@ -469,7 +469,14 @@ void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
   CHECK_NOTNULL(response);
   CHECK(isWriter(sender));
   CHECK(underlying_table_->type() == CRTable::Type::CRU);
-  underlying_table_->patch(item);
+  CRUTable* table = static_cast<CRUTable*>(underlying_table_);
+  table->patch(item);
+  Id id;
+  Time current, updated;
+  item.get(CRTable::kIdField, &id);
+  item.get(CRUTable::kPreviousTimeField, &current);
+  item.get(CRUTable::kUpdateTimeField, &updated);
+  table->updateCurrentReferToUpdatedCRUDerived(id, current, updated);
   response->ack();
 }
 

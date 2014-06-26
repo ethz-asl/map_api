@@ -45,7 +45,7 @@ class TransactionTestTable {
 /**
  * Fixture for simple transaction tests
  */
-class TransactionTest : public testing::Test, protected CoreTester {
+class TransactionTest : public testing::Test {
  protected:
   virtual void SetUp() override {
     ::testing::FLAGS_gtest_death_test_style = "fast";
@@ -167,8 +167,7 @@ class MultiTransactionTest : public testing::Test {
  * Fixture for multi-transaction tests on a single CRU table interface
  * TODO(tcies) multiple table interfaces (test definition sync)
  */
-class MultiTransactionSingleCRUTest : public MultiTransactionTest,
-protected CoreTester {
+class MultiTransactionSingleCRUTest : public MultiTransactionTest {
  protected:
   virtual void SetUp()  {
     MapApiCore::instance(); // core init

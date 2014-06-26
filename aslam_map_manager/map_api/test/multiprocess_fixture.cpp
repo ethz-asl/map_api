@@ -30,7 +30,7 @@ std::string getSelfpath() {
   }
 }
 
-class MultiprocessTest : public ::testing::Test, public map_api::CoreTester {
+class MultiprocessTest : public ::testing::Test {
  protected:
   /**
    * Return own ID: 0 if master

@@ -204,7 +204,8 @@ TEST_P(ChunkTest, Grind) {
   std::unordered_map<Id, std::shared_ptr<Revision> > results;
   if (getSubprocessId() == 0) {
     std::ostringstream extra_flags_ss;
-    extra_flags_ss << "--grind_processes=" << FLAGS_grind_processes;
+    extra_flags_ss << "--grind_processes=" << FLAGS_grind_processes << " ";
+    extra_flags_ss << "--grind_cycles=" << FLAGS_grind_cycles;
     for (uint64_t i = 1u; i < kProcesses; ++i) {
       launchSubprocess(i, extra_flags_ss.str());
     }
@@ -230,18 +231,18 @@ TEST_P(ChunkTest, Grind) {
       // insert
       Id insert_id; // random ID doesn't work!!! TODO(tcies) fix or abandon
       std::ostringstream id_ss("00000000000000000000000000000000");
-      id_ss << getSubprocessId() << "a" << i;
+      id_ss << getSubprocessId() << "a" << i << "a";
       insert_id.fromHexString(id_ss.str());
       std::shared_ptr<Revision> to_insert = table_->getTemplate();
       to_insert->set(CRTable::kIdField, insert_id);
       to_insert->set(kFieldName, 42);
       EXPECT_TRUE(table_->insert(my_chunk_weak, to_insert.get()));
       // update
-//      if (GetParam()){
-//        table_->dumpCache(Time::now(), &results);
-//        results.begin()->second->set(kFieldName, 21);
-//        EXPECT_TRUE(table_->update(results.begin()->second.get()));
-//      }
+      if (GetParam()){
+        table_->dumpCache(Time::now(), &results);
+        results.begin()->second->set(kFieldName, 21);
+        EXPECT_TRUE(table_->update(results.begin()->second.get()));
+      }
     }
     IPC::barrier(DIE, kProcesses - 1);
   }

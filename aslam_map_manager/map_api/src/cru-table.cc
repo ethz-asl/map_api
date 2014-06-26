@@ -31,7 +31,7 @@ bool CRUTable::update(Revision* query) {
   query->get(kInsertTimeField, &insert_time);
   CHECK(current->verify(kInsertTimeField, insert_time));
   Time previous_time, update_time = Time::now();
-  query->get(kUpdateTimeField, &previous_time);
+  getLatestUpdateTime(id, &previous_time);
   CHECK(previous_time <= update_time);
   query->set(kPreviousTimeField, previous_time);
   query->set(kUpdateTimeField, update_time);

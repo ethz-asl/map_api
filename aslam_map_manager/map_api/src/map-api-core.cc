@@ -124,11 +124,5 @@ const NetTableManager& MapApiCore::tableManager() const {
   return table_manager_;
 }
 
-void MapApiCore::resetDb() {
-  CHECK_EQ(1, dbSess_.use_count());
-  // don't forget to wipe the disk database if using one
-  dbSess_.reset(new Poco::Data::Session("SQLite", ":memory:"));
-}
-
 }
 
