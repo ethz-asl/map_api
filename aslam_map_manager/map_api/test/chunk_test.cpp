@@ -33,7 +33,7 @@ TEST_P(ChunkTest, NetInsert) {
   std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
   EXPECT_TRUE(static_cast<bool>(my_chunk));
   std::shared_ptr<Revision> to_insert = table_->getTemplate();
-  to_insert->set(CRTable::kIdField, Id::random());
+  to_insert->set(CRTable::kIdField, Id::generate());
   to_insert->set(kFieldName, 42);
   EXPECT_TRUE(table_->insert(my_chunk_weak, to_insert.get()));
 }
@@ -70,7 +70,7 @@ TEST_P(ChunkTest, FullJoinTwice) {
     std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
     EXPECT_TRUE(static_cast<bool>(my_chunk));
     std::shared_ptr<Revision> to_insert = table_->getTemplate();
-    to_insert->set(CRTable::kIdField, Id::random());
+    to_insert->set(CRTable::kIdField, Id::generate());
     to_insert->set(kFieldName, 42);
     EXPECT_TRUE(table_->insert(my_chunk_weak, to_insert.get()));
 
@@ -140,7 +140,7 @@ TEST_P(ChunkTest, RemoteInsert) {
     IPC::pop(&chunk_id_string);
     chunk_id.fromHexString(chunk_id_string);
     std::shared_ptr<Revision> to_insert = table_->getTemplate();
-    to_insert->set(CRTable::kIdField, Id::random());
+    to_insert->set(CRTable::kIdField, Id::generate());
     to_insert->set(kFieldName, 42);
     EXPECT_TRUE(table_->insert(table_->getChunk(chunk_id), to_insert.get()));
 
@@ -162,7 +162,7 @@ TEST_P(ChunkTest, RemoteUpdate) {
     std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
     EXPECT_TRUE(static_cast<bool>(my_chunk));
     std::shared_ptr<Revision> to_insert = table_->getTemplate();
-    to_insert->set(CRTable::kIdField, Id::random());
+    to_insert->set(CRTable::kIdField, Id::generate());
     to_insert->set(kFieldName, 42);
     EXPECT_TRUE(table_->insert(my_chunk_weak, to_insert.get()));
     table_->dumpCache(Time::now(), &results);
@@ -229,10 +229,7 @@ TEST_P(ChunkTest, Grind) {
     std::weak_ptr<Chunk> my_chunk_weak = table_->getChunk(chunk_id);
     for (int i = 0; i < kInsertUpdateCycles; ++i) {
       // insert
-      Id insert_id; // random ID doesn't work!!! TODO(tcies) fix or abandon
-      std::ostringstream id_ss("00000000000000000000000000000000");
-      id_ss << getSubprocessId() << "a" << i << "a";
-      insert_id.fromHexString(id_ss.str());
+      Id insert_id = Id::generate();
       std::shared_ptr<Revision> to_insert = table_->getTemplate();
       to_insert->set(CRTable::kIdField, insert_id);
       to_insert->set(kFieldName, 42);
@@ -261,7 +258,7 @@ TEST_P(ChunkTest, Transactions) {
     std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
     std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
     EXPECT_TRUE(static_cast<bool>(my_chunk));
-    Id insert_id = Id::random();
+    Id insert_id = Id::generate();
     std::shared_ptr<Revision> to_insert = table_->getTemplate();
     to_insert->set(CRTable::kIdField, insert_id);
     to_insert->set(kFieldName, 1);
@@ -306,10 +303,7 @@ TEST_P(ChunkTest, Transactions) {
     while (true) {
       transaction = my_chunk->newTransaction();
       // insert
-      Id insert_id; // random ID doesn't work!!! TODO(tcies) fix or abandon
-      std::ostringstream id_ss("00000000000000000000000000000000");
-      id_ss << getSubprocessId() << "a";
-      insert_id.fromHexString(id_ss.str());
+      Id insert_id = Id::generate();
       std::shared_ptr<Revision> to_insert = table_->getTemplate();
       to_insert->set(CRTable::kIdField, insert_id);
       to_insert->set(kFieldName, 42);
