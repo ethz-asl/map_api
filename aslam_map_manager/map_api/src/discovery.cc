@@ -4,7 +4,7 @@
 #include <sstream>
 #include <string>
 
-#include <sys/file.h> // linux-specific TODO(simon) problem?
+#include <sys/file.h> // linux-specific
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
