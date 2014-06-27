@@ -13,7 +13,12 @@ class Peer {
  public:
   std::string address() const;
 
-  bool request(const Message& request, Message* response);
+  void request(const Message& request, Message* response);
+
+  /**
+   * Unlike request, doesn't terminate if the request times out.
+   */
+  bool try_request(const Message& request, Message* response);
 
  private:
   /**

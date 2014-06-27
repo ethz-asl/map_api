@@ -22,6 +22,7 @@ namespace map_api {
  */
 class CRTable {
  public:
+  enum class Type{CR, CRU};
   /**
    * Default fields
    */
@@ -69,6 +70,11 @@ class CRTable {
    *   ensureDefaultFields() and ensureDefaultFieldsCRDerived())
    */
   virtual bool insert(Revision* query) final;
+  /**
+   * Unlike insert, patch does not modify the query, but assumes that all
+   * default values are set correctly.
+   */
+  virtual bool patch(const Revision& revision) final;
 
   virtual std::shared_ptr<Revision> getById(
       const Id& id, const Time& time);
@@ -109,6 +115,8 @@ class CRTable {
       table(_table), id(_id.hexString()) {}
   } ItemDebugInfo;
 
+  virtual Type type() const;
+
  protected:
   std::unique_ptr<TableDescriptor> descriptor_;
 
@@ -122,10 +130,8 @@ class CRTable {
    * Do here whatever is specific to initializing the derived type
    */
   virtual bool initCRDerived() = 0;
-  /**
-   * Minimal required table operations
-   */
   virtual bool insertCRDerived(Revision* query) = 0;
+  virtual bool patchCRDerived(const Revision& query) = 0;
   /**
    * If key is an empty string, this should return all the data in the table.
    */

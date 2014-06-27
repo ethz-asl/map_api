@@ -11,8 +11,6 @@
 #include "map-api/map-api-hub.h"
 #include "map-api/local-transaction.h"
 
-DEFINE_string(ip_port, "127.0.0.1:5050", "Define node ip and port");
-
 namespace map_api {
 
 const std::string MapApiCore::kMetatableNameField = "name";
@@ -25,16 +23,13 @@ MapApiCore &MapApiCore::instance() {
   static std::mutex initMutex;
   initMutex.lock();
   if (!instance.isInitialized()) {
-    if (!instance.init(FLAGS_ip_port)){
-      LOG(FATAL) << "Failed to initialize Map Api Core.";
-    }
+    instance.init();
   }
   initMutex.unlock();
   return instance;
 }
 
-MapApiCore::MapApiCore() : owner_(Id::random()),
-    hub_(MapApiHub::instance()), initialized_(false){}
+MapApiCore::MapApiCore() : hub_(MapApiHub::instance()), initialized_(false){}
 
 bool MapApiCore::syncTableDefinition(const TableDescriptor& descriptor) {
   // init metatable if not yet initialized TODO(tcies) better solution?
@@ -73,11 +68,9 @@ bool MapApiCore::syncTableDefinition(const TableDescriptor& descriptor) {
 
 // can't initialize metatable in init, as its initialization calls
 // MapApiCore::getInstance, which again calls this
-bool MapApiCore::init(const std::string &ipPort) {
-  if (!hub_.init(ipPort)){
-    LOG(ERROR) << "Map Api core init failed, could not connect to socket " <<
-        ipPort;
-    return false;
+void MapApiCore::init() {
+  if (!hub_.init()){
+    LOG(FATAL) << "Map Api core init failed";
   }
   Poco::Data::SQLite::Connector::registerConnector();
   dbSess_ = std::make_shared<Poco::Data::Session>("SQLite", ":memory:");
@@ -85,7 +78,6 @@ bool MapApiCore::init(const std::string &ipPort) {
   table_manager_.init();
   metatable_.reset(new CRTableRAMCache);
   initialized_ = true;
-  return true;
 }
 
 std::weak_ptr<Poco::Data::Session> MapApiCore::getSession() {
@@ -126,12 +118,6 @@ NetTableManager& MapApiCore::tableManager() {
 }
 const NetTableManager& MapApiCore::tableManager() const {
   return table_manager_;
-}
-
-void MapApiCore::resetDb() {
-  CHECK_EQ(1, dbSess_.use_count());
-  // don't forget to wipe the disk database if using one
-  dbSess_.reset(new Poco::Data::Session("SQLite", ":memory:"));
 }
 
 }

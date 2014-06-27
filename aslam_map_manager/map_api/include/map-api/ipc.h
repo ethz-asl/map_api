@@ -1,11 +1,10 @@
 #ifndef IPC_H_
 #define IPC_H_
 
-#include <mutex>
 #include <condition_variable>
+#include <mutex>
+#include <queue>
 #include <unordered_map>
-
-#include <zeromq_cpp/zmq.hpp>
 
 #include "map-api/message.h"
 #include "core.pb.h"
@@ -35,14 +34,28 @@ class IPC {
    */
   static void barrierHandler(const std::string& id_string, Message* response);
   /**
-   * Barrier message type denomination constant
+   * Allows to broadcast a single string to all other peers
+   */
+  static void push(const std::string& message);
+  static void pushHandler(const std::string& message, Message* response);
+  /**
+   * Read the oldest broadcast message (false if empty queue)
+   */
+  static bool pop(std::string* destination);
+
+  /**
+   * Message declarations
    */
   static const char kBarrierMessage[];
+  static const char kMessageMessage[];
 
  private:
   static std::mutex barrier_mutex_;
   static std::condition_variable barrier_cv_;
   static std::unordered_map<int, int> barrier_map_;
+
+  static std::mutex message_mutex_;
+  static std::queue<std::string> messages_;
 };
 
 } /* namespace map_api */

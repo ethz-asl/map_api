@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "map-api/net-cr-table.h"
+#include "map-api/net-table.h"
 #include "map-api/table-descriptor.h"
 
 namespace map_api {
@@ -14,11 +14,11 @@ class NetTableManager {
    * Mostly responsible for registering handlers.
    */
   void init();
-  void addTable(std::unique_ptr<TableDescriptor>* descriptor);
+  void addTable(bool updateable, std::unique_ptr<TableDescriptor>* descriptor);
   /**
    * Can leave dangling reference
    */
-  NetCRTable& getTable(const std::string& name);
+  NetTable& getTable(const std::string& name);
   void leaveAllChunks();
 
   /**
@@ -34,7 +34,7 @@ class NetTableManager {
   static void handleFindRequest(const std::string& serialized_request,
                                 Message* response);
   static void handleInitRequest(const std::string& serialized_request,
-                                  Message* response);
+                                Message* response);
   static void handleInsertRequest(const std::string& serialized_request,
                                   Message* response);
   static void handleLeaveRequest(const std::string& serialized_request,
@@ -45,6 +45,8 @@ class NetTableManager {
                                    Message* response);
   static void handleUnlockRequest(const std::string& serialized_request,
                                   Message* response);
+  static void handleUpdateRequest(const std::string& serialized_request,
+                                  Message* response);
 
  private:
   NetTableManager() = default;
@@ -53,7 +55,7 @@ class NetTableManager {
   ~NetTableManager() = default;
   friend class MapApiCore;
 
-  typedef std::unordered_map<std::string, std::unique_ptr<NetCRTable> >
+  typedef std::unordered_map<std::string, std::unique_ptr<NetTable> >
   TableMap;
 
   static bool routeChunkMetadataRequestOperations(

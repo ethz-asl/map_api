@@ -17,6 +17,10 @@ bool CRUTableRAMCache::insertCRUDerived(Revision* query) {
   return sqlite_interface_.insert(*query);
 }
 
+bool CRUTableRAMCache::patchCRDerived(const Revision& query) {
+  return sqlite_interface_.insert(query);
+}
+
 int CRUTableRAMCache::findByRevisionCRUDerived(
     const std::string& key, const Revision& value_holder, const Time& time,
     std::unordered_map<Id, std::shared_ptr<Revision> >* dest) {
@@ -54,7 +58,16 @@ int CRUTableRAMCache::findByRevisionCRUDerived(
     Id id;
     item->get(kIdField, &id);
     CHECK(id.isValid());
-    (*dest)[id] = item;
+    if(!dest->insert(std::make_pair(id, item)).second) {
+      std::ostringstream report;
+      report << "Failed to insert:" << std::endl;
+      report << item->DebugString() << std::endl;
+      report << "Into map with:";
+      for (const std::pair<Id, std::shared_ptr<Revision> >& in_dest : *dest) {
+        report << in_dest.second->DebugString() << std::endl;
+      }
+      LOG(FATAL) << report.str();
+    }
   }
   return from_poco.size();
 }
