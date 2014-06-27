@@ -13,8 +13,6 @@
 #include "map-api/net-table-manager.h"
 #include "core.pb.h"
 
-DECLARE_string(ip_port);
-
 namespace map_api {
 
 /**
@@ -38,7 +36,7 @@ class MapApiCore final {
   /**
    * Initializer
    */
-  bool init(const std::string &ipPort);
+  void init();
   /**
    * Metatable definition TODO(tcies) in TableManager
    */
@@ -55,15 +53,6 @@ class MapApiCore final {
 
   NetTableManager& tableManager();
   const NetTableManager& tableManager() const;
-
- protected:
-  /**
-   * Resets the database, clearing all its contents. TO BE USED FOR TESTING
-   * ONLY. After a call to this function ALL TABLES MUST BE RE-INITIALIZED.
-   * resetDb already re-initializes the metatable
-   */
-  void resetDb();
-  friend class CoreTester;
 
  private:
   static const std::string kMetatableNameField;
@@ -88,7 +77,6 @@ class MapApiCore final {
    */
   void ensureMetatable();
 
-  Id owner_;
   /**
    * Session of local database
    */
@@ -104,13 +92,6 @@ class MapApiCore final {
   // net table in tableManager
 
   bool initialized_ = false;
-};
-
-class CoreTester {
- protected:
-  inline void resetDb() {
-    MapApiCore::instance().resetDb();
-  }
 };
 
 }

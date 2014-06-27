@@ -7,8 +7,6 @@
 #include "map-api/map-api-core.h"
 #include "map-api/net-table-manager.h"
 
-DECLARE_string(ip_port);
-
 namespace map_api {
 
 const std::string NetTable::kChunkIdField = "chunk_id";
@@ -89,7 +87,7 @@ std::weak_ptr<Chunk> NetTable::connectTo(const Id& chunk_id,
   proto::ConnectRequest connect_request;
   connect_request.set_table(cache_->name());
   connect_request.set_chunk_id(chunk_id.hexString());
-  connect_request.set_from_peer(FLAGS_ip_port);
+  connect_request.set_from_peer(PeerId::self().ipPort());
   request.impose<Chunk::kConnectRequest, proto::ConnectRequest>(
       connect_request);
   // TODO(tcies) add to local peer subset instead - peers in ChunkManager?
@@ -129,8 +127,6 @@ void NetTable::handleConnectRequest(const Id& chunk_id, const PeerId& peer,
 void NetTable::handleInitRequest(
     const proto::InitRequest& request, Message* response) {
   CHECK_NOTNULL(response);
-  LOG(INFO) << "Received init request for table " << request.table() <<
-      " chunk " << request.chunk_id();
   Id chunk_id;
   CHECK(chunk_id.fromHexString(request.chunk_id()));
   if (MapApiCore::instance().tableManager().getTable(request.table()).
@@ -142,8 +138,6 @@ void NetTable::handleInitRequest(
   CHECK(chunk->init(chunk_id, request, cache_.get()));
   active_chunks_lock_.writeLock();
   active_chunks_[chunk_id] = chunk;
-  LOG(INFO) << PeerId::self() << " now has " << active_chunks_.size() <<
-      " chunks in table " << cache_->name();
   active_chunks_lock_.unlock();
   response->impose<Message::kAck>();
 }

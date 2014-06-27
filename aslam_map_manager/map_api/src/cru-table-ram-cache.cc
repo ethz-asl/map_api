@@ -58,7 +58,16 @@ int CRUTableRAMCache::findByRevisionCRUDerived(
     Id id;
     item->get(kIdField, &id);
     CHECK(id.isValid());
-    (*dest)[id] = item;
+    if(!dest->insert(std::make_pair(id, item)).second) {
+      std::ostringstream report;
+      report << "Failed to insert:" << std::endl;
+      report << item->DebugString() << std::endl;
+      report << "Into map with:";
+      for (const std::pair<Id, std::shared_ptr<Revision> >& in_dest : *dest) {
+        report << in_dest.second->DebugString() << std::endl;
+      }
+      LOG(FATAL) << report.str();
+    }
   }
   return from_poco.size();
 }

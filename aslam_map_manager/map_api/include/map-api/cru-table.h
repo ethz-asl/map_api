@@ -32,7 +32,6 @@ class CRUTable : public CRTable {
 
   virtual Type type() const final override;
 
- protected:
   /**
    * Default fields for internal management,
    */
@@ -69,6 +68,7 @@ class CRUTable : public CRTable {
    */
   virtual bool updateCurrentReferToUpdatedCRUDerived(
       const Id& id, const Time& current_time, const Time& updated_time) = 0;
+  friend class Chunk;
 };
 
 }

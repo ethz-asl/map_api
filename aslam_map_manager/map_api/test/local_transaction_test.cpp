@@ -45,10 +45,15 @@ class TransactionTestTable {
 /**
  * Fixture for simple transaction tests
  */
-class TransactionTest : public testing::Test, protected CoreTester {
+class TransactionTest : public testing::Test {
  protected:
   virtual void SetUp() override {
-    resetDb();
+    ::testing::FLAGS_gtest_death_test_style = "fast";
+    MapApiCore::instance();
+  }
+  virtual void TearDown() final override {
+    MapApiCore::instance().kill();
+    ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   }
   std::shared_ptr<Revision> sample(double n, CRUTableRAMCache* table) {
     CHECK_NOTNULL(table);
@@ -100,7 +105,7 @@ TEST_F(TransactionTest, InsertBeforeTableInit){
 class TransactionCRUTest : public TransactionTest {
  protected:
   virtual void SetUp() {
-    resetDb();
+    TransactionTest::SetUp();
     table_ = &TransactionTestTable::instance();
     transaction_.begin();
   }
@@ -162,13 +167,18 @@ class MultiTransactionTest : public testing::Test {
  * Fixture for multi-transaction tests on a single CRU table interface
  * TODO(tcies) multiple table interfaces (test definition sync)
  */
-class MultiTransactionSingleCRUTest : public MultiTransactionTest,
-protected CoreTester {
+class MultiTransactionSingleCRUTest : public MultiTransactionTest {
  protected:
   virtual void SetUp()  {
-    resetDb();
+    MapApiCore::instance(); // core init
     TransactionTestTable::init();
     table_ = &TransactionTestTable::instance();
+    ::testing::FLAGS_gtest_death_test_style = "fast";
+  }
+
+  virtual void TearDown() {
+    ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+    MapApiCore::instance().kill();
   }
 
   std::shared_ptr<Revision> sample(double n, CRUTableRAMCache* table) {

@@ -32,9 +32,9 @@ class MapApiHub final {
    */
   static MapApiHub& instance();
   /**
-   * Initialize hub with given IP and port
+   * Initialize hub
    */
-  bool init(const std::string &ipPort);
+  bool init();
   /**
    * Re-enter server thread, disconnect from peers, leave discovery
    */
@@ -52,6 +52,8 @@ class MapApiHub final {
    * Get amount of peers
    */
   int peerSize();
+
+  const std::string& ownAddress() const;
   /**
    * Registers a handler for messages titled with the given name
    * TODO(tcies) create a metatable directory for these types as well
@@ -105,7 +107,7 @@ class MapApiHub final {
   /**
    * Thread for listening to peers
    */
-  static void listenThread(MapApiHub *self, const std::string &ipPort);
+  static void listenThread(MapApiHub *self);
   std::thread listener_;
   std::mutex condVarMutex_;
   std::condition_variable listenerStatus_;
@@ -113,12 +115,14 @@ class MapApiHub final {
   volatile bool terminate_ = false;
 
   std::unique_ptr<zmq::context_t> context_;
+  std::string own_address_;
   /**
    * For now, peers may only be added or accessed, so peer mutex only used for
    * atomic addition of peers.
    */
   std::mutex peer_mutex_;
-  std::unordered_map<PeerId, std::unique_ptr<Peer> > peers_;
+  typedef std::unordered_map<PeerId, std::unique_ptr<Peer> > PeerMap;
+  PeerMap peers_;
   /**
    * Maps message types denominations to handler functions
    */

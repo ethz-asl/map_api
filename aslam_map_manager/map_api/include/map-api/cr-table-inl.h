@@ -23,7 +23,8 @@ std::shared_ptr<Revision> CRTable::findUnique(
   int count = find(key, value, time, &results);
   if (count > 1) {
     std::stringstream report;
-    report << "There seems to be more than one item with given"\
+    report << "There seems to be more than one (" << count <<
+        ") item with given"\
         " value of " << key << ", table " << descriptor_->name() << std::endl;
     report << "Items found at " << time << " are:" << std::endl;
     for (const std::pair<Id, std::shared_ptr<Revision> >& result : results) {

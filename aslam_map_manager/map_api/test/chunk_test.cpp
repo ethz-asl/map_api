@@ -192,6 +192,62 @@ TEST_P(ChunkTest, RemoteUpdate) {
   }
 }
 
+DEFINE_uint64(grind_processes, 30u,
+              "Total amount of processes in ChunkTest.Grind");
+DEFINE_uint64(grind_cycles, 10u,
+              "Total amount of insert-update cycles in ChunkTest.Grind");
+
+TEST_P(ChunkTest, Grind) {
+  const int kInsertUpdateCycles = FLAGS_grind_cycles;
+  const uint64_t kProcesses = FLAGS_grind_processes;
+  enum Barriers {INIT, ID_SHARED, DIE};
+  std::unordered_map<Id, std::shared_ptr<Revision> > results;
+  if (getSubprocessId() == 0) {
+    std::ostringstream extra_flags_ss;
+    extra_flags_ss << "--grind_processes=" << FLAGS_grind_processes << " ";
+    extra_flags_ss << "--grind_cycles=" << FLAGS_grind_cycles;
+    for (uint64_t i = 1u; i < kProcesses; ++i) {
+      launchSubprocess(i, extra_flags_ss.str());
+    }
+    std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
+    std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
+    EXPECT_TRUE(static_cast<bool>(my_chunk));
+    IPC::barrier(INIT, kProcesses - 1);
+    my_chunk->requestParticipation();
+    IPC::push(my_chunk->id().hexString());
+    IPC::barrier(ID_SHARED, kProcesses - 1);
+    IPC::barrier(DIE, kProcesses - 1);
+    table_->dumpCache(Time::now(), &results);
+    EXPECT_EQ(kInsertUpdateCycles * (kProcesses - 1), results.size());
+  } else {
+    IPC::barrier(INIT, kProcesses - 1);
+    IPC::barrier(ID_SHARED, kProcesses - 1);
+    std::string chunk_id_string;
+    Id chunk_id;
+    IPC::pop(&chunk_id_string);
+    chunk_id.fromHexString(chunk_id_string);
+    std::weak_ptr<Chunk> my_chunk_weak = table_->getChunk(chunk_id);
+    for (int i = 0; i < kInsertUpdateCycles; ++i) {
+      // insert
+      Id insert_id; // random ID doesn't work!!! TODO(tcies) fix or abandon
+      std::ostringstream id_ss("00000000000000000000000000000000");
+      id_ss << getSubprocessId() << "a" << i << "a";
+      insert_id.fromHexString(id_ss.str());
+      std::shared_ptr<Revision> to_insert = table_->getTemplate();
+      to_insert->set(CRTable::kIdField, insert_id);
+      to_insert->set(kFieldName, 42);
+      EXPECT_TRUE(table_->insert(my_chunk_weak, to_insert.get()));
+      // update
+      if (GetParam()){
+        table_->dumpCache(Time::now(), &results);
+        results.begin()->second->set(kFieldName, 21);
+        EXPECT_TRUE(table_->update(results.begin()->second.get()));
+      }
+    }
+    IPC::barrier(DIE, kProcesses - 1);
+  }
+}
+
 INSTANTIATE_TEST_CASE_P(Default, ChunkTest, ::testing::Values(false, true));
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT

@@ -12,8 +12,8 @@ namespace map_api {
  * For now, this class regulates discovery through /tmp/mapapi-discovery.txt .
  * In the future, this will be replaced by avahi for local networks or
  * satoshi-client style internet discovery.
- * This class guarantees inter-process locking for concurrent access to the
- * discovery file.
+ * This class allows inter-process locking for concurrent access to the
+ * discovery file by using lock() and unlock()
  */
 class Discovery {
  public:
@@ -32,16 +32,18 @@ class Discovery {
    * Removes own address from discovery
    */
   void leave() const;
+  void lock();
+  void remove(const PeerId& peer) const;
+  void unlock();
  private:
   void append(const std::string& new_content) const;
   void getFileContents(std::string* result) const;
-  void lock() const;
   void replace(const std::string& new_content) const;
-  void unlock() const;
 
   static const std::string kFileName;
   static const char kLockFileName[];
 
+  int lock_file_descriptor_;
   /**
    * May only be used by the Hub
    */

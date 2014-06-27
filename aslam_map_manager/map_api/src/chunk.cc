@@ -6,8 +6,6 @@
 #include "core.pb.h"
 #include "chunk.pb.h"
 
-DECLARE_string(ip_port);
-
 namespace map_api {
 
 const char Chunk::kConnectRequest[] = "map_api_chunk_connect";
@@ -94,7 +92,6 @@ int Chunk::peerSize() const {
 }
 
 void Chunk::leave() {
-  LOG(INFO) << PeerId::self() << " invoked leave";
   Message request;
   proto::ChunkRequestMetadata metadata;
   fillMetadata(&metadata);
@@ -110,7 +107,6 @@ void Chunk::leave() {
   distributedUnlock(); // i.e. must be able to handle unlocks from outside
   // the swarm. Should this pose problems in the future, we could tie unlocking
   // to leaving.
-  LOG(INFO) << PeerId::self() << " left chunk " << id();
 }
 
 int Chunk::requestParticipation() {
@@ -169,7 +165,7 @@ bool Chunk::addPeer(const PeerId& peer) {
   new_peer_request.set_table(underlying_table_->name());
   new_peer_request.set_chunk_id(id().hexString());
   new_peer_request.set_new_peer(peer.ipPort());
-  new_peer_request.set_from_peer(FLAGS_ip_port);
+  new_peer_request.set_from_peer(PeerId::self().ipPort());
   request.impose<kNewPeerRequest>(new_peer_request);
   CHECK(peers_.undisputableBroadcast(request));
 
@@ -298,7 +294,7 @@ void Chunk::fillMetadata(proto::ChunkRequestMetadata* destination) {
   CHECK_NOTNULL(destination);
   destination->set_table(underlying_table_->name());
   destination->set_chunk_id(id().hexString());
-  destination->set_from_peer(FLAGS_ip_port);
+  destination->set_from_peer(PeerId::self().ipPort());
 }
 
 bool Chunk::isWriter(const PeerId& peer) {
@@ -313,7 +309,7 @@ void Chunk::prepareInitRequest(Message* request) {
 
   init_request.set_table(underlying_table_->name());
   init_request.set_chunk_id(id().hexString());
-  init_request.set_from_peer(FLAGS_ip_port);
+  init_request.set_from_peer(PeerId::self().ipPort());
 
   for (const PeerId& swarm_peer : peers_.peers()) {
     init_request.add_peer_address(swarm_peer.ipPort());
@@ -473,7 +469,14 @@ void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
   CHECK_NOTNULL(response);
   CHECK(isWriter(sender));
   CHECK(underlying_table_->type() == CRTable::Type::CRU);
-  underlying_table_->patch(item);
+  CRUTable* table = static_cast<CRUTable*>(underlying_table_);
+  table->patch(item);
+  Id id;
+  Time current, updated;
+  item.get(CRTable::kIdField, &id);
+  item.get(CRUTable::kPreviousTimeField, &current);
+  item.get(CRUTable::kUpdateTimeField, &updated);
+  table->updateCurrentReferToUpdatedCRUDerived(id, current, updated);
   response->ack();
 }
 
