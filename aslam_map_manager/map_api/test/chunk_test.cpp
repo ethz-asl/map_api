@@ -192,7 +192,7 @@ TEST_P(ChunkTest, RemoteUpdate) {
   }
 }
 
-DEFINE_uint64(grind_processes, 30u,
+DEFINE_uint64(grind_processes, 10u,
               "Total amount of processes in ChunkTest.Grind");
 DEFINE_uint64(grind_cycles, 10u,
               "Total amount of insert-update cycles in ChunkTest.Grind");
@@ -242,6 +242,89 @@ TEST_P(ChunkTest, Grind) {
         table_->dumpCache(Time::now(), &results);
         results.begin()->second->set(kFieldName, 21);
         EXPECT_TRUE(table_->update(results.begin()->second.get()));
+      }
+    }
+    IPC::barrier(DIE, kProcesses - 1);
+  }
+}
+
+TEST_P(ChunkTest, Transactions) {
+  const uint64_t kProcesses = FLAGS_grind_processes;
+  enum Barriers {INIT, IDS_SHARED, DIE};
+  std::unordered_map<Id, std::shared_ptr<Revision> > results;
+  if (getSubprocessId() == 0) {
+    std::ostringstream extra_flags_ss;
+    extra_flags_ss << "--grind_processes=" << FLAGS_grind_processes << " ";
+    for (uint64_t i = 1u; i < kProcesses; ++i) {
+      launchSubprocess(i, extra_flags_ss.str());
+    }
+    std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
+    std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
+    EXPECT_TRUE(static_cast<bool>(my_chunk));
+    Id insert_id = Id::random();
+    std::shared_ptr<Revision> to_insert = table_->getTemplate();
+    to_insert->set(CRTable::kIdField, insert_id);
+    to_insert->set(kFieldName, 1);
+    EXPECT_TRUE(table_->insert(my_chunk_weak, to_insert.get()));
+    IPC::barrier(INIT, kProcesses - 1);
+
+    my_chunk->requestParticipation();
+    IPC::push(my_chunk->id().hexString());
+    IPC::push(insert_id.hexString());
+    IPC::barrier(IDS_SHARED, kProcesses - 1);
+
+    IPC::barrier(DIE, kProcesses - 1);
+    table_->dumpCache(Time::now(), &results);
+    EXPECT_EQ(kProcesses, results.size());
+    std::unordered_map<Id, std::shared_ptr<Revision> >::iterator found =
+        results.find(insert_id);
+    if (found != results.end()) {
+      int final_value;
+      found->second->get(kFieldName, &final_value);
+      if (GetParam()){
+        EXPECT_EQ(kProcesses, final_value);
+      } else {
+        EXPECT_EQ(1, final_value);
+      }
+    } else {
+      // still need a clean disconnect
+      EXPECT_TRUE(false);
+    }
+  } else {
+    IPC::barrier(INIT, kProcesses - 1);
+    IPC::barrier(IDS_SHARED, kProcesses - 1);
+    std::string chunk_id_string, item_id_string;
+    Id chunk_id, item_id;
+    IPC::pop(&chunk_id_string);
+    IPC::pop(&item_id_string);
+    chunk_id.fromHexString(chunk_id_string);
+    item_id.fromHexString(item_id_string);
+    std::weak_ptr<Chunk> my_chunk_weak = table_->getChunk(chunk_id);
+    std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
+    EXPECT_TRUE(static_cast<bool>(my_chunk));
+    std::shared_ptr<ChunkTransaction> transaction;
+    while (true) {
+      transaction = my_chunk->newTransaction();
+      // insert
+      Id insert_id; // random ID doesn't work!!! TODO(tcies) fix or abandon
+      std::ostringstream id_ss("00000000000000000000000000000000");
+      id_ss << getSubprocessId() << "a";
+      insert_id.fromHexString(id_ss.str());
+      std::shared_ptr<Revision> to_insert = table_->getTemplate();
+      to_insert->set(CRTable::kIdField, insert_id);
+      to_insert->set(kFieldName, 42);
+      transaction->insert(to_insert);
+      // update
+      if (GetParam()){
+        int transient_value;
+        std::shared_ptr<Revision> to_update = transaction->getById(item_id);
+        to_update->get(kFieldName, &transient_value);
+        ++transient_value;
+        to_update->set(kFieldName, transient_value);
+        transaction->update(to_update);
+      }
+      if (my_chunk->commit(*transaction)){
+        break;
       }
     }
     IPC::barrier(DIE, kProcesses - 1);
