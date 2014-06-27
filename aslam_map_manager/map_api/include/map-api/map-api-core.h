@@ -36,7 +36,7 @@ class MapApiCore final {
   /**
    * Initializer
    */
-  bool init();
+  void init();
   /**
    * Metatable definition TODO(tcies) in TableManager
    */

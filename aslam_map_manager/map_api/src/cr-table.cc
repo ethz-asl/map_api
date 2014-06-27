@@ -79,7 +79,7 @@ bool CRTable::patch(const Revision& query) {
 
 std::shared_ptr<Revision> CRTable::getById(
     const Id &id, const Time& time) {
-  CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
+  CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
   CHECK_NE(id, Id()) << "Supplied invalid ID";
   return findUnique(kIdField, id, time);
 }

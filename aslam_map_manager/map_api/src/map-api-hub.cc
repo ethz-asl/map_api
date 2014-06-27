@@ -66,7 +66,7 @@ bool MapApiHub::init() {
 
   // 4. Announce self to peers (who will not revisit discovery)
   Message announce_self, response;
-  announce_self.impose<kDiscovery>(self_address_);
+  announce_self.impose<kDiscovery>(own_address_);
   std::unordered_set<PeerId> unreachable;
   for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer : peers_) {
     if (!peer.second->try_request(announce_self, &response)) {
@@ -137,7 +137,7 @@ int MapApiHub::peerSize() {
 }
 
 const std::string& MapApiHub::ownAddress() const {
-  return self_address_;
+  return own_address_;
 }
 
 bool MapApiHub::registerHandler(
@@ -205,6 +205,8 @@ void MapApiHub::discoveryHandler(const std::string& peer, Message* response) {
 }
 
 void MapApiHub::listenThread(MapApiHub *self) {
+  const unsigned int kMinPort = 1024;
+  const unsigned int kMaxPort = 65536;
   zmq::socket_t server(*(self->context_), ZMQ_REP);
   {
     std::unique_lock<std::mutex> lock(self->condVarMutex_);
@@ -212,16 +214,16 @@ void MapApiHub::listenThread(MapApiHub *self) {
     std::mt19937_64 rng(
         std::chrono::high_resolution_clock::now().time_since_epoch().count());
     while (true) {
-      int port = 1024 + (rng() % (65536 - 1024));
+      unsigned int port = kMinPort + (rng() % (kMaxPort - kMinPort));
       try {
         std::ostringstream address;
         address << "127.0.0.1:" << port;
         server.bind(("tcp://" + address.str()).c_str());
-        self->self_address_ = address.str();
+        self->own_address_ = address.str();
         break;
       }
       catch (const std::exception &e) {
-        port = 1024 + (rng() % (65536 - 1024));
+        port = kMinPort + (rng() % (kMaxPort - kMinPort));
       }
     }
     self->listenerConnected_ = true;

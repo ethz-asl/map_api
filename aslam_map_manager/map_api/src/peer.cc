@@ -27,6 +27,7 @@ std::string Peer::address() const {
 }
 
 void Peer::request(const Message& request, Message* response) {
+  CHECK_NOTNULL(response);
   CHECK(try_request(request, response)) << "Message " <<
       request.DebugString() << " timed out!";
 }

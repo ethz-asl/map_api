@@ -23,9 +23,7 @@ MapApiCore &MapApiCore::instance() {
   static std::mutex initMutex;
   initMutex.lock();
   if (!instance.isInitialized()) {
-    if (!instance.init()){
-      LOG(FATAL) << "Failed to initialize Map Api Core.";
-    }
+    instance.init();
   }
   initMutex.unlock();
   return instance;
@@ -70,10 +68,9 @@ bool MapApiCore::syncTableDefinition(const TableDescriptor& descriptor) {
 
 // can't initialize metatable in init, as its initialization calls
 // MapApiCore::getInstance, which again calls this
-bool MapApiCore::init() {
+void MapApiCore::init() {
   if (!hub_.init()){
-    LOG(ERROR) << "Map Api core init failed";
-    return false;
+    LOG(FATAL) << "Map Api core init failed";
   }
   Poco::Data::SQLite::Connector::registerConnector();
   dbSess_ = std::make_shared<Poco::Data::Session>("SQLite", ":memory:");
@@ -81,7 +78,6 @@ bool MapApiCore::init() {
   table_manager_.init();
   metatable_.reset(new CRTableRAMCache);
   initialized_ = true;
-  return true;
 }
 
 std::weak_ptr<Poco::Data::Session> MapApiCore::getSession() {

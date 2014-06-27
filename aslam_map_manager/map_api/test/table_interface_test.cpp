@@ -75,26 +75,16 @@ template <typename TableDataType>
 class FieldTestTable : public TestTable<typename TableDataType::TableType> {
  public:
   static const std::string kTestField;
-  static typename TableDataType::TableType& instance() {
-    static typename TableDataType::TableType table;
-    if (!table.isInitialized()) {
-      std::unique_ptr<map_api::TableDescriptor> descriptor(
-          new map_api::TableDescriptor);
-      descriptor->setName("field_test_table");
-      descriptor->template addField<typename TableDataType::DataType>(
-          kTestField);
-      table.init(&descriptor);
-    }
-    return table;
-  }
-  // FIXME(tcies) un-hack this once proper table manager
-  static void init(){
+  static typename TableDataType::TableType* forge() {
+    typename TableDataType::TableType* table =
+        new typename TableDataType::TableType;
     std::unique_ptr<map_api::TableDescriptor> descriptor(
         new map_api::TableDescriptor);
     descriptor->setName("field_test_table");
     descriptor->template addField<typename TableDataType::DataType>(
         kTestField);
-    instance().init(&descriptor);
+    table->init(&descriptor);
+    return table;
   }
 };
 
@@ -211,12 +201,10 @@ class FieldTestWithoutInit :
 
   virtual void SetUp() override {
     FieldTest<typename TableDataType::DataType>::SetUp();
-    table_ = new typename TableDataType::TableType();
+    table_.reset(new typename TableDataType::TableType());
   }
 
   virtual void TearDown() override {
-    LOG(INFO) << "top";
-    delete table_;
     FieldTest<typename TableDataType::DataType>::TearDown();
   }
 
@@ -240,7 +228,7 @@ class FieldTestWithoutInit :
     return this->table_->insert(query_.get());
   }
 
-  typename TableDataType::TableType* table_;
+  std::unique_ptr<typename TableDataType::TableType> table_;
   std::shared_ptr<Revision> query_;
 };
 
@@ -251,8 +239,7 @@ class FieldTestWithInit : public FieldTestWithoutInit<TableDataType> {
  protected:
   virtual void SetUp() override {
     MapApiCore::instance();
-    FieldTestTable<TableDataType>::init();
-    this->table_ = &FieldTestTable<TableDataType>::instance();
+    this->table_.reset(FieldTestTable<TableDataType>::forge());
   }
   virtual void TearDown() override {
     MapApiCore::instance().kill();
@@ -304,13 +291,15 @@ TYPED_TEST(FieldTestWithInit, Init) {
 
 TYPED_TEST(FieldTestWithoutInit, CreateBeforeInit) {
   ::testing::FLAGS_gtest_death_test_style = "fast";
-  EXPECT_DEATH(this->fillRevision(),"^");
+  EXPECT_DEATH(this->fillRevision(),
+               "Can't get template of non-initialized table");
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 }
 
 TYPED_TEST(FieldTestWithoutInit, ReadBeforeInit) {
   ::testing::FLAGS_gtest_death_test_style = "fast";
-  EXPECT_DEATH(this->table_->getById(Id::random(), Time::now()), "^");
+  EXPECT_DEATH(this->table_->getById(Id::random(), Time::now()),
+               "Attempted to getById from non-initialized table");
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 }
 
@@ -344,7 +333,8 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
   ::testing::FLAGS_gtest_death_test_style = "fast";
-  EXPECT_DEATH(rowFromTable->get("some_other_field", &dataFromTable), "^");
+  EXPECT_DEATH(rowFromTable->get("some_other_field", &dataFromTable),
+               "Trying to get inexistent field");
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 }
 

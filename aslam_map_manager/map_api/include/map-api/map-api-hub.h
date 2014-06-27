@@ -115,7 +115,7 @@ class MapApiHub final {
   volatile bool terminate_ = false;
 
   std::unique_ptr<zmq::context_t> context_;
-  std::string self_address_;
+  std::string own_address_;
   /**
    * For now, peers may only be added or accessed, so peer mutex only used for
    * atomic addition of peers.
