@@ -30,7 +30,7 @@ std::string getSelfpath() {
   }
 }
 
-class MultiprocessTest : public ::testing::Test, public map_api::CoreTester {
+class MultiprocessTest : public ::testing::Test {
  protected:
   /**
    * Return own ID: 0 if master
@@ -43,6 +43,9 @@ class MultiprocessTest : public ::testing::Test, public map_api::CoreTester {
    * Dies if ID already used
    */
   void launchSubprocess(uint64_t id) {
+    launchSubprocess(id, "");
+  }
+  void launchSubprocess(uint64_t id, const std::string& extra_flags) {
     CHECK_NE(0u, id) << "ID 0 reserved for root process";
     CHECK(subprocesses_.find(id) == subprocesses_.end());
     std::ostringstream command_ss;
@@ -53,8 +56,7 @@ class MultiprocessTest : public ::testing::Test, public map_api::CoreTester {
         ::testing::UnitTest::GetInstance()->current_test_info();
     command_ss << "--gtest_filter=" << test_info->test_case_name() << "." <<
         test_info->name() << " ";
-    // set non-conflicting port for map api hub
-    command_ss << "--ip_port=\"127.0.0.1:505" << id << "\" ";
+    command_ss << extra_flags;
     FILE* subprocess = popen(command_ss.str().c_str(), "r");
     setvbuf(subprocess, NULL, _IOLBF, 1024);
     CHECK(subprocesses_.insert(
@@ -74,6 +76,7 @@ class MultiprocessTest : public ::testing::Test, public map_api::CoreTester {
       while (timedFGetS(buffer, size, pipe) != NULL) {
         std::cout << "Sub " << id_pipe.first << ": " << buffer;
         EXPECT_EQ(NULL, strstr(buffer, "[  FAILED  ]"));
+        EXPECT_EQ(NULL, strstr(buffer, "*** Check failure stack trace: ***"));
       }
     }
   }
@@ -85,24 +88,32 @@ class MultiprocessTest : public ::testing::Test, public map_api::CoreTester {
    */
   char* timedFGetS(char* out_buffer, int size, FILE* stream) {
     char* result;
-    std::timed_mutex mutex;
-    mutex.lock();
-    std::thread thread(fGetSThread, out_buffer, size, stream, &mutex, &result);
+    std::mutex mutex;
+    std::condition_variable cv;
+    std::unique_lock<std::mutex> lock(mutex);
+    std::thread thread(
+        fGetSThread, out_buffer, size, stream, &mutex, &cv, &result);
     thread.detach();
-    if (mutex.try_lock_for(std::chrono::milliseconds(1000))) {
+    if (cv.wait_for(lock, std::chrono::milliseconds(10000)) ==
+        std::cv_status::no_timeout) {
       return result;
-    }
-    else {
+    } else {
       LOG(FATAL) << "Seems like fgets hangs, something went awry with " <<
           "subprocess exit!";
       return NULL;
     }
   }
-  static void fGetSThread(char* out_buffer, int size, FILE* stream,
-                           std::timed_mutex* mutex, char** result) {
+  static void fGetSThread(
+      char* out_buffer, int size, FILE* stream, std::mutex* mutex,
+      std::condition_variable* cv, char** result) {
+    CHECK_NOTNULL(stream);
     CHECK_NOTNULL(mutex);
+    CHECK_NOTNULL(cv);
+    CHECK_NOTNULL(result);
+    std::unique_lock<std::mutex> lock(*mutex);
     *result = fgets(out_buffer, size, stream);
-    mutex->unlock();
+    lock.unlock();
+    cv->notify_one();
   }
 
   virtual void SetUp() {
@@ -111,9 +122,9 @@ class MultiprocessTest : public ::testing::Test, public map_api::CoreTester {
 
   virtual void TearDown() {
     if (getSubprocessId() == 0) {
-      harvest();
       // explicit kill for core in order to carry nothing over to next test
       map_api::MapApiCore::instance().kill();
+      harvest();
     }
   }
  private:

@@ -6,6 +6,7 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <unordered_map>
 
 #include <Poco/RWLock.h>
 
@@ -72,9 +73,9 @@ class Chunk {
    * comments). b needs to perform a lock with its peers just at it would for
    * modifying chunk data.
    */
-  bool init(const Id& id, CRTableRAMCache* underlying_table);
-  bool init(const Id& id, const proto::ConnectResponse& connect_response,
-            CRTableRAMCache* underlying_table);
+  bool init(const Id& id, CRTable* underlying_table);
+  bool init(const Id& id, const proto::InitRequest& init_request,
+            CRTable* underlying_table);
   /**
    * Returns own identification
    */
@@ -82,26 +83,52 @@ class Chunk {
   /**
    * Insert new item into this chunk: Item gets sent to all peers
    */
-  bool insert(const Revision& item);
+  bool insert(Revision* item);
 
   int peerSize() const;
-  /**
-   * Requests all peers in MapApiCore to participate in a given chunk.
-   * Returns how many peers accepted participation.
-   * For the time being this causes the peers to send an independent connect
-   * request, which should be handled by the requester before this function
-   * returns (in the handler thread).
-   * TODO(tcies) down the road, request only table peers?
-   * TODO(tcies) ability to respond with a request, instead of sending an
-   * independent one?
-   * TODO(tcies) listing for peers that would be glad to participate in new
-   * chunks
-   */
-  int requestParticipation() const;
 
-  void handleConnectRequest(const PeerId& peer, Message* response);
+  void leave();
+
+  /**
+   * Requests all peers in MapApiHub to participate in a given chunk.
+   * This write-locks the chunk and directly sends init requests to the affected
+   * peers. Those that respond with ACK are added to the swarm and the chunk
+   * is unlocked.
+   */
+  int requestParticipation();
+
+  /**
+   * Update: First locks chunk, then sends update to all peers for patching.
+   * Requires underlying table to be CRU (verified).
+   */
+  void update(Revision* item);
+
+  static const char kConnectRequest[];
+  static const char kInitRequest[];
+  static const char kInsertRequest[];
+  static const char kLeaveRequest[];
+  static const char kLockRequest[];
+  static const char kNewPeerRequest[];
+  static const char kUnlockRequest[];
+  static const char kUpdateRequest[];
 
  private:
+  /**
+   * Adds a peer to the chunk swarm by sending it an init request. Assumes
+   * lock_ is write-locked. I.e., this function is intended to be called from
+   * handleConnectRequest() and requestParticipation().
+   * This function MAY NOT be executed in parallel  for multiple peers, as each
+   * new peer must be immediately informed about the addresses of the full
+   * swarm. This is enforced by the add_peer_mutex.
+   * Also, while this function verifies that the chunk is locked at the
+   * beginning of execution, another thread MAY NOT unlock the chunk. This is
+   * enforced by having distributedUnlock() lock add_peer_mutex_.
+   * Finally, the peer MAY NOT be already in the swarm. Functions calling this
+   * function should check for that themselves if it is OK by them.
+   * The function returns false iff the peer is not in the swarm but refuses
+   * to join it by responding with Message::kDecline.
+   */
+  bool addPeer(const PeerId& peer);
   /**
    * Distributed RW lock structure. Because it is distributed, unlocking from
    * a remote peer can potentially be handled by a different thread than the
@@ -118,6 +145,7 @@ class Chunk {
     State state;
     int n_readers;
     PeerId holder;
+    // to avoid deadlocks, this mutex may not be locked while awaiting replies
     std::mutex mutex;
     std::condition_variable cv; // in case lock can't be acquired
     DistributedRWLock() : state(State::UNLOCKED), n_readers(0) {}
@@ -128,7 +156,7 @@ class Chunk {
    * defers distributed write lock requests until unlocking or denies them
    * altogether.
    */
-  void distributedReadLock(DistributedRWLock* lock);
+  void distributedReadLock();
   /**
    * Acquiring write locks happens over the network: Unless the caller knows
    * that the lock is held by some other peer, a lock request is broadcast to
@@ -169,36 +197,50 @@ class Chunk {
    * TODO(tcies) define timeout after which the lock is released automatically
    * TODO(tcies) option to renew lock if operations take a long time
    */
-  void distributedWriteLock(DistributedRWLock* lock);
-  void handleLockRequest(const PeerId& locker, Message* response);
-  static const char kLockRequest[];
+  void distributedWriteLock();
 
   /**
    * Unlocking a lock should be coupled to sending the updated data TODO(tcies)
    * This would ensure that all peers can satisfy 1) and 2) of the
    * aforementioned contract.
    */
-  void distributedUnlock(DistributedRWLock* lock);
-  void handleUnlockRequest(const PeerId& locker, Message* response);
-  static const char kUnlockRequest[];
+  void distributedUnlock();
+
+  void fillMetadata(proto::ChunkRequestMetadata* destination);
+
+  /**
+   * Returns true iff lock status is WRITE_LOCKED and lock holder is self.
+   */
+  bool isWriter(const PeerId& peer);
+
+  void prepareInitRequest(Message* request);
 
   /**
    * ===================================================================
    * Handles for ChunkManager requests that are addressed at this Chunk.
    * ===================================================================
    */
-  friend class NetCRTable;
+  friend class NetTable;
   /**
    * Handles insert requests
    */
-  bool handleInsert(const Revision& item);
+  void handleConnectRequest(const PeerId& peer, Message* response);
+  void handleInsertRequest(const Revision& item, Message* response);
+  void handleLeaveRequest(const PeerId& leaver, Message* response);
+  void handleLockRequest(const PeerId& locker, Message* response);
+  void handleNewPeerRequest(const PeerId& peer, const PeerId& sender,
+                            Message* response);
+  void handleUnlockRequest(const PeerId& locker, Message* response);
+  void handleUpdateRequest(const Revision& item, const PeerId& sender,
+                           Message* response);
 
   Id id_;
   PeerHandler peers_;
-  CRTableRAMCache* underlying_table_;
-
-  DistributedRWLock join_lock_;
-  DistributedRWLock update_lock_;
+  CRTable* underlying_table_;
+  DistributedRWLock lock_;
+  std::mutex add_peer_mutex_;
+  Poco::RWLock leave_lock_;
+  bool relinquished_ = false;
 };
 
 } //namespace map_api

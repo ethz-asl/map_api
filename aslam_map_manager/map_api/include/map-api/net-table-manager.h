@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "map-api/net-cr-table.h"
+#include "map-api/net-table.h"
 #include "map-api/table-descriptor.h"
 
 namespace map_api {
@@ -14,10 +14,12 @@ class NetTableManager {
    * Mostly responsible for registering handlers.
    */
   void init();
-  void addTable(std::unique_ptr<TableDescriptor>* descriptor);
-  NetCRTable& getTable(const std::string& name);
-  const NetCRTable& getTable(const std::string& name) const;
-  void clear();
+  void addTable(bool updateable, std::unique_ptr<TableDescriptor>* descriptor);
+  /**
+   * Can leave dangling reference
+   */
+  NetTable& getTable(const std::string& name);
+  void leaveAllChunks();
 
   /**
    * ==========================
@@ -29,40 +31,22 @@ class NetTableManager {
    */
   static void handleConnectRequest(const std::string& serialized_request,
                                    Message* response);
-  static const char kConnectRequest[];
-  static const char kConnectResponse[];
-
-  /**
-   * Counterpart to findAmongPeers
-   */
   static void handleFindRequest(const std::string& serialized_request,
-                                zmq::socket_t* socket);
-
-  /**
-   * Requesting peer specifies which chunk it wants to add the data to and
-   * appends the data.
-   */
+                                Message* response);
+  static void handleInitRequest(const std::string& serialized_request,
+                                Message* response);
   static void handleInsertRequest(const std::string& serialized_request,
                                   Message* response);
-  static const char kInsertRequest[]; // request type
-  static const char kChunkNotOwned[]; // response type, also has kAck
-
-  static void handleParticipationRequest(const std::string& serialized_request,
-                                         Message* response);
-  static const char kParticipationRequest[]; // request type
-  // response types: Message::kAck, Message::kDecline
-
+  static void handleLeaveRequest(const std::string& serialized_request,
+                                 Message* response);
   static void handleLockRequest(const std::string& serialized_request,
                                 Message* response);
-
+  static void handleNewPeerRequest(const std::string& serialized_request,
+                                   Message* response);
   static void handleUnlockRequest(const std::string& serialized_request,
                                   Message* response);
-
-  /**
-   * Propagates removal of peers from the network.
-   */
-  static void handleRelinquishNotification(
-      const std::string& serialized_notification);
+  static void handleUpdateRequest(const std::string& serialized_request,
+                                  Message* response);
 
  private:
   NetTableManager() = default;
@@ -71,9 +55,31 @@ class NetTableManager {
   ~NetTableManager() = default;
   friend class MapApiCore;
 
-  std::unordered_map<std::string, std::unique_ptr<NetCRTable> > tables_;
+  typedef std::unordered_map<std::string, std::unique_ptr<NetTable> >
+  TableMap;
+
+  static bool routeChunkMetadataRequestOperations(
+      const std::string& serialized_request, Message* response,
+      TableMap::iterator* found, Id* chunk_id, PeerId* peer);
+
+  template<typename RequestType>
+  static bool routeChunkRequestOperations(
+      const RequestType& request, Message* response,
+      TableMap::iterator* found);
+
+  /**
+   * This function is necessary to keep MapApiCore out of the inlined
+   * routeChunkRequestOperations(), to avoid circular includes.
+   */
+  static bool findTable(const std::string& table_name,
+                        TableMap::iterator* found);
+
+  TableMap tables_;
+  Poco::RWLock tables_lock_;
 };
 
 } /* namespace map_api */
+
+#include "map-api/net-table-manager-inl.h"
 
 #endif /* MAP_API_NET_TABLE_MANAGER_H_ */

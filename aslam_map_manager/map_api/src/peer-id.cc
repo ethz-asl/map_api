@@ -5,7 +5,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-DECLARE_string(ip_port);
+#include "map-api/map-api-hub.h"
 
 namespace map_api {
 
@@ -19,7 +19,7 @@ PeerId& PeerId::operator =(const PeerId& other) {
 }
 
 PeerId PeerId::self() {
-  return PeerId(FLAGS_ip_port);
+  return PeerId(MapApiHub::instance().ownAddress());
 }
 
 const std::string& PeerId::ipPort() const {

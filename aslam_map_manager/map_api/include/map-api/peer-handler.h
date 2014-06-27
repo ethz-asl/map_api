@@ -26,12 +26,16 @@ class PeerHandler {
    */
   void broadcast(const Message& request,
                  std::unordered_map<PeerId, Message>* responses);
+
+  bool empty() const;
   /**
    * Allows user to view peers, e.g. for ConnectResponse
    * TODO(simon) is this cheap? What else to fill ConnectResponse with
    * addresses?
    */
   const std::set<PeerId>& peers() const;
+
+  void remove(const PeerId& peer);
   /**
    * Sends request to specified peer. If peer not among peers_, adds it.
    */

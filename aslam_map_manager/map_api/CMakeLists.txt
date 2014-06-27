@@ -31,7 +31,7 @@ SET(CORE_SOURCE  src/chunk.cc
                  src/map-api-core.cc
                  src/map-api-hub.cc
                  src/message.cc
-                 src/net-cr-table.cc
+                 src/net-table.cc
                  src/net-table-manager.cc
                  src/peer.cc
                  src/peer-id.cc

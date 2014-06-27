@@ -36,7 +36,7 @@ message Revision {
 //==============================
 message HubMessage {
   required string type = 1;
-  required string serialized = 2;
+  required bytes serialized = 2;
 }
 
 message ListTablesQuery {

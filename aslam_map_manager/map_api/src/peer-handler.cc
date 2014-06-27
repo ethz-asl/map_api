@@ -21,8 +21,25 @@ void PeerHandler::broadcast(
   }
 }
 
+bool PeerHandler::empty() const {
+  return peers_.empty();
+}
+
 const std::set<PeerId>& PeerHandler::peers() const {
   return peers_;
+}
+
+void PeerHandler::remove(const PeerId& peer) {
+  std::set<PeerId>::iterator found = peers_.find(peer);
+  if (found == peers_.end()) {
+    std::stringstream report;
+    report << "Removing peer " << peer << " failed. Peers are:" << std::endl;
+    for (const PeerId& existing : peers_) {
+      report << existing << ", ";
+    }
+    LOG(FATAL) << report.str();
+  }
+  peers_.erase(peer);
 }
 
 void PeerHandler::request(

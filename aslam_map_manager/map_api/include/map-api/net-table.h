@@ -1,26 +1,30 @@
-#ifndef NET_CR_TABLE_H_
-#define NET_CR_TABLE_H_
+#ifndef MAP_API_NET_TABLE_H_
+#define MAP_API_NET_TABLE_H_
 
 #include <unordered_map>
 
 #include "map-api/chunk.h"
 #include "map-api/cr-table.h"
-#include "map-api/cr-table-ram-cache.h"
 #include "map-api/revision.h"
 
 namespace map_api {
 
-class NetCRTable {
+class NetTable {
  public:
   static const std::string kChunkIdField;
 
-  bool init(std::unique_ptr<TableDescriptor>* descriptor);
-  const std::string& name() const;
+  bool init(bool updateable, std::unique_ptr<TableDescriptor>* descriptor);
 
   // INSERTION
   std::shared_ptr<Revision> getTemplate() const;
   std::weak_ptr<Chunk> newChunk();
+  std::weak_ptr<Chunk> getChunk(const Id& chunk_id);
   bool insert(const std::weak_ptr<Chunk>& chunk, Revision* query);
+  /**
+   * Must not change the chunk id. TODO(tcies) immutable fields of Revisions
+   * could be nice and simple to implement
+   */
+  bool update(Revision* query);
 
   // RETRIEVAL
   std::shared_ptr<Revision> getById(const Id& id, const Time& time);
@@ -49,29 +53,61 @@ class NetCRTable {
   void dumpCache(
       const Time& time,
       std::unordered_map<Id, std::shared_ptr<Revision> >* destination);
-  bool has(const Id& chunk_id) const;
+  bool has(const Id& chunk_id);
   /**
    * Connects to the given chunk via the given peer.
    */
   std::weak_ptr<Chunk> connectTo(const Id& chunk_id,
                                  const PeerId& peer);
+
+  bool structureMatch(std::unique_ptr<TableDescriptor>* descriptor) const;
+
+  void leaveAllChunks();
+
+  /**
+   * ========================
+   * Diverse request handlers
+   * ========================
+   * TODO(tcies) somehow unify all routing to chunks?
+   */
   void handleConnectRequest(const Id& chunk_id, const PeerId& peer,
                             Message* response);
+  void handleInitRequest(
+      const proto::InitRequest& request, Message* response);
+  void handleInsertRequest(
+      const Id& chunk_id, const Revision& item, Message* response);
+  void handleLeaveRequest(
+      const Id& chunk_id, const PeerId& leaver, Message* response);
+  void handleLockRequest(
+      const Id& chunk_id, const PeerId& locker, Message* response);
+  void handleNewPeerRequest(
+      const Id& chunk_id, const PeerId& peer, const PeerId& sender,
+      Message* response);
+  void handleUnlockRequest(
+      const Id& chunk_id, const PeerId& locker, Message* response);
+  void handleUpdateRequest(
+      const Id& chunk_id, const Revision& item, const PeerId& sender,
+      Message* response);
 
  private:
-  NetCRTable() = default;
-  NetCRTable(const NetCRTable&) = delete;
-  NetCRTable& operator =(const NetCRTable&) = delete;
+  NetTable() = default;
+  NetTable(const NetTable&) = delete;
+  NetTable& operator =(const NetTable&) = delete;
   friend class NetTableManager;
 
-  std::unique_ptr<CRTableRAMCache> cache_;
   typedef std::unordered_map<Id, std::shared_ptr<Chunk> > ChunkMap;
+  bool routingBasics(
+      const Id& chunk_id, Message* response, ChunkMap::iterator* found);
+
+  bool updateable_;
+  std::unique_ptr<CRTable> cache_;
   ChunkMap active_chunks_;
+  Poco::RWLock active_chunks_lock_;
   // TODO(tcies) insert PeerHandler here
 };
 
 } // namespace map_api
 
-#include "map-api/net-cr-table-inl.h"
+#include "map-api/net-table-inl.h"
 
-#endif /* NET_CR_TABLE_H_ */
+#endif /* MAP_API_NET_TABLE_H_ */

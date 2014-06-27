@@ -13,8 +13,6 @@
 #include "map-api/net-table-manager.h"
 #include "core.pb.h"
 
-DECLARE_string(ip_port);
-
 namespace map_api {
 
 /**
@@ -38,7 +36,7 @@ class MapApiCore final {
   /**
    * Initializer
    */
-  bool init(const std::string &ipPort);
+  void init();
   /**
    * Metatable definition TODO(tcies) in TableManager
    */
@@ -56,15 +54,6 @@ class MapApiCore final {
   NetTableManager& tableManager();
   const NetTableManager& tableManager() const;
 
- protected:
-  /**
-   * Resets the database, clearing all its contents. TO BE USED FOR TESTING
-   * ONLY. After a call to this function ALL TABLES MUST BE RE-INITIALIZED.
-   * resetDb already re-initializes the metatable
-   */
-  void resetDb();
-  friend class CoreTester;
-
  private:
   static const std::string kMetatableNameField;
   static const std::string kMetatableDescriptorField;
@@ -73,6 +62,7 @@ class MapApiCore final {
    * that takes care of handling requests from other nodes.
    */
   MapApiCore();
+  ~MapApiCore();
   /**
    * Returns a weak pointer to the database session
    */
@@ -87,7 +77,6 @@ class MapApiCore final {
    */
   void ensureMetatable();
 
-  Id owner_;
   /**
    * Session of local database
    */
@@ -102,17 +91,7 @@ class MapApiCore final {
   std::unique_ptr<CRTableRAMCache> metatable_; // TODO(tcies) eventually
   // net table in tableManager
 
-  /**
-   * initialized?
-   */
-  bool initialized_;
-};
-
-class CoreTester {
- protected:
-  inline void resetDb() {
-    MapApiCore::instance().resetDb();
-  }
+  bool initialized_ = false;
 };
 
 }
