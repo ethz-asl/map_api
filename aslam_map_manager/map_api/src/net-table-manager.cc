@@ -35,12 +35,11 @@ void NetTableManager::addTable(
   TableMap::iterator found = tables_.find((*descriptor)->name());
   if (found != tables_.end()) {
     LOG(INFO) << "Table already active";
-    NetTable* temp = new NetTable;
+    std::unique_ptr<NetTable> temp(new NetTable);
     temp->init(updateable, descriptor);
     std::shared_ptr<Revision> left = found->second->getTemplate(),
         right = temp->getTemplate();
     CHECK(left->structureMatch(*right));
-    delete temp;
   } else {
     std::pair<std::unordered_map<std::string, std::unique_ptr<NetTable> >::
     iterator, bool> inserted = tables_.insert(
