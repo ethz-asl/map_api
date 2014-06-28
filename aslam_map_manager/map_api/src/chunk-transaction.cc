@@ -25,8 +25,7 @@ std::shared_ptr<Revision> ChunkTransaction::getById(const Id& id) {
 }
 
 ChunkTransaction::ChunkTransaction(const Time& begin_time, CRTable* cache)
-: begin_time_(begin_time), cache_(cache) {
-  CHECK_NOTNULL(cache);
+: begin_time_(begin_time), cache_(CHECK_NOTNULL(cache)) {
   CHECK(begin_time <= Time::now());
   insertions_.clear();
   updates_.clear();

@@ -231,7 +231,7 @@ bool Chunk::addPeer(const PeerId& peer) {
 void Chunk::distributedReadLock() {
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   if (isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id()) {
-    // special case: also succeed. This is necessary e.g. when commiting
+    // special case: also succeed. This is necessary e.g. when committing
     // transactions
     ++lock_.write_recursion_depth;
     metalock.unlock();
