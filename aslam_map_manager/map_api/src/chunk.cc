@@ -161,6 +161,10 @@ void Chunk::leave() {
   // to leaving.
 }
 
+void Chunk::lock() {
+  distributedWriteLock();
+}
+
 int Chunk::requestParticipation() {
   int new_participant_count = 0;
   distributedWriteLock();
@@ -175,6 +179,10 @@ int Chunk::requestParticipation() {
   }
   distributedUnlock();
   return new_participant_count;
+}
+
+void Chunk::unlock() {
+  distributedUnlock();
 }
 
 void Chunk::update(Revision* item) {
@@ -392,7 +400,7 @@ void Chunk::prepareInitRequest(Message* request) {
   init_request.add_peer_address(PeerId::self().ipPort());
 
   std::unordered_map<Id, std::shared_ptr<Revision> > data;
-  underlying_table_->dump(Time::now(), &data);
+  underlying_table_->find(NetTable::kChunkIdField, id(), Time::now(), &data);
   for (const std::pair<const Id, std::shared_ptr<Revision> >& data_pair :
       data) {
     init_request.add_serialized_revision(

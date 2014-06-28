@@ -4,55 +4,31 @@
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 
 #include "map-api/ipc.h"
-#include "map-api/map-api-core.h"
-#include "map-api/net-table.h"
-
-#include "multiprocess_fixture.cpp"
 
 using namespace map_api;
 
-class ChunkTest : public MultiprocessTest,
-public ::testing::WithParamInterface<bool> {
- protected:
-  virtual void SetUp() {
-    MultiprocessTest::SetUp();
-    std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
-    descriptor->setName(kTableName);
-    descriptor->addField<int>(kFieldName);
-    MapApiCore::instance().tableManager().addTable(GetParam(), &descriptor);
-    table_ = &MapApiCore::instance().tableManager().getTable(kTableName);
-  }
+#include "net_table_test_fixture.cpp"
 
-  const std::string kTableName = "chunk_test_table";
-  const std::string kFieldName = "chunk_test_field";
-  NetTable* table_;
-};
-
-TEST_P(ChunkTest, NetInsert) {
-  std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
-  std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
-  EXPECT_TRUE(static_cast<bool>(my_chunk));
-  std::shared_ptr<Revision> to_insert = table_->getTemplate();
-  to_insert->set(CRTable::kIdField, Id::generate());
-  to_insert->set(kFieldName, 42);
-  EXPECT_TRUE(table_->insert(my_chunk_weak, to_insert.get()));
+TEST_P(NetTableTest, NetInsert) {
+  Chunk* chunk = table_->newChunk();
+  ASSERT_TRUE(chunk);
+  insert(42, chunk);
 }
 
-TEST_P(ChunkTest, ParticipationRequest) {
+TEST_P(NetTableTest, ParticipationRequest) {
   enum SubProcesses {ROOT, A};
   enum Barriers {INIT, DIE};
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
-    std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
-    std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
-    EXPECT_TRUE(static_cast<bool>(my_chunk));
+    Chunk* chunk= table_->newChunk();
+    ASSERT_TRUE(chunk);
 
     IPC::barrier(INIT, 1);
 
     EXPECT_EQ(1, MapApiHub::instance().peerSize());
-    EXPECT_EQ(0, my_chunk->peerSize());
-    EXPECT_EQ(1, my_chunk->requestParticipation());
-    EXPECT_EQ(1, my_chunk->peerSize());
+    EXPECT_EQ(0, chunk->peerSize());
+    EXPECT_EQ(1, chunk->requestParticipation());
+    EXPECT_EQ(1, chunk->peerSize());
 
     IPC::barrier(DIE, 1);
   } else {
@@ -61,33 +37,29 @@ TEST_P(ChunkTest, ParticipationRequest) {
   }
 }
 
-TEST_P(ChunkTest, FullJoinTwice) {
+TEST_P(NetTableTest, FullJoinTwice) {
   enum SubProcesses {ROOT, A, B};
   enum Barriers {ROOT_A_INIT, A_JOINED_B_INIT, B_JOINED, DIE};
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
-    std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
-    std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
-    EXPECT_TRUE(static_cast<bool>(my_chunk));
-    std::shared_ptr<Revision> to_insert = table_->getTemplate();
-    to_insert->set(CRTable::kIdField, Id::generate());
-    to_insert->set(kFieldName, 42);
-    EXPECT_TRUE(table_->insert(my_chunk_weak, to_insert.get()));
+    Chunk* chunk = table_->newChunk();
+    ASSERT_TRUE(chunk);
+    insert(42, chunk);
 
     IPC::barrier(ROOT_A_INIT, 1);
 
     EXPECT_EQ(1, MapApiHub::instance().peerSize());
-    EXPECT_EQ(0, my_chunk->peerSize());
-    EXPECT_EQ(1, my_chunk->requestParticipation());
-    EXPECT_EQ(1, my_chunk->peerSize());
+    EXPECT_EQ(0, chunk->peerSize());
+    EXPECT_EQ(1, chunk->requestParticipation());
+    EXPECT_EQ(1, chunk->peerSize());
     launchSubprocess(B);
 
     IPC::barrier(A_JOINED_B_INIT, 2);
 
     EXPECT_EQ(2, MapApiHub::instance().peerSize());
-    EXPECT_EQ(1, my_chunk->peerSize());
-    EXPECT_EQ(1, my_chunk->requestParticipation());
-    EXPECT_EQ(2, my_chunk->peerSize());
+    EXPECT_EQ(1, chunk->peerSize());
+    EXPECT_EQ(1, chunk->requestParticipation());
+    EXPECT_EQ(2, chunk->peerSize());
 
     IPC::barrier(B_JOINED, 2);
 
@@ -112,18 +84,17 @@ TEST_P(ChunkTest, FullJoinTwice) {
   }
 }
 
-TEST_P(ChunkTest, RemoteInsert) {
+TEST_P(NetTableTest, RemoteInsert) {
   enum Subprocesses {ROOT, A};
   enum Barriers {INIT, A_JOINED, A_ADDED, DIE};
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
-    std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
-    std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
-    EXPECT_TRUE(static_cast<bool>(my_chunk));
+    Chunk* chunk = table_->newChunk();
+    ASSERT_TRUE(chunk);
     IPC::barrier(INIT, 1);
 
-    my_chunk->requestParticipation();
-    IPC::push(my_chunk->id().hexString());
+    chunk->requestParticipation();
+    IPC::push(chunk->id().hexString());
     IPC::barrier(A_JOINED, 1);
     IPC::barrier(A_ADDED, 1);
 
@@ -139,17 +110,14 @@ TEST_P(ChunkTest, RemoteInsert) {
     Id chunk_id;
     IPC::pop(&chunk_id_string);
     chunk_id.fromHexString(chunk_id_string);
-    std::shared_ptr<Revision> to_insert = table_->getTemplate();
-    to_insert->set(CRTable::kIdField, Id::generate());
-    to_insert->set(kFieldName, 42);
-    EXPECT_TRUE(table_->insert(table_->getChunk(chunk_id), to_insert.get()));
+    insert(42, table_->getChunk(chunk_id));
 
     IPC::barrier(A_ADDED, 1);
     IPC::barrier(DIE, 1);
   }
 }
 
-TEST_P(ChunkTest, RemoteUpdate) {
+TEST_P(NetTableTest, RemoteUpdate) {
   if (!GetParam()) { // not updateable - just pass test
     return;
   }
@@ -158,19 +126,15 @@ TEST_P(ChunkTest, RemoteUpdate) {
   std::unordered_map<Id, std::shared_ptr<Revision> > results;
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
-    std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
-    std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
-    EXPECT_TRUE(static_cast<bool>(my_chunk));
-    std::shared_ptr<Revision> to_insert = table_->getTemplate();
-    to_insert->set(CRTable::kIdField, Id::generate());
-    to_insert->set(kFieldName, 42);
-    EXPECT_TRUE(table_->insert(my_chunk_weak, to_insert.get()));
+    Chunk* chunk = table_->newChunk();
+    ASSERT_TRUE(chunk);
+    insert(42, chunk);
     table_->dumpCache(Time::now(), &results);
     EXPECT_EQ(1, results.size());
     EXPECT_TRUE(results.begin()->second->verify(kFieldName, 42));
     IPC::barrier(INIT, 1);
 
-    my_chunk->requestParticipation();
+    chunk->requestParticipation();
     IPC::barrier(A_JOINED, 1);
     IPC::barrier(A_UPDATED, 1);
     table_->dumpCache(Time::now(), &results);
@@ -197,7 +161,7 @@ DEFINE_uint64(grind_processes, 10u,
 DEFINE_uint64(grind_cycles, 10u,
               "Total amount of insert-update cycles in ChunkTest.Grind");
 
-TEST_P(ChunkTest, Grind) {
+TEST_P(NetTableTest, Grind) {
   const int kInsertUpdateCycles = FLAGS_grind_cycles;
   const uint64_t kProcesses = FLAGS_grind_processes;
   enum Barriers {INIT, ID_SHARED, DIE};
@@ -209,12 +173,11 @@ TEST_P(ChunkTest, Grind) {
     for (uint64_t i = 1u; i < kProcesses; ++i) {
       launchSubprocess(i, extra_flags_ss.str());
     }
-    std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
-    std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
-    EXPECT_TRUE(static_cast<bool>(my_chunk));
+    Chunk* chunk = table_->newChunk();
+    ASSERT_TRUE(chunk);
     IPC::barrier(INIT, kProcesses - 1);
-    my_chunk->requestParticipation();
-    IPC::push(my_chunk->id().hexString());
+    chunk->requestParticipation();
+    IPC::push(chunk->id().hexString());
     IPC::barrier(ID_SHARED, kProcesses - 1);
     IPC::barrier(DIE, kProcesses - 1);
     table_->dumpCache(Time::now(), &results);
@@ -226,14 +189,10 @@ TEST_P(ChunkTest, Grind) {
     Id chunk_id;
     IPC::pop(&chunk_id_string);
     chunk_id.fromHexString(chunk_id_string);
-    std::weak_ptr<Chunk> my_chunk_weak = table_->getChunk(chunk_id);
+    Chunk* chunk = table_->getChunk(chunk_id);
     for (int i = 0; i < kInsertUpdateCycles; ++i) {
       // insert
-      Id insert_id = Id::generate();
-      std::shared_ptr<Revision> to_insert = table_->getTemplate();
-      to_insert->set(CRTable::kIdField, insert_id);
-      to_insert->set(kFieldName, 42);
-      EXPECT_TRUE(table_->insert(my_chunk_weak, to_insert.get()));
+      insert(42, chunk);
       // update
       if (GetParam()){
         table_->dumpCache(Time::now(), &results);
@@ -245,7 +204,7 @@ TEST_P(ChunkTest, Grind) {
   }
 }
 
-TEST_P(ChunkTest, Transactions) {
+TEST_P(NetTableTest, ChunkTransactions) {
   const uint64_t kProcesses = FLAGS_grind_processes;
   enum Barriers {INIT, IDS_SHARED, DIE};
   std::unordered_map<Id, std::shared_ptr<Revision> > results;
@@ -255,18 +214,13 @@ TEST_P(ChunkTest, Transactions) {
     for (uint64_t i = 1u; i < kProcesses; ++i) {
       launchSubprocess(i, extra_flags_ss.str());
     }
-    std::weak_ptr<Chunk> my_chunk_weak = table_->newChunk();
-    std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
-    EXPECT_TRUE(static_cast<bool>(my_chunk));
-    Id insert_id = Id::generate();
-    std::shared_ptr<Revision> to_insert = table_->getTemplate();
-    to_insert->set(CRTable::kIdField, insert_id);
-    to_insert->set(kFieldName, 1);
-    EXPECT_TRUE(table_->insert(my_chunk_weak, to_insert.get()));
+    Chunk* chunk = table_->newChunk();
+    ASSERT_TRUE(chunk);
+    Id insert_id = insert(1, chunk);
     IPC::barrier(INIT, kProcesses - 1);
 
-    my_chunk->requestParticipation();
-    IPC::push(my_chunk->id().hexString());
+    chunk->requestParticipation();
+    IPC::push(chunk->id().hexString());
     IPC::push(insert_id.hexString());
     IPC::barrier(IDS_SHARED, kProcesses - 1);
 
@@ -296,18 +250,13 @@ TEST_P(ChunkTest, Transactions) {
     IPC::pop(&item_id_string);
     chunk_id.fromHexString(chunk_id_string);
     item_id.fromHexString(item_id_string);
-    std::weak_ptr<Chunk> my_chunk_weak = table_->getChunk(chunk_id);
-    std::shared_ptr<Chunk> my_chunk = my_chunk_weak.lock();
-    EXPECT_TRUE(static_cast<bool>(my_chunk));
+    Chunk* chunk = table_->getChunk(chunk_id);
+    ASSERT_TRUE(chunk);
     std::shared_ptr<ChunkTransaction> transaction;
     while (true) {
-      transaction = my_chunk->newTransaction();
+      transaction = chunk->newTransaction();
       // insert
-      Id insert_id = Id::generate();
-      std::shared_ptr<Revision> to_insert = table_->getTemplate();
-      to_insert->set(CRTable::kIdField, insert_id);
-      to_insert->set(kFieldName, 42);
-      transaction->insert(to_insert);
+      insert(42, transaction.get());
       // update
       if (GetParam()){
         int transient_value;
@@ -317,14 +266,12 @@ TEST_P(ChunkTest, Transactions) {
         to_update->set(kFieldName, transient_value);
         transaction->update(to_update);
       }
-      if (my_chunk->commit(*transaction)){
+      if (chunk->commit(*transaction)){
         break;
       }
     }
     IPC::barrier(DIE, kProcesses - 1);
   }
 }
-
-INSTANTIATE_TEST_CASE_P(Default, ChunkTest, ::testing::Values(false, true));
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT

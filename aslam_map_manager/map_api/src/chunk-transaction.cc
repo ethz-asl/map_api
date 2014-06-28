@@ -20,8 +20,24 @@ void ChunkTransaction::update(std::shared_ptr<Revision> revision) {
 }
 
 std::shared_ptr<Revision> ChunkTransaction::getById(const Id& id) {
-  // TODO(tcies) uncommitted!
+  std::shared_ptr<Revision> uncommitted = getByIdFromUncommitted(id);
+  if (uncommitted) {
+    return uncommitted;
+  }
   return cache_->getById(id, begin_time_);
+}
+
+std::shared_ptr<Revision> ChunkTransaction::getByIdFromUncommitted(
+    const Id& id) const {
+  UpdateMap::const_iterator updated = updates_.find(id);
+  if (updated != updates_.end()) {
+    return updated->second;
+  }
+  InsertMap::const_iterator inserted = insertions_.find(id);
+  if (inserted != insertions_.end()) {
+    return inserted->second;
+  }
+  return std::shared_ptr<Revision>();
 }
 
 ChunkTransaction::ChunkTransaction(const Time& begin_time, CRTable* cache)

@@ -78,6 +78,8 @@ extern void revEnum ## __FILE__ ## __LINE__(void)
    */
   bool ParseFromString(const std::string& data);
 
+  std::string dumpString() const;
+
  private:
   /**
    * Making mutable_fieldqueries private forces use of addField(), which leads

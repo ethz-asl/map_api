@@ -116,6 +116,23 @@ bool Revision::ParseFromString(const std::string& data){
   return true;
 }
 
+std::string Revision::dumpString() const {
+  std::ostringstream dump_ss;
+  dump_ss << "Table " << table() << ": {" << std::endl;
+  for (const std::pair<const std::string, int>& name_field : fields_) {
+    dump_ss << "\t" << name_field.first << ": ";
+    const proto::TableField& field = fieldqueries(name_field.second);
+    if (field.has_blobvalue()) dump_ss << field.blobvalue();
+    if (field.has_doublevalue()) dump_ss << field.doublevalue();
+    if (field.has_intvalue()) dump_ss << field.intvalue();
+    if (field.has_longvalue()) dump_ss << field.longvalue();
+    if (field.has_stringvalue()) dump_ss << field.stringvalue();
+    dump_ss << std::endl;
+  }
+  dump_ss << "}" << std::endl;
+  return dump_ss.str();
+}
+
 /**
  * PROTOBUFENUM
  */

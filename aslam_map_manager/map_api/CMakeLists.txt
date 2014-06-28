@@ -35,6 +35,7 @@ SET(CORE_SOURCE  src/chunk.cc
                  src/message.cc
                  src/net-table.cc
                  src/net-table-manager.cc
+                 src/net-table-transaction.cc
                  src/peer.cc
                  src/peer-id.cc
                  src/peer-handler.cc
@@ -65,6 +66,9 @@ target_link_libraries(test_core_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_local_transaction_test test/local_transaction_test.cpp)
 target_link_libraries(test_local_transaction_test ${PROJECT_NAME})
+
+catkin_add_gtest(test_net_table_test test/net_table_test.cpp)
+target_link_libraries(test_net_table_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_hub_test test/hub_test.cpp)
 target_link_libraries(test_hub_test ${PROJECT_NAME})

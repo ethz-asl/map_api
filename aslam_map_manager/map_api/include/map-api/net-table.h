@@ -17,9 +17,9 @@ class NetTable {
 
   // INSERTION
   std::shared_ptr<Revision> getTemplate() const;
-  std::weak_ptr<Chunk> newChunk();
-  std::weak_ptr<Chunk> getChunk(const Id& chunk_id);
-  bool insert(const std::weak_ptr<Chunk>& chunk, Revision* query);
+  Chunk* newChunk();
+  Chunk* getChunk(const Id& chunk_id);
+  bool insert(Chunk* chunk, Revision* query);
   /**
    * Must not change the chunk id. TODO(tcies) immutable fields of Revisions
    * could be nice and simple to implement
@@ -57,7 +57,7 @@ class NetTable {
   /**
    * Connects to the given chunk via the given peer.
    */
-  std::weak_ptr<Chunk> connectTo(const Id& chunk_id,
+  Chunk* connectTo(const Id& chunk_id,
                                  const PeerId& peer);
 
   bool structureMatch(std::unique_ptr<TableDescriptor>* descriptor) const;
@@ -95,7 +95,7 @@ class NetTable {
   NetTable& operator =(const NetTable&) = delete;
   friend class NetTableManager;
 
-  typedef std::unordered_map<Id, std::shared_ptr<Chunk> > ChunkMap;
+  typedef std::unordered_map<Id, std::unique_ptr<Chunk> > ChunkMap;
   bool routingBasics(
       const Id& chunk_id, Message* response, ChunkMap::iterator* found);
 

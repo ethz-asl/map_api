@@ -28,27 +28,31 @@ std::shared_ptr<Revision> NetTable::getTemplate() const {
   return cache_->getTemplate();
 }
 
-std::weak_ptr<Chunk> NetTable::newChunk() {
+Chunk* NetTable::newChunk() {
   Id chunk_id = Id::generate();
-  std::shared_ptr<Chunk> chunk = std::shared_ptr<Chunk>(new Chunk);
+  std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
   CHECK(chunk->init(chunk_id, cache_.get()));
   active_chunks_lock_.writeLock();
-  active_chunks_[chunk_id] = chunk;
+  std::pair<ChunkMap::iterator, bool> inserted =
+      active_chunks_.insert(std::make_pair(chunk_id, std::unique_ptr<Chunk>()));
+  CHECK(inserted.second);
+  inserted.first->second = std::move(chunk);
   active_chunks_lock_.unlock();
-  return std::weak_ptr<Chunk>(chunk);
+  return inserted.first->second.get();
 }
 
-std::weak_ptr<Chunk> NetTable::getChunk(const Id& chunk_id) {
+Chunk* NetTable::getChunk(const Id& chunk_id) {
   ChunkMap::iterator found = active_chunks_.find(chunk_id);
-  CHECK(found != active_chunks_.end());
-  return std::weak_ptr<Chunk>(found->second);
+  if (found == active_chunks_.end()) {
+    return NULL;
+  }
+  return found->second.get();
 }
 
-bool NetTable::insert(const std::weak_ptr<Chunk>& chunk, Revision* query) {
+bool NetTable::insert(Chunk* chunk, Revision* query) {
+  CHECK_NOTNULL(chunk);
   CHECK_NOTNULL(query);
-  std::shared_ptr<Chunk> locked_chunk = chunk.lock();
-  CHECK(locked_chunk);
-  CHECK(locked_chunk->insert(query)); // TODO(tcies) insert into cache in here
+  CHECK(chunk->insert(query));
   return true;
 }
 
@@ -57,11 +61,13 @@ bool NetTable::update(Revision* query) {
   CHECK(updateable_);
   Id chunk_id;
   query->get(kChunkIdField, &chunk_id);
-  std::weak_ptr<Chunk> chunk = getChunk(chunk_id);
-  std::shared_ptr<Chunk> locked_chunk = chunk.lock();
-  CHECK(locked_chunk);
-  locked_chunk->update(query);
+  CHECK_NOTNULL(getChunk(chunk_id))->update(query);
   return true;
+}
+
+// TODO(tcies) net lookup
+std::shared_ptr<Revision> NetTable::getById(const Id& id, const Time& time) {
+  return cache_->getById(id, time);
 }
 
 void NetTable::dumpCache(
@@ -80,8 +86,8 @@ bool NetTable::has(const Id& chunk_id) {
   return result;
 }
 
-std::weak_ptr<Chunk> NetTable::connectTo(const Id& chunk_id,
-                                         const PeerId& peer) {
+Chunk* NetTable::connectTo(const Id& chunk_id,
+                           const PeerId& peer) {
   Message request, response;
   // sends request of chunk info to peer
   proto::ConnectRequest connect_request;
@@ -90,21 +96,20 @@ std::weak_ptr<Chunk> NetTable::connectTo(const Id& chunk_id,
   connect_request.set_from_peer(PeerId::self().ipPort());
   request.impose<Chunk::kConnectRequest, proto::ConnectRequest>(
       connect_request);
-  // TODO(tcies) add to local peer subset instead - peers in ChunkManager?
-  // meld ChunkManager and NetCRTable?
+  // TODO(tcies) add to local peer subset as well?
   MapApiHub::instance().request(peer, request, &response);
   CHECK(response.isType<Message::kAck>());
+  // Should have received and processed a corresponding init request by now.
   active_chunks_lock_.readLock();
   ChunkMap::iterator found = active_chunks_.find(chunk_id);
   CHECK(found != active_chunks_.end());
-  std::weak_ptr<Chunk> result(found->second);
   active_chunks_lock_.unlock();
-  return result;
+  return found->second.get();
 }
 
 void NetTable::leaveAllChunks() {
   active_chunks_lock_.readLock();
-  for (const std::pair<const Id, std::shared_ptr<Chunk> >& chunk :
+  for (const std::pair<const Id, std::unique_ptr<Chunk> >& chunk :
       active_chunks_) {
     chunk.second->leave();
   }
@@ -134,12 +139,15 @@ void NetTable::handleInitRequest(
     response->impose<Message::kRedundant>();
     return;
   }
-  std::shared_ptr<Chunk> chunk = std::shared_ptr<Chunk>(new Chunk);
+  std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
   CHECK(chunk->init(chunk_id, request, cache_.get()));
   active_chunks_lock_.writeLock();
-  active_chunks_[chunk_id] = chunk;
+  std::pair<ChunkMap::iterator, bool> inserted =
+      active_chunks_.insert(std::make_pair(chunk_id, std::unique_ptr<Chunk>()));
+  CHECK(inserted.second);
+  inserted.first->second = std::move(chunk);
   active_chunks_lock_.unlock();
-  response->impose<Message::kAck>();
+  response->ack();
 }
 
 void NetTable::handleInsertRequest(

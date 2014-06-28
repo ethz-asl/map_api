@@ -97,7 +97,7 @@ class Chunk {
 
   void leave();
 
-  // TODO(tcies) lock();
+  void lock();
 
   /**
    * Requests all peers in MapApiHub to participate in a given chunk.
@@ -107,7 +107,7 @@ class Chunk {
    */
   int requestParticipation();
 
-  // TODO(tcies) unlock();
+  void unlock();
 
   /**
    * Update: First locks chunk, then sends update to all peers for patching.

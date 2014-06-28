@@ -61,10 +61,10 @@ int CRUTableRAMCache::findByRevisionCRUDerived(
     if(!dest->insert(std::make_pair(id, item)).second) {
       std::ostringstream report;
       report << "Failed to insert:" << std::endl;
-      report << item->DebugString() << std::endl;
+      report << item->dumpString() << std::endl;
       report << "Into map with:";
       for (const std::pair<Id, std::shared_ptr<Revision> >& in_dest : *dest) {
-        report << in_dest.second->DebugString() << std::endl;
+        report << in_dest.second->dumpString() << std::endl;
       }
       LOG(FATAL) << report.str();
     }

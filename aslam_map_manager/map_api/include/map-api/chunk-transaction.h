@@ -22,6 +22,7 @@ class ChunkTransaction {
   void update(std::shared_ptr<Revision> revision);
   // TODO(tcies) conflict conditions
   std::shared_ptr<Revision> getById(const Id& id);
+  std::shared_ptr<Revision> getByIdFromUncommitted(const Id& id) const;
   // TODO(tcies) all other flavors of reading
 
  private:
