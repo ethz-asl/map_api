@@ -6,12 +6,14 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <thread>
 #include <unordered_map>
 
 #include <Poco/RWLock.h>
 
 #include <zeromq_cpp/zmq.hpp>
 
+#include "map-api/chunk-transaction.h"
 #include "map-api/cr-table-ram-cache.h"
 #include "map-api/id.h"
 #include "map-api/peer-handler.h"
@@ -76,6 +78,10 @@ class Chunk {
   bool init(const Id& id, CRTable* underlying_table);
   bool init(const Id& id, const proto::InitRequest& init_request,
             CRTable* underlying_table);
+
+  bool check(const ChunkTransaction& transaction);
+
+  bool commit(const ChunkTransaction& transaction);
   /**
    * Returns own identification
    */
@@ -85,9 +91,13 @@ class Chunk {
    */
   bool insert(Revision* item);
 
+  std::shared_ptr<ChunkTransaction> newTransaction();
+
   int peerSize() const;
 
   void leave();
+
+  // TODO(tcies) lock();
 
   /**
    * Requests all peers in MapApiHub to participate in a given chunk.
@@ -96,6 +106,8 @@ class Chunk {
    * is unlocked.
    */
   int requestParticipation();
+
+  // TODO(tcies) unlock();
 
   /**
    * Update: First locks chunk, then sends update to all peers for patching.
@@ -142,13 +154,15 @@ class Chunk {
       ATTEMPTING,
       WRITE_LOCKED
     };
-    State state;
-    int n_readers;
+    State state = State::UNLOCKED;
+    int n_readers = 0;
     PeerId holder;
+    std::thread::id thread;
+    int write_recursion_depth = 0; // the write lock is recursive
     // to avoid deadlocks, this mutex may not be locked while awaiting replies
     std::mutex mutex;
     std::condition_variable cv; // in case lock can't be acquired
-    DistributedRWLock() : state(State::UNLOCKED), n_readers(0) {}
+    DistributedRWLock() {}
   };
   /**
    * The holder may acquire a read lock without the need to communicate with
@@ -210,6 +224,10 @@ class Chunk {
 
   /**
    * Returns true iff lock status is WRITE_LOCKED and lock holder is self.
+   * IMPORTANT: the user is responsible for locking lock_.lock
+   * (unfortunately, isWriter can't lock this as it might be called from a
+   * context where that lock is already acquired, and recursive_mutex isn't
+   * compatible with conditional_variable)
    */
   bool isWriter(const PeerId& peer);
 

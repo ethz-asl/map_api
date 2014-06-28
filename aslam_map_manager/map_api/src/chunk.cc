@@ -62,6 +62,53 @@ bool Chunk::init(
   return true;
 }
 
+bool Chunk::check(const ChunkTransaction& transaction) {
+  {
+    std::lock_guard<std::mutex> metalock(lock_.mutex);
+    CHECK(isWriter(PeerId::self()));
+  }
+  for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
+      transaction.insertions_) {
+    if (underlying_table_->getById(item.first, Time::now())) {
+      LOG(WARNING) << "Table " << underlying_table_->name() <<
+          " already contains id " << item.first;
+      return false;
+    }
+  }
+  CRUTable* table;
+  if (!transaction.updates_.empty()) {
+    CHECK(underlying_table_->type() == CRTable::Type::CRU);
+    table = static_cast<CRUTable*>(underlying_table_);
+  }
+  for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
+      transaction.updates_) {
+    Time latest_update;
+    CHECK(table->getLatestUpdateTime(item.first, &latest_update));
+    if (latest_update >= transaction.begin_time_) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool Chunk::commit(const ChunkTransaction& transaction) {
+  distributedWriteLock();
+  if (!check(transaction)) {
+    distributedUnlock();
+    return false;
+  }
+  for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
+      transaction.insertions_) {
+    CHECK(insert(item.second.get()));
+  }
+  for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
+      transaction.updates_) {
+    update(item.second.get());
+  }
+  distributedUnlock();
+  return true;
+}
+
 Id Chunk::id() const {
   // TODO(tcies) implement
   return id_;
@@ -85,6 +132,11 @@ bool Chunk::insert(Revision* item) {
   CHECK(peers_.undisputableBroadcast(request));
   distributedUnlock();
   return true;
+}
+
+std::shared_ptr<ChunkTransaction> Chunk::newTransaction() {
+    return std::shared_ptr<ChunkTransaction>(
+        new ChunkTransaction(Time::now(), underlying_table_));
 }
 
 int Chunk::peerSize() const {
@@ -148,7 +200,10 @@ void Chunk::update(Revision* item) {
 
 bool Chunk::addPeer(const PeerId& peer) {
   std::lock_guard<std::mutex> add_peer_lock(add_peer_mutex_);
-  CHECK(isWriter(PeerId::self()));
+  {
+    std::lock_guard<std::mutex> metalock(lock_.mutex);
+    CHECK(isWriter(PeerId::self()));
+  }
   Message request;
   if (peers_.peers().find(peer) != peers_.peers().end()) {
     LOG(FATAL) << "Peer already in swarm!";
@@ -175,6 +230,13 @@ bool Chunk::addPeer(const PeerId& peer) {
 
 void Chunk::distributedReadLock() {
   std::unique_lock<std::mutex> metalock(lock_.mutex);
+  if (isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id()) {
+    // special case: also succeed. This is necessary e.g. when committing
+    // transactions
+    ++lock_.write_recursion_depth;
+    metalock.unlock();
+    return;
+  }
   while (lock_.state != DistributedRWLock::State::UNLOCKED &&
       lock_.state != DistributedRWLock::State::READ_LOCKED) {
     lock_.cv.wait(metalock);
@@ -186,8 +248,13 @@ void Chunk::distributedReadLock() {
 }
 
 void Chunk::distributedWriteLock() {
+  std::unique_lock<std::mutex> metalock(lock_.mutex);
+  if (isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id()) {
+    ++lock_.write_recursion_depth;
+    metalock.unlock();
+    return;
+  }
   while(true) { // lock: attempt until success
-    std::unique_lock<std::mutex> metalock(lock_.mutex);
     while (lock_.state != DistributedRWLock::State::UNLOCKED &&
         lock_.state != DistributedRWLock::State::ATTEMPTING) {
       lock_.cv.wait(metalock);
@@ -224,6 +291,7 @@ void Chunk::distributedWriteLock() {
       // UNLOCKED or ATTEMPTING". Either the state has changed to "locked by
       // other" until then, or we will fail again.
       usleep(1000);
+      metalock.lock();
       continue;
     }
     break;
@@ -233,6 +301,8 @@ void Chunk::distributedWriteLock() {
   CHECK(lock_.state == DistributedRWLock::State::ATTEMPTING);
   lock_.state = DistributedRWLock::State::WRITE_LOCKED;
   lock_.holder = PeerId::self();
+  lock_.thread = std::this_thread::get_id();
+  ++lock_.write_recursion_depth;
 }
 
 void Chunk::distributedUnlock() {
@@ -254,6 +324,12 @@ void Chunk::distributedUnlock() {
       break;
     case DistributedRWLock::State::WRITE_LOCKED:
       CHECK(lock_.holder == PeerId::self());
+      CHECK(lock_.thread == std::this_thread::get_id());
+      --lock_.write_recursion_depth;
+      if (lock_.write_recursion_depth > 0) {
+        metalock.unlock();
+        return;
+      }
       std::lock_guard<std::mutex> add_peer_lock(add_peer_mutex_);
       Message request, response;
       proto::ChunkRequestMetadata unlock_request;
@@ -298,7 +374,6 @@ void Chunk::fillMetadata(proto::ChunkRequestMetadata* destination) {
 }
 
 bool Chunk::isWriter(const PeerId& peer) {
-  std::lock_guard<std::mutex> metalock(lock_.mutex);
   return (lock_.state == DistributedRWLock::State::WRITE_LOCKED &&
       lock_.holder == peer);
 }
@@ -358,13 +433,17 @@ void Chunk::handleInsertRequest(const Revision& item, Message* response) {
     response->decline();
     return;
   }
-  CHECK(!isWriter(PeerId::self())); // an insert request may not happen while
+  // an insert request may not happen while
   // another peer holds the write lock (i.e. inserts must be read-locked). Note
   // that this is not equivalent to checking state != WRITE_LOCKED, as the state
   // may be WRITE_LOCKED at some peers while in reality the lock is not write
   // locked:
   // A lock is only really WRITE_LOCKED when all peers agree that it is.
   // no further locking needed, elegantly
+  {
+    std::lock_guard<std::mutex> metalock(lock_.mutex);
+    CHECK(!isWriter(PeerId::self()));
+  }
   underlying_table_->patch(item);
   response->ack();
   leave_lock_.unlock();
@@ -467,7 +546,10 @@ void Chunk::handleUnlockRequest(const PeerId& locker, Message* response) {
 void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
                                 Message* response) {
   CHECK_NOTNULL(response);
-  CHECK(isWriter(sender));
+  {
+    std::lock_guard<std::mutex> metalock(lock_.mutex);
+    CHECK(isWriter(sender));
+  }
   CHECK(underlying_table_->type() == CRTable::Type::CRU);
   CRUTable* table = static_cast<CRUTable*>(underlying_table_);
   table->patch(item);

@@ -216,7 +216,7 @@ class FieldTestWithoutInit :
 
   Id fillRevision() {
     getTemplate();
-    Id inserted = Id::random();
+    Id inserted = Id::generate();
     query_->set(CRTable::kIdField, inserted);
     // to_insert_->set("owner", Id::random()); TODO(tcies) later, from core
     query_->set(FieldTestTable<TableDataType>::kTestField,
@@ -298,7 +298,7 @@ TYPED_TEST(FieldTestWithoutInit, CreateBeforeInit) {
 
 TYPED_TEST(FieldTestWithoutInit, ReadBeforeInit) {
   ::testing::FLAGS_gtest_death_test_style = "fast";
-  EXPECT_DEATH(this->table_->getById(Id::random(), Time::now()),
+  EXPECT_DEATH(this->table_->getById(Id::generate(), Time::now()),
                "Attempted to getById from non-initialized table");
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 }
@@ -320,7 +320,7 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRow) {
   this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
-  Id other_id = Id::random();
+  Id other_id = Id::generate();
   EXPECT_FALSE(this->table_->getById(other_id, Time::now()));
 }
 
