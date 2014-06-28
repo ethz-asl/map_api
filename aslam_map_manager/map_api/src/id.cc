@@ -1,5 +1,6 @@
 #include "map-api/id.h"
 
+#include <atomic>
 #include <chrono>
 
 #include <glog/logging.h>
@@ -12,7 +13,7 @@
 namespace map_api {
 
 Id Id::generate(){
-  static uint64_t counter;
+  static std::atomic<int> counter;
   ++counter;
   Poco::MD5Engine md5;
   Poco::DigestOutputStream digest_stream(md5);
