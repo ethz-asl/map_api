@@ -101,7 +101,7 @@ bool LocalTransaction::abort(){
 Id LocalTransaction::insert(const SharedRevisionPointer& item,
                             CRTable* table){
   CHECK_NOTNULL(table);
-  Id id(Id::random());
+  Id id(Id::generate());
   if (!insert(id, item, table)){
     return Id();
   }

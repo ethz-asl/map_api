@@ -29,7 +29,7 @@ std::shared_ptr<Revision> NetTable::getTemplate() const {
 }
 
 std::weak_ptr<Chunk> NetTable::newChunk() {
-  Id chunk_id = Id::random();
+  Id chunk_id = Id::generate();
   std::shared_ptr<Chunk> chunk = std::shared_ptr<Chunk>(new Chunk);
   CHECK(chunk->init(chunk_id, cache_.get()));
   active_chunks_lock_.writeLock();
