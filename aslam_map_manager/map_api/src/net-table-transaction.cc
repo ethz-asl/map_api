@@ -2,9 +2,14 @@
 
 namespace map_api {
 
+NetTableTransaction::NetTableTransaction(NetTable* table)
+: NetTableTransaction(Time::now(), table) {}
+
 NetTableTransaction::NetTableTransaction(
     const Time& begin_time, NetTable* table) : begin_time_(begin_time),
-        table_(table) {}
+        table_(table) {
+  CHECK(begin_time <= Time::now());
+}
 
 bool NetTableTransaction::check() {
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
@@ -30,6 +35,7 @@ bool NetTableTransaction::commit() {
 
 void NetTableTransaction::insert(
     Chunk* chunk, std::shared_ptr<Revision> revision) {
+  CHECK_NOTNULL(chunk);
   transactionOf(chunk)->insert(revision);
 }
 
@@ -67,7 +73,8 @@ ChunkTransaction* NetTableTransaction::transactionOf(Chunk* chunk) {
   CHECK_NOTNULL(chunk);
   TransactionMap::iterator chunk_transaction = chunk_transactions_.find(chunk);
   if (chunk_transaction == chunk_transactions_.end()) {
-    std::shared_ptr<ChunkTransaction> transaction = chunk->newTransaction();
+    std::shared_ptr<ChunkTransaction> transaction =
+        chunk->newTransaction(begin_time_);
     std::pair<TransactionMap::iterator, bool> inserted =
         chunk_transactions_.insert(std::make_pair(chunk, transaction));
     CHECK(inserted.second);

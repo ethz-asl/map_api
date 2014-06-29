@@ -68,18 +68,14 @@ TEST_P(NetTableTest, FullJoinTwice) {
   if(getSubprocessId() == A){
     IPC::barrier(ROOT_A_INIT, 1);
     IPC::barrier(A_JOINED_B_INIT, 2);
-    std::unordered_map<Id, std::shared_ptr<Revision> > dummy;
-    table_->dumpCache(Time::now(), &dummy);
-    EXPECT_EQ(1, dummy.size());
+    EXPECT_EQ(1, count());
     IPC::barrier(B_JOINED, 2);
     IPC::barrier(DIE, 2);
   }
   if(getSubprocessId() == B){
     IPC::barrier(A_JOINED_B_INIT, 2);
     IPC::barrier(B_JOINED, 2);
-    std::unordered_map<Id, std::shared_ptr<Revision> > dummy;
-    table_->dumpCache(Time::now(), &dummy);
-    EXPECT_EQ(1, dummy.size());
+    EXPECT_EQ(1, count());
     IPC::barrier(DIE, 2);
   }
 }
@@ -98,18 +94,13 @@ TEST_P(NetTableTest, RemoteInsert) {
     IPC::barrier(A_JOINED, 1);
     IPC::barrier(A_ADDED, 1);
 
-    std::unordered_map<Id, std::shared_ptr<Revision> > dummy;
-    table_->dumpCache(Time::now(), &dummy);
-    EXPECT_EQ(1, dummy.size());
+    EXPECT_EQ(1, count());
     IPC::barrier(DIE, 1);
   }
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 1);
     IPC::barrier(A_JOINED, 1);
-    std::string chunk_id_string;
-    Id chunk_id;
-    IPC::pop(&chunk_id_string);
-    chunk_id.fromHexString(chunk_id_string);
+    Id chunk_id = popId();
     insert(42, table_->getChunk(chunk_id));
 
     IPC::barrier(A_ADDED, 1);
@@ -180,15 +171,11 @@ TEST_P(NetTableTest, Grind) {
     IPC::push(chunk->id().hexString());
     IPC::barrier(ID_SHARED, kProcesses - 1);
     IPC::barrier(DIE, kProcesses - 1);
-    table_->dumpCache(Time::now(), &results);
-    EXPECT_EQ(kInsertUpdateCycles * (kProcesses - 1), results.size());
+    EXPECT_EQ(kInsertUpdateCycles * (kProcesses - 1), count());
   } else {
     IPC::barrier(INIT, kProcesses - 1);
     IPC::barrier(ID_SHARED, kProcesses - 1);
-    std::string chunk_id_string;
-    Id chunk_id;
-    IPC::pop(&chunk_id_string);
-    chunk_id.fromHexString(chunk_id_string);
+    Id chunk_id = popId();
     Chunk* chunk = table_->getChunk(chunk_id);
     for (int i = 0; i < kInsertUpdateCycles; ++i) {
       // insert
@@ -244,12 +231,7 @@ TEST_P(NetTableTest, ChunkTransactions) {
   } else {
     IPC::barrier(INIT, kProcesses - 1);
     IPC::barrier(IDS_SHARED, kProcesses - 1);
-    std::string chunk_id_string, item_id_string;
-    Id chunk_id, item_id;
-    IPC::pop(&chunk_id_string);
-    IPC::pop(&item_id_string);
-    chunk_id.fromHexString(chunk_id_string);
-    item_id.fromHexString(item_id_string);
+    Id chunk_id = popId(), item_id = popId();
     Chunk* chunk = table_->getChunk(chunk_id);
     ASSERT_TRUE(chunk);
     std::shared_ptr<ChunkTransaction> transaction;

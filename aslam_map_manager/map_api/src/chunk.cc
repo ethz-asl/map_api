@@ -138,6 +138,11 @@ std::shared_ptr<ChunkTransaction> Chunk::newTransaction() {
     return std::shared_ptr<ChunkTransaction>(
         new ChunkTransaction(Time::now(), underlying_table_));
 }
+std::shared_ptr<ChunkTransaction> Chunk::newTransaction(const Time& time) {
+  CHECK(time <= Time::now());
+    return std::shared_ptr<ChunkTransaction>(
+        new ChunkTransaction(time, underlying_table_));
+}
 
 int Chunk::peerSize() const {
   return peers_.size();

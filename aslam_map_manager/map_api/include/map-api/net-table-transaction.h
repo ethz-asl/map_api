@@ -15,6 +15,7 @@ namespace map_api {
 
 class NetTableTransaction {
  public:
+  NetTableTransaction(NetTable* table);
   NetTableTransaction(const Time& begin_time, NetTable* table);
 
   /**

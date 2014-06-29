@@ -92,6 +92,7 @@ class Chunk {
   bool insert(Revision* item);
 
   std::shared_ptr<ChunkTransaction> newTransaction();
+  std::shared_ptr<ChunkTransaction> newTransaction(const Time& time);
 
   int peerSize() const;
 
