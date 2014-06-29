@@ -1,6 +1,7 @@
 #include "map-api/map-api-core.h"
 #include "map-api/net-table.h"
 #include "map-api/net-table-transaction.h"
+#include "map-api/transaction.h"
 
 #include "multiprocess_fixture.cpp"
 
@@ -32,6 +33,17 @@ public ::testing::WithParamInterface<bool> {
     ++transient_value;
     to_update->set(kFieldName, transient_value);
     transaction->update(to_update);
+  }
+
+  void increment(NetTable* table, const Id& id, Transaction* transaction) {
+    CHECK_NOTNULL(table);
+    CHECK_NOTNULL(transaction);
+    std::shared_ptr<Revision> to_update = transaction->getById(table, id);
+    int transient_value;
+    to_update->get(kFieldName, &transient_value);
+    ++transient_value;
+    to_update->set(kFieldName, transient_value);
+    transaction->update(table, to_update);
   }
 
   Id insert(int n, Chunk* chunk) {

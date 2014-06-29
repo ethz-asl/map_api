@@ -14,6 +14,7 @@ class NetTable {
   static const std::string kChunkIdField;
 
   bool init(bool updateable, std::unique_ptr<TableDescriptor>* descriptor);
+  const std::string& name() const;
 
   // INSERTION
   std::shared_ptr<Revision> getTemplate() const;

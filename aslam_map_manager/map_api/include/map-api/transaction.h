@@ -14,7 +14,7 @@ namespace map_api {
 class Transaction {
  public:
   Transaction();
-  Transaction(const Time& begin_time);
+  explicit Transaction(const Time& begin_time);
   bool commit();
   std::shared_ptr<Revision> getById(NetTable* table, const Id& id);
   void insert(

@@ -24,6 +24,10 @@ bool NetTable::init(
   return true;
 }
 
+const std::string& NetTable::name() const {
+  return cache_->name();
+}
+
 std::shared_ptr<Revision> NetTable::getTemplate() const {
   return cache_->getTemplate();
 }
