@@ -14,10 +14,9 @@
 namespace map_api {
 
 const char MapApiHub::kDiscovery[] = "map_api_hub_discovery";
-MAP_API_MESSAGE_IMPOSE_STRING_MESSAGE(MapApiHub::kDiscovery);
 
 std::unordered_map<std::string,
-std::function<void(const std::string&, Message*)> >
+std::function<void(const Message& request, Message* response)> >
 MapApiHub::handlers_;
 
 bool MapApiHub::init() {
@@ -66,10 +65,10 @@ bool MapApiHub::init() {
 
   // 4. Announce self to peers (who will not revisit discovery)
   Message announce_self, response;
-  announce_self.impose<kDiscovery>(own_address_);
+  announce_self.impose<kDiscovery>();
   std::unordered_set<PeerId> unreachable;
   for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer : peers_) {
-    if (!peer.second->try_request(announce_self, &response)) {
+    if (!peer.second->try_request(&announce_self, &response)) {
       discovery_.remove(peer.first);
       unreachable.insert(peer.first);
     }
@@ -115,7 +114,8 @@ void MapApiHub::kill() {
   discovery_.unlock();
 }
 
-bool MapApiHub::ackRequest(const PeerId& peer, const Message& request) {
+bool MapApiHub::ackRequest(const PeerId& peer, Message* request) {
+  CHECK_NOTNULL(request);
   Message response;
   this->request(peer, request, &response);
   return response.isType<Message::kAck>();
@@ -142,7 +142,7 @@ const std::string& MapApiHub::ownAddress() const {
 
 bool MapApiHub::registerHandler(
     const char* name,
-    std::function<void(const std::string& serialized_type,
+    std::function<void(const Message& serialized_type,
                        Message* response)> handler) {
   CHECK_NOTNULL(name);
   CHECK(handler);
@@ -152,7 +152,8 @@ bool MapApiHub::registerHandler(
 }
 
 void MapApiHub::request(
-    const PeerId& peer, const Message& request, Message* response) {
+    const PeerId& peer, Message* request, Message* response) {
+  CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
   std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
       peers_.find(peer);
@@ -170,8 +171,9 @@ void MapApiHub::request(
   found->second->request(request, response);
 }
 
-void MapApiHub::broadcast(const Message& request,
+void MapApiHub::broadcast(Message* request,
                           std::unordered_map<PeerId, Message>* responses) {
+  CHECK_NOTNULL(request);
   CHECK_NOTNULL(responses);
   responses->clear();
   // TODO(tcies) parallelize using std::future
@@ -181,7 +183,8 @@ void MapApiHub::broadcast(const Message& request,
   }
 }
 
-bool MapApiHub::undisputableBroadcast(const Message& request) {
+bool MapApiHub::undisputableBroadcast(Message* request) {
+  CHECK_NOTNULL(request);
   std::unordered_map<PeerId, Message> responses;
   broadcast(request, &responses);
   for (const std::pair<PeerId, Message>& response : responses) {
@@ -192,13 +195,13 @@ bool MapApiHub::undisputableBroadcast(const Message& request) {
   return true;
 }
 
-void MapApiHub::discoveryHandler(const std::string& peer, Message* response) {
+void MapApiHub::discoveryHandler(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
   // lock peer set lock so we can write without a race condition
   instance().peer_mutex_.lock();
   instance().peers_.insert(
-      std::make_pair(PeerId(peer), std::unique_ptr<Peer>(
-          new Peer(peer, *instance().context_, ZMQ_REQ))));
+      std::make_pair(PeerId(request.sender()), std::unique_ptr<Peer>(
+          new Peer(request.sender(), *instance().context_, ZMQ_REQ))));
   instance().peer_mutex_.unlock();
   // ack by resend
   response->impose<Message::kAck>();
@@ -242,19 +245,20 @@ void MapApiHub::listenThread(MapApiHub *self) {
       else
         continue;
     }
-    proto::HubMessage query;
+    Message query;
     query.ParseFromArray(request.data(), request.size());
 
     // Query handler
     std::unordered_map<std::string,
-    std::function<void(const std::string&, Message*)> >::iterator handler =
+    std::function<void(const Message&, Message*)> >::iterator handler =
         handlers_.find(query.type());
     CHECK(handlers_.end() != handler) << "Handler for message type " <<
         query.type() << " not registered";
     Message response;
     VLOG(3) << PeerId::self() << " received request " << query.type();
-    handler->second(query.serialized(), &response);
+    handler->second(query, &response);
     VLOG(3) << PeerId::self() << " handled request " << query.type();
+    response.set_sender(PeerId::self().ipPort());
     std::string serialized_response = response.SerializeAsString();
     zmq::message_t response_message(serialized_response.size());
     memcpy((void *) response_message.data(), serialized_response.c_str(),

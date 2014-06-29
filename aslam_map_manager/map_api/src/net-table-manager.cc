@@ -74,11 +74,11 @@ void NetTableManager::leaveAllChunks() {
 // HANDLERS
 // ========
 
-void NetTableManager::handleConnectRequest(const std::string& serialized_request,
+void NetTableManager::handleConnectRequest(const Message& request,
                                            Message* response) {
   CHECK_NOTNULL(response);
   proto::ConnectRequest connect_request;
-  CHECK(connect_request.ParseFromString(serialized_request));
+  request.extract<Chunk::kConnectRequest>(&connect_request);
   const std::string& table = connect_request.table();
   Id chunk_id;
   CHECK(chunk_id.fromHexString(connect_request.chunk_id()));
@@ -96,100 +96,89 @@ void NetTableManager::handleConnectRequest(const std::string& serialized_request
 }
 
 void NetTableManager::handleInitRequest(
-    const std::string& serialized_request, Message* response) {
-  proto::InitRequest request;
-  CHECK(request.ParseFromString(serialized_request));
+    const Message& request, Message* response) {
+  proto::InitRequest init_request;
+  request.extract<Chunk::kInitRequest>(&init_request);
   TableMap::iterator found;
-  if (routeChunkRequestOperations(request, response, &found)) {
-    found->second->handleInitRequest(request, response);
+  if (routeChunkRequestOperations(init_request, response, &found)) {
+    found->second->handleInitRequest(init_request, response);
   }
 }
 
 void NetTableManager::handleInsertRequest(
-    const std::string& serialized_request, Message* response) {
-  proto::PatchRequest request;
-  CHECK(request.ParseFromString(serialized_request));
+    const Message& request, Message* response) {
+  proto::PatchRequest patch_request;
+  request.extract<Chunk::kInsertRequest>(&patch_request);
   TableMap::iterator found;
-  if (routeChunkRequestOperations(request, response, &found)) {
+  if (routeChunkRequestOperations(patch_request, response, &found)) {
     Id chunk_id;
-    CHECK(chunk_id.fromHexString(request.chunk_id()));
+    CHECK(chunk_id.fromHexString(patch_request.chunk_id()));
     Revision to_insert;
-    CHECK(to_insert.ParseFromString(request.serialized_revision()));
+    CHECK(to_insert.ParseFromString(patch_request.serialized_revision()));
     found->second->handleInsertRequest(chunk_id, to_insert, response);
   }
 }
 
 void NetTableManager::handleLeaveRequest(
-    const std::string& serialized_request, Message* response) {
+    const Message& request, Message* response) {
   TableMap::iterator found;
   Id chunk_id;
   PeerId peer;
-  if (routeChunkMetadataRequestOperations(
-      serialized_request, response, &found, &chunk_id, &peer)) {
+  if (routeChunkMetadataRequestOperations<Chunk::kLeaveRequest>(
+      request, response, &found, &chunk_id, &peer)) {
     found->second->handleLeaveRequest(chunk_id, peer, response);
   }
 }
 
 void NetTableManager::handleLockRequest(
-    const std::string& serialized_request, Message* response) {
+    const Message& request, Message* response) {
   TableMap::iterator found;
   Id chunk_id;
   PeerId peer;
-  if (routeChunkMetadataRequestOperations(
-      serialized_request, response, &found, &chunk_id, &peer)) {
+  if (routeChunkMetadataRequestOperations<Chunk::kLockRequest>(
+      request, response, &found, &chunk_id, &peer)) {
     found->second->handleLockRequest(chunk_id, peer, response);
   }
 }
 
 void NetTableManager::handleNewPeerRequest(
-    const std::string& serialized_request, Message* response) {
-  proto::NewPeerRequest request;
-  CHECK(request.ParseFromString(serialized_request));
+    const Message& request, Message* response) {
+  proto::NewPeerRequest new_peer_request;
+  request.extract<Chunk::kNewPeerRequest>(&new_peer_request);
   TableMap::iterator found;
-  if (routeChunkRequestOperations(request, response, &found)) {
+  if (routeChunkRequestOperations(new_peer_request, response, &found)) {
     Id chunk_id;
-    CHECK(chunk_id.fromHexString(request.chunk_id()));
-    PeerId new_peer(request.new_peer()), sender(request.from_peer());
+    CHECK(chunk_id.fromHexString(new_peer_request.chunk_id()));
+    PeerId new_peer(new_peer_request.new_peer()),
+        sender(new_peer_request.from_peer());
     found->second->handleNewPeerRequest(chunk_id, new_peer, sender, response);
   }
 }
 
 void NetTableManager::handleUnlockRequest(
-    const std::string& serialized_request, Message* response) {
+    const Message& request, Message* response) {
   TableMap::iterator found;
   Id chunk_id;
   PeerId peer;
-  if (routeChunkMetadataRequestOperations(
-      serialized_request, response, &found, &chunk_id, &peer)) {
+  if (routeChunkMetadataRequestOperations<Chunk::kUnlockRequest>(
+      request, response, &found, &chunk_id, &peer)) {
     found->second->handleUnlockRequest(chunk_id, peer, response);
   }
 }
 
 void NetTableManager::handleUpdateRequest(
-    const std::string& serialized_request, Message* response) {
-  proto::PatchRequest request;
-  CHECK(request.ParseFromString(serialized_request));
+    const Message& request, Message* response) {
+  proto::PatchRequest patch_request;
+  request.extract<Chunk::kUpdateRequest>(&patch_request);
   TableMap::iterator found;
-  if (routeChunkRequestOperations(request, response, &found)) {
+  if (routeChunkRequestOperations(patch_request, response, &found)) {
     Id chunk_id;
-    CHECK(chunk_id.fromHexString(request.chunk_id()));
+    CHECK(chunk_id.fromHexString(patch_request.chunk_id()));
     Revision to_insert;
-    CHECK(to_insert.ParseFromString(request.serialized_revision()));
-    PeerId sender(request.from_peer());
+    CHECK(to_insert.ParseFromString(patch_request.serialized_revision()));
+    PeerId sender(patch_request.from_peer());
     found->second->handleUpdateRequest(chunk_id, to_insert, sender, response);
   }
-}
-
-bool NetTableManager::routeChunkMetadataRequestOperations(
-    const std::string& serialized_request, Message* response,
-    TableMap::iterator* found, Id* chunk_id, PeerId* peer) {
-  CHECK_NOTNULL(chunk_id);
-  CHECK_NOTNULL(peer);
-  proto::ChunkRequestMetadata metadata;
-  CHECK(metadata.ParseFromString(serialized_request));
-  chunk_id->fromHexString(metadata.chunk_id());
-  *peer = PeerId(metadata.from_peer());
-  return routeChunkRequestOperations(metadata, response, found);
 }
 
 bool NetTableManager::findTable(const std::string& table_name,

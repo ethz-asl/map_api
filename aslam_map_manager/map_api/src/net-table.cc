@@ -101,7 +101,7 @@ Chunk* NetTable::connectTo(const Id& chunk_id,
   request.impose<Chunk::kConnectRequest, proto::ConnectRequest>(
       connect_request);
   // TODO(tcies) add to local peer subset as well?
-  MapApiHub::instance().request(peer, request, &response);
+  MapApiHub::instance().request(peer, &request, &response);
   CHECK(response.isType<Message::kAck>());
   // Should have received and processed a corresponding init request by now.
   active_chunks_lock_.readLock();

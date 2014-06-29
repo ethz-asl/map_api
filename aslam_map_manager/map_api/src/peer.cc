@@ -1,5 +1,7 @@
 #include "map-api/peer.h"
 
+#include "map-api/peer-id.h"
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
@@ -26,17 +28,20 @@ std::string Peer::address() const {
   return address_;
 }
 
-void Peer::request(const Message& request, Message* response) {
+void Peer::request(Message* request, Message* response) {
+  CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
   CHECK(try_request(request, response)) << "Message " <<
-      request.DebugString() << " timed out!";
+      request->DebugString() << " timed out!";
 }
 
-bool Peer::try_request(const Message& request, Message* response) {
+bool Peer::try_request(Message* request, Message* response) {
+  CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
-  int size = request.ByteSize();
+  request->set_sender(PeerId::self().ipPort());
+  int size = request->ByteSize();
   void* buffer = malloc(size);
-  CHECK(request.SerializeToArray(buffer, size));
+  CHECK(request->SerializeToArray(buffer, size));
   try {
     zmq::message_t message(buffer, size, NULL, NULL);
     {
@@ -48,10 +53,10 @@ bool Peer::try_request(const Message& request, Message* response) {
     }
     // catches silly bugs where a handler forgets to modify the response
     // message, which could be a quite common bug
-    CHECK_GT(message.size(), 0u) << "Request was " << request.DebugString();
+    CHECK_GT(message.size(), 0u) << "Request was " << request->DebugString();
     CHECK(response->ParseFromArray(message.data(), message.size()));
   } catch(const zmq::error_t& e) {
-    LOG(FATAL) << e.what() << ", request was " << request.DebugString();
+    LOG(FATAL) << e.what() << ", request was " << request->DebugString();
   }
   return true;
 }

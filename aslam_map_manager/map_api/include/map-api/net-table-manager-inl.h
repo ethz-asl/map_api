@@ -3,6 +3,19 @@
 
 namespace map_api {
 
+template<const char* request_type>
+bool NetTableManager::routeChunkMetadataRequestOperations(
+    const Message& request, Message* response,
+    TableMap::iterator* found, Id* chunk_id, PeerId* peer) {
+  CHECK_NOTNULL(chunk_id);
+  CHECK_NOTNULL(peer);
+  proto::ChunkRequestMetadata metadata;
+  request.extract<request_type>(&metadata);
+  chunk_id->fromHexString(metadata.chunk_id());
+  *peer = PeerId(metadata.from_peer());
+  return routeChunkRequestOperations(metadata, response, found);
+}
+
 template<typename RequestType>
 bool NetTableManager::routeChunkRequestOperations(
     const RequestType& request, Message* response,

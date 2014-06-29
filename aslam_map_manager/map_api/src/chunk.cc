@@ -17,22 +17,14 @@ const char Chunk::kNewPeerRequest[] = "map_api_chunk_new_peer_request";
 const char Chunk::kUnlockRequest[] = "map_api_chunk_unlock_request";
 const char Chunk::kUpdateRequest[] = "map_api_chunk_update_request";
 
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
-    Chunk::kConnectRequest, proto::ConnectRequest);
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
-    Chunk::kInitRequest, proto::InitRequest);
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
-    Chunk::kInsertRequest, proto::PatchRequest);
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
-    Chunk::kLeaveRequest, proto::ChunkRequestMetadata);
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
-    Chunk::kLockRequest, proto::ChunkRequestMetadata);
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
-    Chunk::kNewPeerRequest, proto::NewPeerRequest);
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
-    Chunk::kUnlockRequest, proto::ChunkRequestMetadata);
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
-    Chunk::kUpdateRequest, proto::PatchRequest);
+MAP_API_PROTO_MESSAGE(Chunk::kConnectRequest, proto::ConnectRequest);
+MAP_API_PROTO_MESSAGE(Chunk::kInitRequest, proto::InitRequest);
+MAP_API_PROTO_MESSAGE(Chunk::kInsertRequest, proto::PatchRequest);
+MAP_API_PROTO_MESSAGE(Chunk::kLeaveRequest, proto::ChunkRequestMetadata);
+MAP_API_PROTO_MESSAGE(Chunk::kLockRequest, proto::ChunkRequestMetadata);
+MAP_API_PROTO_MESSAGE(Chunk::kNewPeerRequest, proto::NewPeerRequest);
+MAP_API_PROTO_MESSAGE(Chunk::kUnlockRequest, proto::ChunkRequestMetadata);
+MAP_API_PROTO_MESSAGE(Chunk::kUpdateRequest, proto::PatchRequest);
 
 bool Chunk::init(const Id& id, CRTable* underlying_table) {
   CHECK_NOTNULL(underlying_table);
@@ -129,7 +121,7 @@ bool Chunk::insert(Revision* item) {
   // into their table.
   insert_request.set_serialized_revision(item->SerializeAsString());
   request.impose<kInsertRequest>(insert_request);
-  CHECK(peers_.undisputableBroadcast(request));
+  CHECK(peers_.undisputableBroadcast(&request));
   distributedUnlock();
   return true;
 }
@@ -158,7 +150,7 @@ void Chunk::leave() {
   // this must happen after acquring the write lock to avoid deadlocks, should
   // two peers try to leave at the same time.
   leave_lock_.writeLock();
-  CHECK(peers_.undisputableBroadcast(request));
+  CHECK(peers_.undisputableBroadcast(&request));
   relinquished_ = true;
   leave_lock_.unlock();
   distributedUnlock(); // i.e. must be able to handle unlocks from outside
@@ -207,7 +199,7 @@ void Chunk::update(Revision* item) {
   // into their table.
   update_request.set_serialized_revision(item->SerializeAsString());
   request.impose<kUpdateRequest>(update_request);
-  CHECK(peers_.undisputableBroadcast(request));
+  CHECK(peers_.undisputableBroadcast(&request));
   distributedUnlock();
 }
 
@@ -223,7 +215,7 @@ bool Chunk::addPeer(const PeerId& peer) {
     return false;
   }
   prepareInitRequest(&request);
-  if (!MapApiHub::instance().ackRequest(peer, request)) {
+  if (!MapApiHub::instance().ackRequest(peer, &request)) {
     return false;
   }
   // new peer is not ready to handle requests as the rest of the swarm. Still,
@@ -235,7 +227,7 @@ bool Chunk::addPeer(const PeerId& peer) {
   new_peer_request.set_new_peer(peer.ipPort());
   new_peer_request.set_from_peer(PeerId::self().ipPort());
   request.impose<kNewPeerRequest>(new_peer_request);
-  CHECK(peers_.undisputableBroadcast(request));
+  CHECK(peers_.undisputableBroadcast(&request));
 
   peers_.add(peer);
   return true;
@@ -285,7 +277,7 @@ void Chunk::distributedWriteLock() {
 
     bool declined = false;
     for (const PeerId& peer : peers_.peers()) {
-      MapApiHub::instance().request(peer, request, &response);
+      MapApiHub::instance().request(peer, &request, &response);
       if (response.isType<Message::kDecline>()) {
         // assuming no connection loss, a lock may only be declined by the peer
         // with lowest address
@@ -364,7 +356,7 @@ void Chunk::distributedUnlock() {
             lock_.state = DistributedRWLock::State::UNLOCKED;
             self_unlocked = true;
           }
-          MapApiHub::instance().request(*rit, request, &response);
+          MapApiHub::instance().request(*rit, &request, &response);
           CHECK(response.isType<Message::kAck>());
         }
         if (!self_unlocked) {

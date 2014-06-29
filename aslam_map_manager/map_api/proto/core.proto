@@ -37,6 +37,7 @@ message Revision {
 message HubMessage {
   required string type = 1;
   required bytes serialized = 2;
+  required string sender = 3; // "required" for the merits it has for now 
 }
 
 message ListTablesQuery {
