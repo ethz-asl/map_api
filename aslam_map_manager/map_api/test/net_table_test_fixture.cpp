@@ -38,7 +38,7 @@ public ::testing::WithParamInterface<bool> {
   void increment(NetTable* table, const Id& id, Transaction* transaction) {
     CHECK_NOTNULL(table);
     CHECK_NOTNULL(transaction);
-    std::shared_ptr<Revision> to_update = transaction->getById(table, id);
+    std::shared_ptr<Revision> to_update = transaction->getById(id, table);
     int transient_value;
     to_update->get(kFieldName, &transient_value);
     ++transient_value;

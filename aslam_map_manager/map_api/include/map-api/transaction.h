@@ -2,7 +2,7 @@
 #define MAP_API_TRANSACTION_H_
 
 #include <memory>
-#include <unordered_map>
+#include <map>
 
 #include "map-api/chunk.h"
 #include "map-api/net-table.h"
@@ -16,16 +16,26 @@ class Transaction {
   Transaction();
   explicit Transaction(const Time& begin_time);
   bool commit();
-  std::shared_ptr<Revision> getById(NetTable* table, const Id& id);
+  std::shared_ptr<Revision> getById(const Id& id, NetTable* table);
   void insert(
       NetTable* table, Chunk* chunk, std::shared_ptr<Revision> revision);
   void update(NetTable* table, std::shared_ptr<Revision> revision);
+
  private:
   NetTableTransaction* transactionOf(NetTable* table);
-  typedef std::unordered_map<NetTable*, std::shared_ptr<NetTableTransaction> >
-  TransactionMap;
-  typedef std::pair<NetTable*, std::shared_ptr<NetTableTransaction> >
-  TransactionPair;
+
+  /**
+   * A global ordering of tables prevents deadlocks (resource hierarchy
+   * solution)
+   */
+  struct NetTableOrdering {
+    inline bool operator() (const NetTable* a, const NetTable* b) {
+      return CHECK_NOTNULL(a)->name() < CHECK_NOTNULL(b)->name();
+    }
+  };
+  typedef std::map<NetTable*, std::shared_ptr<NetTableTransaction>,
+      NetTableOrdering> TransactionMap;
+  typedef TransactionMap::value_type TransactionPair;
   TransactionMap net_table_transactions_;
   Time begin_time_;
 };

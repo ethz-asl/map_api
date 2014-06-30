@@ -156,7 +156,7 @@ TEST_P(NetTableTest, Transactions) {
         Transaction attempt;
         increment(table_, ab_id, &attempt);
         std::shared_ptr<Revision> to_update =
-            attempt.getById(second_table, b_id);
+            attempt.getById(b_id, second_table);
         int transient_value;
         to_update->get(kSecondTableFieldName, &transient_value);
         ++transient_value;

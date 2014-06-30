@@ -42,11 +42,18 @@ class NetTableTransaction {
  private:
   ChunkTransaction* transactionOf(Chunk* chunk);
 
-  // Id is id of chunk TODO(tcies) strong typing?
-  typedef std::unordered_map<Chunk*, std::shared_ptr<ChunkTransaction> >
+  /**
+   * A global ordering of chunks prevents deadlocks (resource hierarchy
+   * solution)
+   */
+  struct ChunkOrdering {
+    inline bool operator() (const Chunk* a, const Chunk* b) {
+      return CHECK_NOTNULL(a)->id() < CHECK_NOTNULL(b)->id();
+    }
+  };
+  typedef std::map<Chunk*, std::shared_ptr<ChunkTransaction>, ChunkOrdering>
   TransactionMap;
-  typedef std::pair<Chunk*, std::shared_ptr<ChunkTransaction> >
-  TransactionPair;
+  typedef TransactionMap::value_type TransactionPair;
   TransactionMap chunk_transactions_;
   Time begin_time_;
   NetTable* table_;

@@ -27,7 +27,7 @@ bool Transaction::commit() {
   return true;
 }
 
-std::shared_ptr<Revision> Transaction::getById(NetTable* table, const Id& id) {
+std::shared_ptr<Revision> Transaction::getById(const Id& id, NetTable* table) {
   CHECK_NOTNULL(table);
   return transactionOf(table)->getById(id);
 }
