@@ -74,7 +74,8 @@ class NetTable {
   void handleConnectRequest(const Id& chunk_id, const PeerId& peer,
                             Message* response);
   void handleInitRequest(
-      const proto::InitRequest& request, Message* response);
+      const proto::InitRequest& request, const PeerId& sender,
+      Message* response);
   void handleInsertRequest(
       const Id& chunk_id, const Revision& item, Message* response);
   void handleLeaveRequest(

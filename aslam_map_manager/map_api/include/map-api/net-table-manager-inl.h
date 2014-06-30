@@ -12,7 +12,7 @@ bool NetTableManager::routeChunkMetadataRequestOperations(
   proto::ChunkRequestMetadata metadata;
   request.extract<request_type>(&metadata);
   chunk_id->fromHexString(metadata.chunk_id());
-  *peer = PeerId(metadata.from_peer());
+  *peer = PeerId(request.sender());
   return routeChunkRequestOperations(metadata, response, found);
 }
 
@@ -22,10 +22,9 @@ bool NetTableManager::routeChunkRequestOperations(
     TableMap::iterator* found) {
   CHECK_NOTNULL(response);
   CHECK_NOTNULL(found);
-  const std::string& table = request.table();
+  const std::string& table = request.metadata().table();
   Id chunk_id;
-  CHECK(chunk_id.fromHexString(request.chunk_id()));
-  PeerId from_peer(request.from_peer());
+  CHECK(chunk_id.fromHexString(request.metadata().chunk_id()));
   if (!findTable(table, found)) {
     response->impose<Message::kDecline>();
     return false;

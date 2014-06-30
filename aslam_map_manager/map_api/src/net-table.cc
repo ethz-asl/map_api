@@ -94,12 +94,10 @@ Chunk* NetTable::connectTo(const Id& chunk_id,
                            const PeerId& peer) {
   Message request, response;
   // sends request of chunk info to peer
-  proto::ConnectRequest connect_request;
-  connect_request.set_table(cache_->name());
-  connect_request.set_chunk_id(chunk_id.hexString());
-  connect_request.set_from_peer(PeerId::self().ipPort());
-  request.impose<Chunk::kConnectRequest, proto::ConnectRequest>(
-      connect_request);
+  proto::ChunkRequestMetadata metadata;
+  metadata.set_table(cache_->name());
+  metadata.set_chunk_id(chunk_id.hexString());
+  request.impose<Chunk::kConnectRequest>(metadata);
   // TODO(tcies) add to local peer subset as well?
   MapApiHub::instance().request(peer, &request, &response);
   CHECK(response.isType<Message::kAck>());
@@ -134,17 +132,18 @@ void NetTable::handleConnectRequest(const Id& chunk_id, const PeerId& peer,
 }
 
 void NetTable::handleInitRequest(
-    const proto::InitRequest& request, Message* response) {
+    const proto::InitRequest& request, const PeerId& sender,
+    Message* response) {
   CHECK_NOTNULL(response);
   Id chunk_id;
-  CHECK(chunk_id.fromHexString(request.chunk_id()));
-  if (MapApiCore::instance().tableManager().getTable(request.table()).
-      has(chunk_id)) {
+  CHECK(chunk_id.fromHexString(request.metadata().chunk_id()));
+  if (MapApiCore::instance().tableManager().
+      getTable(request.metadata().table()).has(chunk_id)) {
     response->impose<Message::kRedundant>();
     return;
   }
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
-  CHECK(chunk->init(chunk_id, request, cache_.get()));
+  CHECK(chunk->init(chunk_id, request, sender, cache_.get()));
   active_chunks_lock_.writeLock();
   std::pair<ChunkMap::iterator, bool> inserted =
       active_chunks_.insert(std::make_pair(chunk_id, std::unique_ptr<Chunk>()));

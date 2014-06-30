@@ -5,6 +5,22 @@
 
 namespace map_api {
 
+template<>
+bool NetTableManager::routeChunkRequestOperations<proto::ChunkRequestMetadata>(
+    const proto::ChunkRequestMetadata& request, Message* response,
+    TableMap::iterator* found) {
+  CHECK_NOTNULL(response);
+  CHECK_NOTNULL(found);
+  const std::string& table = request.table();
+  Id chunk_id;
+  CHECK(chunk_id.fromHexString(request.chunk_id()));
+  if (!findTable(table, found)) {
+    response->impose<Message::kDecline>();
+    return false;
+  }
+  return true;
+}
+
 void NetTableManager::init() {
   MapApiHub::instance().registerHandler(
       Chunk::kConnectRequest, handleConnectRequest);
@@ -77,12 +93,11 @@ void NetTableManager::leaveAllChunks() {
 void NetTableManager::handleConnectRequest(const Message& request,
                                            Message* response) {
   CHECK_NOTNULL(response);
-  proto::ConnectRequest connect_request;
-  request.extract<Chunk::kConnectRequest>(&connect_request);
-  const std::string& table = connect_request.table();
+  proto::ChunkRequestMetadata metadata;
+  request.extract<Chunk::kConnectRequest>(&metadata);
+  const std::string& table = metadata.table();
   Id chunk_id;
-  CHECK(chunk_id.fromHexString(connect_request.chunk_id()));
-  PeerId from_peer(connect_request.from_peer());
+  CHECK(chunk_id.fromHexString(metadata.chunk_id()));
   MapApiCore::instance().tableManager().tables_lock_.readLock();
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = MapApiCore::instance().tableManager().tables_.find(table);
@@ -91,7 +106,8 @@ void NetTableManager::handleConnectRequest(const Message& request,
     response->impose<Message::kDecline>();
     return;
   }
-  found->second->handleConnectRequest(chunk_id, from_peer, response);
+  found->second->handleConnectRequest(chunk_id, PeerId(request.sender()),
+                                      response);
   MapApiCore::instance().tableManager().tables_lock_.unlock();
 }
 
@@ -101,7 +117,8 @@ void NetTableManager::handleInitRequest(
   request.extract<Chunk::kInitRequest>(&init_request);
   TableMap::iterator found;
   if (routeChunkRequestOperations(init_request, response, &found)) {
-    found->second->handleInitRequest(init_request, response);
+    found->second->handleInitRequest(init_request, PeerId(request.sender()),
+                                     response);
   }
 }
 
@@ -112,7 +129,7 @@ void NetTableManager::handleInsertRequest(
   TableMap::iterator found;
   if (routeChunkRequestOperations(patch_request, response, &found)) {
     Id chunk_id;
-    CHECK(chunk_id.fromHexString(patch_request.chunk_id()));
+    CHECK(chunk_id.fromHexString(patch_request.metadata().chunk_id()));
     Revision to_insert;
     CHECK(to_insert.ParseFromString(patch_request.serialized_revision()));
     found->second->handleInsertRequest(chunk_id, to_insert, response);
@@ -148,9 +165,8 @@ void NetTableManager::handleNewPeerRequest(
   TableMap::iterator found;
   if (routeChunkRequestOperations(new_peer_request, response, &found)) {
     Id chunk_id;
-    CHECK(chunk_id.fromHexString(new_peer_request.chunk_id()));
-    PeerId new_peer(new_peer_request.new_peer()),
-        sender(new_peer_request.from_peer());
+    CHECK(chunk_id.fromHexString(new_peer_request.metadata().chunk_id()));
+    PeerId new_peer(new_peer_request.new_peer()), sender(request.sender());
     found->second->handleNewPeerRequest(chunk_id, new_peer, sender, response);
   }
 }
@@ -173,10 +189,10 @@ void NetTableManager::handleUpdateRequest(
   TableMap::iterator found;
   if (routeChunkRequestOperations(patch_request, response, &found)) {
     Id chunk_id;
-    CHECK(chunk_id.fromHexString(patch_request.chunk_id()));
+    CHECK(chunk_id.fromHexString(patch_request.metadata().chunk_id()));
     Revision to_insert;
     CHECK(to_insert.ParseFromString(patch_request.serialized_revision()));
-    PeerId sender(patch_request.from_peer());
+    PeerId sender(request.sender());
     found->second->handleUpdateRequest(chunk_id, to_insert, sender, response);
   }
 }
