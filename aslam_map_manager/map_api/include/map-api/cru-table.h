@@ -10,7 +10,7 @@
 
 #include "map-api/cr-table.h"
 #include "map-api/revision.h"
-#include "map-api/time.h"
+#include "map-api/logical-time.h"
 #include "core.pb.h"
 
 namespace map_api {
@@ -28,7 +28,7 @@ class CRUTable : public CRTable {
    * Calls insertUpdatedCRUDerived and updateCurrentReferToUpdatedCRUDerived.
    */
   bool update(Revision* query);
-  bool getLatestUpdateTime(const Id& id, Time* time);
+  bool getLatestUpdateTime(const Id& id, LogicalTime* time);
 
   virtual Type type() const final override;
 
@@ -43,8 +43,8 @@ class CRUTable : public CRTable {
   virtual bool initCRDerived() final override;
   virtual bool insertCRDerived(Revision* query) final override;
   virtual int findByRevisionCRDerived(
-      const std::string& key, const Revision& valueHolder, const Time& time,
-      std::unordered_map<Id, std::shared_ptr<Revision> >* dest) final override;
+      const std::string& key, const Revision& valueHolder,
+      const LogicalTime& time, CRTable::RevisionMap* dest) final override;
   /**
    * ================================================
    * FUNCTIONS TO BE IMPLEMENTED BY THE DERIVED CLASS
@@ -55,8 +55,8 @@ class CRUTable : public CRTable {
   virtual bool insertCRUDerived(Revision* query) = 0;
   virtual bool patchCRDerived(const Revision& query) override = 0;
   virtual int findByRevisionCRUDerived(
-      const std::string& key, const Revision& valueHolder, const Time& time,
-      std::unordered_map<Id, std::shared_ptr<Revision> >* dest) = 0;
+      const std::string& key, const Revision& valueHolder,
+      const LogicalTime& time, CRTable::RevisionMap* dest) = 0;
 
   /**
    * Implement insertion of the updated revision
@@ -67,7 +67,8 @@ class CRUTable : public CRTable {
    * by setting kNextTimeField of (id, current_time) to updated_time
    */
   virtual bool updateCurrentReferToUpdatedCRUDerived(
-      const Id& id, const Time& current_time, const Time& updated_time) = 0;
+      const Id& id, const LogicalTime& current_time,
+      const LogicalTime& updated_time) = 0;
   friend class Chunk;
 };
 

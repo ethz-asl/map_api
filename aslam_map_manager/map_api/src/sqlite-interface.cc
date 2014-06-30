@@ -47,6 +47,7 @@ bool SqliteInterface::create(const TableDescriptor& descriptor) {
       case (proto::TableFieldDescriptor_Type_INT32): stat << "INTEGER"; break;
       case (proto::TableFieldDescriptor_Type_INT64): stat << "INTEGER"; break;
       case (proto::TableFieldDescriptor_Type_STRING): stat << "TEXT"; break;
+      case (proto::TableFieldDescriptor_Type_UINT64): stat << "INTEGER"; break;
       default:
         LOG(FATAL) << "Field type not handled";
     }
@@ -145,6 +146,10 @@ void SqliteInterface::PocoToProto::into(Poco::Data::Statement& statement) {
         statement, Poco::Data::into(longs_[field.nametype().name()]);
         break;
       }
+      case (proto::TableFieldDescriptor_Type_UINT64):{
+        statement, Poco::Data::into(ulongs_[field.nametype().name()]);
+        break;
+      }
       case (proto::TableFieldDescriptor_Type_STRING):{
         statement, Poco::Data::into(strings_[field.nametype().name()]);
         break;
@@ -165,6 +170,7 @@ int SqliteInterface::PocoToProto::resultSize() const {
   if (doubles_.size()) return doubles_.begin()->second.size();
   if (ints_.size()) return ints_.begin()->second.size();
   if (longs_.size()) return longs_.begin()->second.size();
+  if (ulongs_.size()) return ulongs_.begin()->second.size();
   if (blobs_.size()) return blobs_.begin()->second.size();
   if (strings_.size()) return strings_.begin()->second.size();
   if (hashes_.size()) return hashes_.begin()->second.size();
@@ -191,6 +197,10 @@ int SqliteInterface::PocoToProto::toProto(
     for (const std::pair<std::string, std::vector<int64_t> >& fieldLong :
         longs_){
       (*dest)[i]->set(fieldLong.first, fieldLong.second[i]);
+    }
+    for (const std::pair<std::string, std::vector<uint64_t> >& fieldULong :
+        ulongs_){
+      (*dest)[i]->set(fieldULong.first, fieldULong.second[i]);
     }
     for (const std::pair<std::string, std::vector<Poco::Data::BLOB> >&
         fieldBlob : blobs_){

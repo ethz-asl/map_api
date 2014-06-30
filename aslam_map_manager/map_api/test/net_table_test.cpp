@@ -38,9 +38,9 @@ TEST_P(NetTableTest, NetTableTransactions) {
 
     IPC::barrier(SYNC, 2);
     IPC::barrier(DIE, 2);
-    EXPECT_TRUE(table_->getById(ab_id, Time::now())->
+    EXPECT_TRUE(table_->getById(ab_id, LogicalTime::sample())->
                 verify(kFieldName, 2 * kCycles));
-    EXPECT_TRUE(table_->getById(b_id, Time::now())->
+    EXPECT_TRUE(table_->getById(b_id, LogicalTime::sample())->
                 verify(kFieldName, kCycles));
     EXPECT_EQ(kCycles + 2, count());
   }
@@ -121,9 +121,9 @@ TEST_P(NetTableTest, Transactions) {
 
     IPC::barrier(SYNC, 2);
     IPC::barrier(DIE, 2);
-    EXPECT_TRUE(table_->getById(ab_id, Time::now())->
+    EXPECT_TRUE(table_->getById(ab_id, LogicalTime::sample())->
                 verify(kFieldName, 2 * kCycles));
-    EXPECT_TRUE(second_table->getById(b_id, Time::now())->
+    EXPECT_TRUE(second_table->getById(b_id, LogicalTime::sample())->
                 verify(kSecondTableFieldName, kCycles));
     EXPECT_EQ(kCycles + 1, count());
   }

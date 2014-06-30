@@ -69,7 +69,7 @@ bool Chunk::check(const ChunkTransaction& transaction) {
   }
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
       transaction.insertions_) {
-    if (underlying_table_->getById(item.first, Time::now())) {
+    if (underlying_table_->getById(item.first, LogicalTime::sample())) {
       LOG(WARNING) << "Table " << underlying_table_->name() <<
           " already contains id " << item.first;
       return false;
@@ -82,7 +82,7 @@ bool Chunk::check(const ChunkTransaction& transaction) {
   }
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
       transaction.updates_) {
-    Time latest_update;
+    LogicalTime latest_update;
     CHECK(table->getLatestUpdateTime(item.first, &latest_update));
     if (latest_update >= transaction.begin_time_) {
       return false;
@@ -134,10 +134,11 @@ bool Chunk::insert(Revision* item) {
 
 std::shared_ptr<ChunkTransaction> Chunk::newTransaction() {
   return std::shared_ptr<ChunkTransaction>(
-      new ChunkTransaction(Time::now(), underlying_table_));
+      new ChunkTransaction(LogicalTime::sample(), underlying_table_));
 }
-std::shared_ptr<ChunkTransaction> Chunk::newTransaction(const Time& time) {
-  CHECK(time <= Time::now());
+std::shared_ptr<ChunkTransaction> Chunk::newTransaction(
+    const LogicalTime& time) {
+  CHECK(time < LogicalTime::sample());
   return std::shared_ptr<ChunkTransaction>(
       new ChunkTransaction(time, underlying_table_));
 }
@@ -389,7 +390,8 @@ void Chunk::prepareInitRequest(Message* request) {
   init_request.add_peer_address(PeerId::self().ipPort());
 
   std::unordered_map<Id, std::shared_ptr<Revision> > data;
-  underlying_table_->find(NetTable::kChunkIdField, id(), Time::now(), &data);
+  underlying_table_->find(NetTable::kChunkIdField, id(), LogicalTime::sample(),
+                          &data);
   for (const std::pair<const Id, std::shared_ptr<Revision> >& data_pair :
       data) {
     init_request.add_serialized_revision(
@@ -551,7 +553,7 @@ void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
   CRUTable* table = static_cast<CRUTable*>(underlying_table_);
   table->patch(item);
   Id id;
-  Time current, updated;
+  LogicalTime current, updated;
   item.get(CRTable::kIdField, &id);
   item.get(CRUTable::kPreviousTimeField, &current);
   item.get(CRUTable::kUpdateTimeField, &updated);

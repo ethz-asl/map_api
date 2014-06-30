@@ -70,12 +70,13 @@ bool NetTable::update(Revision* query) {
 }
 
 // TODO(tcies) net lookup
-std::shared_ptr<Revision> NetTable::getById(const Id& id, const Time& time) {
+std::shared_ptr<Revision> NetTable::getById(const Id& id,
+                                            const LogicalTime& time) {
   return cache_->getById(id, time);
 }
 
 void NetTable::dumpCache(
-    const Time& time,
+    const LogicalTime& time,
     std::unordered_map<Id, std::shared_ptr<Revision> >* destination) {
   CHECK_NOTNULL(destination);
   // TODO(tcies) lock cache access

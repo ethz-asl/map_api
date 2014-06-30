@@ -24,15 +24,15 @@ bool CRTableRAMCache::patchCRDerived(const Revision& query) {
 }
 
 int CRTableRAMCache::findByRevisionCRDerived(
-    const std::string& key, const Revision& value_holder, const Time& time,
-    std::unordered_map<Id, std::shared_ptr<Revision> >* dest) {
+    const std::string& key, const Revision& value_holder,
+    const LogicalTime& time, RevisionMap* dest) {
   SqliteInterface::PocoToProto pocoToProto(getTemplate());
   std::shared_ptr<Poco::Data::Session> session =
       sqlite_interface_.getSession().lock();
   CHECK(session) << "Couldn't lock session weak pointer";
   Poco::Data::Statement statement(*session);
   // need to cache data for Poco
-  int64_t serialized_time = time.serialize();
+  uint64_t serialized_time = time.serialize();
   std::vector<std::shared_ptr<Poco::Data::BLOB> > data_holder;
   statement << "SELECT";
   pocoToProto.into(statement);

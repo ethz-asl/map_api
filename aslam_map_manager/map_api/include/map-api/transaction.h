@@ -14,7 +14,7 @@ namespace map_api {
 class Transaction {
  public:
   Transaction();
-  explicit Transaction(const Time& begin_time);
+  explicit Transaction(const LogicalTime& begin_time);
   bool commit();
   std::shared_ptr<Revision> getById(NetTable* table, const Id& id);
   void insert(
@@ -27,7 +27,7 @@ class Transaction {
   typedef std::pair<NetTable*, std::shared_ptr<NetTableTransaction> >
   TransactionPair;
   TransactionMap net_table_transactions_;
-  Time begin_time_;
+  LogicalTime begin_time_;
 };
 
 } /* namespace map_api */

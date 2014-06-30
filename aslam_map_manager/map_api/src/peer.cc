@@ -1,6 +1,7 @@
 #include "map-api/peer.h"
 
 #include "map-api/peer-id.h"
+#include "map-api/logical-time.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -39,6 +40,7 @@ bool Peer::try_request(Message* request, Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
   request->set_sender(PeerId::self().ipPort());
+  request->set_logical_time(LogicalTime::sample().serialize());
   int size = request->ByteSize();
   void* buffer = malloc(size);
   CHECK(request->SerializeToArray(buffer, size));
@@ -55,6 +57,7 @@ bool Peer::try_request(Message* request, Message* response) {
     // message, which could be a quite common bug
     CHECK_GT(message.size(), 0u) << "Request was " << request->DebugString();
     CHECK(response->ParseFromArray(message.data(), message.size()));
+    LogicalTime::synchronize(LogicalTime(response->logical_time()));
   } catch(const zmq::error_t& e) {
     LOG(FATAL) << e.what() << ", request was " << request->DebugString();
   }

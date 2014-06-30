@@ -3,7 +3,7 @@
 
 #include <map-api/id.h>
 #include <map-api/revision.h>
-#include <map-api/time.h>
+#include <map-api/logical-time.h>
 
 #include <glog/logging.h>
 
@@ -59,6 +59,10 @@ std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(
     }
     case (proto::TableFieldDescriptor_Type_INT64): {
       stat << fieldqueries(field).longvalue();
+      break;
+    }
+    case (proto::TableFieldDescriptor_Type_UINT64): {
+      stat << fieldqueries(field).ulongvalue();
       break;
     }
     case (proto::TableFieldDescriptor_Type_STRING): {
@@ -142,7 +146,8 @@ REVISION_ENUM(double, proto::TableFieldDescriptor_Type_DOUBLE);
 REVISION_ENUM(int32_t, proto::TableFieldDescriptor_Type_INT32);
 REVISION_ENUM(Id, proto::TableFieldDescriptor_Type_HASH128);
 REVISION_ENUM(int64_t, proto::TableFieldDescriptor_Type_INT64);
-REVISION_ENUM(Time, proto::TableFieldDescriptor_Type_INT64);
+REVISION_ENUM(uint64_t, proto::TableFieldDescriptor_Type_UINT64);
+REVISION_ENUM(LogicalTime, proto::TableFieldDescriptor_Type_UINT64);
 REVISION_ENUM(Revision, proto::TableFieldDescriptor_Type_BLOB);
 REVISION_ENUM(testBlob, proto::TableFieldDescriptor_Type_BLOB);
 REVISION_ENUM(Poco::Data::BLOB, proto::TableFieldDescriptor_Type_BLOB);
@@ -170,8 +175,12 @@ REVISION_SET(int64_t){
   field.set_longvalue(value);
   return true;
 }
-REVISION_SET(Time){
-  field.set_longvalue(value.serialize());
+REVISION_SET(uint64_t){
+  field.set_ulongvalue(value);
+  return true;
+}
+REVISION_SET(LogicalTime){
+  field.set_ulongvalue(value.serialize());
   return true;
 }
 REVISION_SET(Revision){
@@ -213,8 +222,12 @@ REVISION_GET(int64_t){
   *value = field.longvalue();
   return true;
 }
-REVISION_GET(Time){
-  *value = Time(field.longvalue());
+REVISION_GET(uint64_t){
+  *value = field.ulongvalue();
+  return true;
+}
+REVISION_GET(LogicalTime){
+  *value = LogicalTime(field.ulongvalue());
   return true;
 }
 REVISION_GET(Revision){

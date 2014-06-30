@@ -9,6 +9,7 @@
 #include <glog/logging.h>
 
 #include "map-api/ipc.h"
+#include "map-api/logical-time.h"
 #include "core.pb.h"
 
 namespace map_api {
@@ -246,7 +247,8 @@ void MapApiHub::listenThread(MapApiHub *self) {
         continue;
     }
     Message query;
-    query.ParseFromArray(request.data(), request.size());
+    CHECK(query.ParseFromArray(request.data(), request.size()));
+    LogicalTime::synchronize(LogicalTime(query.logical_time()));
 
     // Query handler
     std::unordered_map<std::string,
@@ -259,6 +261,7 @@ void MapApiHub::listenThread(MapApiHub *self) {
     handler->second(query, &response);
     VLOG(3) << PeerId::self() << " handled request " << query.type();
     response.set_sender(PeerId::self().ipPort());
+    response.set_logical_time(LogicalTime::sample().serialize());
     std::string serialized_response = response.SerializeAsString();
     zmq::message_t response_message(serialized_response.size());
     memcpy((void *) response_message.data(), serialized_response.c_str(),
