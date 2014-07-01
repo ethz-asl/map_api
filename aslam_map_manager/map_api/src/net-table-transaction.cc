@@ -20,6 +20,8 @@ bool NetTableTransaction::check() {
   return true;
 }
 
+// Deadlocks in lock() are prevented by imposing a global ordering on chunks,
+// and have the locks acquired in that order (resource hierarchy solution)
 bool NetTableTransaction::commit() {
   lock();
   if (!check()) {
@@ -39,6 +41,8 @@ void NetTableTransaction::insert(
   transactionOf(chunk)->insert(revision);
 }
 
+// Deadlocks in lock() are prevented by imposing a global ordering on chunks,
+// and have the locks acquired in that order (resource hierarchy solution)
 void NetTableTransaction::lock() {
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
     chunk_transaction.first->lock();

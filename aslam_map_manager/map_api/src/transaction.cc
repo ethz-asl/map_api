@@ -7,6 +7,9 @@ Transaction::Transaction(const Time& begin_time) : begin_time_(begin_time) {
   CHECK(begin_time <= Time::now());
 }
 
+// Deadlocks are prevented by imposing a global ordering on
+// net_table_transactions_, and have the locks acquired in that order
+// (resource hierarchy solution)
 bool Transaction::commit() {
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->lock();
