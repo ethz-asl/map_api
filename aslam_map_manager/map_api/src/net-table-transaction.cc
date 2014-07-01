@@ -6,15 +6,6 @@ NetTableTransaction::NetTableTransaction(
     const Time& begin_time, NetTable* table) : begin_time_(begin_time),
         table_(table) {}
 
-bool NetTableTransaction::check() {
-  for (const TransactionPair& chunk_transaction : chunk_transactions_) {
-    if (!chunk_transaction.first->check(*chunk_transaction.second)) {
-      return false;
-    }
-  }
-  return true;
-}
-
 bool NetTableTransaction::commit() {
   lock();
   if (!check()) {
@@ -25,6 +16,15 @@ bool NetTableTransaction::commit() {
     CHECK(chunk_transaction.first->commit(*chunk_transaction.second));
   }
   unlock();
+  return true;
+}
+
+bool NetTableTransaction::check() {
+  for (const TransactionPair& chunk_transaction : chunk_transactions_) {
+    if (!chunk_transaction.first->check(*chunk_transaction.second)) {
+      return false;
+    }
+  }
   return true;
 }
 

@@ -78,7 +78,7 @@ extern void revEnum ## __FILE__ ## __LINE__(void)
    */
   bool ParseFromString(const std::string& data);
 
-  std::string dumpString() const;
+  std::string dumpToString() const;
 
  private:
   /**

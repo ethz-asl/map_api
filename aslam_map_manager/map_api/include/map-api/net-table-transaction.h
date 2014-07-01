@@ -18,16 +18,16 @@ class NetTableTransaction {
   NetTableTransaction(const Time& begin_time, NetTable* table);
 
   /**
+   * Equivalent to lock(), if (check()) commit each sub-transaction, unlock()
+   * Returns false if check fails.
+   */
+  bool commit();
+  /**
    * Checks all sub-transactions.
    * Returns false if any sub-check fails.
    * lock() MUST have been called
    */
   bool check();
-  /**
-   * Equivalent to lock(), if (check()) commit each sub-transaction, unlock()
-   * Returns false if check fails.
-   */
-  bool commit();
   void insert(Chunk* chunk, std::shared_ptr<Revision> revision);
   /**
    * Locks each chunk affected by this transaction
@@ -43,9 +43,9 @@ class NetTableTransaction {
 
   // Id is id of chunk TODO(tcies) strong typing?
   typedef std::unordered_map<Chunk*, std::shared_ptr<ChunkTransaction> >
-  TransactionMap;
+      TransactionMap;
   typedef std::pair<Chunk*, std::shared_ptr<ChunkTransaction> >
-  TransactionPair;
+      TransactionPair;
   TransactionMap chunk_transactions_;
   Time begin_time_;
   NetTable* table_;

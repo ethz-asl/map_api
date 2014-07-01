@@ -58,7 +58,7 @@ class NetTable {
    * Connects to the given chunk via the given peer.
    */
   Chunk* connectTo(const Id& chunk_id,
-                                 const PeerId& peer);
+                   const PeerId& peer);
 
   bool structureMatch(std::unique_ptr<TableDescriptor>* descriptor) const;
 
