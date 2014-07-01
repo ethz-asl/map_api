@@ -14,13 +14,14 @@ LogicalTime::LogicalTime() : value_(0u) {}
 LogicalTime::LogicalTime(uint64_t serialized) : value_(serialized) {}
 
 bool LogicalTime::isValid() const {
-  return value_ > 0u;
+  return (value_ > 0u);
 }
 
 LogicalTime LogicalTime::sample() {
   LogicalTime time;
   std::lock_guard<std::mutex> lock(current_mutex_);
-  time.value_ = current_++;
+  time.value_ = current_;
+  ++current_;
   return time;
 }
 
