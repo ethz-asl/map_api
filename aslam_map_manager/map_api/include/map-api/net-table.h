@@ -28,7 +28,7 @@ class NetTable {
   bool update(Revision* query);
 
   // RETRIEVAL
-  std::shared_ptr<Revision> getById(const Id& id, const Time& time);
+  std::shared_ptr<Revision> getById(const Id& id, const LogicalTime& time);
   /**
    * Finding: If can't find item locally, request at peers. There are subtleties
    * here: Is it enough to get data only from one chunk? I.e. shouldn't we
@@ -43,17 +43,16 @@ class NetTable {
    */
   template<typename ValueType>
   int findFast(
-      const std::string& key, const ValueType& value, const Time& time,
-      std::unordered_map<Id, std::shared_ptr<Revision> >* destination);
+      const std::string& key, const ValueType& value, const LogicalTime& time,
+      CRTable::RevisionMap* destination);
   int findFastByRevision(
-      const std::string& key, const Revision& valueHolder, const Time& time,
-      std::unordered_map<Id, std::shared_ptr<Revision> >* destination);
+      const std::string& key, const Revision& valueHolder,
+      const LogicalTime& time, CRTable::RevisionMap* destination);
   template<typename ValueType>
   std::shared_ptr<Revision> findUnique(
-      const std::string& key, const ValueType& value, const Time& time);
+      const std::string& key, const ValueType& value, const LogicalTime& time);
   void dumpCache(
-      const Time& time,
-      std::unordered_map<Id, std::shared_ptr<Revision> >* destination);
+      const LogicalTime& time, CRTable::RevisionMap* destination);
   bool has(const Id& chunk_id);
   /**
    * Connects to the given chunk via the given peer.
@@ -74,7 +73,8 @@ class NetTable {
   void handleConnectRequest(const Id& chunk_id, const PeerId& peer,
                             Message* response);
   void handleInitRequest(
-      const proto::InitRequest& request, Message* response);
+      const proto::InitRequest& request, const PeerId& sender,
+      Message* response);
   void handleInsertRequest(
       const Id& chunk_id, const Revision& item, Message* response);
   void handleLeaveRequest(
@@ -100,7 +100,7 @@ class NetTable {
   bool routingBasics(
       const Id& chunk_id, Message* response, ChunkMap::iterator* found);
 
-  bool updateable_;
+  bool updateable_ = false;
   std::unique_ptr<CRTable> cache_;
   ChunkMap active_chunks_;
   Poco::RWLock active_chunks_lock_;

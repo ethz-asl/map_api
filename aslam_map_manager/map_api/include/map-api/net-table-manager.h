@@ -29,24 +29,15 @@ class NetTableManager {
   /**
    * Requesting peer specifies which chunk it wants to connect to
    */
-  static void handleConnectRequest(const std::string& serialized_request,
-                                   Message* response);
-  static void handleFindRequest(const std::string& serialized_request,
-                                Message* response);
-  static void handleInitRequest(const std::string& serialized_request,
-                                Message* response);
-  static void handleInsertRequest(const std::string& serialized_request,
-                                  Message* response);
-  static void handleLeaveRequest(const std::string& serialized_request,
-                                 Message* response);
-  static void handleLockRequest(const std::string& serialized_request,
-                                Message* response);
-  static void handleNewPeerRequest(const std::string& serialized_request,
-                                   Message* response);
-  static void handleUnlockRequest(const std::string& serialized_request,
-                                  Message* response);
-  static void handleUpdateRequest(const std::string& serialized_request,
-                                  Message* response);
+  static void handleConnectRequest(const Message& request, Message* response);
+  static void handleFindRequest(const Message& request, Message* response);
+  static void handleInitRequest(const Message& request, Message* response);
+  static void handleInsertRequest(const Message& request, Message* response);
+  static void handleLeaveRequest(const Message& request, Message* response);
+  static void handleLockRequest(const Message& request, Message* response);
+  static void handleNewPeerRequest(const Message& request, Message* response);
+  static void handleUnlockRequest(const Message& request, Message* response);
+  static void handleUpdateRequest(const Message& request, Message* response);
 
  private:
   NetTableManager() = default;
@@ -58,9 +49,10 @@ class NetTableManager {
   typedef std::unordered_map<std::string, std::unique_ptr<NetTable> >
   TableMap;
 
+  template<const char* request_type>
   static bool routeChunkMetadataRequestOperations(
-      const std::string& serialized_request, Message* response,
-      TableMap::iterator* found, Id* chunk_id, PeerId* peer);
+      const Message& request, Message* response, TableMap::iterator* found,
+      Id* chunk_id, PeerId* peer);
 
   template<typename RequestType>
   static bool routeChunkRequestOperations(

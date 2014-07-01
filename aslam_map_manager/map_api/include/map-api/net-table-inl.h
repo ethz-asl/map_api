@@ -5,8 +5,8 @@ namespace map_api {
 
 template<typename ValueType>
 int NetTable::findFast(
-    const std::string& key, const ValueType& value, const Time& time,
-    std::unordered_map<Id, std::shared_ptr<Revision> >* dest) {
+    const std::string& key, const ValueType& value, const LogicalTime& time,
+    CRTable::RevisionMap* dest) {
   CHECK_NOTNULL(dest);
   int num_local_result =
       cache_->find(key, value, time, dest);

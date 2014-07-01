@@ -9,14 +9,14 @@
 #include "map-api/id.h"
 #include "map-api/net-table.h"
 #include "map-api/revision.h"
-#include "map-api/time.h"
+#include "map-api/logical-time.h"
 
 namespace map_api {
 
 class NetTableTransaction {
  public:
   explicit NetTableTransaction(NetTable* table);
-  NetTableTransaction(const Time& begin_time, NetTable* table);
+  NetTableTransaction(const LogicalTime& begin_time, NetTable* table);
 
   /**
    * Checks all sub-transactions.
@@ -55,7 +55,7 @@ class NetTableTransaction {
   TransactionMap;
   typedef TransactionMap::value_type TransactionPair;
   TransactionMap chunk_transactions_;
-  Time begin_time_;
+  LogicalTime begin_time_;
   NetTable* table_;
 };
 

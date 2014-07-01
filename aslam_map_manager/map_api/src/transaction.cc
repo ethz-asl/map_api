@@ -2,9 +2,9 @@
 
 namespace map_api {
 
-Transaction::Transaction() : Transaction(Time::now()) {}
-Transaction::Transaction(const Time& begin_time) : begin_time_(begin_time) {
-  CHECK(begin_time <= Time::now());
+Transaction::Transaction() : Transaction(LogicalTime::sample()) {}
+Transaction::Transaction(const LogicalTime& begin_time) : begin_time_(begin_time) {
+  CHECK(begin_time < LogicalTime::sample());
 }
 
 // Deadlocks are prevented by imposing a global ordering on

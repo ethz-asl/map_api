@@ -32,12 +32,12 @@ class IPC {
   /**
    * Handles barrier calls from other peers
    */
-  static void barrierHandler(const std::string& id_string, Message* response);
+  static void barrierHandler(const Message& request, Message* response);
   /**
    * Allows to broadcast a single string to all other peers
    */
   static void push(const std::string& message);
-  static void pushHandler(const std::string& message, Message* response);
+  static void pushHandler(const Message& request, Message* response);
   /**
    * Read the oldest broadcast message (false if empty queue)
    */

@@ -14,13 +14,13 @@ class CRUTableRAMCache : public CRUTable {
   virtual bool insertCRUDerived(Revision* query) final override;
   virtual bool patchCRDerived(const Revision& query) final override;
   virtual int findByRevisionCRUDerived(
-      const std::string& key, const Revision& valueHolder, const Time& time,
-      std::unordered_map<Id, std::shared_ptr<Revision> >* dest) final override;
+      const std::string& key, const Revision& valueHolder,
+      const LogicalTime& time, RevisionMap* dest) final override;
 
   virtual bool insertUpdatedCRUDerived(const Revision& query) final override;
   virtual bool updateCurrentReferToUpdatedCRUDerived(
-      const Id& id, const Time& current_time, const Time& updated_time)
-  final override;
+      const Id& id, const LogicalTime& current_time,
+      const LogicalTime& updated_time) final override;
 
   SqliteInterface sqlite_interface_;
 };

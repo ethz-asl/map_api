@@ -40,9 +40,10 @@ std::shared_ptr<Revision> ChunkTransaction::getByIdFromUncommitted(
   return std::shared_ptr<Revision>();
 }
 
-ChunkTransaction::ChunkTransaction(const Time& begin_time, CRTable* cache)
+ChunkTransaction::ChunkTransaction(const LogicalTime& begin_time,
+                                   CRTable* cache)
 : begin_time_(begin_time), cache_(CHECK_NOTNULL(cache)) {
-  CHECK(begin_time <= Time::now());
+  CHECK(begin_time < LogicalTime::sample());
   insertions_.clear();
   updates_.clear();
   structure_reference_ = cache_->getTemplate();
