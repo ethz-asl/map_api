@@ -11,15 +11,6 @@ NetTableTransaction::NetTableTransaction(
   CHECK(begin_time <= LogicalTime::sample());
 }
 
-bool NetTableTransaction::check() {
-  for (const TransactionPair& chunk_transaction : chunk_transactions_) {
-    if (!chunk_transaction.first->check(*chunk_transaction.second)) {
-      return false;
-    }
-  }
-  return true;
-}
-
 // Deadlocks in lock() are prevented by imposing a global ordering on chunks,
 // and have the locks acquired in that order (resource hierarchy solution)
 bool NetTableTransaction::commit() {
@@ -32,6 +23,15 @@ bool NetTableTransaction::commit() {
     CHECK(chunk_transaction.first->commit(*chunk_transaction.second));
   }
   unlock();
+  return true;
+}
+
+bool NetTableTransaction::check() {
+  for (const TransactionPair& chunk_transaction : chunk_transactions_) {
+    if (!chunk_transaction.first->check(*chunk_transaction.second)) {
+      return false;
+    }
+  }
   return true;
 }
 

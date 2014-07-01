@@ -19,16 +19,16 @@ class NetTableTransaction {
   NetTableTransaction(const LogicalTime& begin_time, NetTable* table);
 
   /**
+   * Equivalent to lock(), if (check()) commit each sub-transaction, unlock()
+   * Returns false if check fails.
+   */
+  bool commit();
+  /**
    * Checks all sub-transactions.
    * Returns false if any sub-check fails.
    * lock() MUST have been called
    */
   bool check();
-  /**
-   * Equivalent to lock(), if (check()) commit each sub-transaction, unlock()
-   * Returns false if check fails.
-   */
-  bool commit();
   void insert(Chunk* chunk, std::shared_ptr<Revision> revision);
   /**
    * Locks each chunk affected by this transaction

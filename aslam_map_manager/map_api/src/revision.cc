@@ -120,7 +120,7 @@ bool Revision::ParseFromString(const std::string& data){
   return true;
 }
 
-std::string Revision::dumpString() const {
+std::string Revision::dumpToString() const {
   std::ostringstream dump_ss;
   dump_ss << "Table " << table() << ": {" << std::endl;
   for (const std::pair<const std::string, int>& name_field : fields_) {
