@@ -2,8 +2,8 @@ package map_api.proto;
 
 // is there a smarter way to describe types in protobuf?
 message TableFieldDescriptor {
-  enum Type { INT32 = 1; INT64 = 2; DOUBLE = 3; STRING = 4; BLOB = 5; 
-    HASH128 = 6;}
+  enum Type { INT32 = 1; INT64 = 2; UINT64 = 3; DOUBLE = 4; STRING = 5; 
+    BLOB = 6; HASH128 = 7;}
 	required string name = 1;
 	required Type type = 2;
 }
@@ -23,7 +23,8 @@ message TableField {
 	optional double doubleValue = 3;
 	optional int32 intValue = 4;
 	optional int64 longValue = 5;
-	optional string stringValue = 6; 
+	optional uint64 uLongValue = 6;
+	optional string stringValue = 7; 
 }
 
 message Revision {
@@ -37,6 +38,8 @@ message Revision {
 message HubMessage {
   required string type = 1;
   required bytes serialized = 2;
+  required string sender = 3; // "required" for the merits it has for now
+  required uint64 logical_time = 4;
 }
 
 message ListTablesQuery {

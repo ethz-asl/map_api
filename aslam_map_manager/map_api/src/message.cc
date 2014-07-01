@@ -1,5 +1,9 @@
 #include "map-api/message.h"
 
+#include <string>
+
+#include <glog/logging.h>
+
 namespace map_api {
 
 const char Message::kAck[] = "map_api_msg_ack";

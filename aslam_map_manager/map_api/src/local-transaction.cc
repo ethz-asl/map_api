@@ -14,7 +14,7 @@ std::recursive_mutex LocalTransaction::dbMutex_;
 
 bool LocalTransaction::begin(){
   active_ = true;
-  beginTime_ = Time::now();
+  beginTime_ = LogicalTime::sample();
   return true;
 }
 
@@ -181,8 +181,8 @@ template<>
 bool LocalTransaction::hasItemConflict(
     LocalTransaction::ConflictCondition& item) {
   std::unordered_map<Id, SharedRevisionPointer> results;
-  return item.table->findByRevision(item.key, *item.valueHolder, Time::now(),
-                                    &results);
+  return item.table->findByRevision(item.key, *item.valueHolder,
+                                    LogicalTime::sample(), &results);
 }
 
 template<>
@@ -192,7 +192,7 @@ inline bool LocalTransaction::hasContainerConflict<LocalTransaction::InsertMap>(
       container){
     std::lock_guard<std::recursive_mutex> lock(dbMutex_);
     // Conflict if id present in table
-    if (item.first.table->getById(item.first.id, Time::now())){
+    if (item.first.table->getById(item.first.id, LogicalTime::sample())){
       LOG(WARNING) << "Table " << item.first.table->name() <<
           " already contains id " << item.first.id.hexString() <<
           ", transaction conflict!";
@@ -212,7 +212,7 @@ inline bool LocalTransaction::hasContainerConflict<LocalTransaction::UpdateMap>(
       if (this->insertions_.find(item.first) != this->insertions_.end()){
         return false;
       }
-      Time latest_update;
+      LogicalTime latest_update;
       if (!table->getLatestUpdateTime(item.first.id, &latest_update)){
         LOG(FATAL) << "Error retrieving update time";
       }

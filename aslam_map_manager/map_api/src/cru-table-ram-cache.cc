@@ -22,8 +22,8 @@ bool CRUTableRAMCache::patchCRDerived(const Revision& query) {
 }
 
 int CRUTableRAMCache::findByRevisionCRUDerived(
-    const std::string& key, const Revision& value_holder, const Time& time,
-    std::unordered_map<Id, std::shared_ptr<Revision> >* dest) {
+    const std::string& key, const Revision& value_holder,
+    const LogicalTime& time, RevisionMap* dest) {
   // TODO(tcies) apart from the more sophisticated time query, this is very
   // similar to its CR equivalent. Maybe refactor at some time?
   SqliteInterface::PocoToProto poco_to_proto(getTemplate());
@@ -32,7 +32,7 @@ int CRUTableRAMCache::findByRevisionCRUDerived(
   CHECK(session) << "Couldn't lock session weak pointer";
   Poco::Data::Statement statement(*session);
   // caching of data needed for Poco::Data to work
-  int64_t serialized_time = time.serialize();
+  uint64_t serialized_time = time.serialize();
   std::vector<std::shared_ptr<Poco::Data::BLOB> > data_holder;
   // TODO(tcies) evt. optimizations from http://www.sqlite.org/queryplanner.html
   statement << "SELECT ";
@@ -61,10 +61,10 @@ int CRUTableRAMCache::findByRevisionCRUDerived(
     if(!dest->insert(std::make_pair(id, item)).second) {
       std::ostringstream report;
       report << "Failed to insert:" << std::endl;
-      report << item->DebugString() << std::endl;
+      report << item->dumpToString() << std::endl;
       report << "Into map with:";
       for (const std::pair<Id, std::shared_ptr<Revision> >& in_dest : *dest) {
-        report << in_dest.second->DebugString() << std::endl;
+        report << in_dest.second->dumpToString() << std::endl;
       }
       LOG(FATAL) << report.str();
     }
@@ -78,14 +78,15 @@ bool CRUTableRAMCache::insertUpdatedCRUDerived(const Revision& query) {
 }
 
 bool CRUTableRAMCache::updateCurrentReferToUpdatedCRUDerived(
-    const Id& id, const Time& current_time, const Time& updated_time) {
+    const Id& id, const LogicalTime& current_time,
+    const LogicalTime& updated_time) {
   ItemDebugInfo info(this->name(), id);
   std::shared_ptr<Poco::Data::Session> session =
       sqlite_interface_.getSession().lock();
   CHECK(session) << "Couldn't lock session weak pointer";
   Poco::Data::Statement statement(*session);
   // caching of data needed for Poco::Data to work
-  int64_t serialized_update_time = updated_time.serialize(),
+  uint64_t serialized_update_time = updated_time.serialize(),
       serialized_current_time = current_time.serialize();
   std::string id_string = id.hexString();
   statement << "UPDATE " << name() << " SET " << kNextTimeField << " = ? ",

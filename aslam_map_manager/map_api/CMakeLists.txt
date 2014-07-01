@@ -30,19 +30,21 @@ SET(CORE_SOURCE  src/chunk.cc
                  src/discovery.cc
                  src/id.cc
                  src/ipc.cc
+                 src/local-transaction.cc
+                 src/logical-time.cc
                  src/map-api-core.cc
                  src/map-api-hub.cc
                  src/message.cc
                  src/net-table.cc
                  src/net-table-manager.cc
+                 src/net-table-transaction.cc
                  src/peer.cc
                  src/peer-id.cc
                  src/peer-handler.cc
                  src/revision.cc
                  src/sqlite-interface.cc
                  src/table-descriptor.cc
-                 src/time.cc
-                 src/local-transaction.cc)
+                 src/transaction.cc)
                  
 cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
 # we need to add dependencies of external project packages to fetch headers
@@ -65,6 +67,9 @@ target_link_libraries(test_core_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_local_transaction_test test/local_transaction_test.cpp)
 target_link_libraries(test_local_transaction_test ${PROJECT_NAME})
+
+catkin_add_gtest(test_net_table_test test/net_table_test.cpp)
+target_link_libraries(test_net_table_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_hub_test test/hub_test.cpp)
 target_link_libraries(test_hub_test ${PROJECT_NAME})

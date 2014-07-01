@@ -20,13 +20,30 @@ void ChunkTransaction::update(std::shared_ptr<Revision> revision) {
 }
 
 std::shared_ptr<Revision> ChunkTransaction::getById(const Id& id) {
-  // TODO(tcies) uncommitted!
+  std::shared_ptr<Revision> uncommitted = getByIdFromUncommitted(id);
+  if (uncommitted) {
+    return uncommitted;
+  }
   return cache_->getById(id, begin_time_);
 }
 
-ChunkTransaction::ChunkTransaction(const Time& begin_time, CRTable* cache)
+std::shared_ptr<Revision> ChunkTransaction::getByIdFromUncommitted(
+    const Id& id) const {
+  UpdateMap::const_iterator updated = updates_.find(id);
+  if (updated != updates_.end()) {
+    return updated->second;
+  }
+  InsertMap::const_iterator inserted = insertions_.find(id);
+  if (inserted != insertions_.end()) {
+    return inserted->second;
+  }
+  return std::shared_ptr<Revision>();
+}
+
+ChunkTransaction::ChunkTransaction(const LogicalTime& begin_time,
+                                   CRTable* cache)
 : begin_time_(begin_time), cache_(CHECK_NOTNULL(cache)) {
-  CHECK(begin_time <= Time::now());
+  CHECK(begin_time < LogicalTime::sample());
   insertions_.clear();
   updates_.clear();
   structure_reference_ = cache_->getTemplate();

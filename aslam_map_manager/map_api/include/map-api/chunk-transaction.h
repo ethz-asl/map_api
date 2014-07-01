@@ -7,7 +7,7 @@
 #include "map-api/cr-table.h"
 #include "map-api/id.h"
 #include "map-api/revision.h"
-#include "map-api/time.h"
+#include "map-api/logical-time.h"
 
 namespace map_api {
 
@@ -22,10 +22,11 @@ class ChunkTransaction {
   void update(std::shared_ptr<Revision> revision);
   // TODO(tcies) conflict conditions
   std::shared_ptr<Revision> getById(const Id& id);
+  std::shared_ptr<Revision> getByIdFromUncommitted(const Id& id) const;
   // TODO(tcies) all other flavors of reading
 
  private:
-  ChunkTransaction(const Time& begin_time, CRTable* cache);
+  ChunkTransaction(const LogicalTime& begin_time, CRTable* cache);
   ChunkTransaction(const ChunkTransaction&) = delete;
   ChunkTransaction& operator =(const ChunkTransaction&) = delete;
   friend class Chunk;
@@ -39,7 +40,7 @@ class ChunkTransaction {
   };
   InsertMap insertions_;
   UpdateMap updates_;
-  Time begin_time_;
+  LogicalTime begin_time_;
   CRTable* cache_;
   std::shared_ptr<const Revision> structure_reference_;
 };

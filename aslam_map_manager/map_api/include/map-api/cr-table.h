@@ -23,6 +23,7 @@ namespace map_api {
 class CRTable {
  public:
   enum class Type{CR, CRU};
+  typedef std::unordered_map<Id, std::shared_ptr<Revision> > RevisionMap;
   /**
    * Default fields
    */
@@ -75,9 +76,12 @@ class CRTable {
    * default values are set correctly.
    */
   virtual bool patch(const Revision& revision) final;
-
+  /**
+   * Returns revision of item that has been current at "time" or an invalid
+   * pointer if the item hasn't been inserted at "time"
+   */
   virtual std::shared_ptr<Revision> getById(
-      const Id& id, const Time& time);
+      const Id& id, const LogicalTime& time);
   /**
    * Puts all items that match key = value at time into dest and returns the
    * amount of items in dest.
@@ -85,24 +89,22 @@ class CRTable {
    * dump())
    */
   template<typename ValueType>
-  int find(const std::string& key, const ValueType& value, const Time& time,
-           std::unordered_map<Id, std::shared_ptr<Revision> >* dest);
+  int find(const std::string& key, const ValueType& value,
+           const LogicalTime& time, RevisionMap* dest);
   /**
    * Same as find() but not typed. Value is looked up in the corresponding field
    * of valueHolder.
    */
   virtual int findByRevision(
-      const std::string& key, const Revision& valueHolder, const Time& time,
-      std::unordered_map<Id, std::shared_ptr<Revision> >* dest) final;
+      const std::string& key, const Revision& valueHolder,
+      const LogicalTime& time, RevisionMap* dest) final;
   /**
    * Same as find() but makes the assumption that there is only one result.
    */
   template<typename ValueType>
   std::shared_ptr<Revision> findUnique(
-      const std::string& key, const ValueType& value, const Time& time);
-  virtual void dump(const Time& time,
-                    std::unordered_map<Id, std::shared_ptr<Revision> >* dest)
-  final;
+      const std::string& key, const ValueType& value, const LogicalTime& time);
+  virtual void dump(const LogicalTime& time, RevisionMap* dest) final;
 
   /**
    * The following struct can be used to automatically supply table name and
@@ -136,8 +138,8 @@ class CRTable {
    * If key is an empty string, this should return all the data in the table.
    */
   virtual int findByRevisionCRDerived(
-      const std::string& key, const Revision& valueHolder, const Time& time,
-      std::unordered_map<Id, std::shared_ptr<Revision> >* dest) = 0;
+      const std::string& key, const Revision& valueHolder,
+      const LogicalTime& time, RevisionMap* dest) = 0;
 
   bool initialized_ = false;
 };

@@ -21,6 +21,8 @@ class Message : public proto::HubMessage {
    * handler map
    */
   template <const char* message_type, typename PayloadType>
+  void extract(PayloadType* payload) const;
+  template <const char* message_type, typename PayloadType>
   void impose(const PayloadType& payload);
   /**
    * For payload-free messages, such as ACKs
@@ -51,14 +53,38 @@ class Message : public proto::HubMessage {
   this->set_serialized(payload); \
 } \
 extern void __FILE__ ## __LINE__(void) // swallows the semicolon
+#define MAP_API_MESSAGE_EXTRACT_STRING_MESSAGE(type_denomination) \
+    template<> \
+    void Message::extract<type_denomination, std::string>( \
+std::string* payload) const { \
+  CHECK_NOTNULL(payload); \
+  CHECK(isType<type_denomination>()); \
+  *payload = serialized(); \
+} \
+extern void __FILE__ ## __LINE__ ## 2(void) // swallows the semicolon
+#define MAP_API_STRING_MESSAGE(type_denomination) \
+    MAP_API_MESSAGE_IMPOSE_STRING_MESSAGE(type_denomination); \
+    MAP_API_MESSAGE_EXTRACT_STRING_MESSAGE(type_denomination)
 #define MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(type_denomination, proto_type) \
     template<> \
     void Message::impose<type_denomination, \
     proto_type>(const proto_type& payload) { \
-  this->set_type(type_denomination); \
-  this->set_serialized(payload.SerializeAsString()); \
-} \
-extern void __FILE__ ## __LINE__(void) // swallows the semicolon
+      this->set_type(type_denomination); \
+      this->set_serialized(payload.SerializeAsString()); \
+    } \
+    extern void __FILE__ ## __LINE__(void) // swallows the semicolon
+#define MAP_API_MESSAGE_EXTRACT_PROTO_MESSAGE(type_denomination, proto_type) \
+    template<> \
+    void Message::extract<type_denomination, proto_type>(proto_type* payload) \
+    const { \
+      CHECK_NOTNULL(payload); \
+      CHECK(isType<type_denomination>()); \
+      CHECK(payload->ParseFromString(this->serialized())); \
+    } \
+    extern void __FILE__ ## __LINE__ ## 2(void) // swallows the semicolon
+#define MAP_API_PROTO_MESSAGE(type_denomination, proto_type) \
+    MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(type_denomination, proto_type); \
+    MAP_API_MESSAGE_EXTRACT_PROTO_MESSAGE(type_denomination, proto_type)
 
 } // namespace map_api
 

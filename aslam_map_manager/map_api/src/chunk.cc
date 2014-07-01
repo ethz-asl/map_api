@@ -17,22 +17,22 @@ const char Chunk::kNewPeerRequest[] = "map_api_chunk_new_peer_request";
 const char Chunk::kUnlockRequest[] = "map_api_chunk_unlock_request";
 const char Chunk::kUpdateRequest[] = "map_api_chunk_update_request";
 
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
-    Chunk::kConnectRequest, proto::ConnectRequest);
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
-    Chunk::kInitRequest, proto::InitRequest);
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
-    Chunk::kInsertRequest, proto::PatchRequest);
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
-    Chunk::kLeaveRequest, proto::ChunkRequestMetadata);
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
-    Chunk::kLockRequest, proto::ChunkRequestMetadata);
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
-    Chunk::kNewPeerRequest, proto::NewPeerRequest);
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
-    Chunk::kUnlockRequest, proto::ChunkRequestMetadata);
-MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(
-    Chunk::kUpdateRequest, proto::PatchRequest);
+MAP_API_PROTO_MESSAGE(Chunk::kConnectRequest, proto::ChunkRequestMetadata);
+MAP_API_PROTO_MESSAGE(Chunk::kInitRequest, proto::InitRequest);
+MAP_API_PROTO_MESSAGE(Chunk::kInsertRequest, proto::PatchRequest);
+MAP_API_PROTO_MESSAGE(Chunk::kLeaveRequest, proto::ChunkRequestMetadata);
+MAP_API_PROTO_MESSAGE(Chunk::kLockRequest, proto::ChunkRequestMetadata);
+MAP_API_PROTO_MESSAGE(Chunk::kNewPeerRequest, proto::NewPeerRequest);
+MAP_API_PROTO_MESSAGE(Chunk::kUnlockRequest, proto::ChunkRequestMetadata);
+MAP_API_PROTO_MESSAGE(Chunk::kUpdateRequest, proto::PatchRequest);
+
+template<>
+void Chunk::fillMetadata<proto::ChunkRequestMetadata>(
+    proto::ChunkRequestMetadata* destination) {
+  CHECK_NOTNULL(destination);
+  destination->set_table(underlying_table_->name());
+  destination->set_chunk_id(id().hexString());
+}
 
 bool Chunk::init(const Id& id, CRTable* underlying_table) {
   CHECK_NOTNULL(underlying_table);
@@ -42,7 +42,7 @@ bool Chunk::init(const Id& id, CRTable* underlying_table) {
 }
 
 bool Chunk::init(
-    const Id& id, const proto::InitRequest& init_request,
+    const Id& id, const proto::InitRequest& init_request, const PeerId& sender,
     CRTable* underlying_table) {
   CHECK(init(id, underlying_table));
   // connect to peers from connect_response TODO(tcies) notify of self
@@ -58,7 +58,7 @@ bool Chunk::init(
   }
   std::lock_guard<std::mutex> metalock(lock_.mutex);
   lock_.state = DistributedRWLock::State::WRITE_LOCKED;
-  lock_.holder = PeerId(init_request.from_peer());
+  lock_.holder = sender;
   return true;
 }
 
@@ -69,7 +69,7 @@ bool Chunk::check(const ChunkTransaction& transaction) {
   }
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
       transaction.insertions_) {
-    if (underlying_table_->getById(item.first, Time::now())) {
+    if (underlying_table_->getById(item.first, LogicalTime::sample())) {
       LOG(WARNING) << "Table " << underlying_table_->name() <<
           " already contains id " << item.first;
       return false;
@@ -82,7 +82,7 @@ bool Chunk::check(const ChunkTransaction& transaction) {
   }
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
       transaction.updates_) {
-    Time latest_update;
+    LogicalTime latest_update;
     CHECK(table->getLatestUpdateTime(item.first, &latest_update));
     if (latest_update >= transaction.begin_time_) {
       return false;
@@ -118,9 +118,7 @@ bool Chunk::insert(Revision* item) {
   CHECK_NOTNULL(item);
   item->set(NetTable::kChunkIdField, id());
   proto::PatchRequest insert_request;
-  insert_request.set_table(underlying_table_->name());
-  insert_request.set_chunk_id(id().hexString());
-  insert_request.set_from_peer(PeerId::self().ipPort());
+  fillMetadata(&insert_request);
   Message request;
   distributedReadLock(); // avoid adding of new peers while inserting
   underlying_table_->insert(item);
@@ -129,14 +127,20 @@ bool Chunk::insert(Revision* item) {
   // into their table.
   insert_request.set_serialized_revision(item->SerializeAsString());
   request.impose<kInsertRequest>(insert_request);
-  CHECK(peers_.undisputableBroadcast(request));
+  CHECK(peers_.undisputableBroadcast(&request));
   distributedUnlock();
   return true;
 }
 
 std::shared_ptr<ChunkTransaction> Chunk::newTransaction() {
-    return std::shared_ptr<ChunkTransaction>(
-        new ChunkTransaction(Time::now(), underlying_table_));
+  return std::shared_ptr<ChunkTransaction>(
+      new ChunkTransaction(LogicalTime::sample(), underlying_table_));
+}
+std::shared_ptr<ChunkTransaction> Chunk::newTransaction(
+    const LogicalTime& time) {
+  CHECK(time < LogicalTime::sample());
+  return std::shared_ptr<ChunkTransaction>(
+      new ChunkTransaction(time, underlying_table_));
 }
 
 int Chunk::peerSize() const {
@@ -153,12 +157,16 @@ void Chunk::leave() {
   // this must happen after acquring the write lock to avoid deadlocks, should
   // two peers try to leave at the same time.
   leave_lock_.writeLock();
-  CHECK(peers_.undisputableBroadcast(request));
+  CHECK(peers_.undisputableBroadcast(&request));
   relinquished_ = true;
   leave_lock_.unlock();
   distributedUnlock(); // i.e. must be able to handle unlocks from outside
   // the swarm. Should this pose problems in the future, we could tie unlocking
   // to leaving.
+}
+
+void Chunk::lock() {
+  distributedWriteLock();
 }
 
 int Chunk::requestParticipation() {
@@ -177,15 +185,17 @@ int Chunk::requestParticipation() {
   return new_participant_count;
 }
 
+void Chunk::unlock() {
+  distributedUnlock();
+}
+
 void Chunk::update(Revision* item) {
   CHECK_NOTNULL(item);
   CHECK(underlying_table_->type() == CRTable::Type::CRU);
   CRUTable* table = static_cast<CRUTable*>(underlying_table_);
   CHECK(item->verify(NetTable::kChunkIdField, id()));
   proto::PatchRequest update_request;
-  update_request.set_table(underlying_table_->name());
-  update_request.set_chunk_id(id().hexString());
-  update_request.set_from_peer(PeerId::self().ipPort());
+  fillMetadata(&update_request);
   Message request;
   distributedWriteLock(); // avoid adding of new peers while inserting
   table->update(item);
@@ -194,7 +204,7 @@ void Chunk::update(Revision* item) {
   // into their table.
   update_request.set_serialized_revision(item->SerializeAsString());
   request.impose<kUpdateRequest>(update_request);
-  CHECK(peers_.undisputableBroadcast(request));
+  CHECK(peers_.undisputableBroadcast(&request));
   distributedUnlock();
 }
 
@@ -210,19 +220,17 @@ bool Chunk::addPeer(const PeerId& peer) {
     return false;
   }
   prepareInitRequest(&request);
-  if (!MapApiHub::instance().ackRequest(peer, request)) {
+  if (!MapApiHub::instance().ackRequest(peer, &request)) {
     return false;
   }
   // new peer is not ready to handle requests as the rest of the swarm. Still,
   // one last message is sent to the old swarm, notifying it of the new peer
   // and thus the new configuration:
   proto::NewPeerRequest new_peer_request;
-  new_peer_request.set_table(underlying_table_->name());
-  new_peer_request.set_chunk_id(id().hexString());
+  fillMetadata(&new_peer_request);
   new_peer_request.set_new_peer(peer.ipPort());
-  new_peer_request.set_from_peer(PeerId::self().ipPort());
   request.impose<kNewPeerRequest>(new_peer_request);
-  CHECK(peers_.undisputableBroadcast(request));
+  CHECK(peers_.undisputableBroadcast(&request));
 
   peers_.add(peer);
   return true;
@@ -272,7 +280,7 @@ void Chunk::distributedWriteLock() {
 
     bool declined = false;
     for (const PeerId& peer : peers_.peers()) {
-      MapApiHub::instance().request(peer, request, &response);
+      MapApiHub::instance().request(peer, &request, &response);
       if (response.isType<Message::kDecline>()) {
         // assuming no connection loss, a lock may only be declined by the peer
         // with lowest address
@@ -351,7 +359,7 @@ void Chunk::distributedUnlock() {
             lock_.state = DistributedRWLock::State::UNLOCKED;
             self_unlocked = true;
           }
-          MapApiHub::instance().request(*rit, request, &response);
+          MapApiHub::instance().request(*rit, &request, &response);
           CHECK(response.isType<Message::kAck>());
         }
         if (!self_unlocked) {
@@ -366,13 +374,6 @@ void Chunk::distributedUnlock() {
   metalock.unlock();
 }
 
-void Chunk::fillMetadata(proto::ChunkRequestMetadata* destination) {
-  CHECK_NOTNULL(destination);
-  destination->set_table(underlying_table_->name());
-  destination->set_chunk_id(id().hexString());
-  destination->set_from_peer(PeerId::self().ipPort());
-}
-
 bool Chunk::isWriter(const PeerId& peer) {
   return (lock_.state == DistributedRWLock::State::WRITE_LOCKED &&
       lock_.holder == peer);
@@ -381,10 +382,7 @@ bool Chunk::isWriter(const PeerId& peer) {
 void Chunk::prepareInitRequest(Message* request) {
   CHECK_NOTNULL(request);
   proto::InitRequest init_request;
-
-  init_request.set_table(underlying_table_->name());
-  init_request.set_chunk_id(id().hexString());
-  init_request.set_from_peer(PeerId::self().ipPort());
+  fillMetadata(&init_request);
 
   for (const PeerId& swarm_peer : peers_.peers()) {
     init_request.add_peer_address(swarm_peer.ipPort());
@@ -392,7 +390,8 @@ void Chunk::prepareInitRequest(Message* request) {
   init_request.add_peer_address(PeerId::self().ipPort());
 
   std::unordered_map<Id, std::shared_ptr<Revision> > data;
-  underlying_table_->dump(Time::now(), &data);
+  underlying_table_->find(NetTable::kChunkIdField, id(), LogicalTime::sample(),
+                          &data);
   for (const std::pair<const Id, std::shared_ptr<Revision> >& data_pair :
       data) {
     init_request.add_serialized_revision(
@@ -554,7 +553,7 @@ void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
   CRUTable* table = static_cast<CRUTable*>(underlying_table_);
   table->patch(item);
   Id id;
-  Time current, updated;
+  LogicalTime current, updated;
   item.get(CRTable::kIdField, &id);
   item.get(CRUTable::kPreviousTimeField, &current);
   item.get(CRUTable::kUpdateTimeField, &updated);

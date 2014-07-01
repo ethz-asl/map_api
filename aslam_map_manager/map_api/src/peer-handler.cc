@@ -11,8 +11,8 @@ void PeerHandler::add(const PeerId& peer) {
 }
 
 void PeerHandler::broadcast(
-    const Message& request,
-    std::unordered_map<PeerId, Message>* responses) {
+    Message* request, std::unordered_map<PeerId, Message>* responses) {
+  CHECK_NOTNULL(request);
   CHECK_NOTNULL(responses);
   responses->clear();
   // TODO(tcies) parallelize using std::future
@@ -43,8 +43,9 @@ void PeerHandler::remove(const PeerId& peer) {
 }
 
 void PeerHandler::request(
-    const PeerId& peer, const Message& request,
+    const PeerId& peer, Message* request,
     Message* response) {
+  CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
   std::set<PeerId>::iterator found = peers_.find(peer);
   if (found == peers_.end()) {
@@ -57,38 +58,7 @@ size_t PeerHandler::size() const {
   return peers_.size();
 }
 
-bool PeerHandler::forwardOrderSerialBroadcast(const Message& request) {
-  if (!peers_.size()) return true;
-  Message response;
-  std::set<PeerId>::iterator it = peers_.begin();
-  MapApiHub::instance().request(*it, request, &response);
-  if (!response.isType<Message::kAck>()) {
-    return false;
-  }
-  for (++it; it != peers_.end(); ++it) {
-    MapApiHub::instance().request(*it, request, &response);
-    CHECK(response.isType<Message::kAck>());
-  }
-  return true;
-}
-
-bool PeerHandler::reverseOrderSerialBroadcast(const Message& request) {
-  if (!peers_.size()) return true;
-  Message response;
-  std::set<PeerId>::reverse_iterator it = peers_.rbegin();
-  MapApiHub::instance().request(*it, request, &response);
-  if (!response.isType<Message::kAck>()) {
-    return false;
-  }
-  for (++it; it != peers_.rend(); ++it) {
-    MapApiHub::instance().request(*it, request, &response);
-    CHECK(response.isType<Message::kAck>());
-  }
-  return true;
-}
-
-bool PeerHandler::undisputableBroadcast(
-    const Message& request) {
+bool PeerHandler::undisputableBroadcast(Message* request) {
   std::unordered_map<PeerId, Message> responses;
   broadcast(request, &responses);
   for (const std::pair<PeerId, Message>& response_pair : responses) {
