@@ -12,7 +12,7 @@
 #include "map-api/cru-table.h"
 #include "map-api/item-id.h"
 #include "map-api/revision.h"
-#include "map-api/time.h"
+#include "map-api/logical-time.h"
 
 namespace map_api {
 
@@ -163,7 +163,7 @@ class LocalTransaction {
 
   bool active_ = false;
   bool aborted_ = false;
-  Time beginTime_;
+  LogicalTime beginTime_;
 
   /**
    * Mutex for db access... for now

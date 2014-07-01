@@ -7,8 +7,7 @@ namespace map_api{
 
 template<typename ValueType>
 int CRTable::find(const std::string& key, const ValueType& value,
-                     const Time& time, std::unordered_map<Id,
-                     std::shared_ptr<Revision> >* dest) {
+                     const LogicalTime& time, RevisionMap* dest) {
   std::shared_ptr<Revision> valueHolder = this->getTemplate();
   if (key != "") {
     valueHolder->set(key, value);
@@ -18,8 +17,8 @@ int CRTable::find(const std::string& key, const ValueType& value,
 
 template<typename ValueType>
 std::shared_ptr<Revision> CRTable::findUnique(
-    const std::string& key, const ValueType& value, const Time& time) {
-  std::unordered_map<Id, std::shared_ptr<Revision>> results;
+    const std::string& key, const ValueType& value, const LogicalTime& time) {
+  RevisionMap results;
   int count = find(key, value, time, &results);
   if (count > 1) {
     std::stringstream report;
@@ -27,7 +26,7 @@ std::shared_ptr<Revision> CRTable::findUnique(
         ") item with given"\
         " value of " << key << ", table " << descriptor_->name() << std::endl;
     report << "Items found at " << time << " are:" << std::endl;
-    for (const std::pair<Id, std::shared_ptr<Revision> >& result : results) {
+    for (const RevisionMap::value_type result : results) {
       report << result.second->DebugString() << std::endl;
     }
     LOG(FATAL) << report.str();

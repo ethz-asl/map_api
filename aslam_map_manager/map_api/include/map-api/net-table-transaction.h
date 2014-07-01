@@ -9,13 +9,14 @@
 #include "map-api/id.h"
 #include "map-api/net-table.h"
 #include "map-api/revision.h"
-#include "map-api/time.h"
+#include "map-api/logical-time.h"
 
 namespace map_api {
 
 class NetTableTransaction {
  public:
-  NetTableTransaction(const Time& begin_time, NetTable* table);
+  explicit NetTableTransaction(NetTable* table);
+  NetTableTransaction(const LogicalTime& begin_time, NetTable* table);
 
   /**
    * Equivalent to lock(), if (check()) commit each sub-transaction, unlock()
@@ -41,13 +42,20 @@ class NetTableTransaction {
  private:
   ChunkTransaction* transactionOf(Chunk* chunk);
 
-  // Id is id of chunk TODO(tcies) strong typing?
-  typedef std::unordered_map<Chunk*, std::shared_ptr<ChunkTransaction> >
-      TransactionMap;
-  typedef std::pair<Chunk*, std::shared_ptr<ChunkTransaction> >
-      TransactionPair;
+  /**
+   * A global ordering of chunks prevents deadlocks (resource hierarchy
+   * solution)
+   */
+  struct ChunkOrdering {
+    inline bool operator() (const Chunk* a, const Chunk* b) {
+      return CHECK_NOTNULL(a)->id() < CHECK_NOTNULL(b)->id();
+    }
+  };
+  typedef std::map<Chunk*, std::shared_ptr<ChunkTransaction>, ChunkOrdering>
+  TransactionMap;
+  typedef TransactionMap::value_type TransactionPair;
   TransactionMap chunk_transactions_;
-  Time begin_time_;
+  LogicalTime begin_time_;
   NetTable* table_;
 };
 

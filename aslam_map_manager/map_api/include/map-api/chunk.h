@@ -76,12 +76,13 @@ class Chunk {
    * modifying chunk data.
    */
   bool init(const Id& id, CRTable* underlying_table);
-  bool init(const Id& id, const proto::InitRequest& init_request,
-            CRTable* underlying_table);
+  bool init(const Id& id, const proto::InitRequest& request,
+            const PeerId& sender, CRTable* underlying_table);
 
   bool check(const ChunkTransaction& transaction);
 
   bool commit(const ChunkTransaction& transaction);
+
   /**
    * Returns own identification
    */
@@ -92,6 +93,7 @@ class Chunk {
   bool insert(Revision* item);
 
   std::shared_ptr<ChunkTransaction> newTransaction();
+  std::shared_ptr<ChunkTransaction> newTransaction(const LogicalTime& time);
 
   int peerSize() const;
 
@@ -220,7 +222,8 @@ class Chunk {
    */
   void distributedUnlock();
 
-  void fillMetadata(proto::ChunkRequestMetadata* destination);
+  template <typename RequestType>
+  void fillMetadata(RequestType* destination);
 
   /**
    * Returns true iff lock status is WRITE_LOCKED and lock holder is self.
@@ -262,4 +265,7 @@ class Chunk {
 };
 
 } //namespace map_api
+
+#include "map-api/chunk-inl.h"
+
 #endif // CHUNK_H

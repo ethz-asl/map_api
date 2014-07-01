@@ -43,7 +43,7 @@ class MapApiHub final {
    * Same as request(), but expects Message::kAck as response and returns false
    * if something else is received
    */
-  bool ackRequest(const PeerId& peer, const Message& request);
+  bool ackRequest(const PeerId& peer, Message* request);
   /**
    * Lists the addresses of connected peers, ordered set for user convenience
    */
@@ -63,18 +63,18 @@ class MapApiHub final {
    * TODO(tcies) distinguish between pub/sub and rpc
    */
   bool registerHandler(const char* type,
-                       std::function<void(const std::string& serialized_type,
+                       std::function<void(const Message& request,
                                           Message* response)> handler);
   /**
    * Sends out the specified message to all connected peers
    */
-  void broadcast(const Message& request,
+  void broadcast(Message* request,
                  std::unordered_map<PeerId, Message>* responses);
   /**
    * Returns false if a response was not Message::kAck or Message::kCantReach.
    * In the latter case, the peer is removed.
    */
-  bool undisputableBroadcast(const Message& request);
+  bool undisputableBroadcast(Message* request);
 
   /**
    * FIXME(tcies) the next two functions will need to go away!!
@@ -86,9 +86,9 @@ class MapApiHub final {
    * Sends a request to the single specified peer. If the peer is not connected
    * yet, adds permanent connection to the peer.
    */
-  void request(const PeerId& peer, const Message& request, Message* response);
+  void request(const PeerId& peer, Message* request, Message* response);
 
-  static void discoveryHandler(const std::string& peer, Message* response);
+  static void discoveryHandler(const Message& request, Message* response);
 
   /**
    * Discovery message type denomination constant
@@ -127,7 +127,7 @@ class MapApiHub final {
    * Maps message types denominations to handler functions
    */
   static std::unordered_map<std::string,
-  std::function<void(const std::string&, Message*)> >
+  std::function<void(const Message& request, Message* response)> >
   handlers_;
 
   Discovery discovery_;

@@ -13,7 +13,7 @@
 #include "map-api/cru-table-ram-cache.h"
 #include "map-api/id.h"
 #include "map-api/map-api-core.h"
-#include "map-api/time.h"
+#include "map-api/logical-time.h"
 
 #include "test_table.cpp"
 
@@ -161,13 +161,13 @@ class FieldTest<int64_t> : public ::testing::Test {
   }
 };
 template <>
-class FieldTest<map_api::Time> : public ::testing::Test {
+class FieldTest<map_api::LogicalTime> : public ::testing::Test {
  protected:
-  Time sample_data_1() {
-    return Time(9223372036854775807);
+  LogicalTime sample_data_1() {
+    return LogicalTime(9223372036854775807u);
   }
-  Time sample_data_2() {
-    return Time(9223372036854775);
+  LogicalTime sample_data_2() {
+    return LogicalTime(9223372036854775u);
   }
 };
 template <>
@@ -271,7 +271,7 @@ class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
     TableDataTypes<table_type, double>, \
     TableDataTypes<table_type, map_api::Id>, \
     TableDataTypes<table_type, int64_t>, \
-    TableDataTypes<table_type, map_api::Time>
+    TableDataTypes<table_type, map_api::LogicalTime>
 
 typedef ::testing::Types<
     ALL_DATA_TYPES(CRTableRAMCache),
@@ -298,7 +298,7 @@ TYPED_TEST(FieldTestWithoutInit, CreateBeforeInit) {
 
 TYPED_TEST(FieldTestWithoutInit, ReadBeforeInit) {
   ::testing::FLAGS_gtest_death_test_style = "fast";
-  EXPECT_DEATH(this->table_->getById(Id::generate(), Time::now()),
+  EXPECT_DEATH(this->table_->getById(Id::generate(), LogicalTime::sample()),
                "Attempted to getById from non-initialized table");
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 }
@@ -308,7 +308,7 @@ TYPED_TEST(FieldTestWithInit, CreateRead) {
   EXPECT_TRUE(this->insertRevision());
 
   std::shared_ptr<Revision> rowFromTable =
-      this->table_->getById(inserted, Time::now());
+      this->table_->getById(inserted, LogicalTime::sample());
   ASSERT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
   rowFromTable->get(FieldTestTable<TypeParam>::kTestField,
@@ -321,7 +321,7 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRow) {
   EXPECT_TRUE(this->insertRevision());
 
   Id other_id = Id::generate();
-  EXPECT_FALSE(this->table_->getById(other_id, Time::now()));
+  EXPECT_FALSE(this->table_->getById(other_id, LogicalTime::sample()));
 }
 
 TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
@@ -329,7 +329,7 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
   EXPECT_TRUE(this->insertRevision());
 
   std::shared_ptr<Revision> rowFromTable =
-      this->table_->getById(inserted, Time::now());
+      this->table_->getById(inserted, LogicalTime::sample());
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
   ::testing::FLAGS_gtest_death_test_style = "fast";
@@ -343,7 +343,7 @@ TYPED_TEST(UpdateFieldTestWithInit, UpdateRead) {
   EXPECT_TRUE(this->insertRevision());
 
   std::shared_ptr<Revision> rowFromTable =
-      this->table_->getById(inserted, Time::now());
+      this->table_->getById(inserted, LogicalTime::sample());
   ASSERT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
   rowFromTable->get("test_field", &dataFromTable);
@@ -351,7 +351,7 @@ TYPED_TEST(UpdateFieldTestWithInit, UpdateRead) {
 
   this->fillRevisionWithOtherData();
   this->updateRevision();
-  rowFromTable = this->table_->getById(inserted, Time::now());
+  rowFromTable = this->table_->getById(inserted, LogicalTime::sample());
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   rowFromTable->get("test_field", &dataFromTable);
   EXPECT_EQ(this->sample_data_2(), dataFromTable);

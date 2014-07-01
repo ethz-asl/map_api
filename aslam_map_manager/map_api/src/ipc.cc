@@ -16,10 +16,10 @@ std::unordered_map<int, int> IPC::barrier_map_;
 std::queue<std::string> IPC::messages_;
 
 const char IPC::kBarrierMessage[] = "map_api_ipc_barrier";
-MAP_API_MESSAGE_IMPOSE_STRING_MESSAGE(IPC::kBarrierMessage);
+MAP_API_STRING_MESSAGE(IPC::kBarrierMessage);
 
 const char IPC::kMessageMessage[] = "map_api_ipc_message";
-MAP_API_MESSAGE_IMPOSE_STRING_MESSAGE(IPC::kMessageMessage);
+MAP_API_STRING_MESSAGE(IPC::kMessageMessage);
 
 IPC::~IPC() {}
 
@@ -36,7 +36,7 @@ void IPC::barrier(int id, int n_peers) {
   }
   Message barrier_message;
   barrier_message.impose<kBarrierMessage,std::string>(ss.str());
-  CHECK(MapApiHub::instance().undisputableBroadcast(barrier_message));
+  CHECK(MapApiHub::instance().undisputableBroadcast(&barrier_message));
   std::unique_lock<std::mutex> lock(barrier_mutex_);
   while (barrier_map_[id] < n_peers) {
     barrier_cv_.wait(lock);
@@ -46,8 +46,10 @@ void IPC::barrier(int id, int n_peers) {
 }
 
 void IPC::barrierHandler(
-    const std::string& id_string, Message* response) {
+    const Message& request, Message* response) {
   CHECK_NOTNULL(response);
+  std::string id_string;
+  request.extract<kBarrierMessage>(&id_string);
   int id = std::stoi(id_string);
   {
     std::lock_guard<std::mutex> lock(barrier_mutex_);
@@ -60,10 +62,13 @@ void IPC::barrierHandler(
 void IPC::push(const std::string& message) {
   Message request;
   request.impose<kMessageMessage>(message);
-  CHECK(MapApiHub::instance().undisputableBroadcast(request));
+  CHECK(MapApiHub::instance().undisputableBroadcast(&request));
 }
 
-void IPC::pushHandler(const std::string& message, Message* response) {
+void IPC::pushHandler(const Message& request, Message* response) {
+  CHECK_NOTNULL(response);
+  std::string message;
+  request.extract<kMessageMessage>(&message);
   std::lock_guard<std::mutex> lock(message_mutex_);
   messages_.push(message);
   response->ack();

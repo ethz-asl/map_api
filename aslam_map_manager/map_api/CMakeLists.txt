@@ -30,6 +30,8 @@ SET(CORE_SOURCE  src/chunk.cc
                  src/discovery.cc
                  src/id.cc
                  src/ipc.cc
+                 src/local-transaction.cc
+                 src/logical-time.cc
                  src/map-api-core.cc
                  src/map-api-hub.cc
                  src/message.cc
@@ -42,8 +44,7 @@ SET(CORE_SOURCE  src/chunk.cc
                  src/revision.cc
                  src/sqlite-interface.cc
                  src/table-descriptor.cc
-                 src/time.cc
-                 src/local-transaction.cc)
+                 src/transaction.cc)
                  
 cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
 # we need to add dependencies of external project packages to fetch headers

@@ -2,10 +2,17 @@
 
 namespace map_api {
 
-NetTableTransaction::NetTableTransaction(
-    const Time& begin_time, NetTable* table) : begin_time_(begin_time),
-        table_(table) {}
+NetTableTransaction::NetTableTransaction(NetTable* table)
+: NetTableTransaction(LogicalTime::sample(), table) {}
 
+NetTableTransaction::NetTableTransaction(
+    const LogicalTime& begin_time, NetTable* table) : begin_time_(begin_time),
+        table_(table) {
+  CHECK(begin_time <= LogicalTime::sample());
+}
+
+// Deadlocks in lock() are prevented by imposing a global ordering on chunks,
+// and have the locks acquired in that order (resource hierarchy solution)
 bool NetTableTransaction::commit() {
   lock();
   if (!check()) {
@@ -30,9 +37,12 @@ bool NetTableTransaction::check() {
 
 void NetTableTransaction::insert(
     Chunk* chunk, std::shared_ptr<Revision> revision) {
+  CHECK_NOTNULL(chunk);
   transactionOf(chunk)->insert(revision);
 }
 
+// Deadlocks in lock() are prevented by imposing a global ordering on chunks,
+// and have the locks acquired in that order (resource hierarchy solution)
 void NetTableTransaction::lock() {
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
     chunk_transaction.first->lock();
@@ -67,7 +77,8 @@ ChunkTransaction* NetTableTransaction::transactionOf(Chunk* chunk) {
   CHECK_NOTNULL(chunk);
   TransactionMap::iterator chunk_transaction = chunk_transactions_.find(chunk);
   if (chunk_transaction == chunk_transactions_.end()) {
-    std::shared_ptr<ChunkTransaction> transaction = chunk->newTransaction();
+    std::shared_ptr<ChunkTransaction> transaction =
+        chunk->newTransaction(begin_time_);
     std::pair<TransactionMap::iterator, bool> inserted =
         chunk_transactions_.insert(std::make_pair(chunk, transaction));
     CHECK(inserted.second);

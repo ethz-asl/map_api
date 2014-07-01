@@ -1,5 +1,7 @@
 #include "map-api/map-api-core.h"
 #include "map-api/net-table.h"
+#include "map-api/net-table-transaction.h"
+#include "map-api/transaction.h"
 
 #include "multiprocess_fixture.cpp"
 
@@ -15,6 +17,33 @@ public ::testing::WithParamInterface<bool> {
     descriptor->addField<int>(kFieldName);
     MapApiCore::instance().tableManager().addTable(GetParam(), &descriptor);
     table_ = &MapApiCore::instance().tableManager().getTable(kTableName);
+  }
+
+  size_t count() {
+    std::unordered_map<Id, std::shared_ptr<Revision> > results;
+    table_->dumpCache(LogicalTime::sample(), &results);
+    return results.size();
+  }
+
+  void increment(const Id& id, NetTableTransaction* transaction) {
+    CHECK_NOTNULL(transaction);
+    std::shared_ptr<Revision> to_update = transaction->getById(id);
+    int transient_value;
+    to_update->get(kFieldName, &transient_value);
+    ++transient_value;
+    to_update->set(kFieldName, transient_value);
+    transaction->update(to_update);
+  }
+
+  void increment(NetTable* table, const Id& id, Transaction* transaction) {
+    CHECK_NOTNULL(table);
+    CHECK_NOTNULL(transaction);
+    std::shared_ptr<Revision> to_update = transaction->getById(id, table);
+    int transient_value;
+    to_update->get(kFieldName, &transient_value);
+    ++transient_value;
+    to_update->set(kFieldName, transient_value);
+    transaction->update(table, to_update);
   }
 
   Id insert(int n, Chunk* chunk) {
@@ -33,6 +62,14 @@ public ::testing::WithParamInterface<bool> {
     to_insert->set(kFieldName, n);
     transaction->insert(to_insert);
     return insert_id;
+  }
+
+  Id popId() const {
+    Id id;
+    std::string id_string;
+    IPC::pop(&id_string);
+    id.fromHexString(id_string);
+    return id;
   }
 
   const std::string kTableName = "chunk_test_table";

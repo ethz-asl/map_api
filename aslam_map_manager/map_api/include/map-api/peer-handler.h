@@ -24,7 +24,7 @@ class PeerHandler {
    * Sends the message to all currently connected peers and collects their
    * responses
    */
-  void broadcast(const Message& request,
+  void broadcast(Message* request,
                  std::unordered_map<PeerId, Message>* responses);
 
   bool empty() const;
@@ -39,20 +39,13 @@ class PeerHandler {
   /**
    * Sends request to specified peer. If peer not among peers_, adds it.
    */
-  void request(const PeerId& peer_address, const Message& request,
+  void request(const PeerId& peer_address, Message* request,
                Message* response);
-  /**
-   * Traversing the peers in order, sends attached request while responses
-   * are positive. Useful for circumventing deadlocks by using Dijkstra's
-   * resource hierarchy solution.
-   */
-  bool forwardOrderSerialBroadcast(const Message& request);
-  bool reverseOrderSerialBroadcast(const Message& request);
   /**
    * Returns true if all peers have acknowledged, false otherwise.
    * TODO(tcies) timeouts?
    */
-  bool undisputableBroadcast(const Message& request);
+  bool undisputableBroadcast(Message* request);
 
   size_t size() const;
  private:
