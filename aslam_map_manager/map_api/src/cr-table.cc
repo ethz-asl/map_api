@@ -26,7 +26,7 @@ bool CRTable::init(std::unique_ptr<TableDescriptor>* descriptor) {
   CHECK((*descriptor)->has_name());
   descriptor_ = std::move(*descriptor);
   descriptor_->addField<Id>(kIdField);
-  descriptor_->addField<Time>(kInsertTimeField);
+  descriptor_->addField<LogicalTime>(kInsertTimeField);
   CHECK(initCRDerived());
   initialized_ = true;
   return true;
@@ -63,7 +63,7 @@ bool CRTable::insert(Revision* query) {
   Id id;
   query->get(kIdField, &id);
   CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
-  query->set(kInsertTimeField, Time::now());
+  query->set(kInsertTimeField, LogicalTime::sample());
   return insertCRDerived(query);
 }
 
@@ -78,29 +78,29 @@ bool CRTable::patch(const Revision& query) {
 }
 
 std::shared_ptr<Revision> CRTable::getById(
-    const Id &id, const Time& time) {
+    const Id &id, const LogicalTime& time) {
   CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
   CHECK_NE(id, Id()) << "Supplied invalid ID";
   return findUnique(kIdField, id, time);
 }
 
 int CRTable::findByRevision(
-    const std::string& key, const Revision& valueHolder, const Time& time,
-    std::unordered_map<Id, std::shared_ptr<Revision> >* dest) {
+    const std::string& key, const Revision& valueHolder,
+    const LogicalTime& time, RevisionMap* dest) {
   CHECK(isInitialized()) << "Attempted to find in non-initialized table";
   // whether valueHolder contains key is implicitly checked whenever using
   // Revision::insertPlaceHolder - for now it's a pretty safe bet that the
   // implementation uses that - this would be rather cumbersome to check here
   CHECK_NOTNULL(dest);
   dest->clear();
-  CHECK(time <= Time::now()) << "Seeing the future is yet to be implemented ;)";
+  CHECK(time < LogicalTime::sample()) <<
+      "Seeing the future is yet to be implemented ;)";
   return findByRevisionCRDerived(key, valueHolder, time, dest);
 }
 
 // although this is very similar to rawGetRow(), I don't see how to share the
 // features without loss of performance TODO(discuss)
-void CRTable::dump(const Time& time,
-                   std::unordered_map<Id, std::shared_ptr<Revision> >* dest)
+void CRTable::dump(const LogicalTime& time, RevisionMap* dest)
 {
   std::shared_ptr<Revision> valueHolder = getTemplate();
   findByRevision("", *valueHolder, time, dest);

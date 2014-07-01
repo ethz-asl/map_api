@@ -3,12 +3,12 @@
 namespace map_api {
 
 NetTableTransaction::NetTableTransaction(NetTable* table)
-: NetTableTransaction(Time::now(), table) {}
+: NetTableTransaction(LogicalTime::sample(), table) {}
 
 NetTableTransaction::NetTableTransaction(
-    const Time& begin_time, NetTable* table) : begin_time_(begin_time),
+    const LogicalTime& begin_time, NetTable* table) : begin_time_(begin_time),
         table_(table) {
-  CHECK(begin_time <= Time::now());
+  CHECK(begin_time <= LogicalTime::sample());
 }
 
 bool NetTableTransaction::check() {

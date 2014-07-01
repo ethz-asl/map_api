@@ -21,7 +21,7 @@ public ::testing::WithParamInterface<bool> {
 
   size_t count() {
     std::unordered_map<Id, std::shared_ptr<Revision> > results;
-    table_->dumpCache(Time::now(), &results);
+    table_->dumpCache(LogicalTime::sample(), &results);
     return results.size();
   }
 
