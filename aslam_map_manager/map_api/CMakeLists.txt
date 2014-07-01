@@ -27,7 +27,7 @@ SET(CORE_SOURCE  src/chunk.cc
                  src/cr-table-ram-cache.cc
                  src/cru-table.cc
                  src/cru-table-ram-cache.cc
-                 src/discovery.cc
+                 src/file-discovery.cc
                  src/id.cc
                  src/ipc.cc
                  src/local-transaction.cc
@@ -42,6 +42,7 @@ SET(CORE_SOURCE  src/chunk.cc
                  src/peer-id.cc
                  src/peer-handler.cc
                  src/revision.cc
+                 src/server-discovery.cc
                  src/sqlite-interface.cc
                  src/table-descriptor.cc
                  src/transaction.cc)
@@ -51,6 +52,10 @@ cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
 # before compilation
 add_dependencies(${PROJECT_NAME} zeromq_catkin gflags_catkin glog_catkin)
 target_link_libraries(${PROJECT_NAME} ${POCO_LIBRARIES})
+
+cs_add_executable(discovery-server discovery-server/discovery-server.cc
+                   ${PROTO_SRCS} ${PROTO_HDRS})
+target_link_libraries(discovery-server ${PROJECT_NAME})
 
 ##########
 # GTESTS #

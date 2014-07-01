@@ -1,6 +1,5 @@
 package map_api.proto;
 
-// is there a smarter way to describe types in protobuf?
 message TableFieldDescriptor {
   enum Type { INT32 = 1; INT64 = 2; UINT64 = 3; DOUBLE = 4; STRING = 5; 
     BLOB = 6; HASH128 = 7;}
@@ -11,10 +10,6 @@ message TableFieldDescriptor {
 message TableDescriptor {
 	required string name = 1;
 	repeated TableFieldDescriptor fields = 2;
-}
-
-message TableList {
-	repeated TableDescriptor tables = 1;
 }
 
 message TableField {
@@ -32,9 +27,6 @@ message Revision {
   repeated TableField fieldQueries = 2;
 }
 
-//==============================
-// NODE TO NODE QUERY MESSAGES
-//==============================
 message HubMessage {
   required string type = 1;
   required bytes serialized = 2;
@@ -42,9 +34,6 @@ message HubMessage {
   required uint64 logical_time = 4;
 }
 
-message ListTablesQuery {
-}
-
-message CreateTableQuery {
-	required TableDescriptor description = 1;
+message ServerDiscoveryGetPeersResponse {
+  repeated string peers = 1;
 }
