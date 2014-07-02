@@ -1,4 +1,4 @@
-#include "map-api/discovery.h"
+#include "map-api/file-discovery.h"
 
 #include <fstream>
 #include <sstream>
@@ -13,11 +13,13 @@
 
 namespace map_api {
 
-void Discovery::announce() const {
+FileDiscovery::~FileDiscovery() {}
+
+void FileDiscovery::announce() {
   append(MapApiHub::instance().ownAddress());
 }
 
-int Discovery::getPeers(std::vector<PeerId>* peers) const {
+int FileDiscovery::getPeers(std::vector<PeerId>* peers) {
   CHECK_NOTNULL(peers);
   std::string file_contents;
   getFileContents(&file_contents);
@@ -32,17 +34,13 @@ int Discovery::getPeers(std::vector<PeerId>* peers) const {
   return peers->size();
 }
 
-void Discovery::leave() const {
-  remove(PeerId::self());
-}
-
-void Discovery::append(const std::string& new_content) const {
+void FileDiscovery::append(const std::string& new_content) const {
   std::ofstream out(kFileName, std::ios::out | std::ios::app);
   out << new_content << "\n";
   out.close();
 }
 
-void Discovery::getFileContents(std::string* result) const {
+void FileDiscovery::getFileContents(std::string* result) const {
   CHECK_NOTNULL(result);
   std::ifstream in(kFileName, std::ios::in);
   std::string line;
@@ -54,7 +52,7 @@ void Discovery::getFileContents(std::string* result) const {
   in.close();
 }
 
-void Discovery::lock() {
+void FileDiscovery::lock() {
   while (((lock_file_descriptor_ =
       open(kLockFileName, O_WRONLY | O_EXCL | O_CREAT, 0)) == -1) &&
       errno == EEXIST) {
@@ -62,13 +60,13 @@ void Discovery::lock() {
   }
 }
 
-void Discovery::replace(const std::string& new_content) const {
+void FileDiscovery::replace(const std::string& new_content) const {
   std::ofstream out(kFileName, std::ios::out);
   out << new_content << std::endl;
   out.close();
 }
 
-void Discovery::remove(const PeerId& peer) const {
+void FileDiscovery::remove(const PeerId& peer) {
   std::string file_contents;
   getFileContents(&file_contents);
   size_t position = 0;
@@ -79,12 +77,12 @@ void Discovery::remove(const PeerId& peer) const {
   replace(file_contents);
 }
 
-void Discovery::unlock() {
+void FileDiscovery::unlock() {
   CHECK(close(lock_file_descriptor_) != -1);
   CHECK(unlink(kLockFileName) != -1);
 }
 
-const std::string Discovery::kFileName = "/tmp/mapapi-discovery.txt";
-const char Discovery::kLockFileName[] = "/tmp/mapapi-discovery.txt.lck";
+const std::string FileDiscovery::kFileName = "/tmp/mapapi-discovery.txt";
+const char FileDiscovery::kLockFileName[] = "/tmp/mapapi-discovery.txt.lck";
 
 } /* namespace map_api */

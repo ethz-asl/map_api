@@ -54,6 +54,7 @@ class MapApiHub final {
   int peerSize();
 
   const std::string& ownAddress() const;
+
   /**
    * Registers a handler for messages titled with the given name
    * TODO(tcies) create a metatable directory for these types as well
@@ -101,9 +102,9 @@ class MapApiHub final {
    */
   MapApiHub() = default;
   /**
-   * Removes the peer, assuming that the connection to it failed.
+   * 127.0.0.1 if discovery is from file, own LAN address otherwise
    */
-  void removeUnreachable(const PeerId& peer);
+  static std::string ownAddressBeforePort();
   /**
    * Thread for listening to peers
    */
@@ -130,7 +131,7 @@ class MapApiHub final {
   std::function<void(const Message& request, Message* response)> >
   handlers_;
 
-  Discovery discovery_;
+  std::unique_ptr<Discovery> discovery_;
 };
 
 }

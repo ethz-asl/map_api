@@ -1,16 +1,36 @@
 #include "map-api/map-api-hub.h"
 
+#include <ifaddrs.h>
 #include <iostream>
 #include <fstream>
 #include <memory>
+#include <netdb.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <thread>
 #include <unordered_set>
 
+#include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include "map-api/file-discovery.h"
 #include "map-api/ipc.h"
 #include "map-api/logical-time.h"
+#include "map-api/server-discovery.h"
 #include "core.pb.h"
+
+const std::string kFileDiscovery = "file";
+const std::string kServerDiscovery = "server";
+const std::string kLocalhost = "127.0.0.1";
+const char kLoopback[] = "lo";
+
+DEFINE_string(discovery_mode, kFileDiscovery,
+              ("How new peers are discovered. \"" + kFileDiscovery +
+                  "\" or \"" + kServerDiscovery +
+                  "\". In the latter case, IP and port of the server must "\
+                  "be specified separately with --discovery_server").c_str());
+DEFINE_string(discovery_server, "127.0.0.1:5050", "Server to be used for "\
+              "server-discovery");
 
 namespace map_api {
 
@@ -21,12 +41,19 @@ std::function<void(const Message& request, Message* response)> >
 MapApiHub::handlers_;
 
 bool MapApiHub::init() {
+  context_.reset(new zmq::context_t());
   terminate_ = false;
+  if (FLAGS_discovery_mode == kFileDiscovery) {
+    discovery_.reset(new FileDiscovery());
+  } else if (FLAGS_discovery_mode == kServerDiscovery) {
+    discovery_.reset(new ServerDiscovery(FLAGS_discovery_server, *context_));
+  } else {
+    LOG(FATAL) << "Specified discovery mode unknown";
+  }
   // Handlers must be initialized before handler thread is started
   IPC::init(); // TODO(tcies) more apprioprate place for this - gflags style?
   registerHandler(kDiscovery, discoveryHandler);
   // 1. create own server
-  context_.reset(new zmq::context_t());
   listenerConnected_ = false;
   CHECK(peers_.empty());
   listener_ = std::thread(listenThread, this);
@@ -40,9 +67,9 @@ bool MapApiHub::init() {
   }
 
   // 2. connect to servers already on network (discovery from file)
-  discovery_.lock();
+  discovery_->lock();
   std::vector<PeerId> discovery_peers;
-  discovery_.getPeers(&discovery_peers);
+  discovery_->getPeers(&discovery_peers);
   peer_mutex_.lock();
   for (const PeerId& peer : discovery_peers) {
     // don't attempt to connect if already connected
@@ -62,7 +89,7 @@ bool MapApiHub::init() {
   peer_mutex_.unlock();
 
   // 3. Report self to discovery
-  discovery_.announce();
+  discovery_->announce();
 
   // 4. Announce self to peers (who will not revisit discovery)
   Message announce_self, response;
@@ -70,7 +97,7 @@ bool MapApiHub::init() {
   std::unordered_set<PeerId> unreachable;
   for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer : peers_) {
     if (!peer.second->try_request(&announce_self, &response)) {
-      discovery_.remove(peer.first);
+      discovery_->remove(peer.first);
       unreachable.insert(peer.first);
     }
   }
@@ -85,7 +112,7 @@ bool MapApiHub::init() {
     }
   }
 
-  discovery_.unlock();
+  discovery_->unlock();
   return true;
 }
 
@@ -109,10 +136,11 @@ void MapApiHub::kill() {
   }
   peers_.clear();
   // destroy context
+  discovery_->lock();
+  discovery_->leave();
+  discovery_->unlock();
+  discovery_.reset();
   context_.reset();
-  discovery_.lock();
-  discovery_.leave();
-  discovery_.unlock();
 }
 
 bool MapApiHub::ackRequest(const PeerId& peer, Message* request) {
@@ -208,6 +236,42 @@ void MapApiHub::discoveryHandler(const Message& request, Message* response) {
   response->impose<Message::kAck>();
 }
 
+std::string MapApiHub::ownAddressBeforePort() {
+  if (FLAGS_discovery_mode == kFileDiscovery) {
+    return kLocalhost;
+  } else if (FLAGS_discovery_mode == kServerDiscovery) {
+    struct ifaddrs* interface_addresses;
+    CHECK(getifaddrs(&interface_addresses) != -1);
+    char host[NI_MAXHOST];
+    bool success = false;
+    for (struct ifaddrs* interface_address = interface_addresses;
+        interface_address != NULL;
+        interface_address = interface_address->ifa_next) {
+      if (interface_address->ifa_addr != NULL) {
+        // ignore non-ip4 interfaces
+        if (interface_address->ifa_addr->sa_family == AF_INET) {
+          // ignore local loopback
+          if (strcmp(interface_address->ifa_name, kLoopback) != 0){
+            // assuming that first address that satisfies these conditions
+            // is the right one TODO(tcies) some day, ability to specify
+            // custom interface name might be nice
+            CHECK(getnameinfo(interface_address->ifa_addr,
+                              sizeof(struct sockaddr_in), host, NI_MAXHOST,
+                              NULL,0, NI_NUMERICHOST) == 0);
+            success = true;
+            break;
+          }
+        }
+      }
+    }
+    CHECK(success) << "Couldn't determine own LAN address!";
+    return std::string(host);
+  } else {
+    LOG(FATAL) << "Specified discovery mode unknown";
+    return "";
+  }
+}
+
 void MapApiHub::listenThread(MapApiHub *self) {
   const unsigned int kMinPort = 1024;
   const unsigned int kMaxPort = 65536;
@@ -221,7 +285,7 @@ void MapApiHub::listenThread(MapApiHub *self) {
       unsigned int port = kMinPort + (rng() % (kMaxPort - kMinPort));
       try {
         std::ostringstream address;
-        address << "127.0.0.1:" << port;
+        address << ownAddressBeforePort() << ":" << port;
         server.bind(("tcp://" + address.str()).c_str());
         self->own_address_ = address.str();
         break;
