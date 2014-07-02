@@ -1,0 +1,3 @@
+[submodule "aslam_cv2"]
+	path = aslam_cv2
+	url = git@github.com:ethz-asl/aslam_cv2.git
