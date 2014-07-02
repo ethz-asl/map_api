@@ -15,12 +15,12 @@ using namespace map_api;
 DEFINE_string(ip_port, "127.0.0.1:5050", "Address to be used");
 
 int main(int argc, char** argv) {
+  google::InitGoogleLogging(argv[0]);
+  google::ParseCommandLineFlags(&argc, &argv, true);
+
   std::unordered_set<PeerId> peers_;
   bool locked = false;
   std::string locker;
-
-  google::InitGoogleLogging(argv[0]);
-  google::ParseCommandLineFlags(&argc, &argv, true);
 
   zmq::context_t context;
   zmq::socket_t server(context, ZMQ_REP);
@@ -30,7 +30,11 @@ int main(int argc, char** argv) {
     zmq::message_t request;
     server.recv(&request);
     Message query, response;
-    CHECK(query.ParseFromArray(request.data(), request.size()));
+    if (!query.ParseFromArray(request.data(), request.size())) {
+      LOG(ERROR) << "Received a invalid message, discarding!";
+      server.send(request); // ZMQ_REP socket must reply to every request
+      continue;
+    }
     LogicalTime::synchronize(LogicalTime(query.logical_time()));
 
     if (!query.isType<ServerDiscovery::kLockRequest>()) {

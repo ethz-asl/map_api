@@ -19,10 +19,16 @@
 #include "map-api/server-discovery.h"
 #include "core.pb.h"
 
-DEFINE_string(discovery_mode, "file",
-              "How new peers are discovered. \"file\" or "\
-              "\"server\". In the latter case, IP and port of the server must "\
-              "be specified separately with --discovery_server");
+const std::string kFileDiscovery = "file";
+const std::string kServerDiscovery = "server";
+const std::string kLocalhost = "127.0.0.1";
+const char kLoopback[] = "lo";
+
+DEFINE_string(discovery_mode, kFileDiscovery,
+              ("How new peers are discovered. \"" + kFileDiscovery +
+                  "\" or \"" + kServerDiscovery +
+                  "\". In the latter case, IP and port of the server must "\
+                  "be specified separately with --discovery_server").c_str());
 DEFINE_string(discovery_server, "127.0.0.1:5050", "Server to be used for "\
               "server-discovery");
 
@@ -37,9 +43,9 @@ MapApiHub::handlers_;
 bool MapApiHub::init() {
   context_.reset(new zmq::context_t());
   terminate_ = false;
-  if (FLAGS_discovery_mode == "file") {
+  if (FLAGS_discovery_mode == kFileDiscovery) {
     discovery_.reset(new FileDiscovery());
-  } else if (FLAGS_discovery_mode == "server") {
+  } else if (FLAGS_discovery_mode == kServerDiscovery) {
     discovery_.reset(new ServerDiscovery(FLAGS_discovery_server, *context_));
   } else {
     LOG(FATAL) << "Specified discovery mode unknown";
@@ -231,9 +237,9 @@ void MapApiHub::discoveryHandler(const Message& request, Message* response) {
 }
 
 std::string MapApiHub::ownAddressBeforePort() {
-  if (FLAGS_discovery_mode == "file") {
-    return "127.0.0.1";
-  } else if (FLAGS_discovery_mode == "server") {
+  if (FLAGS_discovery_mode == kFileDiscovery) {
+    return kLocalhost;
+  } else if (FLAGS_discovery_mode == kServerDiscovery) {
     struct ifaddrs* interface_addresses;
     CHECK(getifaddrs(&interface_addresses) != -1);
     char host[NI_MAXHOST];
@@ -245,10 +251,10 @@ std::string MapApiHub::ownAddressBeforePort() {
         // ignore non-ip4 interfaces
         if (interface_address->ifa_addr->sa_family == AF_INET) {
           // ignore local loopback
-          if (strcmp(interface_address->ifa_name, "lo") != 0){
+          if (strcmp(interface_address->ifa_name, kLoopback) != 0){
             // assuming that first address that satisfies these conditions
             // is the right one TODO(tcies) some day, ability to specify
-            // correct interface name is
+            // custom interface name might be nice
             CHECK(getnameinfo(interface_address->ifa_addr,
                               sizeof(struct sockaddr_in), host, NI_MAXHOST,
                               NULL,0, NI_NUMERICHOST) == 0);
