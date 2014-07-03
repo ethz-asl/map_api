@@ -7,14 +7,11 @@
 
 #include <Poco/Data/Common.h>
 
-#include "map-api/chunk-manager.h"
-#include "map-api/cru-table.h"
+#include "map-api/cr-table-ram-cache.h"
 #include "map-api/id.h"
 #include "map-api/map-api-hub.h"
-#include "map-api/metatable.h"
+#include "map-api/net-table-manager.h"
 #include "core.pb.h"
-
-DECLARE_string(ip_port);
 
 namespace map_api {
 
@@ -35,50 +32,51 @@ class MapApiCore final {
    * Synchronizes table definition with peers
    * by using standard table operations on the metatable
    */
-  bool syncTableDefinition(const proto::TableDescriptor& descriptor);
+  bool syncTableDefinition(const TableDescriptor& descriptor);
   /**
    * Initializer
    */
-  bool init(const std::string &ipPort);
+  void init();
+  /**
+   * Metatable definition TODO(tcies) in TableManager
+   */
+  void initMetatable();
   /**
    * Check if initialized
    */
   bool isInitialized() const;
   /**
-   * Makes the server thread re-enter, disconnects from database
+   * Makes the server thread re-enter, disconnects from database and removes
+   * own address from discovery file.
    */
   void kill();
 
- protected:
-  /**
-   * Resets the database, clearing all its contents. TO BE USED FOR TESTING
-   * ONLY. After a call to this function ALL TABLES MUST BE RE-INITIALIZED.
-   * resetDb already re-initializes the metatable
-   */
-  void resetDb();
-  friend class CoreTester;
+  NetTableManager& tableManager();
+  const NetTableManager& tableManager() const;
 
  private:
+  static const std::string kMetatableNameField;
+  static const std::string kMetatableDescriptorField;
   /**
    * Constructor: Creates database if not existing, launches a new thread
    * that takes care of handling requests from other nodes.
    */
   MapApiCore();
+  ~MapApiCore();
   /**
    * Returns a weak pointer to the database session
    */
   std::weak_ptr<Poco::Data::Session> getSession();
-  friend class CRTable;
-  friend class CRUTable;
+  friend class CRTableRAMCache;
+  friend class CRUTableRAMCache;
   friend class LocalTransaction;
   /**
    * Initializes metatable if not initialized. Unfortunately, the metatable
    * can't be initialized in init, as the initializer of metatable calls init
    * indirectly itself, so there would be an endless recursion.
    */
-  inline void ensureMetatable();
+  void ensureMetatable();
 
-  Id owner_;
   /**
    * Session of local database
    */
@@ -86,23 +84,14 @@ class MapApiCore final {
   /**
    * Hub instance
    */
-  MapApiHub &hub_;
-  /**
-   * Chunk manager instance
-   */
-  ChunkManager &chunk_manager_;
+  MapApiHub& hub_;
 
-  /**
-   * initialized?
-   */
-  bool initialized_;
-};
+  NetTableManager table_manager_;
 
-class CoreTester {
- protected:
-  inline void resetDb() {
-    MapApiCore::instance().resetDb();
-  }
+  std::unique_ptr<CRTableRAMCache> metatable_; // TODO(tcies) eventually
+  // net table in tableManager
+
+  bool initialized_ = false;
 };
 
 }

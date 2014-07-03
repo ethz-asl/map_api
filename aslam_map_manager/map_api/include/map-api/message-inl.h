@@ -3,6 +3,14 @@
 
 namespace map_api {
 
+inline void Message::ack() {
+  impose<Message::kAck>();
+}
+
+inline void Message::decline() {
+  impose<Message::kDecline>();
+}
+
 template <const char* message_type>
 void Message::impose() {
   this->set_type(message_type);

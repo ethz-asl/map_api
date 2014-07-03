@@ -8,6 +8,11 @@ namespace map_api {
 class Message : public proto::HubMessage {
  public:
   /**
+   * Message impose shorthands for common messages
+   */
+  inline void ack();
+  inline void decline();
+  /**
    * Templated on type denomination because we might want to do different things
    * with the same payload type. Because this is templated on a const char*, the
    * template matches only if the pointer matches: This is great because it
@@ -15,6 +20,8 @@ class Message : public proto::HubMessage {
    * the message type to the string that is used to identify it, e.g. in the
    * handler map
    */
+  template <const char* message_type, typename PayloadType>
+  void extract(PayloadType* payload) const;
   template <const char* message_type, typename PayloadType>
   void impose(const PayloadType& payload);
   /**
@@ -31,6 +38,8 @@ class Message : public proto::HubMessage {
    */
   static const char kAck[];
   static const char kDecline[];
+  static const char kInvalid[];
+  static const char kRedundant[];
 };
 
 /**
@@ -44,14 +53,38 @@ class Message : public proto::HubMessage {
   this->set_serialized(payload); \
 } \
 extern void __FILE__ ## __LINE__(void) // swallows the semicolon
+#define MAP_API_MESSAGE_EXTRACT_STRING_MESSAGE(type_denomination) \
+    template<> \
+    void Message::extract<type_denomination, std::string>( \
+std::string* payload) const { \
+  CHECK_NOTNULL(payload); \
+  CHECK(isType<type_denomination>()); \
+  *payload = serialized(); \
+} \
+extern void __FILE__ ## __LINE__ ## 2(void) // swallows the semicolon
+#define MAP_API_STRING_MESSAGE(type_denomination) \
+    MAP_API_MESSAGE_IMPOSE_STRING_MESSAGE(type_denomination); \
+    MAP_API_MESSAGE_EXTRACT_STRING_MESSAGE(type_denomination)
 #define MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(type_denomination, proto_type) \
     template<> \
     void Message::impose<type_denomination, \
     proto_type>(const proto_type& payload) { \
-  this->set_type(type_denomination); \
-  this->set_serialized(payload.SerializeAsString()); \
-} \
-extern void __FILE__ ## __LINE__(void) // swallows the semicolon
+      this->set_type(type_denomination); \
+      this->set_serialized(payload.SerializeAsString()); \
+    } \
+    extern void __FILE__ ## __LINE__(void) // swallows the semicolon
+#define MAP_API_MESSAGE_EXTRACT_PROTO_MESSAGE(type_denomination, proto_type) \
+    template<> \
+    void Message::extract<type_denomination, proto_type>(proto_type* payload) \
+    const { \
+      CHECK_NOTNULL(payload); \
+      CHECK(isType<type_denomination>()); \
+      CHECK(payload->ParseFromString(this->serialized())); \
+    } \
+    extern void __FILE__ ## __LINE__ ## 2(void) // swallows the semicolon
+#define MAP_API_PROTO_MESSAGE(type_denomination, proto_type) \
+    MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(type_denomination, proto_type); \
+    MAP_API_MESSAGE_EXTRACT_PROTO_MESSAGE(type_denomination, proto_type)
 
 } // namespace map_api
 

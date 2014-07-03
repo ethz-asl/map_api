@@ -1,6 +1,8 @@
 #ifndef MAP_API_PEER_H_
 #define MAP_API_PEER_H_
 
+#include <mutex>
+
 #include <zeromq_cpp/zmq.hpp>
 
 #include "map-api/message.h"
@@ -11,29 +13,31 @@ class Peer {
  public:
   std::string address() const;
 
-  bool request(const Message& request, Message* response);
+  void request(Message* request, Message* response);
+
+  /**
+   * Unlike request, doesn't terminate if the request times out.
+   */
+  bool try_request(Message* request, Message* response);
 
  private:
   /**
-   * Life cycle management of Peer objects reserved for PeerHandler
+   * Life cycle management of Peer objects reserved for MapApiHub, with the
+   * exception of server discovery.
    */
-  template <typename PeerPointerType>
-  friend class PeerHandler;
+  friend class MapApiHub;
+  friend class ServerDiscovery;
   explicit Peer(const std::string& address, zmq::context_t& context,
                 int socket_type);
-  Peer(const Peer&) = default;
-  Peer& operator=(const Peer&) = default;
-  ~Peer() = default;
   /**
-   * Peer delete function that can be passed to a shared pointer constructor,
-   * otherwise can't make shared pointers of peers with private-ization of
-   * CTOR/DTOR.
-   * http://stackoverflow.com/questions/8202530
+   * Closes the peer socket.
    */
-  static void deleteFunction(Peer* peer_pointer);
+  bool disconnect();
 
+  // ZMQ sockets are not inherently thread-safe
   std::string address_;
   zmq::socket_t socket_;
+  std::mutex socket_mutex_;
 };
 
 } // namespace map_api
