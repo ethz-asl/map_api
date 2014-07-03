@@ -4,34 +4,35 @@
 namespace map_api {
 
 template<typename ValueType>
-bool LocalTransaction::addConflictCondition(const CRTable& table,
-                                            const std::string& key,
-                                            const ValueType& value) {
+bool LocalTransaction::addConflictCondition(const std::string& key,
+                                            const ValueType& value,
+                                            CRTable* table) {
+  CHECK_NOTNULL(table);
   if (LocalTransaction::notifyAbortedOrInactive()) {
     return false;
   }
-  SharedRevisionPointer valueHolder = table.getTemplate();
+  SharedRevisionPointer valueHolder = table->getTemplate();
   valueHolder->set(key, value);
   LocalTransaction::conflictConditions_.push_back(
-      ConflictCondition(table, key, valueHolder));
+      ConflictCondition(key, valueHolder, table));
   return true;
 }
 
 template<typename ValueType>
 int LocalTransaction::find(
-    const CRTable& table, const std::string& key, const ValueType& value,
+    const std::string& key, const ValueType& value, CRTable* table,
     std::unordered_map<Id, SharedRevisionPointer>* dest) const {
   CHECK_NOTNULL(dest);
   if (LocalTransaction::notifyAbortedOrInactive()){
     return false;
   }
   dest->clear();
-  findInUncommitted(table, key, value, dest);
+  findInUncommitted(*table, key, value, dest);
   if (dest->size() > 0) { // already have results in uncommited, merge from db
     std::unordered_map<Id, SharedRevisionPointer> from_database;
     {
       std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-      table.rawFind(key, value, this->beginTime_, &from_database);
+      table->find(key, value, this->beginTime_, &from_database);
     }
     // this implementation of unordered_map::insert is specified to skip
     // duplicates, not override them, at least according to MSDN
@@ -39,20 +40,20 @@ int LocalTransaction::find(
     dest->insert(from_database.begin(), from_database.end());
   } else {  // no results in uncommitted, forward db directly
     std::lock_guard < std::recursive_mutex > lock(dbMutex_);
-    table.rawFind(key, value, this->beginTime_, dest);
+    table->find(key, value, this->beginTime_, dest);
   }
   return dest->size();
 }
 
 template<typename ValueType>
 LocalTransaction::SharedRevisionPointer LocalTransaction::findUnique(
-    const CRTable& table, const std::string& key, const ValueType& value)
+    const std::string& key, const ValueType& value, CRTable* table)
 const {
   if (LocalTransaction::notifyAbortedOrInactive()){
     return false;
   }
   SharedRevisionPointer uncommitted =
-      findUniqueInUncommitted(table, key, value);
+      findUniqueInUncommitted(*table, key, value);
   if (uncommitted) {
     // uncommitted result could be an update of an item in database, so
     // verifying that the item can't be found in the database wouldn't even
@@ -60,7 +61,7 @@ const {
     return uncommitted;
   }
   std::lock_guard<std::recursive_mutex> lock(dbMutex_);
-  return table.rawFindUnique(key, value, this->beginTime_);
+  return table->findUnique(key, value, this->beginTime_);
 }
 
 template<typename ValueType>
@@ -71,7 +72,7 @@ int LocalTransaction::findInUncommitted(
   dest->clear();
   for (const std::pair<ItemId, SharedRevisionPointer> &insertion :
       insertions_) {
-    if (insertion.first.table.name() == table.name()){
+    if (insertion.first.table->name() == table.name()){
       if (key != "") {
         if (insertion.second->verify(key, value)) {
           (*dest)[insertion.first.id] = insertion.second;
@@ -84,7 +85,7 @@ int LocalTransaction::findInUncommitted(
   // possible optimization: don't browse updates if CRTable
   // (template this function or dynamic cast)
   for (const std::pair<ItemId, SharedRevisionPointer>& update : updates_) {
-    if (update.first.table.name() == table.name()){
+    if (update.first.table->name() == table.name()){
       if (key != "") {
         if (update.second->verify(key, value)) {
           (*dest)[update.first.id] = update.second;

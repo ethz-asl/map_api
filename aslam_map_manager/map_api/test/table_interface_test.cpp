@@ -9,10 +9,11 @@
 #include <Poco/Data/BLOB.h>
 #include <Poco/Data/Statement.h>
 
-#include "map-api/cru-table.h"
+#include "map-api/cr-table-ram-cache.h"
+#include "map-api/cru-table-ram-cache.h"
 #include "map-api/id.h"
 #include "map-api/map-api-core.h"
-#include "map-api/time.h"
+#include "map-api/logical-time.h"
 
 #include "test_table.cpp"
 
@@ -25,29 +26,36 @@ class ExpectedFieldCount {
 };
 
 template<>
-int ExpectedFieldCount<CRTable>::get() {
+int ExpectedFieldCount<CRTableRAMCache>::get() {
   return 2;
 }
 
 template<>
-int ExpectedFieldCount<CRUTable>::get() {
+int ExpectedFieldCount<CRUTableRAMCache>::get() {
   return 5;
 }
 
 template <typename TableType>
-class TableInterfaceTest : public ::testing::Test, protected CoreTester {};
+class TableInterfaceTest : public ::testing::Test {
+ public:
+  virtual void SetUp() final override {
+    MapApiCore::instance();
+  }
+  virtual void TearDown() final override {
+    MapApiCore::instance().kill();
+  }
+};
 
-typedef ::testing::Types<CRTable, CRUTable> TableTypes;
+typedef ::testing::Types<CRTableRAMCache, CRUTableRAMCache> TableTypes;
 TYPED_TEST_CASE(TableInterfaceTest, TableTypes);
 
 TYPED_TEST(TableInterfaceTest, initEmpty) {
-  EXPECT_TRUE(TestTable<TypeParam>::instance().init());
+  TestTable<TypeParam>::instance();
   std::shared_ptr<Revision> structure =
       TestTable<TypeParam>::instance().getTemplate();
   ASSERT_TRUE(static_cast<bool>(structure));
   EXPECT_EQ(ExpectedFieldCount<TypeParam>::get(),
             structure->fieldqueries_size());
-  this->resetDb();
 }
 
 /**
@@ -67,28 +75,21 @@ template <typename TableDataType>
 class FieldTestTable : public TestTable<typename TableDataType::TableType> {
  public:
   static const std::string kTestField;
-  virtual const std::string name() const override {
-    return "field_test_table";
-  }
-  MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(FieldTestTable)
- protected:
-  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS_DIRECT(FieldTestTable);
-  virtual void defineTestTableFields() {
-    this->template addField<typename TableDataType::DataType>(kTestField);
+  static typename TableDataType::TableType* forge() {
+    typename TableDataType::TableType* table =
+        new typename TableDataType::TableType;
+    std::unique_ptr<map_api::TableDescriptor> descriptor(
+        new map_api::TableDescriptor);
+    descriptor->setName("field_test_table");
+    descriptor->template addField<typename TableDataType::DataType>(
+        kTestField);
+    table->init(&descriptor);
+    return table;
   }
 };
-
-template <typename FieldType>
-const std::string FieldTestTable<FieldType>::kTestField = "test_field";
 
 template <typename TableDataType>
-class InsertReadFieldTestTable : public FieldTestTable<TableDataType> {
- public:
-  MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(InsertReadFieldTestTable)
- protected:
-  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS_DIRECT(
-       InsertReadFieldTestTable);
-};
+const std::string FieldTestTable<TableDataType>::kTestField = "test_field";
 
 /**
  **************************************
@@ -160,13 +161,13 @@ class FieldTest<int64_t> : public ::testing::Test {
   }
 };
 template <>
-class FieldTest<map_api::Time> : public ::testing::Test {
+class FieldTest<map_api::LogicalTime> : public ::testing::Test {
  protected:
-  Time sample_data_1() {
-    return Time(9223372036854775807);
+  LogicalTime sample_data_1() {
+    return LogicalTime(9223372036854775807u);
   }
-  Time sample_data_2() {
-    return Time(9223372036854775);
+  LogicalTime sample_data_2() {
+    return LogicalTime(9223372036854775u);
   }
 };
 template <>
@@ -195,11 +196,19 @@ class FieldTest<testBlob> : public ::testing::Test {
 template <typename TableDataType>
 class FieldTestWithoutInit :
     public FieldTest<typename TableDataType::DataType> {
-     protected:
-  virtual void SetUp() {
-    table_ = &InsertReadFieldTestTable<TableDataType>::instance();
+     public:
+  virtual ~FieldTestWithoutInit() {}
+
+  virtual void SetUp() override {
+    FieldTest<typename TableDataType::DataType>::SetUp();
+    table_.reset(new typename TableDataType::TableType());
   }
 
+  virtual void TearDown() override {
+    FieldTest<typename TableDataType::DataType>::TearDown();
+  }
+
+     protected:
   std::shared_ptr<Revision> getTemplate() {
     query_ = this->table_->getTemplate();
     return query_;
@@ -207,41 +216,41 @@ class FieldTestWithoutInit :
 
   Id fillRevision() {
     getTemplate();
-    Id inserted = Id::random();
+    Id inserted = Id::generate();
     query_->set(CRTable::kIdField, inserted);
     // to_insert_->set("owner", Id::random()); TODO(tcies) later, from core
-    query_->set(InsertReadFieldTestTable<TableDataType>::kTestField,
+    query_->set(FieldTestTable<TableDataType>::kTestField,
                 this->sample_data_1());
     return inserted;
   }
 
   bool insertRevision() {
-    return this->table_->rawInsert(query_.get());
+    return this->table_->insert(query_.get());
   }
 
-  InsertReadFieldTestTable<TableDataType>* table_;
+  std::unique_ptr<typename TableDataType::TableType> table_;
   std::shared_ptr<Revision> query_;
 };
 
 template <typename TableDataType>
-class FieldTestWithInit : public FieldTestWithoutInit<TableDataType>,
-protected CoreTester {
+class FieldTestWithInit : public FieldTestWithoutInit<TableDataType> {
  public:
   virtual ~FieldTestWithInit() {}
  protected:
-  virtual void SetUp() {
-    FieldTestWithoutInit<TableDataType>::SetUp();
-    resetDb();
-    this->table_->init();
+  virtual void SetUp() override {
+    MapApiCore::instance();
+    this->table_.reset(FieldTestTable<TableDataType>::forge());
+  }
+  virtual void TearDown() override {
+    MapApiCore::instance().kill();
   }
 };
 
 template <typename TableDataType>
-class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType>,
-CRUTester {
+class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
  protected:
   bool updateRevision() {
-    return this->rawUpdate(*this->table_, this->query_.get());
+    return this->table_->update(this->query_.get());
   }
 
   void fillRevisionWithOtherData() {
@@ -262,14 +271,14 @@ CRUTester {
     TableDataTypes<table_type, double>, \
     TableDataTypes<table_type, map_api::Id>, \
     TableDataTypes<table_type, int64_t>, \
-    TableDataTypes<table_type, map_api::Time>
+    TableDataTypes<table_type, map_api::LogicalTime>
 
 typedef ::testing::Types<
-    ALL_DATA_TYPES(CRTable),
-    ALL_DATA_TYPES(CRUTable)> CrAndCruTypes;
+    ALL_DATA_TYPES(CRTableRAMCache),
+    ALL_DATA_TYPES(CRUTableRAMCache)> CrAndCruTypes;
 
 typedef ::testing::Types<
-    ALL_DATA_TYPES(CRUTable)> CruTypes;
+    ALL_DATA_TYPES(CRUTableRAMCache)> CruTypes;
 
 TYPED_TEST_CASE(FieldTestWithoutInit, CrAndCruTypes);
 TYPED_TEST_CASE(FieldTestWithInit, CrAndCruTypes);
@@ -281,13 +290,17 @@ TYPED_TEST(FieldTestWithInit, Init) {
 }
 
 TYPED_TEST(FieldTestWithoutInit, CreateBeforeInit) {
+  ::testing::FLAGS_gtest_death_test_style = "fast";
+  EXPECT_DEATH(this->fillRevision(),
+               "Can't get template of non-initialized table");
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH(this->fillRevision(),"^");
 }
 
 TYPED_TEST(FieldTestWithoutInit, ReadBeforeInit) {
+  ::testing::FLAGS_gtest_death_test_style = "fast";
+  EXPECT_DEATH(this->table_->getById(Id::generate(), LogicalTime::sample()),
+               "Attempted to getById from non-initialized table");
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH(this->table_->rawGetById(Id::random(), Time()), "^");
 }
 
 TYPED_TEST(FieldTestWithInit, CreateRead) {
@@ -295,10 +308,10 @@ TYPED_TEST(FieldTestWithInit, CreateRead) {
   EXPECT_TRUE(this->insertRevision());
 
   std::shared_ptr<Revision> rowFromTable =
-      this->table_->rawGetById(inserted, Time());
-  EXPECT_TRUE(static_cast<bool>(rowFromTable));
+      this->table_->getById(inserted, LogicalTime::sample());
+  ASSERT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
-  rowFromTable->get(InsertReadFieldTestTable<TypeParam>::kTestField,
+  rowFromTable->get(FieldTestTable<TypeParam>::kTestField,
                     &dataFromTable);
   EXPECT_EQ(this->sample_data_1(), dataFromTable);
 }
@@ -307,20 +320,22 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRow) {
   this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
-  Id other_id = Id::random();
-  EXPECT_FALSE(this->table_->rawGetById(other_id, Time()));
+  Id other_id = Id::generate();
+  EXPECT_FALSE(this->table_->getById(other_id, LogicalTime::sample()));
 }
 
 TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   Id inserted = this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
   std::shared_ptr<Revision> rowFromTable =
-      this->table_->rawGetById(inserted, Time());
+      this->table_->getById(inserted, LogicalTime::sample());
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
-  EXPECT_DEATH(rowFromTable->get("some_other_field", &dataFromTable), "^");
+  ::testing::FLAGS_gtest_death_test_style = "fast";
+  EXPECT_DEATH(rowFromTable->get("some_other_field", &dataFromTable),
+               "Trying to get inexistent field");
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 }
 
 TYPED_TEST(UpdateFieldTestWithInit, UpdateRead) {
@@ -328,15 +343,15 @@ TYPED_TEST(UpdateFieldTestWithInit, UpdateRead) {
   EXPECT_TRUE(this->insertRevision());
 
   std::shared_ptr<Revision> rowFromTable =
-      this->table_->rawGetById(inserted, Time());
-  EXPECT_TRUE(static_cast<bool>(rowFromTable));
+      this->table_->getById(inserted, LogicalTime::sample());
+  ASSERT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
   rowFromTable->get("test_field", &dataFromTable);
   EXPECT_EQ(this->sample_data_1(), dataFromTable);
 
   this->fillRevisionWithOtherData();
   this->updateRevision();
-  rowFromTable = this->table_->rawGetById(inserted, Time());
+  rowFromTable = this->table_->getById(inserted, LogicalTime::sample());
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   rowFromTable->get("test_field", &dataFromTable);
   EXPECT_EQ(this->sample_data_2(), dataFromTable);

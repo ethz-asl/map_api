@@ -1,0 +1,174 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{todonotes}
+
+\begin{document}
+
+\section{Overview}
+
+The first thing that is known about a mission is the raw sensor data. We assume
+that the robots participating in the application dispose of at least a camera
+and an inertial measurement unit (IMU). Without going into too much detail, the
+algotithm then generates a first 3D estimation of the trajectory and of salient
+features in the environment (landmarks). The trajectory is represented by a
+graph where each vertex represents a reasonably sampled pose (keyframe) of the
+robot during its trajectory, and each edge a spatial transformation between two 
+keyframes. Such a graph is also called "pose graph".
+
+Once a first estimate is given, the pose graph and landmark position estimations
+and other estimated parameters can then be further optimized using an algorithm
+called Bundle Adjustment. In particular, it is interesting to jointly optimize
+several missions - this is where the collaboration between robots happens.
+
+\subsection{Chunks}
+
+To help addressing \ref{itm:robust} and \ref{itm:lookup}, we would like to
+group items in a table in so-called "chunks". These are to be the smallest units
+of what is shared, i.e. if a client needs some data in chunk A, it must fetch
+the entire chunk. The association of data to a chunk
+is at the discretion of the node inserting the data. It is expected that:
+
+\begin{itemize}
+  \itemsep0em
+  \item Data sharing the same chunk is related in some way: A client that
+    performs an application-typical use case should not need to fetch more than
+    a handful of chunks.
+  \item Chunk size does not exceed what can be shared reasonably fast for the
+    given application (e.g. map chunks should be small, but chunks of raw
+    sensor data, which are fetched for verification or optimization, 
+    could be bigger).
+\end{itemize}
+
+Then, a client desiring access to the latest version of some data in some chunk
+must agree to the following contract:
+
+\begin{itemize}
+  \itemsep0em
+  \item It must keep track of all other peers sharing the same chunk (swarm).
+  \item It must maintain the latest version of the data contained in the chunk.
+  \item It must make sure that all changes to the chunk data are propagated to
+    the peers sharing the data.
+  \item If a new peer wants to join (become a holder of) the chunk, it must 
+    provide that peer with the necessary information for it to be able to comply
+    with the contract.
+\end{itemize}
+
+\subsubsection{Distributed locks in chunks}
+
+Instead of trying to come up with lock-free solutions, we admit the use of
+locks in order to synchronize diverse operations that need it. Because full
+connectivity is assumed among peers sharing a chunk, a peer can just ask all
+other peers to grant the lock. Conflicts can be resolved by majority. What peer
+votes for what peer to hold the lock creates a partition of the chunk network.
+A peer contending for a lock can then relinquish the lock if the partition 
+voting for it is not the largest one. In case of ties, a common arbitrary rule
+can be applied, such as that the peer with the smaller IP address obtains the
+lock.
+
+The lock is only considered aquired once all peers have confirmed the same lock
+holder.
+
+All locks are timed to ensure robustness in case that the lock holder leaves
+the network while holding the lock. A synchronized clock is used among the
+Map API clients.
+
+\subsubsection{Joining a chunk}
+
+In order to join a chunk, a client must at least know the address of one of the
+chunk participants. That peer, the "adder", locks the chunk such that the chunk
+data is not modified during the process of adding the new peer. This ensures
+consistency of the chunk state at the new peer, which could for instance be
+violated if some peer adds data to the chunk while the adder transmits its state
+to the new peer.
+
+Once the lock is acquired, the adder sends the address of the new peer to the
+chunk swarm, the addresses in the swarm to the new peer, and the chunk data to
+the new peer.
+
+Locally in the clients, the lock is a reader/writer lock: It is write-locked
+for peer addition and read-locked for all other operations.
+
+\subsubsection{Leaving a chunk and robustness to peer loss}
+
+Unlike with joining, leaving a chunk does not require maintaining a consistent
+state at the affected peer, and locking is not required. It may anyways be that
+a peer loses connection without intention. There are two ways a peer can leave
+the swarm: With or without notification.
+
+When the peer leaves with notification, it informs the swarm about leaving, and
+the peers in the swarm can simply remove the peer from their peer list.
+
+When the peer leaves without notification, the first peer that tries to connect
+with it notifies the swarm about the missing peer.
+
+Thus, even if the notification of a peer leaving does not reach all peers in the
+swarm, for instance if a new peer is being added to the swarm, the behavior
+is robust because in the worst case the peer that did not get notified
+broadcasts a redundant notification.
+
+Peers in the swarm have the ability to send out chunk participation requests
+to table peers (see below), even if the latter don't require access to chunk
+data. This gives content creators the ability to ensure that their newly created
+content persists in the network even if nobody requests their data before they
+leave the network. 
+
+For now, acceptance of participation requests relies on good will, i.e. it is 
+not incentivized. It is at this point that irrelevant data gets removed from the
+network over time: Peers may decide to impose a limit on chunks held on good
+will, and periodically discard least recently accessed chunks, by monitoring
+chunk activity.
+
+\subsubsection{Data insertion}
+
+To insert data into a chunk, the peer addition lock must be read-locked, only 
+locally. Once that is the case, the inserted data is simply shared with the 
+swarm.
+
+\subsubsection{Updates}
+
+To update data, first the local peer addition lock must be read-locked, then a 
+distributed update lock must be acquired after which the update is shared with 
+the swarm.
+
+\subsection{Table}
+
+Each client holds a peer list for each table that it participates in. Unlike
+chunk swarms, table swarms don't need to be fully connected. However, like in
+Bitcoin, each client should hold a minimum of connections. These connections
+serve the purpose of looking up data that is not in a held chunk (which leads
+to participation in the chunk of that data) and of sending participation
+requests. 
+
+Similarly, each client holds a peer list for the entire Map API, and the
+operation for joining tables in the Map API are equivalent to the operations for
+joining chunks in a table.
+
+\subsubsection{Naive index lookup}
+
+If a client knows the ID of the table item it is looking for, e.g. by receiving
+a reference from somewhere else, it sends out a request to the table swarm. Each
+peer that receives such a request then looks for the data in its instance of the
+table and either responds with chunk identifier and its own address (so that the
+requester may send a chunk join request) or forwards the request to its peers in
+rumor spreading fashion \cite{bitcoin}. While this might result in querying the
+entire table swarm with the request, the requester does not need to wait for the
+request to traverse the entire network, but only for a first positive response.
+Alternatively, $p$ could be assigned such that with probability $p$, each node
+receiving the request checks back with the requester whether the request is
+still valid.
+
+\subsubsection{K-d tree ($2^k$ subnodes, symmetric split) range lookup}
+
+The ID of the item that is looked for is not always know a priori. Sometimes
+it is interesting to do lookup in a bounding box. For instance, in keyframe
+bundle adjustment it is useful to find other missions that have been recorded
+in the same location as a freshly recorded mission, or to see what part of the
+world close to a certain location has not been explored yet.
+
+To that end, each table may have one or several k-d tree indices.
+The root node of the k-d tree is shared among all table participants. Each
+node then holds the peer list of its $2^k$ subnodes unless it is a leaf node,
+in which case it holds a list of chunks that have data present in the space
+represented by the leaf node.
+
+\end{document}

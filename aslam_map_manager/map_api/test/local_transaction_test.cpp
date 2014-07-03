@@ -5,6 +5,7 @@
 
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 
+#include "map-api/cru-table-ram-cache.h"
 #include "map-api/map-api-core.h"
 #include "map-api/local-transaction.h"
 
@@ -13,42 +14,57 @@
 using namespace map_api;
 
 /**
- * Fixture for simple transaction tests
- */
-class TransactionTest : public testing::Test, protected CoreTester {
- protected:
-  virtual void SetUp() override {
-    resetDb();
-  }
-  LocalTransaction transaction_;
-};
-
-/**
  * CRU table for query tests TODO(tcies) test a CRTable
  */
-class TransactionTestTable : public TestTable<CRUTable> {
+class TransactionTestTable {
  public:
-  std::shared_ptr<Revision> sample(double n){
-    std::shared_ptr<Revision> revision = getTemplate();
-    if (!revision->set(sampleField(), n)){
-      LOG(ERROR) << "Failed to set " << sampleField();
-      return std::shared_ptr<Revision>();
+  static CRUTableRAMCache& instance() {
+    static CRUTableRAMCache table;
+    if (!table.isInitialized()) {
+      std::unique_ptr<map_api::TableDescriptor> descriptor(
+          new map_api::TableDescriptor);
+      descriptor->setName("transaction_test_table");
+      descriptor->addField<double>(sampleField());
+      table.init(&descriptor);
     }
-    return revision;
+    return table;
+  }
+  // TODO(tcies) un-hack once table-manager
+  static void init() {
+    std::unique_ptr<map_api::TableDescriptor> descriptor(
+        new map_api::TableDescriptor);
+    descriptor->setName("transaction_test_table");
+    descriptor->addField<double>(sampleField());
+    instance().init(&descriptor);
   }
   inline static const std::string sampleField(){
     return "n";
   }
-  MEYERS_SINGLETON_INSTANCE_FUNCTION_DIRECT(TransactionTestTable)
+};
+
+/**
+ * Fixture for simple transaction tests
+ */
+class TransactionTest : public testing::Test {
  protected:
-  MAP_API_TABLE_SINGLETON_PATTERN_PROTECTED_METHODS_DIRECT(
-      TransactionTestTable);
-  virtual const std::string name() const override {
-    return "transaction_test_table";
+  virtual void SetUp() override {
+    ::testing::FLAGS_gtest_death_test_style = "fast";
+    MapApiCore::instance();
   }
-  virtual void defineTestTableFields() {
-    addField<double>(sampleField());
+  virtual void TearDown() final override {
+    MapApiCore::instance().kill();
+    ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   }
+  std::shared_ptr<Revision> sample(double n, CRUTableRAMCache* table) {
+    CHECK_NOTNULL(table);
+    std::shared_ptr<Revision> revision = table->getTemplate();
+    if (!revision->set(TransactionTestTable::sampleField(), n)){
+      LOG(ERROR) << "Failed to set " << TransactionTestTable::sampleField();
+      return std::shared_ptr<Revision>();
+    }
+    return revision;
+  }
+  LocalTransaction transaction_;
 };
 
 TEST_F(TransactionTest, BeginAbort){
@@ -62,26 +78,25 @@ TEST_F(TransactionTest, BeginCommit){
 }
 
 TEST_F(TransactionTest, OperationsBeforeBegin){
-  TransactionTestTable& table = TransactionTestTable::instance();
-  EXPECT_TRUE(table.init());
-  std::shared_ptr<Revision> data = table.sample(6.626e-34);
-  EXPECT_EQ(Id(), transaction_.insert(table, data));
+  CRUTableRAMCache* table = &TransactionTestTable::instance();
+  std::shared_ptr<Revision> data = sample(6.626e-34, table);
+  EXPECT_EQ(Id(), transaction_.insert(data, table));
   // read and update should fail only because transaction hasn't started yet,
   // so we need to insert some data
   LocalTransaction valid;
   EXPECT_TRUE(valid.begin());
-  Id inserted = valid.insert(table, data);
+  Id inserted = valid.insert(data, table);
   EXPECT_NE(inserted, Id());
   EXPECT_TRUE(valid.commit());
 
-  EXPECT_FALSE(transaction_.read(table, inserted));
-  EXPECT_FALSE(transaction_.update(table, inserted, data));
+  EXPECT_FALSE(transaction_.read(inserted, table));
+  EXPECT_FALSE(transaction_.update(inserted, data, table));
 }
 
 TEST_F(TransactionTest, InsertBeforeTableInit){
-  TransactionTestTable& table = TransactionTestTable::instance();
+  CRUTableRAMCache table;
   EXPECT_TRUE(transaction_.begin());
-  EXPECT_DEATH(transaction_.insert(table, table.sample(3.14)), "^");
+  EXPECT_DEATH(transaction_.insert(sample(3.14, &table), &table), "^");
 }
 
 /**
@@ -90,33 +105,32 @@ TEST_F(TransactionTest, InsertBeforeTableInit){
 class TransactionCRUTest : public TransactionTest {
  protected:
   virtual void SetUp() {
-    resetDb();
+    TransactionTest::SetUp();
     table_ = &TransactionTestTable::instance();
-    table_->init();
     transaction_.begin();
   }
-  Id insertSample(double sample){
-    return transaction_.insert(*table_, table_->sample(sample));
+  Id insertSample(double n){
+    return transaction_.insert(sample(n, table_), table_);
   }
   bool updateSample(const Id& id, double newValue){
-    std::shared_ptr<Revision> revision = transaction_.read(*table_, id);
+    std::shared_ptr<Revision> revision = transaction_.read(id, table_);
     EXPECT_TRUE(static_cast<bool>(revision));
-    revision->set(table_->sampleField(), newValue);
-    return transaction_.update(*table_, id, revision);
+    revision->set(TransactionTestTable::sampleField(), newValue);
+    return transaction_.update(id, revision, table_);
   }
   void verify(const Id& id, double expected){
     double actual;
-    std::shared_ptr<Revision> row = transaction_.read(*table_, id);
+    std::shared_ptr<Revision> row = transaction_.read(id, table_);
     ASSERT_TRUE(static_cast<bool>(row));
-    EXPECT_TRUE(row->get(table_->sampleField(), &actual));
+    EXPECT_TRUE(row->get(TransactionTestTable::sampleField(), &actual));
     EXPECT_EQ(expected, actual);
   }
-  TransactionTestTable* table_;
+  CRUTableRAMCache* table_;
 };
 
 TEST_F(TransactionCRUTest, InsertNonsense){
   std::shared_ptr<Revision> nonsense(new Revision());
-  EXPECT_DEATH(transaction_.insert(*table_, nonsense), "^");
+  EXPECT_DEATH(transaction_.insert(nonsense, table_), "^");
 }
 
 TEST_F(TransactionCRUTest, InsertUpdateReadBeforeCommit){
@@ -153,44 +167,59 @@ class MultiTransactionTest : public testing::Test {
  * Fixture for multi-transaction tests on a single CRU table interface
  * TODO(tcies) multiple table interfaces (test definition sync)
  */
-class MultiTransactionSingleCRUTest : public MultiTransactionTest,
-protected CoreTester {
+class MultiTransactionSingleCRUTest : public MultiTransactionTest {
  protected:
   virtual void SetUp()  {
-    resetDb();
+    MapApiCore::instance(); // core init
+    TransactionTestTable::init();
     table_ = &TransactionTestTable::instance();
-    table_->init();
+    ::testing::FLAGS_gtest_death_test_style = "fast";
   }
 
-  Id insertSample(double sample, LocalTransaction* transaction){
-    return transaction->insert(*table_, table_->sample(sample));
+  virtual void TearDown() {
+    ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+    MapApiCore::instance().kill();
+  }
+
+  std::shared_ptr<Revision> sample(double n, CRUTableRAMCache* table) {
+    CHECK_NOTNULL(table);
+    std::shared_ptr<Revision> revision = table->getTemplate();
+    if (!revision->set(TransactionTestTable::sampleField(), n)){
+      LOG(ERROR) << "Failed to set " << TransactionTestTable::sampleField();
+      return std::shared_ptr<Revision>();
+    }
+    return revision;
+  }
+
+  Id insertSample(double n, LocalTransaction* transaction){
+    return transaction->insert(sample(n, table_), table_);
   }
 
   bool updateSample(const Id& id, double newValue,
                     LocalTransaction* transaction){
-    std::shared_ptr<Revision> toUpdate = transaction->read(*table_, id);
+    std::shared_ptr<Revision> toUpdate = transaction->read(id, table_);
     CHECK(toUpdate);
     toUpdate->set("n", newValue);
-    return transaction->update(*table_, id, toUpdate);
+    return transaction->update(id, toUpdate, table_);
   }
   void verify(const Id& id, double expected, LocalTransaction* transaction){
     double actual;
-    std::shared_ptr<Revision> row = transaction->read(*table_, id);
+    std::shared_ptr<Revision> row = transaction->read(id, table_);
     ASSERT_TRUE(static_cast<bool>(row));
-    EXPECT_TRUE(row->get(table_->sampleField(), &actual));
+    EXPECT_TRUE(row->get(TransactionTestTable::sampleField(), &actual));
     EXPECT_EQ(expected, actual);
   }
   void dump(LocalTransaction& transaction) {
     dump_set_.clear();
     std::unordered_map<Id, std::shared_ptr<Revision> > dump;
-    transaction.dumpTable(*table_, &dump);
+    transaction.dumpTable(table_, &dump);
     for (const std::pair<Id, std::shared_ptr<Revision> >& item : dump) {
       double value;
-      item.second->get(table_->sampleField(), &value);
+      item.second->get(TransactionTestTable::sampleField(), &value);
       dump_set_.insert(value);
     }
   }
-  TransactionTestTable* table_;
+  CRUTableRAMCache* table_;
   std::set<double> dump_set_;
 };
 
@@ -360,7 +389,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertCommitFindUnique){
   a_insert.commit();
   LocalTransaction& a_find = a.beginNewTransaction();
   std::shared_ptr<Revision> found =
-      a_find.findUnique(*table_, table_->sampleField(), 9.81);
+      a_find.findUnique(TransactionTestTable::sampleField(), 9.81, table_);
   EXPECT_TRUE(static_cast<bool>(found));
   Id found_id;
   found->get(CRTable::kIdField, &found_id);
@@ -377,7 +406,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertCommitInsertFindUnique){
   LocalTransaction& a_find = a.beginNewTransaction();
   expected_find = insertSample(9.81, &a_find);
   std::shared_ptr<Revision> found =
-      a_find.findUnique(*table_, table_->sampleField(), 9.81);
+      a_find.findUnique(TransactionTestTable::sampleField(), 9.81, table_);
   EXPECT_TRUE(static_cast<bool>(found));
   Id found_id;
   found->get(CRTable::kIdField, &found_id);
@@ -392,7 +421,8 @@ TEST_F(MultiTransactionSingleCRUTest, InsertCommitFindNotQuiteUnique){
   insertSample(5.67, &a_insert);
   a_insert.commit();
   LocalTransaction& a_find = a.beginNewTransaction();
-  EXPECT_DEATH(a_find.findUnique(*table_, table_->sampleField(), 5.67), "^");
+  EXPECT_DEATH(a_find.findUnique(
+      TransactionTestTable::sampleField(), 5.67, table_), "^");
 }
 
 // InsertCommitInsertFindNotQuiteUnique test fails for now, see implementation
@@ -409,7 +439,8 @@ TEST_F(MultiTransactionSingleCRUTest, FindMultiCommitetd){
 
   LocalTransaction& a_find = a.beginNewTransaction();
   std::unordered_map<Id, std::shared_ptr<Revision> > found;
-  EXPECT_EQ(2u, a_find.find(*table_, table_->sampleField(), 5.67, &found));
+  EXPECT_EQ(2u, a_find.find(
+      TransactionTestTable::sampleField(), 5.67, table_, &found));
   for (const Id& expected : expected_find) {
     EXPECT_NE(found.end(), found.find(expected));
   }
@@ -426,8 +457,9 @@ TEST_F(MultiTransactionSingleCRUTest, FindMultiMixed){
   LocalTransaction& a_find = a.beginNewTransaction();
   expected_find.insert(insertSample(5.67, &a_find));
   std::unordered_map<Id, std::shared_ptr<Revision> > found;
-  EXPECT_EQ(expected_find.size(),
-            a_find.find(*table_, table_->sampleField(), 5.67, &found));
+  EXPECT_EQ(
+      expected_find.size(),
+      a_find.find(TransactionTestTable::sampleField(), 5.67, table_, &found));
   for (const Id& expected : expected_find) {
     EXPECT_NE(found.end(), found.find(expected));
   }

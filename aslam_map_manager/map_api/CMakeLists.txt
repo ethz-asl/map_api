@@ -22,26 +22,40 @@ add_definitions(--std=c++0x -Wall -Wextra -pedantic -Wno-unused-local-typedefs)
 
 # Core Library available to all applications
 SET(CORE_SOURCE  src/chunk.cc
-                 src/chunk-manager.cc
+                 src/chunk-transaction.cc
                  src/cr-table.cc
+                 src/cr-table-ram-cache.cc
                  src/cru-table.cc
+                 src/cru-table-ram-cache.cc
+                 src/file-discovery.cc
+                 src/id.cc
                  src/ipc.cc
+                 src/local-transaction.cc
+                 src/logical-time.cc
                  src/map-api-core.cc
                  src/map-api-hub.cc
-                 src/metatable.cc
                  src/message.cc
-                 src/net-cr-table.cc
+                 src/net-table.cc
+                 src/net-table-manager.cc
+                 src/net-table-transaction.cc
                  src/peer.cc
+                 src/peer-id.cc
                  src/peer-handler.cc
                  src/revision.cc
-                 src/time.cc
-                 src/local-transaction.cc)
+                 src/server-discovery.cc
+                 src/sqlite-interface.cc
+                 src/table-descriptor.cc
+                 src/transaction.cc)
                  
 cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
 # we need to add dependencies of external project packages to fetch headers
 # before compilation
 add_dependencies(${PROJECT_NAME} zeromq_catkin gflags_catkin glog_catkin)
 target_link_libraries(${PROJECT_NAME} ${POCO_LIBRARIES})
+
+cs_add_executable(discovery-server discovery-server/discovery-server.cc
+                   ${PROTO_SRCS} ${PROTO_HDRS})
+target_link_libraries(discovery-server ${PROJECT_NAME})
 
 ##########
 # GTESTS #
@@ -58,6 +72,9 @@ target_link_libraries(test_core_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_local_transaction_test test/local_transaction_test.cpp)
 target_link_libraries(test_local_transaction_test ${PROJECT_NAME})
+
+catkin_add_gtest(test_net_table_test test/net_table_test.cpp)
+target_link_libraries(test_net_table_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_hub_test test/hub_test.cpp)
 target_link_libraries(test_hub_test ${PROJECT_NAME})
