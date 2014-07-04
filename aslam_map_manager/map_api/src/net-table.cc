@@ -110,6 +110,10 @@ Chunk* NetTable::connectTo(const Id& chunk_id,
   return found->second.get();
 }
 
+int NetTable::activeChunksSize() const {
+  return active_chunks_.size();
+}
+
 void NetTable::leaveAllChunks() {
   active_chunks_lock_.readLock();
   for (const std::pair<const Id, std::unique_ptr<Chunk> >& chunk :
