@@ -33,7 +33,7 @@ class Revision final : public proto::Revision {
    */
 #define REVISION_ENUM(TYPE, ENUM) \
     template <> \
-    map_api::proto::TableFieldDescriptor_Type \
+    proto::TableFieldDescriptor_Type \
     Revision::protobufEnum<TYPE>() { \
   return ENUM ; \
 } \
@@ -126,22 +126,22 @@ extern void revEnum ## __FILE__ ## __LINE__(void)
  * One Macro to define REVISION_ENUM, _SET and _GET for Protobuf objects
  */
 #define REVISION_PROTOBUF(TYPE) \
-    REVISION_ENUM(TYPE, proto::TableFieldDescriptor_Type_BLOB); \
+    REVISION_ENUM(TYPE, ::map_api::proto::TableFieldDescriptor_Type_BLOB); \
     \
     REVISION_SET(TYPE){ \
-  field.set_blobvalue(value.SerializeAsString()); \
-  return true; \
-} \
-\
-REVISION_GET(TYPE){ \
-  bool parsed = value->ParseFromString(field.blobvalue()); \
-  if (!parsed) { \
-    LOG(ERROR) << "Failed to parse " << #TYPE; \
-    return false; \
-  } \
-  return true; \
-} \
-extern void __FILE__ ## __LINE__(void)
+      field.set_blobvalue(value.SerializeAsString()); \
+      return true; \
+    } \
+    \
+    REVISION_GET(TYPE){ \
+      bool parsed = value->ParseFromString(field.blobvalue()); \
+      if (!parsed) { \
+        LOG(ERROR) << "Failed to parse " << #TYPE; \
+        return false; \
+      } \
+      return true; \
+    } \
+    extern void __FILE__ ## __LINE__(void)
 // in order to swallow the semicolon
 // http://gcc.gnu.org/onlinedocs/cpp/Swallowing-the-Semicolon.html
 // http://stackoverflow.com/questions/18786848/macro-that-swallows-semicolon-out
