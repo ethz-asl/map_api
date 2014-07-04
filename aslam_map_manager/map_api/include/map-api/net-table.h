@@ -62,6 +62,8 @@ class NetTable {
 
   bool structureMatch(std::unique_ptr<TableDescriptor>* descriptor) const;
 
+  int activeChunksSize() const;
+
   void leaveAllChunks();
 
   /**
