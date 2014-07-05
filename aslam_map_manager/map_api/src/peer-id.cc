@@ -35,6 +35,11 @@ bool PeerId::operator ==(const PeerId& other) const {
   return ip_port_ == other.ip_port_;
 }
 
+bool PeerId::operator !=(const PeerId& other) const {
+  CHECK(isValid());
+  return ip_port_ != other.ip_port_;
+}
+
 bool PeerId::isValid() const {
   return ip_port_ != kInvalidAdress;
 }

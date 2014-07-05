@@ -28,11 +28,11 @@ class ChordIndex {
   // ========
   // HANDLERS
   // ========
-  Key handleFindSuccessor(const Key& key);
+  PeerId handleFindSuccessor(const Key& key);
   PeerId handleGetPredecessor();
-  Key handleFindSuccessorAndFixFinger(const Key& query, const Key& finger_base,
-                                      PeerId* actual_finger_node);
-  void handleLeave(const PeerId& leaver, const PeerId&leaver_predecessor,
+  PeerId handleFindSuccessorAndFixFinger(
+      const Key& query, const Key& finger_base, PeerId* actual_finger_node);
+  bool handleLeave(const PeerId& leaver, const PeerId&leaver_predecessor,
                    const PeerId& leaver_successor);
 
  protected:
@@ -61,14 +61,14 @@ class ChordIndex {
   // ======================
   // REQUIRE IMPLEMENTATION
   // ======================
-  virtual Key findSuccessorRpc(const PeerId& to, const Key& argument) = 0;
+  virtual PeerId findSuccessorRpc(const PeerId& to, const Key& argument) = 0;
   virtual void getPredecessorRpc(const PeerId& to, PeerId* predecessor) = 0;
-  virtual Key findSuccessorAndFixFingerRpc(
+  virtual PeerId findSuccessorAndFixFingerRpc(
       const PeerId& to, const Key& query, const Key& finger_base,
       PeerId* actual_finger_node) = 0;
   virtual bool leaveRpc(
       const PeerId& to, const PeerId& leaver, const PeerId&leaver_predecessor,
-      const PeerId& leaver_successor);
+      const PeerId& leaver_successor) = 0;
 
   /**
    * Returns index of finger which is counterclockwise closest to key.
@@ -83,9 +83,24 @@ class ChordIndex {
    * the predecessor otherwise.
    */
   PeerId findSuccessorAndFixFinger(int finger_index, const Key& query);
+  /**
+   * Generates hash from PeerId.
+   */
+  Key hash(PeerId) const;
+  /**
+   * Check whether key is is same as from_inclusive or between from_inclusive
+   * and to_exclusive
+   */
+  bool isIn(const Key& key, const Key& from_inclusive, const Key& to_exclusive)
+  const;
+
 
   bool initialized_ = false;
-  std::pair<Key, PeerId> fingers_[M];
+  bool leaving_ = false;
+  std::pair<const Key, PeerId> fingers_[M];
+  std::pair<const Key, PeerId>& successor_ = fingers_[0];
+  std::pair<Key, PeerId> predecessor_;
+  const Key own_key_ = hash(PeerId::self());
 };
 
 } /* namespace map_api */

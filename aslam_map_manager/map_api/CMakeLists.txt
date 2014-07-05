@@ -21,7 +21,8 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 add_definitions(--std=c++0x -Wall -Wextra -pedantic -Wno-unused-local-typedefs)
 
 # Core Library available to all applications
-SET(CORE_SOURCE  src/chunk.cc
+SET(CORE_SOURCE  src/chord-index.cc
+                 src/chunk.cc
                  src/chunk-transaction.cc
                  src/cr-table.cc
                  src/cr-table-ram-cache.cc
