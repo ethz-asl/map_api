@@ -145,6 +145,7 @@ REVISION_ENUM(std::string, proto::TableFieldDescriptor_Type_STRING);
 REVISION_ENUM(double, proto::TableFieldDescriptor_Type_DOUBLE);
 REVISION_ENUM(int32_t, proto::TableFieldDescriptor_Type_INT32);
 REVISION_ENUM(Id, proto::TableFieldDescriptor_Type_HASH128);
+REVISION_ENUM(sm::HashId, proto::TableFieldDescriptor_Type_HASH128);
 REVISION_ENUM(int64_t, proto::TableFieldDescriptor_Type_INT64);
 REVISION_ENUM(uint64_t, proto::TableFieldDescriptor_Type_UINT64);
 REVISION_ENUM(LogicalTime, proto::TableFieldDescriptor_Type_UINT64);
@@ -168,6 +169,10 @@ REVISION_SET(int32_t){
   return true;
 }
 REVISION_SET(Id){
+  field.set_stringvalue(value.hexString());
+  return true;
+}
+REVISION_SET(sm::HashId){
   field.set_stringvalue(value.hexString());
   return true;
 }
@@ -212,6 +217,13 @@ REVISION_GET(int32_t){
   return true;
 }
 REVISION_GET(Id){
+  if (!value->fromHexString(field.stringvalue())){
+    LOG(FATAL) << "Failed to parse Hash id from string \"" <<
+        field.stringvalue() << "\" for field " << field.nametype().name();
+  }
+  return true;
+}
+REVISION_GET(sm::HashId){
   if (!value->fromHexString(field.stringvalue())){
     LOG(FATAL) << "Failed to parse Hash id from string \"" <<
         field.stringvalue() << "\" for field " << field.nametype().name();
