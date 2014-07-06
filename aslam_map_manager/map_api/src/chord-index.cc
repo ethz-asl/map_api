@@ -45,6 +45,7 @@ bool ChordIndex::handleLeave(
   // TODO(tcies) locking
   CHECK(false);
   // Cases successor or predecessor leaves
+  // TODO(tcies) hooks for derived classes: need to move around data!
   if (leaver == successor_.second) {
     successor_.second = leaver_successor;
   }
@@ -61,6 +62,16 @@ bool ChordIndex::handleLeave(
   return true;
 }
 
+bool ChordIndex::handleNotifySuccessor(const PeerId& predecessor) {
+  predecessor_ = std::make_pair(hash(predecessor), predecessor);
+  return true;
+}
+
+bool ChordIndex::handleNotifyPredecessor(const PeerId& successor) {
+  successor_.second = successor;
+  return true;
+}
+
 PeerId ChordIndex::findSuccessor(const Key& key) {
   if (isIn(key, own_key_, fingers_[0].first)) {
     return fingers_[0].second;
@@ -71,34 +82,71 @@ PeerId ChordIndex::findSuccessor(const Key& key) {
 }
 
 void ChordIndex::create() {
-  predecessor_.second = successor_.second = PeerId::self();
-  predecessor_.first = hash(PeerId::self());
+  init();
+  for (size_t i = 0; i < M; ++i) {
+    fingers_[i].second = PeerId::self();
+  }
+  predecessor_ = std::make_pair(own_key_, PeerId::self());
+  initialized_ = true;
 }
 
 void ChordIndex::join(const PeerId& other) {
-  // TODO(tcies) implement
-  CHECK(false);
+  init();
+  for (size_t i = 0; i < M; ++i) {
+    PeerId finger = findSuccessorRpc(other, fingers_[i].first);
+    fingers_[i].second = finger;
+  }
+  PeerId predecessor;
+  getPredecessorRpc(successor_.second, &predecessor);
+  Key predecessor_key = hash(predecessor);
+  CHECK(predecessor_key != own_key_);
+  predecessor_ = std::make_pair(predecessor_key, predecessor);
+
+  initialized_ = true;
+  notifyPredecessorRpc(predecessor_.second, PeerId::self());
+  notifySuccessorRpc(successor_.second, PeerId::self());
 }
 
 void ChordIndex::leave() {
-  // TODO(tcies) implement
-    CHECK(false);
+  leaving_ = true;
+  leaveRpc(successor_.second, PeerId::self(), predecessor_.second,
+           successor_.second);
+  // TODO(tcies) move data to successor
+  initialized_ = false;
 }
 
 int ChordIndex::closestPrecedingFinger(const Key& key) const {
-  // TODO(tcies) implement
-    CHECK(false);
+  // TODO(tcies) verify corner cases
+  CHECK(false);
+  for (size_t i = 0; i < M; ++i) {
+    size_t index = M - 1 - i;
+    Key actual_key = hash(fingers_[index].second);
+    if (isIn(actual_key, own_key_, key)) {
+      return index;
+    }
+  }
 }
 
 PeerId ChordIndex::findSuccessorAndFixFinger(
     int finger_index, const Key& query) {
-  // TODO(tcies) implement
-    CHECK(false);
+  PeerId better_finger_node, response;
+  response = findSuccessorAndFixFingerRpc(
+      fingers_[finger_index].second, query, fingers_[finger_index].first,
+      &better_finger_node);
+  fingers_[finger_index].second = better_finger_node;
+  return response;
 }
 
 ChordIndex::Key ChordIndex::hash(PeerId) const {
   // TODO(tcies) implement
-    CHECK(false);
+  CHECK(false);
+}
+
+void ChordIndex::init() {
+  own_key_ = hash(PeerId::self());
+  for (size_t i = 0; i < M; ++i) {
+    fingers_[i].first = own_key_ + (1 << i); // overflow intended
+  }
 }
 
 bool ChordIndex::isIn(

@@ -18,6 +18,8 @@ namespace map_api {
  * Consequently, the robustness functions and maintenance tasks (stabilize,
  * notify, fix_fingers, check_predecessor) of chord are left out and replaced
  * with simpler mechanisms (findSuccessorAndFixFinger(), leave()).
+ *
+ * TODO(tcies) locking, decline messages & handling.
  */
 class ChordIndex {
  public:
@@ -34,6 +36,8 @@ class ChordIndex {
       const Key& query, const Key& finger_base, PeerId* actual_finger_node);
   bool handleLeave(const PeerId& leaver, const PeerId&leaver_predecessor,
                    const PeerId& leaver_successor);
+  bool handleNotifySuccessor(const PeerId& predecessor);
+  bool handleNotifyPredecessor(const PeerId& successor);
 
  protected:
   static constexpr size_t M = sizeof(Key) * 8;
@@ -69,6 +73,10 @@ class ChordIndex {
   virtual bool leaveRpc(
       const PeerId& to, const PeerId& leaver, const PeerId&leaver_predecessor,
       const PeerId& leaver_successor) = 0;
+  virtual bool notifySuccessorRpc(
+      const PeerId& successor, const PeerId& self) = 0;
+  virtual bool notifyPredecessorRpc(
+      const PeerId& predecessor, const PeerId& self) = 0;
 
   /**
    * Returns index of finger which is counterclockwise closest to key.
@@ -88,6 +96,10 @@ class ChordIndex {
    */
   Key hash(PeerId) const;
   /**
+   * Routine common to create() and join()
+   */
+  void init();
+  /**
    * Check whether key is is same as from_inclusive or between from_inclusive
    * and to_exclusive
    */
@@ -97,10 +109,10 @@ class ChordIndex {
 
   bool initialized_ = false;
   bool leaving_ = false;
-  std::pair<const Key, PeerId> fingers_[M];
-  std::pair<const Key, PeerId>& successor_ = fingers_[0];
+  std::pair<Key, PeerId> fingers_[M];
+  std::pair<Key, PeerId>& successor_ = fingers_[0];
   std::pair<Key, PeerId> predecessor_;
-  const Key own_key_ = hash(PeerId::self());
+  Key own_key_ = hash(PeerId::self());
 };
 
 } /* namespace map_api */
