@@ -79,16 +79,14 @@ class ChordIndex {
       const PeerId& predecessor, const PeerId& self) = 0;
 
   /**
-   * Returns index of finger which is counterclockwise closest to key.
+   * Returns index of finger which is counter-clockwise closest to key.
    */
   int closestPrecedingFinger(const Key& key) const;
   /**
    * Slight departure from original chord protocol, linked to assumption of no
    * loss of connectivity: findSuccessor and finger fixing in one RPC.
-   * Returns finger_[finger_index].node->findSuccessor(query) while checking
-   * that finger_[finger_index].node->predecessor.key <
-   * finger_[finger_index].key and replacing finger_[finger_index].node with
-   * the predecessor otherwise.
+   * Same as querying a finger with findSuccessor, but also making sure that
+   * the reference to that link is proper according to the chord protocol.
    */
   PeerId findSuccessorAndFixFinger(int finger_index, const Key& query);
   /**
