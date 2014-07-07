@@ -15,7 +15,8 @@ public ::testing::WithParamInterface<bool> {
     std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
     descriptor->setName(kTableName);
     descriptor->addField<int>(kFieldName);
-    MapApiCore::instance().tableManager().addTable(GetParam(), &descriptor);
+    MapApiCore::instance().tableManager().addTable(
+        GetParam() ? CRTable::Type::CRU : CRTable::Type::CR, &descriptor);
     table_ = &MapApiCore::instance().tableManager().getTable(kTableName);
   }
 

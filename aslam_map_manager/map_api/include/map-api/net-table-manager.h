@@ -14,7 +14,7 @@ class NetTableManager {
    * Mostly responsible for registering handlers.
    */
   void init();
-  void addTable(bool updateable, std::unique_ptr<TableDescriptor>* descriptor);
+  void addTable(CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor);
   /**
    * Can leave dangling reference
    */
