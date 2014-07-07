@@ -6,6 +6,8 @@
 namespace map_api{
 class Id : public sm::HashId {
  public:
+  Id() = default;
+  Id(const sm::HashId& hash_id); // implicit conversion intended
   static Id generate();
  private:
   using sm::HashId::random;
