@@ -11,7 +11,6 @@ namespace map_api {
 
 bool Revision::find(const std::string& name, proto::TableField** field){
   FieldMap::iterator find = fields_.find(name);
-  // reindex if not found
   if (find == fields_.end()) {
     LOG(ERROR) << "Attempted to access inexistent field " << name;
     return false;
@@ -23,7 +22,6 @@ bool Revision::find(const std::string& name, proto::TableField** field){
 bool Revision::find(const std::string& name, const proto::TableField** field)
 const{
   FieldMap::const_iterator find = fields_.find(name);
-  // reindex if not found
   if (find == fields_.end()) {
     LOG(ERROR) << "Attempted to access inexistent field " << name;
     return false;
@@ -75,6 +73,14 @@ std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(
   return blobPointer;
 }
 
+std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(
+    const std::string& field, Poco::Data::Statement& stat) const {
+  FieldMap::const_iterator fieldIt = fields_.find(field);
+  CHECK(fieldIt != fields_.end()) << "Attempted to access inexisting field " <<
+      field;
+  return insertPlaceHolder(fieldIt->second, stat);
+}
+
 void Revision::addField(const proto::TableFieldDescriptor& descriptor){
   // add field
   *add_fieldqueries()->mutable_nametype() = descriptor;
@@ -82,12 +88,12 @@ void Revision::addField(const proto::TableFieldDescriptor& descriptor){
   fields_[descriptor.name()] = fieldqueries_size() - 1;
 }
 
-bool Revision::structureMatch(Revision& other){
+bool Revision::structureMatch(const Revision& other) const {
   if (fields_.size() != other.fields_.size()){
     LOG(INFO) << "Field count does not match";
     return false;
   }
-  FieldMap::iterator leftIterator = fields_.begin(),
+  FieldMap::const_iterator leftIterator = fields_.begin(),
       rightIterator = other.fields_.begin();
   while (leftIterator != fields_.end()){
     if (leftIterator->first != rightIterator->first){
@@ -114,15 +120,15 @@ bool Revision::ParseFromString(const std::string& data){
  * PROTOBUFENUM
  */
 
-REVISION_ENUM(std::string, proto::TableFieldDescriptor_Type_STRING)
-REVISION_ENUM(double, proto::TableFieldDescriptor_Type_DOUBLE)
-REVISION_ENUM(int32_t, proto::TableFieldDescriptor_Type_INT32)
-REVISION_ENUM(Id, proto::TableFieldDescriptor_Type_HASH128)
-REVISION_ENUM(int64_t, proto::TableFieldDescriptor_Type_INT64)
-REVISION_ENUM(Time, proto::TableFieldDescriptor_Type_INT64)
-REVISION_ENUM(Revision, proto::TableFieldDescriptor_Type_BLOB)
-REVISION_ENUM(testBlob, proto::TableFieldDescriptor_Type_BLOB)
-REVISION_ENUM(Poco::Data::BLOB, proto::TableFieldDescriptor_Type_BLOB)
+REVISION_ENUM(std::string, proto::TableFieldDescriptor_Type_STRING);
+REVISION_ENUM(double, proto::TableFieldDescriptor_Type_DOUBLE);
+REVISION_ENUM(int32_t, proto::TableFieldDescriptor_Type_INT32);
+REVISION_ENUM(Id, proto::TableFieldDescriptor_Type_HASH128);
+REVISION_ENUM(int64_t, proto::TableFieldDescriptor_Type_INT64);
+REVISION_ENUM(Time, proto::TableFieldDescriptor_Type_INT64);
+REVISION_ENUM(Revision, proto::TableFieldDescriptor_Type_BLOB);
+REVISION_ENUM(testBlob, proto::TableFieldDescriptor_Type_BLOB);
+REVISION_ENUM(Poco::Data::BLOB, proto::TableFieldDescriptor_Type_BLOB);
 
 /**
  * SET
@@ -181,8 +187,7 @@ REVISION_GET(int32_t){
 }
 REVISION_GET(Id){
   if (!value->fromHexString(field.stringvalue())){
-    LOG(ERROR) << "Failed to parse Hash id from string " << field.stringvalue();
-    return false;
+    LOG(FATAL) << "Failed to parse Hash id from string " << field.stringvalue();
   }
   return true;
 }
@@ -197,7 +202,7 @@ REVISION_GET(Time){
 REVISION_GET(Revision){
   bool parsed = value->ParseFromString(field.blobvalue());
   if (!parsed) {
-    LOG(ERROR) << "Failed to parse revision";
+    LOG(FATAL) << "Failed to parse revision";
     return false;
   }
   return true;
@@ -205,7 +210,7 @@ REVISION_GET(Revision){
 REVISION_GET(testBlob){
   bool parsed = value->ParseFromString(field.blobvalue());
   if (!parsed) {
-    LOG(ERROR) << "Failed to parse test blob";
+    LOG(FATAL) << "Failed to parse test blob";
     return false;
   }
   return true;

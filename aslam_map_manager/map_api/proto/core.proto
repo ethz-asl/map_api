@@ -34,27 +34,14 @@ message Revision {
 //==============================
 // NODE TO NODE QUERY MESSAGES
 //==============================
-// don't forget adding to NodeQueryUnion, see bottom
+message HubMessage {
+  required string type = 1;
+  required string serialized = 2;
+}
 
 message ListTablesQuery {
 }
 
 message CreateTableQuery {
 	required TableDescriptor description = 1;
-}
-
-message Hello {
-  required string from = 1;
-}
-
-// insert here all types of queries that can be sent to the node
-message NodeQueryUnion {
-	enum Type { LIST_TABLES = 1; CREATE_TABLE = 2; TABLE_INSERT = 3; HELLO = 4;}
-	
-	required Type type = 1;
-	
-	optional ListTablesQuery listTablesQuery = 2;
-	optional CreateTableQuery createTableQuery = 3;
-	optional Revision revision = 4;
-	optional Hello hello = 5;
 }

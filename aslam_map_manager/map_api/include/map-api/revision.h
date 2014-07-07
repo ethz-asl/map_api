@@ -11,7 +11,7 @@
 
 namespace map_api {
 
-class Revision : public proto::Revision {
+class Revision final : public proto::Revision {
  public:
   /**
    * Insert placeholder in SQLite insert statements. Returns blob shared pointer
@@ -19,6 +19,9 @@ class Revision : public proto::Revision {
    */
   std::shared_ptr<Poco::Data::BLOB>
   insertPlaceHolder(int field, Poco::Data::Statement& stat) const;
+  std::shared_ptr<Poco::Data::BLOB>
+  insertPlaceHolder(const std::string& field,
+                    Poco::Data::Statement& stat) const;
 
   /**
    * Gets protocol buffer enum for type
@@ -33,12 +36,18 @@ class Revision : public proto::Revision {
     map_api::proto::TableFieldDescriptor_Type \
     Revision::protobufEnum<TYPE>() { \
   return ENUM ; \
-}
+} \
+extern void revEnum ## __FILE__ ## __LINE__(void)
+  // in order to swallow the semicolon
+  // http://gcc.gnu.org/onlinedocs/cpp/Swallowing-the-Semicolon.html
+  // http://stackoverflow.com/questions/18786848
 
   /**
    * Overriding adding field in order to impose indexing
    */
   void addField(const proto::TableFieldDescriptor& descriptor);
+  template<typename FieldType>
+  void addField(const std::string& name);
 
   /**
    * Sets field according to type.
@@ -53,9 +62,16 @@ class Revision : public proto::Revision {
   bool get(const std::string& fieldName, FieldType* value) const;
 
   /**
+   * Verifies field value according to type.
+   */
+  template <typename ExpectedType>
+  bool verify(const std::string& fieldName,
+              const ExpectedType& expected) const;
+
+  /**
    * Returns true if Revision contains same fields as other
    */
-  bool structureMatch(Revision& other);
+  bool structureMatch(const Revision& other) const;
 
   /**
    * Overriding parsing from string in order to add indexing.
@@ -108,7 +124,7 @@ class Revision : public proto::Revision {
  * One Macro to define REVISION_ENUM, _SET and _GET for Protobuf objects
  */
 #define REVISION_PROTOBUF(TYPE) \
-    REVISION_ENUM(TYPE, proto::TableFieldDescriptor_Type_BLOB) \
+    REVISION_ENUM(TYPE, proto::TableFieldDescriptor_Type_BLOB); \
     \
     REVISION_SET(TYPE){ \
   field.set_blobvalue(value.SerializeAsString()); \
@@ -122,7 +138,12 @@ REVISION_GET(TYPE){ \
     return false; \
   } \
   return true; \
-}
+} \
+extern void __FILE__ ## __LINE__(void)
+// in order to swallow the semicolon
+// http://gcc.gnu.org/onlinedocs/cpp/Swallowing-the-Semicolon.html
+// http://stackoverflow.com/questions/18786848/macro-that-swallows-semicolon-out
+// side-of-function
 
 /**
  * A generic, blob-y field type for testing blob insertion

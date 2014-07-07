@@ -3,11 +3,11 @@
 # Checks arguments
 if [ -z "$1" ]
   then
-    echo -e "\e[1;31mError: No argument for the repository supplied.\e[0m Usage: pull_branch.sh reposity_name branch_name" && exit
+    echo -e "\e[1;31mError: No argument for the repository supplied.\e[0m Usage: merge_remote_branch.sh reposity_name branch_name" && exit
 fi
 if [ -z "$2" ]
   then
-    echo -e "\e[1;31mError: No argument for the branch supplied.\e[0m Usage: pull_branch.sh reposity_name branch_name" && exit
+    echo -e "\e[1;31mError: No argument for the branch supplied.\e[0m Usage: merge_remote_branch.sh reposity_name branch_name" && exit
 fi
 
 # Verifies presence of remotes

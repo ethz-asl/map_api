@@ -3,11 +3,18 @@
 
 #include <memory>
 
+#include <gtest/gtest.h>
+
 #include <Poco/Data/Common.h>
 
-#include "map-api/cru-table-interface.h"
+#include "map-api/chunk-manager.h"
+#include "map-api/cru-table.h"
+#include "map-api/id.h"
 #include "map-api/map-api-hub.h"
+#include "map-api/metatable.h"
 #include "core.pb.h"
+
+DECLARE_string(ip_port);
 
 namespace map_api {
 
@@ -17,21 +24,18 @@ namespace map_api {
  * - Ensure that only one instance of the database is created and used
  * - Ensure that only one thread is present to communicate with other nodes
  */
-class MapApiCore {
+class MapApiCore final {
  public:
   /**
    * Get singleton instance of Map Api Core
    * TODO(tcies) just make all functions static (thread-safety!)...
    */
-  static MapApiCore& getInstance();
+  static MapApiCore& instance();
   /**
-   * Get the list of available tables
+   * Synchronizes table definition with peers
+   * by using standard table operations on the metatable
    */
-  std::shared_ptr<proto::TableList> getTables();
-  /**
-   * Get interface to given table by table name
-   */
-  std::shared_ptr<CRUTableInterface> getTable(const std::string &name);
+  bool syncTableDefinition(const proto::TableDescriptor& descriptor);
   /**
    * Initializer
    */
@@ -45,6 +49,15 @@ class MapApiCore {
    */
   void kill();
 
+ protected:
+  /**
+   * Resets the database, clearing all its contents. TO BE USED FOR TESTING
+   * ONLY. After a call to this function ALL TABLES MUST BE RE-INITIALIZED.
+   * resetDb already re-initializes the metatable
+   */
+  void resetDb();
+  friend class CoreTester;
+
  private:
   /**
    * Constructor: Creates database if not existing, launches a new thread
@@ -52,12 +65,20 @@ class MapApiCore {
    */
   MapApiCore();
   /**
-   * Returns a shared pointer to the database session
+   * Returns a weak pointer to the database session
    */
-  std::shared_ptr<Poco::Data::Session> getSession();
-  friend class CRTableInterface;
-  friend class CRUTableInterface;
-  friend class Transaction;
+  std::weak_ptr<Poco::Data::Session> getSession();
+  friend class CRTable;
+  friend class CRUTable;
+  friend class LocalTransaction;
+  /**
+   * Initializes metatable if not initialized. Unfortunately, the metatable
+   * can't be initialized in init, as the initializer of metatable calls init
+   * indirectly itself, so there would be an endless recursion.
+   */
+  inline void ensureMetatable();
+
+  Id owner_;
   /**
    * Session of local database
    */
@@ -67,9 +88,21 @@ class MapApiCore {
    */
   MapApiHub &hub_;
   /**
+   * Chunk manager instance
+   */
+  ChunkManager &chunk_manager_;
+
+  /**
    * initialized?
    */
   bool initialized_;
+};
+
+class CoreTester {
+ protected:
+  inline void resetDb() {
+    MapApiCore::instance().resetDb();
+  }
 };
 
 }
