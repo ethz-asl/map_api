@@ -4,63 +4,54 @@
 #include <memory>
 #include <vector>
 #include <unordered_map>
+#include <set>
 #include <string>
 
 #include "map-api/message.h"
 #include "map-api/peer.h"
+#include "map-api/peer-id.h"
 
 namespace map_api {
 
 /**
- * Allows to hold shared or weak pointers to peers and exposes common operations
- * on the peers. TODO(tcies) synchronization
+ * Allows to hold identifiers of peers and exposes common operations
+ * on the peers, querying MapApiHub
  */
-template <typename PeerPointerType>
 class PeerHandler {
  public:
+  void add(const PeerId& peer);
   /**
-   * Sends the message to all peers and collects their responses
+   * Sends the message to all currently connected peers and collects their
+   * responses
    */
-  void broadcast(const Message& request,
-                 std::unordered_map<std::string, Message>* responses);
+  void broadcast(Message* request,
+                 std::unordered_map<PeerId, Message>* responses);
+
+  bool empty() const;
   /**
-   * TODO(tcies) later: Notify about disconnection
+   * Allows user to view peers, e.g. for ConnectResponse
+   * TODO(simon) is this cheap? What else to fill ConnectResponse with
+   * addresses?
    */
-  void clear();
+  const std::set<PeerId>& peers() const;
+
+  void remove(const PeerId& peer);
   /**
-   * Ensures that peer with given address is among those handled
+   * Sends request to specified peer. If peer not among peers_, adds it.
    */
-  std::weak_ptr<Peer> ensure(const std::string& address);
-  /**
-   * TODO(tcies) this cascade of calls smells...
-   */
-  void request(const std::string& peer_address, const Message& request,
+  void request(const PeerId& peer_address, Message* request,
                Message* response);
   /**
    * Returns true if all peers have acknowledged, false otherwise.
    * TODO(tcies) timeouts?
    */
-  bool undisputable_broadcast(const Message& request);
-
-  /**
-   * Inserts peer obtained from other PeerHandler. Should be only called for
-   * weak pointer flavor of PeerHandler: Each peer should only have one shared
-   * pointer, and that shared pointer should be inserted with the other
-   * insert() overload
-   */
-  void insert(PeerPointerType peer_pointer);
-  void insert(const std::string& address, zmq::context_t& context,
-              int socket_type);
+  bool undisputableBroadcast(Message* request);
 
   size_t size() const;
  private:
-  std::shared_ptr<Peer> lock(const PeerPointerType& peer) const;
-
-  std::unordered_map<std::string, PeerPointerType> peers_;
+  std::set<PeerId> peers_; // std::set to ensure uniform ordering
 };
 
 } /* namespace map_api */
-
-#include "map-api/peer-handler-inl.h"
 
 #endif /* MAP_API_PEER_HANDLER_H_ */

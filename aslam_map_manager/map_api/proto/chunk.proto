@@ -1,21 +1,22 @@
 package map_api.proto;
 
-message InsertRequest {
-  required string chunk_id = 1;
+message ChunkRequestMetadata {
+  required string table = 1;
+  required string chunk_id = 2; // TODO(tcies) chunk identification as message
+}
+
+message PatchRequest {
+  required ChunkRequestMetadata metadata = 1;
   required bytes serialized_revision = 2;
 }
 
-message ParticipationRequest {
-  required string chunk_id = 1;
-  required string from_peer = 2; // TODO(tcies) should be message meta
+message InitRequest {
+  required ChunkRequestMetadata metadata = 1;
+  repeated string peer_address = 2; // List of peers participating in chunk
+  repeated bytes serialized_revision = 3; // All revisions in chunk
 }
 
-message ConnectRequest {
-  required string chunk_id = 1;
-  required string from_peer = 2; // TODO(tcies) should be message meta
-}
-
-message ConnectResponse {
-  repeated string peer_address = 1; // List of peers participating in chunk
-  repeated string serialized_revision = 2; // All revisions in chunk (to change)
+message NewPeerRequest {
+  required ChunkRequestMetadata metadata = 1;
+  optional string new_peer = 2;
 }
