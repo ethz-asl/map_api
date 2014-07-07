@@ -67,6 +67,7 @@ bool Chunk::check(const ChunkTransaction& transaction) {
     std::lock_guard<std::mutex> metalock(lock_.mutex);
     CHECK(isWriter(PeerId::self()));
   }
+  /*
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
       transaction.insertions_) {
     if (underlying_table_->getById(item.first, LogicalTime::sample())) {
@@ -75,6 +76,7 @@ bool Chunk::check(const ChunkTransaction& transaction) {
       return false;
     }
   }
+   */
   CRUTable* table;
   if (!transaction.updates_.empty()) {
     CHECK(underlying_table_->type() == CRTable::Type::CRU);
@@ -97,10 +99,9 @@ bool Chunk::commit(const ChunkTransaction& transaction) {
     distributedUnlock();
     return false;
   }
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
-      transaction.insertions_) {
-    CHECK(insert(item.second.get()));
-  }
+  LOG(INFO) << underlying_table_->name() << ": Inserting bulk into database";
+  CHECK(bulkInsert(transaction.insertions_));
+  LOG(INFO) << "Inserted bulk into database";
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
       transaction.updates_) {
     update(item.second.get());
@@ -128,6 +129,35 @@ bool Chunk::insert(Revision* item) {
   insert_request.set_serialized_revision(item->SerializeAsString());
   request.impose<kInsertRequest>(insert_request);
   CHECK(peers_.undisputableBroadcast(&request));
+  distributedUnlock();
+  return true;
+}
+
+bool Chunk::bulkInsert(const CRTable::RevisionMap& items) {
+  std::vector<proto::PatchRequest> insert_requests;
+  insert_requests.resize(items.size());
+  int i = 0;
+  for (const CRTable::RevisionMap::value_type& item : items) {
+    CHECK_NOTNULL(item.second.get());
+    item.second->set(NetTable::kChunkIdField, id());
+    fillMetadata(&insert_requests[i]);
+    ++i;
+  }
+  Message request;
+  distributedReadLock(); // avoid adding of new peers while inserting
+  underlying_table_->bulkInsert(items);
+  // at this point, insert() has modified the revisions such that all default
+  // fields are also set, which allows remote peers to just patch the revision
+  // into their table.
+  i = 0;
+  for (const CRTable::RevisionMap::value_type& item : items) {
+    insert_requests[i].set_serialized_revision(
+        item.second->SerializeAsString());
+    request.impose<kInsertRequest>(insert_requests[i]);
+    CHECK(peers_.undisputableBroadcast(&request));
+    // TODO(tcies) also bulk this
+    ++i;
+  }
   distributedUnlock();
   return true;
 }

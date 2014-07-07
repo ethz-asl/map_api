@@ -69,8 +69,12 @@ class CRTable {
    * - Do query and table structure match?
    * - Are the default fields set (or sets them accordingly, see
    *   ensureDefaultFields() and ensureDefaultFieldsCRDerived())
+   *
+   * The bulk flavor is for bundling multiple inserts into one transaction,
+   * for performance reasons.
    */
   virtual bool insert(Revision* query) final;
+  virtual bool bulkInsert(const RevisionMap& query) final;
   /**
    * Unlike insert, patch does not modify the query, but assumes that all
    * default values are set correctly.
@@ -133,6 +137,7 @@ class CRTable {
    */
   virtual bool initCRDerived() = 0;
   virtual bool insertCRDerived(Revision* query) = 0;
+  virtual bool bulkInsertCRDerived(const RevisionMap& query) = 0;
   virtual bool patchCRDerived(const Revision& query) = 0;
   /**
    * If key is an empty string, this should return all the data in the table.

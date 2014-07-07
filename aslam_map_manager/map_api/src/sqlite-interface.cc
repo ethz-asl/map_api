@@ -102,6 +102,17 @@ bool SqliteInterface::insert(const Revision& to_insert) {
   return true;
 }
 
+bool SqliteInterface::bulkInsert(const CRTable::RevisionMap& to_insert) {
+  std::shared_ptr<Poco::Data::Session> session = session_.lock();
+  CHECK(session) << "Couldn't lock session weak pointer!";
+  *session << "BEGIN TRANSACTION", Poco::Data::now;
+  for(const CRTable::RevisionMap::value_type& id_revision : to_insert) {
+    CHECK(insert(*id_revision.second));
+  }
+  *session << "COMMIT", Poco::Data::now;
+  return true;
+}
+
 std::weak_ptr<Poco::Data::Session> SqliteInterface::getSession() {
   return session_;
 }

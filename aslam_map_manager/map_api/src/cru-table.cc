@@ -77,6 +77,15 @@ bool CRUTable::insertCRDerived(Revision* query) {
   return insertCRUDerived(query);
 }
 
+bool CRUTable::bulkInsertCRDerived(const RevisionMap& query) {
+  for (const RevisionMap::value_type& item : query) {
+    item.second->set(kUpdateTimeField, LogicalTime::sample());
+    item.second->set(kPreviousTimeField, LogicalTime());
+    item.second->set(kNextTimeField, LogicalTime());
+  }
+  return bulkInsertCRUDerived(query);
+}
+
 int CRUTable::findByRevisionCRDerived(
     const std::string& key, const Revision& valueHolder,
     const LogicalTime& time, RevisionMap* dest) {
