@@ -8,7 +8,7 @@ NetTableTransaction::NetTableTransaction(NetTable* table)
 NetTableTransaction::NetTableTransaction(
     const LogicalTime& begin_time, NetTable* table) : begin_time_(begin_time),
         table_(table) {
-  CHECK(begin_time <= LogicalTime::sample());
+  CHECK(begin_time < LogicalTime::sample());
 }
 
 // Deadlocks in lock() are prevented by imposing a global ordering on chunks,
