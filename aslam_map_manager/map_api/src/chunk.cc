@@ -1,5 +1,7 @@
 #include "map-api/chunk.h"
 
+#include <unordered_set>
+
 #include "map-api/cru-table.h"
 #include "map-api/net-table-manager.h"
 #include "map-api/map-api-hub.h"
@@ -67,16 +69,23 @@ bool Chunk::check(const ChunkTransaction& transaction) {
     std::lock_guard<std::mutex> metalock(lock_.mutex);
     CHECK(isWriter(PeerId::self()));
   }
-  /*
+  CRTable::RevisionMap contents;
+  underlying_table_->dump(LogicalTime::sample(), &contents);
+  std::unordered_set<Id> present_ids;
+  for (const CRTable::RevisionMap::value_type& item : contents) {
+    present_ids.insert(item.first);
+  }
+  // TODO(tcies) just leave out this check? Would grow with (local) table size
+  // we could leave out the insertion check and use only the chunk data for the
+  // update check.
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
       transaction.insertions_) {
-    if (underlying_table_->getById(item.first, LogicalTime::sample())) {
+    if (present_ids.find(item.first) != present_ids.end()) {
       LOG(WARNING) << "Table " << underlying_table_->name() <<
           " already contains id " << item.first;
       return false;
     }
   }
-   */
   CRUTable* table;
   if (!transaction.updates_.empty()) {
     CHECK(underlying_table_->type() == CRTable::Type::CRU);
@@ -85,6 +94,7 @@ bool Chunk::check(const ChunkTransaction& transaction) {
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
       transaction.updates_) {
     LogicalTime latest_update;
+    // TODO(tcies) optimize
     CHECK(table->getLatestUpdateTime(item.first, &latest_update));
     if (latest_update >= transaction.begin_time_) {
       return false;
@@ -99,9 +109,7 @@ bool Chunk::commit(const ChunkTransaction& transaction) {
     distributedUnlock();
     return false;
   }
-  LOG(INFO) << underlying_table_->name() << ": Inserting bulk into database";
   CHECK(bulkInsert(transaction.insertions_));
-  LOG(INFO) << "Inserted bulk into database";
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
       transaction.updates_) {
     update(item.second.get());
