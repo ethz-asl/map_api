@@ -43,7 +43,7 @@ bool ChordIndex::handleLeave(
   CHECK(leaveRpc(successor_.second, leaver, leaver_predecessor,
                  leaver_successor));
   // TODO(tcies) locking
-  CHECK(false);
+  CHECK(false) << "Locking not implemented";
   // Cases successor or predecessor leaves
   // TODO(tcies) hooks for derived classes: need to move around data!
   if (leaver == successor_.second) {
@@ -54,9 +54,11 @@ bool ChordIndex::handleLeave(
     predecessor_.second = leaver_predecessor;
   }
   // We might need to update our fingers
-  for (size_t i = 0; i < M; ++i) { // finger[0] is successor_
+  for (size_t i = 0; i < M; ++i) {  // finger[0] is successor_
     if (fingers_[i].second == leaver) {
       fingers_[i].second = leaver_successor;
+      // in a sparsely populated chord ring, multiple fingers can point to the
+      // same peer, so no break intended.
     }
   }
   return true;
@@ -64,6 +66,7 @@ bool ChordIndex::handleLeave(
 
 bool ChordIndex::handleNotifySuccessor(const PeerId& predecessor) {
   predecessor_ = std::make_pair(hash(predecessor), predecessor);
+  // TODO(tcies) push data to newly joined peer
   return true;
 }
 
@@ -117,7 +120,7 @@ void ChordIndex::leave() {
 
 int ChordIndex::closestPrecedingFinger(const Key& key) const {
   // TODO(tcies) verify corner cases
-  CHECK(false);
+  CHECK(false) << "Corner cases not verified";
   for (size_t i = 0; i < M; ++i) {
     size_t index = M - 1 - i;
     Key actual_key = hash(fingers_[index].second);
@@ -125,6 +128,8 @@ int ChordIndex::closestPrecedingFinger(const Key& key) const {
       return index;
     }
   }
+  LOG(FATAL) << "Called closest preceding finger on key which is smaller " <<
+      "than successor key";
 }
 
 PeerId ChordIndex::findSuccessorAndFixFinger(
@@ -139,7 +144,7 @@ PeerId ChordIndex::findSuccessorAndFixFinger(
 
 ChordIndex::Key ChordIndex::hash(PeerId) const {
   // TODO(tcies) implement
-  CHECK(false);
+  CHECK(false) << "Hash not implemented";
 }
 
 void ChordIndex::init() {

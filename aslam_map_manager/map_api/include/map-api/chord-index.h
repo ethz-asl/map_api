@@ -101,8 +101,8 @@ class ChordIndex {
    * Check whether key is is same as from_inclusive or between from_inclusive
    * and to_exclusive
    */
-  bool isIn(const Key& key, const Key& from_inclusive, const Key& to_exclusive)
-  const;
+  bool isIn(const Key& key, const Key& from_inclusive,
+            const Key& to_exclusive) const;
 
 
   bool initialized_ = false;
