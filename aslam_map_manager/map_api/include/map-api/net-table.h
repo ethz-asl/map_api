@@ -66,6 +66,8 @@ class NetTable {
 
   void leaveAllChunks();
 
+  std::string getStatistics();
+
   /**
    * ========================
    * Diverse request handlers

@@ -126,6 +126,16 @@ void NetTable::leaveAllChunks() {
   active_chunks_lock_.unlock();
 }
 
+std::string NetTable::getStatistics() {
+  std::stringstream ss;
+  CRTable::RevisionMap result;
+  dumpCache(LogicalTime::sample(), &result);
+  // TODO(tcies) more lightweight item count method
+  ss << name() << ": " << activeChunksSize() << " chunks and " <<
+      result.size() << " items.";
+  return ss.str();
+}
+
 void NetTable::handleConnectRequest(const Id& chunk_id, const PeerId& peer,
                                     Message* response) {
   ChunkMap::iterator found;
