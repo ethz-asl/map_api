@@ -75,9 +75,7 @@ bool Chunk::check(const ChunkTransaction& transaction) {
   for (const CRTable::RevisionMap::value_type& item : contents) {
     present_ids.insert(item.first);
   }
-  // TODO(tcies) just leave out this check? Would grow with (local) table size
-  // we could leave out the insertion check and use only the chunk data for the
-  // update check.
+  // The following check may be left out if too costly
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
       transaction.insertions_) {
     if (present_ids.find(item.first) != present_ids.end()) {
