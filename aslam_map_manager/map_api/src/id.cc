@@ -12,8 +12,8 @@
 
 namespace map_api {
 
-Id::Id(const sm::HashId& hash_id) {
-  fromHexString(hash_id.hexString());
+bool Id::fromHashId(const sm::HashId& id) {
+  return fromHexString(id.hexString());
 }
 
 Id Id::generate(){
