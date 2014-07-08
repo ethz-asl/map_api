@@ -44,7 +44,7 @@ void NetTableManager::init() {
 }
 
 void NetTableManager::addTable(
-    bool updateable, std::unique_ptr<TableDescriptor>* descriptor) {
+    CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor) {
   CHECK_NOTNULL(descriptor);
   CHECK(*descriptor);
   tables_lock_.readLock();
@@ -52,7 +52,7 @@ void NetTableManager::addTable(
   if (found != tables_.end()) {
     LOG(INFO) << "Table already active";
     std::unique_ptr<NetTable> temp(new NetTable);
-    temp->init(updateable, descriptor);
+    temp->init(type, descriptor);
     std::shared_ptr<Revision> left = found->second->getTemplate(),
         right = temp->getTemplate();
     CHECK(left->structureMatch(*right));
@@ -62,7 +62,7 @@ void NetTableManager::addTable(
         std::make_pair((*descriptor)->name(), std::unique_ptr<NetTable>()));
     CHECK(inserted.second) << tables_.size();
     inserted.first->second.reset(new NetTable);
-    CHECK(inserted.first->second->init(updateable, descriptor));
+    CHECK(inserted.first->second->init(type, descriptor));
   }
   tables_lock_.unlock();
 }
