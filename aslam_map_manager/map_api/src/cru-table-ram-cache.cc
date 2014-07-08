@@ -17,6 +17,10 @@ bool CRUTableRAMCache::insertCRUDerived(Revision* query) {
   return sqlite_interface_.insert(*query);
 }
 
+bool CRUTableRAMCache::bulkInsertCRUDerived(const RevisionMap& query) {
+  return sqlite_interface_.bulkInsert(query);
+}
+
 bool CRUTableRAMCache::patchCRDerived(const Revision& query) {
   return sqlite_interface_.insert(query);
 }
