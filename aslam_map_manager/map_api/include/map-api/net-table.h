@@ -13,7 +13,7 @@ class NetTable {
  public:
   static const std::string kChunkIdField;
 
-  bool init(bool updateable, std::unique_ptr<TableDescriptor>* descriptor);
+  bool init(CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor);
   const std::string& name() const;
 
   // INSERTION
@@ -66,6 +66,8 @@ class NetTable {
 
   void leaveAllChunks();
 
+  std::string getStatistics();
+
   /**
    * ========================
    * Diverse request handlers
@@ -102,7 +104,7 @@ class NetTable {
   bool routingBasics(
       const Id& chunk_id, Message* response, ChunkMap::iterator* found);
 
-  bool updateable_ = false;
+  CRTable::Type type_ = CRTable::Type::CR;
   std::unique_ptr<CRTable> cache_;
   ChunkMap active_chunks_;
   Poco::RWLock active_chunks_lock_;

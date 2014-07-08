@@ -16,6 +16,7 @@ class CRTableRAMCache final : public CRTable {
  private:
   virtual bool initCRDerived() final override;
   virtual bool insertCRDerived(Revision* query) final override;
+  virtual bool bulkInsertCRDerived(const RevisionMap& query) final override;
   virtual bool patchCRDerived(const Revision& query) final override;
   virtual int findByRevisionCRDerived(
       const std::string& key, const Revision& valueHolder,
