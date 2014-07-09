@@ -113,8 +113,14 @@ Chunk* NetTable::connectTo(const Id& chunk_id,
   return found->second.get();
 }
 
-int NetTable::activeChunksSize() const {
+size_t NetTable::activeChunksSize() const {
   return active_chunks_.size();
+}
+
+size_t NetTable::cachedItemsSize() {
+  CRTable::RevisionMap result;
+  dumpCache(LogicalTime::sample(), &result);
+  return result.size();
 }
 
 void NetTable::leaveAllChunks() {
@@ -131,11 +137,10 @@ void NetTable::leaveAllChunks() {
 
 std::string NetTable::getStatistics() {
   std::stringstream ss;
-  CRTable::RevisionMap result;
-  dumpCache(LogicalTime::sample(), &result);
+
   // TODO(tcies) more lightweight item count method
   ss << name() << ": " << activeChunksSize() << " chunks and " <<
-      result.size() << " items.";
+      cachedItemsSize() << " items.";
   return ss.str();
 }
 
