@@ -27,6 +27,8 @@ class ChordIndex {
   // shouldn't expose these kinds of typedefs unless e.g. a serialization
   // method is given as well
 
+  virtual ~ChordIndex();
+
   // ========
   // HANDLERS
   // ========
@@ -59,6 +61,10 @@ class ChordIndex {
    * such that all nodes can remove bad links from their fingers directly.
    */
   void leave();
+  /**
+   * Generates hash from PeerId.
+   */
+  static Key hash(const PeerId& id);
 
  private:
   // ======================
@@ -88,10 +94,6 @@ class ChordIndex {
    * the reference to that link is proper according to the chord protocol.
    */
   PeerId findSuccessorAndFixFinger(int finger_index, const Key& query);
-  /**
-   * Generates hash from PeerId.
-   */
-  Key hash(const PeerId& id) const;
   /**
    * Routine common to create() and join()
    */

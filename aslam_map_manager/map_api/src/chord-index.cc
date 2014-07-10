@@ -9,6 +9,8 @@
 
 namespace map_api {
 
+ChordIndex::~ChordIndex() {}
+
 PeerId ChordIndex::handleFindSuccessor(const Key& key) {
   CHECK(initialized_);
   return findSuccessor(key);
@@ -146,7 +148,7 @@ PeerId ChordIndex::findSuccessorAndFixFinger(
   return response;
 }
 
-ChordIndex::Key ChordIndex::hash(const PeerId& id) const {
+ChordIndex::Key ChordIndex::hash(const PeerId& id) {
   // TODO(tcies) better method?
   Poco::MD5Engine md5;
   Poco::DigestOutputStream digest_stream(md5);
@@ -171,6 +173,7 @@ ChordIndex::Key ChordIndex::hash(const PeerId& id) const {
 }
 
 void ChordIndex::init() {
+  LOG(INFO) << PeerId::self();
   own_key_ = hash(PeerId::self());
   for (size_t i = 0; i < M; ++i) {
     fingers_[i].first = own_key_ + (1 << i); // overflow intended

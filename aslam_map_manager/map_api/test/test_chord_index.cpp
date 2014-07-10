@@ -44,13 +44,13 @@ class TestChordIndex final : public ChordIndex {
   /**
    * Inits handlers, must be called before core::init
    */
-  void init();
+  static void staticInit();
 
  private:
   /**
    * Singleton- required methods
    */
-  TestChordIndex() = default;
+  TestChordIndex() {}
   TestChordIndex(const TestChordIndex&) = delete;
   TestChordIndex& operator =(const TestChordIndex&) = delete;
 
@@ -98,6 +98,21 @@ MAP_API_PROTO_MESSAGE(TestChordIndex::kLeaveRequest,
                       proto::TestChordIndexLeaveRequest);
 MAP_API_STRING_MESSAGE(TestChordIndex::kNotifySuccessorRequest);
 MAP_API_STRING_MESSAGE(TestChordIndex::kNotifyPredecessorRequest);
+
+void TestChordIndex::staticInit() {
+  MapApiHub::instance().registerHandler(
+      kFindSuccessorRequest, staticHandleFindSuccessor);
+  MapApiHub::instance().registerHandler(
+      kGetPredecessorRequest, staticHandleGetPredecessor);
+  MapApiHub::instance().registerHandler(
+      kFindSuccessorAndFixFingerRequest, staticHandleFindSuccessorAndFixFinger);
+  MapApiHub::instance().registerHandler(
+      kLeaveRequest, staticHandleLeave);
+  MapApiHub::instance().registerHandler(
+      kNotifySuccessorRequest, staticHandleNotifySuccessor);
+  MapApiHub::instance().registerHandler(
+      kNotifyPredecessorRequest, staticHandleNotifyPredecessor);
+}
 
 // ========
 // HANDLERS

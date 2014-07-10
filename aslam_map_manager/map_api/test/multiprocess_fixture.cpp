@@ -67,14 +67,16 @@ class MultiprocessTest : public ::testing::Test {
    * Gathers results from all subprocesses, forwarding them to stdout and
    * propagating failures.
    */
-  void harvest() {
+  void harvest(bool verbose = true) {
     for (const std::pair<uint64_t, FILE*>& id_pipe : subprocesses_) {
       FILE* pipe = id_pipe.second;
       CHECK(pipe);
       const size_t size = 1024;
       char buffer[size];
       while (timedFGetS(buffer, size, pipe) != NULL) {
-        std::cout << "Sub " << id_pipe.first << ": " << buffer;
+        if (verbose) {
+          std::cout << "Sub " << id_pipe.first << ": " << buffer;
+        }
         EXPECT_EQ(NULL, strstr(buffer, "[  FAILED  ]"));
         EXPECT_EQ(NULL, strstr(buffer, "*** Check failure stack trace: ***"));
       }
