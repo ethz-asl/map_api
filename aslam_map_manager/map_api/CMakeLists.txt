@@ -10,7 +10,8 @@ catkin_simple()
 ############
 # PROTOBUF #
 ############
-SET(PROTO_DEFNS proto/core.proto
+SET(PROTO_DEFNS proto/chord-index.proto 
+                proto/core.proto
                 proto/chunk.proto)
 PROTOBUF_CATKIN_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
@@ -46,8 +47,7 @@ SET(CORE_SOURCE  src/chord-index.cc
                  src/server-discovery.cc
                  src/sqlite-interface.cc
                  src/table-descriptor.cc
-                 src/transaction.cc
-                 test/test_chord_index.cpp)         # TODO(tcies) remove
+                 src/transaction.cc)
                  
 cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
 # we need to add dependencies of external project packages to fetch headers
@@ -62,6 +62,9 @@ target_link_libraries(discovery-server ${PROJECT_NAME})
 ##########
 # GTESTS #
 ##########
+
+catkin_add_gtest(test_chord_index_test test/chord_index_test.cpp)
+target_link_libraries(test_chord_index_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_chunk_test test/chunk_test.cpp)
 target_link_libraries(test_chunk_test ${PROJECT_NAME})

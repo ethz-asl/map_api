@@ -39,7 +39,6 @@ class ChordIndex {
   bool handleNotifySuccessor(const PeerId& predecessor);
   bool handleNotifyPredecessor(const PeerId& successor);
 
- protected:
   static constexpr size_t M = sizeof(Key) * 8;
   /**
    * Find successor to key, i.e. who holds the information associated with key
