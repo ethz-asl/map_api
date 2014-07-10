@@ -66,7 +66,7 @@ class ChordIndex {
   // REQUIRE IMPLEMENTATION
   // ======================
   virtual PeerId findSuccessorRpc(const PeerId& to, const Key& argument) = 0;
-  virtual void getPredecessorRpc(const PeerId& to, PeerId* predecessor) = 0;
+  virtual PeerId getPredecessorRpc(const PeerId& to) = 0;
   virtual PeerId findSuccessorAndFixFingerRpc(
       const PeerId& to, const Key& query, const Key& finger_base,
       PeerId* actual_finger_node) = 0;
@@ -92,7 +92,7 @@ class ChordIndex {
   /**
    * Generates hash from PeerId.
    */
-  Key hash(PeerId) const;
+  Key hash(const PeerId& id) const;
   /**
    * Routine common to create() and join()
    */

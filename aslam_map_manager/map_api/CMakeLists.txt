@@ -46,7 +46,8 @@ SET(CORE_SOURCE  src/chord-index.cc
                  src/server-discovery.cc
                  src/sqlite-interface.cc
                  src/table-descriptor.cc
-                 src/transaction.cc)
+                 src/transaction.cc
+                 test/test_chord_index.cpp)         # TODO(tcies) remove
                  
 cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
 # we need to add dependencies of external project packages to fetch headers

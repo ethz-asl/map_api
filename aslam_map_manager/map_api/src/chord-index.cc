@@ -1,6 +1,11 @@
 #include "map-api/chord-index.h"
 
+#include <type_traits>
+
 #include <glog/logging.h>
+
+#include <Poco/DigestStream.h>
+#include <Poco/MD5Engine.h>
 
 namespace map_api {
 
@@ -99,8 +104,7 @@ void ChordIndex::join(const PeerId& other) {
     PeerId finger = findSuccessorRpc(other, fingers_[i].first);
     fingers_[i].second = finger;
   }
-  PeerId predecessor;
-  getPredecessorRpc(successor_.second, &predecessor);
+  PeerId predecessor = getPredecessorRpc(successor_.second);
   Key predecessor_key = hash(predecessor);
   CHECK(predecessor_key != own_key_);
   predecessor_ = std::make_pair(predecessor_key, predecessor);
@@ -142,9 +146,28 @@ PeerId ChordIndex::findSuccessorAndFixFinger(
   return response;
 }
 
-ChordIndex::Key ChordIndex::hash(PeerId) const {
-  // TODO(tcies) implement
-  CHECK(false) << "Hash not implemented";
+ChordIndex::Key ChordIndex::hash(const PeerId& id) const {
+  // TODO(tcies) better method?
+  Poco::MD5Engine md5;
+  Poco::DigestOutputStream digest_stream(md5);
+  digest_stream << id;
+  digest_stream.flush();
+  const Poco::DigestEngine::Digest& digest = md5.digest();
+  bool diges_still_uchar_vec =
+      std::is_same<
+      Poco::DigestEngine::Digest, std::vector<unsigned char> >::value;
+  CHECK(diges_still_uchar_vec) <<
+      "Underlying type of Digest changed since Poco 1.3.6";
+  union KeyUnion {
+    Key key;
+    unsigned char bytes[sizeof(Key)];
+  };
+  CHECK_EQ(sizeof(Key), sizeof(KeyUnion));
+  KeyUnion return_value;
+  for (size_t i = 0; i < sizeof(Key); ++i) {
+    return_value.bytes[i] = digest[i];
+  }
+  return return_value.key;
 }
 
 void ChordIndex::init() {
