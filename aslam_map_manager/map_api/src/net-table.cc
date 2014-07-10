@@ -121,7 +121,6 @@ void NetTable::shareAllChunks() {
     chunk.second->requestParticipation();
   }
   active_chunks_lock_.unlock();
-
 }
 
 void NetTable::leaveAllChunks() {
