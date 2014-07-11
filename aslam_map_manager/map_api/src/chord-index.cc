@@ -18,76 +18,60 @@ PeerId ChordIndex::handleFindSuccessor(const Key& key) {
 
 PeerId ChordIndex::handleGetPredecessor() {
   CHECK(initialized_);
-  return predecessor_.second;
+  std::lock_guard<std::mutex> lock(peer_access_);
+  return predecessor_->id;
 }
 
-PeerId ChordIndex::handleFindSuccessorAndFixFinger(
-    const Key& query, const Key& finger_base, PeerId* actual_finger_node) {
-  CHECK(initialized_);
-  CHECK_NOTNULL(actual_finger_node);
-  if (isIn(predecessor_.first, finger_base, own_key_)) {
-    *actual_finger_node = predecessor_.second;
-  } else {
-    *actual_finger_node = PeerId::self();
+void ChordIndex::handleNotify(const PeerId& peer_id) {
+  std::lock_guard<std::mutex> lock(peer_access_);
+  if (peers_.find(peer_id) != peers_.end()) {
+    // already aware of the node
+    return;
   }
-  return findSuccessor(query);
-}
-
-bool ChordIndex::handleLeave(
-    const PeerId& leaver, const PeerId&leaver_predecessor,
-    const PeerId& leaver_successor) {
-  CHECK(initialized_);
-  CHECK(leaver != leaver_predecessor);
-  CHECK(leaver != leaver_successor);
-  // Case the request originated here
-  if (leaver == PeerId::self()) {
-    CHECK(leaving_);
-    CHECK(leaver_successor == successor_.second);
-    CHECK(leaver_predecessor == predecessor_.second);
-    return true;
-  }
-  // forward rpc while successor might still be leaver
-  CHECK(leaveRpc(successor_.second, leaver, leaver_predecessor,
-                 leaver_successor));
-  // TODO(tcies) locking
-  CHECK(false) << "Locking not implemented";
-  // Cases successor or predecessor leaves
-  // TODO(tcies) hooks for derived classes: need to move around data!
-  if (leaver == successor_.second) {
-    successor_.second = leaver_successor;
-  }
-  if (leaver == predecessor_.second) {
-    predecessor_.first = hash(leaver_predecessor);
-    predecessor_.second = leaver_predecessor;
-  }
-  // We might need to update our fingers
-  for (size_t i = 0; i < M; ++i) {  // finger[0] is successor_
-    if (fingers_[i].second == leaver) {
-      fingers_[i].second = leaver_successor;
-      // in a sparsely populated chord ring, multiple fingers can point to the
-      // same peer, so no break intended.
+  std::shared_ptr<ChordPeer> peer(new ChordPeer(peer_id, hash(peer_id)));
+  // fix fingers
+  for (size_t i = 0; i < M; ++i) {
+    if (isIn(peer->key, fingers_[i].base_key, fingers_[i].peer->key)) {
+      fingers_[i].peer = peer;
+      // no break intended: multiple fingers can have same peer
     }
   }
-  return true;
-}
-
-bool ChordIndex::handleNotifySuccessor(const PeerId& predecessor) {
-  predecessor_ = std::make_pair(hash(predecessor), predecessor);
-  // TODO(tcies) push data to newly joined peer
-  return true;
-}
-
-bool ChordIndex::handleNotifyPredecessor(const PeerId& successor) {
-  successor_.second = successor;
-  return true;
+  // fix successors
+  for (size_t i = 0; i < kSuccessorListSize; ++i) {
+    bool condition = false;
+    if (i == 0 && isIn(peer->key, own_key_, successors_[0]->key)) {
+      condition = true;
+    }
+    if (i != 0 && isIn(peer->key, successors_[i-1]->key, successors_[i]->key)) {
+      condition = true;
+    }
+    if (condition) {
+      for (size_t j = kSuccessorListSize - 1; j > i; j--) {
+        successors_[j] = successors_[j - 1];
+      }
+      successors_[i] = peer;
+      break;
+    }
+  }
+  // fix predecessor
+  if (isIn(peer->key, predecessor_->key, own_key_)) {
+    predecessor_ = peer;
+  }
+  // save peer to peer map only if information has been useful anywhere
+  if (peer.use_count() > 1) {
+    peers_[peer_id] = std::weak_ptr<ChordPeer>(peer);
+  }
 }
 
 PeerId ChordIndex::findSuccessor(const Key& key) {
-  if (isIn(key, own_key_, fingers_[0].first)) {
-    return fingers_[0].second;
+  if (isIn(key, own_key_, successors_[0]->key)) {
+    return successors_[0]->id;
   } else {
-    int to_ask = closestPrecedingFinger(key);
-    return findSuccessorAndFixFinger(to_ask, key);
+    PeerId closest_preceding = closestPrecedingFinger(key);
+    PeerId result;
+    // TODO(tcies) handle closest preceding doesn't respond
+    CHECK(findSuccessorRpc(closest_preceding, key, &result));
+    return result;
   }
 }
 
@@ -124,12 +108,12 @@ void ChordIndex::leave() {
   initialized_ = false;
 }
 
-int ChordIndex::closestPrecedingFinger(const Key& key) const {
+PeerId ChordIndex::closestPrecedingFinger(const Key& key) const {
   // TODO(tcies) verify corner cases
   CHECK(false) << "Corner cases not verified";
   for (size_t i = 0; i < M; ++i) {
     size_t index = M - 1 - i;
-    Key actual_key = hash(fingers_[index].second);
+    Key actual_key = key(fingers_[index].second);
     if (isIn(actual_key, own_key_, key)) {
       return index;
     }
@@ -148,7 +132,7 @@ PeerId ChordIndex::findSuccessorAndFixFinger(
   return response;
 }
 
-ChordIndex::Key ChordIndex::hash(const PeerId& id) {
+ChordIndex::Key ChordIndex::key(const PeerId& id) {
   // TODO(tcies) better method?
   Poco::MD5Engine md5;
   Poco::DigestOutputStream digest_stream(md5);

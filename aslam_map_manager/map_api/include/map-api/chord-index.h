@@ -1,6 +1,10 @@
 #ifndef MAP_API_CHORD_INDEX_H_
 #define MAP_API_CHORD_INDEX_H_
 
+#include <memory>
+#include <mutex>
+#include <unordered_map>
+
 #include "map-api/message.h"
 #include "map-api/peer-id.h"
 
@@ -14,18 +18,14 @@ namespace map_api {
  * an RPC belongs to. Consequently, the implementation of RPCs is left to
  * derived classes. Similarly, the holder of derived classes must also ensure
  * proper routing to the handlers.
- * Finally, the first implementation assumes no sporadic loss of connectivity.
- * Consequently, the robustness functions and maintenance tasks (stabilize,
- * notify, fix_fingers, check_predecessor) of chord are left out and replaced
- * with simpler mechanisms (findSuccessorAndFixFinger(), leave()).
- *
- * TODO(tcies) locking, decline messages & handling.
+ * TODO(tcies) key responsibility & replication - will be quite a challenge
  */
 class ChordIndex {
  public:
   typedef uint16_t Key; //TODO(tcies) in the long term, public functions
   // shouldn't expose these kinds of typedefs unless e.g. a serialization
   // method is given as well
+  static constexpr size_t kSuccessorListSize = 3;
 
   virtual ~ChordIndex();
 
@@ -34,33 +34,29 @@ class ChordIndex {
   // ========
   PeerId handleFindSuccessor(const Key& key);
   PeerId handleGetPredecessor();
-  PeerId handleFindSuccessorAndFixFinger(
-      const Key& query, const Key& finger_base, PeerId* actual_finger_node);
-  bool handleLeave(const PeerId& leaver, const PeerId&leaver_predecessor,
-                   const PeerId& leaver_successor);
-  bool handleNotifySuccessor(const PeerId& predecessor);
-  bool handleNotifyPredecessor(const PeerId& successor);
+  /**
+   * Any peer notifies us about their existence.
+   */
+  void handleNotify(const PeerId& peer_id);
 
   static constexpr size_t M = sizeof(Key) * 8;
   /**
    * Find successor to key, i.e. who holds the information associated with key
+   * It is the first node whose hash key is larger than or equal to the key.
    */
   PeerId findSuccessor(const Key& key);
 
+  /**
+   * Equivalent to join(nil) in the Chord paper
+   */
   void create();
 
-  /**
-   * Differs from chord in that the successor will directly inform its
-   * predecessor about the newly joined node, and will inform the newly joined
-   * node about its predecessor.
-   */
   void join(const PeerId& other);
-
   /**
-   * Differs from chord in that a leave message is sent around the circle,
-   * such that all nodes can remove bad links from their fingers directly.
+   * Terminates stabilizeThread();
    */
   void leave();
+
   /**
    * Generates hash from PeerId.
    */
@@ -70,48 +66,70 @@ class ChordIndex {
   // ======================
   // REQUIRE IMPLEMENTATION
   // ======================
-  virtual PeerId findSuccessorRpc(const PeerId& to, const Key& argument) = 0;
-  virtual PeerId getPredecessorRpc(const PeerId& to) = 0;
-  virtual PeerId findSuccessorAndFixFingerRpc(
-      const PeerId& to, const Key& query, const Key& finger_base,
-      PeerId* actual_finger_node) = 0;
-  virtual bool leaveRpc(
-      const PeerId& to, const PeerId& leaver, const PeerId&leaver_predecessor,
-      const PeerId& leaver_successor) = 0;
-  virtual bool notifySuccessorRpc(
-      const PeerId& successor, const PeerId& self) = 0;
-  virtual bool notifyPredecessorRpc(
-      const PeerId& predecessor, const PeerId& self) = 0;
+  virtual bool findSuccessorRpc(const PeerId& to, const Key& argument,
+                                PeerId* successor) = 0;
+  virtual bool getPredecessorRpc(const PeerId& to, PeerId* predecessor) = 0;
+  virtual bool notifyRpc(const PeerId& to, const PeerId& self) = 0;
+
+  void stabilizeThread();
 
   /**
    * Returns index of finger which is counter-clockwise closest to key.
    */
-  int closestPrecedingFinger(const Key& key) const;
-  /**
-   * Slight departure from original chord protocol, linked to assumption of no
-   * loss of connectivity: findSuccessor and finger fixing in one RPC.
-   * Same as querying a finger with findSuccessor, but also making sure that
-   * the reference to that link is proper according to the chord protocol.
-   */
-  PeerId findSuccessorAndFixFinger(int finger_index, const Key& query);
+  PeerId closestPrecedingFinger(const Key& key) const;
   /**
    * Routine common to create() and join()
    */
   void init();
   /**
    * Check whether key is is same as from_inclusive or between from_inclusive
-   * and to_exclusive
+   * and to_exclusive, clockwise. In particular, returns true if from_inclusive
+   * is the same as to_exclusive.
    */
   bool isIn(const Key& key, const Key& from_inclusive,
             const Key& to_exclusive) const;
 
+  struct ChordPeer {
+    PeerId id;
+    Key key;
+    ChordPeer(const PeerId& _id, const Key& _key) : id(_id), key(_key) {}
+    inline bool isValid() {
+      return id.isValid();
+    }
+    inline void invalidate() {
+      id = PeerId();
+    }
+  };
+
+  /**
+   * A finger and a successor list item may point to the same peer, yet peer
+   * invalidation is more efficient if centralized. Propagation of the info
+   * of invalidation is lazy.
+   */
+  struct Finger {
+    Key base_key;
+    std::shared_ptr<ChordPeer> peer;
+  };
+  typedef std::shared_ptr<ChordPeer> SuccessorListItem;
+
+  /**
+   * ChordPeer.id is NOT always equal to PeerId, the key. It may be invalid if
+   * the peer can't be reached any more.
+   * This map is there to ensure central references to peers within the chord
+   * index.
+   */
+  std::unordered_map<PeerId, std::weak_ptr<ChordPeer> > peers_;
+
+  Finger fingers_[M];
+  SuccessorListItem successors_[kSuccessorListSize];
+  std::shared_ptr<ChordPeer> predecessor_;
+
+  std::mutex peer_access_;
+
+  Key own_key_ = hash(PeerId::self());
 
   bool initialized_ = false;
-  bool leaving_ = false;
-  std::pair<Key, PeerId> fingers_[M];
-  std::pair<Key, PeerId>& successor_ = fingers_[0];
-  std::pair<Key, PeerId> predecessor_;
-  Key own_key_ = hash(PeerId::self());
+  bool terminate_ = false;
 };
 
 } /* namespace map_api */
