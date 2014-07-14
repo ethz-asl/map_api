@@ -84,6 +84,7 @@ void TestChordIndex::staticInit() {
 void TestChordIndex::staticHandleFindSuccessor(
     const Message& request, Message* response) {
   CHECK_NOTNULL(response);
+  LOG(INFO) << PeerId::self() << " received fsrpc from " << request.sender();
   Key key;
   std::istringstream key_ss(request.serialized());
   key_ss >> key;
@@ -96,12 +97,14 @@ void TestChordIndex::staticHandleGetPredecessor(
     const Message& request, Message* response) {
   CHECK(request.isType<kGetPredecessorRequest>());
   CHECK_NOTNULL(response);
+  LOG(INFO) << PeerId::self() << " received gprpc from " << request.sender();
   response->impose<kPeerResponse>(instance().handleGetPredecessor().ipPort());
 }
 
 void TestChordIndex::staticHandleNotify(
     const Message& request, Message* response) {
   CHECK_NOTNULL(response);
+  LOG(INFO) << PeerId::self() << " received nrpc from " << request.sender();
   instance().handleNotify(PeerId(request.serialized()));
   response->ack();
 }

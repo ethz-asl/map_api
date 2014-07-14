@@ -67,6 +67,8 @@ TEST_F(ChordIndexTest, joining) {
     IPC::push(PeerId::self().ipPort());
     IPC::barrier(ROOT_SHARED, kNProcesses - 1);
     IPC::barrier(JOINED, kNProcesses - 1);
+    LOG(INFO) << TestChordIndex::instance().predecessor_->id << " " <<
+        TestChordIndex::instance().successor_->id;
     harvest(false);
   } else {
     IPC::barrier(INIT, kNProcesses - 1);
@@ -76,6 +78,8 @@ TEST_F(ChordIndexTest, joining) {
     PeerId root(root_string);
     TestChordIndex::instance().join(root);
     IPC::barrier(JOINED, kNProcesses - 1);
+    LOG(INFO) << TestChordIndex::instance().predecessor_->id << " " <<
+        TestChordIndex::instance().successor_->id;
   }
 }
 

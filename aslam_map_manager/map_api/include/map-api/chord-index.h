@@ -62,7 +62,7 @@ class ChordIndex {
    */
   static Key hash(const PeerId& id);
 
- private:
+ //private: TODO(tcies) add again, solution for testing
   // ======================
   // REQUIRE IMPLEMENTATION
   // ======================

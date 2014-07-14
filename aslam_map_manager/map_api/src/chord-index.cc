@@ -70,17 +70,15 @@ void ChordIndex::handleNotify(const PeerId& peer_id) {
 }
 
 PeerId ChordIndex::findSuccessor(const Key& key) {
+  LOG(INFO) << "Trying to find " << key << ", own key is " << own_key_ <<
+      ", successor is " << successor_->key;
   if (isIn(key, own_key_, successor_->key)) {
     return successor_->id;
   } else {
-    LOG(INFO) << 1;
     std::shared_ptr<ChordPeer> closest_preceding = closestPrecedingFinger(key);
-    LOG(INFO) << 1;
     PeerId result;
-    LOG(INFO) << 1;
     // TODO(tcies) handle closest preceding doesn't respond
     CHECK(findSuccessorRpc(closest_preceding->id, key, &result));
-    LOG(INFO) << 1;
     return result;
   }
 }
@@ -103,6 +101,7 @@ void ChordIndex::join(const PeerId& other) {
     registerPeer(finger, &fingers_[i].peer);
   }
   successor_ = fingers_[0].peer;
+  CHECK(successor_->id != PeerId::self());
   PeerId predecessor;
   CHECK(getPredecessorRpc(successor_->id, &predecessor));
   Key predecessor_key = hash(predecessor);
@@ -126,8 +125,10 @@ std::shared_ptr<ChordIndex::ChordPeer> ChordIndex::closestPrecedingFinger(
   LOG(WARNING) << "Corner cases not verified";
   for (size_t i = 0; i < M; ++i) {
     size_t index = M - 1 - i;
+    LOG(INFO) << "Finger " << index << " is " << fingers_[index].peer->key;
     Key actual_key = fingers_[index].peer->key;
-    if (isIn(actual_key, own_key_, key)) {
+    // + 1 in case finger = self
+    if (isIn(actual_key, own_key_ + 1, key)) {
       return fingers_[index].peer;
     }
   }
