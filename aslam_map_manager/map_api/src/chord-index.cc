@@ -73,10 +73,10 @@ PeerId ChordIndex::findSuccessor(const Key& key) {
   if (isIn(key, own_key_, successor_->key)) {
     return successor_->id;
   } else {
-    PeerId closest_preceding = closestPrecedingFinger(key);
+    std::shared_ptr<ChordPeer> closest_preceding = closestPrecedingFinger(key);
     PeerId result;
     // TODO(tcies) handle closest preceding doesn't respond
-    CHECK(findSuccessorRpc(closest_preceding, key, &result));
+    CHECK(findSuccessorRpc(closest_preceding->id, key, &result));
     return result;
   }
 }
@@ -95,60 +95,42 @@ void ChordIndex::join(const PeerId& other) {
   for (size_t i = 0; i < M; ++i) {
     PeerId finger;
     CHECK(findSuccessorRpc(other, fingers_[i].base_key, &finger));
-    PeerMap::iterator found = peers_.find(finger);
-    if (found == peers_.end()){
-      fingers_[i].peer.reset(new ChordPeer(finger));
-      peers_[finger] = std::weak_ptr<ChordPeer>(fingers_[i].peer);
-    } else {
-      std::shared_ptr<ChordPeer> existing = found->second.lock();
-      CHECK(existing);
-      fingers_[i].peer = existing;
-    }
+    registerPeer(finger, &fingers_[i].peer);
   }
   PeerId predecessor;
   CHECK(getPredecessorRpc(successor_->id, &predecessor));
   Key predecessor_key = hash(predecessor);
   CHECK(predecessor_key != own_key_);
-  predecessor_ = std::make_pair(predecessor_key, predecessor);
+  registerPeer(predecessor, &predecessor_);
 
   initialized_ = true;
-  notifyPredecessorRpc(predecessor_.second, PeerId::self());
-  notifySuccessorRpc(successor_.second, PeerId::self());
+  CHECK(notifyRpc(predecessor_->id, PeerId::self()));
+  CHECK(notifyRpc(successor_->id, PeerId::self()));
 }
 
 void ChordIndex::leave() {
-  leaving_ = true;
-  leaveRpc(successor_.second, PeerId::self(), predecessor_.second,
-           successor_.second);
+  terminate_ = true;
   // TODO(tcies) move data to successor
   initialized_ = false;
 }
 
-PeerId ChordIndex::closestPrecedingFinger(const Key& key) const {
+std::shared_ptr<ChordIndex::ChordPeer> ChordIndex::closestPrecedingFinger(
+    const Key& key) const {
   // TODO(tcies) verify corner cases
   CHECK(false) << "Corner cases not verified";
   for (size_t i = 0; i < M; ++i) {
     size_t index = M - 1 - i;
-    Key actual_key = key(fingers_[index].second);
+    Key actual_key = fingers_[index].peer->key;
     if (isIn(actual_key, own_key_, key)) {
-      return index;
+      return fingers_[index].peer;
     }
   }
   LOG(FATAL) << "Called closest preceding finger on key which is smaller " <<
       "than successor key";
+  return std::shared_ptr<ChordIndex::ChordPeer>();
 }
 
-PeerId ChordIndex::findSuccessorAndFixFinger(
-    int finger_index, const Key& query) {
-  PeerId better_finger_node, response;
-  response = findSuccessorAndFixFingerRpc(
-      fingers_[finger_index].second, query, fingers_[finger_index].first,
-      &better_finger_node);
-  fingers_[finger_index].second = better_finger_node;
-  return response;
-}
-
-ChordIndex::Key ChordIndex::key(const PeerId& id) {
+ChordIndex::Key ChordIndex::hash(const PeerId& id) {
   // TODO(tcies) better method?
   Poco::MD5Engine md5;
   Poco::DigestOutputStream digest_stream(md5);
@@ -175,7 +157,7 @@ ChordIndex::Key ChordIndex::key(const PeerId& id) {
 void ChordIndex::init() {
   LOG(INFO) << "Initializing chord for " << PeerId::self();
   own_key_ = hash(PeerId::self());
-  self_.reset(new ChordPeer(PeerId::self(), own_key_));
+  self_.reset(new ChordPeer(PeerId::self()));
   for (size_t i = 0; i < M; ++i) {
     fingers_[i].base_key = own_key_ + (1 << i); // overflow intended
   }

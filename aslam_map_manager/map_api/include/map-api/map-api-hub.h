@@ -88,6 +88,10 @@ class MapApiHub final {
    * yet, adds permanent connection to the peer.
    */
   void request(const PeerId& peer, Message* request, Message* response);
+  /**
+   * Returns false if timeout
+   */
+  bool try_request(const PeerId& peer, Message* request, Message* response);
 
   static void discoveryHandler(const Message& request, Message* response);
 

@@ -200,6 +200,27 @@ void MapApiHub::request(
   found->second->request(request, response);
 }
 
+bool MapApiHub::try_request(
+    const PeerId& peer, Message* request, Message* response) {
+  //TODO(tcies) review some of this design...
+  CHECK_NOTNULL(request);
+  CHECK_NOTNULL(response);
+  std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
+      peers_.find(peer);
+  if (found == peers_.end()) {
+    std::lock_guard<std::mutex> lock(peer_mutex_);
+    // double-checked locking pattern
+    std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
+        peers_.find(peer);
+    if (found == peers_.end()) {
+      found = peers_.insert(std::make_pair(
+          peer, std::unique_ptr<Peer>(
+              new Peer(peer.ipPort(), *context_, ZMQ_REQ)))).first;
+    }
+  }
+  return found->second->try_request(request, response);
+}
+
 void MapApiHub::broadcast(Message* request,
                           std::unordered_map<PeerId, Message>* responses) {
   CHECK_NOTNULL(request);

@@ -88,7 +88,8 @@ class ChordIndex {
   /**
    * Returns index of finger which is counter-clockwise closest to key.
    */
-  PeerId closestPrecedingFinger(const Key& key) const;
+  std::shared_ptr<ChordIndex::ChordPeer> closestPrecedingFinger(
+      const Key& key) const;
   /**
    * Routine common to create() and join()
    */
