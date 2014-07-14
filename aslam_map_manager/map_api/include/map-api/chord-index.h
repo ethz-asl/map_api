@@ -25,7 +25,7 @@ class ChordIndex {
   typedef uint16_t Key; //TODO(tcies) in the long term, public functions
   // shouldn't expose these kinds of typedefs unless e.g. a serialization
   // method is given as well
-  static constexpr size_t kSuccessorListSize = 3;
+  // static constexpr size_t kSuccessorListSize = 3; TODO(tcies) later
 
   virtual ~ChordIndex();
 
@@ -73,6 +73,18 @@ class ChordIndex {
 
   void stabilizeThread();
 
+  struct ChordPeer {
+    PeerId id;
+    Key key;
+    ChordPeer(const PeerId& _id) : id(_id), key(hash(_id)) {}
+    inline bool isValid() {
+      return id.isValid();
+    }
+    inline void invalidate() {
+      id = PeerId();
+    }
+  };
+
   /**
    * Returns index of finger which is counter-clockwise closest to key.
    */
@@ -81,6 +93,8 @@ class ChordIndex {
    * Routine common to create() and join()
    */
   void init();
+  void registerPeer(const PeerId& peer, std::shared_ptr<ChordPeer>* target);
+
   /**
    * Check whether key is is same as from_inclusive or between from_inclusive
    * and to_exclusive, clockwise. In particular, returns true if from_inclusive
@@ -88,18 +102,6 @@ class ChordIndex {
    */
   bool isIn(const Key& key, const Key& from_inclusive,
             const Key& to_exclusive) const;
-
-  struct ChordPeer {
-    PeerId id;
-    Key key;
-    ChordPeer(const PeerId& _id, const Key& _key) : id(_id), key(_key) {}
-    inline bool isValid() {
-      return id.isValid();
-    }
-    inline void invalidate() {
-      id = PeerId();
-    }
-  };
 
   /**
    * A finger and a successor list item may point to the same peer, yet peer
@@ -118,15 +120,17 @@ class ChordIndex {
    * This map is there to ensure central references to peers within the chord
    * index.
    */
-  std::unordered_map<PeerId, std::weak_ptr<ChordPeer> > peers_;
+  typedef std::unordered_map<PeerId, std::weak_ptr<ChordPeer> > PeerMap;
+  PeerMap peers_;
 
   Finger fingers_[M];
-  SuccessorListItem successors_[kSuccessorListSize];
+  SuccessorListItem successor_;
   std::shared_ptr<ChordPeer> predecessor_;
 
   std::mutex peer_access_;
 
   Key own_key_ = hash(PeerId::self());
+  std::shared_ptr<ChordPeer> self_;
 
   bool initialized_ = false;
   bool terminate_ = false;

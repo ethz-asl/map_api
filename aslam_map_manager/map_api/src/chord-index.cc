@@ -28,7 +28,7 @@ void ChordIndex::handleNotify(const PeerId& peer_id) {
     // already aware of the node
     return;
   }
-  std::shared_ptr<ChordPeer> peer(new ChordPeer(peer_id, hash(peer_id)));
+  std::shared_ptr<ChordPeer> peer(new ChordPeer(peer_id));
   // fix fingers
   for (size_t i = 0; i < M; ++i) {
     if (isIn(peer->key, fingers_[i].base_key, fingers_[i].peer->key)) {
@@ -36,7 +36,8 @@ void ChordIndex::handleNotify(const PeerId& peer_id) {
       // no break intended: multiple fingers can have same peer
     }
   }
-  // fix successors
+  // fix successors TODO(tcies) later
+  /*
   for (size_t i = 0; i < kSuccessorListSize; ++i) {
     bool condition = false;
     if (i == 0 && isIn(peer->key, own_key_, successors_[0]->key)) {
@@ -53,6 +54,10 @@ void ChordIndex::handleNotify(const PeerId& peer_id) {
       break;
     }
   }
+   */
+  if (isIn(peer->key, own_key_, successor_->key)) {
+    successor_ = peer;
+  }
   // fix predecessor
   if (isIn(peer->key, predecessor_->key, own_key_)) {
     predecessor_ = peer;
@@ -60,12 +65,13 @@ void ChordIndex::handleNotify(const PeerId& peer_id) {
   // save peer to peer map only if information has been useful anywhere
   if (peer.use_count() > 1) {
     peers_[peer_id] = std::weak_ptr<ChordPeer>(peer);
+    // TODO(tcies) how will it be removed?
   }
 }
 
 PeerId ChordIndex::findSuccessor(const Key& key) {
-  if (isIn(key, own_key_, successors_[0]->key)) {
-    return successors_[0]->id;
+  if (isIn(key, own_key_, successor_->key)) {
+    return successor_->id;
   } else {
     PeerId closest_preceding = closestPrecedingFinger(key);
     PeerId result;
@@ -78,19 +84,29 @@ PeerId ChordIndex::findSuccessor(const Key& key) {
 void ChordIndex::create() {
   init();
   for (size_t i = 0; i < M; ++i) {
-    fingers_[i].second = PeerId::self();
+    fingers_[i].peer = self_;
   }
-  predecessor_ = std::make_pair(own_key_, PeerId::self());
+  predecessor_ = self_;;
   initialized_ = true;
 }
 
 void ChordIndex::join(const PeerId& other) {
   init();
   for (size_t i = 0; i < M; ++i) {
-    PeerId finger = findSuccessorRpc(other, fingers_[i].first);
-    fingers_[i].second = finger;
+    PeerId finger;
+    CHECK(findSuccessorRpc(other, fingers_[i].base_key, &finger));
+    PeerMap::iterator found = peers_.find(finger);
+    if (found == peers_.end()){
+      fingers_[i].peer.reset(new ChordPeer(finger));
+      peers_[finger] = std::weak_ptr<ChordPeer>(fingers_[i].peer);
+    } else {
+      std::shared_ptr<ChordPeer> existing = found->second.lock();
+      CHECK(existing);
+      fingers_[i].peer = existing;
+    }
   }
-  PeerId predecessor = getPredecessorRpc(successor_.second);
+  PeerId predecessor;
+  CHECK(getPredecessorRpc(successor_->id, &predecessor));
   Key predecessor_key = hash(predecessor);
   CHECK(predecessor_key != own_key_);
   predecessor_ = std::make_pair(predecessor_key, predecessor);
@@ -157,10 +173,25 @@ ChordIndex::Key ChordIndex::key(const PeerId& id) {
 }
 
 void ChordIndex::init() {
-  LOG(INFO) << PeerId::self();
+  LOG(INFO) << "Initializing chord for " << PeerId::self();
   own_key_ = hash(PeerId::self());
+  self_.reset(new ChordPeer(PeerId::self(), own_key_));
   for (size_t i = 0; i < M; ++i) {
-    fingers_[i].first = own_key_ + (1 << i); // overflow intended
+    fingers_[i].base_key = own_key_ + (1 << i); // overflow intended
+  }
+}
+
+void ChordIndex::registerPeer(
+    const PeerId& peer, std::shared_ptr<ChordPeer>* target) {
+  CHECK_NOTNULL(target);
+  PeerMap::iterator found = peers_.find(peer);
+  if (found == peers_.end()){
+    target->reset(new ChordPeer(peer));
+    peers_[peer] = std::weak_ptr<ChordPeer>(*target);
+  } else {
+    std::shared_ptr<ChordPeer> existing = found->second.lock();
+    CHECK(existing);
+    *target = existing;
   }
 }
 
