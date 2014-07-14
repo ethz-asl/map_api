@@ -205,9 +205,12 @@ bool MapApiHub::try_request(
   //TODO(tcies) review some of this design...
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
-  std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
-      peers_.find(peer);
+  PeerMap::iterator found = peers_.find(peer);
   if (found == peers_.end()) {
+    LOG(INFO) << "couldn't find " << peer << " among " << peers_.size();
+    for (const PeerMap::value_type& peer : peers_) {
+      LOG(INFO) << peer.first;
+    }
     std::lock_guard<std::mutex> lock(peer_mutex_);
     // double-checked locking pattern
     std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =

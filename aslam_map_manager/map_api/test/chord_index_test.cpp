@@ -16,7 +16,7 @@ using namespace map_api;
 class ChordIndexTest : public MultiprocessTest {
  protected:
   virtual void SetUp() {
-    TestChordIndex::instance().staticInit();
+    TestChordIndex::staticInit();
     MapApiCore::instance();
   }
 };
@@ -52,6 +52,30 @@ TEST_F(ChordIndexTest, hashDistribution) {
     hash_ss << ChordIndex::hash(PeerId::self());
     IPC::push(hash_ss.str());
     IPC::barrier(HASH, FLAGS_addresses_to_hash - 1);
+  }
+}
+
+TEST_F(ChordIndexTest, joining) {
+  constexpr size_t kNProcesses = 3;
+  enum Barriers{INIT, ROOT_SHARED, JOINED};
+  if (getSubprocessId() == 0) {
+    TestChordIndex::instance().create();
+    for (size_t i = 1; i < kNProcesses; ++i) {
+      launchSubprocess(i);
+    }
+    IPC::barrier(INIT, kNProcesses - 1);
+    IPC::push(PeerId::self().ipPort());
+    IPC::barrier(ROOT_SHARED, kNProcesses - 1);
+    IPC::barrier(JOINED, kNProcesses - 1);
+    harvest(false);
+  } else {
+    IPC::barrier(INIT, kNProcesses - 1);
+    IPC::barrier(ROOT_SHARED, kNProcesses - 1);
+    std::string root_string;
+    IPC::pop(&root_string);
+    PeerId root(root_string);
+    TestChordIndex::instance().join(root);
+    IPC::barrier(JOINED, kNProcesses - 1);
   }
 }
 

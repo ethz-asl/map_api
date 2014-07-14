@@ -88,7 +88,7 @@ void TestChordIndex::staticHandleFindSuccessor(
   std::istringstream key_ss(request.serialized());
   key_ss >> key;
   std::ostringstream peer_ss;
-  peer_ss << instance().handleFindSuccessor(key);
+  peer_ss << instance().handleFindSuccessor(key).ipPort();
   response->impose<kPeerResponse>(peer_ss.str());
 }
 

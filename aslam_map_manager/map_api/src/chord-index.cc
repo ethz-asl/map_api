@@ -73,10 +73,14 @@ PeerId ChordIndex::findSuccessor(const Key& key) {
   if (isIn(key, own_key_, successor_->key)) {
     return successor_->id;
   } else {
+    LOG(INFO) << 1;
     std::shared_ptr<ChordPeer> closest_preceding = closestPrecedingFinger(key);
+    LOG(INFO) << 1;
     PeerId result;
+    LOG(INFO) << 1;
     // TODO(tcies) handle closest preceding doesn't respond
     CHECK(findSuccessorRpc(closest_preceding->id, key, &result));
+    LOG(INFO) << 1;
     return result;
   }
 }
@@ -86,7 +90,8 @@ void ChordIndex::create() {
   for (size_t i = 0; i < M; ++i) {
     fingers_[i].peer = self_;
   }
-  predecessor_ = self_;;
+  successor_ = self_;
+  predecessor_ = self_;
   initialized_ = true;
 }
 
@@ -97,6 +102,7 @@ void ChordIndex::join(const PeerId& other) {
     CHECK(findSuccessorRpc(other, fingers_[i].base_key, &finger));
     registerPeer(finger, &fingers_[i].peer);
   }
+  successor_ = fingers_[0].peer;
   PeerId predecessor;
   CHECK(getPredecessorRpc(successor_->id, &predecessor));
   Key predecessor_key = hash(predecessor);
@@ -117,7 +123,7 @@ void ChordIndex::leave() {
 std::shared_ptr<ChordIndex::ChordPeer> ChordIndex::closestPrecedingFinger(
     const Key& key) const {
   // TODO(tcies) verify corner cases
-  CHECK(false) << "Corner cases not verified";
+  LOG(WARNING) << "Corner cases not verified";
   for (size_t i = 0; i < M; ++i) {
     size_t index = M - 1 - i;
     Key actual_key = fingers_[index].peer->key;
@@ -158,6 +164,7 @@ void ChordIndex::init() {
   LOG(INFO) << "Initializing chord for " << PeerId::self();
   own_key_ = hash(PeerId::self());
   self_.reset(new ChordPeer(PeerId::self()));
+  LOG(INFO) << "Self key is " << self_->key;
   for (size_t i = 0; i < M; ++i) {
     fingers_[i].base_key = own_key_ + (1 << i); // overflow intended
   }
@@ -180,6 +187,9 @@ void ChordIndex::registerPeer(
 bool ChordIndex::isIn(
     const Key& key, const Key& from_inclusive, const Key& to_exclusive) const {
   if (key == from_inclusive) {
+    return true;
+  }
+  if (to_exclusive == from_inclusive) {
     return true;
   }
   if (from_inclusive <= to_exclusive) { // case doesn't pass 0
