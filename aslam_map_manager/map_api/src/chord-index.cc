@@ -12,13 +12,21 @@ namespace map_api {
 ChordIndex::~ChordIndex() {}
 
 PeerId ChordIndex::handleFindSuccessor(const Key& key) {
-  CHECK(initialized_);
+  std::unique_lock<std::mutex> lock(initialized_mutex_);
+  while (!initialized_) {
+    initialized_cv_.wait(lock);
+  }
+  lock.unlock();
   return findSuccessor(key);
 }
 
 PeerId ChordIndex::handleGetPredecessor() {
-  CHECK(initialized_);
-  std::lock_guard<std::mutex> lock(peer_access_);
+  std::unique_lock<std::mutex> lock(initialized_mutex_);
+  while (!initialized_) {
+    initialized_cv_.wait(lock);
+  }
+  lock.unlock();
+  std::lock_guard<std::mutex> access_lock(peer_access_);
   return predecessor_->id;
 }
 
@@ -28,19 +36,24 @@ bool ChordIndex::handleJoin(
   CHECK_NOTNULL(fingers);
   CHECK_NOTNULL(predecessor);
   CHECK_NOTNULL(redirection);
+  std::unique_lock<std::mutex> lock(initialized_mutex_);
+  while (!initialized_) {
+    initialized_cv_.wait(lock);
+  }
+  lock.unlock();
   Key requester_key = hash(requester);
   if (isIn(requester_key, predecessor_->key, own_key_)) {
     fingers->clear();
     for (size_t i = 0; i < M; ++i) {
       // overflow intended
       PeerId finger = findSuccessor(requester_key + (1 << i));
-      LOG(INFO) << "Finger " << i << " of " << requester_key << " is " <<
-          hash(finger);
       fingers->push_back(finger);
     }
     *predecessor = predecessor_->id;
-    // notifying the former predecessor will be done by joining peer
-    registerPeer(requester, &predecessor_);
+    if (predecessor_->id != PeerId::self()) {
+      CHECK(notifyRpc(predecessor_->id, requester));
+    }
+    handleNotify(requester);
     return true;
   } else {
     *redirection = findSuccessor(requester_key);
@@ -49,7 +62,12 @@ bool ChordIndex::handleJoin(
 }
 
 void ChordIndex::handleNotify(const PeerId& peer_id) {
-  std::lock_guard<std::mutex> lock(peer_access_);
+  std::unique_lock<std::mutex> lock(initialized_mutex_);
+  while (!initialized_) {
+    initialized_cv_.wait(lock);
+  }
+  lock.unlock();
+  std::lock_guard<std::mutex> access_lock(peer_access_);
   if (peers_.find(peer_id) != peers_.end()) {
     // already aware of the node
     return;
@@ -114,27 +132,30 @@ void ChordIndex::create() {
   }
   successor_ = self_;
   predecessor_ = self_;
+  std::unique_lock<std::mutex> lock(initialized_mutex_);
   initialized_ = true;
+  lock.unlock();
+  initialized_cv_.notify_all();
 }
 
 void ChordIndex::join(const PeerId& other) {
   init();
-  for (size_t i = 0; i < M; ++i) {
-    PeerId finger;
-    CHECK(findSuccessorRpc(other, fingers_[i].base_key, &finger));
-    registerPeer(finger, &fingers_[i].peer);
+  bool success = false;
+  PeerId predecessor, redirect = other;
+  std::vector<PeerId> fingers;
+  while (!success) {
+    CHECK(joinRpc(redirect, &success, &fingers, &predecessor, &redirect));
+  }
+  CHECK_EQ(M, fingers.size());
+  for (size_t i = 0; i < fingers.size(); ++i) {
+    registerPeer(fingers[i], &fingers_[i].peer);
   }
   successor_ = fingers_[0].peer;
-  CHECK(successor_->id != PeerId::self());
-  PeerId predecessor;
-  CHECK(getPredecessorRpc(successor_->id, &predecessor));
-  Key predecessor_key = hash(predecessor);
-  CHECK(predecessor_key != own_key_);
   registerPeer(predecessor, &predecessor_);
-
+  std::unique_lock<std::mutex> lock(initialized_mutex_);
   initialized_ = true;
-  CHECK(notifyRpc(predecessor_->id, PeerId::self()));
-  CHECK(notifyRpc(successor_->id, PeerId::self()));
+  lock.unlock();
+  initialized_cv_.notify_all();
 }
 
 void ChordIndex::leave() {
@@ -145,8 +166,6 @@ void ChordIndex::leave() {
 
 std::shared_ptr<ChordIndex::ChordPeer> ChordIndex::closestPrecedingFinger(
     const Key& key) const {
-  // TODO(tcies) verify corner cases
-  LOG(WARNING) << "Corner cases not verified";
   for (size_t i = 0; i < M; ++i) {
     size_t index = M - 1 - i;
     Key actual_key = fingers_[index].peer->key;

@@ -58,7 +58,7 @@ class TestChordIndex final : public ChordIndex {
       const PeerId& to, bool* success, std::vector<PeerId>* fingers,
       PeerId* predecessor, PeerId* redirect) final override;
   virtual bool notifyRpc(
-      const PeerId& to, const PeerId& self) final override;
+      const PeerId& to, const PeerId& subject) final override;
 
   PeerHandler peers_;
 };
@@ -181,6 +181,7 @@ bool TestChordIndex::joinRpc(
   Message request, response;
   request.impose<kJoinRequest>();
   if (!instance().peers_.try_request(to, &request, &response)) {
+    LOG(WARNING) << "Can't reach " << to;
     return false;
   }
   if (response.isType<kJoinResponse>()) {

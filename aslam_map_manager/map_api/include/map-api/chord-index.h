@@ -1,6 +1,7 @@
 #ifndef MAP_API_CHORD_INDEX_H_
 #define MAP_API_CHORD_INDEX_H_
 
+#include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
@@ -79,7 +80,7 @@ class ChordIndex {
   virtual bool joinRpc(
       const PeerId& to, bool* success, std::vector<PeerId>* fingers,
       PeerId* predecessor, PeerId* redirect) = 0;
-  virtual bool notifyRpc(const PeerId& to, const PeerId& self) = 0;
+  virtual bool notifyRpc(const PeerId& to, const PeerId& subject) = 0;
 
   void stabilizeThread();
 
@@ -144,6 +145,8 @@ class ChordIndex {
   std::shared_ptr<ChordPeer> self_;
 
   bool initialized_ = false;
+  std::mutex initialized_mutex_;
+  std::condition_variable initialized_cv_;
   bool terminate_ = false;
 };
 

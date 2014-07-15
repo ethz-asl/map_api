@@ -55,9 +55,9 @@ TEST_F(ChordIndexTest, hashDistribution) {
   }
 }
 
-TEST_F(ChordIndexTest, joining) {
+TEST_F(ChordIndexTest, onePeerJoin) {
   constexpr size_t kNProcesses = 3;
-  enum Barriers{INIT, ROOT_SHARED, JOINED};
+  enum Barriers{INIT, ROOT_SHARED, JOINED, SHARED_PEERS};
   if (getSubprocessId() == 0) {
     TestChordIndex::instance().create();
     for (size_t i = 1; i < kNProcesses; ++i) {
@@ -67,9 +67,19 @@ TEST_F(ChordIndexTest, joining) {
     IPC::push(PeerId::self().ipPort());
     IPC::barrier(ROOT_SHARED, kNProcesses - 1);
     IPC::barrier(JOINED, kNProcesses - 1);
-    LOG(INFO) << TestChordIndex::instance().predecessor_->id << " " <<
-        TestChordIndex::instance().successor_->id;
+    std::map<std::string, int> peers;
+    ++peers[TestChordIndex::instance().predecessor_->id.ipPort()];
+    ++peers[TestChordIndex::instance().successor_->id.ipPort()];
+    IPC::barrier(SHARED_PEERS, kNProcesses - 1);
+    for (size_t i = 0; i < 2*kNProcesses; ++i) {
+      std::string peer;
+      IPC::pop(&peer);
+      ++peers[peer];
+    }
     harvest(false);
+    for (const std::pair<std::string, int> peer_count : peers) {
+      EXPECT_EQ(2, peer_count.second);
+    }
   } else {
     IPC::barrier(INIT, kNProcesses - 1);
     IPC::barrier(ROOT_SHARED, kNProcesses - 1);
@@ -78,8 +88,9 @@ TEST_F(ChordIndexTest, joining) {
     PeerId root(root_string);
     TestChordIndex::instance().join(root);
     IPC::barrier(JOINED, kNProcesses - 1);
-    LOG(INFO) << TestChordIndex::instance().predecessor_->id << " " <<
-        TestChordIndex::instance().successor_->id;
+    IPC::push(TestChordIndex::instance().predecessor_->id.ipPort());
+    IPC::push(TestChordIndex::instance().successor_->id.ipPort());
+    IPC::barrier(SHARED_PEERS, kNProcesses - 1);
   }
 }
 
