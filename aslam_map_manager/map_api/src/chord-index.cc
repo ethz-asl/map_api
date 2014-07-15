@@ -22,6 +22,32 @@ PeerId ChordIndex::handleGetPredecessor() {
   return predecessor_->id;
 }
 
+bool ChordIndex::handleJoin(
+    const PeerId& requester, std::vector<PeerId>* fingers,
+    PeerId* predecessor, PeerId* redirection) {
+  CHECK_NOTNULL(fingers);
+  CHECK_NOTNULL(predecessor);
+  CHECK_NOTNULL(redirection);
+  Key requester_key = hash(requester);
+  if (isIn(requester_key, predecessor_->key, own_key_)) {
+    fingers->clear();
+    for (size_t i = 0; i < M; ++i) {
+      // overflow intended
+      PeerId finger = findSuccessor(requester_key + (1 << i));
+      LOG(INFO) << "Finger " << i << " of " << requester_key << " is " <<
+          hash(finger);
+      fingers->push_back(finger);
+    }
+    *predecessor = predecessor_->id;
+    // notifying the former predecessor will be done by joining peer
+    registerPeer(requester, &predecessor_);
+    return true;
+  } else {
+    *redirection = findSuccessor(requester_key);
+    return false;
+  }
+}
+
 void ChordIndex::handleNotify(const PeerId& peer_id) {
   std::lock_guard<std::mutex> lock(peer_access_);
   if (peers_.find(peer_id) != peers_.end()) {

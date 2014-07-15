@@ -1,17 +1,6 @@
 package map_api.proto;
 
-message TestChordIndexFindSuccessorFixFingerRequest {
-  required uint32 query = 1;
-  required uint32 finger_base = 2;
-}
-
-message TestChordIndexFindSuccessorFixFingerResponse {
-  required string result = 1;
-  required string actual_finger = 2;
-}
-
-message TestChordIndexLeaveRequest {
-  required string leaver = 1;
-  required string predecessor = 2;
-  required string successor = 3;
+message JoinResponse {
+  repeated string fingers = 1;
+  optional string predecessor = 2;
 }

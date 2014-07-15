@@ -35,6 +35,13 @@ class ChordIndex {
   PeerId handleFindSuccessor(const Key& key);
   PeerId handleGetPredecessor();
   /**
+   * Returns true if current peer is indeed the successor to the requesting
+   * peer, false if the requester is to be redirected.
+   */
+  bool handleJoin(
+      const PeerId& requester, std::vector<PeerId>* fingers,
+      PeerId* predecessor, PeerId* redirection);
+  /**
    * Any peer notifies us about their existence.
    */
   void handleNotify(const PeerId& peer_id);
@@ -69,6 +76,9 @@ class ChordIndex {
   virtual bool findSuccessorRpc(const PeerId& to, const Key& argument,
                                 PeerId* successor) = 0;
   virtual bool getPredecessorRpc(const PeerId& to, PeerId* predecessor) = 0;
+  virtual bool joinRpc(
+      const PeerId& to, bool* success, std::vector<PeerId>* fingers,
+      PeerId* predecessor, PeerId* redirect) = 0;
   virtual bool notifyRpc(const PeerId& to, const PeerId& self) = 0;
 
   void stabilizeThread();
