@@ -41,7 +41,6 @@ bool ChordIndex::handleGetSuccessor(PeerId* result) {
 
 bool ChordIndex::handleGetPredecessor(PeerId* result) {
   if (!waitUntilInitialized()) {
-    LOG(INFO) << PeerId::self();
     return false;
   }
   std::lock_guard<std::mutex> access_lock(peer_access_);
@@ -101,13 +100,13 @@ bool ChordIndex::handleNotify(const PeerId& peer_id) {
   //  }
   if (isIn(peer->key, own_key_, successor_->key)) {
     successor_ = peer;
-    LOG(INFO) << own_key_ << " changed successor to " << peer->key <<
+    VLOG(3) << own_key_ << " changed successor to " << peer->key <<
         " by notification";
   }
   // fix predecessor
   if (isIn(peer->key, predecessor_->key, own_key_)) {
     predecessor_ = peer;
-    LOG(INFO) << own_key_ << " changed predecessor to " << peer->key <<
+    VLOG(3) << own_key_ << " changed predecessor to " << peer->key <<
         " by notification";
   }
   // save peer to peer map only if information has been useful anywhere
@@ -195,7 +194,6 @@ void ChordIndex::leave() {
   // TODO(tcies) move data to successor
   usleep(5000); // TODO(tcies) unhack!
   initialized_ = false;
-  LOG(INFO) << "all notified";
   initialized_cv_.notify_all();
 }
 
@@ -256,7 +254,7 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
           isIn(hash(successor_predecessor), self->own_key_,
                self->successor_->key)) {
         self->registerPeer(successor_predecessor, &self->successor_);
-        LOG(INFO) << self->own_key_ << " changed successor to " <<
+        VLOG(3) << self->own_key_ << " changed successor to " <<
             hash(successor_predecessor) << " through stabilization";
       }
       if (!self->notifyRpc(self->successor_->id, PeerId::self())) {
