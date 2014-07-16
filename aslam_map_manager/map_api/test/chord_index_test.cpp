@@ -114,4 +114,53 @@ TEST_F(ChordIndexTest, localData) {
   TestChordIndex::instance().leave();
 }
 
+TEST_F(ChordIndexTest, joinStabilizeAddRetrieve) {
+  const size_t kNProcesses = FLAGS_chord_processes;
+  const size_t kNData = 5;
+  enum Barriers{INIT, ROOT_SHARED, JOINED_STABILIZED, ADDED_RETRIEVED};
+  if (getSubprocessId() == 0) {
+    TestChordIndex::instance().create();
+    std::ostringstream command_extra;
+    command_extra << "--chord_processes=" << FLAGS_chord_processes;
+    for (size_t i = 1; i < kNProcesses; ++i) {
+      launchSubprocess(i, command_extra.str());
+    }
+    IPC::barrier(INIT, kNProcesses - 1);
+    IPC::push(PeerId::self().ipPort());
+    IPC::barrier(ROOT_SHARED, kNProcesses - 1);
+    usleep(10 * kNProcesses * FLAGS_stabilize_us); // yes, 10 is a magic number
+    // it should be an upper bound of the amount of required stabilization
+    // iterations per process
+    IPC::barrier(JOINED_STABILIZED, kNProcesses - 1);
+    ASSERT_GT(kNProcesses, 1);
+    for (size_t i = 0; i < kNData; ++i) {
+      std::string key, value, result;
+      // forge data that is stored remotely
+      for (size_t salt = 0; ; ++salt) {
+        std::ostringstream suffix;
+        suffix << i << ":" << salt;
+        key = "key" + suffix.str();
+        value = "value" + suffix.str();
+        ASSERT_TRUE(TestChordIndex::instance().addData(key, value));
+        if (!TestChordIndex::instance().retrieveDataLocally(key, &result)) {
+          break;
+        }
+      }
+      EXPECT_TRUE(TestChordIndex::instance().retrieveData(key, &result));
+      EXPECT_EQ(value, result);
+    }
+    IPC::barrier(ADDED_RETRIEVED, kNProcesses - 1);
+  } else {
+    IPC::barrier(INIT, kNProcesses - 1);
+    IPC::barrier(ROOT_SHARED, kNProcesses - 1);
+    std::string root_string;
+    IPC::pop(&root_string);
+    PeerId root(root_string);
+    TestChordIndex::instance().join(root);
+    IPC::barrier(JOINED_STABILIZED, kNProcesses - 1);
+    IPC::barrier(ADDED_RETRIEVED, kNProcesses - 1);
+  }
+  TestChordIndex::instance().leave();
+}
+
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT

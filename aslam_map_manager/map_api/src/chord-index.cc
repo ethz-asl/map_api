@@ -193,6 +193,7 @@ PeerId ChordIndex::findPredecessor(const Key& key) {
   CHECK(getSuccessorRpc(result, &result_successor));
   while (!isIn(key, hash(result), hash(result_successor))) {
     CHECK(getClosestPrecedingFingerRpc(result, key, &result));
+    CHECK(getSuccessorRpc(result, &result_successor));
   }
   return result;
 }
@@ -258,17 +259,20 @@ void ChordIndex::leave() {
 
 std::shared_ptr<ChordIndex::ChordPeer> ChordIndex::closestPrecedingFinger(
     const Key& key) const {
-  for (size_t i = 0; i < M; ++i) {
-    size_t index = M - 1 - i;
-    Key actual_key = fingers_[index].peer->key;
-    // + 1 in case finger = self TODO(tcies) cleaner?
-    if (isIn(actual_key, own_key_ + 1, key)) {
-      return fingers_[index].peer;
-    }
-  }
-  LOG(FATAL) << "Called closest preceding finger on key which is smaller " <<
-      "than successor key";
-  return std::shared_ptr<ChordIndex::ChordPeer>();
+  // TODO(tcies) fingers
+  //  for (size_t i = 0; i < M; ++i) {
+  //    size_t index = M - 1 - i;
+  //    Key actual_key = fingers_[index].peer->key;
+  //    // + 1 in case finger = self TODO(tcies) cleaner?
+  //    if (isIn(actual_key, own_key_ + 1, key)) {
+  //      return fingers_[index].peer;
+  //    }
+  //  }
+  //  LOG(FATAL) << "Called closest preceding finger on key which is smaller " <<
+  //      "than successor key";
+  //  return std::shared_ptr<ChordIndex::ChordPeer>();
+  CHECK(!isIn(key, own_key_, successor_->key));
+  return successor_;
 }
 
 void ChordIndex::stabilizeThread(ChordIndex* self) {
@@ -278,6 +282,7 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
   }
   while (!self->terminate_) {
     PeerId successor_predecessor;
+    // self->peer_access_.lock(); // TODO(tcies) deadlock? FIXME(tcies) yes
     if (self->successor_->id != PeerId::self()) {
       if (!self->getPredecessorRpc(self->successor_->id, &successor_predecessor)) {
         // Node leaves have not been accounted for yet. However, not crashing
@@ -296,6 +301,7 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
         continue;
       }
     }
+    // self->peer_access_.unlock(); FIXME(tcies) deadlock: RWLock?
     usleep(FLAGS_stabilize_us);
     // TODO(tcies) finger fixing
   }
