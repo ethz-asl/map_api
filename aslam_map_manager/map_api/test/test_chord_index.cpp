@@ -212,6 +212,24 @@ void TestChordIndex::staticHandleAddData(
   request.extract<kAddDataRequest>(&add_data_request);
   CHECK(add_data_request.has_key());
   CHECK(add_data_request.has_value());
+  if (instance().handleAddData(
+      add_data_request.key(), add_data_request.value())) {
+    response->ack();
+  } else {
+    response->decline();
+  }
+}
+
+void TestChordIndex::staticHandleRetrieveData(
+    const Message& request, Message* response) {
+  CHECK_NOTNULL(response);
+  std::string key, value;
+  request.extract<kRetrieveDataRequest>(&key);
+  if (instance().handleRetrieveData(key, &value)) {
+    response->impose<kRetrieveDataResponse>(value);
+  } else {
+    response->decline();
+  }
 }
 
 // ========
@@ -230,6 +248,7 @@ bool TestChordIndex::getClosestPrecedingFingerRpc(
   if (response.isType<Message::kDecline>()) {
     return false;
   }
+  CHECK(response.isType<kPeerResponse>());
   *result = PeerId(response.serialized());
   return true;
 }
@@ -244,6 +263,7 @@ bool TestChordIndex::getSuccessorRpc(const PeerId& to, PeerId* result) {
   if (response.isType<Message::kDecline>()) {
     return false;
   }
+  CHECK(response.isType<kPeerResponse>());
   *result = PeerId(response.serialized());
   return true;
 }
@@ -258,6 +278,7 @@ bool TestChordIndex::getPredecessorRpc(const PeerId& to, PeerId* result) {
   if (response.isType<Message::kDecline>()) {
     return false;
   }
+  CHECK(response.isType<kPeerResponse>());
   *result = PeerId(response.serialized());
   return true;
 }
@@ -298,13 +319,42 @@ bool TestChordIndex::joinRpc(
 }
 
 bool TestChordIndex::notifyRpc(
-    const PeerId& successor, const PeerId& self) {
+    const PeerId& to, const PeerId& self) {
   Message request, response;
   request.impose<kNotifyRequest>(self.ipPort());
-  if (!instance().peers_.try_request(successor, &request, &response)) {
+  if (!instance().peers_.try_request(to, &request, &response)) {
     return false;
   }
   return response.isType<Message::kAck>();
+}
+
+bool TestChordIndex::addDataRpc(
+    const PeerId& to, const std::string& key, const std::string& value) {
+  Message request, response;
+  proto::AddDataRequest add_data_request;
+  add_data_request.set_key(key);
+  add_data_request.set_value(value);
+  request.impose<kAddDataRequest>(add_data_request);
+  if (!instance().peers_.try_request(to, &request, &response)) {
+    return false;
+  }
+  return response.isType<Message::kAck>();
+}
+
+bool TestChordIndex::retrieveDataRpc(
+    const PeerId& to, const std::string& key, std::string* value) {
+  CHECK_NOTNULL(value);
+  Message request, response;
+  request.impose<kRetrieveDataRequest>(key);
+  if (!instance().peers_.try_request(to, &request, &response)) {
+    return false;
+  }
+  if (response.isType<Message::kDecline>()) {
+    return false;
+  }
+  CHECK(response.isType<kRetrieveDataResponse>());
+  response.extract<kRetrieveDataResponse>(value);
+  return true;
 }
 
 } // namespace map_api

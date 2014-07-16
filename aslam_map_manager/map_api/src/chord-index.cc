@@ -142,6 +142,17 @@ bool ChordIndex::handleNotify(const PeerId& peer_id) {
   return true;
 }
 
+bool ChordIndex::handleAddData(
+    const std::string& key, const std::string& value) {
+  return addDataLocally(key, value);
+}
+
+bool ChordIndex::handleRetrieveData(
+    const std::string& key, std::string* value) {
+  CHECK_NOTNULL(value);
+  return retrieveDataLocally(key, value);
+}
+
 bool ChordIndex::addData(const std::string& key, const std::string& value) {
   Key chord_key = hash(key);
   PeerId successor = findSuccessor(chord_key);
