@@ -129,7 +129,7 @@ void TestChordIndex::staticHandleGetSuccessor(
   CHECK(request.isType<kGetSuccessorRequest>());
   CHECK_NOTNULL(response);
   PeerId successor;
-  if (instance().handleGetSuccessor(&successor)) {
+  if (!instance().handleGetSuccessor(&successor)) {
     response->decline();
     return;
   }
@@ -141,7 +141,7 @@ void TestChordIndex::staticHandleGetPredecessor(
   CHECK(request.isType<kGetPredecessorRequest>());
   CHECK_NOTNULL(response);
   PeerId predecessor;
-  if (instance().handleGetPredecessor(&predecessor)) {
+  if (!instance().handleGetPredecessor(&predecessor)) {
     response->decline();
     return;
   }

@@ -11,6 +11,8 @@
 #include "test_chord_index.cpp"
 #include "multiprocess_fixture.cpp"
 
+DECLARE_uint64(stabilize_us);
+
 using namespace map_api;
 
 class ChordIndexTest : public MultiprocessTest {
@@ -69,7 +71,9 @@ TEST_F(ChordIndexTest, onePeerJoin) {
     IPC::barrier(INIT, kNProcesses - 1);
     IPC::push(PeerId::self().ipPort());
     IPC::barrier(ROOT_SHARED, kNProcesses - 1);
-    usleep(50000);
+    usleep(10 * kNProcesses * FLAGS_stabilize_us); // yes, 10 is a magic number
+    // it should be an upper bound of the amount of required stabilization
+    // iterations per process
     IPC::barrier(JOINED, kNProcesses - 1);
     std::map<std::string, int> peers;
     ++peers[TestChordIndex::instance().predecessor_->id.ipPort()];

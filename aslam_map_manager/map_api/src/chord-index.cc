@@ -13,6 +13,7 @@ const std::string kStabilizeJoin("stabilize");
 
 DEFINE_string(join_mode, kStabilizeJoin,
               ("Can be " + kCleanJoin + " or " + kStabilizeJoin).c_str());
+DEFINE_uint64(stabilize_us, 1000, "Interval of stabilization in microseconds");
 
 namespace map_api {
 
@@ -100,13 +101,13 @@ bool ChordIndex::handleNotify(const PeerId& peer_id) {
   //  }
   if (isIn(peer->key, own_key_, successor_->key)) {
     successor_ = peer;
-    LOG(INFO) << PeerId::self() << " changed successor to " << peer->id <<
+    LOG(INFO) << own_key_ << " changed successor to " << peer->key <<
         " by notification";
   }
   // fix predecessor
   if (isIn(peer->key, predecessor_->key, own_key_)) {
     predecessor_ = peer;
-    LOG(INFO) << PeerId::self() << " changed predecessor to " << peer->id <<
+    LOG(INFO) << own_key_ << " changed predecessor to " << peer->key <<
         " by notification";
   }
   // save peer to peer map only if information has been useful anywhere
@@ -194,6 +195,7 @@ void ChordIndex::leave() {
   // TODO(tcies) move data to successor
   usleep(5000); // TODO(tcies) unhack!
   initialized_ = false;
+  LOG(INFO) << "all notified";
   initialized_cv_.notify_all();
 }
 
@@ -238,11 +240,9 @@ ChordIndex::Key ChordIndex::hash(const PeerId& id) {
 
 void ChordIndex::stabilizeThread(ChordIndex* self) {
   CHECK_NOTNULL(self);
-  //  LOG(INFO) << "Stabilize thread launched";
   if (!self->waitUntilInitialized()) {
     return;
   }
-  LOG(INFO) << "Stabilize thread taking up normal operation";
   while (!self->terminate_) {
     PeerId successor_predecessor;
     if (self->successor_->id != PeerId::self()) {
@@ -256,17 +256,16 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
           isIn(hash(successor_predecessor), self->own_key_,
                self->successor_->key)) {
         self->registerPeer(successor_predecessor, &self->successor_);
-        LOG(INFO) << PeerId::self() << " changed successor to " <<
-            successor_predecessor << " through stabilization";
+        LOG(INFO) << self->own_key_ << " changed successor to " <<
+            hash(successor_predecessor) << " through stabilization";
       }
       if (!self->notifyRpc(self->successor_->id, PeerId::self())) {
         continue;
       }
     }
-    usleep(1000);
+    usleep(FLAGS_stabilize_us);
     // TODO(tcies) finger fixing
   }
-  // LOG(INFO) << "stabilize thread terminating";
 }
 
 void ChordIndex::init() {
@@ -277,6 +276,7 @@ void ChordIndex::init() {
   for (size_t i = 0; i < M; ++i) {
     fingers_[i].base_key = own_key_ + (1 << i); // overflow intended
   }
+  terminate_ = false;
   stabilizer_ = std::thread(stabilizeThread, this);
 }
 
@@ -312,10 +312,10 @@ bool ChordIndex::isIn(
 bool ChordIndex::waitUntilInitialized() {
   std::unique_lock<std::mutex> lock(initialized_mutex_);
   while (!initialized_) {
-    initialized_cv_.wait(lock);
     if (terminate_) {
       return false;
     }
+    initialized_cv_.wait(lock);
   }
   lock.unlock();
   initialized_cv_.notify_all();
