@@ -28,6 +28,10 @@ class TestChordIndex final : public ChordIndex {
       const Message& request, Message* response);
   static void staticHandleNotify(
       const Message& request, Message* response);
+  static void staticHandleAddData(
+      const Message& request, Message* response);
+  static void staticHandleRetrieveData(
+      const Message& request, Message* response);
   /**
    * RPC types
    */
@@ -39,6 +43,9 @@ class TestChordIndex final : public ChordIndex {
   static const char kJoinResponse[];
   static const char kJoinRedirect[];
   static const char kNotifyRequest[];
+  static const char kAddDataRequest[];
+  static const char kRetrieveDataRequest[];
+  static const char kRetrieveDataResponse[];
 
   /**
    * Inits handlers, must be called before core::init
@@ -64,6 +71,12 @@ class TestChordIndex final : public ChordIndex {
       PeerId* predecessor, PeerId* redirect) final override;
   virtual bool notifyRpc(
       const PeerId& to, const PeerId& subject) final override;
+  virtual bool addDataRpc(
+      const PeerId& to, const std::string& key, const std::string& value)
+  final override;
+  virtual bool retrieveDataRpc(
+      const PeerId& to, const std::string& key, std::string* value)
+  final override;
 
   PeerHandler peers_;
 };
@@ -84,12 +97,21 @@ const char TestChordIndex::kJoinRedirect[] =
     "test_chord_index_join_redirect";
 const char TestChordIndex::kNotifyRequest[] =
     "test_chord_index_notify_request";
+const char TestChordIndex::kAddDataRequest[] =
+    "test_chord_index_add_data_request";
+const char TestChordIndex::kRetrieveDataRequest[] =
+    "test_chord_index_retrieve_data_request";
+const char TestChordIndex::kRetrieveDataResponse[] =
+    "test_chord_index_retrieve_data_response";
 
 MAP_API_STRING_MESSAGE(TestChordIndex::kPeerResponse);
 MAP_API_STRING_MESSAGE(TestChordIndex::kGetClosestPrecedingFingerRequest);
 MAP_API_STRING_MESSAGE(TestChordIndex::kJoinRedirect);
 MAP_API_PROTO_MESSAGE(TestChordIndex::kJoinResponse, proto::JoinResponse);
 MAP_API_STRING_MESSAGE(TestChordIndex::kNotifyRequest);
+MAP_API_PROTO_MESSAGE(TestChordIndex::kAddDataRequest, proto::AddDataRequest);
+MAP_API_STRING_MESSAGE(TestChordIndex::kRetrieveDataRequest);
+MAP_API_STRING_MESSAGE(TestChordIndex::kRetrieveDataResponse);
 
 void TestChordIndex::staticInit() {
   MapApiHub::instance().registerHandler(
@@ -102,6 +124,10 @@ void TestChordIndex::staticInit() {
       kJoinRequest, staticHandleJoin);
   MapApiHub::instance().registerHandler(
       kNotifyRequest, staticHandleNotify);
+  MapApiHub::instance().registerHandler(
+      kAddDataRequest, staticHandleAddData);
+  MapApiHub::instance().registerHandler(
+      kRetrieveDataRequest, staticHandleRetrieveData);
 }
 
 // ========
@@ -177,6 +203,15 @@ void TestChordIndex::staticHandleNotify(
   CHECK_NOTNULL(response);
   instance().handleNotify(PeerId(request.serialized()));
   response->ack();
+}
+
+void TestChordIndex::staticHandleAddData(
+    const Message& request, Message* response) {
+  CHECK_NOTNULL(response);
+  proto::AddDataRequest add_data_request;
+  request.extract<kAddDataRequest>(&add_data_request);
+  CHECK(add_data_request.has_key());
+  CHECK(add_data_request.has_value());
 }
 
 // ========

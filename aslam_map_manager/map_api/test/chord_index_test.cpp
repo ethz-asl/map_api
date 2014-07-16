@@ -18,6 +18,8 @@ using namespace map_api;
 class ChordIndexTest : public MultiprocessTest {
  protected:
   virtual void SetUp() {
+    // not using MultiprocessTest::SetUp intentionally - need to register
+    // handlers first
     TestChordIndex::staticInit();
     MapApiCore::instance();
   }
@@ -57,14 +59,15 @@ TEST_F(ChordIndexTest, hashDistribution) {
   }
 }
 
-DEFINE_uint64(join_processes, 10, "Amount of processes to test join with");
+DEFINE_uint64(chord_processes, 10, "Amount of processes to test chord with");
+
 TEST_F(ChordIndexTest, onePeerJoin) {
-  const size_t kNProcesses = FLAGS_join_processes;
+  const size_t kNProcesses = FLAGS_chord_processes;
   enum Barriers{INIT, ROOT_SHARED, JOINED, SHARED_PEERS};
   if (getSubprocessId() == 0) {
     TestChordIndex::instance().create();
     std::ostringstream command_extra;
-    command_extra << "--join_processes=" << FLAGS_join_processes;
+    command_extra << "--chord_processes=" << FLAGS_chord_processes;
     for (size_t i = 1; i < kNProcesses; ++i) {
       launchSubprocess(i, command_extra.str());
     }
@@ -99,6 +102,15 @@ TEST_F(ChordIndexTest, onePeerJoin) {
     IPC::push(TestChordIndex::instance().successor_->id.ipPort());
     IPC::barrier(SHARED_PEERS, kNProcesses - 1);
   }
+  TestChordIndex::instance().leave();
+}
+
+TEST_F(ChordIndexTest, localData) {
+  TestChordIndex::instance().create();
+  EXPECT_TRUE(TestChordIndex::instance().addData("key", "data"));
+  std::string result;
+  EXPECT_TRUE(TestChordIndex::instance().retrieveData("key", &result));
+  EXPECT_EQ("data", result);
   TestChordIndex::instance().leave();
 }
 

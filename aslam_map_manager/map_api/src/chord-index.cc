@@ -19,6 +19,31 @@ namespace map_api {
 
 ChordIndex::~ChordIndex() {}
 
+template<typename DataType>
+ChordIndex::Key ChordIndex::hash(const DataType& data) {
+  // TODO(tcies) better method?
+  Poco::MD5Engine md5;
+  Poco::DigestOutputStream digest_stream(md5);
+  digest_stream << data;
+  digest_stream.flush();
+  const Poco::DigestEngine::Digest& digest = md5.digest();
+  bool digest_still_uchar_vec =
+      std::is_same<
+      Poco::DigestEngine::Digest, std::vector<unsigned char> >::value;
+  CHECK(digest_still_uchar_vec) <<
+      "Underlying type of Digest changed since Poco 1.3.6";
+  union KeyUnion {
+    Key key;
+    unsigned char bytes[sizeof(Key)];
+  };
+  CHECK_EQ(sizeof(Key), sizeof(KeyUnion));
+  KeyUnion return_value;
+  for (size_t i = 0; i < sizeof(Key); ++i) {
+    return_value.bytes[i] = digest[i];
+  }
+  return return_value.key;
+}
+
 bool ChordIndex::handleGetClosestPrecedingFinger(
     const Key& key, PeerId* result) {
   CHECK_NOTNULL(result);
@@ -117,6 +142,29 @@ bool ChordIndex::handleNotify(const PeerId& peer_id) {
   return true;
 }
 
+bool ChordIndex::addData(const std::string& key, const std::string& value) {
+  Key chord_key = hash(key);
+  PeerId successor = findSuccessor(chord_key);
+  if (successor == PeerId::self()) {
+    return addDataLocally(key, value);
+  } else {
+    CHECK(addDataRpc(successor, key, value));
+    return true;
+  }
+}
+
+bool ChordIndex::retrieveData(const std::string& key, std::string* value) {
+  CHECK_NOTNULL(value);
+  Key chord_key = hash(key);
+  PeerId successor = findSuccessor(chord_key);
+  if (successor == PeerId::self()) {
+    return retrieveDataLocally(key, value);
+  } else {
+    CHECK(retrieveDataRpc(successor, key, value));
+    return true;
+  }
+}
+
 PeerId ChordIndex::findSuccessor(const Key& key) {
   if (isIn(key, own_key_, successor_->key)) {
     return successor_->id;
@@ -212,30 +260,6 @@ std::shared_ptr<ChordIndex::ChordPeer> ChordIndex::closestPrecedingFinger(
   return std::shared_ptr<ChordIndex::ChordPeer>();
 }
 
-ChordIndex::Key ChordIndex::hash(const PeerId& id) {
-  // TODO(tcies) better method?
-  Poco::MD5Engine md5;
-  Poco::DigestOutputStream digest_stream(md5);
-  digest_stream << id;
-  digest_stream.flush();
-  const Poco::DigestEngine::Digest& digest = md5.digest();
-  bool diges_still_uchar_vec =
-      std::is_same<
-      Poco::DigestEngine::Digest, std::vector<unsigned char> >::value;
-  CHECK(diges_still_uchar_vec) <<
-      "Underlying type of Digest changed since Poco 1.3.6";
-  union KeyUnion {
-    Key key;
-    unsigned char bytes[sizeof(Key)];
-  };
-  CHECK_EQ(sizeof(Key), sizeof(KeyUnion));
-  KeyUnion return_value;
-  for (size_t i = 0; i < sizeof(Key); ++i) {
-    return_value.bytes[i] = digest[i];
-  }
-  return return_value.key;
-}
-
 void ChordIndex::stabilizeThread(ChordIndex* self) {
   CHECK_NOTNULL(self);
   if (!self->waitUntilInitialized()) {
@@ -317,6 +341,28 @@ bool ChordIndex::waitUntilInitialized() {
   }
   lock.unlock();
   initialized_cv_.notify_all();
+  return true;
+}
+
+bool ChordIndex::addDataLocally(
+    const std::string& key, const std::string& value) {
+  if (data_.find(key) != data_.end()) {
+    LOG(ERROR) << "Data with given key " << key << " already exists";
+    return false;
+  }
+  data_[key] = value;
+  return true;
+}
+
+bool ChordIndex::retrieveDataLocally(
+    const std::string& key, std::string* value) {
+  CHECK_NOTNULL(value);
+  DataMap::iterator found = data_.find(key);
+  if (found == data_.end()) {
+    LOG(ERROR) << "Data with given key " << key << " does not exist";
+    return false;
+  }
+  *value = data_[key];
   return true;
 }
 

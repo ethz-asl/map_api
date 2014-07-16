@@ -49,6 +49,15 @@ class ChordIndex {
    * Any peer notifies us about their existence.
    */
   bool handleNotify(const PeerId& peer_id);
+  bool handleAddData(const std::string& key, const std::string& value);
+  bool handleRetrieveData(const std::string& key, std::string* value);
+
+  // ====================
+  // HIGH-LEVEL FUNCTIONS
+  // ====================
+  // TODO(tcies) all/most else private/protected?
+  bool addData(const std::string& key, const std::string& value);
+  bool retrieveData(const std::string& key, std::string* value);
 
   static constexpr size_t M = sizeof(Key) * 8;
   /**
@@ -74,15 +83,14 @@ class ChordIndex {
    */
   void leave();
 
-  /**
-   * Generates hash from PeerId.
-   */
-  static Key hash(const PeerId& id);
+  template<typename DataType>
+  static Key hash(const DataType& data);
 
- //private: TODO(tcies) add again, solution for testing
+  //private: TODO(tcies) add again, solution for testing
   // ======================
   // REQUIRE IMPLEMENTATION
   // ======================
+  // core RPCs
   virtual bool getClosestPrecedingFingerRpc(
       const PeerId& to, const Key& key, PeerId* closest_preceding) = 0;
   virtual bool getSuccessorRpc(const PeerId& to, PeerId* successor) = 0;
@@ -91,6 +99,11 @@ class ChordIndex {
       const PeerId& to, bool* success, std::vector<PeerId>* fingers,
       PeerId* predecessor, PeerId* redirect) = 0;
   virtual bool notifyRpc(const PeerId& to, const PeerId& subject) = 0;
+  // query RPCs
+  virtual bool addDataRpc(
+      const PeerId& to, const std::string& key, const std::string& value) = 0;
+  virtual bool retrieveDataRpc(
+      const PeerId& to, const std::string& key, std::string* value) = 0;
 
   static void stabilizeThread(ChordIndex* self);
 
@@ -123,12 +136,16 @@ class ChordIndex {
    * is the same as to_exclusive.
    */
   static bool isIn(const Key& key, const Key& from_inclusive,
-            const Key& to_exclusive);
+                   const Key& to_exclusive);
 
   /**
    * Returns false if chord index terminated
    */
   bool waitUntilInitialized();
+
+  bool addDataLocally(const std::string& key, const std::string& value);
+
+  bool retrieveDataLocally(const std::string& key, std::string* value);
 
   /**
    * A finger and a successor list item may point to the same peer, yet peer
@@ -165,6 +182,9 @@ class ChordIndex {
 
   std::thread stabilizer_;
   volatile bool terminate_ = false;
+
+  typedef std::unordered_map<std::string, std::string> DataMap;
+  DataMap data_;
 };
 
 } /* namespace map_api */
