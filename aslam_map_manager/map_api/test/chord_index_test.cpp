@@ -71,7 +71,7 @@ TEST_F(ChordIndexTest, onePeerJoin) {
     ++peers[TestChordIndex::instance().predecessor_->id.ipPort()];
     ++peers[TestChordIndex::instance().successor_->id.ipPort()];
     IPC::barrier(SHARED_PEERS, kNProcesses - 1);
-    for (size_t i = 0; i < 2*kNProcesses; ++i) {
+    for (size_t i = 0; i < 2 * kNProcesses; ++i) {
       std::string peer;
       IPC::pop(&peer);
       ++peers[peer];
