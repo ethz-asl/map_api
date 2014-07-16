@@ -66,6 +66,8 @@ class NetTable {
 
   size_t cachedItemsSize();
 
+  void shareAllChunks();
+
   void leaveAllChunks();
 
   std::string getStatistics();
