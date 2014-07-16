@@ -64,6 +64,8 @@ class NetTable {
 
   int activeChunksSize() const;
 
+  void shareAllChunks();
+
   void leaveAllChunks();
 
   /**
