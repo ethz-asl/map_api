@@ -23,6 +23,7 @@ class ChordIndexTest : public MultiprocessTest {
 
 TEST_F(ChordIndexTest, create) {
   TestChordIndex::instance().create();
+  TestChordIndex::instance().leave();
 }
 
 DEFINE_uint64(addresses_to_hash, 5, "Amount of addresses to hash");
@@ -45,7 +46,6 @@ TEST_F(ChordIndexTest, hashDistribution) {
     }
     hash_ss << "]";
     LOG(INFO) << hash_ss.str();
-    harvest(false);
   } else {
     IPC::barrier(INIT, FLAGS_addresses_to_hash - 1);
     std::ostringstream hash_ss;
@@ -55,17 +55,21 @@ TEST_F(ChordIndexTest, hashDistribution) {
   }
 }
 
+DEFINE_uint64(join_processes, 10, "Amount of processes to test join with");
 TEST_F(ChordIndexTest, onePeerJoin) {
-  constexpr size_t kNProcesses = 3;
+  const size_t kNProcesses = FLAGS_join_processes;
   enum Barriers{INIT, ROOT_SHARED, JOINED, SHARED_PEERS};
   if (getSubprocessId() == 0) {
     TestChordIndex::instance().create();
+    std::ostringstream command_extra;
+    command_extra << "--join_processes=" << FLAGS_join_processes;
     for (size_t i = 1; i < kNProcesses; ++i) {
-      launchSubprocess(i);
+      launchSubprocess(i, command_extra.str());
     }
     IPC::barrier(INIT, kNProcesses - 1);
     IPC::push(PeerId::self().ipPort());
     IPC::barrier(ROOT_SHARED, kNProcesses - 1);
+    usleep(50000);
     IPC::barrier(JOINED, kNProcesses - 1);
     std::map<std::string, int> peers;
     ++peers[TestChordIndex::instance().predecessor_->id.ipPort()];
@@ -76,7 +80,6 @@ TEST_F(ChordIndexTest, onePeerJoin) {
       IPC::pop(&peer);
       ++peers[peer];
     }
-    harvest(false);
     for (const std::pair<std::string, int> peer_count : peers) {
       EXPECT_EQ(2, peer_count.second);
     }
@@ -92,6 +95,7 @@ TEST_F(ChordIndexTest, onePeerJoin) {
     IPC::push(TestChordIndex::instance().successor_->id.ipPort());
     IPC::barrier(SHARED_PEERS, kNProcesses - 1);
   }
+  TestChordIndex::instance().leave();
 }
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT

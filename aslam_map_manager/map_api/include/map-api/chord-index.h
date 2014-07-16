@@ -4,6 +4,7 @@
 #include <condition_variable>
 #include <memory>
 #include <mutex>
+#include <thread>
 #include <unordered_map>
 
 #include "map-api/message.h"
@@ -33,19 +34,21 @@ class ChordIndex {
   // ========
   // HANDLERS
   // ========
-  PeerId handleFindSuccessor(const Key& key);
-  PeerId handleGetPredecessor();
+  // Return false on failure
+  bool handleGetClosestPrecedingFinger(const Key& key, PeerId* result);
+  bool handleGetSuccessor(PeerId* result);
+  bool handleGetPredecessor(PeerId* result);
   /**
    * Returns true if current peer is indeed the successor to the requesting
    * peer, false if the requester is to be redirected.
    */
   bool handleJoin(
-      const PeerId& requester, std::vector<PeerId>* fingers,
+      const PeerId& requester, bool* success, std::vector<PeerId>* fingers,
       PeerId* predecessor, PeerId* redirection);
   /**
    * Any peer notifies us about their existence.
    */
-  void handleNotify(const PeerId& peer_id);
+  bool handleNotify(const PeerId& peer_id);
 
   static constexpr size_t M = sizeof(Key) * 8;
   /**
@@ -53,6 +56,10 @@ class ChordIndex {
    * It is the first node whose hash key is larger than or equal to the key.
    */
   PeerId findSuccessor(const Key& key);
+  /**
+   * First node whose hash key is strictly smaller than the key.
+   */
+  PeerId findPredecessor(const Key& key);
 
   /**
    * Equivalent to join(nil) in the Chord paper
@@ -60,6 +67,8 @@ class ChordIndex {
   void create();
 
   void join(const PeerId& other);
+  void cleanJoin(const PeerId& other);
+  void stabilizeJoin(const PeerId& other);
   /**
    * Terminates stabilizeThread();
    */
@@ -74,15 +83,16 @@ class ChordIndex {
   // ======================
   // REQUIRE IMPLEMENTATION
   // ======================
-  virtual bool findSuccessorRpc(const PeerId& to, const Key& argument,
-                                PeerId* successor) = 0;
+  virtual bool getClosestPrecedingFingerRpc(
+      const PeerId& to, const Key& key, PeerId* closest_preceding) = 0;
+  virtual bool getSuccessorRpc(const PeerId& to, PeerId* successor) = 0;
   virtual bool getPredecessorRpc(const PeerId& to, PeerId* predecessor) = 0;
   virtual bool joinRpc(
       const PeerId& to, bool* success, std::vector<PeerId>* fingers,
       PeerId* predecessor, PeerId* redirect) = 0;
   virtual bool notifyRpc(const PeerId& to, const PeerId& subject) = 0;
 
-  void stabilizeThread();
+  static void stabilizeThread(ChordIndex* self);
 
   struct ChordPeer {
     PeerId id;
@@ -112,8 +122,13 @@ class ChordIndex {
    * and to_exclusive, clockwise. In particular, returns true if from_inclusive
    * is the same as to_exclusive.
    */
-  bool isIn(const Key& key, const Key& from_inclusive,
-            const Key& to_exclusive) const;
+  static bool isIn(const Key& key, const Key& from_inclusive,
+            const Key& to_exclusive);
+
+  /**
+   * Returns false if chord index terminated
+   */
+  bool waitUntilInitialized();
 
   /**
    * A finger and a successor list item may point to the same peer, yet peer
@@ -147,7 +162,9 @@ class ChordIndex {
   bool initialized_ = false;
   std::mutex initialized_mutex_;
   std::condition_variable initialized_cv_;
-  bool terminate_ = false;
+
+  std::thread stabilizer_;
+  volatile bool terminate_ = false;
 };
 
 } /* namespace map_api */

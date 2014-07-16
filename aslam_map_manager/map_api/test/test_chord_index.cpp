@@ -18,7 +18,9 @@ class TestChordIndex final : public ChordIndex {
   /**
    * Static handlers
    */
-  static void staticHandleFindSuccessor(
+  static void staticHandleGetClosestPrecedingFinger(
+      const Message& request, Message* response);
+  static void staticHandleGetSuccessor(
       const Message& request, Message* response);
   static void staticHandleGetPredecessor(
       const Message& request, Message* response);
@@ -30,7 +32,8 @@ class TestChordIndex final : public ChordIndex {
    * RPC types
    */
   static const char kPeerResponse[];
-  static const char kFindSuccessorRequest[];
+  static const char kGetClosestPrecedingFingerRequest[];
+  static const char kGetSuccessorRequest[];
   static const char kGetPredecessorRequest[];
   static const char kJoinRequest[];
   static const char kJoinResponse[];
@@ -50,8 +53,10 @@ class TestChordIndex final : public ChordIndex {
   TestChordIndex(const TestChordIndex&) = delete;
   TestChordIndex& operator =(const TestChordIndex&) = delete;
 
-  virtual bool findSuccessorRpc(
-      const PeerId& to, const Key& argument, PeerId* successor) final override;
+  virtual bool getClosestPrecedingFingerRpc(
+      const PeerId& to, const Key& key, PeerId* closest_preceding) final override;
+  virtual bool getSuccessorRpc(const PeerId& to, PeerId* predecessor)
+  final override;
   virtual bool getPredecessorRpc(const PeerId& to, PeerId* predecessor)
   final override;
   virtual bool joinRpc(
@@ -65,8 +70,10 @@ class TestChordIndex final : public ChordIndex {
 
 const char TestChordIndex::kPeerResponse[] =
     "test_chord_index_peer_response";
-const char TestChordIndex::kFindSuccessorRequest[] =
-    "test_chord_index_find_successor_request";
+const char TestChordIndex::kGetClosestPrecedingFingerRequest[] =
+    "test_chord_index_get_closest_preceding_finger_request";
+const char TestChordIndex::kGetSuccessorRequest[] =
+    "test_chord_index_get_successor_request";
 const char TestChordIndex::kGetPredecessorRequest[] =
     "test_chord_index_get_predecessor_request";
 const char TestChordIndex::kJoinRequest[] =
@@ -79,14 +86,16 @@ const char TestChordIndex::kNotifyRequest[] =
     "test_chord_index_notify_request";
 
 MAP_API_STRING_MESSAGE(TestChordIndex::kPeerResponse);
-MAP_API_STRING_MESSAGE(TestChordIndex::kFindSuccessorRequest);
+MAP_API_STRING_MESSAGE(TestChordIndex::kGetClosestPrecedingFingerRequest);
 MAP_API_STRING_MESSAGE(TestChordIndex::kJoinRedirect);
 MAP_API_PROTO_MESSAGE(TestChordIndex::kJoinResponse, proto::JoinResponse);
 MAP_API_STRING_MESSAGE(TestChordIndex::kNotifyRequest);
 
 void TestChordIndex::staticInit() {
   MapApiHub::instance().registerHandler(
-      kFindSuccessorRequest, staticHandleFindSuccessor);
+      kGetClosestPrecedingFingerRequest, staticHandleGetClosestPrecedingFinger);
+  MapApiHub::instance().registerHandler(
+      kGetSuccessorRequest, staticHandleGetSuccessor);
   MapApiHub::instance().registerHandler(
       kGetPredecessorRequest, staticHandleGetPredecessor);
   MapApiHub::instance().registerHandler(
@@ -99,22 +108,44 @@ void TestChordIndex::staticInit() {
 // HANDLERS
 // ========
 
-void TestChordIndex::staticHandleFindSuccessor(
+void TestChordIndex::staticHandleGetClosestPrecedingFinger(
     const Message& request, Message* response) {
   CHECK_NOTNULL(response);
   Key key;
   std::istringstream key_ss(request.serialized());
   key_ss >> key;
   std::ostringstream peer_ss;
-  peer_ss << instance().handleFindSuccessor(key).ipPort();
+  PeerId closest_preceding;
+  if (!instance().handleGetClosestPrecedingFinger(key, &closest_preceding)) {
+    response->decline();
+    return;
+  }
+  peer_ss << closest_preceding.ipPort();
   response->impose<kPeerResponse>(peer_ss.str());
+}
+
+void TestChordIndex::staticHandleGetSuccessor(
+    const Message& request, Message* response) {
+  CHECK(request.isType<kGetSuccessorRequest>());
+  CHECK_NOTNULL(response);
+  PeerId successor;
+  if (instance().handleGetSuccessor(&successor)) {
+    response->decline();
+    return;
+  }
+  response->impose<kPeerResponse>(successor.ipPort());
 }
 
 void TestChordIndex::staticHandleGetPredecessor(
     const Message& request, Message* response) {
   CHECK(request.isType<kGetPredecessorRequest>());
   CHECK_NOTNULL(response);
-  response->impose<kPeerResponse>(instance().handleGetPredecessor().ipPort());
+  PeerId predecessor;
+  if (instance().handleGetPredecessor(&predecessor)) {
+    response->decline();
+    return;
+  }
+  response->impose<kPeerResponse>(predecessor.ipPort());
 }
 
 void TestChordIndex::staticHandleJoin(
@@ -123,8 +154,13 @@ void TestChordIndex::staticHandleJoin(
   CHECK_NOTNULL(response);
   PeerId predecessor, redirect;
   std::vector<PeerId> fingers;
-  if (instance().handleJoin(PeerId(request.sender()), &fingers,
-                            &predecessor, &redirect)) {
+  bool success;
+  if (!instance().handleJoin(PeerId(request.sender()), &success, &fingers,
+                             &predecessor, &redirect)) {
+    response->decline();
+    return;
+  }
+  if (success) {
     proto::JoinResponse join_response;
     for (const PeerId& finger : fingers) {
       join_response.add_fingers(finger.ipPort());
@@ -146,14 +182,31 @@ void TestChordIndex::staticHandleNotify(
 // ========
 // REQUESTS
 // ========
-bool TestChordIndex::findSuccessorRpc(
-    const PeerId& to, const Key& argument, PeerId* result) {
+bool TestChordIndex::getClosestPrecedingFingerRpc(
+    const PeerId& to, const Key& key, PeerId* result) {
   CHECK_NOTNULL(result);
   Message request, response;
   std::ostringstream key_ss;
-  key_ss << argument;
-  request.impose<kFindSuccessorRequest>(key_ss.str());
+  key_ss << key;
+  request.impose<kGetClosestPrecedingFingerRequest>(key_ss.str());
   if (!instance().peers_.try_request(to, &request, &response)) {
+    return false;
+  }
+  if (response.isType<Message::kDecline>()) {
+    return false;
+  }
+  *result = PeerId(response.serialized());
+  return true;
+}
+
+bool TestChordIndex::getSuccessorRpc(const PeerId& to, PeerId* result) {
+  CHECK_NOTNULL(result);
+  Message request, response;
+  request.impose<kGetSuccessorRequest>();
+  if (!instance().peers_.try_request(to, &request, &response)) {
+    return false;
+  }
+  if (response.isType<Message::kDecline>()) {
     return false;
   }
   *result = PeerId(response.serialized());
@@ -165,6 +218,9 @@ bool TestChordIndex::getPredecessorRpc(const PeerId& to, PeerId* result) {
   Message request, response;
   request.impose<kGetPredecessorRequest>();
   if (!instance().peers_.try_request(to, &request, &response)) {
+    return false;
+  }
+  if (response.isType<Message::kDecline>()) {
     return false;
   }
   *result = PeerId(response.serialized());
@@ -182,6 +238,9 @@ bool TestChordIndex::joinRpc(
   request.impose<kJoinRequest>();
   if (!instance().peers_.try_request(to, &request, &response)) {
     LOG(WARNING) << "Can't reach " << to;
+    return false;
+  }
+  if (response.isType<Message::kDecline>()) {
     return false;
   }
   if (response.isType<kJoinResponse>()) {
