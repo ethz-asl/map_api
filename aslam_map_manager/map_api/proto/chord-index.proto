@@ -9,3 +9,7 @@ message AddDataRequest {
   optional string key = 1;
   optional string value = 2;
 }
+
+message FetchResponsibilitiesResponse {
+  repeated AddDataRequest data = 1;
+}

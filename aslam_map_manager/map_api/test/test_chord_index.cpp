@@ -32,6 +32,8 @@ class TestChordIndex final : public ChordIndex {
       const Message& request, Message* response);
   static void staticHandleRetrieveData(
       const Message& request, Message* response);
+  static void staticHandleFetchResponsibilities(
+      const Message& request, Message* response);
   /**
    * RPC types
    */
@@ -46,6 +48,8 @@ class TestChordIndex final : public ChordIndex {
   static const char kAddDataRequest[];
   static const char kRetrieveDataRequest[];
   static const char kRetrieveDataResponse[];
+  static const char kFetchResponsibilitiesRequest[];
+  static const char kFetchResponsibilitiesResponse[];
 
   /**
    * Inits handlers, must be called before core::init
@@ -77,6 +81,8 @@ class TestChordIndex final : public ChordIndex {
   virtual bool retrieveDataRpc(
       const PeerId& to, const std::string& key, std::string* value)
   final override;
+  virtual bool fetchResponsibilitiesRpc(
+      const PeerId& to, DataMap* responsibilities) final override;
 
   PeerHandler peers_;
 };
@@ -103,6 +109,10 @@ const char TestChordIndex::kRetrieveDataRequest[] =
     "test_chord_index_retrieve_data_request";
 const char TestChordIndex::kRetrieveDataResponse[] =
     "test_chord_index_retrieve_data_response";
+const char TestChordIndex::kFetchResponsibilitiesRequest[] =
+    "test_chord_index_fetch_responsibilities_request";
+const char TestChordIndex::kFetchResponsibilitiesResponse[] =
+    "test_chord_index_fetch_responsibilities_response";
 
 MAP_API_STRING_MESSAGE(TestChordIndex::kPeerResponse);
 MAP_API_STRING_MESSAGE(TestChordIndex::kGetClosestPrecedingFingerRequest);
@@ -112,6 +122,8 @@ MAP_API_STRING_MESSAGE(TestChordIndex::kNotifyRequest);
 MAP_API_PROTO_MESSAGE(TestChordIndex::kAddDataRequest, proto::AddDataRequest);
 MAP_API_STRING_MESSAGE(TestChordIndex::kRetrieveDataRequest);
 MAP_API_STRING_MESSAGE(TestChordIndex::kRetrieveDataResponse);
+MAP_API_PROTO_MESSAGE(TestChordIndex::kFetchResponsibilitiesResponse,
+                      proto::FetchResponsibilitiesResponse);
 
 void TestChordIndex::staticInit() {
   MapApiHub::instance().registerHandler(
@@ -128,6 +140,8 @@ void TestChordIndex::staticInit() {
       kAddDataRequest, staticHandleAddData);
   MapApiHub::instance().registerHandler(
       kRetrieveDataRequest, staticHandleRetrieveData);
+  MapApiHub::instance().registerHandler(
+      kFetchResponsibilitiesRequest, staticHandleFetchResponsibilities);
 }
 
 // ========
@@ -227,6 +241,28 @@ void TestChordIndex::staticHandleRetrieveData(
   request.extract<kRetrieveDataRequest>(&key);
   if (instance().handleRetrieveData(key, &value)) {
     response->impose<kRetrieveDataResponse>(value);
+  } else {
+    response->decline();
+  }
+}
+
+void TestChordIndex::staticHandleFetchResponsibilities(
+    const Message& request, Message* response) {
+  CHECK_NOTNULL(response);
+  DataMap data;
+  PeerId requester = PeerId(request.sender());
+  CHECK(request.isType<kFetchResponsibilitiesRequest>());
+  if (instance().handleFetchResponsibilities(requester, &data)) {
+    proto::FetchResponsibilitiesResponse fetch_response;
+    for (const DataMap::value_type& item : data) {
+      proto::AddDataRequest add_request;
+      add_request.set_key(item.first);
+      add_request.set_value(item.second);
+      proto::AddDataRequest* slot = fetch_response.add_data();
+      CHECK_NOTNULL(slot);
+      *slot = add_request;
+    }
+    response->impose<kFetchResponsibilitiesResponse>(fetch_response);
   } else {
     response->decline();
   }
@@ -354,6 +390,27 @@ bool TestChordIndex::retrieveDataRpc(
   }
   CHECK(response.isType<kRetrieveDataResponse>());
   response.extract<kRetrieveDataResponse>(value);
+  return true;
+}
+
+bool TestChordIndex::fetchResponsibilitiesRpc(
+    const PeerId& to, DataMap* responsibilities) {
+  CHECK_NOTNULL(responsibilities);
+  Message request, response;
+  request.impose<kFetchResponsibilitiesRequest>();
+  if (!instance().peers_.try_request(to, &request, &response)) {
+    return false;
+  }
+  if (response.isType<Message::kDecline>()) {
+    return false;
+  }
+  CHECK(response.isType<kFetchResponsibilitiesResponse>());
+  proto::FetchResponsibilitiesResponse fetch_response;
+  response.extract<kFetchResponsibilitiesResponse>(&fetch_response);
+  for (int i = 0; i < fetch_response.data_size(); ++i) {
+    responsibilities->insert(std::make_pair(fetch_response.data(i).key(),
+                                            fetch_response.data(i).value()));
+  }
   return true;
 }
 

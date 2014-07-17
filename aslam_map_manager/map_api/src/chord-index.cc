@@ -133,6 +133,13 @@ bool ChordIndex::handleNotify(const PeerId& peer_id) {
     predecessor_ = peer;
     VLOG(3) << own_key_ << " changed predecessor to " << peer->key <<
         " by notification";
+    // at this point we could start receiving data requests
+    if (!integrated_) {
+      // this has to be done in a separate thread in order to avoid deadlocks
+      // of the kind of mutual waiting for response
+      std::thread integrate_thread(integrateThread, this);
+      integrate_thread.detach();
+    }
   }
   // save peer to peer map only if information has been useful anywhere
   if (peer.use_count() > 1) {
@@ -144,13 +151,27 @@ bool ChordIndex::handleNotify(const PeerId& peer_id) {
 
 bool ChordIndex::handleAddData(
     const std::string& key, const std::string& value) {
+  // TODO(tcies) try-again-later & integrate if not integrated
   return addDataLocally(key, value);
 }
 
 bool ChordIndex::handleRetrieveData(
     const std::string& key, std::string* value) {
   CHECK_NOTNULL(value);
+  // TODO(tcies) try-again-later & integrate if not integrated
   return retrieveDataLocally(key, value);
+}
+
+bool ChordIndex::handleFetchResponsibilities(
+      const PeerId& requester, DataMap* responsibilities) {
+  CHECK_NOTNULL(responsibilities);
+  // TODO(tcies) try-again-later if not integrated
+  for (const DataMap::value_type& item : data_) {
+    if (!isIn(hash(item.first), hash(requester), own_key_)) {
+      responsibilities->insert(item);
+    }
+  }
+  return true;
 }
 
 bool ChordIndex::addData(const std::string& key, const std::string& value) {
@@ -255,6 +276,7 @@ void ChordIndex::leave() {
   usleep(5000); // TODO(tcies) unhack!
   initialized_ = false;
   initialized_cv_.notify_all();
+  integrated_ = false;
 }
 
 std::shared_ptr<ChordIndex::ChordPeer> ChordIndex::closestPrecedingFinger(
@@ -305,6 +327,25 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
     usleep(FLAGS_stabilize_us);
     // TODO(tcies) finger fixing
   }
+}
+
+void ChordIndex::integrateThread(ChordIndex* self) {
+  CHECK_NOTNULL(self);
+  std::lock_guard<std::mutex> lock(self->integrate_mutex_);
+  if (self->integrated_) {
+    return;
+  }
+  // The assumption is made that successor is indeed the peer that contains the
+  // required data. In general, this is valid because a peer gets notified
+  // from its actual predecessor only once its true successor has registered it
+  // as predecessor (for proof see report).
+  // There is, however, a corner case in which this is not valid: Another
+  // peer that is between this peer and its successor could join at the same
+  // time as this peer sends this request. For now, this request should still
+  // succeed as data is not being deleted once delegated. TODO(tcies) delete
+  // data once delegated?
+  CHECK(self->fetchResponsibilitiesRpc(self->successor_->id, &self->data_));
+  self->integrated_ = true;
 }
 
 void ChordIndex::init() {

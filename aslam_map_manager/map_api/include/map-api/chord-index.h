@@ -24,7 +24,9 @@ namespace map_api {
  */
 class ChordIndex {
  public:
-  typedef uint16_t Key; //TODO(tcies) in the long term, public functions
+  typedef uint16_t Key;
+  typedef std::unordered_map<std::string, std::string> DataMap;
+  //TODO(tcies) in the long term, public functions
   // shouldn't expose these kinds of typedefs unless e.g. a serialization
   // method is given as well
   // static constexpr size_t kSuccessorListSize = 3; TODO(tcies) later
@@ -51,6 +53,8 @@ class ChordIndex {
   bool handleNotify(const PeerId& peer_id);
   bool handleAddData(const std::string& key, const std::string& value);
   bool handleRetrieveData(const std::string& key, std::string* value);
+  bool handleFetchResponsibilities(
+      const PeerId& requester, DataMap* responsibilities);
 
   // ====================
   // HIGH-LEVEL FUNCTIONS
@@ -104,8 +108,13 @@ class ChordIndex {
       const PeerId& to, const std::string& key, const std::string& value) = 0;
   virtual bool retrieveDataRpc(
       const PeerId& to, const std::string& key, std::string* value) = 0;
+  // TODO(tcies) indicate range of requested data? After all, predecessor
+  // should be known
+  virtual bool fetchResponsibilitiesRpc(
+      const PeerId& to, DataMap* responsibilities) = 0;
 
   static void stabilizeThread(ChordIndex* self);
+  static void integrateThread(ChordIndex* self);
 
   struct ChordPeer {
     PeerId id;
@@ -180,10 +189,13 @@ class ChordIndex {
   std::mutex initialized_mutex_;
   std::condition_variable initialized_cv_;
 
+  bool integrated_ = false;
+  std::mutex integrate_mutex_;
+
   std::thread stabilizer_;
   volatile bool terminate_ = false;
 
-  typedef std::unordered_map<std::string, std::string> DataMap;
+  // TODO(tcies) data stats: Has it already been requested?
   DataMap data_;
 };
 
