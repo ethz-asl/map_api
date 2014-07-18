@@ -58,6 +58,7 @@ bool PeerHandler::try_request(const PeerId& peer, Message* request,
                               Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
+  CHECK_NE(peer, PeerId::self());
   std::set<PeerId>::iterator found = peers_.find(peer);
   if (found == peers_.end()) {
     found = peers_.insert(peer).first;

@@ -183,7 +183,7 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddRetrieve) {
 
 TEST_F(ChordIndexTestInitialized, joinStabilizeAddjoinStabilizeRetrieve) {
   const size_t kNProcessesHalf = FLAGS_chord_processes / 2;
-  const size_t kNData = 5;
+  const size_t kNData = 10;
   enum Barriers{INIT, ROOT_SHARED, JOINED_STABILIZED__INIT_2,
     ADDED__ROOT_SHARED_2, JOINED_STABILIZED_2, RETRIEVED};
   if (getSubprocessId() == 0) {

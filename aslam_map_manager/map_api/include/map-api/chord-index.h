@@ -7,6 +7,8 @@
 #include <thread>
 #include <unordered_map>
 
+#include <Poco/RWLock.h>
+
 #include "map-api/message.h"
 #include "map-api/peer-id.h"
 
@@ -132,7 +134,7 @@ class ChordIndex {
    * Returns index of finger which is counter-clockwise closest to key.
    */
   std::shared_ptr<ChordIndex::ChordPeer> closestPrecedingFinger(
-      const Key& key) const;
+      const Key& key);
   /**
    * Routine common to create() and join()
    */
@@ -180,7 +182,7 @@ class ChordIndex {
   SuccessorListItem successor_;
   std::shared_ptr<ChordPeer> predecessor_;
 
-  std::mutex peer_access_;
+  Poco::RWLock peer_lock_;
 
   Key own_key_ = hash(PeerId::self());
   std::shared_ptr<ChordPeer> self_;
@@ -197,6 +199,7 @@ class ChordIndex {
 
   // TODO(tcies) data stats: Has it already been requested?
   DataMap data_;
+  Poco::RWLock data_lock_;
 };
 
 } /* namespace map_api */
