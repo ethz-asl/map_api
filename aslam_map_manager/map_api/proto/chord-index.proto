@@ -1,10 +1,5 @@
 package map_api.proto;
 
-message JoinResponse {
-  repeated string fingers = 1;
-  optional string predecessor = 2;
-}
-
 message AddDataRequest {
   optional string key = 1;
   optional string value = 2;
