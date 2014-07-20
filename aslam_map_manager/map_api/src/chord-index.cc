@@ -142,6 +142,15 @@ bool ChordIndex::handleFetchResponsibilities(
   return true;
 }
 
+bool ChordIndex::handlePushResponsibilities(const DataMap& responsibilities) {
+  data_lock_.writeLock();
+  for (const DataMap::value_type& item : responsibilities) {
+    data_[item.first] = item.second; // overwrite intended
+  }
+  data_lock_.unlock();
+  return true;
+}
+
 bool ChordIndex::addData(const std::string& key, const std::string& value) {
   Key chord_key = hash(key);
   PeerId successor = findSuccessor(chord_key);
@@ -309,11 +318,94 @@ void ChordIndex::unlock(const PeerId& subject) const {
 void ChordIndex::leave() {
   terminate_ = true;
   stabilizer_.join();
-  // TODO(tcies) move data to successor
+  CHECK_EQ(kCleanJoin, FLAGS_join_mode) << "Stabilize leave deprecated";
+  leaveClean();
   usleep(5000); // TODO(tcies) unhack! "Ensures" that pending requests resolve
   initialized_ = false;
   initialized_cv_.notify_all();
   integrated_ = false;
+}
+
+void ChordIndex::leaveClean() {
+  PeerId predecessor, successor;
+  // 1. acquire locks
+  while (true) {
+    peer_lock_.readLock();
+    predecessor = predecessor_->id;
+    successor = successor_->id;
+    peer_lock_.unlock();
+    // in-order locking
+    if (hash(successor) <= hash(predecessor)) {
+      if (hash(successor) < hash(predecessor)) {
+        if (own_key_ > hash(successor)) { // su ... pr, self
+          CHECK(lock(successor));
+          CHECK(lock(predecessor));
+          CHECK(lock());
+        } else { // self, su ... pr
+          CHECK(lock());
+          CHECK(lock(successor));
+          CHECK(lock(predecessor));
+        }
+      } else {
+        if (own_key_ < hash(successor)) { // self, su = pr
+          CHECK(lock());
+          CHECK(lock(successor));
+        } else if (hash(successor) < own_key_) { // su = pr, self
+          CHECK(lock(successor));
+          CHECK(lock());
+        } else { // su = pr = self
+          CHECK(lock());
+        }
+      }
+    } else { // general case: ... pr, self, su ...
+      CHECK_NE(PeerId::self(), successor);
+      CHECK_NE(PeerId::self(), predecessor);
+      CHECK(lock(predecessor));
+      CHECK(lock());
+      CHECK(lock(successor));
+    }
+    // verify validity
+    if (predecessor == PeerId::self()) {
+      if (successor_->id == PeerId::self() &&
+          predecessor_->id == PeerId::self()) {
+        break;
+      }
+    } else {
+      bool predecessor_consistent, self_consistent, successor_consistent;
+      PeerId predecessor_successor, successor_predecessor;
+      CHECK(getSuccessorRpc(predecessor, &predecessor_successor));
+      predecessor_consistent = predecessor_successor == PeerId::self();
+      peer_lock_.readLock();
+      self_consistent = predecessor_->id == predecessor &&
+          successor_->id == successor;
+      peer_lock_.unlock();
+      CHECK(getPredecessorRpc(successor, &successor_predecessor));
+      successor_consistent = successor_predecessor == PeerId::self();
+      if (predecessor_consistent && self_consistent && successor_consistent) {
+        break;
+      }
+    }
+    // unlock, repeat
+    unlock(predecessor);
+    unlock();
+    unlock(successor);
+  }
+  if (successor != PeerId::self()) {
+    // 2. push data
+    data_lock_.readLock();
+    pushResponsibilitiesRpc(successor, data_);
+    data_lock_.unlock();
+    // 3. reroute & unlock
+    CHECK(replaceRpc(successor, PeerId::self(), predecessor));
+    if (successor != predecessor) {
+      CHECK(replaceRpc(predecessor, PeerId::self(), successor));
+      unlock(predecessor);
+    }
+    unlock(successor);
+  } else {
+    LOG(INFO) << "Last peer left chord index";
+  }
+  unlock();
 }
 
 PeerId ChordIndex::closestPrecedingFinger(
