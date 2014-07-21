@@ -13,3 +13,8 @@ message AddDataRequest {
 message FetchResponsibilitiesResponse {
   repeated AddDataRequest data = 1;
 }
+
+message RoutedChordRequest { // TODO(tcies) put in net-table.proto?
+  optional string table_name = 1;
+  optional bytes serialized_message = 2;
+}

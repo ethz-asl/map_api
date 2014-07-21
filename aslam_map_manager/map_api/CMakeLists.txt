@@ -38,6 +38,7 @@ SET(CORE_SOURCE  src/chord-index.cc
                  src/map-api-hub.cc
                  src/message.cc
                  src/net-table.cc
+                 src/net-table-index.cc
                  src/net-table-manager.cc
                  src/net-table-transaction.cc
                  src/peer.cc

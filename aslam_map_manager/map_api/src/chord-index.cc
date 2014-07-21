@@ -376,7 +376,7 @@ bool ChordIndex::lock() {
   return true;
 }
 
-bool ChordIndex::lock(const PeerId& subject) const {
+bool ChordIndex::lock(const PeerId& subject) {
   while (true) {
     if (!lockRpc(subject)) {
       usleep(1000);
@@ -395,7 +395,7 @@ void ChordIndex::unlock() {
   VLOG(3) << own_key_ << " unlocked self";
 }
 
-void ChordIndex::unlock(const PeerId& subject) const {
+void ChordIndex::unlock(const PeerId& subject) {
   CHECK(unlockRpc(subject));
 }
 

@@ -72,13 +72,14 @@ class TestChordIndex final : public ChordIndex {
   TestChordIndex& operator =(const TestChordIndex&) = delete;
 
   virtual bool getClosestPrecedingFingerRpc(
-      const PeerId& to, const Key& key, PeerId* closest_preceding) final override;
+      const PeerId& to, const Key& key, PeerId* closest_preceding)
+  final override;
   virtual bool getSuccessorRpc(const PeerId& to, PeerId* predecessor)
   final override;
   virtual bool getPredecessorRpc(const PeerId& to, PeerId* predecessor)
   final override;
-  virtual bool lockRpc(const PeerId& to) const final override;
-  virtual bool unlockRpc(const PeerId& to) const final override;
+  virtual bool lockRpc(const PeerId& to) final override;
+  virtual bool unlockRpc(const PeerId& to) final override;
   virtual bool notifyRpc(
       const PeerId& to, const PeerId& subject) final override;
   virtual bool replaceRpc(
@@ -227,7 +228,6 @@ void TestChordIndex::staticHandleUnlock(
     response->ack();
   } else {
     response->decline();
-    LOG(INFO) << "Denied!";
   }
 }
 
@@ -370,7 +370,7 @@ bool TestChordIndex::getPredecessorRpc(const PeerId& to, PeerId* result) {
   return true;
 }
 
-bool TestChordIndex::lockRpc(const PeerId& to) const {
+bool TestChordIndex::lockRpc(const PeerId& to) {
   Message request, response;
   request.impose<kLockRequest>();
   if (!instance().peers_.try_request(to, &request, &response)) {
@@ -384,7 +384,7 @@ bool TestChordIndex::lockRpc(const PeerId& to) const {
   return true;
 }
 
-bool TestChordIndex::unlockRpc(const PeerId& to) const {
+bool TestChordIndex::unlockRpc(const PeerId& to) {
   Message request, response;
   request.impose<kUnlockRequest>();
   if (!instance().peers_.try_request(to, &request, &response)) {

@@ -88,9 +88,9 @@ class ChordIndex {
    * Argument-free versions (un)lock self
    */
   bool lock();
-  bool lock(const PeerId& subject) const;
+  bool lock(const PeerId& subject);
   void unlock();
-  void unlock(const PeerId& subject) const;
+  void unlock(const PeerId& subject);
 
   /**
    * Terminates stabilizeThread();, pushes responsible data
@@ -110,8 +110,8 @@ class ChordIndex {
       const PeerId& to, const Key& key, PeerId* closest_preceding) = 0;
   virtual bool getSuccessorRpc(const PeerId& to, PeerId* successor) = 0;
   virtual bool getPredecessorRpc(const PeerId& to, PeerId* predecessor) = 0;
-  virtual bool lockRpc(const PeerId& to) const = 0;
-  virtual bool unlockRpc(const PeerId& to) const = 0;
+  virtual bool lockRpc(const PeerId& to) = 0;
+  virtual bool unlockRpc(const PeerId& to) = 0;
   virtual bool notifyRpc(const PeerId& to, const PeerId& subject) = 0;
   virtual bool replaceRpc(
       const PeerId& to, const PeerId& old_peer, const PeerId& new_peer) = 0;

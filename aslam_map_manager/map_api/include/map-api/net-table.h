@@ -14,6 +14,9 @@ class NetTable {
   static const std::string kChunkIdField;
 
   bool init(bool updateable, std::unique_ptr<TableDescriptor>* descriptor);
+  void createIndex();
+  void joinIndex(const PeerId& entry_point);
+
   const std::string& name() const;
 
   // INSERTION
