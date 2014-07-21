@@ -9,6 +9,8 @@
 
 #include <Poco/RWLock.h>
 
+#include <gtest/gtest.h>
+
 #include "map-api/message.h"
 #include "map-api/peer-id.h"
 
@@ -92,7 +94,7 @@ class ChordIndex {
   template<typename DataType>
   static Key hash(const DataType& data);
 
-  //private: TODO(tcies) add again, solution for testing
+ private:
   // ======================
   // REQUIRE IMPLEMENTATION
   // ======================
@@ -122,7 +124,7 @@ class ChordIndex {
     PeerId id;
     Key key;
     ChordPeer(const PeerId& _id) : id(_id), key(hash(_id)) {}
-    inline bool isValid() {
+    inline bool isValid() const {
       return id.isValid();
     }
     inline void invalidate() {
@@ -183,6 +185,11 @@ class ChordIndex {
   std::shared_ptr<ChordPeer> predecessor_;
 
   Poco::RWLock peer_lock_;
+
+  FRIEND_TEST(ChordIndexTestInitialized, onePeerJoin);
+  friend class ChordIndexTestInitialized;
+
+  std::mutex peer_access_;
 
   Key own_key_ = hash(PeerId::self());
   std::shared_ptr<ChordPeer> self_;
