@@ -58,6 +58,9 @@ class ChordIndex {
   // HIGH-LEVEL FUNCTIONS
   // ====================
   // TODO(tcies) all/most else private/protected?
+  /**
+   * Adds data to index, overwrites if key exists.
+   */
   bool addData(const std::string& key, const std::string& value);
   bool retrieveData(const std::string& key, std::string* value);
 
