@@ -110,9 +110,7 @@ TEST_F(ChordIndexTestInitialized, onePeerJoin) {
     usleep(10 * kNProcesses * FLAGS_stabilize_us); // yes, 10 is a magic number
     // it should be an upper bound of the amount of required stabilization
     // iterations per process
-    LOG(INFO) << 1;
     IPC::barrier(JOINED, kNProcesses - 1);
-    LOG(INFO) << 1;
     std::map<std::string, int> peers;
     ++peers[TestChordIndex::instance().predecessor_->id.ipPort()];
     ++peers[TestChordIndex::instance().successor_->id.ipPort()];

@@ -233,7 +233,6 @@ void ChordIndex::cleanJoin(const PeerId& other) {
   // 1. lock proper predecessor and successor
   PeerId predecessor = other, successor;
   while (true) {
-
     CHECK(getClosestPrecedingFingerRpc(predecessor, own_key_, &predecessor));
     CHECK(getSuccessorRpc(predecessor, &successor));
 
