@@ -202,7 +202,6 @@ void MapApiHub::request(
 
 bool MapApiHub::try_request(
     const PeerId& peer, Message* request, Message* response) {
-  //TODO(tcies) review some of this design...
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
   PeerMap::iterator found = peers_.find(peer);

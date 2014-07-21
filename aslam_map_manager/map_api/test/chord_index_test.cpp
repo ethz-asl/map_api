@@ -2,7 +2,7 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <gtest/gtest.h>
+#include <gtest/gtest_prod.h>
 
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 
@@ -13,7 +13,7 @@
 
 DECLARE_uint64(stabilize_us);
 
-using namespace map_api;
+namespace map_api {
 
 class ChordIndexTest : public MultiprocessTest {
  protected:
@@ -162,5 +162,7 @@ TEST_F(ChordIndexTest, joinStabilizeAddRetrieve) {
   }
   TestChordIndex::instance().leave();
 }
+
+} // namespace map_api
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
