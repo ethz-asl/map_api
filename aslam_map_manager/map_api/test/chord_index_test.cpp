@@ -2,7 +2,7 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <gtest/gtest.h>
+#include <gtest/gtest_prod.h>
 
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 
@@ -11,7 +11,7 @@
 #include "test_chord_index.cpp"
 #include "multiprocess_fixture.cpp"
 
-using namespace map_api;
+namespace map_api {
 
 class ChordIndexTest : public MultiprocessTest {
  protected:
@@ -93,5 +93,7 @@ TEST_F(ChordIndexTest, onePeerJoin) {
     IPC::barrier(SHARED_PEERS, kNProcesses - 1);
   }
 }
+
+} // namespace map_api
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
