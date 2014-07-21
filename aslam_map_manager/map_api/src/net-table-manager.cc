@@ -2,8 +2,16 @@
 
 #include "map-api/map-api-hub.h"
 #include "map-api/map-api-core.h"
+#include "map-api/revision.h"
 
 namespace map_api {
+
+REVISION_PROTOBUF(proto::TableDescriptor);
+
+constexpr char kMetaTableName[] = "map_api_metatable";
+constexpr char kMetaTableNameField[] = "name";
+constexpr char kMetaTableStructureField[] = "structure";
+constexpr char kMetaTableChunkHexString[] = "000000000000000000000003E1A1AB7E";
 
 template<>
 bool NetTableManager::routeChunkRequestOperations<proto::ChunkRequestMetadata>(
@@ -21,7 +29,7 @@ bool NetTableManager::routeChunkRequestOperations<proto::ChunkRequestMetadata>(
   return true;
 }
 
-void NetTableManager::init() {
+void NetTableManager::init(bool create_metatable_chunk) {
   MapApiHub::instance().registerHandler(
       Chunk::kConnectRequest, handleConnectRequest);
   MapApiHub::instance().registerHandler(
@@ -41,6 +49,37 @@ void NetTableManager::init() {
   tables_lock_.writeLock();
   tables_.clear();
   tables_lock_.unlock();
+  initMetatable(create_metatable_chunk);
+}
+
+void NetTableManager::initMetatable(bool create_metatable_chunk) {
+  std::unique_ptr<NetTable> metatable;
+  metatable.reset(new NetTable);
+  std::unique_ptr<TableDescriptor> metatable_descriptor(new TableDescriptor);
+  metatable_descriptor->setName(kMetaTableName);
+  metatable_descriptor->addField<std::string>(kMetaTableNameField);
+  metatable_descriptor->addField<proto::TableDescriptor>(
+      kMetaTableStructureField);
+  metatable->init(true, &metatable_descriptor);
+  Id metatable_chunk_id;
+  CHECK(metatable_chunk_id.fromHexString(kMetaTableChunkHexString));
+  if (create_metatable_chunk) {
+    metatable_chunk_ = metatable->newChunk(metatable_chunk_id);
+  } else {
+    // TODO(tcies) spin till successful
+    metatable_chunk_ = metatable->getChunk(metatable_chunk_id);
+  }
+  if (metatable_chunk_ == nullptr) {
+    // TODO(tcies) net chunk lookup
+    LOG(ERROR) << "Need to implement net chunk lookup!";
+  }
+  tables_lock_.writeLock();
+  std::pair<TableMap::iterator, bool> inserted =
+      tables_.insert(std::make_pair(metatable->name(),
+                                    std::unique_ptr<NetTable>()));
+  CHECK(inserted.second);
+  inserted.first->second = std::move(metatable);
+  tables_lock_.unlock();
 }
 
 void NetTableManager::addTable(
@@ -57,8 +96,7 @@ void NetTableManager::addTable(
         right = temp->getTemplate();
     CHECK(left->structureMatch(*right));
   } else {
-    std::pair<std::unordered_map<std::string, std::unique_ptr<NetTable> >::
-    iterator, bool> inserted = tables_.insert(
+    std::pair<TableMap::iterator, bool> inserted = tables_.insert(
         std::make_pair((*descriptor)->name(), std::unique_ptr<NetTable>()));
     CHECK(inserted.second) << tables_.size();
     inserted.first->second.reset(new NetTable);
