@@ -7,6 +7,8 @@
 #include <thread>
 #include <unordered_map>
 
+#include <gtest/gtest.h>
+
 #include "map-api/message.h"
 #include "map-api/peer-id.h"
 
@@ -79,7 +81,7 @@ class ChordIndex {
    */
   static Key hash(const PeerId& id);
 
- //private: TODO(tcies) add again, solution for testing
+ private:
   // ======================
   // REQUIRE IMPLEMENTATION
   // ======================
@@ -98,7 +100,7 @@ class ChordIndex {
     PeerId id;
     Key key;
     ChordPeer(const PeerId& _id) : id(_id), key(hash(_id)) {}
-    inline bool isValid() {
+    inline bool isValid() const {
       return id.isValid();
     }
     inline void invalidate() {
@@ -153,6 +155,8 @@ class ChordIndex {
   Finger fingers_[M];
   SuccessorListItem successor_;
   std::shared_ptr<ChordPeer> predecessor_;
+
+  FRIEND_TEST(ChordIndexTest, onePeerJoin);
 
   std::mutex peer_access_;
 
