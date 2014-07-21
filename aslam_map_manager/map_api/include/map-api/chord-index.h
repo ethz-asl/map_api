@@ -141,7 +141,7 @@ class ChordIndex {
   SuccessorListItem successor_;
   std::shared_ptr<ChordPeer> predecessor_;
 
-  FRIEND_TEST(ChordIndexTest, joining);
+  FRIEND_TEST(ChordIndexTest, onePeerJoin);
 
   std::mutex peer_access_;
 
