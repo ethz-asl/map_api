@@ -247,4 +247,52 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddjoinStabilizeRetrieve) {
   }
 }
 
+TEST_F(ChordIndexTestInitialized, joinStabilizeAddLeaveStabilizeRetrieve) {
+  const size_t kNProcessesHalf = FLAGS_chord_processes / 2;
+  const size_t kNData = 10;
+  enum Barriers{INIT, ROOT_SHARED, JOINED_STABILIZED, ADDED, LEFT, RETRIEVED};
+  if (getSubprocessId() == 0) {
+    std::ostringstream command_extra;
+    command_extra << "--chord_processes=" << FLAGS_chord_processes;
+    for (size_t i = 1; i <= 2 * kNProcessesHalf; ++i) {
+      launchSubprocess(i, command_extra.str());
+    }
+    IPC::barrier(INIT, 2 * kNProcessesHalf);
+    IPC::push(PeerId::self().ipPort());
+    IPC::barrier(ROOT_SHARED, 2 * kNProcessesHalf);
+    usleep(20 * kNProcessesHalf * FLAGS_stabilize_us);
+    IPC::barrier(JOINED_STABILIZED, 2 * kNProcessesHalf);
+    EXPECT_GT(kNProcessesHalf, 0);
+    TestChordIndex::DataMap data;
+    for (size_t i = 0; i < kNData; ++i) {
+      std::string key, value;
+      addNonLocalData(&key, &value, i);
+      EXPECT_TRUE(data.insert(std::make_pair(key, value)).second);
+    }
+    IPC::barrier(ADDED, 2 * kNProcessesHalf);
+    usleep(10 * kNProcessesHalf * FLAGS_stabilize_us);
+    IPC::barrier(LEFT, kNProcessesHalf);
+    for (const TestChordIndex::DataMap::value_type& item : data) {
+      std::string result;
+      EXPECT_TRUE(TestChordIndex::instance().retrieveData(item.first, &result));
+      EXPECT_EQ(item.second, result);
+    }
+    IPC::barrier(RETRIEVED, kNProcessesHalf);
+
+  } else {
+    IPC::barrier(INIT, 2 * kNProcessesHalf);
+    IPC::barrier(ROOT_SHARED, 2 * kNProcessesHalf);
+    std::string root_string;
+    IPC::pop(&root_string);
+    PeerId root(root_string);
+    TestChordIndex::instance().join(root);
+    IPC::barrier(JOINED_STABILIZED, 2 * kNProcessesHalf);
+    IPC::barrier(ADDED, 2 * kNProcessesHalf);
+    if (getSubprocessId() <= kNProcessesHalf) {
+      IPC::barrier(LEFT, kNProcessesHalf);
+      IPC::barrier(RETRIEVED, kNProcessesHalf);
+    }
+  }
+}
+
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT

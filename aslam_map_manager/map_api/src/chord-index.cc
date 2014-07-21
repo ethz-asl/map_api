@@ -48,7 +48,8 @@ bool ChordIndex::handleGetClosestPrecedingFinger(
     const Key& key, PeerId* result) {
   CHECK_NOTNULL(result);
   if (!waitUntilInitialized()) {
-    return false;
+    // TODO(tcies) re-introduce request_status
+    LOG(ERROR) << "Not active any more! Clean solution?";
   }
   *result = closestPrecedingFinger(key);
   return true;
@@ -57,7 +58,8 @@ bool ChordIndex::handleGetClosestPrecedingFinger(
 bool ChordIndex::handleGetSuccessor(PeerId* result) {
   CHECK_NOTNULL(result);
   if (!waitUntilInitialized()) {
-    return false;
+    // TODO(tcies) re-introduce request_status
+    LOG(ERROR) << "Not active any more! Clean solution?";
   }
   peer_lock_.readLock();
   *result = successor_->id;
@@ -67,7 +69,8 @@ bool ChordIndex::handleGetSuccessor(PeerId* result) {
 
 bool ChordIndex::handleGetPredecessor(PeerId* result) {
   if (!waitUntilInitialized()) {
-    return false;
+    // TODO(tcies) re-introduce request_status
+    LOG(ERROR) << "Not active any more! Clean solution?";
   }
   peer_lock_.readLock();
   *result = predecessor_->id;
@@ -76,6 +79,10 @@ bool ChordIndex::handleGetPredecessor(PeerId* result) {
 }
 
 bool ChordIndex::handleLock(const PeerId& requester) {
+  if (!waitUntilInitialized()) {
+    // TODO(tcies) re-introduce request_status
+    LOG(ERROR) << "Not active any more! Clean solution?";
+  }
   std::lock_guard<std::mutex> lock(node_lock_);
   if (node_locked_) {
     return false;
@@ -88,6 +95,10 @@ bool ChordIndex::handleLock(const PeerId& requester) {
 }
 
 bool ChordIndex::handleUnlock(const PeerId& requester) {
+  if (!waitUntilInitialized()) {
+    // TODO(tcies) re-introduce request_status
+    LOG(ERROR) << "Not active any more! Clean solution?";
+  }
   std::lock_guard<std::mutex> lock(node_lock_);
   if (!node_locked_ || node_lock_holder_ != requester) {
     return false;
@@ -100,7 +111,8 @@ bool ChordIndex::handleUnlock(const PeerId& requester) {
 
 bool ChordIndex::handleNotify(const PeerId& peer_id) {
   if (!waitUntilInitialized()) {
-    return false;
+    // TODO(tcies) re-introduce request_status
+    LOG(FATAL) << "Should never happen!";
   }
   if (FLAGS_join_mode == kCleanJoin) {
     return handleNotifyClean(peer_id);
@@ -110,8 +122,46 @@ bool ChordIndex::handleNotify(const PeerId& peer_id) {
   }
 }
 
+bool ChordIndex::handleReplace(const PeerId& old_peer, const PeerId& new_peer) {
+  if (!waitUntilInitialized()) {
+    // TODO(tcies) re-introduce request_status
+    LOG(FATAL) << "Should never happen!";
+  }
+  CHECK_EQ(kCleanJoin, FLAGS_join_mode) <<
+      "Replace available only in clean join";
+  peer_lock_.readLock();
+  bool successor = old_peer == successor_->id,
+      predecessor = old_peer == predecessor_->id;
+  if (!successor && !predecessor) { // could be both
+    return false;
+  }
+  std::lock_guard<std::mutex> lock(node_lock_);
+  if (successor) {
+    if(!node_locked_ || node_lock_holder_ != old_peer) {
+      return false;
+    }
+  }
+  if (predecessor) {
+    if(!node_locked_ || node_lock_holder_ != old_peer) {
+      return false;
+    }
+  }
+  peer_lock_.unlock(); // registerPeer does writeLock
+  if (successor) {
+    registerPeer(new_peer, &successor_);
+  }
+  if (predecessor) {
+    registerPeer(new_peer, &predecessor_);
+  }
+  return true;
+}
+
 bool ChordIndex::handleAddData(
     const std::string& key, const std::string& value) {
+  if (!waitUntilInitialized()) {
+    // TODO(tcies) re-introduce request_status
+    LOG(FATAL) << "Should never happen!";
+  }
   // TODO(tcies) try-again-later & integrate if not integrated
   return addDataLocally(key, value);
 }
@@ -119,6 +169,10 @@ bool ChordIndex::handleAddData(
 bool ChordIndex::handleRetrieveData(
     const std::string& key, std::string* value) {
   CHECK_NOTNULL(value);
+  if (!waitUntilInitialized()) {
+    // TODO(tcies) re-introduce request_status
+    LOG(FATAL) << "Should never happen!";
+  }
   // TODO(tcies) try-again-later & integrate if not integrated
   if (!retrieveDataLocally(key, value)) {
     LOG(WARNING) << "Data " << key << " requested at " << PeerId::self() <<
@@ -131,6 +185,10 @@ bool ChordIndex::handleRetrieveData(
 bool ChordIndex::handleFetchResponsibilities(
     const PeerId& requester, DataMap* responsibilities) {
   CHECK_NOTNULL(responsibilities);
+  if (!waitUntilInitialized()) {
+    // TODO(tcies) re-introduce request_status
+    LOG(FATAL) << "Should never happen!";
+  }
   // TODO(tcies) try-again-later if not integrated
   data_lock_.readLock();
   for (const DataMap::value_type& item : data_) {
@@ -143,6 +201,10 @@ bool ChordIndex::handleFetchResponsibilities(
 }
 
 bool ChordIndex::handlePushResponsibilities(const DataMap& responsibilities) {
+  if (!waitUntilInitialized()) {
+    // TODO(tcies) re-introduce request_status
+    LOG(FATAL) << "Should never happen!";
+  }
   data_lock_.writeLock();
   for (const DataMap::value_type& item : responsibilities) {
     data_[item.first] = item.second; // overwrite intended
@@ -300,6 +362,23 @@ void ChordIndex::stabilizeJoin(const PeerId& other) {
   //  LOG(INFO) << PeerId::self() << " stabilize-joined " << other;
 }
 
+bool ChordIndex::lock() {
+  while (true) {
+    node_lock_.lock();
+    if (!node_locked_) {
+      node_locked_ = true;
+      node_lock_holder_ = PeerId::self();
+      VLOG(3) << own_key_ << " locked to self";
+      node_lock_.unlock();
+      break;
+    } else {
+      node_lock_.unlock();
+      usleep(1000);
+    }
+  }
+  return true;
+}
+
 bool ChordIndex::lock(const PeerId& subject) const {
   while (true) {
     if (!lockRpc(subject)) {
@@ -311,6 +390,14 @@ bool ChordIndex::lock(const PeerId& subject) const {
   return true;
 }
 
+void ChordIndex::unlock() {
+  std::lock_guard<std::mutex> lock(node_lock_);
+  CHECK(node_locked_);
+  CHECK(node_lock_holder_ == PeerId::self());
+  node_locked_ = false;
+  VLOG(3) << own_key_ << " unlocked self";
+}
+
 void ChordIndex::unlock(const PeerId& subject) const {
   CHECK(unlockRpc(subject));
 }
@@ -320,7 +407,7 @@ void ChordIndex::leave() {
   stabilizer_.join();
   CHECK_EQ(kCleanJoin, FLAGS_join_mode) << "Stabilize leave deprecated";
   leaveClean();
-  usleep(5000); // TODO(tcies) unhack! "Ensures" that pending requests resolve
+  usleep(50000);// TODO(tcies) unhack! "Ensures" that pending requests resolve
   initialized_ = false;
   initialized_cv_.notify_all();
   integrated_ = false;
@@ -388,7 +475,9 @@ void ChordIndex::leaveClean() {
     // unlock, repeat
     unlock(predecessor);
     unlock();
-    unlock(successor);
+    if (successor != predecessor) {
+      unlock(successor);
+    }
   }
   if (successor != PeerId::self()) {
     // 2. push data
@@ -402,6 +491,7 @@ void ChordIndex::leaveClean() {
       unlock(predecessor);
     }
     unlock(successor);
+    LOG(INFO) << own_key_ << " left ring topo";
   } else {
     LOG(INFO) << "Last peer left chord index";
   }
