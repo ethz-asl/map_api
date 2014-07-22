@@ -11,14 +11,19 @@ namespace map_api {
 class NetTableManager {
  public:
   /**
-   * Mostly responsible for registering handlers.
+   * Responsible for registering handlers, loading the metatable, and joining
+   * or creating the metatable chunk.
    */
-  void init();
+  void init(bool create_metatable_chunk);
+
+  void initMetatable(bool create_metatable_chunk);
+
   void addTable(bool updateable, std::unique_ptr<TableDescriptor>* descriptor);
   /**
    * Can leave dangling reference
    */
   NetTable& getTable(const std::string& name);
+
   void leaveAllChunks();
 
   /**
@@ -65,6 +70,8 @@ class NetTableManager {
    */
   static bool findTable(const std::string& table_name,
                         TableMap::iterator* found);
+
+  Chunk* metatable_chunk_ = nullptr;
 
   TableMap tables_;
   Poco::RWLock tables_lock_;

@@ -1,11 +1,15 @@
 package map_api.proto;
 
-message JoinResponse {
-  repeated string fingers = 1;
-  optional string predecessor = 2;
+message ReplaceRequest {
+  optional string old_peer = 1;
+  optional string new_peer = 2;
 }
 
 message AddDataRequest {
   optional string key = 1;
   optional string value = 2;
+}
+
+message FetchResponsibilitiesResponse {
+  repeated AddDataRequest data = 1;
 }

@@ -40,7 +40,8 @@ std::unordered_map<std::string,
 std::function<void(const Message& request, Message* response)> >
 MapApiHub::handlers_;
 
-bool MapApiHub::init() {
+bool MapApiHub::init(bool* is_first_peer) {
+  CHECK_NOTNULL(is_first_peer);
   context_.reset(new zmq::context_t());
   terminate_ = false;
   if (FLAGS_discovery_mode == kFileDiscovery) {
@@ -111,6 +112,8 @@ bool MapApiHub::init() {
       peers_.erase(found);
     }
   }
+
+  *is_first_peer = peers_.empty();
 
   discovery_->unlock();
   return true;
