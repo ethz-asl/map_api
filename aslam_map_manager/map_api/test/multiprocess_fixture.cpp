@@ -115,7 +115,7 @@ class MultiprocessTest : public ::testing::Test {
     std::unique_lock<std::mutex> lock(*mutex);
     *result = fgets(out_buffer, size, stream);
     lock.unlock();
-    cv->notify_one();
+    cv->notify_all();
   }
 
   virtual void SetUp() {
@@ -126,7 +126,7 @@ class MultiprocessTest : public ::testing::Test {
     if (getSubprocessId() == 0) {
       // explicit kill for core in order to carry nothing over to next test
       map_api::MapApiCore::instance().kill();
-      harvest();
+      harvest(false);
     }
   }
  private:

@@ -18,28 +18,45 @@ class TestChordIndex final : public ChordIndex {
   /**
    * Static handlers
    */
-  static void staticHandleFindSuccessor(
+  static void staticHandleGetClosestPrecedingFinger(
+      const Message& request, Message* response);
+  static void staticHandleGetSuccessor(
       const Message& request, Message* response);
   static void staticHandleGetPredecessor(
       const Message& request, Message* response);
-  static void staticHandleFindSuccessorAndFixFinger(
+  static void staticHandleLock(
       const Message& request, Message* response);
-  static void staticHandleLeave(const Message& request, Message* response);
-  static void staticHandleNotifySuccessor(
+  static void staticHandleUnlock(
       const Message& request, Message* response);
-  static void staticHandleNotifyPredecessor(
+  static void staticHandleNotify(
+      const Message& request, Message* response);
+  static void staticHandleReplace(
+      const Message& request, Message* response);
+  static void staticHandleAddData(
+      const Message& request, Message* response);
+  static void staticHandleRetrieveData(
+      const Message& request, Message* response);
+  static void staticHandleFetchResponsibilities(
+      const Message& request, Message* response);
+  static void staticHandlePushResponsibilities(
       const Message& request, Message* response);
   /**
    * RPC types
    */
   static const char kPeerResponse[];
-  static const char kFindSuccessorRequest[];
+  static const char kGetClosestPrecedingFingerRequest[];
+  static const char kGetSuccessorRequest[];
   static const char kGetPredecessorRequest[];
-  static const char kFindSuccessorAndFixFingerRequest[];
-  static const char kFindSuccessorAndFixFingerResponse[];
-  static const char kLeaveRequest[];
-  static const char kNotifySuccessorRequest[];
-  static const char kNotifyPredecessorRequest[];
+  static const char kLockRequest[];
+  static const char kUnlockRequest[];
+  static const char kNotifyRequest[];
+  static const char kReplaceRequest[];
+  static const char kAddDataRequest[];
+  static const char kRetrieveDataRequest[];
+  static const char kRetrieveDataResponse[];
+  static const char kFetchResponsibilitiesRequest[];
+  static const char kFetchResponsibilitiesResponse[];
+  static const char kPushResponsibilitiesRequest[];
 
   /**
    * Inits handlers, must be called before core::init
@@ -54,130 +71,248 @@ class TestChordIndex final : public ChordIndex {
   TestChordIndex(const TestChordIndex&) = delete;
   TestChordIndex& operator =(const TestChordIndex&) = delete;
 
-  virtual PeerId findSuccessorRpc(
-      const PeerId& to, const Key& argument) final override;
-  virtual PeerId getPredecessorRpc(const PeerId& to) final override;
-  virtual PeerId findSuccessorAndFixFingerRpc(
-      const PeerId& to, const Key& query, const Key& finger_base,
-      PeerId* actual_finger_node) final override;
-  virtual bool leaveRpc(
-      const PeerId& to, const PeerId& leaver, const PeerId&leaver_predecessor,
-      const PeerId& leaver_successor) final override;
-  virtual bool notifySuccessorRpc(
-      const PeerId& successor, const PeerId& self) final override;
-  virtual bool notifyPredecessorRpc(
-      const PeerId& predecessor, const PeerId& self) final override;
+  virtual bool getClosestPrecedingFingerRpc(
+      const PeerId& to, const Key& key, PeerId* closest_preceding) final override;
+  virtual bool getSuccessorRpc(const PeerId& to, PeerId* predecessor)
+  final override;
+  virtual bool getPredecessorRpc(const PeerId& to, PeerId* predecessor)
+  final override;
+  virtual bool lockRpc(const PeerId& to) const final override;
+  virtual bool unlockRpc(const PeerId& to) const final override;
+  virtual bool notifyRpc(
+      const PeerId& to, const PeerId& subject) final override;
+  virtual bool replaceRpc(
+      const PeerId& to, const PeerId& old_peer, const PeerId& new_peer)
+  final override;
+  virtual bool addDataRpc(
+      const PeerId& to, const std::string& key, const std::string& value)
+  final override;
+  virtual bool retrieveDataRpc(
+      const PeerId& to, const std::string& key, std::string* value)
+  final override;
+  virtual bool fetchResponsibilitiesRpc(
+      const PeerId& to, DataMap* responsibilities) final override;
+  virtual bool pushResponsibilitiesRpc(
+      const PeerId& to, const DataMap& responsibilities) final override;
 
   PeerHandler peers_;
 };
 
 const char TestChordIndex::kPeerResponse[] =
     "test_chord_index_peer_response";
-const char TestChordIndex::kFindSuccessorRequest[] =
-    "test_chord_index_find_successor_request";
+const char TestChordIndex::kGetClosestPrecedingFingerRequest[] =
+    "test_chord_index_get_closest_preceding_finger_request";
+const char TestChordIndex::kGetSuccessorRequest[] =
+    "test_chord_index_get_successor_request";
 const char TestChordIndex::kGetPredecessorRequest[] =
     "test_chord_index_get_predecessor_request";
-const char TestChordIndex::kFindSuccessorAndFixFingerRequest[] =
-    "test_chord_index_find_predecessor_fix_fingers_request";
-const char TestChordIndex::kFindSuccessorAndFixFingerResponse[] =
-    "test_chord_index_find_predecessor_fix_fingers_response";
-const char TestChordIndex::kLeaveRequest[] =
-    "test_chord_index_leave_request";
-const char TestChordIndex::kNotifySuccessorRequest[] =
-    "test_chord_index_notify_successor_request";
-const char TestChordIndex::kNotifyPredecessorRequest[] =
-    "test_chord_index_notify_predecessor_request";
+const char TestChordIndex::kLockRequest[] =
+    "test_chord_index_lock_request";
+const char TestChordIndex::kUnlockRequest[] =
+    "test_chord_index_unlock_request";
+const char TestChordIndex::kNotifyRequest[] =
+    "test_chord_index_notify_request";
+const char TestChordIndex::kReplaceRequest[] =
+    "test_chord_index_replace_request";
+const char TestChordIndex::kAddDataRequest[] =
+    "test_chord_index_add_data_request";
+const char TestChordIndex::kRetrieveDataRequest[] =
+    "test_chord_index_retrieve_data_request";
+const char TestChordIndex::kRetrieveDataResponse[] =
+    "test_chord_index_retrieve_data_response";
+const char TestChordIndex::kFetchResponsibilitiesRequest[] =
+    "test_chord_index_fetch_responsibilities_request";
+const char TestChordIndex::kFetchResponsibilitiesResponse[] =
+    "test_chord_index_fetch_responsibilities_response";
+const char TestChordIndex::kPushResponsibilitiesRequest[] =
+    "test_chord_index_push_responsibilities_response";
 
 MAP_API_STRING_MESSAGE(TestChordIndex::kPeerResponse);
-MAP_API_STRING_MESSAGE(TestChordIndex::kFindSuccessorRequest);
-MAP_API_PROTO_MESSAGE(TestChordIndex::kFindSuccessorAndFixFingerRequest,
-                      proto::TestChordIndexFindSuccessorFixFingerRequest);
-MAP_API_PROTO_MESSAGE(TestChordIndex::kFindSuccessorAndFixFingerResponse,
-                      proto::TestChordIndexFindSuccessorFixFingerResponse);
-MAP_API_PROTO_MESSAGE(TestChordIndex::kLeaveRequest,
-                      proto::TestChordIndexLeaveRequest);
-MAP_API_STRING_MESSAGE(TestChordIndex::kNotifySuccessorRequest);
-MAP_API_STRING_MESSAGE(TestChordIndex::kNotifyPredecessorRequest);
+MAP_API_STRING_MESSAGE(TestChordIndex::kGetClosestPrecedingFingerRequest);
+MAP_API_STRING_MESSAGE(TestChordIndex::kNotifyRequest);
+MAP_API_PROTO_MESSAGE(TestChordIndex::kReplaceRequest, proto::ReplaceRequest);
+MAP_API_PROTO_MESSAGE(TestChordIndex::kAddDataRequest, proto::AddDataRequest);
+MAP_API_STRING_MESSAGE(TestChordIndex::kRetrieveDataRequest);
+MAP_API_STRING_MESSAGE(TestChordIndex::kRetrieveDataResponse);
+MAP_API_PROTO_MESSAGE(TestChordIndex::kFetchResponsibilitiesResponse,
+                      proto::FetchResponsibilitiesResponse);
+MAP_API_PROTO_MESSAGE(TestChordIndex::kPushResponsibilitiesRequest,
+                      proto::FetchResponsibilitiesResponse);
 
 void TestChordIndex::staticInit() {
   MapApiHub::instance().registerHandler(
-      kFindSuccessorRequest, staticHandleFindSuccessor);
+      kGetClosestPrecedingFingerRequest, staticHandleGetClosestPrecedingFinger);
+  MapApiHub::instance().registerHandler(
+      kGetSuccessorRequest, staticHandleGetSuccessor);
   MapApiHub::instance().registerHandler(
       kGetPredecessorRequest, staticHandleGetPredecessor);
   MapApiHub::instance().registerHandler(
-      kFindSuccessorAndFixFingerRequest, staticHandleFindSuccessorAndFixFinger);
+      kLockRequest, staticHandleLock);
   MapApiHub::instance().registerHandler(
-      kLeaveRequest, staticHandleLeave);
+      kUnlockRequest, staticHandleUnlock);
   MapApiHub::instance().registerHandler(
-      kNotifySuccessorRequest, staticHandleNotifySuccessor);
+      kNotifyRequest, staticHandleNotify);
   MapApiHub::instance().registerHandler(
-      kNotifyPredecessorRequest, staticHandleNotifyPredecessor);
+      kReplaceRequest, staticHandleReplace);
+  MapApiHub::instance().registerHandler(
+      kAddDataRequest, staticHandleAddData);
+  MapApiHub::instance().registerHandler(
+      kRetrieveDataRequest, staticHandleRetrieveData);
+  MapApiHub::instance().registerHandler(
+      kFetchResponsibilitiesRequest, staticHandleFetchResponsibilities);
+  MapApiHub::instance().registerHandler(
+      kPushResponsibilitiesRequest, staticHandlePushResponsibilities);
 }
 
 // ========
 // HANDLERS
 // ========
 
-void TestChordIndex::staticHandleFindSuccessor(
+void TestChordIndex::staticHandleGetClosestPrecedingFinger(
     const Message& request, Message* response) {
   CHECK_NOTNULL(response);
   Key key;
   std::istringstream key_ss(request.serialized());
   key_ss >> key;
   std::ostringstream peer_ss;
-  peer_ss << instance().handleFindSuccessor(key);
+  PeerId closest_preceding;
+  if (!instance().handleGetClosestPrecedingFinger(key, &closest_preceding)) {
+    response->decline();
+    return;
+  }
+  peer_ss << closest_preceding.ipPort();
   response->impose<kPeerResponse>(peer_ss.str());
+}
+
+void TestChordIndex::staticHandleGetSuccessor(
+    const Message& request, Message* response) {
+  CHECK(request.isType<kGetSuccessorRequest>());
+  CHECK_NOTNULL(response);
+  PeerId successor;
+  if (!instance().handleGetSuccessor(&successor)) {
+    response->decline();
+    return;
+  }
+  response->impose<kPeerResponse>(successor.ipPort());
 }
 
 void TestChordIndex::staticHandleGetPredecessor(
     const Message& request, Message* response) {
   CHECK(request.isType<kGetPredecessorRequest>());
   CHECK_NOTNULL(response);
-  response->impose<kPeerResponse>(instance().handleGetPredecessor().ipPort());
+  PeerId predecessor;
+  if (!instance().handleGetPredecessor(&predecessor)) {
+    response->decline();
+    return;
+  }
+  response->impose<kPeerResponse>(predecessor.ipPort());
 }
 
-void TestChordIndex::staticHandleFindSuccessorAndFixFinger(
+void TestChordIndex::staticHandleLock(
     const Message& request, Message* response) {
   CHECK_NOTNULL(response);
-  proto::TestChordIndexFindSuccessorFixFingerRequest fsff_request;
-  request.extract<kFindSuccessorAndFixFingerRequest>(&fsff_request);
-  PeerId actual_finger, result = instance().handleFindSuccessorAndFixFinger(
-      fsff_request.query(), fsff_request.finger_base(), &actual_finger);
-  proto::TestChordIndexFindSuccessorFixFingerResponse fsff_response;
-  fsff_response.set_result(result.ipPort());
-  fsff_response.set_actual_finger(actual_finger.ipPort());
-  response->impose<kFindSuccessorAndFixFingerResponse>(fsff_response);
-}
-
-void TestChordIndex::staticHandleLeave(
-    const Message& request, Message* response) {
-  CHECK_NOTNULL(response);
-  proto::TestChordIndexLeaveRequest leave_request;
-  request.extract<kLeaveRequest>(&leave_request);
-  PeerId leaver(leave_request.leaver()),
-      predecessor(leave_request.predecessor()),
-      successor(leave_request.successor());
-  if (instance().handleLeave(leaver, predecessor, successor)) {
+  PeerId requester(request.sender());
+  if (instance().handleLock(requester)) {
     response->ack();
   } else {
     response->decline();
   }
 }
 
-void TestChordIndex::staticHandleNotifySuccessor(
+void TestChordIndex::staticHandleUnlock(
     const Message& request, Message* response) {
   CHECK_NOTNULL(response);
-  if (instance().handleNotifySuccessor(PeerId(request.serialized()))) {
+  PeerId requester(request.sender());
+  if (instance().handleUnlock(requester)) {
+    response->ack();
+  } else {
+    response->decline();
+    LOG(INFO) << "Denied!";
+  }
+}
+
+void TestChordIndex::staticHandleNotify(
+    const Message& request, Message* response) {
+  CHECK_NOTNULL(response);
+  if (instance().handleNotify(PeerId(request.serialized()))) {
     response->ack();
   } else {
     response->decline();
   }
 }
 
-void TestChordIndex::staticHandleNotifyPredecessor(
+void TestChordIndex::staticHandleReplace(
     const Message& request, Message* response) {
   CHECK_NOTNULL(response);
-  if (instance().handleNotifyPredecessor(PeerId(request.serialized()))) {
+  proto::ReplaceRequest replace_request;
+  request.extract<kReplaceRequest>(&replace_request);
+  if (instance().handleReplace(PeerId(replace_request.old_peer()),
+                               PeerId(replace_request.new_peer()))) {
+    response->ack();
+  } else {
+    response->decline();
+  }
+}
+
+void TestChordIndex::staticHandleAddData(
+    const Message& request, Message* response) {
+  CHECK_NOTNULL(response);
+  proto::AddDataRequest add_data_request;
+  request.extract<kAddDataRequest>(&add_data_request);
+  CHECK(add_data_request.has_key());
+  CHECK(add_data_request.has_value());
+  if (instance().handleAddData(
+      add_data_request.key(), add_data_request.value())) {
+    response->ack();
+  } else {
+    response->decline();
+  }
+}
+
+void TestChordIndex::staticHandleRetrieveData(
+    const Message& request, Message* response) {
+  CHECK_NOTNULL(response);
+  std::string key, value;
+  request.extract<kRetrieveDataRequest>(&key);
+  if (instance().handleRetrieveData(key, &value)) {
+    response->impose<kRetrieveDataResponse>(value);
+  } else {
+    response->decline();
+  }
+}
+
+void TestChordIndex::staticHandleFetchResponsibilities(
+    const Message& request, Message* response) {
+  CHECK_NOTNULL(response);
+  DataMap data;
+  PeerId requester = PeerId(request.sender());
+  CHECK(request.isType<kFetchResponsibilitiesRequest>());
+  if (instance().handleFetchResponsibilities(requester, &data)) {
+    proto::FetchResponsibilitiesResponse fetch_response;
+    for (const DataMap::value_type& item : data) {
+      proto::AddDataRequest add_request;
+      add_request.set_key(item.first);
+      add_request.set_value(item.second);
+      proto::AddDataRequest* slot = fetch_response.add_data();
+      CHECK_NOTNULL(slot);
+      *slot = add_request;
+    }
+    response->impose<kFetchResponsibilitiesResponse>(fetch_response);
+  } else {
+    response->decline();
+  }
+}
+
+void TestChordIndex::staticHandlePushResponsibilities(
+    const Message& request, Message* response) {
+  CHECK_NOTNULL(response);
+  DataMap data;
+  proto::FetchResponsibilitiesResponse push_request;
+  request.extract<kPushResponsibilitiesRequest>(&push_request);
+  for (int i = 0; i < push_request.data_size(); ++i) {
+    data[push_request.data(i).key()] = push_request.data(i).value();
+  }
+  if (instance().handlePushResponsibilities(data)) {
     response->ack();
   } else {
     response->decline();
@@ -187,64 +322,168 @@ void TestChordIndex::staticHandleNotifyPredecessor(
 // ========
 // REQUESTS
 // ========
-PeerId TestChordIndex::findSuccessorRpc(
-    const PeerId& to, const Key& argument) {
+bool TestChordIndex::getClosestPrecedingFingerRpc(
+    const PeerId& to, const Key& key, PeerId* result) {
+  CHECK_NOTNULL(result);
   Message request, response;
   std::ostringstream key_ss;
-  key_ss << argument;
-  request.impose<kFindSuccessorRequest>(key_ss.str());
-  instance().peers_.request(to, &request, &response);
-  return PeerId(response.serialized());
+  key_ss << key;
+  request.impose<kGetClosestPrecedingFingerRequest>(key_ss.str());
+  if (!instance().peers_.try_request(to, &request, &response)) {
+    return false;
+  }
+  if (response.isType<Message::kDecline>()) {
+    return false;
+  }
+  CHECK(response.isType<kPeerResponse>());
+  *result = PeerId(response.serialized());
+  return true;
 }
 
-PeerId TestChordIndex::getPredecessorRpc(const PeerId& to) {
+bool TestChordIndex::getSuccessorRpc(const PeerId& to, PeerId* result) {
+  CHECK_NOTNULL(result);
+  Message request, response;
+  request.impose<kGetSuccessorRequest>();
+  if (!instance().peers_.try_request(to, &request, &response)) {
+    return false;
+  }
+  if (response.isType<Message::kDecline>()) {
+    return false;
+  }
+  CHECK(response.isType<kPeerResponse>());
+  *result = PeerId(response.serialized());
+  return true;
+}
+
+bool TestChordIndex::getPredecessorRpc(const PeerId& to, PeerId* result) {
+  CHECK_NOTNULL(result);
   Message request, response;
   request.impose<kGetPredecessorRequest>();
-  instance().peers_.request(to, &request, &response);
-  return PeerId(response.serialized());
+  if (!instance().peers_.try_request(to, &request, &response)) {
+    return false;
+  }
+  if (response.isType<Message::kDecline>()) {
+    return false;
+  }
+  CHECK(response.isType<kPeerResponse>());
+  *result = PeerId(response.serialized());
+  return true;
 }
 
-PeerId TestChordIndex::findSuccessorAndFixFingerRpc(
-    const PeerId& to, const Key& query, const Key& finger_base,
-    PeerId* actual_finger_node) {
+bool TestChordIndex::lockRpc(const PeerId& to) const {
   Message request, response;
-  proto::TestChordIndexFindSuccessorFixFingerRequest fsff_request;
-  fsff_request.set_query(query);
-  fsff_request.set_finger_base(finger_base);
-  request.impose<kFindSuccessorAndFixFingerRequest>(fsff_request);
-  instance().peers_.request(to, &request, &response);
-  proto::TestChordIndexFindSuccessorFixFingerResponse fsff_response;
-  response.extract<kFindSuccessorAndFixFingerResponse>(&fsff_response);
-  *actual_finger_node = PeerId(fsff_response.actual_finger());
-  return PeerId(fsff_response.result());
+  request.impose<kLockRequest>();
+  if (!instance().peers_.try_request(to, &request, &response)) {
+    LOG(WARNING) << "Couldn't reach peer to lock";
+    return false;
+  }
+  if (response.isType<Message::kDecline>()) {
+    return false;
+  }
+  CHECK(response.isType<Message::kAck>());
+  return true;
 }
 
-bool TestChordIndex::leaveRpc(
-    const PeerId& to, const PeerId& leaver, const PeerId&leaver_predecessor,
-    const PeerId& leaver_successor) {
+bool TestChordIndex::unlockRpc(const PeerId& to) const {
   Message request, response;
-  proto::TestChordIndexLeaveRequest leave_request;
-  leave_request.set_leaver(leaver.ipPort());
-  leave_request.set_predecessor(leaver_predecessor.ipPort());
-  leave_request.set_successor(leaver_successor.ipPort());
-  request.impose<kLeaveRequest>(leave_request);
-  instance().peers_.request(to, &request, &response);
+  request.impose<kUnlockRequest>();
+  if (!instance().peers_.try_request(to, &request, &response)) {
+    LOG(WARNING) << "Couldn't reach peer to unlock";
+    return false;
+  }
+  if (response.isType<Message::kDecline>()) {
+    return false;
+  }
+  CHECK(response.isType<Message::kAck>());
+  return true;
+}
+
+bool TestChordIndex::notifyRpc(
+    const PeerId& to, const PeerId& self) {
+  Message request, response;
+  request.impose<kNotifyRequest>(self.ipPort());
+  if (!instance().peers_.try_request(to, &request, &response)) {
+    return false;
+  }
   return response.isType<Message::kAck>();
 }
 
-bool TestChordIndex::notifySuccessorRpc(
-    const PeerId& successor, const PeerId& self) {
+bool TestChordIndex::replaceRpc(
+    const PeerId& to, const PeerId& old_peer, const PeerId& new_peer) {
   Message request, response;
-  request.impose<kNotifySuccessorRequest>(self.ipPort());
-  instance().peers_.request(successor, &request, &response);
+  proto::ReplaceRequest replace_request;
+  replace_request.set_old_peer(old_peer.ipPort());
+  replace_request.set_new_peer(new_peer.ipPort());
+  request.impose<kReplaceRequest>(replace_request);
+  if (!instance().peers_.try_request(to, &request, &response)) {
+    return false;
+  }
   return response.isType<Message::kAck>();
 }
 
-bool TestChordIndex::notifyPredecessorRpc(
-    const PeerId& predecessor, const PeerId& self) {
+bool TestChordIndex::addDataRpc(
+    const PeerId& to, const std::string& key, const std::string& value) {
   Message request, response;
-  request.impose<kNotifyPredecessorRequest>(self.ipPort());
-  instance().peers_.request(predecessor, &request, &response);
+  proto::AddDataRequest add_data_request;
+  add_data_request.set_key(key);
+  add_data_request.set_value(value);
+  request.impose<kAddDataRequest>(add_data_request);
+  if (!instance().peers_.try_request(to, &request, &response)) {
+    return false;
+  }
+  return response.isType<Message::kAck>();
+}
+
+bool TestChordIndex::retrieveDataRpc(
+    const PeerId& to, const std::string& key, std::string* value) {
+  CHECK_NOTNULL(value);
+  Message request, response;
+  request.impose<kRetrieveDataRequest>(key);
+  if (!instance().peers_.try_request(to, &request, &response)) {
+    return false;
+  }
+  if (response.isType<Message::kDecline>()) {
+    return false;
+  }
+  CHECK(response.isType<kRetrieveDataResponse>());
+  response.extract<kRetrieveDataResponse>(value);
+  return true;
+}
+
+bool TestChordIndex::fetchResponsibilitiesRpc(
+    const PeerId& to, DataMap* responsibilities) {
+  CHECK_NOTNULL(responsibilities);
+  Message request, response;
+  request.impose<kFetchResponsibilitiesRequest>();
+  if (!instance().peers_.try_request(to, &request, &response)) {
+    return false;
+  }
+  if (response.isType<Message::kDecline>()) {
+    return false;
+  }
+  CHECK(response.isType<kFetchResponsibilitiesResponse>());
+  proto::FetchResponsibilitiesResponse fetch_response;
+  response.extract<kFetchResponsibilitiesResponse>(&fetch_response);
+  for (int i = 0; i < fetch_response.data_size(); ++i) {
+    responsibilities->insert(std::make_pair(fetch_response.data(i).key(),
+                                            fetch_response.data(i).value()));
+  }
+  return true;
+}
+
+bool TestChordIndex::pushResponsibilitiesRpc(
+    const PeerId& to, const DataMap& responsibilities) {
+  Message request, response;
+  proto::FetchResponsibilitiesResponse push_request;
+  for (const DataMap::value_type& item : responsibilities) {
+    proto::AddDataRequest* slot = push_request.add_data();
+    slot->set_key(item.first);
+    slot->set_value(item.second);
+  }
+  request.impose<kPushResponsibilitiesRequest>(push_request);
+  if (!instance().peers_.try_request(to, &request, &response)) {
+    return false;
+  }
   return response.isType<Message::kAck>();
 }
 

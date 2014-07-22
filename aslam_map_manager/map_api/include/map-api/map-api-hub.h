@@ -34,7 +34,7 @@ class MapApiHub final {
   /**
    * Initialize hub
    */
-  bool init();
+  bool init(bool* is_first_peer);
   /**
    * Re-enter server thread, disconnect from peers, leave discovery
    */
@@ -88,6 +88,10 @@ class MapApiHub final {
    * yet, adds permanent connection to the peer.
    */
   void request(const PeerId& peer, Message* request, Message* response);
+  /**
+   * Returns false if timeout
+   */
+  bool try_request(const PeerId& peer, Message* request, Message* response);
 
   static void discoveryHandler(const Message& request, Message* response);
 

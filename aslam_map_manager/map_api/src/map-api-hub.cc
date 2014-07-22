@@ -40,7 +40,8 @@ std::unordered_map<std::string,
 std::function<void(const Message& request, Message* response)> >
 MapApiHub::handlers_;
 
-bool MapApiHub::init() {
+bool MapApiHub::init(bool* is_first_peer) {
+  CHECK_NOTNULL(is_first_peer);
   context_.reset(new zmq::context_t());
   terminate_ = false;
   if (FLAGS_discovery_mode == kFileDiscovery) {
@@ -111,6 +112,8 @@ bool MapApiHub::init() {
       peers_.erase(found);
     }
   }
+
+  *is_first_peer = peers_.empty();
 
   discovery_->unlock();
   return true;
@@ -198,6 +201,29 @@ void MapApiHub::request(
     }
   }
   found->second->request(request, response);
+}
+
+bool MapApiHub::try_request(
+    const PeerId& peer, Message* request, Message* response) {
+  CHECK_NOTNULL(request);
+  CHECK_NOTNULL(response);
+  PeerMap::iterator found = peers_.find(peer);
+  if (found == peers_.end()) {
+    LOG(INFO) << "couldn't find " << peer << " among " << peers_.size();
+    for (const PeerMap::value_type& peer : peers_) {
+      LOG(INFO) << peer.first;
+    }
+    std::lock_guard<std::mutex> lock(peer_mutex_);
+    // double-checked locking pattern
+    std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
+        peers_.find(peer);
+    if (found == peers_.end()) {
+      found = peers_.insert(std::make_pair(
+          peer, std::unique_ptr<Peer>(
+              new Peer(peer.ipPort(), *context_, ZMQ_REQ)))).first;
+    }
+  }
+  return found->second->try_request(request, response);
 }
 
 void MapApiHub::broadcast(Message* request,
