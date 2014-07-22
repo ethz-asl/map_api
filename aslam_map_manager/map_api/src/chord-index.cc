@@ -110,7 +110,8 @@ bool ChordIndex::handleUnlock(const PeerId& requester) {
 bool ChordIndex::handleNotify(const PeerId& peer_id) {
   if (!waitUntilInitialized()) {
     // TODO(tcies) re-introduce request_status
-    LOG(FATAL) << "Should never happen!";
+    LOG(FATAL) << "Should NotifyRpc only locked peers, locked peers shouldn't "\
+        "be able to leave!";
   }
   if (FLAGS_join_mode == kCleanJoin) {
     return handleNotifyClean(peer_id);
@@ -123,24 +124,27 @@ bool ChordIndex::handleNotify(const PeerId& peer_id) {
 bool ChordIndex::handleReplace(const PeerId& old_peer, const PeerId& new_peer) {
   if (!waitUntilInitialized()) {
     // TODO(tcies) re-introduce request_status
-    LOG(FATAL) << "Should never happen!";
+    LOG(FATAL) << "Should Repl.Rpc only locked peers, locked peers shouldn't "\
+        "be able to leave!";
   }
   CHECK_EQ(kCleanJoin, FLAGS_join_mode) <<
       "Replace available only in clean join";
   peer_lock_.readLock();
-  bool successor = old_peer == successor_->id,
-      predecessor = old_peer == predecessor_->id;
+  bool successor = old_peer == successor_->id;
+  bool predecessor = old_peer == predecessor_->id;
   if (!successor && !predecessor) { // could be both
     return false;
   }
   std::lock_guard<std::mutex> lock(node_lock_);
   if (successor) {
     if(!node_locked_ || node_lock_holder_ != old_peer) {
+      peer_lock_.unlock();
       return false;
     }
   }
   if (predecessor) {
     if(!node_locked_ || node_lock_holder_ != old_peer) {
+      peer_lock_.unlock();
       return false;
     }
   }
@@ -158,7 +162,7 @@ bool ChordIndex::handleAddData(
     const std::string& key, const std::string& value) {
   if (!waitUntilInitialized()) {
     // TODO(tcies) re-introduce request_status
-    LOG(FATAL) << "Should never happen!";
+    LOG(FATAL) << "Need to implement request status for departed peers.";
   }
   // TODO(tcies) try-again-later & integrate if not integrated
   return addDataLocally(key, value);
@@ -169,7 +173,7 @@ bool ChordIndex::handleRetrieveData(
   CHECK_NOTNULL(value);
   if (!waitUntilInitialized()) {
     // TODO(tcies) re-introduce request_status
-    LOG(FATAL) << "Should never happen!";
+    LOG(FATAL) << "Need to implement request status for departed peers.";
   }
   // TODO(tcies) try-again-later & integrate if not integrated
   if (!retrieveDataLocally(key, value)) {
@@ -185,7 +189,8 @@ bool ChordIndex::handleFetchResponsibilities(
   CHECK_NOTNULL(responsibilities);
   if (!waitUntilInitialized()) {
     // TODO(tcies) re-introduce request_status
-    LOG(FATAL) << "Should never happen!";
+    LOG(FATAL) << "Should FRRpc only locked peers, locked peers shouldn't "\
+        "be able to leave!";
   }
   // TODO(tcies) try-again-later if not integrated
   data_lock_.readLock();
@@ -201,7 +206,8 @@ bool ChordIndex::handleFetchResponsibilities(
 bool ChordIndex::handlePushResponsibilities(const DataMap& responsibilities) {
   if (!waitUntilInitialized()) {
     // TODO(tcies) re-introduce request_status
-    LOG(FATAL) << "Should never happen!";
+    LOG(FATAL) << "Should PRRpc only locked peers, locked peers shouldn't "\
+        "be able to leave!";
   }
   data_lock_.writeLock();
   for (const DataMap::value_type& item : responsibilities) {
