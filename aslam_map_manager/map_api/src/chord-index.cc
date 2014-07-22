@@ -16,7 +16,6 @@ PeerId ChordIndex::handleFindSuccessor(const Key& key) {
   while (!initialized_) {
     initialized_cv_.wait(lock);
   }
-  lock.unlock();
   return findSuccessor(key);
 }
 
@@ -25,7 +24,6 @@ PeerId ChordIndex::handleGetPredecessor() {
   while (!initialized_) {
     initialized_cv_.wait(lock);
   }
-  lock.unlock();
   std::lock_guard<std::mutex> access_lock(peer_access_);
   return predecessor_->id;
 }
