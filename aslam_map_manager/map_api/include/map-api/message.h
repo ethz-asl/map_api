@@ -1,6 +1,8 @@
 #ifndef MAP_API_MESSAGE_H_
 #define MAP_API_MESSAGE_H_
 
+#include <glog/logging.h>
+
 #include "core.pb.h"
 
 namespace map_api {
