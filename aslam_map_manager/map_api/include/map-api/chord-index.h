@@ -47,15 +47,20 @@ class ChordIndex {
   bool handleLock(const PeerId& requester);
   bool handleUnlock(const PeerId& requester);
   bool handleNotify(const PeerId& peer_id);
+  bool handleReplace(const PeerId& old_peer, const PeerId& new_peer);
   bool handleAddData(const std::string& key, const std::string& value);
   bool handleRetrieveData(const std::string& key, std::string* value);
   bool handleFetchResponsibilities(
       const PeerId& requester, DataMap* responsibilities);
+  bool handlePushResponsibilities(const DataMap& responsibilities);
 
   // ====================
   // HIGH-LEVEL FUNCTIONS
   // ====================
   // TODO(tcies) all/most else private/protected?
+  /**
+   * Adds data to index, overwrites if key exists.
+   */
   bool addData(const std::string& key, const std::string& value);
   bool retrieveData(const std::string& key, std::string* value);
 
@@ -79,13 +84,19 @@ class ChordIndex {
   void cleanJoin(const PeerId& other);
   void stabilizeJoin(const PeerId& other);
 
+  /**
+   * Argument-free versions (un)lock self
+   */
+  bool lock();
   bool lock(const PeerId& subject) const;
+  void unlock();
   void unlock(const PeerId& subject) const;
 
   /**
-   * Terminates stabilizeThread();
+   * Terminates stabilizeThread();, pushes responsible data
    */
   void leave();
+  void leaveClean();
 
   template<typename DataType>
   static Key hash(const DataType& data);
@@ -102,6 +113,8 @@ class ChordIndex {
   virtual bool lockRpc(const PeerId& to) const = 0;
   virtual bool unlockRpc(const PeerId& to) const = 0;
   virtual bool notifyRpc(const PeerId& to, const PeerId& subject) = 0;
+  virtual bool replaceRpc(
+      const PeerId& to, const PeerId& old_peer, const PeerId& new_peer) = 0;
   // query RPCs
   virtual bool addDataRpc(
       const PeerId& to, const std::string& key, const std::string& value) = 0;
@@ -111,6 +124,8 @@ class ChordIndex {
   // should be known
   virtual bool fetchResponsibilitiesRpc(
       const PeerId& to, DataMap* responsibilities) = 0;
+  virtual bool pushResponsibilitiesRpc(
+      const PeerId& to, const DataMap& responsibilities) = 0;
 
   static void stabilizeThread(ChordIndex* self);
   static void integrateThread(ChordIndex* self);
