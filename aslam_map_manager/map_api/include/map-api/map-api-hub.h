@@ -34,7 +34,7 @@ class MapApiHub final {
   /**
    * Initialize hub
    */
-  bool init();
+  bool init(bool* is_first_peer);
   /**
    * Re-enter server thread, disconnect from peers, leave discovery
    */

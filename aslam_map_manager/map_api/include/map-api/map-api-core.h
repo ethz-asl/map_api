@@ -64,9 +64,11 @@ class MapApiCore final {
   MapApiCore();
   ~MapApiCore();
   /**
-   * Returns a weak pointer to the database session
+   * Returns a weak pointer to the database session. Static, i.e. decoupled from
+   * instance() in order to avoid infinite recursion: This is called in
+   * MapApiCore::init()
    */
-  std::weak_ptr<Poco::Data::Session> getSession();
+  static std::weak_ptr<Poco::Data::Session> getSession();
   friend class CRTableRAMCache;
   friend class CRUTableRAMCache;
   friend class LocalTransaction;
@@ -80,7 +82,8 @@ class MapApiCore final {
   /**
    * Session of local database
    */
-  std::shared_ptr<Poco::Data::Session> dbSess_;
+  static std::shared_ptr<Poco::Data::Session> db_session_;
+  static bool db_session_initialized_;
   /**
    * Hub instance
    */

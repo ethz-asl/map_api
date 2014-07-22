@@ -17,7 +17,9 @@ namespace map_api {
 
 class ChordIndexTest : public MultiprocessTest {
  protected:
-  virtual void SetUp() {
+  virtual void SetUp() override {
+    // not using MultiprocessTest::SetUp intentionally - need to register
+    // handlers first
     TestChordIndex::staticInit();
     MapApiCore::instance();
   }
@@ -57,14 +59,48 @@ TEST_F(ChordIndexTest, hashDistribution) {
   }
 }
 
-DEFINE_uint64(join_processes, 10, "Amount of processes to test join with");
-TEST_F(ChordIndexTest, onePeerJoin) {
-  const size_t kNProcesses = FLAGS_join_processes;
+class ChordIndexTestInitialized : public ChordIndexTest {
+ protected:
+  virtual void SetUp() override {
+    ChordIndexTest::SetUp();
+    if (getSubprocessId() == 0) {
+      TestChordIndex::instance().create();
+    }
+  }
+
+  virtual void TearDown() override {
+    TestChordIndex::instance().leave();
+    ChordIndexTest::TearDown();
+  }
+
+  /**
+   * Chord ring must have at least two peers or this will loop forever
+   */
+  void addNonLocalData(std::string* key, std::string* value, int index) {
+    CHECK_NOTNULL(key);
+    CHECK_NOTNULL(value);
+    std::string result;
+    for (size_t salt = 0; ; ++salt) {
+      std::ostringstream suffix;
+      suffix << index << ":" << salt;
+      *key = "key" + suffix.str();
+      *value = "value" + suffix.str();
+      EXPECT_TRUE(TestChordIndex::instance().addData(*key, *value));
+      if (!TestChordIndex::instance().retrieveDataLocally(*key, &result)) {
+        break;
+      }
+    }
+  }
+};
+
+DEFINE_uint64(chord_processes, 10, "Amount of processes to test chord with");
+
+TEST_F(ChordIndexTestInitialized, onePeerJoin) {
+  const size_t kNProcesses = FLAGS_chord_processes;
   enum Barriers{INIT, ROOT_SHARED, JOINED, SHARED_PEERS};
   if (getSubprocessId() == 0) {
-    TestChordIndex::instance().create();
     std::ostringstream command_extra;
-    command_extra << "--join_processes=" << FLAGS_join_processes;
+    command_extra << "--chord_processes=" << FLAGS_chord_processes;
     for (size_t i = 1; i < kNProcesses; ++i) {
       launchSubprocess(i, command_extra.str());
     }
@@ -99,7 +135,245 @@ TEST_F(ChordIndexTest, onePeerJoin) {
     IPC::push(TestChordIndex::instance().successor_->id.ipPort());
     IPC::barrier(SHARED_PEERS, kNProcesses - 1);
   }
-  TestChordIndex::instance().leave();
+}
+
+TEST_F(ChordIndexTestInitialized, localData) {
+  EXPECT_TRUE(TestChordIndex::instance().addData("key", "data"));
+  std::string result;
+  EXPECT_TRUE(TestChordIndex::instance().retrieveData("key", &result));
+  EXPECT_EQ("data", result);
+}
+
+TEST_F(ChordIndexTestInitialized, joinStabilizeAddRetrieve) {
+  const size_t kNProcesses = FLAGS_chord_processes;
+  const size_t kNData = 5;
+  enum Barriers{INIT, ROOT_SHARED, JOINED_STABILIZED, ADDED_RETRIEVED};
+  if (getSubprocessId() == 0) {
+    std::ostringstream command_extra;
+    command_extra << "--chord_processes=" << FLAGS_chord_processes;
+    for (size_t i = 1; i < kNProcesses; ++i) {
+      launchSubprocess(i, command_extra.str());
+    }
+    IPC::barrier(INIT, kNProcesses - 1);
+    IPC::push(PeerId::self().ipPort());
+    IPC::barrier(ROOT_SHARED, kNProcesses - 1);
+    usleep(10 * kNProcesses * FLAGS_stabilize_us); // yes, 10 is a magic number
+    // it should be an upper bound of the amount of required stabilization
+    // iterations per process
+    IPC::barrier(JOINED_STABILIZED, kNProcesses - 1);
+    EXPECT_GT(kNProcesses, 1);
+    for (size_t i = 0; i < kNData; ++i) {
+      std::string key, value, result;
+      addNonLocalData(&key, &value, i);
+      EXPECT_TRUE(TestChordIndex::instance().retrieveData(key, &result));
+      EXPECT_EQ(value, result);
+    }
+    IPC::barrier(ADDED_RETRIEVED, kNProcesses - 1);
+  } else {
+    IPC::barrier(INIT, kNProcesses - 1);
+    IPC::barrier(ROOT_SHARED, kNProcesses - 1);
+    std::string root_string;
+    IPC::pop(&root_string);
+    PeerId root(root_string);
+    TestChordIndex::instance().join(root);
+    IPC::barrier(JOINED_STABILIZED, kNProcesses - 1);
+    IPC::barrier(ADDED_RETRIEVED, kNProcesses - 1);
+  }
+}
+
+TEST_F(ChordIndexTestInitialized, joinStabilizeAddjoinStabilizeRetrieve) {
+  const size_t kNProcessesHalf = FLAGS_chord_processes / 2;
+  const size_t kNData = 10;
+  enum Barriers{INIT, ROOT_SHARED, JOINED_STABILIZED__INIT_2,
+    ADDED__ROOT_SHARED_2, JOINED_STABILIZED_2, RETRIEVED};
+  if (getSubprocessId() == 0) {
+    std::ostringstream command_extra;
+    command_extra << "--chord_processes=" << FLAGS_chord_processes;
+    // first round of joins
+    for (size_t i = 1; i <= kNProcessesHalf; ++i) {
+      launchSubprocess(i, command_extra.str());
+    }
+    IPC::barrier(INIT, kNProcessesHalf);
+    IPC::push(PeerId::self().ipPort());
+    IPC::barrier(ROOT_SHARED, kNProcessesHalf);
+    // second round of joins
+    for (size_t i = 1; i <= kNProcessesHalf; ++i) {
+      launchSubprocess(kNProcessesHalf + i, command_extra.str());
+    }
+    // wait for stabilization of round 1
+    usleep(10 * kNProcessesHalf * FLAGS_stabilize_us); // yes, 10 is a magic number
+    // it should be an upper bound of the amount of required stabilization
+    // iterations per process
+    IPC::barrier(JOINED_STABILIZED__INIT_2, 2*kNProcessesHalf);
+    EXPECT_GT(kNProcessesHalf, 0);
+    TestChordIndex::DataMap data;
+    for (size_t i = 0; i < kNData; ++i) {
+      std::string key, value;
+      addNonLocalData(&key, &value, i);
+      EXPECT_TRUE(data.insert(std::make_pair(key, value)).second);
+    }
+    IPC::push(PeerId::self().ipPort());
+    IPC::barrier(ADDED__ROOT_SHARED_2, 2*kNProcessesHalf);
+    // wait for stabilization of round 2
+    usleep(10 * kNProcessesHalf * FLAGS_stabilize_us);
+    IPC::barrier(JOINED_STABILIZED_2, 2*kNProcessesHalf);
+    for (const TestChordIndex::DataMap::value_type& item : data) {
+      std::string result;
+      EXPECT_TRUE(TestChordIndex::instance().retrieveData(item.first, &result));
+      EXPECT_EQ(item.second, result);
+    }
+    IPC::barrier(RETRIEVED, 2*kNProcessesHalf);
+  } else {
+    PeerId root;
+    std::string root_string;
+    if (getSubprocessId() <= kNProcessesHalf){
+      IPC::barrier(INIT, kNProcessesHalf);
+      IPC::barrier(ROOT_SHARED, kNProcessesHalf);
+      IPC::pop(&root_string);
+      root = PeerId(root_string);
+      TestChordIndex::instance().join(root);
+    }
+    IPC::barrier(JOINED_STABILIZED__INIT_2, 2*kNProcessesHalf);
+    IPC::barrier(ADDED__ROOT_SHARED_2, 2*kNProcessesHalf);
+    if (getSubprocessId() > kNProcessesHalf) {
+      IPC::pop(&root_string);
+      root = PeerId(root_string);
+      TestChordIndex::instance().join(root);
+    }
+    IPC::barrier(JOINED_STABILIZED_2, 2*kNProcessesHalf);
+    IPC::barrier(RETRIEVED, 2*kNProcessesHalf);
+  }
+}
+
+TEST_F(ChordIndexTestInitialized, joinStabilizeAddLeaveStabilizeRetrieve) {
+  const size_t kNProcessesHalf = FLAGS_chord_processes / 2;
+  const size_t kNData = 10;
+  enum Barriers{INIT, ROOT_SHARED, JOINED_STABILIZED, ADDED, LEFT, RETRIEVED};
+  if (getSubprocessId() == 0) {
+    std::ostringstream command_extra;
+    command_extra << "--chord_processes=" << FLAGS_chord_processes;
+    for (size_t i = 1; i <= 2 * kNProcessesHalf; ++i) {
+      launchSubprocess(i, command_extra.str());
+    }
+    IPC::barrier(INIT, 2 * kNProcessesHalf);
+    IPC::push(PeerId::self().ipPort());
+    IPC::barrier(ROOT_SHARED, 2 * kNProcessesHalf);
+    usleep(20 * kNProcessesHalf * FLAGS_stabilize_us);
+    IPC::barrier(JOINED_STABILIZED, 2 * kNProcessesHalf);
+    EXPECT_GT(kNProcessesHalf, 0);
+    TestChordIndex::DataMap data;
+    for (size_t i = 0; i < kNData; ++i) {
+      std::string key, value;
+      addNonLocalData(&key, &value, i);
+      EXPECT_TRUE(data.insert(std::make_pair(key, value)).second);
+    }
+    IPC::barrier(ADDED, 2 * kNProcessesHalf);
+    usleep(10 * kNProcessesHalf * FLAGS_stabilize_us);
+    IPC::barrier(LEFT, kNProcessesHalf);
+    for (const TestChordIndex::DataMap::value_type& item : data) {
+      std::string result;
+      EXPECT_TRUE(TestChordIndex::instance().retrieveData(item.first, &result));
+      EXPECT_EQ(item.second, result);
+    }
+    IPC::barrier(RETRIEVED, kNProcessesHalf);
+
+  } else {
+    IPC::barrier(INIT, 2 * kNProcessesHalf);
+    IPC::barrier(ROOT_SHARED, 2 * kNProcessesHalf);
+    std::string root_string;
+    IPC::pop(&root_string);
+    PeerId root(root_string);
+    TestChordIndex::instance().join(root);
+    IPC::barrier(JOINED_STABILIZED, 2 * kNProcessesHalf);
+    IPC::barrier(ADDED, 2 * kNProcessesHalf);
+    if (getSubprocessId() <= kNProcessesHalf) {
+      IPC::barrier(LEFT, kNProcessesHalf);
+      IPC::barrier(RETRIEVED, kNProcessesHalf);
+    }
+  }
+}
+
+TEST_F(ChordIndexTestInitialized,
+       joinStabilizeAddjoinStabilizeUpdateLeaveRetrieve) {
+  const size_t kNProcessesHalf = FLAGS_chord_processes / 2;
+  const size_t kNData = 10;
+  enum Barriers{INIT, ROOT_SHARED, JOINED_STABILIZED__INIT_2,
+    ADDED__ROOT_SHARED_2, JOINED_STABILIZED_2, UPDATED, LEFT, RETRIEVED};
+  if (getSubprocessId() == 0) {
+    std::ostringstream command_extra;
+    command_extra << "--chord_processes=" << FLAGS_chord_processes;
+    // first round of joins
+    for (size_t i = 1; i <= kNProcessesHalf; ++i) {
+      launchSubprocess(i, command_extra.str());
+    }
+    IPC::barrier(INIT, kNProcessesHalf);
+    IPC::push(PeerId::self().ipPort());
+    IPC::barrier(ROOT_SHARED, kNProcessesHalf);
+    // second round of joins
+    for (size_t i = 1; i <= kNProcessesHalf; ++i) {
+      launchSubprocess(kNProcessesHalf + i, command_extra.str());
+    }
+    // wait for stabilization of round 1
+    usleep(10 * kNProcessesHalf * FLAGS_stabilize_us); // yes, 10 is a magic number
+    // it should be an upper bound of the amount of required stabilization
+    // iterations per process
+    IPC::barrier(JOINED_STABILIZED__INIT_2, 2 * kNProcessesHalf);
+    EXPECT_GT(kNProcessesHalf, 0);
+    TestChordIndex::DataMap data;
+    for (size_t i = 0; i < kNData; ++i) {
+      std::string key, value;
+      addNonLocalData(&key, &value, i);
+      EXPECT_TRUE(data.insert(std::make_pair(key, value)).second);
+    }
+    IPC::push(PeerId::self().ipPort());
+    IPC::barrier(ADDED__ROOT_SHARED_2, 2 * kNProcessesHalf);
+    // wait for stabilization of round 2
+    usleep(10 * kNProcessesHalf * FLAGS_stabilize_us);
+    IPC::barrier(JOINED_STABILIZED_2, 2 * kNProcessesHalf);
+    size_t i = 0;
+    for (TestChordIndex::DataMap::value_type& item : data) {
+      std::ostringstream new_value;
+      new_value << "updated" << i;
+      item.second = new_value.str();
+      EXPECT_TRUE(TestChordIndex::instance().addData(
+          item.first, new_value.str()));
+      if (++i == kNProcessesHalf) {
+        break;
+      }
+    }
+    IPC::barrier(UPDATED, kNProcessesHalf);
+    usleep(10 * kNProcessesHalf * FLAGS_stabilize_us);
+    IPC::barrier(LEFT, kNProcessesHalf);
+    for (const TestChordIndex::DataMap::value_type& item : data) {
+      std::string result;
+      EXPECT_TRUE(TestChordIndex::instance().retrieveData(item.first, &result));
+      EXPECT_EQ(item.second, result);
+    }
+    IPC::barrier(RETRIEVED, kNProcessesHalf);
+  } else {
+    PeerId root;
+    std::string root_string;
+    if (getSubprocessId() <= kNProcessesHalf){
+      IPC::barrier(INIT, kNProcessesHalf);
+      IPC::barrier(ROOT_SHARED, kNProcessesHalf);
+      IPC::pop(&root_string);
+      root = PeerId(root_string);
+      TestChordIndex::instance().join(root);
+    }
+    IPC::barrier(JOINED_STABILIZED__INIT_2, 2 * kNProcessesHalf);
+    IPC::barrier(ADDED__ROOT_SHARED_2, 2 * kNProcessesHalf);
+    if (getSubprocessId() > kNProcessesHalf) {
+      IPC::pop(&root_string);
+      root = PeerId(root_string);
+      TestChordIndex::instance().join(root);
+    }
+    IPC::barrier(JOINED_STABILIZED_2, 2 * kNProcessesHalf);
+    IPC::barrier(UPDATED, 2 * kNProcessesHalf);
+    if (getSubprocessId() <= kNProcessesHalf) {
+      IPC::barrier(LEFT, kNProcessesHalf);
+      IPC::barrier(RETRIEVED, kNProcessesHalf);
+    }
+  }
 }
 
 } // namespace map_api
