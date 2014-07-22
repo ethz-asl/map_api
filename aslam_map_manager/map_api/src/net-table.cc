@@ -34,6 +34,10 @@ std::shared_ptr<Revision> NetTable::getTemplate() const {
 
 Chunk* NetTable::newChunk() {
   Id chunk_id = Id::generate();
+  return newChunk(chunk_id);
+}
+
+Chunk* NetTable::newChunk(const Id& chunk_id) {
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
   CHECK(chunk->init(chunk_id, cache_.get()));
   active_chunks_lock_.writeLock();

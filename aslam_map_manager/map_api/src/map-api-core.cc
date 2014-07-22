@@ -16,6 +16,9 @@ namespace map_api {
 const std::string MapApiCore::kMetatableNameField = "name";
 const std::string MapApiCore::kMetatableDescriptorField = "descriptor";
 
+std::shared_ptr<Poco::Data::Session> MapApiCore::db_session_;
+bool MapApiCore::db_session_initialized_ = false;
+
 REVISION_PROTOBUF(TableDescriptor);
 
 MapApiCore &MapApiCore::instance() {
@@ -69,19 +72,22 @@ bool MapApiCore::syncTableDefinition(const TableDescriptor& descriptor) {
 // can't initialize metatable in init, as its initialization calls
 // MapApiCore::getInstance, which again calls this
 void MapApiCore::init() {
-  if (!hub_.init()){
+  bool is_first_peer;
+  if (!hub_.init(&is_first_peer)){
     LOG(FATAL) << "Map Api core init failed";
   }
   Poco::Data::SQLite::Connector::registerConnector();
-  dbSess_ = std::make_shared<Poco::Data::Session>("SQLite", ":memory:");
+  db_session_ = std::make_shared<Poco::Data::Session>("SQLite", ":memory:");
+  db_session_initialized_ = true;
   // ready metatable
-  table_manager_.init();
+  table_manager_.init(is_first_peer);
   metatable_.reset(new CRTableRAMCache);
   initialized_ = true;
 }
 
 std::weak_ptr<Poco::Data::Session> MapApiCore::getSession() {
-  return dbSess_;
+  CHECK(db_session_initialized_);
+  return db_session_;
 }
 
 void MapApiCore::initMetatable() {
@@ -105,7 +111,7 @@ bool MapApiCore::isInitialized() const {
 void MapApiCore::kill() {
   table_manager_.leaveAllChunks();
   hub_.kill();
-  dbSess_.reset();
+  db_session_.reset();
   initialized_ = false;
 }
 

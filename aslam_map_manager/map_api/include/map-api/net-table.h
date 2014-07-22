@@ -19,6 +19,7 @@ class NetTable {
   // INSERTION
   std::shared_ptr<Revision> getTemplate() const;
   Chunk* newChunk();
+  Chunk* newChunk(const Id& chunk_id);
   Chunk* getChunk(const Id& chunk_id);
   bool insert(Chunk* chunk, Revision* query);
   /**

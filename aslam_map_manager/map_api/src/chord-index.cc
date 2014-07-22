@@ -640,13 +640,6 @@ bool ChordIndex::waitUntilInitialized() {
 
 bool ChordIndex::addDataLocally(
     const std::string& key, const std::string& value) {
-  data_lock_.readLock();
-  if (data_.find(key) != data_.end()) {
-    data_lock_.unlock();
-    LOG(ERROR) << "Data with given key " << key << " already exists";
-    return false;
-  }
-  data_lock_.unlock();
   data_lock_.writeLock();
   data_[key] = value;
   data_lock_.unlock();
