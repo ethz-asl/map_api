@@ -53,8 +53,7 @@ void NetTableManager::init(bool create_metatable_chunk) {
 }
 
 void NetTableManager::initMetatable(bool create_metatable_chunk) {
-  std::unique_ptr<NetTable> metatable;
-  metatable.reset(new NetTable);
+  std::unique_ptr<NetTable> metatable(new NetTable);
   std::unique_ptr<TableDescriptor> metatable_descriptor(new TableDescriptor);
   metatable_descriptor->setName(kMetaTableName);
   metatable_descriptor->addField<std::string>(kMetaTableNameField);
