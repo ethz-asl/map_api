@@ -25,9 +25,10 @@ class MapApiCore final {
  public:
   /**
    * Get singleton instance of Map Api Core
-   * TODO(tcies) just make all functions static (thread-safety!)...
+   * Returns a null pointer if not initialized.
    */
-  static MapApiCore& instance();
+  static MapApiCore* instance();
+  static void initializeInstance();
   /**
    * Synchronizes table definition with peers
    * by using standard table operations on the metatable
@@ -94,7 +95,9 @@ class MapApiCore final {
   std::unique_ptr<CRTableRAMCache> metatable_; // TODO(tcies) eventually
   // net table in tableManager
 
+  static MapApiCore instance_;
   bool initialized_ = false;
+  std::mutex initialized_mutex_;
 };
 
 }

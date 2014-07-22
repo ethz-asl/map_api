@@ -21,7 +21,8 @@ class ChordIndexTest : public MultiprocessTest {
     // not using MultiprocessTest::SetUp intentionally - need to register
     // handlers first
     TestChordIndex::staticInit();
-    MapApiCore::instance();
+    MapApiCore::initializeInstance();
+    CHECK_NOTNULL(MapApiCore::instance());
   }
 };
 

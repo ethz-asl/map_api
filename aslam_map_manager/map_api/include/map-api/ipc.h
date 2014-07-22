@@ -21,7 +21,7 @@ class IPC {
   /**
    * Registers the handlers at the hub, mostly
    */
-  static void init();
+  static void registerHandlers();
   /**
    * Waits for n_peers other peers to call this function with the same id.
    * Any code that comes after the barrier call at either peer gets executed

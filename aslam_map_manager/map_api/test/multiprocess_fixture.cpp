@@ -119,13 +119,13 @@ class MultiprocessTest : public ::testing::Test {
   }
 
   virtual void SetUp() {
-    map_api::MapApiCore::instance(); // core init
+    map_api::MapApiCore::initializeInstance(); // core init
+    ASSERT_TRUE(map_api::MapApiCore::instance() != nullptr);
   }
 
   virtual void TearDown() {
+    map_api::MapApiCore::instance()->kill();
     if (getSubprocessId() == 0) {
-      // explicit kill for core in order to carry nothing over to next test
-      map_api::MapApiCore::instance().kill();
       harvest(false);
     }
   }

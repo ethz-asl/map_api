@@ -15,7 +15,7 @@ PeerId::PeerId() : ip_port_(kInvalidAdress) {}
 
 PeerId::PeerId(const std::string& ip_port) : ip_port_(ip_port) {
   Poco::RegularExpression re("^\\d+\\.\\d+\\.\\d+\\.\\d+\\:\\d+$");
-  CHECK(re.match(ip_port));
+  CHECK(re.match(ip_port)) << ip_port;
 }
 
 PeerId& PeerId::operator =(const PeerId& other) {

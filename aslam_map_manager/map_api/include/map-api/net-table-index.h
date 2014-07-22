@@ -10,7 +10,7 @@ namespace map_api {
 class NetTableIndex : public ChordIndex {
  public:
   virtual ~NetTableIndex() = default;
-  void handleRoutedRequest(const Message& request, Message* response);
+  void handleRoutedRequest(const Message& routed_request, Message* response);
 
   static const char kRoutedChordRequest[];
   static const char kPeerResponse[];

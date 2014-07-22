@@ -24,6 +24,18 @@ bool NetTable::init(
   return true;
 }
 
+void NetTable::createIndex() {
+  CHECK(index_.get() == nullptr);
+  index_.reset(new NetTableIndex(name()));
+  index_->create();
+}
+
+void NetTable::joinIndex(const PeerId& entry_point) {
+  CHECK(index_.get() == nullptr);
+  index_.reset(new NetTableIndex(name()));
+  index_->join(entry_point);
+}
+
 const std::string& NetTable::name() const {
   return cache_->name();
 }
@@ -118,6 +130,14 @@ int NetTable::activeChunksSize() const {
   return active_chunks_.size();
 }
 
+void NetTable::kill() {
+  leaveAllChunks();
+  if (index_.get() != nullptr) {
+    index_->leave();
+    index_.reset();
+  }
+}
+
 void NetTable::leaveAllChunks() {
   active_chunks_lock_.readLock();
   for (const std::pair<const Id, std::unique_ptr<Chunk> >& chunk :
@@ -146,7 +166,8 @@ void NetTable::handleInitRequest(
   CHECK_NOTNULL(response);
   Id chunk_id;
   CHECK(chunk_id.fromHexString(request.metadata().chunk_id()));
-  if (MapApiCore::instance().tableManager().
+  CHECK_NOTNULL(MapApiCore::instance());
+  if (MapApiCore::instance()->tableManager().
       getTable(request.metadata().table()).has(chunk_id)) {
     response->impose<Message::kRedundant>();
     return;
@@ -220,6 +241,12 @@ void NetTable::handleUpdateRequest(
   if (routingBasics(chunk_id, response, &found)) {
     found->second->handleUpdateRequest(item, sender, response);
   }
+}
+
+void NetTable::handleRoutedChordRequests(
+    const Message& request, Message* response) {
+  CHECK_NOTNULL(index_.get());
+  index_->handleRoutedRequest(request, response);
 }
 
 bool NetTable::routingBasics(

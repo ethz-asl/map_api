@@ -280,7 +280,7 @@ void ChordIndex::create() {
   initialized_ = true;
   lock.unlock();
   initialized_cv_.notify_all();
-  LOG(INFO) << "Root has key " << own_key_;
+  LOG(INFO) << "Root(" << PeerId::self() << ") has key " << own_key_;
 }
 
 void ChordIndex::join(const PeerId& other) {
@@ -295,7 +295,7 @@ void ChordIndex::join(const PeerId& other) {
   initialized_ = true;
   lock.unlock();
   initialized_cv_.notify_all();
-  LOG(INFO) << "Peer has key " << own_key_;
+  LOG(INFO) << "Peer(" << PeerId::self() << ") has key " << own_key_;
 }
 
 void ChordIndex::cleanJoin(const PeerId& other) {

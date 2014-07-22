@@ -80,6 +80,7 @@ TEST_P(NetTableTest, NetTableTransactions) {
     }
     IPC::barrier(DIE, 2);
   }
+  LOG(INFO) << PeerId::self() << " done";
 }
 
 TEST_P(NetTableTest, Transactions) {
@@ -95,9 +96,9 @@ TEST_P(NetTableTest, Transactions) {
   std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
   descriptor->setName(kSecondTableName);
   descriptor->addField<int>(kSecondTableFieldName);
-  MapApiCore::instance().tableManager().addTable(true, &descriptor);
+  MapApiCore::instance()->tableManager().addTable(true, &descriptor);
   NetTable* second_table =
-      &MapApiCore::instance().tableManager().getTable(kSecondTableName);
+      &MapApiCore::instance()->tableManager().getTable(kSecondTableName);
   ASSERT_TRUE(second_table);
 
   if (getSubprocessId() == ROOT) {

@@ -7,7 +7,7 @@
 #include <glog/logging.h>
 
 // TODO(tcies) extend default
-DEFINE_int32(request_timeout, 1000, "Amount of miliseconds after which a "\
+DEFINE_int32(request_timeout, 1000000000, "Amount of miliseconds after which a "\
              "non-responsive peer is considered disconnected");
 
 namespace map_api {

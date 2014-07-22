@@ -44,11 +44,21 @@ MAP_API_PROTO_MESSAGE(NetTableIndex::kPushResponsibilitiesRequest,
                       proto::FetchResponsibilitiesResponse);
 
 void NetTableIndex::handleRoutedRequest(
-    const Message& request, Message* response) {
+    const Message& routed_request_message, Message* response) {
   CHECK_NOTNULL(response);
+  proto::RoutedChordRequest routed_request;
+  routed_request_message.extract<kRoutedChordRequest>(&routed_request);
+  CHECK(routed_request.has_serialized_message());
+  Message request;
+  CHECK(request.ParseFromString(routed_request.serialized_message()));
   // TODO(tcies) a posteriori, especially given the new routing system,
   // map_api::Message handling in ChordIndex itself could have been a thing
   // the following code is mostly copied from test/test_chord_index.cpp :(
+
+  if (!request.has_sender()) {
+    CHECK(routed_request_message.has_sender());
+    request.set_sender(routed_request_message.sender());
+  }
 
   if (request.isType<kGetClosestPrecedingFingerRequest>()) {
     Key key;

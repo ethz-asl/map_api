@@ -11,9 +11,10 @@ namespace map_api {
 class NetTableManager {
  public:
   /**
-   * Responsible for registering handlers, loading the metatable, and joining
-   * or creating the metatable chunk.
+   * Must be called before hub init
    */
+  static void registerHandlers();
+
   void init(bool create_metatable_chunk);
 
   void initMetatable(bool create_metatable_chunk);
@@ -24,7 +25,7 @@ class NetTableManager {
    */
   NetTable& getTable(const std::string& name);
 
-  void leaveAllChunks();
+  void kill();
 
   /**
    * ==========================
@@ -32,7 +33,7 @@ class NetTableManager {
    * ==========================
    */
   /**
-   * Requesting peer specifies which chunk it wants to connect to
+   * Chunk requests
    */
   static void handleConnectRequest(const Message& request, Message* response);
   static void handleFindRequest(const Message& request, Message* response);
@@ -43,6 +44,11 @@ class NetTableManager {
   static void handleNewPeerRequest(const Message& request, Message* response);
   static void handleUnlockRequest(const Message& request, Message* response);
   static void handleUpdateRequest(const Message& request, Message* response);
+  /**
+   * Chord requests
+   */
+  static void handleRoutedChordRequests(
+      const Message& request, Message* response);
 
  private:
   NetTableManager() = default;

@@ -5,6 +5,7 @@
 
 #include "map-api/chunk.h"
 #include "map-api/cr-table.h"
+#include "map-api/net-table-index.h"
 #include "map-api/revision.h"
 
 namespace map_api {
@@ -68,13 +69,15 @@ class NetTable {
 
   int activeChunksSize() const;
 
+  void kill();
+
   void leaveAllChunks();
 
   /**
    * ========================
    * Diverse request handlers
    * ========================
-   * TODO(tcies) somehow unify all routing to chunks?
+   * TODO(tcies) somehow unify all routing to chunks? (yes, like chord)
    */
   void handleConnectRequest(const Id& chunk_id, const PeerId& peer,
                             Message* response);
@@ -96,6 +99,8 @@ class NetTable {
       const Id& chunk_id, const Revision& item, const PeerId& sender,
       Message* response);
 
+  void handleRoutedChordRequests(const Message& request, Message* response);
+
  private:
   NetTable() = default;
   NetTable(const NetTable&) = delete;
@@ -111,6 +116,11 @@ class NetTable {
   ChunkMap active_chunks_;
   Poco::RWLock active_chunks_lock_;
   // TODO(tcies) insert PeerHandler here
+
+  /**
+   * DO NOT USE FROM HANDLER THREAD (else TODO(tcies) mutex)
+   */
+  std::unique_ptr<NetTableIndex> index_;
 };
 
 } // namespace map_api
