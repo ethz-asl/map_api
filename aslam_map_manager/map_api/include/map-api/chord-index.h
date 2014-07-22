@@ -44,26 +44,23 @@ class ChordIndex {
   bool handleGetClosestPrecedingFinger(const Key& key, PeerId* result);
   bool handleGetSuccessor(PeerId* result);
   bool handleGetPredecessor(PeerId* result);
-  /**
-   * Returns true if current peer is indeed the successor to the requesting
-   * peer, false if the requester is to be redirected.
-   */
-  bool handleJoin(
-      const PeerId& requester, bool* success, std::vector<PeerId>* fingers,
-      PeerId* predecessor, PeerId* redirection);
-  /**
-   * Any peer notifies us about their existence.
-   */
+  bool handleLock(const PeerId& requester);
+  bool handleUnlock(const PeerId& requester);
   bool handleNotify(const PeerId& peer_id);
+  bool handleReplace(const PeerId& old_peer, const PeerId& new_peer);
   bool handleAddData(const std::string& key, const std::string& value);
   bool handleRetrieveData(const std::string& key, std::string* value);
   bool handleFetchResponsibilities(
       const PeerId& requester, DataMap* responsibilities);
+  bool handlePushResponsibilities(const DataMap& responsibilities);
 
   // ====================
   // HIGH-LEVEL FUNCTIONS
   // ====================
   // TODO(tcies) all/most else private/protected?
+  /**
+   * Adds data to index, overwrites if key exists.
+   */
   bool addData(const std::string& key, const std::string& value);
   bool retrieveData(const std::string& key, std::string* value);
 
@@ -86,10 +83,20 @@ class ChordIndex {
   void join(const PeerId& other);
   void cleanJoin(const PeerId& other);
   void stabilizeJoin(const PeerId& other);
+
   /**
-   * Terminates stabilizeThread();
+   * Argument-free versions (un)lock self
+   */
+  bool lock();
+  bool lock(const PeerId& subject) const;
+  void unlock();
+  void unlock(const PeerId& subject) const;
+
+  /**
+   * Terminates stabilizeThread();, pushes responsible data
    */
   void leave();
+  void leaveClean();
 
   template<typename DataType>
   static Key hash(const DataType& data);
@@ -103,10 +110,11 @@ class ChordIndex {
       const PeerId& to, const Key& key, PeerId* closest_preceding) = 0;
   virtual bool getSuccessorRpc(const PeerId& to, PeerId* successor) = 0;
   virtual bool getPredecessorRpc(const PeerId& to, PeerId* predecessor) = 0;
-  virtual bool joinRpc(
-      const PeerId& to, bool* success, std::vector<PeerId>* fingers,
-      PeerId* predecessor, PeerId* redirect) = 0;
+  virtual bool lockRpc(const PeerId& to) const = 0;
+  virtual bool unlockRpc(const PeerId& to) const = 0;
   virtual bool notifyRpc(const PeerId& to, const PeerId& subject) = 0;
+  virtual bool replaceRpc(
+      const PeerId& to, const PeerId& old_peer, const PeerId& new_peer) = 0;
   // query RPCs
   virtual bool addDataRpc(
       const PeerId& to, const std::string& key, const std::string& value) = 0;
@@ -116,6 +124,8 @@ class ChordIndex {
   // should be known
   virtual bool fetchResponsibilitiesRpc(
       const PeerId& to, DataMap* responsibilities) = 0;
+  virtual bool pushResponsibilitiesRpc(
+      const PeerId& to, const DataMap& responsibilities) = 0;
 
   static void stabilizeThread(ChordIndex* self);
   static void integrateThread(ChordIndex* self);
@@ -135,7 +145,7 @@ class ChordIndex {
   /**
    * Returns index of finger which is counter-clockwise closest to key.
    */
-  std::shared_ptr<ChordIndex::ChordPeer> closestPrecedingFinger(
+  PeerId closestPrecedingFinger(
       const Key& key);
   /**
    * Routine common to create() and join()
@@ -159,6 +169,13 @@ class ChordIndex {
   bool addDataLocally(const std::string& key, const std::string& value);
 
   bool retrieveDataLocally(const std::string& key, std::string* value);
+
+  bool handleNotifyClean(const PeerId& peer_id);
+  bool handleNotifyStabilize(const PeerId& peer_id);
+  /**
+   * Assumes peers read-locked!
+   */
+  void handleNotifyCommon(std::shared_ptr<ChordPeer> peer);
 
   /**
    * A finger and a successor list item may point to the same peer, yet peer
@@ -207,6 +224,10 @@ class ChordIndex {
   // TODO(tcies) data stats: Has it already been requested?
   DataMap data_;
   Poco::RWLock data_lock_;
+
+  std::mutex node_lock_;
+  bool node_locked_ = false;
+  PeerId node_lock_holder_;
 };
 
 } /* namespace map_api */
