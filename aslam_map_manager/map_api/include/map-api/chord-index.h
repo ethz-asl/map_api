@@ -212,6 +212,7 @@ class ChordIndex {
   std::shared_ptr<ChordPeer> self_;
 
   bool initialized_ = false;
+  FRIEND_TEST(ChordIndexTest, create);
   std::mutex initialized_mutex_;
   std::condition_variable initialized_cv_;
 

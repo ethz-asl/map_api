@@ -27,7 +27,9 @@ class ChordIndexTest : public MultiprocessTest {
 
 TEST_F(ChordIndexTest, create) {
   TestChordIndex::instance().create();
+  EXPECT_TRUE(TestChordIndex::instance().initialized_);
   TestChordIndex::instance().leave();
+  EXPECT_FALSE(TestChordIndex::instance().initialized_);
 }
 
 DEFINE_uint64(addresses_to_hash, 5, "Amount of addresses to hash");

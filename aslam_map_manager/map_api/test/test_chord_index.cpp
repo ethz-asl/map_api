@@ -7,7 +7,7 @@ namespace map_api {
 
 class TestChordIndex final : public ChordIndex {
  public:
-  virtual ~TestChordIndex() = default;
+  virtual ~TestChordIndex() {}
   /**
    * The test chord index is a singleton
    */
@@ -67,7 +67,7 @@ class TestChordIndex final : public ChordIndex {
   /**
    * Singleton- required methods
    */
-  TestChordIndex() {}
+  TestChordIndex() = default;
   TestChordIndex(const TestChordIndex&) = delete;
   TestChordIndex& operator =(const TestChordIndex&) = delete;
 
