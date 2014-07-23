@@ -39,9 +39,11 @@ MapApiCore* MapApiCore::instance() {
 }
 
 void MapApiCore::initializeInstance() {
-  std::lock_guard<std::mutex> lock(instance_.initialized_mutex_);
+  std::unique_lock<std::mutex> lock(instance_.initialized_mutex_);
   CHECK(!instance_.initialized_);
   instance_.init();
+  lock.unlock();
+  CHECK_NOTNULL(instance());
 }
 
 MapApiCore::MapApiCore() : hub_(MapApiHub::instance()),
