@@ -1,9 +1,36 @@
 #include "map-api/net-table-index.h"
 
+#include "net-table.pb.h"
+
 namespace map_api {
 
 NetTableIndex::NetTableIndex(const std::string& table_name)
 : table_name_(table_name) {}
+
+void NetTableIndex::announcePosession(const Id& chunk_id) {
+  std::string peers_string;
+  proto::PeerList peers;
+  if (!retrieveData(chunk_id.hexString(), &peers_string)) {
+    peers.add_peers(PeerId::self().ipPort());
+  } else {
+    CHECK(peers.ParseFromString(peers_string));
+    peers.add_peers(PeerId::self().ipPort());
+  }
+  CHECK(addData(chunk_id.hexString(), peers.SerializeAsString()));
+}
+
+void NetTableIndex::seekPeers(
+    const Id& chunk_id, std::unordered_set<PeerId>* peers) {
+  CHECK_NOTNULL(peers);
+  std::string peers_string;
+  proto::PeerList peers_proto;
+  CHECK(retrieveData(chunk_id.hexString(), &peers_string));
+  CHECK(peers_proto.ParseFromString(peers_string));
+  CHECK_GT(peers_proto.peers_size(), 0);
+  for (int i = 0; i < peers_proto.peers_size(); ++i) {
+    peers->insert(PeerId(peers_proto.peers(i)));
+  }
+}
 
 const char NetTableIndex::kRoutedChordRequest[] =
     "map_api_net_table_index_request";
@@ -158,6 +185,7 @@ void NetTableIndex::handleRoutedRequest(
     } else {
       response->decline();
     }
+    return;
   }
 
   if (request.isType<kFetchResponsibilitiesRequest>()) {

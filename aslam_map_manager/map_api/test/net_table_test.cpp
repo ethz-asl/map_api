@@ -96,9 +96,9 @@ TEST_P(NetTableTest, Transactions) {
   std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
   descriptor->setName(kSecondTableName);
   descriptor->addField<int>(kSecondTableFieldName);
-  MapApiCore::instance()->tableManager().addTable(true, &descriptor);
+  NetTableManager::instance().addTable(true, &descriptor);
   NetTable* second_table =
-      &MapApiCore::instance()->tableManager().getTable(kSecondTableName);
+      &NetTableManager::instance().getTable(kSecondTableName);
   ASSERT_TRUE(second_table);
 
   if (getSubprocessId() == ROOT) {

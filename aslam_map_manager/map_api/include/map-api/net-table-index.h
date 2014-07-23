@@ -1,7 +1,10 @@
 #ifndef MAP_API_NET_TABLE_INDEX_H_
 #define MAP_API_NET_TABLE_INDEX_H_
 
+#include <unordered_set>
+
 #include "map-api/chord-index.h"
+#include "map-api/id.h"
 #include "map-api/peer-handler.h"
 #include "chord-index.pb.h"
 
@@ -11,6 +14,14 @@ class NetTableIndex : public ChordIndex {
  public:
   virtual ~NetTableIndex() = default;
   void handleRoutedRequest(const Message& routed_request, Message* response);
+
+  /**
+   * Without guarantee of consistency - the only thing that is (needed to be)
+   * guaranteed is that if at least one peer holds a chunk, at least one peer
+   * will be registered in the index.
+   */
+  void announcePosession(const Id& chunk_id);
+  void seekPeers(const Id& chunk_id, std::unordered_set<PeerId>* peers);
 
   static const char kRoutedChordRequest[];
   static const char kPeerResponse[];

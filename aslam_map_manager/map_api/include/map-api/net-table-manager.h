@@ -10,10 +10,18 @@ namespace map_api {
 
 class NetTableManager {
  public:
+  static const char kMetaTableName[];
   /**
    * Must be called before hub init
    */
   static void registerHandlers();
+
+  /**
+   * Singleton approach allows NetTableManager chord indices to communicate
+   * before MapApiCore is fully initialized, which is an important part of
+   * MapApiCore::init()
+   */
+  static NetTableManager& instance();
 
   void init(bool create_metatable_chunk);
 
@@ -55,7 +63,6 @@ class NetTableManager {
   NetTableManager(const NetTableManager&) = delete;
   NetTableManager& operator =(const NetTableManager&) = delete;
   ~NetTableManager() = default;
-  friend class MapApiCore;
 
   typedef std::unordered_map<std::string, std::unique_ptr<NetTable> >
   TableMap;

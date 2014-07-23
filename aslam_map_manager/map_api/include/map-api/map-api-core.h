@@ -52,8 +52,8 @@ class MapApiCore final {
    */
   void kill();
 
-  NetTableManager& tableManager();
-  const NetTableManager& tableManager() const;
+  //NetTableManager& tableManager();
+  //const NetTableManager& tableManager() const;
 
  private:
   static const std::string kMetatableNameField;
@@ -89,8 +89,7 @@ class MapApiCore final {
    * Hub instance
    */
   MapApiHub& hub_;
-
-  NetTableManager table_manager_;
+  NetTableManager& table_manager_;
 
   std::unique_ptr<CRTableRAMCache> metatable_; // TODO(tcies) eventually
   // net table in tableManager

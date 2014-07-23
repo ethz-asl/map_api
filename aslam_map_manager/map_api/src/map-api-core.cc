@@ -44,7 +44,8 @@ void MapApiCore::initializeInstance() {
   instance_.init();
 }
 
-MapApiCore::MapApiCore() : hub_(MapApiHub::instance()), initialized_(false){}
+MapApiCore::MapApiCore() : hub_(MapApiHub::instance()),
+    table_manager_(NetTableManager::instance()), initialized_(false){}
 
 bool MapApiCore::syncTableDefinition(const TableDescriptor& descriptor) {
   // init metatable if not yet initialized TODO(tcies) better solution?
@@ -126,19 +127,19 @@ void MapApiCore::kill() {
   table_manager_.kill();
   hub_.kill();
   db_session_.reset();
-  initialized_ = false;
+  initialized_ = false; // TODO(tcies) re-order?
 }
 
 MapApiCore::~MapApiCore() {
   kill(); // TODO(tcies) could fail - require of user to invoke instead?
 }
 
-NetTableManager& MapApiCore::tableManager() {
-  return table_manager_;
-}
-const NetTableManager& MapApiCore::tableManager() const {
-  return table_manager_;
-}
+//NetTableManager& MapApiCore::tableManager() {
+//  return table_manager_;
+//}
+//const NetTableManager& MapApiCore::tableManager() const {
+//  return table_manager_;
+//}
 
 }
 

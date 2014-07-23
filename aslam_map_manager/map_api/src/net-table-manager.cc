@@ -3,15 +3,17 @@
 #include "map-api/map-api-hub.h"
 #include "map-api/map-api-core.h"
 #include "map-api/revision.h"
+#include "net-table.pb.h"
 
 namespace map_api {
 
 REVISION_PROTOBUF(proto::TableDescriptor);
 
-constexpr char kMetaTableName[] = "map_api_metatable";
 constexpr char kMetaTableNameField[] = "name";
 constexpr char kMetaTableStructureField[] = "structure";
 constexpr char kMetaTableChunkHexString[] = "000000000000000000000003E1A1AB7E";
+
+const char NetTableManager::kMetaTableName[] = "map_api_metatable";
 
 template<>
 bool NetTableManager::routeChunkRequestOperations<proto::ChunkRequestMetadata>(
@@ -53,6 +55,11 @@ void NetTableManager::registerHandlers() {
       NetTableIndex::kRoutedChordRequest, handleRoutedChordRequests);
 }
 
+NetTableManager& NetTableManager::instance() {
+  static NetTableManager instance;
+  return instance;
+}
+
 void NetTableManager::init(bool create_metatable_chunk) {
   tables_lock_.writeLock();
   tables_.clear();
@@ -62,43 +69,33 @@ void NetTableManager::init(bool create_metatable_chunk) {
 
 void NetTableManager::initMetatable(bool create_metatable_chunk) {
   tables_lock_.writeLock();
+  // 1. ALLOCATION
+  // the metatable is created in the tables_ structure in order to allow RPC
+  // forwarding in the same way as for other tables
   std::pair<TableMap::iterator, bool> inserted =
       tables_.insert(std::make_pair(kMetaTableName,
                                     std::unique_ptr<NetTable>()));
   CHECK(inserted.second);
   inserted.first->second.reset(new NetTable);
   NetTable* metatable = inserted.first->second.get();
-
+  // 2. INITIALIZATION OF STRUCTURE
   std::unique_ptr<TableDescriptor> metatable_descriptor(new TableDescriptor);
   metatable_descriptor->setName(kMetaTableName);
   metatable_descriptor->addField<std::string>(kMetaTableNameField);
   metatable_descriptor->addField<proto::TableDescriptor>(
       kMetaTableStructureField);
   metatable->init(true, &metatable_descriptor);
-  Id metatable_chunk_id;
-  CHECK(metatable_chunk_id.fromHexString(kMetaTableChunkHexString));
   tables_lock_.unlock();
-
+  // 3. INITIALIZATION OF INDEX
   // outside of table lock to avoid deadlock
-  if (create_metatable_chunk) {
-    metatable_chunk_ = metatable->newChunk(metatable_chunk_id);
-  } else {
-    // TODO(tcies) spin till successful
-    metatable_chunk_ = metatable->getChunk(metatable_chunk_id);
-  }
-  if (metatable_chunk_ == nullptr) {
-    // TODO(tcies) net chunk lookup
-    LOG(ERROR) << "Need to implement net chunk lookup!";
-  }
-  // integrate metatable with other tables for request routing
-
   if (create_metatable_chunk) {
     metatable->createIndex();
   } else {
     std::set<PeerId> hub_peers;
     MapApiHub::instance().getPeers(&hub_peers);
     PeerId ready_peer;
-    // entry point must have ready core
+    // choosing a ready entry point avoids issues of parallelism such as that
+    // e.g. the other peer is at 2. but not at 3. of this procedure.
     bool success = false;
     while (!success) {
       for (const PeerId& peer : hub_peers) {
@@ -110,6 +107,19 @@ void NetTableManager::initMetatable(bool create_metatable_chunk) {
       }
     }
     metatable->joinIndex(ready_peer);
+  }
+  // 4. CREATE OR FETCH METATABLE CHUNK
+  Id metatable_chunk_id;
+  CHECK(metatable_chunk_id.fromHexString(kMetaTableChunkHexString));
+  if (create_metatable_chunk) {
+    metatable_chunk_ = metatable->newChunk(metatable_chunk_id);
+  } else {
+    // TODO(tcies) spin till successful
+    metatable_chunk_ = metatable->getChunk(metatable_chunk_id);
+  }
+  if (metatable_chunk_ == nullptr) {
+    // TODO(tcies) net chunk lookup
+    LOG(ERROR) << "Need to implement net chunk lookup!";
   }
 }
 
@@ -171,17 +181,17 @@ void NetTableManager::handleConnectRequest(const Message& request,
   Id chunk_id;
   CHECK(chunk_id.fromHexString(metadata.chunk_id()));
   CHECK_NOTNULL(MapApiCore::instance());
-  MapApiCore::instance()->tableManager().tables_lock_.readLock();
+  instance().tables_lock_.readLock();
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
-  found = MapApiCore::instance()->tableManager().tables_.find(table);
-  if (found == MapApiCore::instance()->tableManager().tables_.end()) {
-    MapApiCore::instance()->tableManager().tables_lock_.unlock();
+  found = instance().tables_.find(table);
+  if (found == instance().tables_.end()) {
+    instance().tables_lock_.unlock();
     response->impose<Message::kDecline>();
     return;
   }
   found->second->handleConnectRequest(chunk_id, PeerId(request.sender()),
                                       response);
-  MapApiCore::instance()->tableManager().tables_lock_.unlock();
+  instance().tables_lock_.unlock();
 }
 
 void NetTableManager::handleInitRequest(
@@ -284,14 +294,13 @@ void NetTableManager::handleRoutedChordRequests(
 bool NetTableManager::findTable(const std::string& table_name,
                                 TableMap::iterator* found) {
   CHECK_NOTNULL(found);
-  CHECK_NOTNULL(MapApiCore::instance());
-  MapApiCore::instance()->tableManager().tables_lock_.readLock();
-  *found = MapApiCore::instance()->tableManager().tables_.find(table_name);
-  if (*found == MapApiCore::instance()->tableManager().tables_.end()) {
-    MapApiCore::instance()->tableManager().tables_lock_.unlock();
+  instance().tables_lock_.readLock();
+  *found = instance().tables_.find(table_name);
+  if (*found == instance().tables_.end()) {
+    instance().tables_lock_.unlock();
     return false;
   }
-  MapApiCore::instance()->tableManager().tables_lock_.unlock();
+  instance().tables_lock_.unlock();
   return true;
 }
 
