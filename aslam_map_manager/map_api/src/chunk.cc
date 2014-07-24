@@ -88,6 +88,14 @@ bool Chunk::check(const ChunkTransaction& transaction) {
       return false;
     }
   }
+  for (const ChunkTransaction::ConflictCondition& item :
+      transaction.conflict_conditions_) {
+    CRTable::RevisionMap dummy;
+    if (underlying_table_->findByRevision(
+        item.key, *item.value_holder, LogicalTime::sample(), &dummy) > 0) {
+      return false;
+    }
+  }
   return true;
 }
 
