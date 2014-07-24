@@ -58,11 +58,9 @@ Chunk* NetTable::newChunk(const Id& chunk_id) {
   CHECK(inserted.second);
   inserted.first->second = std::move(chunk);
   active_chunks_lock_.unlock();
-  // add self to chunk posessors in index (for now metatable only)
-  if (name() == NetTableManager::kMetaTableName) {
-    CHECK_NOTNULL(index_.get());
-    index_->announcePosession(chunk_id);
-  }
+  // add self to chunk posessors in index
+  CHECK_NOTNULL(index_.get());
+  index_->announcePosession(chunk_id);
   return inserted.first->second.get();
 }
 
@@ -73,19 +71,14 @@ Chunk* NetTable::getChunk(const Id& chunk_id) {
   if (found == active_chunks_.end()) {
     // look in index and connect to peers that claim to have the data
     // (for now metatable only)
-    if (name() == NetTableManager::kMetaTableName) {
-      std::unordered_set<PeerId> peers;
-      index_->seekPeers(chunk_id, &peers);
-      CHECK_EQ(1u, peers.size()) << "Current implementation expects root only";
-      active_chunks_lock_.unlock();
-      connectTo(chunk_id, *peers.begin());
-      active_chunks_lock_.readLock();
-      found = active_chunks_.find(chunk_id);
-      CHECK(found != active_chunks_.end());
-    } else {
-      active_chunks_lock_.unlock();
-      return NULL;
-    }
+    std::unordered_set<PeerId> peers;
+    index_->seekPeers(chunk_id, &peers);
+    CHECK_EQ(1u, peers.size()) << "Current implementation expects root only";
+    active_chunks_lock_.unlock();
+    connectTo(chunk_id, *peers.begin());
+    active_chunks_lock_.readLock();
+    found = active_chunks_.find(chunk_id);
+    CHECK(found != active_chunks_.end());
   }
   Chunk* result = found->second.get();
   active_chunks_lock_.unlock();

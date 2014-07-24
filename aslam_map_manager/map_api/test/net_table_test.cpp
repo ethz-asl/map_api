@@ -172,4 +172,35 @@ TEST_P(NetTableTest, Transactions) {
   }
 }
 
+TEST_P(NetTableTest, ChunkLookup) {
+  if (GetParam()) {
+    return; // independent of updateability
+  }
+  enum Processes {MASTER, SLAVE};
+  enum Barriers {INIT, CHUNK_CREATED, DIE};
+  Chunk* chunk;
+  CRTable::RevisionMap results;
+  if (getSubprocessId() == MASTER) {
+    launchSubprocess(SLAVE);
+    IPC::barrier(INIT, 1);
+    IPC::barrier(CHUNK_CREATED, 1);
+    table_->dumpCache(LogicalTime::sample(), &results);
+    EXPECT_EQ(0, results.size());
+    Id chunk_id = popId();
+    chunk = table_->getChunk(chunk_id);
+    EXPECT_TRUE(chunk);
+    table_->dumpCache(LogicalTime::sample(), &results);
+    EXPECT_EQ(1, results.size());
+  }
+  if (getSubprocessId() == SLAVE) {
+    IPC::barrier(INIT, 1);
+    chunk = table_->newChunk();
+    EXPECT_TRUE(chunk);
+    insert(0, chunk);
+    IPC::push(chunk->id().hexString());
+    IPC::barrier(CHUNK_CREATED, 1);
+  }
+  IPC::barrier(DIE, 1);
+}
+
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
