@@ -144,6 +144,7 @@ std::string Revision::dumpToString() const {
 REVISION_ENUM(std::string, proto::TableFieldDescriptor_Type_STRING);
 REVISION_ENUM(double, proto::TableFieldDescriptor_Type_DOUBLE);
 REVISION_ENUM(int32_t, proto::TableFieldDescriptor_Type_INT32);
+REVISION_ENUM(bool, proto::TableFieldDescriptor_Type_INT32);
 REVISION_ENUM(Id, proto::TableFieldDescriptor_Type_HASH128);
 REVISION_ENUM(int64_t, proto::TableFieldDescriptor_Type_INT64);
 REVISION_ENUM(uint64_t, proto::TableFieldDescriptor_Type_UINT64);
@@ -165,6 +166,10 @@ REVISION_SET(double){
 }
 REVISION_SET(int32_t){
   field.set_intvalue(value);
+  return true;
+}
+REVISION_SET(bool){
+  field.set_intvalue(value ? 1 : 0);
   return true;
 }
 REVISION_SET(Id){
@@ -209,6 +214,10 @@ REVISION_GET(double){
 }
 REVISION_GET(int32_t){
   *value = field.intvalue();
+  return true;
+}
+REVISION_GET(bool){
+  *value = field.intvalue() != 0;
   return true;
 }
 REVISION_GET(Id){

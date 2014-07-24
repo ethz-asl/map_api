@@ -25,6 +25,9 @@ class ChunkTransaction {
   // TODO(tcies) conflict conditions
   std::shared_ptr<Revision> getById(const Id& id);
   std::shared_ptr<Revision> getByIdFromUncommitted(const Id& id) const;
+  template <typename ValueType>
+  std::shared_ptr<Revision> findUnique(
+      const std::string& key, const ValueType& value);
   // TODO(tcies) all other flavors of reading
 
  private:

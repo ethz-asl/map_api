@@ -67,13 +67,7 @@ Chunk* NetTable::newChunk(const Id& chunk_id) {
 }
 
 Chunk* NetTable::getChunk(const Id& chunk_id) {
-  if (index_.get() == nullptr) {
-    if (name() == NetTableManager::kMetaTableName) {
-      LOG(FATAL) << "Index not initialized";
-    } else {
-      LOG(ERROR) << "Index not initialized (for now ok for not-metatable)";
-    }
-  }
+  CHECK_NOTNULL(index_.get());
   active_chunks_lock_.readLock();
   ChunkMap::iterator found = active_chunks_.find(chunk_id);
   if (found == active_chunks_.end()) {
@@ -147,11 +141,18 @@ Chunk* NetTable::connectTo(const Id& chunk_id,
   // TODO(tcies) add to local peer subset as well?
   MapApiHub::instance().request(peer, &request, &response);
   CHECK(response.isType<Message::kAck>());
-  // Should have received and processed a corresponding init request by now.
-  active_chunks_lock_.readLock();
-  ChunkMap::iterator found = active_chunks_.find(chunk_id);
-  CHECK(found != active_chunks_.end());
-  active_chunks_lock_.unlock();
+  // wait for connect handle thread of other peer to succeed
+  ChunkMap::iterator found;
+  while (true) {
+    active_chunks_lock_.readLock();
+    found = active_chunks_.find(chunk_id);
+    if (found != active_chunks_.end()) {
+      active_chunks_lock_.unlock();
+      break;
+    }
+    active_chunks_lock_.unlock();
+    usleep(1000);
+  }
   return found->second.get();
 }
 
