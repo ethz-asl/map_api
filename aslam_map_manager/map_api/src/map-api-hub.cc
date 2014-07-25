@@ -16,6 +16,7 @@
 #include "map-api/file-discovery.h"
 #include "map-api/ipc.h"
 #include "map-api/logical-time.h"
+#include "map-api/map-api-core.h"
 #include "map-api/server-discovery.h"
 #include "core.pb.h"
 
@@ -35,12 +36,12 @@ DEFINE_string(discovery_server, "127.0.0.1:5050", "Server to be used for "\
 namespace map_api {
 
 const char MapApiHub::kDiscovery[] = "map_api_hub_discovery";
+const char MapApiHub::kReady[] = "map_api_hub_ready";
 
-std::unordered_map<std::string,
-std::function<void(const Message& request, Message* response)> >
-MapApiHub::handlers_;
+MapApiHub::HandlerMap MapApiHub::handlers_;
 
-bool MapApiHub::init() {
+bool MapApiHub::init(bool* is_first_peer) {
+  CHECK_NOTNULL(is_first_peer);
   context_.reset(new zmq::context_t());
   terminate_ = false;
   if (FLAGS_discovery_mode == kFileDiscovery) {
@@ -51,8 +52,8 @@ bool MapApiHub::init() {
     LOG(FATAL) << "Specified discovery mode unknown";
   }
   // Handlers must be initialized before handler thread is started
-  IPC::init(); // TODO(tcies) more apprioprate place for this - gflags style?
   registerHandler(kDiscovery, discoveryHandler);
+  registerHandler(kReady, readyHandler);
   // 1. create own server
   listenerConnected_ = false;
   CHECK(peers_.empty());
@@ -111,6 +112,8 @@ bool MapApiHub::init() {
       peers_.erase(found);
     }
   }
+
+  *is_first_peer = peers_.empty();
 
   discovery_->unlock();
   return true;
@@ -200,6 +203,29 @@ void MapApiHub::request(
   found->second->request(request, response);
 }
 
+bool MapApiHub::try_request(
+    const PeerId& peer, Message* request, Message* response) {
+  CHECK_NOTNULL(request);
+  CHECK_NOTNULL(response);
+  PeerMap::iterator found = peers_.find(peer);
+  if (found == peers_.end()) {
+    LOG(INFO) << "couldn't find " << peer << " among " << peers_.size();
+    for (const PeerMap::value_type& peer : peers_) {
+      LOG(INFO) << peer.first;
+    }
+    std::lock_guard<std::mutex> lock(peer_mutex_);
+    // double-checked locking pattern
+    std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
+        peers_.find(peer);
+    if (found == peers_.end()) {
+      found = peers_.insert(std::make_pair(
+          peer, std::unique_ptr<Peer>(
+              new Peer(peer.ipPort(), *context_, ZMQ_REQ)))).first;
+    }
+  }
+  return found->second->try_request(request, response);
+}
+
 void MapApiHub::broadcast(Message* request,
                           std::unordered_map<PeerId, Message>* responses) {
   CHECK_NOTNULL(request);
@@ -224,6 +250,13 @@ bool MapApiHub::undisputableBroadcast(Message* request) {
   return true;
 }
 
+bool MapApiHub::isReady(const PeerId& peer) {
+  Message ready_request, response;
+  ready_request.impose<kReady>();
+  request(peer, &ready_request, &response);
+  return response.isType<Message::kAck>();
+}
+
 void MapApiHub::discoveryHandler(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
   // lock peer set lock so we can write without a race condition
@@ -234,6 +267,16 @@ void MapApiHub::discoveryHandler(const Message& request, Message* response) {
   instance().peer_mutex_.unlock();
   // ack by resend
   response->impose<Message::kAck>();
+}
+
+void MapApiHub::readyHandler(const Message& request, Message* response) {
+  CHECK_NOTNULL(response);
+  CHECK(request.isType<kReady>());
+  if (MapApiCore::instance() == nullptr) {
+    response->decline();
+  } else {
+    response->ack();
+  }
 }
 
 std::string MapApiHub::ownAddressBeforePort() {
@@ -315,15 +358,18 @@ void MapApiHub::listenThread(MapApiHub *self) {
     LogicalTime::synchronize(LogicalTime(query.logical_time()));
 
     // Query handler
-    std::unordered_map<std::string,
-    std::function<void(const Message&, Message*)> >::iterator handler =
-        handlers_.find(query.type());
-    CHECK(handlers_.end() != handler) << "Handler for message type " <<
-        query.type() << " not registered";
+    HandlerMap::iterator handler = handlers_.find(query.type());
+    if (handler == handlers_.end()) {
+      for (const HandlerMap::value_type& handler : handlers_) {
+        LOG(INFO) << handler.first;
+      }
+      LOG(FATAL) << "Handler for message type " << query.type() <<
+          " not registered";
+    }
     Message response;
-    VLOG(3) << PeerId::self() << " received request " << query.type();
+    //    LOG(INFO) << PeerId::self() << " received request " << query.type();
     handler->second(query, &response);
-    VLOG(3) << PeerId::self() << " handled request " << query.type();
+    //    LOG(INFO) << PeerId::self() << " handled request " << query.type();
     response.set_sender(PeerId::self().ipPort());
     response.set_logical_time(LogicalTime::sample().serialize());
     std::string serialized_response = response.SerializeAsString();

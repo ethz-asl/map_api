@@ -5,13 +5,18 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include <Poco/RegularExpression.h>
+
 #include "map-api/map-api-hub.h"
 
 namespace map_api {
 
 PeerId::PeerId() : ip_port_(kInvalidAdress) {}
 
-PeerId::PeerId(const std::string& ip_port) : ip_port_(ip_port) {}
+PeerId::PeerId(const std::string& ip_port) : ip_port_(ip_port) {
+  Poco::RegularExpression re("^\\d+\\.\\d+\\.\\d+\\.\\d+\\:\\d+$");
+  CHECK(re.match(ip_port)) << ip_port;
+}
 
 PeerId& PeerId::operator =(const PeerId& other) {
   ip_port_ = other.ip_port_;
@@ -33,6 +38,11 @@ bool PeerId::operator <(const PeerId& other) const {
 bool PeerId::operator ==(const PeerId& other) const {
   CHECK(isValid());
   return ip_port_ == other.ip_port_;
+}
+
+bool PeerId::operator !=(const PeerId& other) const {
+  CHECK(isValid());
+  return ip_port_ != other.ip_port_;
 }
 
 bool PeerId::isValid() const {

@@ -7,7 +7,7 @@
 #include <glog/logging.h>
 
 // TODO(tcies) extend default
-DEFINE_int32(request_timeout, 500, "Amount of miliseconds after which a "\
+DEFINE_int32(request_timeout, 1000000000, "Amount of miliseconds after which a "\
              "non-responsive peer is considered disconnected");
 
 namespace map_api {
@@ -16,6 +16,7 @@ Peer::Peer(const std::string& address, zmq::context_t& context,
            int socket_type)
 : address_(address), socket_(context, socket_type) {
   //TODO(tcies) init instead of aborting constructor
+  std::lock_guard<std::mutex> lock(socket_mutex_);
   try {
     socket_.connect(("tcp://" + address).c_str());
     int timeOutMs = FLAGS_request_timeout; // TODO(tcies) allow custom
@@ -50,6 +51,8 @@ bool Peer::try_request(Message* request, Message* response) {
       std::lock_guard<std::mutex> lock(socket_mutex_);
       CHECK(socket_.send(message));
       if (!socket_.recv(&message)) {
+        LOG(WARNING) << "Try-request of type " << request->type() <<
+            " failed for peer " << address_;
         return false;
       }
     }
@@ -59,12 +62,14 @@ bool Peer::try_request(Message* request, Message* response) {
     CHECK(response->ParseFromArray(message.data(), message.size()));
     LogicalTime::synchronize(LogicalTime(response->logical_time()));
   } catch(const zmq::error_t& e) {
-    LOG(FATAL) << e.what() << ", request was " << request->DebugString();
+    LOG(FATAL) << e.what() << ", request was " << request->DebugString() <<
+        ", sent to " << address_;
   }
   return true;
 }
 
 bool Peer::disconnect() {
+  std::lock_guard<std::mutex> lock(socket_mutex_);
   try {
     socket_.close();
   } catch (const zmq::error_t& e) {

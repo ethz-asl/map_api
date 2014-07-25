@@ -98,6 +98,14 @@ bool Chunk::check(const ChunkTransaction& transaction) {
       return false;
     }
   }
+  for (const ChunkTransaction::ConflictCondition& item :
+      transaction.conflict_conditions_) {
+    CRTable::RevisionMap dummy;
+    if (underlying_table_->findByRevision(
+        item.key, *item.value_holder, LogicalTime::sample(), &dummy) > 0) {
+      return false;
+    }
+  }
   return true;
 }
 
@@ -293,10 +301,16 @@ void Chunk::distributedReadLock() {
 
 void Chunk::distributedWriteLock() {
   std::unique_lock<std::mutex> metalock(lock_.mutex);
+  // case recursion
   if (isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id()) {
     ++lock_.write_recursion_depth;
     metalock.unlock();
     return;
+  }
+  // case self, but other thread
+  while (
+      isWriter(PeerId::self()) && lock_.thread != std::this_thread::get_id()) {
+    lock_.cv.wait(metalock);
   }
   while(true) { // lock: attempt until success
     while (lock_.state != DistributedRWLock::State::UNLOCKED &&
@@ -329,6 +343,7 @@ void Chunk::distributedWriteLock() {
       // have a custom response "reading, please stand by" with lease & pulse to
       // renew the reading lease.
       CHECK(response.isType<Message::kAck>());
+      VLOG(3) << PeerId::self() << " got lock from " << peer;
     }
     if (declined) {
       // if we fail to acquire the lock we return to "conditional wait if not
@@ -397,6 +412,7 @@ void Chunk::distributedUnlock() {
           }
           MapApiHub::instance().request(*rit, &request, &response);
           CHECK(response.isType<Message::kAck>());
+          VLOG(3) << PeerId::self() << " released lock from " << *rit;
         }
         if (!self_unlocked) {
           // case we had the lowest address
@@ -438,7 +454,7 @@ void Chunk::prepareInitRequest(Message* request) {
 }
 
 void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
-  LOG(INFO) << "Received connect request from " << peer;
+  VLOG(3) << "Received connect request from " << peer;
   CHECK_NOTNULL(response);
   leave_lock_.readLock();
   if (relinquished_) {
@@ -446,18 +462,38 @@ void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
     response->decline();
     return;
   }
+  /**
+   * Connect request leads to adding a peer which requires locking, which
+   * should NEVER block an RPC handler. This is because otherwise, if the lock
+   * is locked, another peer will never succeed to unlock it because the
+   * server thread of the RPC handler is busy.
+   */
+  std::thread handle_thread(handleConnectRequestThread, this, peer);
+  handle_thread.detach();
 
-  distributedWriteLock();
-  if (peers_.peers().find(peer) == peers_.peers().end()) {
-    CHECK(addPeer(peer)); // peer has no reason to refuse the init request
+  leave_lock_.unlock();
+  response->ack();
+}
+
+void Chunk::handleConnectRequestThread(Chunk* self, const PeerId& peer) {
+  CHECK_NOTNULL(self);
+  self->leave_lock_.readLock();
+  // the following is a special case which shall not be covered for now:
+  CHECK(!self->relinquished_) <<
+      "Peer left before it could handle a connect request";
+  // probably the best way to solve it in the future is for the connect
+  // requester to measure the pulse of the peer that promised to connect it
+  // and retry connection with another peer if it dies before it connects the
+  // peer
+  self->distributedWriteLock();
+  if (self->peers_.peers().find(peer) == self->peers_.peers().end()) {
+    CHECK(self->addPeer(peer)); // peer has no reason to refuse the init request
   } else {
     LOG(INFO) << "Peer requesting to join already in swarm, could have been "\
         "added by some requestParticipation() call.";
   }
-  distributedUnlock();
-
-  leave_lock_.unlock();
-  response->ack();
+  self->distributedUnlock();
+  self->leave_lock_.unlock();
 }
 
 void Chunk::handleInsertRequest(const Revision& item, Message* response) {

@@ -27,6 +27,18 @@ bool NetTable::init(
   return true;
 }
 
+void NetTable::createIndex() {
+  CHECK(index_.get() == nullptr);
+  index_.reset(new NetTableIndex(name()));
+  index_->create();
+}
+
+void NetTable::joinIndex(const PeerId& entry_point) {
+  CHECK(index_.get() == nullptr);
+  index_.reset(new NetTableIndex(name()));
+  index_->join(entry_point);
+}
+
 const std::string& NetTable::name() const {
   return cache_->name();
 }
@@ -37,6 +49,10 @@ std::shared_ptr<Revision> NetTable::getTemplate() const {
 
 Chunk* NetTable::newChunk() {
   Id chunk_id = Id::generate();
+  return newChunk(chunk_id);
+}
+
+Chunk* NetTable::newChunk(const Id& chunk_id) {
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
   CHECK(chunk->init(chunk_id, cache_.get()));
   active_chunks_lock_.writeLock();
@@ -45,15 +61,31 @@ Chunk* NetTable::newChunk() {
   CHECK(inserted.second);
   inserted.first->second = std::move(chunk);
   active_chunks_lock_.unlock();
+  // add self to chunk posessors in index
+  CHECK_NOTNULL(index_.get());
+  index_->announcePosession(chunk_id);
   return inserted.first->second.get();
 }
 
 Chunk* NetTable::getChunk(const Id& chunk_id) {
+  CHECK_NOTNULL(index_.get());
+  active_chunks_lock_.readLock();
   ChunkMap::iterator found = active_chunks_.find(chunk_id);
   if (found == active_chunks_.end()) {
-    return NULL;
+    // look in index and connect to peers that claim to have the data
+    // (for now metatable only)
+    std::unordered_set<PeerId> peers;
+    index_->seekPeers(chunk_id, &peers);
+    CHECK_EQ(1u, peers.size()) << "Current implementation expects root only";
+    active_chunks_lock_.unlock();
+    connectTo(chunk_id, *peers.begin());
+    active_chunks_lock_.readLock();
+    found = active_chunks_.find(chunk_id);
+    CHECK(found != active_chunks_.end());
   }
-  return found->second.get();
+  Chunk* result = found->second.get();
+  active_chunks_lock_.unlock();
+  return result;
 }
 
 bool NetTable::insert(Chunk* chunk, Revision* query) {
@@ -105,11 +137,18 @@ Chunk* NetTable::connectTo(const Id& chunk_id,
   // TODO(tcies) add to local peer subset as well?
   MapApiHub::instance().request(peer, &request, &response);
   CHECK(response.isType<Message::kAck>());
-  // Should have received and processed a corresponding init request by now.
-  active_chunks_lock_.readLock();
-  ChunkMap::iterator found = active_chunks_.find(chunk_id);
-  CHECK(found != active_chunks_.end());
-  active_chunks_lock_.unlock();
+  // wait for connect handle thread of other peer to succeed
+  ChunkMap::iterator found;
+  while (true) {
+    active_chunks_lock_.readLock();
+    found = active_chunks_.find(chunk_id);
+    if (found != active_chunks_.end()) {
+      active_chunks_lock_.unlock();
+      break;
+    }
+    active_chunks_lock_.unlock();
+    usleep(1000);
+  }
   return found->second.get();
 }
 
@@ -130,6 +169,14 @@ void NetTable::shareAllChunks() {
     chunk.second->requestParticipation();
   }
   active_chunks_lock_.unlock();
+}
+
+void NetTable::kill() {
+  leaveAllChunks();
+  if (index_.get() != nullptr) {
+    index_->leave();
+    index_.reset();
+  }
 }
 
 void NetTable::leaveAllChunks() {
@@ -169,11 +216,6 @@ void NetTable::handleInitRequest(
   CHECK_NOTNULL(response);
   Id chunk_id;
   CHECK(chunk_id.fromHexString(request.metadata().chunk_id()));
-  if (MapApiCore::instance().tableManager().
-      getTable(request.metadata().table()).has(chunk_id)) {
-    response->impose<Message::kRedundant>();
-    return;
-  }
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
   CHECK(chunk->init(chunk_id, request, sender, cache_.get()));
   active_chunks_lock_.writeLock();
@@ -243,6 +285,12 @@ void NetTable::handleUpdateRequest(
   if (routingBasics(chunk_id, response, &found)) {
     found->second->handleUpdateRequest(item, sender, response);
   }
+}
+
+void NetTable::handleRoutedChordRequests(
+    const Message& request, Message* response) {
+  CHECK_NOTNULL(index_.get());
+  index_->handleRoutedRequest(request, response);
 }
 
 bool NetTable::routingBasics(

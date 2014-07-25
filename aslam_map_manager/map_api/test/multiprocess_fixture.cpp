@@ -67,14 +67,16 @@ class MultiprocessTest : public ::testing::Test {
    * Gathers results from all subprocesses, forwarding them to stdout and
    * propagating failures.
    */
-  void harvest() {
+  void harvest(bool verbose = true) {
     for (const std::pair<uint64_t, FILE*>& id_pipe : subprocesses_) {
       FILE* pipe = id_pipe.second;
       CHECK(pipe);
       const size_t size = 1024;
       char buffer[size];
       while (timedFGetS(buffer, size, pipe) != NULL) {
-        std::cout << "Sub " << id_pipe.first << ": " << buffer;
+        if (verbose) {
+          std::cout << "Sub " << id_pipe.first << ": " << buffer;
+        }
         EXPECT_EQ(NULL, strstr(buffer, "[  FAILED  ]"));
         EXPECT_EQ(NULL, strstr(buffer, "*** Check failure stack trace: ***"));
       }
@@ -113,18 +115,18 @@ class MultiprocessTest : public ::testing::Test {
     std::unique_lock<std::mutex> lock(*mutex);
     *result = fgets(out_buffer, size, stream);
     lock.unlock();
-    cv->notify_one();
+    cv->notify_all();
   }
 
   virtual void SetUp() {
-    map_api::MapApiCore::instance(); // core init
+    map_api::MapApiCore::initializeInstance(); // core init
+    ASSERT_TRUE(map_api::MapApiCore::instance() != nullptr);
   }
 
   virtual void TearDown() {
+    map_api::MapApiCore::instance()->kill();
     if (getSubprocessId() == 0) {
-      // explicit kill for core in order to carry nothing over to next test
-      map_api::MapApiCore::instance().kill();
-      harvest();
+      harvest(false);
     }
   }
  private:

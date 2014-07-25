@@ -30,8 +30,8 @@ message Revision {
 message HubMessage {
   required string type = 1;
   required bytes serialized = 2;
-  required string sender = 3; // "required" for the merits it has for now
-  required uint64 logical_time = 4;
+  optional string sender = 3; // "required" for the merits it has for now
+  optional uint64 logical_time = 4;
 }
 
 message ServerDiscoveryGetPeersResponse {

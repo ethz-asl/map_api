@@ -54,6 +54,8 @@ bool SqliteInterface::create(const TableDescriptor& descriptor) {
   }
   stat << ");";
 
+  VLOG(3) << stat.toString();
+
   try {
     stat.execute();
   } catch(const std::exception &e){
