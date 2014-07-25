@@ -441,7 +441,6 @@ void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
 
 void Chunk::handleConnectRequestThread(Chunk* self, const PeerId& peer) {
   CHECK_NOTNULL(self);
-  //LOG(INFO) << "\t\thcrt started";
   self->leave_lock_.readLock();
   // the following is a special case which shall not be covered for now:
   CHECK(!self->relinquished_) <<
@@ -459,7 +458,6 @@ void Chunk::handleConnectRequestThread(Chunk* self, const PeerId& peer) {
   }
   self->distributedUnlock();
   self->leave_lock_.unlock();
-  //LOG(INFO) << "\t\thcrt ended";
 }
 
 void Chunk::handleInsertRequest(const Revision& item, Message* response) {
