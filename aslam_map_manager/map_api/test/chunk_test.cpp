@@ -256,4 +256,58 @@ TEST_P(NetTableTest, ChunkTransactions) {
   }
 }
 
+TEST_P(NetTableTest, ChunkTransactionsConflictConditions) {
+  if (GetParam()) {
+    return; // No need to test this for updateable tables as well
+  }
+  const uint64_t kProcesses = FLAGS_grind_processes;
+  const int kUniqueItems = 10;
+  enum Barriers {INIT, ID_SHARED, DIE};
+  CRTable::RevisionMap results;
+  if (getSubprocessId() == 0) {
+    std::ostringstream extra_flags_ss;
+    extra_flags_ss << "--grind_processes=" << FLAGS_grind_processes << " ";
+    for (uint64_t i = 1u; i < kProcesses; ++i) {
+      launchSubprocess(i, extra_flags_ss.str());
+    }
+    Chunk* chunk = table_->newChunk();
+    ASSERT_TRUE(chunk);
+    IPC::barrier(INIT, kProcesses - 1);
+
+    chunk->requestParticipation();
+    IPC::push(chunk->id().hexString());
+    IPC::barrier(ID_SHARED, kProcesses - 1);
+
+    IPC::barrier(DIE, kProcesses - 1);
+    table_->dumpCache(LogicalTime::sample(), &results);
+    EXPECT_EQ(kUniqueItems, results.size());
+    std::set<int> unique_results;
+    for (const CRTable::RevisionMap::value_type & item : results) {
+      int result;
+      item.second->get(kFieldName, &result);
+      unique_results.insert(result);
+    }
+    EXPECT_EQ(kUniqueItems, unique_results.size());
+    int i = 0;
+    for (int unique_result : unique_results) {
+      EXPECT_EQ(i, unique_result);
+      ++i;
+    }
+  } else {
+    IPC::barrier(INIT, kProcesses - 1);
+    IPC::barrier(ID_SHARED, kProcesses - 1);
+    Id chunk_id = popId();
+    Chunk* chunk = table_->getChunk(chunk_id);
+    ASSERT_TRUE(chunk);
+    std::shared_ptr<ChunkTransaction> transaction;
+    for (int i = 0; i < kUniqueItems; ++i) {
+      transaction = chunk->newTransaction();
+      insert(i, transaction.get());
+      transaction->addConflictCondition(kFieldName, i);
+      chunk->commit(*transaction);
+    }
+    IPC::barrier(DIE, kProcesses - 1);
+  }
+}
+
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT

@@ -13,10 +13,6 @@ int NetTable::findFast(
   if (num_local_result) {
     return num_local_result;
   }
-  std::shared_ptr<Revision> value_holder = getTemplate();
-  value_holder->set(key, value);
-  // TODO(tcies) implement rest
-  CHECK(false);
   return 0;
 }
 

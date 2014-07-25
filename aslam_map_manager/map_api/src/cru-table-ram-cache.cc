@@ -7,7 +7,7 @@ namespace map_api {
 CRUTableRAMCache::~CRUTableRAMCache() {}
 
 bool CRUTableRAMCache::initCRUDerived() {
-  sqlite_interface_.init(MapApiCore::instance().getSession());
+  sqlite_interface_.init(MapApiCore::getSession());
   CHECK(sqlite_interface_.isSqlSafe(*descriptor_));
   CHECK(sqlite_interface_.create(*descriptor_));
   return true;

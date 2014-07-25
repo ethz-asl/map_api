@@ -10,18 +10,21 @@ catkin_simple()
 ############
 # PROTOBUF #
 ############
-SET(PROTO_DEFNS proto/core.proto
-                proto/chunk.proto)
+SET(PROTO_DEFNS proto/chord-index.proto 
+                proto/core.proto
+                proto/chunk.proto
+                proto/net-table.proto)
 PROTOBUF_CATKIN_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 #############
 # LIBRARIES #
 #############
-add_definitions(--std=c++0x -Wall -Wextra -pedantic -Wno-unused-local-typedefs)
+add_definitions(--std=c++0x -Wall -Wextra -pedantic -Wno-unused-local-typedefs -g3 -O0)
 
 # Core Library available to all applications
-SET(CORE_SOURCE  src/chunk.cc
+SET(CORE_SOURCE  src/chord-index.cc
+                 src/chunk.cc
                  src/chunk-transaction.cc
                  src/cr-table.cc
                  src/cr-table-ram-cache.cc
@@ -36,6 +39,7 @@ SET(CORE_SOURCE  src/chunk.cc
                  src/map-api-hub.cc
                  src/message.cc
                  src/net-table.cc
+                 src/net-table-index.cc
                  src/net-table-manager.cc
                  src/net-table-transaction.cc
                  src/peer.cc
@@ -60,6 +64,9 @@ target_link_libraries(discovery-server ${PROJECT_NAME})
 ##########
 # GTESTS #
 ##########
+
+catkin_add_gtest(test_chord_index_test test/chord_index_test.cpp)
+target_link_libraries(test_chord_index_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_chunk_test test/chunk_test.cpp)
 target_link_libraries(test_chunk_test ${PROJECT_NAME})

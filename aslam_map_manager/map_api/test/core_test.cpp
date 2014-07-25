@@ -8,10 +8,14 @@
 using namespace map_api;
 
 TEST(MapApiCore, validInit) {
-  MapApiCore &instance = MapApiCore::instance();
-  EXPECT_TRUE(instance.isInitialized());
-  instance.kill();
-  EXPECT_FALSE(instance.isInitialized());
+  MapApiCore* instance = MapApiCore::instance();
+  EXPECT_EQ(nullptr, instance);
+  MapApiCore::initializeInstance();
+  instance = MapApiCore::instance();
+  EXPECT_NE(nullptr, instance);
+  EXPECT_TRUE(instance->isInitialized());
+  instance->kill();
+  EXPECT_EQ(nullptr, MapApiCore::instance());
 }
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT

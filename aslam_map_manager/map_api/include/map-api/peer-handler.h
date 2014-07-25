@@ -42,6 +42,12 @@ class PeerHandler {
   void request(const PeerId& peer_address, Message* request,
                Message* response);
   /**
+   * Sends request to specified peer. If peer not among peers_, adds it. Returns
+   * false on timeout.
+   */
+  bool try_request(const PeerId& peer_address, Message* request,
+                   Message* response);
+  /**
    * Returns true if all peers have acknowledged, false otherwise.
    * TODO(tcies) timeouts?
    */

@@ -22,6 +22,8 @@ class PeerId {
 
   bool operator ==(const PeerId& other) const;
 
+  bool operator !=(const PeerId& other) const;
+
   bool isValid() const;
 
  private:
