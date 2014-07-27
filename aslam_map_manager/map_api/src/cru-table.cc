@@ -14,6 +14,9 @@
 #include "map-api/local-transaction.h"
 #include "core.pb.h"
 
+DEFINE_bool(cru_linked, false, "Determines whether a revision has references "\
+            "to the previous and next revision.");
+
 namespace map_api {
 
 CRUTable::~CRUTable() {}
@@ -31,7 +34,7 @@ bool CRUTable::update(Revision* query) {
   query->get(kInsertTimeField, &insert_time);
   CHECK(current->verify(kInsertTimeField, insert_time));
   LogicalTime previous_time, update_time = LogicalTime::sample();
-  getLatestUpdateTime(id, &previous_time);
+  current->get(kPreviousTimeField, &previous_time);
   CHECK(previous_time < update_time);
   query->set(kPreviousTimeField, previous_time);
   query->set(kUpdateTimeField, update_time);
