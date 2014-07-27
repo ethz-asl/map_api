@@ -130,6 +130,7 @@ std::string Revision::dumpToString() const {
     if (field.has_doublevalue()) dump_ss << field.doublevalue();
     if (field.has_intvalue()) dump_ss << field.intvalue();
     if (field.has_longvalue()) dump_ss << field.longvalue();
+    if (field.has_ulongvalue()) dump_ss << field.ulongvalue();
     if (field.has_stringvalue()) dump_ss << field.stringvalue();
     dump_ss << std::endl;
   }

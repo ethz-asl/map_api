@@ -39,7 +39,7 @@ bool CRUTable::update(Revision* query) {
     // this check would also be nice if CRU_linked = false, would however lose
     // the update performance benefit of not linking
     CHECK(current->verify(kInsertTimeField, insert_time));
-    current->get(kPreviousTimeField, &previous_time);
+    current->get(kUpdateTimeField, &previous_time);
     CHECK(previous_time < update_time);
     query->set(kPreviousTimeField, previous_time);
     query->set(kNextTimeField, LogicalTime());
