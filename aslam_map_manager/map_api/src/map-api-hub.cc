@@ -60,7 +60,9 @@ bool MapApiHub::init(bool* is_first_peer) {
   listener_ = std::thread(listenThread, this);
   {
     std::unique_lock<std::mutex> lock(condVarMutex_);
-    listenerStatus_.wait(lock);
+    while (!listenerConnected_) {
+      listenerStatus_.wait(lock);
+    }
   }
   if (!listenerConnected_){
     context_.reset();
