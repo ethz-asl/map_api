@@ -427,6 +427,8 @@ void ChordIndex::leaveClean() {
     // in-order locking
     if (hash(successor) <= hash(predecessor)) {
       if (hash(successor) < hash(predecessor)) {
+        CHECK_NE(PeerId::self(), successor);
+        CHECK_NE(PeerId::self(), predecessor);
         if (own_key_ > hash(successor)) { // su ... pr, self
           CHECK(lock(successor));
           CHECK(lock(predecessor));
@@ -437,6 +439,7 @@ void ChordIndex::leaveClean() {
           CHECK(lock(predecessor));
         }
       } else {
+        CHECK_EQ(successor, predecessor);
         if (own_key_ < hash(successor)) { // self, su = pr
           CHECK(lock());
           CHECK(lock(successor));
@@ -444,6 +447,7 @@ void ChordIndex::leaveClean() {
           CHECK(lock(successor));
           CHECK(lock());
         } else { // su = pr = self
+          CHECK_EQ(PeerId::self(), predecessor);
           CHECK(lock());
         }
       }
