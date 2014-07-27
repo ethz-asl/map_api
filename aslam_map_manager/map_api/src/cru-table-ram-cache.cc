@@ -43,9 +43,11 @@ int CRUTableRAMCache::findByRevisionCRUDerived(
   poco_to_proto.into(statement);
   statement << " FROM " << name() << " WHERE " << kUpdateTimeField << " <  ? ",
       Poco::Data::use(serialized_time);
-  statement << " AND (" << kNextTimeField << " = 0 OR " << kNextTimeField <<
-      " > ? ", Poco::Data::use(serialized_time);
-  statement << ") ";
+  if (FLAGS_cru_linked) {
+    statement << " AND (" << kNextTimeField << " = 0 OR " << kNextTimeField <<
+        " > ? ", Poco::Data::use(serialized_time);
+    statement << ") ";
+  }
   if (key != "") {
     statement << " AND " << key << " LIKE ";
     data_holder.push_back(value_holder.insertPlaceHolder(key, statement));
@@ -62,18 +64,31 @@ int CRUTableRAMCache::findByRevisionCRUDerived(
     Id id;
     item->get(kIdField, &id);
     CHECK(id.isValid());
-    if(!dest->insert(std::make_pair(id, item)).second) {
-      std::ostringstream report;
-      report << "Failed to insert:" << std::endl;
-      report << item->dumpToString() << std::endl;
-      report << "Into map with:";
-      for (const std::pair<Id, std::shared_ptr<Revision> >& in_dest : *dest) {
-        report << in_dest.second->dumpToString() << std::endl;
+    std::unordered_map<Id, LogicalTime> latest;
+    if (FLAGS_cru_linked) {
+      // case linked: query guarantees that each ID is unique
+      if(!dest->insert(std::make_pair(id, item)).second) {
+        std::ostringstream report;
+        report << "Failed to insert:" << std::endl;
+        report << item->dumpToString() << std::endl;
+        report << "Into map with:";
+        for (const std::pair<Id, std::shared_ptr<Revision> >& in_dest : *dest) {
+          report << in_dest.second->dumpToString() << std::endl;
+        }
+        LOG(FATAL) << report.str();
       }
-      LOG(FATAL) << report.str();
+    } else {
+      // case not linked: result contains entire history of each ID up to the
+      // specified time, need to return latest only
+      LogicalTime item_time;
+      item->get(kUpdateTimeField, &item_time);
+      if (item_time > latest[id]) {
+        (*dest)[id] = item;
+        latest[id] = item_time;
+      }
     }
   }
-  return from_poco.size();
+  return dest->size();
 }
 
 bool CRUTableRAMCache::insertUpdatedCRUDerived(const Revision& query) {
@@ -84,6 +99,7 @@ bool CRUTableRAMCache::insertUpdatedCRUDerived(const Revision& query) {
 bool CRUTableRAMCache::updateCurrentReferToUpdatedCRUDerived(
     const Id& id, const LogicalTime& current_time,
     const LogicalTime& updated_time) {
+  CHECK(FLAGS_cru_linked);
   ItemDebugInfo info(this->name(), id);
   std::shared_ptr<Poco::Data::Session> session =
       sqlite_interface_.getSession().lock();

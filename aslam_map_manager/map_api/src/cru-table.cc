@@ -29,18 +29,28 @@ bool CRUTable::update(Revision* query) {
   Id id;
   query->get(kIdField, &id);
   CHECK_NE(id, Id()) << "Attempted to update element with invalid ID";
-  std::shared_ptr<Revision> current = getById(id, LogicalTime::sample());
-  LogicalTime insert_time;
-  query->get(kInsertTimeField, &insert_time);
-  CHECK(current->verify(kInsertTimeField, insert_time));
-  LogicalTime previous_time, update_time = LogicalTime::sample();
-  current->get(kPreviousTimeField, &previous_time);
-  CHECK(previous_time < update_time);
-  query->set(kPreviousTimeField, previous_time);
+  LogicalTime update_time = LogicalTime::sample(), previous_time;
   query->set(kUpdateTimeField, update_time);
-  query->set(kNextTimeField, LogicalTime());
+
+  if (FLAGS_cru_linked) {
+    std::shared_ptr<Revision> current = getById(id, LogicalTime::sample());
+    LogicalTime insert_time;
+    query->get(kInsertTimeField, &insert_time);
+    // this check would also be nice if CRU_linked = false, would however lose
+    // the update performance benefit of not linking
+    CHECK(current->verify(kInsertTimeField, insert_time));
+    current->get(kPreviousTimeField, &previous_time);
+    CHECK(previous_time < update_time);
+    query->set(kPreviousTimeField, previous_time);
+    query->set(kNextTimeField, LogicalTime());
+  }
+
   CHECK(insertUpdatedCRUDerived(*query));
-  CHECK(updateCurrentReferToUpdatedCRUDerived(id, previous_time, update_time));
+
+  if (FLAGS_cru_linked) {
+    CHECK(updateCurrentReferToUpdatedCRUDerived(
+        id, previous_time, update_time));
+  }
   return true;
 }
 
@@ -67,24 +77,30 @@ const std::string CRUTable::kNextTimeField = "next_time";
 
 bool CRUTable::initCRDerived() {
   descriptor_->addField<LogicalTime>(kUpdateTimeField);
-  descriptor_->addField<LogicalTime>(kPreviousTimeField);
-  descriptor_->addField<LogicalTime>(kNextTimeField);
+  if (FLAGS_cru_linked) {
+    descriptor_->addField<LogicalTime>(kPreviousTimeField);
+    descriptor_->addField<LogicalTime>(kNextTimeField);
+  }
   initCRUDerived();
   return true;
 }
 
 bool CRUTable::insertCRDerived(Revision* query) {
   query->set(kUpdateTimeField, LogicalTime::sample());
-  query->set(kPreviousTimeField, LogicalTime());
-  query->set(kNextTimeField, LogicalTime());
+  if (FLAGS_cru_linked) {
+    query->set(kPreviousTimeField, LogicalTime());
+    query->set(kNextTimeField, LogicalTime());
+  }
   return insertCRUDerived(query);
 }
 
 bool CRUTable::bulkInsertCRDerived(const RevisionMap& query) {
   for (const RevisionMap::value_type& item : query) {
     item.second->set(kUpdateTimeField, LogicalTime::sample());
-    item.second->set(kPreviousTimeField, LogicalTime());
-    item.second->set(kNextTimeField, LogicalTime());
+    if (FLAGS_cru_linked) {
+      item.second->set(kPreviousTimeField, LogicalTime());
+      item.second->set(kNextTimeField, LogicalTime());
+    }
   }
   return bulkInsertCRUDerived(query);
 }
