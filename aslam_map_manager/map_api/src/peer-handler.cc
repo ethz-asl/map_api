@@ -54,6 +54,18 @@ void PeerHandler::request(
   MapApiHub::instance().request(peer, request, response);
 }
 
+bool PeerHandler::try_request(const PeerId& peer, Message* request,
+                              Message* response) {
+  CHECK_NOTNULL(request);
+  CHECK_NOTNULL(response);
+  CHECK_NE(peer, PeerId::self());
+  std::set<PeerId>::iterator found = peers_.find(peer);
+  if (found == peers_.end()) {
+    found = peers_.insert(peer).first;
+  }
+  return MapApiHub::instance().try_request(peer, request, response);
+}
+
 size_t PeerHandler::size() const {
   return peers_.size();
 }

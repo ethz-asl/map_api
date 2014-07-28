@@ -25,22 +25,14 @@ class MapApiCore final {
  public:
   /**
    * Get singleton instance of Map Api Core
-   * TODO(tcies) just make all functions static (thread-safety!)...
+   * Returns a null pointer if not initialized.
    */
-  static MapApiCore& instance();
-  /**
-   * Synchronizes table definition with peers
-   * by using standard table operations on the metatable
-   */
-  bool syncTableDefinition(const TableDescriptor& descriptor);
+  static MapApiCore* instance();
+  static void initializeInstance();
   /**
    * Initializer
    */
   void init();
-  /**
-   * Metatable definition TODO(tcies) in TableManager
-   */
-  void initMetatable();
   /**
    * Check if initialized
    */
@@ -51,8 +43,8 @@ class MapApiCore final {
    */
   void kill();
 
-  NetTableManager& tableManager();
-  const NetTableManager& tableManager() const;
+  //NetTableManager& tableManager();
+  //const NetTableManager& tableManager() const;
 
  private:
   static const std::string kMetatableNameField;
@@ -64,34 +56,29 @@ class MapApiCore final {
   MapApiCore();
   ~MapApiCore();
   /**
-   * Returns a weak pointer to the database session
+   * Returns a weak pointer to the database session. Static, i.e. decoupled from
+   * instance() in order to avoid infinite recursion: This is called in
+   * MapApiCore::init()
    */
-  std::weak_ptr<Poco::Data::Session> getSession();
+  static std::weak_ptr<Poco::Data::Session> getSession();
   friend class CRTableRAMCache;
   friend class CRUTableRAMCache;
   friend class LocalTransaction;
-  /**
-   * Initializes metatable if not initialized. Unfortunately, the metatable
-   * can't be initialized in init, as the initializer of metatable calls init
-   * indirectly itself, so there would be an endless recursion.
-   */
-  void ensureMetatable();
 
   /**
    * Session of local database
    */
-  std::shared_ptr<Poco::Data::Session> dbSess_;
+  static std::shared_ptr<Poco::Data::Session> db_session_;
+  static bool db_session_initialized_;
   /**
    * Hub instance
    */
   MapApiHub& hub_;
+  NetTableManager& table_manager_;
 
-  NetTableManager table_manager_;
-
-  std::unique_ptr<CRTableRAMCache> metatable_; // TODO(tcies) eventually
-  // net table in tableManager
-
+  static MapApiCore instance_;
   bool initialized_ = false;
+  std::mutex initialized_mutex_;
 };
 
 }
