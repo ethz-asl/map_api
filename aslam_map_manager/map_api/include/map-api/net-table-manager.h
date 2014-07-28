@@ -64,6 +64,10 @@ class NetTableManager {
   NetTableManager& operator =(const NetTableManager&) = delete;
   ~NetTableManager() = default;
 
+  bool syncTableDefinition(
+      bool updateable, const TableDescriptor& descriptor, bool* first,
+      PeerId* entry_point);
+
   typedef std::unordered_map<std::string, std::unique_ptr<NetTable> >
   TableMap;
 

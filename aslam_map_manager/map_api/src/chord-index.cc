@@ -178,7 +178,7 @@ bool ChordIndex::handleRetrieveData(
   // TODO(tcies) try-again-later & integrate if not integrated
   if (!retrieveDataLocally(key, value)) {
     LOG(WARNING) << "Data " << key << " requested at " << PeerId::self() <<
-        " is not available.";
+        " is not available, has hash " << hash(key);
     return false;
   }
   return true;
@@ -286,7 +286,7 @@ void ChordIndex::create() {
   initialized_ = true;
   lock.unlock();
   initialized_cv_.notify_all();
-  LOG(INFO) << "Root(" << PeerId::self() << ") has key " << own_key_;
+  VLOG(3) << "Root(" << PeerId::self() << ") has key " << own_key_;
 }
 
 void ChordIndex::join(const PeerId& other) {
@@ -301,7 +301,7 @@ void ChordIndex::join(const PeerId& other) {
   initialized_ = true;
   lock.unlock();
   initialized_cv_.notify_all();
-  LOG(INFO) << "Peer(" << PeerId::self() << ") has key " << own_key_;
+  VLOG(3) << "Peer(" << PeerId::self() << ") has key " << own_key_;
 }
 
 void ChordIndex::cleanJoin(const PeerId& other) {
@@ -427,6 +427,8 @@ void ChordIndex::leaveClean() {
     // in-order locking
     if (hash(successor) <= hash(predecessor)) {
       if (hash(successor) < hash(predecessor)) {
+        CHECK_NE(PeerId::self(), successor);
+        CHECK_NE(PeerId::self(), predecessor);
         if (own_key_ > hash(successor)) { // su ... pr, self
           CHECK(lock(successor));
           CHECK(lock(predecessor));
@@ -437,6 +439,7 @@ void ChordIndex::leaveClean() {
           CHECK(lock(predecessor));
         }
       } else {
+        CHECK_EQ(successor, predecessor);
         if (own_key_ < hash(successor)) { // self, su = pr
           CHECK(lock());
           CHECK(lock(successor));
@@ -444,6 +447,7 @@ void ChordIndex::leaveClean() {
           CHECK(lock(successor));
           CHECK(lock());
         } else { // su = pr = self
+          CHECK_EQ(PeerId::self(), predecessor);
           CHECK(lock());
         }
       }
@@ -494,9 +498,9 @@ void ChordIndex::leaveClean() {
       unlock(predecessor);
     }
     unlock(successor);
-    LOG(INFO) << own_key_ << " left ring topo";
+    VLOG(3) << own_key_ << " left ring topo";
   } else {
-    LOG(INFO) << "Last peer left chord index";
+    VLOG(3) << "Last peer left chord index";
   }
   unlock();
 }
@@ -653,7 +657,7 @@ bool ChordIndex::retrieveDataLocally(
   DataMap::iterator found = data_.find(key);
   if (found == data_.end()) {
     data_lock_.unlock();
-    LOG(ERROR) << "Data with given key " << key << " does not exist";
+    VLOG(3) << "Data with given key " << key << " does not exist";
     return false;
   }
   *value = found->second;

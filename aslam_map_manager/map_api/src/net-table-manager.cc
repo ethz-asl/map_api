@@ -8,9 +8,12 @@
 namespace map_api {
 
 REVISION_PROTOBUF(proto::TableDescriptor);
+REVISION_PROTOBUF(proto::PeerList);
 
 constexpr char kMetaTableNameField[] = "name";
 constexpr char kMetaTableStructureField[] = "structure";
+constexpr char kMetaTableUpdateableField[] = "updateable";
+constexpr char kMetaTableParticipantsField[] = "participants";
 constexpr char kMetaTableChunkHexString[] = "000000000000000000000003E1A1AB7E";
 
 const char NetTableManager::kMetaTableName[] = "map_api_metatable";
@@ -84,6 +87,8 @@ void NetTableManager::initMetatable(bool create_metatable_chunk) {
   metatable_descriptor->addField<std::string>(kMetaTableNameField);
   metatable_descriptor->addField<proto::TableDescriptor>(
       kMetaTableStructureField);
+  metatable_descriptor->addField<bool>(kMetaTableUpdateableField);
+  metatable_descriptor->addField<proto::PeerList>(kMetaTableParticipantsField);
   metatable->init(true, &metatable_descriptor);
   tables_lock_.unlock();
   // 3. INITIALIZATION OF INDEX
@@ -127,10 +132,11 @@ void NetTableManager::addTable(
     bool updateable, std::unique_ptr<TableDescriptor>* descriptor) {
   CHECK_NOTNULL(descriptor);
   CHECK(*descriptor);
-  tables_lock_.readLock();
+  TableDescriptor* descriptor_raw = descriptor->get(); // needed later
+  tables_lock_.writeLock();
   TableMap::iterator found = tables_.find((*descriptor)->name());
   if (found != tables_.end()) {
-    LOG(INFO) << "Table already active";
+    LOG(WARNING) << "Table already defined! Checking consistency...";
     std::unique_ptr<NetTable> temp(new NetTable);
     temp->init(updateable, descriptor);
     std::shared_ptr<Revision> left = found->second->getTemplate(),
@@ -144,6 +150,17 @@ void NetTableManager::addTable(
     CHECK(inserted.first->second->init(updateable, descriptor));
   }
   tables_lock_.unlock();
+  bool first;
+  PeerId entry_point;
+  // Ensure validity of table structure
+  CHECK(syncTableDefinition(updateable, *descriptor_raw, &first, &entry_point));
+  // May receive requests at this point TODO(tcies) defer them
+  NetTable& table = getTable(descriptor_raw->name());
+  if (first) {
+    table.createIndex();
+  } else {
+    table.joinIndex(entry_point);
+  }
 }
 
 NetTable& NetTableManager::getTable(const std::string& name) {
@@ -289,6 +306,63 @@ void NetTableManager::handleRoutedChordRequests(
   TableMap::iterator table;
   CHECK(findTable(routed_request.table_name(), &table));
   table->second->handleRoutedChordRequests(request, response);
+}
+
+bool NetTableManager::syncTableDefinition(
+    bool updateable, const TableDescriptor& descriptor, bool* first,
+    PeerId* entry_point) {
+  CHECK_NOTNULL(first);
+  CHECK_NOTNULL(entry_point);
+  CHECK_NOTNULL(metatable_chunk_);
+  std::shared_ptr<ChunkTransaction> try_insert =
+      metatable_chunk_->newTransaction();
+  NetTable& metatable = getTable(kMetaTableName);
+  std::shared_ptr<Revision> attempt = metatable.getTemplate();
+  attempt->set(CRTable::kIdField, Id::generate());
+  attempt->set(kMetaTableNameField, descriptor.name());
+  proto::PeerList peers;
+  peers.add_peers(PeerId::self().ipPort());
+  attempt->set(kMetaTableParticipantsField, peers);
+  attempt->set(kMetaTableStructureField, descriptor);
+  attempt->set(kMetaTableUpdateableField, updateable);
+  try_insert->insert(attempt);
+  try_insert->addConflictCondition(kMetaTableNameField, descriptor.name());
+
+  if (metatable_chunk_->commit(*try_insert)) {
+    *first = true;
+    return true;
+  } else {
+    *first = false;
+  }
+
+  // Case Table definition already in metatable
+  while (true) {
+    std::shared_ptr<ChunkTransaction> try_join =
+        metatable_chunk_->newTransaction();
+    // 1. Read previous registration in metatable
+    std::shared_ptr<Revision> previous =
+        try_join->findUnique(kMetaTableNameField, descriptor.name());
+    CHECK(previous) << "Can't find table " << descriptor.name() <<
+        " even though its presence seemingly caused a conflict";
+    // 2. Verify structure
+    TableDescriptor previous_descriptor;
+    previous->get(kMetaTableStructureField, &previous_descriptor);
+    CHECK_EQ(descriptor.SerializeAsString(),
+             previous_descriptor.SerializeAsString());
+    bool previous_updateable;
+    previous->get(kMetaTableUpdateableField, &previous_updateable);
+    CHECK_EQ(updateable, previous_updateable);
+    // 3. Pick entry point peer
+    proto::PeerList peers;
+    previous->get(kMetaTableParticipantsField, &peers);
+    CHECK_EQ(1, peers.peers_size()) << "Current implementation assumes only "\
+        "one entry point peer per table";
+    *entry_point = PeerId(peers.peers(0));
+    // 4. Register as peer
+    // TODO(tcies) later, this isn't necessary for the demo
+    break;
+  }
+  return true;
 }
 
 bool NetTableManager::findTable(const std::string& table_name,
