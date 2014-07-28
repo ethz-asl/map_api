@@ -1,0 +1,10 @@
+package map_api.proto;
+
+message RoutedChordRequest {
+  optional string table_name = 1;
+  optional bytes serialized_message = 2;
+}
+
+message PeerList {
+  repeated string peers = 1;
+}

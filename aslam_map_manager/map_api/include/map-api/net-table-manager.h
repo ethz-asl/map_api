@@ -10,10 +10,19 @@ namespace map_api {
 
 class NetTableManager {
  public:
+  static const char kMetaTableName[];
   /**
-   * Responsible for registering handlers, loading the metatable, and joining
-   * or creating the metatable chunk.
+   * Must be called before hub init
    */
+  static void registerHandlers();
+
+  /**
+   * Singleton approach allows NetTableManager chord indices to communicate
+   * before MapApiCore is fully initialized, which is an important part of
+   * MapApiCore::init()
+   */
+  static NetTableManager& instance();
+
   void init(bool create_metatable_chunk);
 
   void initMetatable(bool create_metatable_chunk);
@@ -24,7 +33,7 @@ class NetTableManager {
    */
   NetTable& getTable(const std::string& name);
 
-  void leaveAllChunks();
+  void kill();
 
   /**
    * ==========================
@@ -32,7 +41,7 @@ class NetTableManager {
    * ==========================
    */
   /**
-   * Requesting peer specifies which chunk it wants to connect to
+   * Chunk requests
    */
   static void handleConnectRequest(const Message& request, Message* response);
   static void handleFindRequest(const Message& request, Message* response);
@@ -43,13 +52,21 @@ class NetTableManager {
   static void handleNewPeerRequest(const Message& request, Message* response);
   static void handleUnlockRequest(const Message& request, Message* response);
   static void handleUpdateRequest(const Message& request, Message* response);
+  /**
+   * Chord requests
+   */
+  static void handleRoutedChordRequests(
+      const Message& request, Message* response);
 
  private:
   NetTableManager() = default;
   NetTableManager(const NetTableManager&) = delete;
   NetTableManager& operator =(const NetTableManager&) = delete;
   ~NetTableManager() = default;
-  friend class MapApiCore;
+
+  bool syncTableDefinition(
+      bool updateable, const TableDescriptor& descriptor, bool* first,
+      PeerId* entry_point);
 
   typedef std::unordered_map<std::string, std::unique_ptr<NetTable> >
   TableMap;

@@ -80,6 +80,7 @@ TEST_P(NetTableTest, NetTableTransactions) {
     }
     IPC::barrier(DIE, 2);
   }
+  LOG(INFO) << PeerId::self() << " done";
 }
 
 TEST_P(NetTableTest, Transactions) {
@@ -95,9 +96,9 @@ TEST_P(NetTableTest, Transactions) {
   std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
   descriptor->setName(kSecondTableName);
   descriptor->addField<int>(kSecondTableFieldName);
-  MapApiCore::instance().tableManager().addTable(true, &descriptor);
+  NetTableManager::instance().addTable(true, &descriptor);
   NetTable* second_table =
-      &MapApiCore::instance().tableManager().getTable(kSecondTableName);
+      &NetTableManager::instance().getTable(kSecondTableName);
   ASSERT_TRUE(second_table);
 
   if (getSubprocessId() == ROOT) {
@@ -169,6 +170,50 @@ TEST_P(NetTableTest, Transactions) {
     }
     IPC::barrier(DIE, 2);
   }
+}
+
+TEST_P(NetTableTest, TransactionFind) {
+  if (GetParam()) {
+    return; // independent of updateability
+  }
+  // TODO(tcies) check in uncommitted not implemented yet
+  Chunk* chunk = table_->newChunk();
+  CRTable::RevisionMap results;
+  insert(0, chunk);
+  Transaction reader;
+  reader.find(kFieldName, 0, table_, &results);
+  EXPECT_EQ(1, results.size());
+}
+
+TEST_P(NetTableTest, ChunkLookup) {
+  if (GetParam()) {
+    return; // independent of updateability
+  }
+  enum Processes {MASTER, SLAVE};
+  enum Barriers {INIT, CHUNK_CREATED, DIE};
+  Chunk* chunk;
+  CRTable::RevisionMap results;
+  if (getSubprocessId() == MASTER) {
+    launchSubprocess(SLAVE);
+    IPC::barrier(INIT, 1);
+    IPC::barrier(CHUNK_CREATED, 1);
+    table_->dumpCache(LogicalTime::sample(), &results);
+    EXPECT_EQ(0, results.size());
+    Id chunk_id = popId();
+    chunk = table_->getChunk(chunk_id);
+    EXPECT_TRUE(chunk);
+    table_->dumpCache(LogicalTime::sample(), &results);
+    EXPECT_EQ(1, results.size());
+  }
+  if (getSubprocessId() == SLAVE) {
+    IPC::barrier(INIT, 1);
+    chunk = table_->newChunk();
+    EXPECT_TRUE(chunk);
+    insert(0, chunk);
+    IPC::push(chunk->id().hexString());
+    IPC::barrier(CHUNK_CREATED, 1);
+  }
+  IPC::barrier(DIE, 1);
 }
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT

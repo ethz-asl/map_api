@@ -49,10 +49,11 @@ class TransactionTest : public testing::Test {
  protected:
   virtual void SetUp() override {
     ::testing::FLAGS_gtest_death_test_style = "fast";
-    MapApiCore::instance();
+    map_api::MapApiCore::initializeInstance(); // core init
+    ASSERT_TRUE(map_api::MapApiCore::instance() != nullptr);
   }
   virtual void TearDown() final override {
-    MapApiCore::instance().kill();
+    MapApiCore::instance()->kill();
     ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   }
   std::shared_ptr<Revision> sample(double n, CRUTableRAMCache* table) {
@@ -170,7 +171,8 @@ class MultiTransactionTest : public testing::Test {
 class MultiTransactionSingleCRUTest : public MultiTransactionTest {
  protected:
   virtual void SetUp()  {
-    MapApiCore::instance(); // core init
+    map_api::MapApiCore::initializeInstance(); // core init
+    ASSERT_TRUE(map_api::MapApiCore::instance() != nullptr);
     TransactionTestTable::init();
     table_ = &TransactionTestTable::instance();
     ::testing::FLAGS_gtest_death_test_style = "fast";
@@ -178,7 +180,7 @@ class MultiTransactionSingleCRUTest : public MultiTransactionTest {
 
   virtual void TearDown() {
     ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-    MapApiCore::instance().kill();
+    MapApiCore::instance()->kill();
   }
 
   std::shared_ptr<Revision> sample(double n, CRUTableRAMCache* table) {

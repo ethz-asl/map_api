@@ -92,13 +92,19 @@ class MapApiHub final {
    * Returns false if timeout
    */
   bool try_request(const PeerId& peer, Message* request, Message* response);
+  /**
+   * Returns true if peer is ready, i.e. has an initialized core
+   */
+  bool isReady(const PeerId& peer);
 
   static void discoveryHandler(const Message& request, Message* response);
+  static void readyHandler(const Message& request, Message* response);
 
   /**
-   * Discovery message type denomination constant
+   * Default RPCs
    */
   static const char kDiscovery[];
+  static const char kReady[];
 
  private:
   /**
@@ -131,9 +137,10 @@ class MapApiHub final {
   /**
    * Maps message types denominations to handler functions
    */
-  static std::unordered_map<std::string,
-  std::function<void(const Message& request, Message* response)> >
-  handlers_;
+  typedef std::unordered_map<std::string,
+      std::function<void(const Message&, Message*)> >
+  HandlerMap;
+  static HandlerMap handlers_;
 
   std::unique_ptr<Discovery> discovery_;
 };

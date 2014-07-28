@@ -15,8 +15,8 @@ public ::testing::WithParamInterface<bool> {
     std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
     descriptor->setName(kTableName);
     descriptor->addField<int>(kFieldName);
-    MapApiCore::instance().tableManager().addTable(GetParam(), &descriptor);
-    table_ = &MapApiCore::instance().tableManager().getTable(kTableName);
+    NetTableManager::instance().addTable(GetParam(), &descriptor);
+    table_ = &NetTableManager::instance().getTable(kTableName);
   }
 
   size_t count() {

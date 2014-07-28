@@ -21,7 +21,8 @@ class ChordIndexTest : public MultiprocessTest {
     // not using MultiprocessTest::SetUp intentionally - need to register
     // handlers first
     TestChordIndex::staticInit();
-    MapApiCore::instance();
+    MapApiCore::initializeInstance();
+    CHECK_NOTNULL(MapApiCore::instance());
   }
 };
 
@@ -34,7 +35,7 @@ TEST_F(ChordIndexTest, create) {
 
 DEFINE_uint64(addresses_to_hash, 5, "Amount of addresses to hash");
 TEST_F(ChordIndexTest, hashDistribution) {
-  enum Barriers{INIT, HASH};
+  enum Barriers{INIT, HASH, DIE};
   if (getSubprocessId() == 0) {
     std::ostringstream command_extra;
     command_extra << "--addresses_to_hash=" << FLAGS_addresses_to_hash;
@@ -52,12 +53,14 @@ TEST_F(ChordIndexTest, hashDistribution) {
     }
     hash_ss << "]";
     LOG(INFO) << hash_ss.str();
+    IPC::barrier(DIE, FLAGS_addresses_to_hash - 1);
   } else {
     IPC::barrier(INIT, FLAGS_addresses_to_hash - 1);
     std::ostringstream hash_ss;
     hash_ss << ChordIndex::hash(PeerId::self());
     IPC::push(hash_ss.str());
     IPC::barrier(HASH, FLAGS_addresses_to_hash - 1);
+    IPC::barrier(DIE, FLAGS_addresses_to_hash - 1);
   }
 }
 

@@ -12,7 +12,8 @@ catkin_simple()
 ############
 SET(PROTO_DEFNS proto/chord-index.proto 
                 proto/core.proto
-                proto/chunk.proto)
+                proto/chunk.proto
+                proto/net-table.proto)
 PROTOBUF_CATKIN_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
@@ -38,6 +39,7 @@ SET(CORE_SOURCE  src/chord-index.cc
                  src/map-api-hub.cc
                  src/message.cc
                  src/net-table.cc
+                 src/net-table-index.cc
                  src/net-table-manager.cc
                  src/net-table-transaction.cc
                  src/peer.cc

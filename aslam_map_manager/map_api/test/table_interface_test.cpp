@@ -39,10 +39,11 @@ template <typename TableType>
 class TableInterfaceTest : public ::testing::Test {
  public:
   virtual void SetUp() final override {
-    MapApiCore::instance();
+    MapApiCore::initializeInstance();
+    ASSERT_TRUE(MapApiCore::instance() != nullptr);
   }
   virtual void TearDown() final override {
-    MapApiCore::instance().kill();
+    MapApiCore::instance()->kill();
   }
 };
 
@@ -238,11 +239,12 @@ class FieldTestWithInit : public FieldTestWithoutInit<TableDataType> {
   virtual ~FieldTestWithInit() {}
  protected:
   virtual void SetUp() override {
-    MapApiCore::instance();
+    MapApiCore::initializeInstance();
+    ASSERT_TRUE(MapApiCore::instance() != nullptr);
     this->table_.reset(FieldTestTable<TableDataType>::forge());
   }
   virtual void TearDown() override {
-    MapApiCore::instance().kill();
+    MapApiCore::instance()->kill();
   }
 };
 

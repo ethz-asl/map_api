@@ -23,7 +23,7 @@ MAP_API_STRING_MESSAGE(IPC::kMessageMessage);
 
 IPC::~IPC() {}
 
-void IPC::init() {
+void IPC::registerHandlers() {
   MapApiHub::instance().registerHandler(kBarrierMessage, barrierHandler);
   MapApiHub::instance().registerHandler(kMessageMessage, pushHandler);
 }
