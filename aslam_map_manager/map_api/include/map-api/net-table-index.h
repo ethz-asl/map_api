@@ -12,7 +12,7 @@ namespace map_api {
 
 class NetTableIndex : public ChordIndex {
  public:
-  virtual ~NetTableIndex() = default;
+  virtual ~NetTableIndex();
   void handleRoutedRequest(const Message& routed_request, Message* response);
 
   /**

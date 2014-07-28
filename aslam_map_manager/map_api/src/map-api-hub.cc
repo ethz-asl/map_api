@@ -60,7 +60,9 @@ bool MapApiHub::init(bool* is_first_peer) {
   listener_ = std::thread(listenThread, this);
   {
     std::unique_lock<std::mutex> lock(condVarMutex_);
-    listenerStatus_.wait(lock);
+    while (!listenerConnected_) {
+      listenerStatus_.wait(lock);
+    }
   }
   if (!listenerConnected_){
     context_.reset();
@@ -367,9 +369,9 @@ void MapApiHub::listenThread(MapApiHub *self) {
           " not registered";
     }
     Message response;
-    //    LOG(INFO) << PeerId::self() << " received request " << query.type();
+    VLOG(3) << PeerId::self() << " received request " << query.type();
     handler->second(query, &response);
-    //    LOG(INFO) << PeerId::self() << " handled request " << query.type();
+    VLOG(3) << PeerId::self() << " handled request " << query.type();
     response.set_sender(PeerId::self().ipPort());
     response.set_logical_time(LogicalTime::sample().serialize());
     std::string serialized_response = response.SerializeAsString();
