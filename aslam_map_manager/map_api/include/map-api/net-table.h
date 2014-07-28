@@ -3,6 +3,8 @@
 
 #include <unordered_map>
 
+#include <Poco/RWLock.h>
+
 #include "map-api/chunk.h"
 #include "map-api/cr-table.h"
 #include "map-api/net-table-index.h"
@@ -127,6 +129,7 @@ class NetTable {
    * DO NOT USE FROM HANDLER THREAD (else TODO(tcies) mutex)
    */
   std::unique_ptr<NetTableIndex> index_;
+  Poco::RWLock index_lock_;
 };
 
 } // namespace map_api
