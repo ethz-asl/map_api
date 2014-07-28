@@ -136,12 +136,5 @@ MapApiCore::~MapApiCore() {
   kill(); // TODO(tcies) could fail - require of user to invoke instead?
 }
 
-//NetTableManager& MapApiCore::tableManager() {
-//  return table_manager_;
-//}
-//const NetTableManager& MapApiCore::tableManager() const {
-//  return table_manager_;
-//}
-
 }
 

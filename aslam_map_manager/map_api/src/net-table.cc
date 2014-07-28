@@ -25,15 +25,19 @@ bool NetTable::init(
 }
 
 void NetTable::createIndex() {
+  index_lock_.writeLock();
   CHECK(index_.get() == nullptr);
   index_.reset(new NetTableIndex(name()));
   index_->create();
+  index_lock_.unlock();
 }
 
 void NetTable::joinIndex(const PeerId& entry_point) {
+  index_lock_.writeLock();
   CHECK(index_.get() == nullptr);
   index_.reset(new NetTableIndex(name()));
   index_->join(entry_point);
+  index_lock_.unlock();
 }
 
 const std::string& NetTable::name() const {
@@ -59,20 +63,24 @@ Chunk* NetTable::newChunk(const Id& chunk_id) {
   inserted.first->second = std::move(chunk);
   active_chunks_lock_.unlock();
   // add self to chunk posessors in index
+  index_lock_.readLock();
   CHECK_NOTNULL(index_.get());
   index_->announcePosession(chunk_id);
+  index_lock_.unlock();
   return inserted.first->second.get();
 }
 
 Chunk* NetTable::getChunk(const Id& chunk_id) {
-  CHECK_NOTNULL(index_.get());
   active_chunks_lock_.readLock();
   ChunkMap::iterator found = active_chunks_.find(chunk_id);
   if (found == active_chunks_.end()) {
     // look in index and connect to peers that claim to have the data
     // (for now metatable only)
     std::unordered_set<PeerId> peers;
+    index_lock_.readLock();
+    CHECK_NOTNULL(index_.get());
     index_->seekPeers(chunk_id, &peers);
+    index_lock_.unlock();
     CHECK_EQ(1u, peers.size()) << "Current implementation expects root only";
     active_chunks_lock_.unlock();
     connectTo(chunk_id, *peers.begin());
@@ -155,10 +163,14 @@ int NetTable::activeChunksSize() const {
 
 void NetTable::kill() {
   leaveAllChunks();
+  index_lock_.readLock();
   if (index_.get() != nullptr) {
     index_->leave();
+    index_lock_.unlock();
+    index_lock_.writeLock();
     index_.reset();
   }
+  index_lock_.unlock();
 }
 
 void NetTable::leaveAllChunks() {
@@ -262,8 +274,10 @@ void NetTable::handleUpdateRequest(
 
 void NetTable::handleRoutedChordRequests(
     const Message& request, Message* response) {
+  index_lock_.readLock();
   CHECK_NOTNULL(index_.get());
   index_->handleRoutedRequest(request, response);
+  index_lock_.unlock();
 }
 
 bool NetTable::routingBasics(

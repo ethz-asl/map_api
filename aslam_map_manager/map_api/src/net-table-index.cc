@@ -7,6 +7,8 @@ namespace map_api {
 NetTableIndex::NetTableIndex(const std::string& table_name)
 : table_name_(table_name) {}
 
+NetTableIndex::~NetTableIndex() {}
+
 void NetTableIndex::announcePosession(const Id& chunk_id) {
   std::string peers_string;
   proto::PeerList peers;
