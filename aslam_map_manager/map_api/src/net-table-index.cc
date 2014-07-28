@@ -7,6 +7,8 @@ namespace map_api {
 NetTableIndex::NetTableIndex(const std::string& table_name)
 : table_name_(table_name) {}
 
+NetTableIndex::~NetTableIndex() {}
+
 void NetTableIndex::announcePosession(const Id& chunk_id) {
   std::string peers_string;
   proto::PeerList peers;
@@ -376,8 +378,8 @@ bool NetTableIndex::fetchResponsibilitiesRpc(
   proto::FetchResponsibilitiesResponse fetch_response;
   response.extract<kFetchResponsibilitiesResponse>(&fetch_response);
   for (int i = 0; i < fetch_response.data_size(); ++i) {
-    responsibilities->insert(std::make_pair(fetch_response.data(i).key(),
-                                            fetch_response.data(i).value()));
+    responsibilities->emplace(fetch_response.data(i).key(),
+                              fetch_response.data(i).value());
   }
   return true;
 }
