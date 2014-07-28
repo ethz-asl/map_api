@@ -378,8 +378,8 @@ bool NetTableIndex::fetchResponsibilitiesRpc(
   proto::FetchResponsibilitiesResponse fetch_response;
   response.extract<kFetchResponsibilitiesResponse>(&fetch_response);
   for (int i = 0; i < fetch_response.data_size(); ++i) {
-    responsibilities->insert(std::make_pair(fetch_response.data(i).key(),
-                                            fetch_response.data(i).value()));
+    responsibilities->emplace(fetch_response.data(i).key(),
+                              fetch_response.data(i).value());
   }
   return true;
 }
