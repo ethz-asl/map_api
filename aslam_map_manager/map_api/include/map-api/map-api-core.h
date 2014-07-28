@@ -30,18 +30,9 @@ class MapApiCore final {
   static MapApiCore* instance();
   static void initializeInstance();
   /**
-   * Synchronizes table definition with peers
-   * by using standard table operations on the metatable
-   */
-  bool syncTableDefinition(const TableDescriptor& descriptor);
-  /**
    * Initializer
    */
   void init();
-  /**
-   * Metatable definition TODO(tcies) in TableManager
-   */
-  void initMetatable();
   /**
    * Check if initialized
    */
@@ -73,12 +64,6 @@ class MapApiCore final {
   friend class CRTableRAMCache;
   friend class CRUTableRAMCache;
   friend class LocalTransaction;
-  /**
-   * Initializes metatable if not initialized. Unfortunately, the metatable
-   * can't be initialized in init, as the initializer of metatable calls init
-   * indirectly itself, so there would be an endless recursion.
-   */
-  void ensureMetatable();
 
   /**
    * Session of local database
@@ -90,9 +75,6 @@ class MapApiCore final {
    */
   MapApiHub& hub_;
   NetTableManager& table_manager_;
-
-  std::unique_ptr<CRTableRAMCache> metatable_; // TODO(tcies) eventually
-  // net table in tableManager
 
   static MapApiCore instance_;
   bool initialized_ = false;
