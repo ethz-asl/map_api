@@ -38,6 +38,9 @@ class NetTableTransaction {
   void update(std::shared_ptr<Revision> revision);
   // TODO(tcies) conflict conditions
   std::shared_ptr<Revision> getById(const Id& id);
+  template <typename ValueType>
+  void find(const std::string& key, const ValueType& value,
+            CRTable::RevisionMap* result);
   // TODO(tcies) all other flavors of reading
  private:
   ChunkTransaction* transactionOf(Chunk* chunk);
@@ -60,5 +63,7 @@ class NetTableTransaction {
 };
 
 } /* namespace map_api */
+
+#include "map-api/net-table-transaction-inl.h"
 
 #endif /* MAP_API_NET_TABLE_TRANSACTION_H_ */

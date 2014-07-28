@@ -172,6 +172,19 @@ TEST_P(NetTableTest, Transactions) {
   }
 }
 
+TEST_P(NetTableTest, TransactionFind) {
+  if (GetParam()) {
+    return; // independent of updateability
+  }
+  // TODO(tcies) check in uncommitted not implemented yet
+  Chunk* chunk = table_->newChunk();
+  CRTable::RevisionMap results;
+  insert(0, chunk);
+  Transaction reader;
+  reader.find(kFieldName, 0, table_, &results);
+  EXPECT_EQ(1, results.size());
+}
+
 TEST_P(NetTableTest, ChunkLookup) {
   if (GetParam()) {
     return; // independent of updateability
