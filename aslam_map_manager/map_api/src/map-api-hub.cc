@@ -158,8 +158,12 @@ bool MapApiHub::ackRequest(const PeerId& peer, Message* request) {
 void MapApiHub::getPeers(std::set<PeerId>* destination) const {
   CHECK_NOTNULL(destination);
   destination->clear();
-  for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer : peers_) {
-    destination->insert(peer.first);
+  std::vector<PeerId> discovery_peers;
+  discovery_->lock();
+  discovery_->getPeers(&discovery_peers);
+  discovery_->unlock();
+  for (const PeerId& peer : discovery_peers) {
+    destination->insert(peer);
   }
 }
 
