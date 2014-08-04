@@ -7,53 +7,83 @@
 
 #include "map_api_benchmarks/distance.h"
 #include "map_api_benchmarks/simple_kmeans.h"
+#include "floating-point-test-helpers.h"
 
 class MapApiBenchmarks : public map_api_test_suite::MultiprocessTest {
  protected:
   void SetUpImpl() {
-    constexpr int kSeed = 42;
-    constexpr int kNumSamples = 20;
-    constexpr double kMinValue = 0;
-    constexpr double kMaxValue = 10;
-    GenerateRandomData(kSeed, kNumSamples, kMinValue, kMaxValue);
+
+    std::mt19937 generator(40);
+    GenerateTestData(kNumfeaturesPerCluster, kNumClusters, generator(),
+                     &gt_centers, &descriptors, &membership,
+                     &gt_membership);
   }
 
   void TearDownImpl() {
 
   }
 
-  void GenerateRandomData(int seed, int num_samples, double min, double max) {
-    data_.resize(num_samples);
+  static constexpr size_t kNumfeaturesPerCluster = 100;
+  static constexpr size_t kNumClusters = 100;
+  DescriptorVector gt_centers;
+  DescriptorVector descriptors;
+  std::vector<unsigned int> membership;
+  std::vector<unsigned int> gt_membership;
 
-    std::mt19937 gen(seed);
-    std::uniform_real_distribution<> dis(min, max);
-
-    for (unsigned int i = 0; i < data_.size(); ++i) {
-      Eigen::Vector2d& sample = data_[i];
-      for (int j = 0; j < sample.rows(); ++j) {
-        sample(j) = dis(gen);
-      }
-    }
-  }
-
-  Aligned<std::vector, Eigen::Vector2d>::type data_;
 };
 
 
 TEST_F(MapApiBenchmarks, Kmeans) {
-  typedef Eigen::Vector2d Feature;
-  typedef map_api_benchmarks::distance::L2<Feature> Distance;
-  typedef Eigen::aligned_allocator<Feature> Allocator;
-  map_api_benchmarks::SimpleKmeans<Feature, Distance, Allocator> kmeans;
+  std::mt19937 generator(40);
+  // Init with ground-truth.
+  std::shared_ptr<DescriptorVector> centers =
+      aligned_shared<DescriptorVector>(gt_centers);
 
-  std::vector<unsigned int> membership;
-  std::shared_ptr<Aligned<std::vector, Eigen::Vector2d>::type> centers(
-      new Aligned<std::vector, Eigen::Vector2d>::type);
+  DescriptorType descriptor_zero;
+  descriptor_zero.setConstant(kDescriptorDimensionality, 1,
+                              static_cast<Scalar>(0));
 
-  kmeans.Cluster(data_, 2, 42, &membership, &centers);
+  map_api_benchmarks::SimpleKmeans<DescriptorType,
+  map_api_benchmarks::distance::L2<DescriptorType> > kmeans(descriptor_zero);
 
-  EXPECT_EQ(membership.size(), data_.size());
-  EXPECT_EQ(centers->size(), 2);
+  kmeans.SetInitMethod(
+      map_api_benchmarks::InitGiven<DescriptorType>(descriptor_zero));
+
+  kmeans.Cluster(descriptors, kNumClusters, generator(), &membership, &centers);
+
+  std::vector<unsigned int> membercnt;
+  membercnt.resize(centers->size(), 0);
+  for (size_t i = 0; i < membership.size(); ++i) {
+    unsigned int member = membership[i];
+    EXPECT_EQ(membership[i], gt_membership[i]);
+    ++membercnt[member];
+  }
+  for (size_t i = 0; i < membercnt.size(); ++i) {
+    EXPECT_NE(membercnt[i], static_cast<unsigned int>(0));
+  }
+
+  map_api_benchmarks::distance::L2<DescriptorType> l2_distance;
+
+  for (size_t descriptor_idx = 0; descriptor_idx < descriptors.size();
+      ++descriptor_idx) {
+    DescriptorType& descriptor = descriptors.at(descriptor_idx);
+    int closest_center = -1;
+    unsigned int closest_distance = std::numeric_limits<unsigned int>::max();
+    unsigned int second_closest_distance =
+        std::numeric_limits<unsigned int>::max();
+    for (size_t center_idx = 0; center_idx < centers->size(); ++center_idx) {
+      unsigned int distance = l2_distance(descriptor, centers->at(center_idx));
+      if (distance < closest_distance) {
+        second_closest_distance = closest_distance;
+        closest_distance = distance;
+        closest_center = center_idx;
+      }
+    }
+    // Check that we don't have a trivial solution.
+    EXPECT_NE(second_closest_distance, closest_distance);
+    EXPECT_NE(closest_center, -1);
+  }
 }
+
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
