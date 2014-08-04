@@ -6,10 +6,11 @@
 
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 
+#include "map-api/ipc.h"
 #include "map-api/map-api-core.h"
 
 #include "test_chord_index.cpp"
-#include "multiprocess_fixture.cpp"
+#include "map_api_multiprocess_fixture.h"
 
 DECLARE_uint64(stabilize_us);
 
