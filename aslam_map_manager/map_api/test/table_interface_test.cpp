@@ -32,7 +32,11 @@ int ExpectedFieldCount<CRTableRAMCache>::get() {
 
 template<>
 int ExpectedFieldCount<CRUTableRAMCache>::get() {
-  return 5;
+  if (FLAGS_cru_linked) {
+    return 5;
+  } else {
+    return 3;
+  }
 }
 
 template <typename TableType>
