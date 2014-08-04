@@ -43,11 +43,12 @@ TEST_F(MapApiBenchmarks, Kmeans) {
   descriptor_zero.setConstant(kDescriptorDimensionality, 1,
                               static_cast<Scalar>(0));
 
-  map_api_benchmarks::SimpleKmeans<DescriptorType,
-  map_api_benchmarks::distance::L2<DescriptorType> > kmeans(descriptor_zero);
+  map_api::benchmarks::SimpleKmeans<DescriptorType,
+      map_api::benchmarks::distance::L2<DescriptorType>,
+      Eigen::aligned_allocator<DescriptorType> > kmeans(descriptor_zero);
 
   kmeans.SetInitMethod(
-      map_api_benchmarks::InitGiven<DescriptorType>(descriptor_zero));
+      map_api::benchmarks::InitGiven<DescriptorType>(descriptor_zero));
 
   kmeans.Cluster(descriptors, kNumClusters, generator(), &membership, &centers);
 
@@ -62,7 +63,7 @@ TEST_F(MapApiBenchmarks, Kmeans) {
     EXPECT_NE(membercnt[i], static_cast<unsigned int>(0));
   }
 
-  map_api_benchmarks::distance::L2<DescriptorType> l2_distance;
+  map_api::benchmarks::distance::L2<DescriptorType> l2_distance;
 
   for (size_t descriptor_idx = 0; descriptor_idx < descriptors.size();
       ++descriptor_idx) {

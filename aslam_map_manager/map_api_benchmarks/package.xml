@@ -16,7 +16,9 @@
   <build_depend>eigen_catkin</build_depend>
   <build_depend>gflags_catkin</build_depend>
   <build_depend>glog_catkin</build_depend>
+  <build_depend>map_api</build_depend>
   <build_depend>map_api_test_suite</build_depend>
   <build_depend>multiagent_mapping_common</build_depend>
+  <build_depend>protobuf_catkin</build_depend>
 
 </package>
