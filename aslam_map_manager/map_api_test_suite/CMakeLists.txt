@@ -10,9 +10,7 @@ catkin_simple()
 #############
 add_definitions(--std=c++0x -Wall -Wextra -pedantic)
 
-SET(CORE_SOURCE  src/multiprocess_fixture.cc)
-                 
-cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
+cs_add_library(${PROJECT_NAME} src/multiprocess_fixture.cc)
 # we need to add dependencies of external project packages to fetch headers
 # before compilation
 add_dependencies(${PROJECT_NAME} gflags_catkin glog_catkin)
