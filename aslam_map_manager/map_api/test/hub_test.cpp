@@ -6,7 +6,7 @@
 #include "map-api/ipc.h"
 #include "map-api/map-api-core.h"
 
-#include "multiprocess_fixture.cpp"
+#include "map_api_multiprocess_fixture.h"
 
 using namespace map_api;
 

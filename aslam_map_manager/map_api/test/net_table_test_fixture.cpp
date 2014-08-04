@@ -3,7 +3,7 @@
 #include "map-api/net-table-transaction.h"
 #include "map-api/transaction.h"
 
-#include "multiprocess_fixture.cpp"
+#include "./map_api_multiprocess_fixture.h"
 
 using namespace map_api;
 
