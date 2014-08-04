@@ -13,6 +13,8 @@
 #include "map-api/logical-time.h"
 #include "core.pb.h"
 
+DECLARE_bool(cru_linked);
+
 namespace map_api {
 
 /**
