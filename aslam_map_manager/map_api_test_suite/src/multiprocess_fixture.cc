@@ -123,7 +123,7 @@ void MultiprocessTest::fGetSThread(char* out_buffer,
 }
 
 void MultiprocessTest::SetUp() {
-  SetupImpl();
+  SetUpImpl();
 }
 
 void MultiprocessTest::TearDown() {
