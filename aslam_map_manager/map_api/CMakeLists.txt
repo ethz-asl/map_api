@@ -64,27 +64,28 @@ target_link_libraries(discovery-server ${PROJECT_NAME})
 ##########
 # GTESTS #
 ##########
+cs_add_library(${PROJECT_NAME}_test test/map_api_multiprocess_fixture.cpp)
 
 catkin_add_gtest(test_chord_index_test test/chord_index_test.cpp)
-target_link_libraries(test_chord_index_test ${PROJECT_NAME})
+target_link_libraries(test_chord_index_test ${PROJECT_NAME} ${PROJECT_NAME}_test)
 
 catkin_add_gtest(test_chunk_test test/chunk_test.cpp)
-target_link_libraries(test_chunk_test ${PROJECT_NAME})
+target_link_libraries(test_chunk_test ${PROJECT_NAME} ${PROJECT_NAME}_test)
 
 catkin_add_gtest(test_table_interface_test test/table_interface_test.cpp)
-target_link_libraries(test_table_interface_test ${PROJECT_NAME})
+target_link_libraries(test_table_interface_test ${PROJECT_NAME} ${PROJECT_NAME}_test)
 
 catkin_add_gtest(test_core_test test/core_test.cpp)
-target_link_libraries(test_core_test ${PROJECT_NAME})
+target_link_libraries(test_core_test ${PROJECT_NAME} ${PROJECT_NAME}_test)
 
 catkin_add_gtest(test_local_transaction_test test/local_transaction_test.cpp)
-target_link_libraries(test_local_transaction_test ${PROJECT_NAME})
+target_link_libraries(test_local_transaction_test ${PROJECT_NAME} ${PROJECT_NAME}_test)
 
 catkin_add_gtest(test_net_table_test test/net_table_test.cpp)
-target_link_libraries(test_net_table_test ${PROJECT_NAME})
+target_link_libraries(test_net_table_test ${PROJECT_NAME} ${PROJECT_NAME}_test)
 
 catkin_add_gtest(test_hub_test test/hub_test.cpp)
-target_link_libraries(test_hub_test ${PROJECT_NAME})
+target_link_libraries(test_hub_test ${PROJECT_NAME} ${PROJECT_NAME}_test)
 
 ##########
 # EXPORT #
