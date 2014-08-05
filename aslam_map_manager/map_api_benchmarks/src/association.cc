@@ -35,7 +35,8 @@ void Association::setCenterId(const map_api::benchmarks::CenterId& center_id) {
 
 bool Association::parse(const std::string& str) {
   return ParseFromString(str)
-      && id_.fromHexString(proto::Association::id());
+      && data_point_id_.fromHexString(proto::DataPoint::id())
+      && center_id_.fromHexString(proto::Center::id());
 }
 
 }  // namespace benchmarks

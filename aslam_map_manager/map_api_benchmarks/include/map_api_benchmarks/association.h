@@ -16,9 +16,6 @@ class Association : public proto::Association {
  public:
   ~Association() {}
 
-  virtual const map_api::benchmarks::AssociationId& id() const;
-  void setId(const map_api::benchmarks::AssociationId& id);
-
   virtual const map_api::benchmarks::DataPointId& dataPointId() const;
   void setDataPointId(const map_api::benchmarks::DataPointId& id);
 
@@ -30,12 +27,11 @@ class Association : public proto::Association {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
  private:
-  using proto::Association::set_id;
-  using proto::Association::mutable_id;
+  using proto::Association::set_data_point_id;
+  using proto::Association::mutable_data_point_id;
   using proto::Association::set_center_id;
   using proto::Association::mutable_center_id;
   using proto::Association::ParseFromString;
-  map_api::benchmarks::AssociationId id_;
   map_api::benchmarks::DataPointId data_point_id_;
   map_api::benchmarks::CenterId center_id_;
 };

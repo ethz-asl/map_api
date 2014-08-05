@@ -1,9 +1,8 @@
 package map_api.benchmarks.proto;
 
 message Association {
-  required string id = 1;
-  required string data_point_id = 2;
-  required string center_id = 3;
+  required string data_point_id = 1;
+  required string center_id = 2;
 }
 
 message DataPoint {
