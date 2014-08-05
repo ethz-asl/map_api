@@ -60,7 +60,7 @@ namespace benchmarks {
 namespace app {
 const std::string kAssociationTableName =
     "map_api_benchmarks_association_table";
-const std::string kCenterTableCenterIdField = "center_id";
+const std::string kAssociationTableDataCenterIdField = "center_id";
 
 const std::string kDataPointTableName = "map_api_benchmarks_data_point_table";
 const std::string kDataPointTable_Data_Field = "data";
@@ -79,8 +79,7 @@ void init() {
   // Association table.
   descriptor.reset(new map_api::TableDescriptor);
   descriptor->setName(kAssociationTableName);
-  descriptor->addField<map_api::Id>(kDataPointTableDataPointIdField);
-  descriptor->addField<map_api::Id>(kCenterTableCenterIdField);
+  descriptor->addField<map_api::Id>(kAssociationTableDataCenterIdField);
   map_api::NetTableManager::instance().addTable(
       map_api::CRTable::Type::CRU, &descriptor);
   association_table = &map_api::NetTableManager::instance().

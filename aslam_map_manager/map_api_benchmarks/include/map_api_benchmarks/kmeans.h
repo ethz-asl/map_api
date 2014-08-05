@@ -23,25 +23,22 @@ typedef Aligned<std::vector, DescriptorType>::type DescriptorVector;
 
 typedef map_api::benchmarks::SimpleKmeans<DescriptorType,
     map_api::benchmarks::distance::L2<DescriptorType>,
-    Eigen::aligned_allocator<DescriptorType> > KMeans2D;
+    Eigen::aligned_allocator<DescriptorType> > Kmeans2D;
 
-class Kmeans : public KMeans2D {
+class Kmeans : public Kmeans2D {
  public:
   bool saveToDatabase() const;
-  bool loadFromDatabase(
-      const std::vector<DataPointId>& data_points,
-      const std::vector<CenterId>& centers);
+  bool loadFromDatabase(const map_api::Id& data_chunk,
+                        const map_api::Id& center_chunk,
+                        const map_api::Id& association_chunk);
   bool loadEntireDatabase();
 
   bool addDataPoint(const DataPointId& id, const CenterId& center_id,
-                    const Eigen::VectorXd& data);
+                    const DescriptorType& data);
 
-  bool addCenter(const CenterId& from, const Eigen::VectorXd& data);
+  bool addCenter(const CenterId& id, const DescriptorType& data);
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
- private:
-
 };
 
 }  // namespace benchmarks
