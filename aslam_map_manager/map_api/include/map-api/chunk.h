@@ -91,6 +91,7 @@ class Chunk {
    * Insert new item into this chunk: Item gets sent to all peers
    */
   bool insert(Revision* item);
+  bool bulkInsert(const CRTable::RevisionMap& items);
 
   std::shared_ptr<ChunkTransaction> newTransaction();
   std::shared_ptr<ChunkTransaction> newTransaction(const LogicalTime& time);

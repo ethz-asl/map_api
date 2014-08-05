@@ -11,14 +11,19 @@ namespace map_api {
 
 const std::string NetTable::kChunkIdField = "chunk_id";
 
+NetTable::NetTable() : type_(CRTable::Type::CR) {}
+
 bool NetTable::init(
-    bool updateable, std::unique_ptr<TableDescriptor>* descriptor) {
-  updateable_ = updateable;
+    CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor) {
+  type_ = type;
   (*descriptor)->addField<Id>(kChunkIdField);
-  if (updateable) {
-    cache_.reset(new CRUTableRAMCache);
-  } else {
-    cache_.reset(new CRTableRAMCache);
+  switch (type) {
+    case CRTable::Type::CR:
+      cache_.reset(new CRTableRAMCache);
+      break;
+    case CRTable::Type::CRU:
+      cache_.reset(new CRUTableRAMCache);
+      break;
   }
   CHECK(cache_->init(descriptor));
   return true;
@@ -102,7 +107,7 @@ bool NetTable::insert(Chunk* chunk, Revision* query) {
 
 bool NetTable::update(Revision* query) {
   CHECK_NOTNULL(query);
-  CHECK(updateable_);
+  CHECK(type_ == CRTable::Type::CRU);
   Id chunk_id;
   query->get(kChunkIdField, &chunk_id);
   CHECK_NOTNULL(getChunk(chunk_id))->update(query);
@@ -157,8 +162,14 @@ Chunk* NetTable::connectTo(const Id& chunk_id,
   return found->second.get();
 }
 
-int NetTable::activeChunksSize() const {
+size_t NetTable::activeChunksSize() const {
   return active_chunks_.size();
+}
+
+size_t NetTable::cachedItemsSize() {
+  CRTable::RevisionMap result;
+  dumpCache(LogicalTime::sample(), &result);
+  return result.size();
 }
 
 void NetTable::kill() {
@@ -192,6 +203,15 @@ void NetTable::leaveAllChunks() {
   active_chunks_lock_.writeLock();
   active_chunks_.clear();
   active_chunks_lock_.unlock();
+}
+
+std::string NetTable::getStatistics() {
+  std::stringstream ss;
+
+  // TODO(tcies) more lightweight item count method
+  ss << name() << ": " << activeChunksSize() << " chunks and " <<
+      cachedItemsSize() << " items.";
+  return ss.str();
 }
 
 void NetTable::handleConnectRequest(const Id& chunk_id, const PeerId& peer,

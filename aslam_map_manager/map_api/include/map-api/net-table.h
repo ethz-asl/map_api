@@ -16,7 +16,7 @@ class NetTable {
  public:
   static const std::string kChunkIdField;
 
-  bool init(bool updateable, std::unique_ptr<TableDescriptor>* descriptor);
+  bool init(CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor);
   void createIndex();
   void joinIndex(const PeerId& entry_point);
 
@@ -69,11 +69,17 @@ class NetTable {
 
   bool structureMatch(std::unique_ptr<TableDescriptor>* descriptor) const;
 
-  int activeChunksSize() const;
+  size_t activeChunksSize() const;
+
+  size_t cachedItemsSize();
+
+  void shareAllChunks();
 
   void kill();
-  void shareAllChunks();
+
   void leaveAllChunks();
+
+  std::string getStatistics();
 
   /**
    * ========================
@@ -104,7 +110,7 @@ class NetTable {
   void handleRoutedChordRequests(const Message& request, Message* response);
 
  private:
-  NetTable() = default;
+  NetTable();
   NetTable(const NetTable&) = delete;
   NetTable& operator =(const NetTable&) = delete;
   friend class NetTableManager;
@@ -113,7 +119,7 @@ class NetTable {
   bool routingBasics(
       const Id& chunk_id, Message* response, ChunkMap::iterator* found);
 
-  bool updateable_ = false;
+  CRTable::Type type_;
   std::unique_ptr<CRTable> cache_;
   ChunkMap active_chunks_;
   Poco::RWLock active_chunks_lock_;
