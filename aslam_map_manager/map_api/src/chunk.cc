@@ -70,6 +70,7 @@ bool Chunk::check(const ChunkTransaction& transaction) {
     CHECK(isWriter(PeerId::self()));
   }
   CRTable::RevisionMap contents;
+  //TODO(tcies) caching entire table is not a long-term solution
   underlying_table_->dump(LogicalTime::sample(), &contents);
   std::unordered_set<Id> present_ids;
   for (const CRTable::RevisionMap::value_type& item : contents) {
@@ -84,17 +85,22 @@ bool Chunk::check(const ChunkTransaction& transaction) {
       return false;
     }
   }
+  std::unordered_map<Id, LogicalTime> update_times;
   CRUTable* table;
   if (!transaction.updates_.empty()) {
     CHECK(underlying_table_->type() == CRTable::Type::CRU);
     table = static_cast<CRUTable*>(underlying_table_);
+    // TODO(tcies) caching entire table is not a long-term solution (but maybe
+    // caching the entire chunk could be?)
+    for (const CRTable::RevisionMap::value_type& item : contents) {
+      LogicalTime update_time;
+      item.second->get(CRUTable::kUpdateTimeField, &update_time);
+      update_times[item.first] = update_time;
+    }
   }
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
       transaction.updates_) {
-    LogicalTime latest_update;
-    // TODO(tcies) optimize
-    CHECK(table->getLatestUpdateTime(item.first, &latest_update));
-    if (latest_update >= transaction.begin_time_) {
+    if (update_times[item.first] >= transaction.begin_time_) {
       return false;
     }
   }
@@ -624,12 +630,14 @@ void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
   CHECK(underlying_table_->type() == CRTable::Type::CRU);
   CRUTable* table = static_cast<CRUTable*>(underlying_table_);
   table->patch(item);
-  Id id;
-  LogicalTime current, updated;
-  item.get(CRTable::kIdField, &id);
-  item.get(CRUTable::kPreviousTimeField, &current);
-  item.get(CRUTable::kUpdateTimeField, &updated);
-  table->updateCurrentReferToUpdatedCRUDerived(id, current, updated);
+  if (FLAGS_cru_linked) {
+    Id id;
+    LogicalTime current, updated;
+    item.get(CRTable::kIdField, &id);
+    item.get(CRUTable::kPreviousTimeField, &current);
+    item.get(CRUTable::kUpdateTimeField, &updated);
+    table->updateCurrentReferToUpdatedCRUDerived(id, current, updated);
+  }
   response->ack();
 }
 
