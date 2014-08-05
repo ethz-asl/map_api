@@ -24,7 +24,7 @@ class MapApiBenchmarks : public map_api_test_suite::MultiprocessTest {
                      &gt_centers_, &descriptors_, &membership_,
                      &gt_membership_);
 
-    ASSERT_GT(descriptors_.size(), 0u);
+    ASSERT_FALSE(descriptors_.empty());
     ASSERT_EQ(descriptors_[0].size(), 2u);
   }
 
