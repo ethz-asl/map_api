@@ -12,7 +12,7 @@ namespace map_api {
 namespace benchmarks {
 namespace helpers {
 template <int NumBlocks, typename Functor>
-void ParallelProcess(int num_items, const Functor& functor) {
+void ParallelProcess(size_t num_items, const Functor& functor) {
   constexpr int kNumBlocks = NumBlocks;
   std::vector<std::vector<size_t> > blocks;
 
@@ -22,14 +22,14 @@ void ParallelProcess(int num_items, const Functor& functor) {
     blocks.resize(kNumBlocks);
   }
 
-  const int kNumItemsPerBlock = num_items / blocks.size() + 1;
+  const size_t kNumItemsPerBlock = num_items / blocks.size() + 1;
 
   size_t data_index = 0;
 
   std::vector<std::thread> threads;
   for (size_t block_idx = 0; block_idx < blocks.size(); ++block_idx) {
     std::vector<size_t>& block = blocks[block_idx];
-    for (size_t item_idx = 0;
+    for (size_t item_idx = 0u;
          item_idx < kNumItemsPerBlock && data_index < num_items; ++item_idx) {
       block.push_back(data_index);
       ++data_index;

@@ -83,7 +83,10 @@ void MapApiCore::kill() {
 }
 
 MapApiCore::~MapApiCore() {
-  kill(); // TODO(tcies) could fail - require of user to invoke instead?
+  CHECK(initialized_mutex_.try_lock());
+  if (initialized_) {
+    kill(); // TODO(tcies) could fail - require of user to invoke instead?
+  }
 }
 
 }

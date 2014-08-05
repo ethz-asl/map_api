@@ -17,8 +17,12 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 #############
 add_definitions(--std=c++0x -Wall -Wextra -pedantic)
 
-cs_add_library(${PROJECT_NAME} ${PROTO_SRCS} src/data-point.cc src/center.cc
-               src/association.cc src/app.cc)
+cs_add_library(${PROJECT_NAME} ${PROTO_SRCS} src/app.cc
+                                             src/association.cc
+                                             src/center.cc
+                                             src/data-point.cc 
+                                             src/multi-kmeans-hoarder.cc
+                                             src/multi-kmeans-worker.cc)
 
 # we need to add dependencies of external project packages to fetch headers
 # before compilation
