@@ -89,7 +89,7 @@ void NetTableManager::initMetatable(bool create_metatable_chunk) {
       kMetaTableStructureField);
   metatable_descriptor->addField<bool>(kMetaTableUpdateableField);
   metatable_descriptor->addField<proto::PeerList>(kMetaTableParticipantsField);
-  metatable->init(true, &metatable_descriptor);
+  metatable->init(CRTable::Type::CRU, &metatable_descriptor);
   tables_lock_.unlock();
   // 3. INITIALIZATION OF INDEX
   // outside of table lock to avoid deadlock
@@ -129,7 +129,7 @@ void NetTableManager::initMetatable(bool create_metatable_chunk) {
 }
 
 void NetTableManager::addTable(
-    bool updateable, std::unique_ptr<TableDescriptor>* descriptor) {
+    CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor) {
   CHECK_NOTNULL(descriptor);
   CHECK(*descriptor);
   TableDescriptor* descriptor_raw = descriptor->get(); // needed later
@@ -138,7 +138,7 @@ void NetTableManager::addTable(
   if (found != tables_.end()) {
     LOG(WARNING) << "Table already defined! Checking consistency...";
     std::unique_ptr<NetTable> temp(new NetTable);
-    temp->init(updateable, descriptor);
+    temp->init(type, descriptor);
     std::shared_ptr<Revision> left = found->second->getTemplate(),
         right = temp->getTemplate();
     CHECK(left->structureMatch(*right));
@@ -147,13 +147,13 @@ void NetTableManager::addTable(
         std::make_pair((*descriptor)->name(), std::unique_ptr<NetTable>()));
     CHECK(inserted.second) << tables_.size();
     inserted.first->second.reset(new NetTable);
-    CHECK(inserted.first->second->init(updateable, descriptor));
+    CHECK(inserted.first->second->init(type, descriptor));
   }
   tables_lock_.unlock();
   bool first;
   PeerId entry_point;
   // Ensure validity of table structure
-  CHECK(syncTableDefinition(updateable, *descriptor_raw, &first, &entry_point));
+  CHECK(syncTableDefinition(type, *descriptor_raw, &first, &entry_point));
   // May receive requests at this point TODO(tcies) defer them
   NetTable& table = getTable(descriptor_raw->name());
   if (first) {
@@ -309,7 +309,7 @@ void NetTableManager::handleRoutedChordRequests(
 }
 
 bool NetTableManager::syncTableDefinition(
-    bool updateable, const TableDescriptor& descriptor, bool* first,
+    CRTable::Type type, const TableDescriptor& descriptor, bool* first,
     PeerId* entry_point) {
   CHECK_NOTNULL(first);
   CHECK_NOTNULL(entry_point);
@@ -324,7 +324,16 @@ bool NetTableManager::syncTableDefinition(
   peers.add_peers(PeerId::self().ipPort());
   attempt->set(kMetaTableParticipantsField, peers);
   attempt->set(kMetaTableStructureField, descriptor);
-  attempt->set(kMetaTableUpdateableField, updateable);
+  switch (type) {
+    case CRTable::Type::CR:
+      attempt->set(kMetaTableUpdateableField, false);
+      break;
+    case CRTable::Type::CRU:
+      attempt->set(kMetaTableUpdateableField, true);
+      break;
+    default:
+      LOG(FATAL) << "Unknown table type";
+  }
   try_insert->insert(attempt);
   try_insert->addConflictCondition(kMetaTableNameField, descriptor.name());
 
@@ -351,7 +360,16 @@ bool NetTableManager::syncTableDefinition(
              previous_descriptor.SerializeAsString());
     bool previous_updateable;
     previous->get(kMetaTableUpdateableField, &previous_updateable);
-    CHECK_EQ(updateable, previous_updateable);
+    switch (type) {
+      case CRTable::Type::CR:
+        CHECK(!previous_updateable);
+        break;
+      case CRTable::Type::CRU:
+        CHECK(previous_updateable);
+        break;
+      default:
+        LOG(FATAL) << "Unknown table type";
+    }
     // 3. Pick entry point peer
     proto::PeerList peers;
     previous->get(kMetaTableParticipantsField, &peers);

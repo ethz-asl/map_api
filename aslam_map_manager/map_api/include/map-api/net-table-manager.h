@@ -27,7 +27,7 @@ class NetTableManager {
 
   void initMetatable(bool create_metatable_chunk);
 
-  void addTable(bool updateable, std::unique_ptr<TableDescriptor>* descriptor);
+  void addTable(CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor);
   /**
    * Can leave dangling reference
    */
@@ -65,7 +65,7 @@ class NetTableManager {
   ~NetTableManager() = default;
 
   bool syncTableDefinition(
-      bool updateable, const TableDescriptor& descriptor, bool* first,
+      CRTable::Type type, const TableDescriptor& descriptor, bool* first,
       PeerId* entry_point);
 
   typedef std::unordered_map<std::string, std::unique_ptr<NetTable> >

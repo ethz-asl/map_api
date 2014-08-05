@@ -54,6 +54,8 @@ bool SqliteInterface::create(const TableDescriptor& descriptor) {
   }
   stat << ");";
 
+  VLOG(3) << stat.toString();
+
   try {
     stat.execute();
   } catch(const std::exception &e){
@@ -99,6 +101,17 @@ bool SqliteInterface::insert(const Revision& to_insert) {
     system("cp database.db /tmp");
   }
 
+  return true;
+}
+
+bool SqliteInterface::bulkInsert(const CRTable::RevisionMap& to_insert) {
+  std::shared_ptr<Poco::Data::Session> session = session_.lock();
+  CHECK(session) << "Couldn't lock session weak pointer!";
+  *session << "BEGIN TRANSACTION", Poco::Data::now;
+  for(const CRTable::RevisionMap::value_type& id_revision : to_insert) {
+    CHECK(insert(*id_revision.second));
+  }
+  *session << "COMMIT", Poco::Data::now;
   return true;
 }
 
@@ -186,36 +199,53 @@ int SqliteInterface::PocoToProto::toProto(
   // write values
   for (size_t i = 0; i < dest->size(); ++i) {
     (*dest)[i] = std::make_shared<Revision>(*reference_);
-    for (const std::pair<std::string, std::vector<double> >& fieldDouble :
-        doubles_){
+  }
+
+  // first by type, then by destination is necessary, otherwise cache-miss
+  // heavy
+  for (const std::pair<std::string, std::vector<double> >& fieldDouble :
+      doubles_){
+    for (size_t i = 0; i < dest->size(); ++i) {
       (*dest)[i]->set(fieldDouble.first, fieldDouble.second[i]);
     }
-    for (const std::pair<std::string, std::vector<int32_t> >& fieldInt :
-        ints_){
-      (*dest)[i]->set(fieldInt.first, fieldInt.second[i]);
+  }
+  for (const std::pair<std::string, std::vector<int32_t> >& fieldInt :
+      ints_){
+    for (size_t i = 0; i < dest->size(); ++i) {
+          (*dest)[i]->set(fieldInt.first, fieldInt.second[i]);
     }
-    for (const std::pair<std::string, std::vector<int64_t> >& fieldLong :
-        longs_){
-      (*dest)[i]->set(fieldLong.first, fieldLong.second[i]);
+  }
+  for (const std::pair<std::string, std::vector<int64_t> >& fieldLong :
+      longs_){
+    for (size_t i = 0; i < dest->size(); ++i) {
+          (*dest)[i]->set(fieldLong.first, fieldLong.second[i]);
     }
-    for (const std::pair<std::string, std::vector<uint64_t> >& fieldULong :
-        ulongs_){
-      (*dest)[i]->set(fieldULong.first, fieldULong.second[i]);
+  }
+  for (const std::pair<std::string, std::vector<uint64_t> >& fieldULong :
+      ulongs_){
+    for (size_t i = 0; i < dest->size(); ++i) {
+          (*dest)[i]->set(fieldULong.first, fieldULong.second[i]);
     }
-    for (const std::pair<std::string, std::vector<Poco::Data::BLOB> >&
-        fieldBlob : blobs_){
-      (*dest)[i]->set(fieldBlob.first, fieldBlob.second[i]);
+  }
+  for (const std::pair<std::string, std::vector<Poco::Data::BLOB> >&
+      fieldBlob : blobs_){
+    for (size_t i = 0; i < dest->size(); ++i) {
+          (*dest)[i]->set(fieldBlob.first, fieldBlob.second[i]);
     }
-    for (const std::pair<std::string, std::vector<std::string> >& fieldString :
-        strings_){
-      (*dest)[i]->set(fieldString.first, fieldString.second[i]);
+  }
+  for (const std::pair<std::string, std::vector<std::string> >& fieldString :
+      strings_){
+    for (size_t i = 0; i < dest->size(); ++i) {
+          (*dest)[i]->set(fieldString.first, fieldString.second[i]);
     }
-    for (const std::pair<std::string, std::vector<std::string> >& fieldHash :
-        hashes_){
-      Id value;
-      CHECK(value.fromHexString(fieldHash.second[i])) << "Can't parse id from "
-          << fieldHash.second[i];
-      (*dest)[i]->set(fieldHash.first, value);
+  }
+  for (const std::pair<std::string, std::vector<std::string> >& fieldHash :
+      hashes_){
+    for (size_t i = 0; i < dest->size(); ++i) {
+          Id value;
+    CHECK(value.fromHexString(fieldHash.second[i])) << "Can't parse id from "
+        << fieldHash.second[i];
+    (*dest)[i]->set(fieldHash.first, value);
     }
   }
 
