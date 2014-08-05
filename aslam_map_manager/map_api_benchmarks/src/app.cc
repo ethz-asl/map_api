@@ -114,7 +114,7 @@ void associationFromRevision(const map_api::Revision& revision,
   sm::HashId datapoint_hash_id;
   sm::HashId center_hash_id;
   revision.get(map_api::CRTable::kIdField, &datapoint_hash_id);
-  revision.get(kCenterTableCenterIdField, &center_hash_id);
+  revision.get(kAssociationTableDataCenterIdField, &center_hash_id);
 }
 
 void dataPointFromRevision(const map_api::Revision& revision,
@@ -162,7 +162,7 @@ void associationToRevision(const map_api::benchmarks::Association& association,
   revision->set(map_api::CRTable::kIdField, id);
   sm::HashId center_id;
   association.centerId().toHashId(&center_id);
-  revision->set(app::kCenterTableCenterIdField, center_id);
+  revision->set(app::kAssociationTableDataCenterIdField, center_id);
 }
 
 void centerToRevision(const map_api::benchmarks::Center& center,
