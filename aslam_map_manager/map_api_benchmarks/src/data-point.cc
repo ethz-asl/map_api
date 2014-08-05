@@ -1,4 +1,4 @@
-#include "map_api_benchmarks/data_point.h"
+#include "map_api_benchmarks/data-point.h"
 
 #include <glog/logging.h>
 

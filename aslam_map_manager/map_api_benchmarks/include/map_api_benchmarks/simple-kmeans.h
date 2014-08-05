@@ -13,7 +13,7 @@
 #include <thread>
 #include <vector>
 
-#include <map_api_benchmarks/feature_allocator.h>
+#include <map_api_benchmarks/feature-allocator.h>
 #include <map_api_benchmarks/helpers.h>
 
 namespace map_api {

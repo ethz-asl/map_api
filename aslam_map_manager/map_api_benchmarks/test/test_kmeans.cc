@@ -6,7 +6,7 @@
 #include <map_api_test_suite/multiprocess_fixture.h>
 
 #include "map_api_benchmarks/distance.h"
-#include "map_api_benchmarks/simple_kmeans.h"
+#include "map_api_benchmarks/simple-kmeans.h"
 #include "floating-point-test-helpers.h"
 
 class MapApiBenchmarks : public map_api_test_suite::MultiprocessTest {
