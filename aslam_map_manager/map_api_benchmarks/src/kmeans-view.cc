@@ -51,5 +51,19 @@ void KmeansView::insert(const DescriptorVector& descriptors,
   }
 }
 
+void KmeansView::fetch(DescriptorVector* descriptors,
+                       DescriptorVector* centers,
+                       std::vector<unsigned int>* memberships) {
+  CHECK_NOTNULL(descriptors);
+  CHECK_NOTNULL(centers);
+  CHECK_NOTNULL(memberships);
+  transaction_->find(NetTable::kChunkIdField, descriptor_chunk_->id(),
+                     app::data_point_table, &descriptor_revisions_);
+  transaction_->find(NetTable::kChunkIdField, center_chunk_->id(),
+                       app::center_table, &center_revisions_);
+  transaction_->find(NetTable::kChunkIdField, membership_chunk_->id(),
+                       app::association_table, &membership_revisions_);
+}
+
 } /* namespace benchmarks */
 } /* namespace map_api */

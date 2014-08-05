@@ -22,12 +22,15 @@ class KmeansView {
 
   /**
    * Does not populate the local revision maps but pushes on straight to the
-   * transaction.
+   * transaction. Meant for insert-only "views".
    */
   void insert(const DescriptorVector& descriptors,
               const DescriptorVector& centers,
               const std::vector<unsigned int>& memberships);
 
+  /**
+   * Meant for use in association with updateCenterRelated()
+   */
   void fetch(DescriptorVector* descriptors,
              DescriptorVector* centers,
              std::vector<unsigned int>* memberships);
