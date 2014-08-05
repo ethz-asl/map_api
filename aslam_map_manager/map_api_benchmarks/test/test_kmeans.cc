@@ -1,62 +1,77 @@
 #include <random>
 
-#include <Eigen/Core>
-#include <multiagent_mapping_common/aligned_allocation.h>
+#include <gtest/gtest.h>
+
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 #include <map_api_test_suite/multiprocess_fixture.h>
 
+#include "map_api_benchmarks/common.h"
 #include "map_api_benchmarks/distance.h"
+#include "map_api_benchmarks/multi-kmeans-hoarder.h"
+#include "map_api_benchmarks/multi-kmeans-worker.h"
 #include "map_api_benchmarks/simple-kmeans.h"
 #include "floating-point-test-helpers.h"
+
+namespace map_api {
+namespace benchmarks {
 
 class MapApiBenchmarks : public map_api_test_suite::MultiprocessTest {
  protected:
   void SetUpImpl() {
-
     std::mt19937 generator(40);
     GenerateTestData(kNumfeaturesPerCluster, kNumClusters, generator(),
-                     &gt_centers, &descriptors, &membership,
-                     &gt_membership);
+                     kAreaWidth, kClusterRadius,
+                     &gt_centers_, &descriptors_, &membership_,
+                     &gt_membership_);
+
+    ASSERT_GT(descriptors_.size(), 0u);
+    ASSERT_EQ(descriptors_[0].size(), 2u);
   }
 
   void TearDownImpl() {
-
   }
 
-  static constexpr size_t kNumfeaturesPerCluster = 100;
-  static constexpr size_t kNumClusters = 100;
-  DescriptorVector gt_centers;
-  DescriptorVector descriptors;
-  std::vector<unsigned int> membership;
-  std::vector<unsigned int> gt_membership;
-
+  static constexpr size_t kNumfeaturesPerCluster = 20;
+  static constexpr size_t kNumClusters = 20;
+  static constexpr double kAreaWidth = 20.;
+  static constexpr double kClusterRadius = .5;
+  DescriptorVector gt_centers_;
+  DescriptorVector descriptors_;
+  std::vector<unsigned int> membership_;
+  std::vector<unsigned int> gt_membership_;
 };
 
+TEST_F(MapApiBenchmarks, MultiKmeans) {
+  MultiKmeansHoarder hoarder;
+  map_api::Id data_chunk_id, center_chunk_id, membership_chunk_id;
+  hoarder.init(descriptors_, gt_centers_, membership_, kAreaWidth,
+               &data_chunk_id, &center_chunk_id, &membership_chunk_id);
+}
 
-TEST_F(MapApiBenchmarks, Kmeans) {
+TEST_F(MapApiBenchmarks, DISABLED_Kmeans) {
   std::mt19937 generator(40);
   // Init with ground-truth.
   std::shared_ptr<DescriptorVector> centers =
-      aligned_shared<DescriptorVector>(gt_centers);
+      aligned_shared<DescriptorVector>(gt_centers_);
 
   DescriptorType descriptor_zero;
   descriptor_zero.setConstant(kDescriptorDimensionality, 1,
                               static_cast<Scalar>(0));
 
   map_api::benchmarks::SimpleKmeans<DescriptorType,
-      map_api::benchmarks::distance::L2<DescriptorType>,
-      Eigen::aligned_allocator<DescriptorType> > kmeans(descriptor_zero);
+  map_api::benchmarks::distance::L2<DescriptorType>,
+  Eigen::aligned_allocator<DescriptorType> > kmeans(descriptor_zero);
 
   kmeans.SetInitMethod(
       map_api::benchmarks::InitGiven<DescriptorType>(descriptor_zero));
 
-  kmeans.Cluster(descriptors, kNumClusters, generator(), &membership, &centers);
+  kmeans.Cluster(descriptors_, kNumClusters, generator(), &membership_, &centers);
 
   std::vector<unsigned int> membercnt;
   membercnt.resize(centers->size(), 0);
-  for (size_t i = 0; i < membership.size(); ++i) {
-    unsigned int member = membership[i];
-    EXPECT_EQ(membership[i], gt_membership[i]);
+  for (size_t i = 0; i < membership_.size(); ++i) {
+    unsigned int member = membership_[i];
+    EXPECT_EQ(membership_[i], gt_membership_[i]);
     ++membercnt[member];
   }
   for (size_t i = 0; i < membercnt.size(); ++i) {
@@ -65,9 +80,9 @@ TEST_F(MapApiBenchmarks, Kmeans) {
 
   map_api::benchmarks::distance::L2<DescriptorType> l2_distance;
 
-  for (size_t descriptor_idx = 0; descriptor_idx < descriptors.size();
+  for (size_t descriptor_idx = 0; descriptor_idx < descriptors_.size();
       ++descriptor_idx) {
-    DescriptorType& descriptor = descriptors.at(descriptor_idx);
+    DescriptorType& descriptor = descriptors_.at(descriptor_idx);
     int closest_center = -1;
     unsigned int closest_distance = std::numeric_limits<unsigned int>::max();
     unsigned int second_closest_distance =
@@ -86,5 +101,7 @@ TEST_F(MapApiBenchmarks, Kmeans) {
   }
 }
 
+}  // namespace map_api
+}  // namespace benchmarks
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
