@@ -96,7 +96,7 @@ TEST_P(NetTableTest, Transactions) {
   std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
   descriptor->setName(kSecondTableName);
   descriptor->addField<int>(kSecondTableFieldName);
-    NetTableManager::instance().addTable(
+  NetTableManager::instance().addTable(
       CRTable::Type::CRU, &descriptor);
   NetTable* second_table =
       &NetTableManager::instance().getTable(kSecondTableName);

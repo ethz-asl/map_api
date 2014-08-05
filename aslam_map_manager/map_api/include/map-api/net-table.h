@@ -110,7 +110,7 @@ class NetTable {
   void handleRoutedChordRequests(const Message& request, Message* response);
 
  private:
-  NetTable() = default;
+  NetTable();
   NetTable(const NetTable&) = delete;
   NetTable& operator =(const NetTable&) = delete;
   friend class NetTableManager;
@@ -119,7 +119,7 @@ class NetTable {
   bool routingBasics(
       const Id& chunk_id, Message* response, ChunkMap::iterator* found);
 
-  CRTable::Type type_ = CRTable::Type::CR;
+  CRTable::Type type_;
   std::unique_ptr<CRTable> cache_;
   ChunkMap active_chunks_;
   Poco::RWLock active_chunks_lock_;
