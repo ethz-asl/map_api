@@ -13,11 +13,9 @@ void GenerateTestData(size_t kNumfeaturesPerCluster, size_t kNumClusters,
                       size_t seed, double area_width, double cluster_radius,
                       DescriptorVector* const gt_centers,
                       DescriptorVector* const descriptors,
-                      std::vector<unsigned int>* const membership,
                       std::vector<unsigned int>* const gt_membership) {
   CHECK_NOTNULL(gt_centers);
   CHECK_NOTNULL(descriptors);
-  CHECK_NOTNULL(membership);
   CHECK_NOTNULL(gt_membership);
   CHECK_GT(area_width, 2 * cluster_radius);
   std::mt19937 generator(seed);

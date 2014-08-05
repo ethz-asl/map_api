@@ -18,11 +18,11 @@ namespace benchmarks{
 class KmeansView {
  public:
   KmeansView(Chunk* descriptor_chunk_id, Chunk* center_chunk_id,
-             Chunk* membership_chunk_id, Transaction* transaction);
+             Chunk* membership_chunk_id);
 
   /**
    * Does not populate the local revision maps but pushes on straight to the
-   * transaction. Meant for insert-only "views".
+   * transaction and commits immediately. Meant for insert-only "views".
    */
   void insert(const DescriptorVector& descriptors,
               const DescriptorVector& centers,
@@ -51,7 +51,7 @@ class KmeansView {
   std::unordered_map<Id, size_t> center_id_to_index_;
 
   Chunk* descriptor_chunk_, *center_chunk_, *membership_chunk_;
-  map_api::Transaction* transaction_;
+  Transaction transaction_;
 };
 
 } /* namespace benchmarks */
