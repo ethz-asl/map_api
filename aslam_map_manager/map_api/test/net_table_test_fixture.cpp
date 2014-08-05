@@ -15,7 +15,9 @@ public ::testing::WithParamInterface<bool> {
     std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
     descriptor->setName(kTableName);
     descriptor->addField<int>(kFieldName);
-    NetTableManager::instance().addTable(GetParam(), &descriptor);
+    NetTableManager::instance().addTable(
+        GetParam() ? CRTable::Type::CRU : CRTable::Type::CR, &descriptor);
+    table_ = &NetTableManager::instance().getTable(kTableName);
     table_ = &NetTableManager::instance().getTable(kTableName);
   }
 

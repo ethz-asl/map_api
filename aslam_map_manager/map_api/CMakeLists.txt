@@ -20,7 +20,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 #############
 # LIBRARIES #
 #############
-add_definitions(--std=c++0x -Wall -Wextra -pedantic -Wno-unused-local-typedefs)
+add_definitions(--std=c++0x -Wall -Wextra -pedantic -Wno-unused-local-typedefs -g3 -O0)
 
 # Core Library available to all applications
 SET(CORE_SOURCE  src/chord-index.cc

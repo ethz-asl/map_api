@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "map-api/cr-table.h"
 #include "map-api/revision.h"
 #include "map-api/table-descriptor.h"
 
@@ -30,6 +31,7 @@ class SqliteInterface {
    * Inserts data as is from the supplied revision
    */
   bool insert(const Revision& to_insert);
+  bool bulkInsert(const CRTable::RevisionMap& to_insert);
 
   /**
    * Allows a to also feed custom commands to the database -

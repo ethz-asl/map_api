@@ -12,6 +12,10 @@
 
 namespace map_api {
 
+bool Id::fromHashId(const sm::HashId& id) {
+  return fromHexString(id.hexString());
+}
+
 Id Id::generate(){
   static std::atomic<int> counter;
   ++counter;

@@ -19,6 +19,10 @@ bool CRTableRAMCache::insertCRDerived(Revision* query) {
   return sqlite_interface_.insert(*query);
 }
 
+bool CRTableRAMCache::bulkInsertCRDerived(const RevisionMap& query) {
+  return sqlite_interface_.bulkInsert(query);
+}
+
 bool CRTableRAMCache::patchCRDerived(const Revision& query) {
   return sqlite_interface_.insert(query);
 }

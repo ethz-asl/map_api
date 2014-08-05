@@ -67,6 +67,22 @@ bool CRTable::insert(Revision* query) {
   return insertCRDerived(query);
 }
 
+bool CRTable::bulkInsert(const RevisionMap& query) {
+  CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
+  std::shared_ptr<Revision> reference = getTemplate();
+  Id id;
+  for (const RevisionMap::value_type& id_revision : query) {
+    CHECK_NOTNULL(id_revision.second.get());
+    CHECK(reference->structureMatch(*id_revision.second)) <<
+        "Bad structure of insert revision";
+    id_revision.second->get(kIdField, &id);
+    CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
+    CHECK(id == id_revision.first) << "ID in RevisionMap doesn't match";
+    id_revision.second->set(kInsertTimeField, LogicalTime::sample());
+  }
+  return bulkInsertCRDerived(query);
+}
+
 bool CRTable::patch(const Revision& query) {
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();

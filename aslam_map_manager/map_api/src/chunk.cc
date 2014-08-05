@@ -1,5 +1,7 @@
 #include "map-api/chunk.h"
 
+#include <unordered_set>
+
 #include "map-api/cru-table.h"
 #include "map-api/net-table-manager.h"
 #include "map-api/map-api-hub.h"
@@ -67,24 +69,38 @@ bool Chunk::check(const ChunkTransaction& transaction) {
     std::lock_guard<std::mutex> metalock(lock_.mutex);
     CHECK(isWriter(PeerId::self()));
   }
+  CRTable::RevisionMap contents;
+  //TODO(tcies) caching entire table is not a long-term solution
+  underlying_table_->dump(LogicalTime::sample(), &contents);
+  std::unordered_set<Id> present_ids;
+  for (const CRTable::RevisionMap::value_type& item : contents) {
+    present_ids.insert(item.first);
+  }
+  // The following check may be left out if too costly
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
       transaction.insertions_) {
-    if (underlying_table_->getById(item.first, LogicalTime::sample())) {
+    if (present_ids.find(item.first) != present_ids.end()) {
       LOG(WARNING) << "Table " << underlying_table_->name() <<
           " already contains id " << item.first;
       return false;
     }
   }
+  std::unordered_map<Id, LogicalTime> update_times;
   CRUTable* table;
   if (!transaction.updates_.empty()) {
     CHECK(underlying_table_->type() == CRTable::Type::CRU);
     table = static_cast<CRUTable*>(underlying_table_);
+    // TODO(tcies) caching entire table is not a long-term solution (but maybe
+    // caching the entire chunk could be?)
+    for (const CRTable::RevisionMap::value_type& item : contents) {
+      LogicalTime update_time;
+      item.second->get(CRUTable::kUpdateTimeField, &update_time);
+      update_times[item.first] = update_time;
+    }
   }
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
       transaction.updates_) {
-    LogicalTime latest_update;
-    CHECK(table->getLatestUpdateTime(item.first, &latest_update));
-    if (latest_update >= transaction.begin_time_) {
+    if (update_times[item.first] >= transaction.begin_time_) {
       return false;
     }
   }
@@ -105,10 +121,7 @@ bool Chunk::commit(const ChunkTransaction& transaction) {
     distributedUnlock();
     return false;
   }
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
-      transaction.insertions_) {
-    CHECK(insert(item.second.get()));
-  }
+  CHECK(bulkInsert(transaction.insertions_));
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
       transaction.updates_) {
     update(item.second.get());
@@ -136,6 +149,35 @@ bool Chunk::insert(Revision* item) {
   insert_request.set_serialized_revision(item->SerializeAsString());
   request.impose<kInsertRequest>(insert_request);
   CHECK(peers_.undisputableBroadcast(&request));
+  distributedUnlock();
+  return true;
+}
+
+bool Chunk::bulkInsert(const CRTable::RevisionMap& items) {
+  std::vector<proto::PatchRequest> insert_requests;
+  insert_requests.resize(items.size());
+  int i = 0;
+  for (const CRTable::RevisionMap::value_type& item : items) {
+    CHECK_NOTNULL(item.second.get());
+    item.second->set(NetTable::kChunkIdField, id());
+    fillMetadata(&insert_requests[i]);
+    ++i;
+  }
+  Message request;
+  distributedReadLock(); // avoid adding of new peers while inserting
+  underlying_table_->bulkInsert(items);
+  // at this point, insert() has modified the revisions such that all default
+  // fields are also set, which allows remote peers to just patch the revision
+  // into their table.
+  i = 0;
+  for (const CRTable::RevisionMap::value_type& item : items) {
+    insert_requests[i].set_serialized_revision(
+        item.second->SerializeAsString());
+    request.impose<kInsertRequest>(insert_requests[i]);
+    CHECK(peers_.undisputableBroadcast(&request));
+    // TODO(tcies) also bulk this
+    ++i;
+  }
   distributedUnlock();
   return true;
 }
@@ -588,12 +630,14 @@ void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
   CHECK(underlying_table_->type() == CRTable::Type::CRU);
   CRUTable* table = static_cast<CRUTable*>(underlying_table_);
   table->patch(item);
-  Id id;
-  LogicalTime current, updated;
-  item.get(CRTable::kIdField, &id);
-  item.get(CRUTable::kPreviousTimeField, &current);
-  item.get(CRUTable::kUpdateTimeField, &updated);
-  table->updateCurrentReferToUpdatedCRUDerived(id, current, updated);
+  if (FLAGS_cru_linked) {
+    Id id;
+    LogicalTime current, updated;
+    item.get(CRTable::kIdField, &id);
+    item.get(CRUTable::kPreviousTimeField, &current);
+    item.get(CRUTable::kUpdateTimeField, &updated);
+    table->updateCurrentReferToUpdatedCRUDerived(id, current, updated);
+  }
   response->ack();
 }
 
