@@ -1,0 +1,16 @@
+package map_api.benchmarks.proto;
+
+message Association {
+  required string id = 1;  // Data point id as pkey.
+  required string center_id = 2;
+}
+
+message DataPoint {
+  required string id = 1;
+  repeated double data = 2;
+}
+
+message Center {
+  required string id = 1;
+  repeated double data = 2;
+}

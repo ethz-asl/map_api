@@ -8,7 +8,8 @@
 #include <thread>
 #include <vector>
 
-namespace map_api_benchmarks {
+namespace map_api {
+namespace benchmarks {
 namespace helpers {
 template <int NumBlocks, typename Functor>
 void ParallelProcess(int num_items, const Functor& functor) {
@@ -44,6 +45,7 @@ void ParallelProcess(int num_items, const Functor& functor) {
 }
 
 }  // namespace helpers
-}  // namespace map_api_benchmarks
+}  // namespace benchmarks
+}  // namespace map_api
 
 #endif  // MAP_API_BENCHMARKS_HELPERS_H_
