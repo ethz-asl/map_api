@@ -11,6 +11,8 @@ namespace map_api {
 
 const std::string NetTable::kChunkIdField = "chunk_id";
 
+NetTable::NetTable() : type_(CRTable::Type::CR) {}
+
 bool NetTable::init(
     CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor) {
   type_ = type;
