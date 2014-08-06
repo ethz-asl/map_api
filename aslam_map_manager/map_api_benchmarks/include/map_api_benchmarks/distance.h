@@ -9,7 +9,8 @@
 
 #include <Eigen/Core>
 
-namespace map_api_benchmarks {
+namespace map_api {
+namespace benchmarks {
 namespace distance {
 
 /**
@@ -81,6 +82,7 @@ struct L2<Eigen::Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols> > {
   }
 };
 }  //  namespace distance
-}  //  namespace map_api_benchmarks
+}  // namespace benchmarks
+}  // namespace map_api
 
 #endif  // MAP_API_BENCHMARKS_DISTANCE_H_
