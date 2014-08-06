@@ -6,6 +6,7 @@
 #include <queue>
 #include <unordered_map>
 
+#include "map-api/id.h"
 #include "map-api/message.h"
 #include "core.pb.h"
 
@@ -34,14 +35,16 @@ class IPC {
    */
   static void barrierHandler(const Message& request, Message* response);
   /**
-   * Allows to broadcast a single string to all other peers
+   * Allows to broadcast a single string or Id to all other peers
    */
   static void push(const std::string& message);
+  static void push(const Id& message);
   static void pushHandler(const Message& request, Message* response);
   /**
    * Read the oldest broadcast message (false if empty queue)
    */
   static bool pop(std::string* destination);
+  static bool pop(Id* destination);
 
   /**
    * Message declarations

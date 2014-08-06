@@ -10,7 +10,8 @@
 #include <Eigen/StdVector>
 #include <Eigen/Core>
 
-namespace map_api_benchmarks {
+namespace map_api {
+namespace benchmarks {
 
 /**
  * \brief Meta-function to get the default allocator for a particular feature type.
@@ -30,5 +31,6 @@ struct DefaultAllocator<
   typedef Eigen::aligned_allocator<
       Eigen::Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols> > type;
 };
-}  //  namespace map_api_benchmarks
+}  // namespace benchmarks
+}  // namespace map_api
 #endif  // MAP_API_BENCHMARKS_FEATURE_ALLOCATOR_H_

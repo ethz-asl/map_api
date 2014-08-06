@@ -14,7 +14,8 @@
 
 #include <glog/logging.h>
 
-namespace map_api_benchmarks {
+namespace map_api {
+namespace benchmarks {
 
 // Eigen Matrix type features.
 template <class Feature, class FeatureAllocator>
@@ -338,5 +339,6 @@ SimpleKmeans<Feature, Distance, FeatureAllocator>::ClusterOnce(
   }
   return sse;
 }
-}       // namespace map_api_benchmarks
+}  // namespace map_api
+}  // namespace benchmarks
 #endif  // MAP_API_BENCHMARKS_SIMPLE_KMEANS_INL_H_

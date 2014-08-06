@@ -13,10 +13,11 @@
 #include <thread>
 #include <vector>
 
-#include <map_api_benchmarks/feature_allocator.h>
+#include <map_api_benchmarks/feature-allocator.h>
 #include <map_api_benchmarks/helpers.h>
 
-namespace map_api_benchmarks {
+namespace map_api {
+namespace benchmarks {
 
 // Forward declare function objects for choosing the initial centers
 template <typename Feature>
@@ -263,7 +264,8 @@ struct InitGiven {
   Feature zero_;
 };
 
-}  // namespace map_api_benchmarks
+}  // namespace benchmarks
+}  // namespace map_api
 
 #include "impl/simple_kmeans_inl.h"
 #endif  // MAP_API_BENCHMARKS_SIMPLE_KMEANS_H_
