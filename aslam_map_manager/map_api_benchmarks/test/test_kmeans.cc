@@ -25,7 +25,7 @@ TEST(KmeansView, InsertFetch) {
   std::mt19937 generator(42);
   DescriptorVector descriptors_in, centers_in, descriptors_out, centers_out;
   std::vector<unsigned int> membership_in, membership_out;
-  GenerateTestData(kClusters, kDataPerCluster, generator(), 20., .5,
+  GenerateTestData(kClusters, kDataPerCluster, 0, generator(), 20., .5,
                    &centers_in, &descriptors_in, &membership_in);
   EXPECT_EQ(kClusters * kDataPerCluster, descriptors_in.size());
   EXPECT_EQ(kClusters, centers_in.size());
@@ -92,8 +92,8 @@ class MultiKmeans : public map_api_test_suite::MultiprocessTest {
       DescriptorVector descriptors;
       std::vector<unsigned int> gt_membership, membership;
       generator_ = std::mt19937(40);
-      GenerateTestData(kNumfeaturesPerCluster, kNumClusters, generator_(),
-                       kAreaWidth, kClusterRadius,
+      GenerateTestData(kNumfeaturesPerCluster, kNumClusters, kNumNoise,
+                       generator_(), kAreaWidth, kClusterRadius,
                        &gt_centers, &descriptors, &gt_membership);
       ASSERT_FALSE(descriptors.empty());
       ASSERT_EQ(descriptors[0].size(), 2u);
@@ -124,8 +124,9 @@ class MultiKmeans : public map_api_test_suite::MultiprocessTest {
     IPC::push(membership_chunk_id_);
   }
 
-  static constexpr size_t kNumfeaturesPerCluster = 40;
   static constexpr size_t kNumClusters = 20;
+  static constexpr size_t kNumfeaturesPerCluster = 40;
+  static constexpr size_t kNumNoise = 100;
   static constexpr double kAreaWidth = 20.;
   static constexpr double kClusterRadius = 1;
 
@@ -178,7 +179,7 @@ TEST_F(MultiKmeans, KmeansHoarderWorker) {
 
 TEST_F(MultiKmeans, CenterWorkers) {
   enum Barriers {INIT, IDS_PUSHED, DIE};
-  constexpr size_t kIterations = 10;
+  constexpr size_t kIterations = 5;
   if (getSubprocessId() == 0) {
     for (size_t i = 1; i <= kNumClusters; ++i) {
       launchSubprocess(i);
