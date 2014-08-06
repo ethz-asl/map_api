@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include <map-api/chunk.h>
 #include <map-api/id.h>
 
 #include "map_api_benchmarks/common.h"
@@ -17,16 +18,16 @@ class MultiKmeansHoarder {
    * it with gnuplot
    */
   void init(
-      const DescriptorVector& descriptors, const DescriptorVector& centers,
-      const std::vector<unsigned int>& membership, const Scalar area_width,
-      map_api::Id* data_chunk_id, map_api::Id* center_chunk_id,
-      map_api::Id* membership_chunk_id);
+      const DescriptorVector& descriptors, const DescriptorVector& gt_centers,
+      const Scalar area_width, map_api::Id* data_chunk_id,
+      map_api::Id* center_chunk_id, map_api::Id* membership_chunk_id);
   /**
    * Refreshes the latest Map API data to gnuplot
    */
   void refresh();
  private:
   FILE* gnuplot_;
+  Chunk* descriptor_chunk_, *center_chunk_, *membership_chunk_;
 };
 
 } /* namespace benchmarks */

@@ -35,10 +35,13 @@ class KmeansView {
              DescriptorVector* centers,
              std::vector<unsigned int>* memberships);
 
+  void updateAll(const DescriptorVector& centers,
+                 const std::vector<unsigned int>& memberships);
+
   void updateCenterRelated(size_t chosen_center,
-                           const DescriptorVector& descriptors,
                            const DescriptorVector& centers,
                            const std::vector<unsigned int>& memberships);
+
  private:
   CRTable::RevisionMap descriptor_revisions_;
   CRTable::RevisionMap center_revisions_;

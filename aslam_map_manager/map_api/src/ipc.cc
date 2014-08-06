@@ -64,6 +64,9 @@ void IPC::push(const std::string& message) {
   request.impose<kMessageMessage>(message);
   CHECK(MapApiHub::instance().undisputableBroadcast(&request));
 }
+void IPC::push(const Id& message) {
+  push(message.hexString());
+}
 
 void IPC::pushHandler(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
@@ -82,6 +85,16 @@ bool IPC::pop(std::string* destination) {
   }
   *destination = messages_.front();
   messages_.pop();
+  return true;
+}
+bool IPC::pop(Id* destination) {
+  CHECK_NOTNULL(destination);
+  std::string serialized;
+  if (!pop(&serialized)) {
+    LOG(INFO) << serialized;
+    return false;
+  }
+  CHECK(destination->fromHexString(serialized));
   return true;
 }
 
