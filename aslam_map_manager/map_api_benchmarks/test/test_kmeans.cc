@@ -18,14 +18,16 @@ namespace map_api {
 namespace benchmarks {
 
 TEST(KmeansView, InsertFetch) {
+  constexpr size_t kClusters = 100, kDataPerCluster = 100;
+  constexpr Scalar kTolerance = 1e-4 * kClusters * kDataPerCluster;
   app::init();
   std::mt19937 generator(42);
   DescriptorVector descriptors_in, centers_in, descriptors_out, centers_out;
   std::vector<unsigned int> membership_in, membership_out;
-  GenerateTestData(3, 3, generator(), 20., .5, &centers_in, &descriptors_in,
-                   &membership_in);
-  EXPECT_EQ(9, descriptors_in.size());
-  EXPECT_EQ(3, centers_in.size());
+  GenerateTestData(kClusters, kDataPerCluster, generator(), 20., .5,
+                   &centers_in, &descriptors_in, &membership_in);
+  EXPECT_EQ(kClusters * kDataPerCluster, descriptors_in.size());
+  EXPECT_EQ(kClusters, centers_in.size());
   EXPECT_EQ(descriptors_in.size(), membership_in.size());
 
   Chunk* descriptor_chunk = app::data_point_table->newChunk();
@@ -49,7 +51,7 @@ TEST(KmeansView, InsertFetch) {
   for (const DescriptorType& out_descriptor : descriptors_out) {
     descriptor_sum -= out_descriptor;
   }
-  EXPECT_LT(descriptor_sum.norm(), 1e-5);
+  EXPECT_LT(descriptor_sum.norm(), kTolerance);
 
   // per-cluster checksum (data could be re-arranged)
   Scalar cluster_sum_product_in = 1., cluster_sum_product_out = 1.;
@@ -75,8 +77,6 @@ TEST(KmeansView, InsertFetch) {
     }
     cluster_sum_product_out *= cluster_sum.norm();
   }
-
-  // surprisingly works
   EXPECT_EQ(cluster_sum_product_in, cluster_sum_product_out);
 
   app::kill();

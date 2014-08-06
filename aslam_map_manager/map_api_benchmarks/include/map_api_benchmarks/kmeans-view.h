@@ -7,7 +7,7 @@
 #include "map_api_benchmarks/common.h"
 
 namespace map_api {
-namespace benchmarks{
+namespace benchmarks {
 
 /**
  * Stores the current view defined by a transaction on specified chunks.
@@ -17,8 +17,8 @@ namespace benchmarks{
  */
 class KmeansView {
  public:
-  KmeansView(Chunk* descriptor_chunk_id, Chunk* center_chunk_id,
-             Chunk* membership_chunk_id);
+  KmeansView(Chunk* descriptor_chunk, Chunk* center_chunk,
+             Chunk* membership_chunk);
 
   /**
    * Does not populate the local revision maps but pushes on straight to the
