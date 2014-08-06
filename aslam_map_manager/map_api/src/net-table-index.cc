@@ -29,7 +29,8 @@ void NetTableIndex::seekPeers(
   // because of the simultaneous topology change and retrieve - problem,
   // requests can occasionally fail (catching forever-blocks)
   for (int i = 0; !retrieveData(chunk_id.hexString(), &peers_string); ++i) {
-    CHECK_LT(i, 1000) << chunk_id;
+    CHECK_LT(i, 1000) << "Retrieval of chunk" << chunk_id << " from index "\
+        "timed out!";
     // corresponds to one second of topology turmoil
     usleep(1000);
   }

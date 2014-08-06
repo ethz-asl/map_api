@@ -13,7 +13,7 @@ class MultiKmeansWorker {
   MultiKmeansWorker(Chunk* descriptor_chunk, Chunk* center_chunk,
                     Chunk* membership_chunk);
 
-  DistanceType::result_type clusterOnceAll();
+  DistanceType::result_type clusterOnceAll(int random_seed);
 
   void clusterOnceOne();
 

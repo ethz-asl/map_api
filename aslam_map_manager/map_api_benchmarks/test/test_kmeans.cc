@@ -168,14 +168,14 @@ class MultiKmeans : public map_api_test_suite::MultiprocessTest {
       DescriptorVector gt_centers;
       DescriptorVector descriptors;
       std::vector<unsigned int> gt_membership, membership;
-      std::mt19937 generator(40);
-      GenerateTestData(kNumfeaturesPerCluster, kNumClusters, generator(),
+      generator_ = std::mt19937(40);
+      GenerateTestData(kNumfeaturesPerCluster, kNumClusters, generator_(),
                        kAreaWidth, kClusterRadius,
                        &gt_centers, &descriptors, &gt_membership);
       ASSERT_FALSE(descriptors.empty());
       ASSERT_EQ(descriptors[0].size(), 2u);
-      hoarder_.init(descriptors, gt_centers, kAreaWidth, &data_chunk_id_,
-                    &center_chunk_id_, &membership_chunk_id_);
+      hoarder_.init(descriptors, gt_centers, kAreaWidth, generator_(),
+                    &data_chunk_id_, &center_chunk_id_, &membership_chunk_id_);
     }
   }
 
@@ -209,6 +209,7 @@ class MultiKmeans : public map_api_test_suite::MultiprocessTest {
   map_api::Id data_chunk_id_, center_chunk_id_, membership_chunk_id_;
   MultiKmeansHoarder hoarder_;
   std::unique_ptr<MultiKmeansWorker> worker_;
+  std::mt19937 generator_;
 };
 
 TEST_F(MultiKmeans, KmeansHoarderWorker) {
@@ -243,7 +244,7 @@ TEST_F(MultiKmeans, KmeansHoarderWorker) {
     IPC::barrier(current_barrier++, 1);
     popIdsInitWorker();
     for (size_t i = 0; i < kIterations; ++i) {
-      result = worker_->clusterOnceAll();
+      result = worker_->clusterOnceAll(generator_());
       std::ostringstream ss;
       ss << result;
       IPC::push(ss.str());
