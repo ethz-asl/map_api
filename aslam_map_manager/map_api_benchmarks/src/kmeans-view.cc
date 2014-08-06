@@ -105,5 +105,43 @@ void KmeansView::fetch(DescriptorVector* descriptors,
   }
 }
 
+void KmeansView::updateAll(const DescriptorVector& centers,
+                           const std::vector<unsigned int>& memberships) {
+  CHECK_EQ(centers.size(), center_revisions_.size());
+  CHECK_EQ(memberships.size(), membership_revisions_.size());
+  for (size_t i = 0; i < centers.size(); ++i) {
+    std::unordered_map<size_t, Id>::iterator found_id =
+        center_index_to_id_.find(i);
+    CHECK(found_id != center_index_to_id_.end());
+    Id center_id = found_id->second;
+    CRTable::RevisionMap::iterator found_revision =
+        center_revisions_.find(center_id);
+    CHECK(found_revision != center_revisions_.end());
+    std::shared_ptr<Revision> cached_revision = found_revision->second;
+    app::centerToRevision(centers[i], center_id, cached_revision.get());
+    transaction_.update(app::center_table, cached_revision);
+  }
+  for (size_t i = 0; i < memberships.size(); ++i) {
+    std::unordered_map<size_t, Id>::iterator found_descriptor_id =
+        descriptor_index_to_id_.find(i);
+    CHECK(found_descriptor_id != descriptor_index_to_id_.end());
+    Id descriptor_id = found_descriptor_id->second;
+
+    std::unordered_map<size_t, Id>::iterator found_center_id =
+        center_index_to_id_.find(memberships[i]);
+    CHECK(found_center_id != center_index_to_id_.end());
+    Id center_id = found_center_id->second;
+
+    CRTable::RevisionMap::iterator found_revision =
+        membership_revisions_.find(descriptor_id);
+    CHECK(found_revision != membership_revisions_.end());
+    std::shared_ptr<Revision> cached_revision = found_revision->second;
+
+    app::membershipToRevision(descriptor_id, center_id, cached_revision.get());
+    transaction_.update(app::association_table, cached_revision);
+  }
+  transaction_.commit();
+}
+
 } /* namespace benchmarks */
 } /* namespace map_api */

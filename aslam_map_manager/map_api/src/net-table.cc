@@ -146,7 +146,7 @@ Chunk* NetTable::connectTo(const Id& chunk_id,
   request.impose<Chunk::kConnectRequest>(metadata);
   // TODO(tcies) add to local peer subset as well?
   MapApiHub::instance().request(peer, &request, &response);
-  CHECK(response.isType<Message::kAck>());
+  CHECK(response.isType<Message::kAck>()) << response.type();
   // wait for connect handle thread of other peer to succeed
   ChunkMap::iterator found;
   while (true) {
@@ -315,6 +315,10 @@ bool NetTable::routingBasics(
   CHECK_NOTNULL(found);
   *found = active_chunks_.find(chunk_id);
   if (*found == active_chunks_.end()) {
+    LOG(WARNING) << "Couldn't find " << chunk_id << " among:";
+    for (const ChunkMap::value_type& chunk : active_chunks_) {
+      LOG(WARNING) << chunk.second->id();
+    }
     response->impose<Message::kDecline>();
     return false;
   }
