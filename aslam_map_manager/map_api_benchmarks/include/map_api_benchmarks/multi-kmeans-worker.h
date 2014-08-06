@@ -3,6 +3,8 @@
 
 #include <map-api/chunk.h>
 
+#include "map_api_benchmarks/common.h"
+
 namespace map_api {
 namespace benchmarks {
 
@@ -11,7 +13,7 @@ class MultiKmeansWorker {
   MultiKmeansWorker(Chunk* descriptor_chunk, Chunk* center_chunk,
                     Chunk* membership_chunk);
 
-  void clusterOnceAll();
+  DistanceType::result_type clusterOnceAll();
 
   void clusterOnceOne();
 

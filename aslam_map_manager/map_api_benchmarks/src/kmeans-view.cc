@@ -128,7 +128,7 @@ void KmeansView::updateAll(const DescriptorVector& centers,
     Id descriptor_id = found_descriptor_id->second;
 
     std::unordered_map<size_t, Id>::iterator found_center_id =
-        center_index_to_id_.find(i);
+        center_index_to_id_.find(memberships[i]);
     CHECK(found_center_id != center_index_to_id_.end());
     Id center_id = found_center_id->second;
 

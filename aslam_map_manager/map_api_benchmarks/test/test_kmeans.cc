@@ -112,19 +112,35 @@ class MapApiBenchmarks : public map_api_test_suite::MultiprocessTest {
 
 TEST_F(MapApiBenchmarks, KmeansHoarderWorker) {
   enum Processes {HOARDER, WORKER};
+  constexpr size_t kIterations = 10;
   int current_barrier = 0;
   map_api::Id data_chunk_id, center_chunk_id, membership_chunk_id;
+  DistanceType::result_type result;
+  std::vector<DistanceType::result_type> results;
   if (getSubprocessId() == HOARDER) {
     launchSubprocess(WORKER);
     MultiKmeansHoarder hoarder;
     hoarder.init(descriptors_, gt_centers_, kAreaWidth, &data_chunk_id,
                  &center_chunk_id, &membership_chunk_id);
-    LOG(INFO) << data_chunk_id;
     IPC::barrier(current_barrier++, 1);
     IPC::push(data_chunk_id);
     IPC::push(center_chunk_id);
     IPC::push(membership_chunk_id);
     IPC::barrier(current_barrier++, 1);
+    // wait for worker to collect chunks and optimize once
+    for (size_t i = 0; i < kIterations; ++i) {
+      IPC::barrier(current_barrier++, 1);
+      std::string result_string;
+      IPC::pop(&result_string);
+      std::istringstream ss(result_string);
+      ss >> result;
+      results.push_back(result);
+      hoarder.refresh();
+    }
+    CHECK_EQ(kIterations, results.size());
+    for (size_t i = 1; i < kIterations; ++i) {
+      EXPECT_LE(results[i], results[i-1]);
+    }
   }
   if (getSubprocessId() == WORKER) {
     IPC::barrier(current_barrier++, 1);
@@ -138,7 +154,13 @@ TEST_F(MapApiBenchmarks, KmeansHoarderWorker) {
     Chunk* membership_chunk =
         app::association_table->getChunk(membership_chunk_id);
     MultiKmeansWorker worker(descriptor_chunk, center_chunk, membership_chunk);
-    worker.clusterOnceAll();
+    for (size_t i = 0; i < kIterations; ++i) {
+      result = worker.clusterOnceAll();
+      std::ostringstream ss;
+      ss << result;
+      IPC::push(ss.str());
+      IPC::barrier(current_barrier++, 1);
+    }
   }
 }
 

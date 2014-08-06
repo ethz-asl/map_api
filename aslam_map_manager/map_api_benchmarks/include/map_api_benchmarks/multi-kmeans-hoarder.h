@@ -26,6 +26,9 @@ class MultiKmeansHoarder {
    */
   void refresh();
  private:
+  void plot(const DescriptorVector& descriptors,
+            const DescriptorVector& centers);
+
   FILE* gnuplot_;
   Chunk* descriptor_chunk_, *center_chunk_, *membership_chunk_;
 };

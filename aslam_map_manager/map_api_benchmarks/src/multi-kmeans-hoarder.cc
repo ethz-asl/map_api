@@ -50,22 +50,29 @@ void MultiKmeansHoarder::init(
   fprintf(gnuplot_, "set yrange [0:%f]\n", area_width);
   fputs("set size square\nset key off\n", gnuplot_);
 
-  // plot
+  plot(descriptors, *centers);
+}
+
+void MultiKmeansHoarder::refresh() {
+  DescriptorVector descriptors, centers;
+  std::vector<unsigned int> membership;
+  KmeansView view(descriptor_chunk_, center_chunk_, membership_chunk_);
+  view.fetch(&descriptors, &centers, &membership);
+  plot(descriptors, centers);
+}
+
+void MultiKmeansHoarder::plot(const DescriptorVector& descriptors,
+                              const DescriptorVector& centers) {
   fputs("plot '-' w p, '-' w p lt rgb \"blue\"\n", gnuplot_);
   for (const DescriptorType descriptor : descriptors) {
     fprintf(gnuplot_, "%f %f\n", descriptor[0], descriptor[1]);
   }
   fputs("e\n", gnuplot_);
-  for (const DescriptorType center : *centers) {
+  for (const DescriptorType center : centers) {
     fprintf(gnuplot_, "%f %f\n", center[0], center[1]);
   }
   fputs("e\n", gnuplot_);
   fflush(gnuplot_);
-}
-
-void MultiKmeansHoarder::refresh() {
-  // TODO(tcies) implement
-  CHECK(false);
 }
 
 } /* namespace benchmarks */

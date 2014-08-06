@@ -13,10 +13,11 @@ MultiKmeansWorker::MultiKmeansWorker(Chunk* descriptor_chunk,
 : descriptor_chunk_(descriptor_chunk), center_chunk_(center_chunk),
   membership_chunk_(membership_chunk) {}
 
-void MultiKmeansWorker::clusterOnceAll()  {
+DistanceType::result_type MultiKmeansWorker::clusterOnceAll()  {
+  DistanceType::result_type result;
   KmeansView view(descriptor_chunk_, center_chunk_, membership_chunk_);
   DescriptorVector descriptors;
-  std::shared_ptr<DescriptorVector> centers;
+  std::shared_ptr<DescriptorVector> centers(new DescriptorVector);
   std::vector<unsigned int> membership;
   view.fetch(&descriptors, centers.get(), &membership);
 
@@ -27,8 +28,10 @@ void MultiKmeansWorker::clusterOnceAll()  {
   clusterer.SetMaxIterations(1);
   clusterer.SetInitMethod(InitGiven<DescriptorType>(descriptor_zero));
   // TODO(seed)
-  clusterer.Cluster(descriptors, centers->size(), 3, &membership,
+  result = clusterer.Cluster(descriptors, centers->size(), 3, &membership,
                     &centers);
+  view.updateAll(*centers, membership);
+  return result;
 }
 
 } /* namespace benchmarks */

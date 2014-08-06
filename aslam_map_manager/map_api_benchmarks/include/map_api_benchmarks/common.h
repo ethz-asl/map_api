@@ -21,8 +21,9 @@ typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> DescriptorType;
 constexpr int kDescriptorDimensionality = 2;
 typedef Aligned<std::vector, DescriptorType>::type DescriptorVector;
 
-typedef map_api::benchmarks::SimpleKmeans<DescriptorType,
-    map_api::benchmarks::distance::L2<DescriptorType>,
+typedef map_api::benchmarks::distance::L2<DescriptorType> DistanceType;
+
+typedef map_api::benchmarks::SimpleKmeans<DescriptorType, DistanceType,
     Eigen::aligned_allocator<DescriptorType> > Kmeans2D;
 
 }  // namespace map_api
