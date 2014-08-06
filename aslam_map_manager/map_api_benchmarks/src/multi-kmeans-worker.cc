@@ -13,7 +13,8 @@ MultiKmeansWorker::MultiKmeansWorker(Chunk* descriptor_chunk,
 : descriptor_chunk_(descriptor_chunk), center_chunk_(center_chunk),
   membership_chunk_(membership_chunk) {}
 
-DistanceType::result_type MultiKmeansWorker::clusterOnceAll()  {
+DistanceType::result_type MultiKmeansWorker::clusterOnceAll(
+    int random_seed)  {
   DistanceType::result_type result;
   KmeansView view(descriptor_chunk_, center_chunk_, membership_chunk_);
   DescriptorVector descriptors;
@@ -28,8 +29,8 @@ DistanceType::result_type MultiKmeansWorker::clusterOnceAll()  {
   clusterer.SetMaxIterations(1);
   clusterer.SetInitMethod(InitGiven<DescriptorType>(descriptor_zero));
   // TODO(seed)
-  result = clusterer.Cluster(descriptors, centers->size(), 3, &membership,
-                    &centers);
+  result = clusterer.Cluster(descriptors, centers->size(), random_seed,
+                             &membership, &centers);
   view.updateAll(*centers, membership);
   return result;
 }

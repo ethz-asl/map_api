@@ -86,7 +86,6 @@ TEST(KmeansView, InsertFetch) {
 class MapApiBenchmarks : public map_api_test_suite::MultiprocessTest {
  protected:
   void SetUpImpl() {
-    app::init();
     // TODO(tcies) the following is not necessary for the worker processes
     std::mt19937 generator(40);
     GenerateTestData(kNumfeaturesPerCluster, kNumClusters, generator(),
@@ -97,9 +96,7 @@ class MapApiBenchmarks : public map_api_test_suite::MultiprocessTest {
     ASSERT_EQ(descriptors_[0].size(), 2u);
   }
 
-  void TearDownImpl() {
-    app::kill();
-  }
+  void TearDownImpl() {}
 
   static constexpr size_t kNumfeaturesPerCluster = 20;
   static constexpr size_t kNumClusters = 20;
@@ -109,60 +106,6 @@ class MapApiBenchmarks : public map_api_test_suite::MultiprocessTest {
   DescriptorVector descriptors_;
   std::vector<unsigned int> gt_membership_, membership_;
 };
-
-TEST_F(MapApiBenchmarks, KmeansHoarderWorker) {
-  enum Processes {HOARDER, WORKER};
-  constexpr size_t kIterations = 10;
-  int current_barrier = 0;
-  map_api::Id data_chunk_id, center_chunk_id, membership_chunk_id;
-  DistanceType::result_type result;
-  std::vector<DistanceType::result_type> results;
-  if (getSubprocessId() == HOARDER) {
-    launchSubprocess(WORKER);
-    MultiKmeansHoarder hoarder;
-    hoarder.init(descriptors_, gt_centers_, kAreaWidth, &data_chunk_id,
-                 &center_chunk_id, &membership_chunk_id);
-    IPC::barrier(current_barrier++, 1);
-    IPC::push(data_chunk_id);
-    IPC::push(center_chunk_id);
-    IPC::push(membership_chunk_id);
-    IPC::barrier(current_barrier++, 1);
-    // wait for worker to collect chunks and optimize once
-    for (size_t i = 0; i < kIterations; ++i) {
-      IPC::barrier(current_barrier++, 1);
-      std::string result_string;
-      IPC::pop(&result_string);
-      std::istringstream ss(result_string);
-      ss >> result;
-      results.push_back(result);
-      hoarder.refresh();
-    }
-    CHECK_EQ(kIterations, results.size());
-    for (size_t i = 1; i < kIterations; ++i) {
-      EXPECT_LE(results[i], results[i-1]);
-    }
-  }
-  if (getSubprocessId() == WORKER) {
-    IPC::barrier(current_barrier++, 1);
-    // wait for hoarder to send chunk ids
-    IPC::barrier(current_barrier++, 1);
-    CHECK(IPC::pop(&data_chunk_id));
-    CHECK(IPC::pop(&center_chunk_id));
-    CHECK(IPC::pop(&membership_chunk_id));
-    Chunk* descriptor_chunk = app::data_point_table->getChunk(data_chunk_id);
-    Chunk* center_chunk = app::center_table->getChunk(center_chunk_id);
-    Chunk* membership_chunk =
-        app::association_table->getChunk(membership_chunk_id);
-    MultiKmeansWorker worker(descriptor_chunk, center_chunk, membership_chunk);
-    for (size_t i = 0; i < kIterations; ++i) {
-      result = worker.clusterOnceAll();
-      std::ostringstream ss;
-      ss << result;
-      IPC::push(ss.str());
-      IPC::barrier(current_barrier++, 1);
-    }
-  }
-}
 
 TEST_F(MapApiBenchmarks, DISABLED_Kmeans) {
   std::mt19937 generator(40);
@@ -214,6 +157,99 @@ TEST_F(MapApiBenchmarks, DISABLED_Kmeans) {
     // Check that we don't have a trivial solution.
     EXPECT_NE(second_closest_distance, closest_distance);
     EXPECT_NE(closest_center, -1);
+  }
+}
+
+class MultiKmeans : public map_api_test_suite::MultiprocessTest {
+ protected:
+  void SetUpImpl() {
+    app::init();
+    if (getSubprocessId() == 0){
+      DescriptorVector gt_centers;
+      DescriptorVector descriptors;
+      std::vector<unsigned int> gt_membership, membership;
+      generator_ = std::mt19937(40);
+      GenerateTestData(kNumfeaturesPerCluster, kNumClusters, generator_(),
+                       kAreaWidth, kClusterRadius,
+                       &gt_centers, &descriptors, &gt_membership);
+      ASSERT_FALSE(descriptors.empty());
+      ASSERT_EQ(descriptors[0].size(), 2u);
+      hoarder_.init(descriptors, gt_centers, kAreaWidth, generator_(),
+                    &data_chunk_id_, &center_chunk_id_, &membership_chunk_id_);
+    }
+  }
+
+  void TearDownImpl() {
+    app::kill();
+  }
+
+  void popIdsInitWorker(){
+    CHECK(IPC::pop(&data_chunk_id_));
+    CHECK(IPC::pop(&center_chunk_id_));
+    CHECK(IPC::pop(&membership_chunk_id_));
+    Chunk* descriptor_chunk = app::data_point_table->getChunk(data_chunk_id_);
+    Chunk* center_chunk = app::center_table->getChunk(center_chunk_id_);
+    Chunk* membership_chunk =
+        app::association_table->getChunk(membership_chunk_id_);
+    worker_.reset(new MultiKmeansWorker(descriptor_chunk, center_chunk,
+                                        membership_chunk));
+  }
+
+  void pushIds() {
+    IPC::push(data_chunk_id_);
+    IPC::push(center_chunk_id_);
+    IPC::push(membership_chunk_id_);
+  }
+
+  static constexpr size_t kNumfeaturesPerCluster = 20;
+  static constexpr size_t kNumClusters = 20;
+  static constexpr double kAreaWidth = 20.;
+  static constexpr double kClusterRadius = .5;
+
+  map_api::Id data_chunk_id_, center_chunk_id_, membership_chunk_id_;
+  MultiKmeansHoarder hoarder_;
+  std::unique_ptr<MultiKmeansWorker> worker_;
+  std::mt19937 generator_;
+};
+
+TEST_F(MultiKmeans, KmeansHoarderWorker) {
+  enum Processes {HOARDER, WORKER};
+  constexpr size_t kIterations = 10;
+  int current_barrier = 0;
+  DistanceType::result_type result;
+  std::vector<DistanceType::result_type> results;
+  if (getSubprocessId() == HOARDER) {
+    launchSubprocess(WORKER);
+    IPC::barrier(current_barrier++, 1);
+    pushIds();
+    IPC::barrier(current_barrier++, 1);
+    // wait for worker to collect chunks and optimize once
+    for (size_t i = 0; i < kIterations; ++i) {
+      IPC::barrier(current_barrier++, 1);
+      std::string result_string;
+      IPC::pop(&result_string);
+      std::istringstream ss(result_string);
+      ss >> result;
+      results.push_back(result);
+      hoarder_.refresh();
+    }
+    CHECK_EQ(kIterations, results.size());
+    for (size_t i = 1; i < kIterations; ++i) {
+      EXPECT_LE(results[i], results[i-1]);
+    }
+  }
+  if (getSubprocessId() == WORKER) {
+    IPC::barrier(current_barrier++, 1);
+    // wait for hoarder to send chunk ids
+    IPC::barrier(current_barrier++, 1);
+    popIdsInitWorker();
+    for (size_t i = 0; i < kIterations; ++i) {
+      result = worker_->clusterOnceAll(generator_());
+      std::ostringstream ss;
+      ss << result;
+      IPC::push(ss.str());
+      IPC::barrier(current_barrier++, 1);
+    }
   }
 }
 

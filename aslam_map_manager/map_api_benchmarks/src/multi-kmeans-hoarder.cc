@@ -12,7 +12,7 @@ DEFINE_bool(gnuplot_persist, false, "if set, gnuplot detaches from test");
 
 void MultiKmeansHoarder::init(
     const DescriptorVector& descriptors, const DescriptorVector& gt_centers,
-    const Scalar area_width, map_api::Id* data_chunk_id,
+    const Scalar area_width, int random_seed, map_api::Id* data_chunk_id,
     map_api::Id* center_chunk_id, map_api::Id* membership_chunk_id) {
   CHECK_NOTNULL(data_chunk_id);
   CHECK_NOTNULL(center_chunk_id);
@@ -27,8 +27,7 @@ void MultiKmeansHoarder::init(
                               static_cast<Scalar>(0));
   Kmeans2D generator(descriptor_zero);
   generator.SetMaxIterations(0);
-  // TODO(tcies) rng
-  generator.Cluster(descriptors, centers->size(), 3, &membership, &centers);
+  generator.Cluster(descriptors, centers->size(), random_seed, &membership, &centers);
 
   // load into database
   descriptor_chunk_ = app::data_point_table->newChunk();

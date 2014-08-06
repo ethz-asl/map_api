@@ -19,7 +19,7 @@ class MultiKmeansHoarder {
    */
   void init(
       const DescriptorVector& descriptors, const DescriptorVector& gt_centers,
-      const Scalar area_width, map_api::Id* data_chunk_id,
+      const Scalar area_width, int random_seed, map_api::Id* data_chunk_id,
       map_api::Id* center_chunk_id, map_api::Id* membership_chunk_id);
   /**
    * Refreshes the latest Map API data to gnuplot
