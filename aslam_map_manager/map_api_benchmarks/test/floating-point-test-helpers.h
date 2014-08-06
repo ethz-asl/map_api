@@ -22,10 +22,19 @@ void GenerateTestData(size_t kNumfeaturesPerCluster, size_t kNumClusters,
 
   std::uniform_real_distribution<double> center_generator(
       cluster_radius, area_width - cluster_radius);
+  std::uniform_real_distribution<double> noise_generator(
+      0., area_width);
   std::normal_distribution<double> data_generator(
       0, cluster_radius);
   std::default_random_engine engine;
 
+  for (size_t i = 0; i < 100; ++i) {
+    DescriptorType sample = DescriptorType::Zero(kDescriptorDimensionality, 1);
+    for (int k = 0; k < kDescriptorDimensionality; ++k) {
+      sample(k, 0) += noise_generator(engine);
+    }
+    descriptors->push_back(sample);
+  }
 
   for (size_t i = 0; i < kNumClusters; ++i) {
     DescriptorType center;

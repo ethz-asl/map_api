@@ -60,6 +60,24 @@ void MultiKmeansHoarder::refresh() {
   plot(descriptors, centers);
 }
 
+void MultiKmeansHoarder::refreshThread(MultiKmeansHoarder* self) {
+  CHECK_NOTNULL(self);
+  while (!self->terminate_refresh_thread_) {
+    self->refresh();
+    usleep(10000);
+  }
+}
+
+void MultiKmeansHoarder::startRefreshThread() {
+  terminate_refresh_thread_ = false;
+  refresh_thread_ = std::thread(refreshThread, this);
+}
+
+void MultiKmeansHoarder::stopRefreshThread() {
+  terminate_refresh_thread_ = true;
+  refresh_thread_.join();
+}
+
 void MultiKmeansHoarder::plot(const DescriptorVector& descriptors,
                               const DescriptorVector& centers) {
   fputs("plot '-' w p, '-' w p lt rgb \"blue\"\n", gnuplot_);
