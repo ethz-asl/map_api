@@ -9,8 +9,8 @@
 namespace map_api {
 namespace benchmarks {
 
-void GenerateTestData(size_t features_per_cluster, size_t clusters,
-                      size_t noise,
+void GenerateTestData(size_t num_features_per_cluster, size_t num_clusters,
+                      size_t num_noise_samples,
                       size_t seed, double area_width, double cluster_radius,
                       DescriptorVector* const gt_centers,
                       DescriptorVector* const descriptors,
@@ -29,7 +29,7 @@ void GenerateTestData(size_t features_per_cluster, size_t clusters,
       0, cluster_radius);
   std::default_random_engine engine;
 
-  for (size_t i = 0; i < noise; ++i) {
+  for (size_t i = 0; i < num_noise_samples; ++i) {
     DescriptorType sample = DescriptorType::Zero(kDescriptorDimensionality, 1);
     for (int k = 0; k < kDescriptorDimensionality; ++k) {
       sample(k, 0) += noise_generator(engine);
@@ -37,7 +37,7 @@ void GenerateTestData(size_t features_per_cluster, size_t clusters,
     descriptors->push_back(sample);
   }
 
-  for (size_t i = 0; i < clusters; ++i) {
+  for (size_t i = 0; i < num_clusters; ++i) {
     DescriptorType center;
     center.resize(kDescriptorDimensionality, Eigen::NoChange);
     for (int j = 0; j < kDescriptorDimensionality; ++j) {
@@ -45,7 +45,7 @@ void GenerateTestData(size_t features_per_cluster, size_t clusters,
     }
     gt_centers->push_back(center);
 
-    for (size_t j = 0; j < features_per_cluster; ++j) {
+    for (size_t j = 0; j < num_features_per_cluster; ++j) {
       DescriptorType sample = center;
       for (int k = 0; k < kDescriptorDimensionality; ++k) {
         sample(k, 0) += data_generator(engine);

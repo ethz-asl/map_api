@@ -26,7 +26,7 @@ class MultiKmeansHoarder {
    */
   void refresh();
 
-  static void refreshThread(MultiKmeansHoarder* self);
+  void refreshThread();
   void startRefreshThread();
   void stopRefreshThread();
 

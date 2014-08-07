@@ -179,11 +179,14 @@ void KmeansView::updateCenterRelated(
     CHECK(found_revision != membership_revisions_.end());
     std::shared_ptr<Revision> cached_revision = found_revision->second;
 
-    Id former_id;
-    cached_revision->get(app::kAssociationTableCenterIdField, &former_id);
-    size_t former_index = center_id_to_index_[former_id];
+    Id former_center_id;
+    cached_revision->get(app::kAssociationTableCenterIdField, &former_center_id);
+    size_t former_center_index = center_id_to_index_[former_center_id];
 
-    if (memberships[i] == chosen_center || former_index == chosen_center) {
+    // update coloring only if a descriptor has previously been assigned to
+    // the chosen center or is newly assigned to it
+    if (memberships[i] == chosen_center ||
+        former_center_index == chosen_center) {
       app::membershipToRevision(descriptor_id, center_id, cached_revision.get());
       transaction_.update(app::association_table, cached_revision);
     }

@@ -60,17 +60,16 @@ void MultiKmeansHoarder::refresh() {
   plot(descriptors, centers, membership);
 }
 
-void MultiKmeansHoarder::refreshThread(MultiKmeansHoarder* self) {
-  CHECK_NOTNULL(self);
-  while (!self->terminate_refresh_thread_) {
-    self->refresh();
+void MultiKmeansHoarder::refreshThread() {
+  while (!terminate_refresh_thread_) {
+    refresh();
     usleep(10000);
   }
 }
 
 void MultiKmeansHoarder::startRefreshThread() {
   terminate_refresh_thread_ = false;
-  refresh_thread_ = std::thread(refreshThread, this);
+  refresh_thread_ = std::thread(&MultiKmeansHoarder::refreshThread, this);
 }
 
 void MultiKmeansHoarder::stopRefreshThread() {
