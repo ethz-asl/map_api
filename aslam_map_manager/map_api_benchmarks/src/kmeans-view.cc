@@ -119,6 +119,7 @@ void KmeansView::updateAll(const DescriptorVector& centers,
     CHECK(found_revision != center_revisions_.end());
     std::shared_ptr<Revision> cached_revision = found_revision->second;
     app::centerToRevision(centers[i], center_id, cached_revision.get());
+    // TODO(tcies) optimization: update only effective changes
     transaction_.update(app::center_table, cached_revision);
   }
   for (size_t i = 0; i < memberships.size(); ++i) {
@@ -139,6 +140,56 @@ void KmeansView::updateAll(const DescriptorVector& centers,
 
     app::membershipToRevision(descriptor_id, center_id, cached_revision.get());
     transaction_.update(app::association_table, cached_revision);
+  }
+  transaction_.commit();
+}
+
+void KmeansView::updateCenterRelated(
+    size_t chosen_center, const DescriptorVector& centers,
+    const std::vector<unsigned int>& memberships) {
+  CHECK_LT(chosen_center, centers.size());
+  CHECK_EQ(centers.size(), center_revisions_.size());
+  CHECK_EQ(memberships.size(), membership_revisions_.size());
+
+  std::unordered_map<size_t, Id>::iterator found_id =
+      center_index_to_id_.find(chosen_center);
+  CHECK(found_id != center_index_to_id_.end());
+  Id center_id = found_id->second;
+  CRTable::RevisionMap::iterator found_revision =
+      center_revisions_.find(center_id);
+  CHECK(found_revision != center_revisions_.end());
+  std::shared_ptr<Revision> cached_revision = found_revision->second;
+  app::centerToRevision(centers[chosen_center], center_id,
+                        cached_revision.get());
+  transaction_.update(app::center_table, cached_revision);
+
+  for (size_t i = 0; i < memberships.size(); ++i) {
+    std::unordered_map<size_t, Id>::iterator found_descriptor_id =
+        descriptor_index_to_id_.find(i);
+    CHECK(found_descriptor_id != descriptor_index_to_id_.end());
+    Id descriptor_id = found_descriptor_id->second;
+
+    std::unordered_map<size_t, Id>::iterator found_center_id =
+        center_index_to_id_.find(memberships[i]);
+    CHECK(found_center_id != center_index_to_id_.end());
+    Id center_id = found_center_id->second;
+
+    CRTable::RevisionMap::iterator found_revision =
+        membership_revisions_.find(descriptor_id);
+    CHECK(found_revision != membership_revisions_.end());
+    std::shared_ptr<Revision> cached_revision = found_revision->second;
+
+    Id former_center_id;
+    cached_revision->get(app::kAssociationTableCenterIdField, &former_center_id);
+    size_t former_center_index = center_id_to_index_[former_center_id];
+
+    // update coloring only if a descriptor has previously been assigned to
+    // the chosen center or is newly assigned to it
+    if (memberships[i] == chosen_center ||
+        former_center_index == chosen_center) {
+      app::membershipToRevision(descriptor_id, center_id, cached_revision.get());
+      transaction_.update(app::association_table, cached_revision);
+    }
   }
   transaction_.commit();
 }
