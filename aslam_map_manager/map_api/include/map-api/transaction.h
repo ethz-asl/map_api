@@ -21,7 +21,7 @@ class Transaction {
       NetTable* table, Chunk* chunk, std::shared_ptr<Revision> revision);
   void update(NetTable* table, std::shared_ptr<Revision> revision);
 
-  inline LogicalTime time() {
+  inline LogicalTime time() const {
     return begin_time_;
   }
 

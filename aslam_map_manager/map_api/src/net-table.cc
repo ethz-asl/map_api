@@ -98,12 +98,11 @@ Chunk* NetTable::getChunk(const Id& chunk_id) {
   return result;
 }
 
-Chunk* NetTable::getUniqueLocalChunk() {
-  Chunk* result;
+Chunk* NetTable::getUniqueLocalChunk() const {
   active_chunks_lock_.readLock();
   CHECK_EQ(1u, active_chunks_.size()) <<
       "Know your Chunks! This is deprecated.";
-  result = active_chunks_.begin()->second.get();
+  Chunk* result = active_chunks_.begin()->second.get();
   active_chunks_lock_.unlock();
   return result;
 }

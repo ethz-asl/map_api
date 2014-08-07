@@ -30,7 +30,7 @@ class NetTable {
    * Intended to be very temporary - bridges use of now removed
    * Transaction::find() in map_api_tango_interface
    */
-  Chunk* getUniqueLocalChunk();
+  Chunk* getUniqueLocalChunk() const;
 
   bool insert(Chunk* chunk, Revision* query);
   /**
@@ -46,12 +46,14 @@ class NetTable {
    * that would still correspond to the query?). Function kept for
    * NetTableTest TODO(tcies) cleanup
    */
-  std::shared_ptr<Revision> getById(const Id& id, const LogicalTime& time);
+  std::shared_ptr<Revision> getById(const Id& id, const LogicalTime& time)
+  __attribute__((deprecated));
   /**
    * Deprecated for the same reasons
    */
   void dumpCache(
-      const LogicalTime& time, CRTable::RevisionMap* destination);
+      const LogicalTime& time, CRTable::RevisionMap* destination)
+  __attribute__((deprecated));
   bool has(const Id& chunk_id);
   /**
    * Connects to the given chunk via the given peer.
@@ -114,7 +116,7 @@ class NetTable {
   CRTable::Type type_;
   std::unique_ptr<CRTable> cache_;
   ChunkMap active_chunks_;
-  Poco::RWLock active_chunks_lock_;
+  mutable Poco::RWLock active_chunks_lock_;
   // TODO(tcies) insert PeerHandler here
 
   /**
