@@ -27,7 +27,7 @@ class NetTable {
   Chunk* newChunk(const Id& chunk_id);
   Chunk* getChunk(const Id& chunk_id);
   /**
-   * Intended to be very temporary - bridges use of formerly now removed
+   * Intended to be very temporary - bridges use of now removed
    * Transaction::find() in map_api_tango_interface
    */
   Chunk* getUniqueLocalChunk();
