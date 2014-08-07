@@ -42,8 +42,8 @@ TEST_P(NetTableTest, NetTableTransactions) {
         table_->getById(ab_id, LogicalTime::sample());
     std::shared_ptr<Revision> b_item =
         table_->getById(b_id, LogicalTime::sample());
-    EXPECT_TRUE(ab_item->verify(kFieldName, 2 * kCycles));
-    EXPECT_TRUE(b_item->verify(kFieldName, kCycles));
+    EXPECT_TRUE(ab_item->verifyEqual(kFieldName, 2 * kCycles));
+    EXPECT_TRUE(b_item->verifyEqual(kFieldName, kCycles));
     EXPECT_EQ(kCycles + 2, count());
   }
   if (getSubprocessId() == A) {
@@ -126,9 +126,9 @@ TEST_P(NetTableTest, Transactions) {
     IPC::barrier(SYNC, 2);
     IPC::barrier(DIE, 2);
     EXPECT_TRUE(table_->getById(ab_id, LogicalTime::sample())->
-                verify(kFieldName, 2 * kCycles));
+                verifyEqual(kFieldName, 2 * kCycles));
     EXPECT_TRUE(second_table->getById(b_id, LogicalTime::sample())->
-                verify(kSecondTableFieldName, kCycles));
+                verifyEqual(kSecondTableFieldName, kCycles));
     EXPECT_EQ(kCycles + 1, count());
   }
   if (getSubprocessId() == A) {

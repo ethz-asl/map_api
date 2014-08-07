@@ -22,7 +22,7 @@ namespace map_api {
 CRUTable::~CRUTable() {}
 
 bool CRUTable::update(Revision* query) {
-  update(query, LogicalTime::sample());
+  update(CHECK_NOTNULL(query), LogicalTime::sample());
   return true; // TODO(tcies) void
 }
 
@@ -46,7 +46,7 @@ void CRUTable::update(Revision* query, const LogicalTime& time) {
     query->get(kInsertTimeField, &insert_time);
     // this check would also be nice if CRU_linked = false, would however lose
     // the update performance benefit of not linking
-    CHECK(current->verify(kInsertTimeField, insert_time));
+    CHECK(current->verifyEqual(kInsertTimeField, insert_time));
     current->get(kUpdateTimeField, &previous_time);
     CHECK(previous_time < update_time);
     query->set(kPreviousTimeField, previous_time);

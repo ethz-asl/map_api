@@ -248,7 +248,7 @@ void Chunk::update(Revision* item) {
   CHECK_NOTNULL(item);
   CHECK(underlying_table_->type() == CRTable::Type::CRU);
   CRUTable* table = static_cast<CRUTable*>(underlying_table_);
-  CHECK(item->verify(NetTable::kChunkIdField, id()));
+  CHECK(item->verifyEqual(NetTable::kChunkIdField, id()));
   proto::PatchRequest update_request;
   fillMetadata(&update_request);
   Message request;
@@ -268,7 +268,7 @@ void Chunk::checkedCommit(const ChunkTransaction& transaction,
   bulkInsertLocked(transaction.insertions_, time);
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
       transaction.updates_) {
-    updateLocked(item.second.get(), time);
+    updateLocked(time, item.second.get());
   }
 }
 
@@ -299,11 +299,11 @@ void Chunk::bulkInsertLocked(const CRTable::RevisionMap& items,
   }
 }
 
-void Chunk::updateLocked(Revision* item, const LogicalTime& time) {
+void Chunk::updateLocked(const LogicalTime& time, Revision* item) {
   CHECK_NOTNULL(item);
   CHECK(underlying_table_->type() == CRTable::Type::CRU);
   CRUTable* table = static_cast<CRUTable*>(underlying_table_);
-  CHECK(item->verify(NetTable::kChunkIdField, id()));
+  CHECK(item->verifyEqual(NetTable::kChunkIdField, id()));
   proto::PatchRequest update_request;
   fillMetadata(&update_request);
   Message request;

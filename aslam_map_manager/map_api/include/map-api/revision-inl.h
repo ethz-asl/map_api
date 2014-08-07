@@ -45,7 +45,7 @@ bool Revision::get(const std::string& fieldName, FieldType* value) const {
 }
 
 template <typename ExpectedType>
-bool Revision::verify(const std::string& fieldName,
+bool Revision::verifyEqual(const std::string& fieldName,
                       const ExpectedType& expected) const {
   ExpectedType value;
   get(fieldName, &value);
