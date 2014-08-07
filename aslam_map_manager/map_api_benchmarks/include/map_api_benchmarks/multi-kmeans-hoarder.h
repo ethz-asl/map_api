@@ -25,12 +25,20 @@ class MultiKmeansHoarder {
    * Refreshes the latest Map API data to gnuplot
    */
   void refresh();
+
+  void refreshThread();
+  void startRefreshThread();
+  void stopRefreshThread();
+
  private:
   void plot(const DescriptorVector& descriptors,
-            const DescriptorVector& centers);
+            const DescriptorVector& centers,
+            const std::vector<unsigned int>& membership);
 
   FILE* gnuplot_;
   Chunk* descriptor_chunk_, *center_chunk_, *membership_chunk_;
+  std::thread refresh_thread_;
+  volatile bool terminate_refresh_thread_;
 };
 
 } /* namespace benchmarks */

@@ -4,6 +4,7 @@
 #include <map-api/chunk.h>
 
 #include "map_api_benchmarks/common.h"
+#include "map_api_benchmarks/kmeans-view.h"
 
 namespace map_api {
 namespace benchmarks {
@@ -15,9 +16,13 @@ class MultiKmeansWorker {
 
   DistanceType::result_type clusterOnceAll(int random_seed);
 
-  void clusterOnceOne();
+  void clusterOnceOne(size_t target_cluster, int random_seed);
 
  private:
+  DistanceType::result_type clusterOnce(
+      int random_seed, std::shared_ptr<DescriptorVector>* centers,
+      std::vector<unsigned int>* membership, KmeansView* view);
+
   Chunk* descriptor_chunk_, *center_chunk_, *membership_chunk_;
 };
 

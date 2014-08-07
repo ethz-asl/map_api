@@ -49,7 +49,7 @@ void MultiKmeansHoarder::init(
   fprintf(gnuplot_, "set yrange [0:%f]\n", area_width);
   fputs("set size square\nset key off\n", gnuplot_);
 
-  plot(descriptors, *centers);
+  plot(descriptors, *centers, membership);
 }
 
 void MultiKmeansHoarder::refresh() {
@@ -57,16 +57,43 @@ void MultiKmeansHoarder::refresh() {
   std::vector<unsigned int> membership;
   KmeansView view(descriptor_chunk_, center_chunk_, membership_chunk_);
   view.fetch(&descriptors, &centers, &membership);
-  plot(descriptors, centers);
+  plot(descriptors, centers, membership);
+}
+
+void MultiKmeansHoarder::refreshThread() {
+  while (!terminate_refresh_thread_) {
+    refresh();
+    usleep(10000);
+  }
+}
+
+void MultiKmeansHoarder::startRefreshThread() {
+  terminate_refresh_thread_ = false;
+  refresh_thread_ = std::thread(&MultiKmeansHoarder::refreshThread, this);
+}
+
+void MultiKmeansHoarder::stopRefreshThread() {
+  terminate_refresh_thread_ = true;
+  refresh_thread_.join();
 }
 
 void MultiKmeansHoarder::plot(const DescriptorVector& descriptors,
-                              const DescriptorVector& centers) {
-  fputs("plot '-' w p, '-' w p lt rgb \"blue\"\n", gnuplot_);
-  for (const DescriptorType descriptor : descriptors) {
-    fprintf(gnuplot_, "%f %f\n", descriptor[0], descriptor[1]);
+                              const DescriptorVector& centers,
+                              const std::vector<unsigned int>& membership) {
+  fputs("plot ", gnuplot_);
+  for (size_t i = 0; i < centers.size(); ++i) {
+    fputs("'-' w p, ", gnuplot_);
   }
-  fputs("e\n", gnuplot_);
+  fputs("'-' w p lt rgb \"black\" pt 7 ps 2\n", gnuplot_);
+  for (size_t i = 0; i < centers.size(); ++i) {
+    for (size_t j = 0; j < descriptors.size(); ++j) {
+      if (membership[j] == i) {
+        fprintf(gnuplot_, "%f %f\n", descriptors[j][0], descriptors[j][1]);
+      }
+    }
+    fputs("-1 -1\n", gnuplot_); // so there are no empty plot groups
+    fputs("e\n", gnuplot_);
+  }
   for (const DescriptorType center : centers) {
     fprintf(gnuplot_, "%f %f\n", center[0], center[1]);
   }
