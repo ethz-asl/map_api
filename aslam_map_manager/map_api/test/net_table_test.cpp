@@ -38,10 +38,12 @@ TEST_P(NetTableTest, NetTableTransactions) {
 
     IPC::barrier(SYNC, 2);
     IPC::barrier(DIE, 2);
-    EXPECT_TRUE(table_->getById(ab_id, LogicalTime::sample())->
-                verify(kFieldName, 2 * kCycles));
-    EXPECT_TRUE(table_->getById(b_id, LogicalTime::sample())->
-                verify(kFieldName, kCycles));
+    std::shared_ptr<Revision> ab_item =
+        table_->getById(ab_id, LogicalTime::sample());
+    std::shared_ptr<Revision> b_item =
+        table_->getById(b_id, LogicalTime::sample());
+    EXPECT_TRUE(ab_item->verifyEqual(kFieldName, 2 * kCycles));
+    EXPECT_TRUE(b_item->verifyEqual(kFieldName, kCycles));
     EXPECT_EQ(kCycles + 2, count());
   }
   if (getSubprocessId() == A) {
@@ -124,9 +126,9 @@ TEST_P(NetTableTest, Transactions) {
     IPC::barrier(SYNC, 2);
     IPC::barrier(DIE, 2);
     EXPECT_TRUE(table_->getById(ab_id, LogicalTime::sample())->
-                verify(kFieldName, 2 * kCycles));
+                verifyEqual(kFieldName, 2 * kCycles));
     EXPECT_TRUE(second_table->getById(b_id, LogicalTime::sample())->
-                verify(kSecondTableFieldName, kCycles));
+                verifyEqual(kSecondTableFieldName, kCycles));
     EXPECT_EQ(kCycles + 1, count());
   }
   if (getSubprocessId() == A) {
@@ -171,6 +173,34 @@ TEST_P(NetTableTest, Transactions) {
     }
     IPC::barrier(DIE, 2);
   }
+}
+
+TEST_P(NetTableTest, CommitTime) {
+  if (!GetParam()) {
+    return;
+  }
+  Chunk* chunk = table_->newChunk();
+  Transaction transaction;
+  // TODO(tcies) factor insertion into a NetTableTest function
+  std::shared_ptr<Revision> to_insert_1 = table_->getTemplate();
+  to_insert_1->set(CRTable::kIdField, Id::generate());
+  to_insert_1->set(kFieldName, 42);
+  std::shared_ptr<Revision> to_insert_2 = table_->getTemplate();
+  to_insert_2->set(CRTable::kIdField, Id::generate());
+  to_insert_2->set(kFieldName, 21);
+  transaction.insert(table_, chunk, to_insert_1);
+  transaction.insert(table_, chunk, to_insert_2);
+  ASSERT_TRUE(transaction.commit());
+  CRTable::RevisionMap retrieved;
+  chunk->dumpItems(LogicalTime::sample(), &retrieved);
+  ASSERT_EQ(2, retrieved.size());
+  CRTable::RevisionMap::iterator it = retrieved.begin();
+  LogicalTime time_1, time_2;
+  it->second->get(CRTable::kInsertTimeField, &time_1);
+  ++it;
+  it->second->get(CRTable::kInsertTimeField, &time_2);
+  EXPECT_EQ(time_1, time_2);
+  // TODO(tcies) also test update times, and times accross multiple chunks
 }
 
 TEST_P(NetTableTest, ChunkLookup) {

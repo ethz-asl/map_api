@@ -103,6 +103,20 @@ class Chunk {
 
  private:
   /**
+   * Commit function for recursive transactions. Chunk must be locked and
+   * commit must be checked.
+   */
+  void checkedCommit(const ChunkTransaction& transaction,
+                     const LogicalTime& time);
+  friend class NetTableTransaction;
+  /**
+   * insert and update for transactions.
+   */
+  void bulkInsertLocked(const CRTable::RevisionMap& items,
+                        const LogicalTime& time);
+  void updateLocked(const LogicalTime& time, Revision* item);
+
+  /**
    * Adds a peer to the chunk swarm by sending it an init request. Assumes
    * lock_ is write-locked. I.e., this function is intended to be called from
    * handleConnectRequest() and requestParticipation().

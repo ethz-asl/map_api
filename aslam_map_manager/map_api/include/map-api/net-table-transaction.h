@@ -14,6 +14,8 @@
 namespace map_api {
 
 class NetTableTransaction {
+  friend class Transaction;
+
  public:
   explicit NetTableTransaction(NetTable* table);
   NetTableTransaction(const LogicalTime& begin_time, NetTable* table);
@@ -40,6 +42,12 @@ class NetTableTransaction {
   std::shared_ptr<Revision> getById(const Id& id);
   // TODO(tcies) all other flavors of reading
  private:
+  /**
+   * Commit with specified time and under the guarantee that the required
+   * sub-transactions are locked and checked.
+   */
+  void checkedCommit(const LogicalTime& time);
+
   ChunkTransaction* transactionOf(Chunk* chunk);
 
   /**

@@ -74,7 +74,7 @@ int LocalTransaction::findInUncommitted(
       insertions_) {
     if (insertion.first.table->name() == table.name()){
       if (key != "") {
-        if (insertion.second->verify(key, value)) {
+        if (insertion.second->verifyEqual(key, value)) {
           (*dest)[insertion.first.id] = insertion.second;
         }
       } else {
@@ -87,7 +87,7 @@ int LocalTransaction::findInUncommitted(
   for (const std::pair<ItemId, SharedRevisionPointer>& update : updates_) {
     if (update.first.table->name() == table.name()){
       if (key != "") {
-        if (update.second->verify(key, value)) {
+        if (update.second->verifyEqual(key, value)) {
           (*dest)[update.first.id] = update.second;
         }
       } else {

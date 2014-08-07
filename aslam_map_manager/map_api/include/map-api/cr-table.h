@@ -71,10 +71,14 @@ class CRTable {
    *   ensureDefaultFields() and ensureDefaultFieldsCRDerived())
    *
    * The bulk flavor is for bundling multiple inserts into one transaction,
-   * for performance reasons.
+   * for performance reasons. It also allows specifying the time of insertion,
+   * for singular transaction commit times.
+   * TODO(tcies) make void where possible
    */
   virtual bool insert(Revision* query) final;
   virtual bool bulkInsert(const RevisionMap& query) final;
+  virtual bool bulkInsert(const RevisionMap& query,
+                          const LogicalTime& time) final;
   /**
    * Unlike insert, patch does not modify the query, but assumes that all
    * default values are set correctly.

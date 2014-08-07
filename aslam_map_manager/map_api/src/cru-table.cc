@@ -22,6 +22,12 @@ namespace map_api {
 CRUTable::~CRUTable() {}
 
 bool CRUTable::update(Revision* query) {
+  update(CHECK_NOTNULL(query), LogicalTime::sample());
+  return true; // TODO(tcies) void
+}
+
+void CRUTable::update(Revision* query, const LogicalTime& time) {
+  CHECK_NOTNULL(query);
   CHECK(isInitialized()) << "Attempted to update in non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(reference->structureMatch(*query)) <<
@@ -29,16 +35,18 @@ bool CRUTable::update(Revision* query) {
   Id id;
   query->get(kIdField, &id);
   CHECK_NE(id, Id()) << "Attempted to update element with invalid ID";
-  LogicalTime update_time = LogicalTime::sample(), previous_time;
+  LogicalTime update_time = time, previous_time;
   query->set(kUpdateTimeField, update_time);
 
   if (FLAGS_cru_linked) {
-    std::shared_ptr<Revision> current = getById(id, LogicalTime::sample());
+    std::shared_ptr<Revision> current = getById(id, time);
+    // TODO(tcies) special cases if time << current time?
+    CHECK(false) << "Check special cases";
     LogicalTime insert_time;
     query->get(kInsertTimeField, &insert_time);
     // this check would also be nice if CRU_linked = false, would however lose
     // the update performance benefit of not linking
-    CHECK(current->verify(kInsertTimeField, insert_time));
+    CHECK(current->verifyEqual(kInsertTimeField, insert_time));
     current->get(kUpdateTimeField, &previous_time);
     CHECK(previous_time < update_time);
     query->set(kPreviousTimeField, previous_time);
@@ -51,7 +59,6 @@ bool CRUTable::update(Revision* query) {
     CHECK(updateCurrentReferToUpdatedCRUDerived(
         id, previous_time, update_time));
   }
-  return true;
 }
 
 bool CRUTable::getLatestUpdateTime(const Id& id, LogicalTime* time) {

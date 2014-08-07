@@ -65,7 +65,7 @@ extern void revEnum ## __FILE__ ## __LINE__(void)
    * Verifies field value according to type.
    */
   template <typename ExpectedType>
-  bool verify(const std::string& fieldName,
+  bool verifyEqual(const std::string& fieldName,
               const ExpectedType& expected) const;
 
   /**
