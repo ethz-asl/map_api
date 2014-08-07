@@ -9,6 +9,7 @@ namespace map_api {
 namespace benchmarks {
 
 DEFINE_bool(gnuplot_persist, false, "if set, gnuplot detaches from test");
+DEFINE_bool(visualization_enabled, true, "allows disabling visualization");
 
 void MultiKmeansHoarder::init(
     const DescriptorVector& descriptors, const DescriptorVector& gt_centers,
@@ -41,24 +42,28 @@ void MultiKmeansHoarder::init(
   exporter.insert(descriptors, *centers, membership);
 
   // launch gnuplot
-  if (FLAGS_gnuplot_persist) {
-    gnuplot_ = popen("gnuplot --persist", "w");
-  } else {
-    gnuplot_ = popen("gnuplot", "w");
-  }
-  fprintf(gnuplot_, "set xrange [0:%f]\n", area_width);
-  fprintf(gnuplot_, "set yrange [0:%f]\n", area_width);
-  fputs("set size square\nset key off\n", gnuplot_);
+  if (FLAGS_visualization_enabled) {
+    if (FLAGS_gnuplot_persist) {
+      gnuplot_ = popen("gnuplot --persist", "w");
+    } else {
+      gnuplot_ = popen("gnuplot", "w");
+    }
+    fprintf(gnuplot_, "set xrange [0:%f]\n", area_width);
+    fprintf(gnuplot_, "set yrange [0:%f]\n", area_width);
+    fputs("set size square\nset key off\n", gnuplot_);
 
-  plot(descriptors, *centers, membership);
+    plot(descriptors, *centers, membership);
+  }
 }
 
 void MultiKmeansHoarder::refresh() {
-  DescriptorVector descriptors, centers;
-  std::vector<unsigned int> membership;
-  KmeansView view(descriptor_chunk_, center_chunk_, membership_chunk_);
-  view.fetch(&descriptors, &centers, &membership);
-  plot(descriptors, centers, membership);
+  if (FLAGS_visualization_enabled) {
+    DescriptorVector descriptors, centers;
+    std::vector<unsigned int> membership;
+    KmeansView view(descriptor_chunk_, center_chunk_, membership_chunk_);
+    view.fetch(&descriptors, &centers, &membership);
+    plot(descriptors, centers, membership);
+  }
 }
 
 void MultiKmeansHoarder::refreshThread() {
@@ -69,13 +74,17 @@ void MultiKmeansHoarder::refreshThread() {
 }
 
 void MultiKmeansHoarder::startRefreshThread() {
-  terminate_refresh_thread_ = false;
-  refresh_thread_ = std::thread(&MultiKmeansHoarder::refreshThread, this);
+  if (FLAGS_visualization_enabled) {
+    terminate_refresh_thread_ = false;
+    refresh_thread_ = std::thread(&MultiKmeansHoarder::refreshThread, this);
+  }
 }
 
 void MultiKmeansHoarder::stopRefreshThread() {
-  terminate_refresh_thread_ = true;
-  refresh_thread_.join();
+  if (FLAGS_visualization_enabled) {
+    terminate_refresh_thread_ = true;
+    refresh_thread_.join();
+  }
 }
 
 void MultiKmeansHoarder::plot(const DescriptorVector& descriptors,
