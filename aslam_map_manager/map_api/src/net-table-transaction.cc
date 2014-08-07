@@ -73,6 +73,12 @@ std::shared_ptr<Revision> NetTableTransaction::getById(const Id& id) {
   return table_->getById(id, begin_time_);
 }
 
+void NetTableTransaction::checkedCommit(const LogicalTime& time) {
+  for (const TransactionPair& chunk_transaction : chunk_transactions_) {
+    chunk_transaction.first->checkedCommit(*chunk_transaction.second, time);
+  }
+}
+
 ChunkTransaction* NetTableTransaction::transactionOf(Chunk* chunk) {
   CHECK_NOTNULL(chunk);
   TransactionMap::iterator chunk_transaction = chunk_transactions_.find(chunk);

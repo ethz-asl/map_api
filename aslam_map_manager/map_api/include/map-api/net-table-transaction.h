@@ -40,6 +40,13 @@ class NetTableTransaction {
   std::shared_ptr<Revision> getById(const Id& id);
   // TODO(tcies) all other flavors of reading
  private:
+  /**
+   * Commit with specified time and under the guarantee that the required
+   * sub-transactions are locked and checked.
+   */
+  void checkedCommit(const LogicalTime& time);
+  friend class Transaction;
+
   ChunkTransaction* transactionOf(Chunk* chunk);
 
   /**

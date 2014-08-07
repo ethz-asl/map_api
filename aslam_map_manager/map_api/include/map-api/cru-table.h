@@ -28,8 +28,10 @@ class CRUTable : public CRTable {
    * structure needs to match. Query may be modified according to the default
    * field policy.
    * Calls insertUpdatedCRUDerived and updateCurrentReferToUpdatedCRUDerived.
+   * It is possible to specify update time for singular times of transactions.
    */
-  bool update(Revision* query);
+  bool update(Revision* query); // TODO(tcies) void
+  void update(Revision* query, const LogicalTime& time);
   bool getLatestUpdateTime(const Id& id, LogicalTime* time);
 
   virtual Type type() const final override;
