@@ -117,6 +117,7 @@ bool NetTable::update(Revision* query) {
 // TODO(tcies) net lookup
 std::shared_ptr<Revision> NetTable::getById(const Id& id,
                                             const LogicalTime& time) {
+  LOG(WARNING) << "Use of deprecated function NetTable::getById";
   return cache_->getById(id, time);
 }
 
@@ -124,7 +125,7 @@ void NetTable::dumpCache(
     const LogicalTime& time,
     std::unordered_map<Id, std::shared_ptr<Revision> >* destination) {
   CHECK_NOTNULL(destination);
-  // TODO(tcies) lock cache access
+  LOG(WARNING) << "Use of deprecated function NetTable::dumpCache";
   cache_->dump(time, destination);
 }
 

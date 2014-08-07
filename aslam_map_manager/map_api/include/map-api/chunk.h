@@ -45,36 +45,13 @@ namespace map_api{
  * of triggers, as specified by Stephane, through the chunks.
  *
  * Chunk ownership may be relinquished at any time, automatically relinquishing
- * access to the latest data in the chunk and the right to modify it. Still,
- * the chunk data can be kept in the database and read "offline".
+ * access to the latest data in the chunk and the right to modify it.
  *
- * A mechanism to ensure robustness of data availability against sporadic
- * relinquishing of chunk ownership among the peers is yet to be specified
- * TODO(tcies). It may consist of requests to random peers to become chunk
- * holders and/or a preferred sharing ratio.
- *
- * TODO(tcies) will need a central place to keep track of all (active) chunks -
- * to ensure uniqueness and maybe to enable automatic management. Maybe
- * MapApiHub
+ * For the time being, Chunks are NOT robust to sudden loss of connectivity -
+ * this could be fixed by adapting a consensus protocol such as Raft.
  */
 class Chunk {
  public:
-  /**
-   * NB it's easier to start reading the comments on other functions.
-   *
-   * A chunk is typically initialized as a consequence of data lookup across
-   * the network. If a peer a wants to access data it does not possess, it
-   * requests all other peers it is connected to through map_api (alternatively:
-   * all other peers that hold chunks in the table that the data is looked up
-   * in). If one of those peers, b, has the data it looks for, b sends a the
-   * data of the entire chunk and its peer list while it adds a to its own peer
-   * list and shares the news about a joining with its peers.
-   *
-   * Peer addition is subject to synchronization as well, at least in the first
-   * implementation that assumes full connectedness among peers (see writeLock()
-   * comments). b needs to perform a lock with its peers just at it would for
-   * modifying chunk data.
-   */
   bool init(const Id& id, CRTable* underlying_table);
   bool init(const Id& id, const proto::InitRequest& request,
             const PeerId& sender, CRTable* underlying_table);
@@ -83,13 +60,10 @@ class Chunk {
 
   bool commit(const ChunkTransaction& transaction);
 
-  /**
-   * Returns own identification
-   */
   Id id() const;
-  /**
-   * Insert new item into this chunk: Item gets sent to all peers
-   */
+
+  void dumpItems(const LogicalTime& time, CRTable::RevisionMap* items);
+
   bool insert(Revision* item);
   bool bulkInsert(const CRTable::RevisionMap& items);
 
