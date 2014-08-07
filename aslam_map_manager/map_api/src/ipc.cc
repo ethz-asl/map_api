@@ -64,6 +64,9 @@ void IPC::push(const std::string& message) {
   request.impose<kMessageMessage>(message);
   CHECK(MapApiHub::instance().undisputableBroadcast(&request));
 }
+void IPC::push(const Id& message) {
+  push(message.hexString());
+}
 
 void IPC::pushHandler(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
@@ -78,10 +81,20 @@ bool IPC::pop(std::string* destination) {
   CHECK_NOTNULL(destination);
   std::lock_guard<std::mutex> lock(message_mutex_);
   if (messages_.empty()) {
+    LOG(WARNING) << "IPC pop failed";
     return false;
   }
   *destination = messages_.front();
   messages_.pop();
+  return true;
+}
+bool IPC::pop(Id* destination) {
+  CHECK_NOTNULL(destination);
+  std::string serialized;
+  if (!pop(&serialized)) {
+    return false;
+  }
+  CHECK(destination->fromHexString(serialized));
   return true;
 }
 

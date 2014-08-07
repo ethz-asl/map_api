@@ -7,7 +7,7 @@
 #include <glog/logging.h>
 
 // High value for debugging purposes
-DEFINE_int32(request_timeout, 100000000, "Amount of miliseconds after which a "\
+DEFINE_int32(request_timeout, 5000, "Amount of miliseconds after which a "\
              "non-responsive peer is considered disconnected");
 
 namespace map_api {

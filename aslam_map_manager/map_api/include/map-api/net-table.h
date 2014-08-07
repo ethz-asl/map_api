@@ -22,11 +22,16 @@ class NetTable {
 
   const std::string& name() const;
 
-  // INSERTION
   std::shared_ptr<Revision> getTemplate() const;
   Chunk* newChunk();
   Chunk* newChunk(const Id& chunk_id);
   Chunk* getChunk(const Id& chunk_id);
+  /**
+   * Intended to be very temporary - bridges use of now removed
+   * Transaction::find() in map_api_tango_interface
+   */
+  Chunk* getUniqueLocalChunk() const;
+
   bool insert(Chunk* chunk, Revision* query);
   /**
    * Must not change the chunk id. TODO(tcies) immutable fields of Revisions
@@ -35,31 +40,20 @@ class NetTable {
   bool update(Revision* query);
 
   // RETRIEVAL
-  std::shared_ptr<Revision> getById(const Id& id, const LogicalTime& time);
   /**
-   * Finding: If can't find item locally, request at peers. There are subtleties
-   * here: Is it enough to get data only from one chunk? I.e. shouldn't we
-   * theoretically request data from all peers, even if we found some matching
-   * items locally? Yes, we should - this would be horribly inefficient though.
-   * Thus it would probably be better to expose two different
-   * functions in the Net-CR-table: FastFind and ThoroughFind
-   * (and of course FindUnique, which is a special case of FastFind). FastFind
-   * would then only look until results from only one chunk have been found -
-   * the chunk possibly already being held.
-   * For the time being implementing only FastFind for simplicity.
+   * Deprecated - does not readlock chunks, nor does it guarantee consistency
+   * in any other way (what if new data is added to table in an unowned chunk
+   * that would still correspond to the query?). Function kept for
+   * NetTableTest TODO(tcies) cleanup
    */
-  template<typename ValueType>
-  int findFast(
-      const std::string& key, const ValueType& value, const LogicalTime& time,
-      CRTable::RevisionMap* destination);
-  int findFastByRevision(
-      const std::string& key, const Revision& valueHolder,
-      const LogicalTime& time, CRTable::RevisionMap* destination);
-  template<typename ValueType>
-  std::shared_ptr<Revision> findUnique(
-      const std::string& key, const ValueType& value, const LogicalTime& time);
+  std::shared_ptr<Revision> getById(const Id& id, const LogicalTime& time)
+  __attribute__((deprecated));
+  /**
+   * Deprecated for the same reasons
+   */
   void dumpCache(
-      const LogicalTime& time, CRTable::RevisionMap* destination);
+      const LogicalTime& time, CRTable::RevisionMap* destination)
+  __attribute__((deprecated));
   bool has(const Id& chunk_id);
   /**
    * Connects to the given chunk via the given peer.
@@ -122,7 +116,7 @@ class NetTable {
   CRTable::Type type_;
   std::unique_ptr<CRTable> cache_;
   ChunkMap active_chunks_;
-  Poco::RWLock active_chunks_lock_;
+  mutable Poco::RWLock active_chunks_lock_;
   // TODO(tcies) insert PeerHandler here
 
   /**
@@ -133,7 +127,5 @@ class NetTable {
 };
 
 } // namespace map_api
-
-#include "map-api/net-table-inl.h"
 
 #endif /* MAP_API_NET_TABLE_H_ */

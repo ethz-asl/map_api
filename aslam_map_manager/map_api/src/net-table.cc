@@ -98,6 +98,15 @@ Chunk* NetTable::getChunk(const Id& chunk_id) {
   return result;
 }
 
+Chunk* NetTable::getUniqueLocalChunk() const {
+  active_chunks_lock_.readLock();
+  CHECK_EQ(1u, active_chunks_.size()) <<
+      "Know your Chunks! This is deprecated.";
+  Chunk* result = active_chunks_.begin()->second.get();
+  active_chunks_lock_.unlock();
+  return result;
+}
+
 bool NetTable::insert(Chunk* chunk, Revision* query) {
   CHECK_NOTNULL(chunk);
   CHECK_NOTNULL(query);
@@ -117,6 +126,7 @@ bool NetTable::update(Revision* query) {
 // TODO(tcies) net lookup
 std::shared_ptr<Revision> NetTable::getById(const Id& id,
                                             const LogicalTime& time) {
+  LOG(WARNING) << "Use of deprecated function NetTable::getById";
   return cache_->getById(id, time);
 }
 
@@ -124,7 +134,7 @@ void NetTable::dumpCache(
     const LogicalTime& time,
     std::unordered_map<Id, std::shared_ptr<Revision> >* destination) {
   CHECK_NOTNULL(destination);
-  // TODO(tcies) lock cache access
+  LOG(WARNING) << "Use of deprecated function NetTable::dumpCache";
   cache_->dump(time, destination);
 }
 
@@ -146,7 +156,7 @@ Chunk* NetTable::connectTo(const Id& chunk_id,
   request.impose<Chunk::kConnectRequest>(metadata);
   // TODO(tcies) add to local peer subset as well?
   MapApiHub::instance().request(peer, &request, &response);
-  CHECK(response.isType<Message::kAck>());
+  CHECK(response.isType<Message::kAck>()) << response.type();
   // wait for connect handle thread of other peer to succeed
   ChunkMap::iterator found;
   while (true) {
@@ -315,6 +325,10 @@ bool NetTable::routingBasics(
   CHECK_NOTNULL(found);
   *found = active_chunks_.find(chunk_id);
   if (*found == active_chunks_.end()) {
+    LOG(WARNING) << "Couldn't find " << chunk_id << " among:";
+    for (const ChunkMap::value_type& chunk : active_chunks_) {
+      LOG(WARNING) << chunk.second->id();
+    }
     response->impose<Message::kDecline>();
     return false;
   }

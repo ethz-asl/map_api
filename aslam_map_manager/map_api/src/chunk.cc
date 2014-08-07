@@ -86,10 +86,8 @@ bool Chunk::check(const ChunkTransaction& transaction) {
     }
   }
   std::unordered_map<Id, LogicalTime> update_times;
-  CRUTable* table;
   if (!transaction.updates_.empty()) {
     CHECK(underlying_table_->type() == CRTable::Type::CRU);
-    table = static_cast<CRUTable*>(underlying_table_);
     // TODO(tcies) caching entire table is not a long-term solution (but maybe
     // caching the entire chunk could be?)
     for (const CRTable::RevisionMap::value_type& item : contents) {
@@ -133,6 +131,13 @@ bool Chunk::commit(const ChunkTransaction& transaction) {
 Id Chunk::id() const {
   // TODO(tcies) implement
   return id_;
+}
+
+void Chunk::dumpItems(const LogicalTime& time, CRTable::RevisionMap* items) {
+  CHECK_NOTNULL(items);
+  distributedReadLock();
+  underlying_table_->find(NetTable::kChunkIdField, id(), time, items);
+  distributedUnlock();
 }
 
 bool Chunk::insert(Revision* item) {
