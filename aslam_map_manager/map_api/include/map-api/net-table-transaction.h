@@ -14,6 +14,8 @@
 namespace map_api {
 
 class NetTableTransaction {
+  friend class Transaction;
+
  public:
   explicit NetTableTransaction(NetTable* table);
   NetTableTransaction(const LogicalTime& begin_time, NetTable* table);
@@ -45,7 +47,6 @@ class NetTableTransaction {
    * sub-transactions are locked and checked.
    */
   void checkedCommit(const LogicalTime& time);
-  friend class Transaction;
 
   ChunkTransaction* transactionOf(Chunk* chunk);
 
