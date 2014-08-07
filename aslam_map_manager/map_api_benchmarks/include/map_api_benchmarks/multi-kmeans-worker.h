@@ -16,7 +16,7 @@ class MultiKmeansWorker {
 
   DistanceType::result_type clusterOnceAll(int random_seed);
 
-  void clusterOnceOne(size_t target_cluster, int random_seed);
+  bool clusterOnceOne(size_t target_cluster, int random_seed);
 
  private:
   DistanceType::result_type clusterOnce(

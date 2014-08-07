@@ -1,3 +1,4 @@
+#include <fstream>
 #include <random>
 
 #include <gtest/gtest.h>
@@ -5,6 +6,7 @@
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 #include <map_api_test_suite/multiprocess_fixture.h>
 #include <map-api/ipc.h>
+#include <sm_timing/timer.h>
 
 #include "map_api_benchmarks/app.h"
 #include "map_api_benchmarks/common.h"
@@ -124,6 +126,22 @@ class MultiKmeans : public map_api_test_suite::MultiprocessTest {
     IPC::push(membership_chunk_id_);
   }
 
+  void clearFile(const char* file_name) {
+    std::ofstream filestream;
+    filestream.open(file_name, std::ios::out | std::ios::trunc);
+    filestream.close();
+  }
+
+  void putRankMeanMinMax(const char* file_name, const char* tag) {
+    std::ofstream filestream;
+    filestream.open(file_name, std::ios::out | std::ios::app);
+    filestream << PeerId::selfRank() << " " <<
+        timing::Timing::GetMeanSeconds(tag) << " " <<
+        timing::Timing::GetMinSeconds(tag) << " " <<
+        timing::Timing::GetMaxSeconds(tag) << std::endl;
+    filestream.close();
+  }
+
   static constexpr size_t kNumClusters = 20;
   static constexpr size_t kNumfeaturesPerCluster = 40;
   static constexpr size_t kNumNoise = 100;
@@ -134,6 +152,13 @@ class MultiKmeans : public map_api_test_suite::MultiprocessTest {
   MultiKmeansHoarder hoarder_;
   std::unique_ptr<MultiKmeansWorker> worker_;
   std::mt19937 generator_;
+
+  const char* kRankFile = "ranks.txt";
+  const char* kReadLockFile = "readlock.txt";
+  const char* kWriteLockFile = "writelock.txt";
+
+  const char* kReadLockTag = "map_api::Chunk::distributedReadLock";
+  const char* kWriteLockTag = "map_api::Chunk::distributedWriteLock";
 };
 
 TEST_F(MultiKmeans, KmeansHoarderWorker) {
@@ -184,22 +209,30 @@ TEST_F(MultiKmeans, CenterWorkers) {
     for (size_t i = 1; i <= kNumClusters; ++i) {
       launchSubprocess(i);
     }
+    clearFile(kRankFile);
+    clearFile(kReadLockFile);
+    clearFile(kWriteLockFile);
     IPC::barrier(INIT, kNumClusters);
     pushIds();
     IPC::barrier(IDS_PUSHED, kNumClusters);
     // TODO(tcies) trigger!
-    hoarder_.startRefreshThread();
+    //hoarder_.startRefreshThread();
     IPC::barrier(DIE, kNumClusters);
-    hoarder_.stopRefreshThread();
+    //hoarder_.stopRefreshThread();
   } else {
     IPC::barrier(INIT, kNumClusters);
     // wait for hoarder to send chunk ids
     IPC::barrier(IDS_PUSHED, kNumClusters);
     popIdsInitWorker();
     for (size_t i = 0; i < kIterations; ++i) {
-      sleep(1);
       worker_->clusterOnceOne(getSubprocessId() - 1, generator_());
+      std::ofstream rankfile;
+      rankfile.open("ranks.txt", std::ios::out | std::ios::app);
+      rankfile << PeerId::selfRank() << std::endl;
     }
+    LOG(INFO) << timing::Timing::Print();
+    putRankMeanMinMax(kReadLockFile, kReadLockTag);
+    putRankMeanMinMax(kWriteLockFile, kWriteLockTag);
     IPC::barrier(DIE, kNumClusters);
   }
 }

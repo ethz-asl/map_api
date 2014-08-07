@@ -108,7 +108,7 @@ struct InitRandom {
 
   template <class Distance, class FeatureAllocator>
   void operator()(const std::vector<Feature*>& features, size_t k,
-                  Distance distance, int random_seed,
+                  Distance /*distance*/, int random_seed,
                   std::vector<Feature, FeatureAllocator>* centers) {
     CHECK_NOTNULL(centers);
     centers->clear();
@@ -123,7 +123,7 @@ struct InitRandom {
     }
     // Take the first k permuted features as the initial centers
     for (size_t i = 0; i < centers->size(); ++i) {
-      centers[i] = *features_perm[i];
+      (*centers)[i] = *features_perm[i];
     }
   }
 

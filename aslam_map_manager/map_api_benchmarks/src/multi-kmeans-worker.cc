@@ -24,13 +24,13 @@ DistanceType::result_type MultiKmeansWorker::clusterOnceAll(
   return result;
 }
 
-void MultiKmeansWorker::clusterOnceOne(size_t target_cluster, int random_seed) {
+bool MultiKmeansWorker::clusterOnceOne(size_t target_cluster, int random_seed) {
   DistanceType::result_type result;
   std::shared_ptr<DescriptorVector> centers;
   std::vector<unsigned int> membership;
   KmeansView view(descriptor_chunk_, center_chunk_, membership_chunk_);
   result = clusterOnce(random_seed, &centers, &membership, &view);
-  view.updateCenterRelated(target_cluster, *centers, membership);
+  return view.updateCenterRelated(target_cluster, *centers, membership);
 }
 
 DistanceType::result_type MultiKmeansWorker::clusterOnce(

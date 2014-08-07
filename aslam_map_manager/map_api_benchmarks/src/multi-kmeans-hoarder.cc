@@ -26,6 +26,7 @@ void MultiKmeansHoarder::init(
   descriptor_zero.setConstant(kDescriptorDimensionality, 1,
                               static_cast<Scalar>(0));
   Kmeans2D generator(descriptor_zero);
+  generator.SetInitMethod(InitRandom<DescriptorType>(descriptor_zero));
   generator.SetMaxIterations(0);
   generator.Cluster(descriptors, centers->size(), random_seed, &membership, &centers);
 
@@ -63,7 +64,7 @@ void MultiKmeansHoarder::refresh() {
 void MultiKmeansHoarder::refreshThread() {
   while (!terminate_refresh_thread_) {
     refresh();
-    usleep(10000);
+    sleep(1);
   }
 }
 
