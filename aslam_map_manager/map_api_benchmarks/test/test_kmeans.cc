@@ -7,6 +7,7 @@
 #include <map_api_test_suite/multiprocess_fixture.h>
 #include <map-api/ipc.h>
 #include <sm_timing/timer.h>
+#include <statistics/statistics.h>
 
 #include "map_api_benchmarks/app.h"
 #include "map_api_benchmarks/common.h"
@@ -142,6 +143,23 @@ class MultiKmeans : public map_api_test_suite::MultiprocessTest {
     filestream.close();
   }
 
+  template <typename ValueType>
+  void putValue(const char* file_name, const ValueType& value) {
+    std::ofstream filestream;
+    filestream.open(file_name, std::ios::out | std::ios::app);
+    filestream << value << std::endl;
+    filestream.close();
+  }
+
+  template <typename ValueTypeA, typename ValueTypeB>
+    void putValues(const char* file_name, const ValueTypeA& value_a,
+                  const ValueTypeB& value_b) {
+      std::ofstream filestream;
+      filestream.open(file_name, std::ios::out | std::ios::app);
+      filestream << value_a << " " << value_b << std::endl;
+      filestream.close();
+    }
+
   static constexpr size_t kNumClusters = 20;
   static constexpr size_t kNumfeaturesPerCluster = 40;
   static constexpr size_t kNumNoise = 100;
@@ -153,10 +171,12 @@ class MultiKmeans : public map_api_test_suite::MultiprocessTest {
   std::unique_ptr<MultiKmeansWorker> worker_;
   std::mt19937 generator_;
 
-  const char* kRankFile = "ranks.txt";
-  const char* kReadLockFile = "readlock.txt";
-  const char* kWriteLockFile = "writelock.txt";
+  const char* kAcceptanceFile = "meas_acceptance.txt";
+  const char* kSequenceFile = "meas_sequence.txt";
+  const char* kReadLockFile = "meas_readlock.txt";
+  const char* kWriteLockFile = "meas_writelock.txt";
 
+  const char* kAcceptanceTag = "acceptance-rate";
   const char* kReadLockTag = "map_api::Chunk::distributedReadLock";
   const char* kWriteLockTag = "map_api::Chunk::distributedWriteLock";
 };
@@ -202,35 +222,45 @@ TEST_F(MultiKmeans, KmeansHoarderWorker) {
   }
 }
 
+DEFINE_uint64(process_time, 0, "Simulated time between fetch and commit");
+
 TEST_F(MultiKmeans, CenterWorkers) {
   enum Barriers {INIT, IDS_PUSHED, DIE};
   constexpr size_t kIterations = 5;
+  statistics::StatsCollector accept_reject(kAcceptanceTag);
   if (getSubprocessId() == 0) {
     for (size_t i = 1; i <= kNumClusters; ++i) {
       launchSubprocess(i);
     }
-    clearFile(kRankFile);
+    clearFile(kAcceptanceFile);
+    clearFile(kSequenceFile);
     clearFile(kReadLockFile);
     clearFile(kWriteLockFile);
     IPC::barrier(INIT, kNumClusters);
     pushIds();
     IPC::barrier(IDS_PUSHED, kNumClusters);
     // TODO(tcies) trigger!
-    //hoarder_.startRefreshThread();
+    hoarder_.startRefreshThread();
     IPC::barrier(DIE, kNumClusters);
-    //hoarder_.stopRefreshThread();
+    hoarder_.stopRefreshThread();
   } else {
     IPC::barrier(INIT, kNumClusters);
     // wait for hoarder to send chunk ids
     IPC::barrier(IDS_PUSHED, kNumClusters);
     popIdsInitWorker();
     for (size_t i = 0; i < kIterations; ++i) {
-      worker_->clusterOnceOne(getSubprocessId() - 1, generator_());
-      std::ofstream rankfile;
-      rankfile.open("ranks.txt", std::ios::out | std::ios::app);
-      rankfile << PeerId::selfRank() << std::endl;
+      if (worker_->clusterOnceOne(getSubprocessId() - 1, generator_(),
+                                  FLAGS_process_time)) {
+        accept_reject.AddSample(1);
+      } else {
+        accept_reject.AddSample(0);
+      }
+      putValue(kSequenceFile, PeerId::selfRank());
     }
     LOG(INFO) << timing::Timing::Print();
+    LOG(INFO) << statistics::Statistics::Print();
+    putValues(kAcceptanceFile, PeerId::selfRank(),
+             statistics::Statistics::GetMean(kAcceptanceTag));
     putRankMeanMinMax(kReadLockFile, kReadLockTag);
     putRankMeanMinMax(kWriteLockFile, kWriteLockTag);
     IPC::barrier(DIE, kNumClusters);
