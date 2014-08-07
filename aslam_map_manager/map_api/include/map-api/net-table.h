@@ -22,11 +22,16 @@ class NetTable {
 
   const std::string& name() const;
 
-  // INSERTION
   std::shared_ptr<Revision> getTemplate() const;
   Chunk* newChunk();
   Chunk* newChunk(const Id& chunk_id);
   Chunk* getChunk(const Id& chunk_id);
+  /**
+   * Intended to be very temporary - bridges use of formerly now removed
+   * Transaction::find() in map_api_tango_interface
+   */
+  Chunk* getUniqueLocalChunk();
+
   bool insert(Chunk* chunk, Revision* query);
   /**
    * Must not change the chunk id. TODO(tcies) immutable fields of Revisions

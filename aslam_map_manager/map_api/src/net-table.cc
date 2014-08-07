@@ -98,6 +98,16 @@ Chunk* NetTable::getChunk(const Id& chunk_id) {
   return result;
 }
 
+Chunk* NetTable::getUniqueLocalChunk() {
+  Chunk* result;
+  active_chunks_lock_.readLock();
+  CHECK_EQ(1u, active_chunks_.size()) <<
+      "Know your Chunks! This is deprecated.";
+  result = active_chunks_.begin()->second.get();
+  active_chunks_lock_.unlock();
+  return result;
+}
+
 bool NetTable::insert(Chunk* chunk, Revision* query) {
   CHECK_NOTNULL(chunk);
   CHECK_NOTNULL(query);
