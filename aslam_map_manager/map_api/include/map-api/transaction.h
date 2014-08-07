@@ -17,12 +17,13 @@ class Transaction {
   explicit Transaction(const LogicalTime& begin_time);
   bool commit();
   std::shared_ptr<Revision> getById(const Id& id, NetTable* table);
-  template <typename ValueType>
-  void find(const std::string& key, const ValueType& value,
-            NetTable* table, CRTable::RevisionMap* result);
   void insert(
       NetTable* table, Chunk* chunk, std::shared_ptr<Revision> revision);
   void update(NetTable* table, std::shared_ptr<Revision> revision);
+
+  inline LogicalTime time() const {
+    return begin_time_;
+  }
 
  private:
   NetTableTransaction* transactionOf(NetTable* table);
@@ -44,7 +45,5 @@ class Transaction {
 };
 
 } /* namespace map_api */
-
-#include "map-api/transaction-inl.h"
 
 #endif /* MAP_API_TRANSACTION_H_ */
