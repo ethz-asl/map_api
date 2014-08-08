@@ -16,6 +16,11 @@ class PeerId {
 
   static PeerId self();
 
+  /**
+   * Rank compared to other peers in network.
+   */
+  static size_t selfRank();
+
   const std::string& ipPort() const;
 
   bool operator <(const PeerId& other) const;

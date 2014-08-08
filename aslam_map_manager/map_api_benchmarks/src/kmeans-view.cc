@@ -141,7 +141,7 @@ void KmeansView::updateAll(const DescriptorVector& centers,
   transaction_.commit();
 }
 
-void KmeansView::updateCenterRelated(
+bool KmeansView::updateCenterRelated(
     size_t chosen_center, const DescriptorVector& centers,
     const std::vector<unsigned int>& memberships) {
   CHECK_LT(chosen_center, centers.size());
@@ -188,7 +188,7 @@ void KmeansView::updateCenterRelated(
       transaction_.update(app::association_table, cached_revision);
     }
   }
-  transaction_.commit();
+  return transaction_.commit();
 }
 
 } /* namespace benchmarks */

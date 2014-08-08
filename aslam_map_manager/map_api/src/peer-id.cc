@@ -27,6 +27,22 @@ PeerId PeerId::self() {
   return PeerId(MapApiHub::instance().ownAddress());
 }
 
+size_t PeerId::selfRank() {
+  PeerId self_id = self();
+  std::set<PeerId> peers;
+  MapApiHub::instance().getPeers(&peers);
+  peers.insert(self_id);
+  size_t i = 0;
+  for (const PeerId& peer : peers) {
+    if (peer == self_id) {
+      return i;
+    }
+    ++i;
+  }
+  CHECK(false) << "Self not found in set!";
+  return 0u;
+}
+
 const std::string& PeerId::ipPort() const {
   return ip_port_;
 }
