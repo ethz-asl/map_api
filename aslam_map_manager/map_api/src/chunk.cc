@@ -386,6 +386,10 @@ void Chunk::distributedReadLock() {
   }
 }
 
+DEFINE_bool(writelock_persist, false,
+            "Enables more persisting write lock "
+            "strategy");
+
 void Chunk::distributedWriteLock() {
   if (log_locking_) {
     startState(WA);
@@ -406,11 +410,13 @@ void Chunk::distributedWriteLock() {
   }
   while (true) {  // lock: attempt until success
     while (lock_.state != DistributedRWLock::State::UNLOCKED &&
-        lock_.state != DistributedRWLock::State::ATTEMPTING) {
+           (lock_.state != DistributedRWLock::State::ATTEMPTING ||
+            lock_.thread != std::this_thread::get_id())) {
       lock_.cv.wait(metalock);
     }
     CHECK(!relinquished_);
     lock_.state = DistributedRWLock::State::ATTEMPTING;
+    lock_.thread = std::this_thread::get_id();
     // unlocking metalock to avoid deadlocks when two peers try to acquire the
     // lock
     metalock.unlock();
@@ -421,21 +427,39 @@ void Chunk::distributedWriteLock() {
     request.impose<kLockRequest>(lock_request);
 
     bool declined = false;
-    for (const PeerId& peer : peers_.peers()) {
-      MapApiHub::instance().request(peer, &request, &response);
-      if (response.isType<Message::kDecline>()) {
-        // assuming no connection loss, a lock may only be declined by the peer
-        // with lowest address
-        declined = true;
-        break;
+    if (FLAGS_writelock_persist) {
+      if (peers_.peers().size()) {
+        std::set<PeerId>::const_iterator it = peers_.peers().cbegin();
+        MapApiHub::instance().request(*it, &request, &response);
+        if (response.isType<Message::kDecline>()) {
+          declined = true;
+        } else {
+          for (++it; it != peers_.peers().cend(); ++it) {
+            MapApiHub::instance().request(*it, &request, &response);
+            while (response.isType<Message::kDecline>()) {
+              usleep(5000);
+              MapApiHub::instance().request(*it, &request, &response);
+            }
+          }
+        }
       }
-      // TODO(tcies) READ_LOCKED case - kReading & pulse - it would be favorable
-      // for peers that have the lock read-locked to respond lest they be
-      // considered disconnected due to timeout. A good solution should be to
-      // have a custom response "reading, please stand by" with lease & pulse to
-      // renew the reading lease.
-      CHECK(response.isType<Message::kAck>());
-      VLOG(3) << PeerId::self() << " got lock from " << peer;
+    } else {
+      for (const PeerId& peer : peers_.peers()) {
+        MapApiHub::instance().request(peer, &request, &response);
+        if (response.isType<Message::kDecline>()) {
+          // assuming no connection loss, a lock may only be declined by the
+          // peer with lowest address
+          declined = true;
+          break;
+        }
+        // TODO(tcies) READ_LOCKED case - kReading & pulse - it would be
+        // favorable for peers that have the lock read-locked to respond lest
+        // they be considered disconnected due to timeout. A good solution
+        // should be to have a custom response "reading, please stand by" with
+        // lease & pulse to renew the reading lease.
+        CHECK(response.isType<Message::kAck>());
+        VLOG(3) << PeerId::self() << " got lock from " << peer;
+      }
     }
     if (declined) {
       // if we fail to acquire the lock we return to "conditional wait if not
@@ -459,6 +483,8 @@ void Chunk::distributedWriteLock() {
     startState(WS);
   }
 }
+
+DEFINE_bool(forward_unlock, false, "Changes unlock order to forward");
 
 void Chunk::distributedUnlock() {
   std::unique_lock<std::mutex> metalock(lock_.mutex);
@@ -502,15 +528,28 @@ void Chunk::distributedUnlock() {
         lock_.state = DistributedRWLock::State::UNLOCKED;
       } else {
         bool self_unlocked = false;
-        for (std::set<PeerId>::const_reverse_iterator rit =
-            peers_.peers().rbegin(); rit != peers_.peers().rend(); ++rit) {
-          if (!self_unlocked && *rit < PeerId::self()) {
-            lock_.state = DistributedRWLock::State::UNLOCKED;
-            self_unlocked = true;
+        if (FLAGS_forward_unlock) {
+          for (const PeerId& peer : peers_.peers()) {
+            if (!self_unlocked && PeerId::self() < peer) {
+              lock_.state = DistributedRWLock::State::UNLOCKED;
+              self_unlocked = true;
+            }
+            MapApiHub::instance().request(peer, &request, &response);
+            CHECK(response.isType<Message::kAck>());
+            VLOG(3) << PeerId::self() << " released lock from " << peer;
           }
-          MapApiHub::instance().request(*rit, &request, &response);
-          CHECK(response.isType<Message::kAck>());
-          VLOG(3) << PeerId::self() << " released lock from " << *rit;
+        } else {
+          for (std::set<PeerId>::const_reverse_iterator rit =
+                   peers_.peers().rbegin();
+               rit != peers_.peers().rend(); ++rit) {
+            if (!self_unlocked && *rit < PeerId::self()) {
+              lock_.state = DistributedRWLock::State::UNLOCKED;
+              self_unlocked = true;
+            }
+            MapApiHub::instance().request(*rit, &request, &response);
+            CHECK(response.isType<Message::kAck>());
+            VLOG(3) << PeerId::self() << " released lock from " << *rit;
+          }
         }
         if (!self_unlocked) {
           // case we had the lowest address
