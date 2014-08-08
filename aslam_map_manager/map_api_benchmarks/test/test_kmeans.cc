@@ -6,7 +6,7 @@
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 #include <map_api_test_suite/multiprocess_fixture.h>
 #include <map-api/ipc.h>
-#include <sm_timing/timer.h>
+#include <timing/timer.h>
 #include <statistics/statistics.h>
 
 #include "map_api_benchmarks/app.h"
