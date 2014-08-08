@@ -29,6 +29,7 @@ class CRUTable : public CRTable {
    * field policy.
    * Calls insertUpdatedCRUDerived and updateCurrentReferToUpdatedCRUDerived.
    * It is possible to specify update time for singular times of transactions.
+   * TODO(tcies) make it the only possible way of setting time
    */
   bool update(Revision* query); // TODO(tcies) void
   void update(Revision* query, const LogicalTime& time);
