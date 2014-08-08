@@ -22,3 +22,6 @@
 
 # Matlab temporary editor files
 *.m~
+
+# Compiled python.
+tools/lint/autolintc

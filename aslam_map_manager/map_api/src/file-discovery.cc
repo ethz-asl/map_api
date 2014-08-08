@@ -4,7 +4,7 @@
 #include <sstream>
 #include <string>
 
-#include <sys/file.h> // linux-specific
+#include <sys/file.h>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -78,11 +78,11 @@ void FileDiscovery::remove(const PeerId& peer) {
 }
 
 void FileDiscovery::unlock() {
-  CHECK(close(lock_file_descriptor_) != -1);
-  CHECK(unlink(kLockFileName) != -1);
+  CHECK_NE(close(lock_file_descriptor_), -1);
+  CHECK_NE(unlink(kLockFileName), -1);
 }
 
-const std::string FileDiscovery::kFileName = "/tmp/mapapi-discovery.txt";
-const char FileDiscovery::kLockFileName[] = "/tmp/mapapi-discovery.txt.lck";
+const std::string FileDiscovery::kFileName = "mapapi-discovery.txt";
+const char FileDiscovery::kLockFileName[] = "mapapi-discovery.txt.lck";
 
 } /* namespace map_api */
