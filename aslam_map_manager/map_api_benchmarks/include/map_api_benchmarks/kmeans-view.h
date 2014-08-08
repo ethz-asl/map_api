@@ -38,7 +38,7 @@ class KmeansView {
   void updateAll(const DescriptorVector& centers,
                  const std::vector<unsigned int>& memberships);
 
-  void updateCenterRelated(size_t chosen_center,
+  bool updateCenterRelated(size_t chosen_center,
                            const DescriptorVector& centers,
                            const std::vector<unsigned int>& memberships);
 

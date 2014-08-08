@@ -98,6 +98,15 @@ Chunk* NetTable::getChunk(const Id& chunk_id) {
   return result;
 }
 
+Chunk* NetTable::getUniqueLocalChunk() const {
+  active_chunks_lock_.readLock();
+  CHECK_EQ(1u, active_chunks_.size()) <<
+      "Know your Chunks! This is deprecated.";
+  Chunk* result = active_chunks_.begin()->second.get();
+  active_chunks_lock_.unlock();
+  return result;
+}
+
 bool NetTable::insert(Chunk* chunk, Revision* query) {
   CHECK_NOTNULL(chunk);
   CHECK_NOTNULL(query);
@@ -117,6 +126,7 @@ bool NetTable::update(Revision* query) {
 // TODO(tcies) net lookup
 std::shared_ptr<Revision> NetTable::getById(const Id& id,
                                             const LogicalTime& time) {
+  LOG(WARNING) << "Use of deprecated function NetTable::getById";
   return cache_->getById(id, time);
 }
 
@@ -124,7 +134,7 @@ void NetTable::dumpCache(
     const LogicalTime& time,
     std::unordered_map<Id, std::shared_ptr<Revision> >* destination) {
   CHECK_NOTNULL(destination);
-  // TODO(tcies) lock cache access
+  LOG(WARNING) << "Use of deprecated function NetTable::dumpCache";
   cache_->dump(time, destination);
 }
 

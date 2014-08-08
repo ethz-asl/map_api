@@ -68,6 +68,11 @@ bool CRTable::insert(Revision* query) {
 }
 
 bool CRTable::bulkInsert(const RevisionMap& query) {
+  return bulkInsert(query, LogicalTime::sample());
+}
+
+bool CRTable::bulkInsert(const RevisionMap& query,
+                         const LogicalTime& time) {
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   Id id;
@@ -78,7 +83,7 @@ bool CRTable::bulkInsert(const RevisionMap& query) {
     id_revision.second->get(kIdField, &id);
     CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
     CHECK(id == id_revision.first) << "ID in RevisionMap doesn't match";
-    id_revision.second->set(kInsertTimeField, LogicalTime::sample());
+    id_revision.second->set(kInsertTimeField, time);
   }
   return bulkInsertCRDerived(query);
 }

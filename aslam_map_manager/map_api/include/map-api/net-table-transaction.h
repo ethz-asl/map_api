@@ -14,6 +14,8 @@
 namespace map_api {
 
 class NetTableTransaction {
+  friend class Transaction;
+
  public:
   explicit NetTableTransaction(NetTable* table);
   NetTableTransaction(const LogicalTime& begin_time, NetTable* table);
@@ -38,11 +40,14 @@ class NetTableTransaction {
   void update(std::shared_ptr<Revision> revision);
   // TODO(tcies) conflict conditions
   std::shared_ptr<Revision> getById(const Id& id);
-  template <typename ValueType>
-  void find(const std::string& key, const ValueType& value,
-            CRTable::RevisionMap* result);
   // TODO(tcies) all other flavors of reading
  private:
+  /**
+   * Commit with specified time and under the guarantee that the required
+   * sub-transactions are locked and checked.
+   */
+  void checkedCommit(const LogicalTime& time);
+
   ChunkTransaction* transactionOf(Chunk* chunk);
 
   /**
@@ -63,7 +68,5 @@ class NetTableTransaction {
 };
 
 } /* namespace map_api */
-
-#include "map-api/net-table-transaction-inl.h"
 
 #endif /* MAP_API_NET_TABLE_TRANSACTION_H_ */

@@ -65,12 +65,9 @@ void KmeansView::fetch(DescriptorVector* descriptors,
   center_index_to_id_.clear();
 
   // cache revisions
-  transaction_.find(NetTable::kChunkIdField, descriptor_chunk_->id(),
-                    app::data_point_table, &descriptor_revisions_);
-  transaction_.find(NetTable::kChunkIdField, center_chunk_->id(),
-                    app::center_table, &center_revisions_);
-  transaction_.find(NetTable::kChunkIdField, membership_chunk_->id(),
-                    app::association_table, &membership_revisions_);
+  descriptor_chunk_->dumpItems(transaction_.time(), &descriptor_revisions_);
+  center_chunk_->dumpItems(transaction_.time(), &center_revisions_);
+  membership_chunk_->dumpItems(transaction_.time(), &membership_revisions_);
 
   // construct k-means problem
   int i = 0;
@@ -144,7 +141,7 @@ void KmeansView::updateAll(const DescriptorVector& centers,
   transaction_.commit();
 }
 
-void KmeansView::updateCenterRelated(
+bool KmeansView::updateCenterRelated(
     size_t chosen_center, const DescriptorVector& centers,
     const std::vector<unsigned int>& memberships) {
   CHECK_LT(chosen_center, centers.size());
@@ -191,7 +188,7 @@ void KmeansView::updateCenterRelated(
       transaction_.update(app::association_table, cached_revision);
     }
   }
-  transaction_.commit();
+  return transaction_.commit();
 }
 
 } /* namespace benchmarks */

@@ -122,7 +122,7 @@ TEST_P(NetTableTest, RemoteUpdate) {
     insert(42, chunk);
     table_->dumpCache(LogicalTime::sample(), &results);
     EXPECT_EQ(1, results.size());
-    EXPECT_TRUE(results.begin()->second->verify(kFieldName, 42));
+    EXPECT_TRUE(results.begin()->second->verifyEqual(kFieldName, 42));
     IPC::barrier(INIT, 1);
 
     chunk->requestParticipation();
@@ -130,7 +130,7 @@ TEST_P(NetTableTest, RemoteUpdate) {
     IPC::barrier(A_UPDATED, 1);
     table_->dumpCache(LogicalTime::sample(), &results);
     EXPECT_EQ(1, results.size());
-    EXPECT_TRUE(results.begin()->second->verify(kFieldName, 21));
+    EXPECT_TRUE(results.begin()->second->verifyEqual(kFieldName, 21));
 
     IPC::barrier(DIE, 1);
   }

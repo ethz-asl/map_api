@@ -2,6 +2,8 @@
 
 #include <unordered_set>
 
+#include <timing/timer.h>
+
 #include "map-api/cru-table.h"
 #include "map-api/net-table-manager.h"
 #include "map-api/map-api-hub.h"
@@ -86,10 +88,8 @@ bool Chunk::check(const ChunkTransaction& transaction) {
     }
   }
   std::unordered_map<Id, LogicalTime> update_times;
-  CRUTable* table;
   if (!transaction.updates_.empty()) {
     CHECK(underlying_table_->type() == CRTable::Type::CRU);
-    table = static_cast<CRUTable*>(underlying_table_);
     // TODO(tcies) caching entire table is not a long-term solution (but maybe
     // caching the entire chunk could be?)
     for (const CRTable::RevisionMap::value_type& item : contents) {
@@ -133,6 +133,13 @@ bool Chunk::commit(const ChunkTransaction& transaction) {
 Id Chunk::id() const {
   // TODO(tcies) implement
   return id_;
+}
+
+void Chunk::dumpItems(const LogicalTime& time, CRTable::RevisionMap* items) {
+  CHECK_NOTNULL(items);
+  distributedReadLock();
+  underlying_table_->find(NetTable::kChunkIdField, id(), time, items);
+  distributedUnlock();
 }
 
 bool Chunk::insert(Revision* item) {
@@ -243,7 +250,7 @@ void Chunk::update(Revision* item) {
   CHECK_NOTNULL(item);
   CHECK(underlying_table_->type() == CRTable::Type::CRU);
   CRUTable* table = static_cast<CRUTable*>(underlying_table_);
-  CHECK(item->verify(NetTable::kChunkIdField, id()));
+  CHECK(item->verifyEqual(NetTable::kChunkIdField, id()));
   proto::PatchRequest update_request;
   fillMetadata(&update_request);
   Message request;
@@ -256,6 +263,59 @@ void Chunk::update(Revision* item) {
   request.impose<kUpdateRequest>(update_request);
   CHECK(peers_.undisputableBroadcast(&request));
   distributedUnlock();
+}
+
+void Chunk::checkedCommit(const ChunkTransaction& transaction,
+                          const LogicalTime& time) {
+  bulkInsertLocked(transaction.insertions_, time);
+  for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
+      transaction.updates_) {
+    updateLocked(time, item.second.get());
+  }
+}
+
+void Chunk::bulkInsertLocked(const CRTable::RevisionMap& items,
+                             const LogicalTime& time) {
+  std::vector<proto::PatchRequest> insert_requests;
+  insert_requests.resize(items.size());
+  int i = 0;
+  for (const CRTable::RevisionMap::value_type& item : items) {
+    CHECK_NOTNULL(item.second.get());
+    item.second->set(NetTable::kChunkIdField, id());
+    fillMetadata(&insert_requests[i]);
+    ++i;
+  }
+  Message request;
+  underlying_table_->bulkInsert(items, time);
+  // at this point, insert() has modified the revisions such that all default
+  // fields are also set, which allows remote peers to just patch the revision
+  // into their table.
+  i = 0;
+  for (const CRTable::RevisionMap::value_type& item : items) {
+    insert_requests[i].set_serialized_revision(
+        item.second->SerializeAsString());
+    request.impose<kInsertRequest>(insert_requests[i]);
+    CHECK(peers_.undisputableBroadcast(&request));
+    // TODO(tcies) also bulk this
+    ++i;
+  }
+}
+
+void Chunk::updateLocked(const LogicalTime& time, Revision* item) {
+  CHECK_NOTNULL(item);
+  CHECK(underlying_table_->type() == CRTable::Type::CRU);
+  CRUTable* table = static_cast<CRUTable*>(underlying_table_);
+  CHECK(item->verifyEqual(NetTable::kChunkIdField, id()));
+  proto::PatchRequest update_request;
+  fillMetadata(&update_request);
+  Message request;
+  table->update(item, time);
+  // at this point, update() has modified the revision such that all default
+  // fields are also set, which allows remote peers to just patch the revision
+  // into their table.
+  update_request.set_serialized_revision(item->SerializeAsString());
+  request.impose<kUpdateRequest>(update_request);
+  CHECK(peers_.undisputableBroadcast(&request));
 }
 
 bool Chunk::addPeer(const PeerId& peer) {
@@ -287,12 +347,14 @@ bool Chunk::addPeer(const PeerId& peer) {
 }
 
 void Chunk::distributedReadLock() {
+  timing::Timer timer("map_api::Chunk::distributedReadLock");
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   if (isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id()) {
     // special case: also succeed. This is necessary e.g. when committing
     // transactions
     ++lock_.write_recursion_depth;
     metalock.unlock();
+    timer.Discard();
     return;
   }
   while (lock_.state != DistributedRWLock::State::UNLOCKED &&
@@ -303,14 +365,17 @@ void Chunk::distributedReadLock() {
   lock_.state = DistributedRWLock::State::READ_LOCKED;
   ++lock_.n_readers;
   metalock.unlock();
+  timer.Stop();
 }
 
 void Chunk::distributedWriteLock() {
+  timing::Timer timer("map_api::Chunk::distributedWriteLock");
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   // case recursion
   if (isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id()) {
     ++lock_.write_recursion_depth;
     metalock.unlock();
+    timer.Discard();
     return;
   }
   // case self, but other thread
@@ -368,6 +433,7 @@ void Chunk::distributedWriteLock() {
   lock_.holder = PeerId::self();
   lock_.thread = std::this_thread::get_id();
   ++lock_.write_recursion_depth;
+  timer.Stop();
 }
 
 void Chunk::distributedUnlock() {
