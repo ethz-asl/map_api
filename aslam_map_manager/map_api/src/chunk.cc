@@ -1,8 +1,9 @@
 #include "map-api/chunk.h"
 
+#include <fstream>
 #include <unordered_set>
 
-#include <sm_timing/timer.h>
+#include <timing/timer.h>
 
 #include "map-api/cru-table.h"
 #include "map-api/net-table-manager.h"
@@ -29,6 +30,8 @@ MAP_API_PROTO_MESSAGE(Chunk::kLockRequest, proto::ChunkRequestMetadata);
 MAP_API_PROTO_MESSAGE(Chunk::kNewPeerRequest, proto::NewPeerRequest);
 MAP_API_PROTO_MESSAGE(Chunk::kUnlockRequest, proto::ChunkRequestMetadata);
 MAP_API_PROTO_MESSAGE(Chunk::kUpdateRequest, proto::PatchRequest);
+
+const char Chunk::kLockSequenceFile[] = "meas_lock_sequence.txt";
 
 template<>
 void Chunk::fillMetadata<proto::ChunkRequestMetadata>(
@@ -204,6 +207,15 @@ int Chunk::peerSize() const {
   return peers_.size();
 }
 
+void Chunk::logLocking() {
+  log_locking_ = true;
+  self_rank_ = PeerId::selfRank();
+  std::ofstream file(kLockSequenceFile, std::ios::out | std::ios::trunc);
+  global_start_ = std::chrono::system_clock::now();
+  current_state_ = UL;
+  main_thread_id_ = std::this_thread::get_id();
+}
+
 void Chunk::leave() {
   Message request;
   proto::ChunkRequestMetadata metadata;
@@ -347,6 +359,9 @@ bool Chunk::addPeer(const PeerId& peer) {
 }
 
 void Chunk::distributedReadLock() {
+  if (log_locking_) {
+    startState(RA);
+  }
   timing::Timer timer("map_api::Chunk::distributedReadLock");
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   if (isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id()) {
@@ -366,9 +381,15 @@ void Chunk::distributedReadLock() {
   ++lock_.n_readers;
   metalock.unlock();
   timer.Stop();
+  if (log_locking_) {
+    startState(RS);
+  }
 }
 
 void Chunk::distributedWriteLock() {
+  if (log_locking_) {
+    startState(WA);
+  }
   timing::Timer timer("map_api::Chunk::distributedWriteLock");
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   // case recursion
@@ -434,6 +455,9 @@ void Chunk::distributedWriteLock() {
   lock_.thread = std::this_thread::get_id();
   ++lock_.write_recursion_depth;
   timer.Stop();
+  if (log_locking_) {
+    startState(WS);
+  }
 }
 
 void Chunk::distributedUnlock() {
@@ -447,6 +471,9 @@ void Chunk::distributedUnlock() {
         lock_.state = DistributedRWLock::State::UNLOCKED;
         metalock.unlock();
         lock_.cv.notify_all();
+        if (log_locking_) {
+          startState(UL);
+        }
         return;
       }
       break;
@@ -472,6 +499,9 @@ void Chunk::distributedUnlock() {
       // if peer with address A considers the lock unlocked, any peer B > A
       // (including the local one) does as well
       if (peers_.empty()) {
+        if (log_locking_) {
+          startState(UL);
+        }
         lock_.state = DistributedRWLock::State::UNLOCKED;
       }
       else {
@@ -493,6 +523,9 @@ void Chunk::distributedUnlock() {
       }
       metalock.unlock();
       lock_.cv.notify_all();
+      if (log_locking_) {
+        startState(UL);
+      }
       return;
   }
   metalock.unlock();
@@ -705,6 +738,64 @@ void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
     table->updateCurrentReferToUpdatedCRUDerived(id, current, updated);
   }
   response->ack();
+}
+
+void Chunk::startState(LockState new_state) {
+  // only log main thread
+  if (std::this_thread::get_id() == main_thread_id_) {
+    switch (new_state) {
+      case LockState::UL: {
+        if (current_state_ == RS || current_state_ == WS) {
+          logStateDuration(current_state_, current_state_start_,
+                           std::chrono::system_clock::now());
+          current_state_ = UL;
+        } else {
+          // LOG(FATAL) << "Invalid state transition";
+          current_state_ = new_state;
+        }
+        break;
+      }
+      case LockState::RA:  // fallthrough intended
+      case LockState::WA: {
+        if (current_state_ == UL) {
+          current_state_start_ = std::chrono::system_clock::now();
+          current_state_ = new_state;
+        } else {
+          // possibly recursive locking, or other thread
+        }
+        break;
+      }
+      case LockState::RS:  // fallthrough intended
+      case LockState::WS: {
+        if (current_state_ == RA || current_state_ == WA) {
+          logStateDuration(current_state_, current_state_start_,
+                           std::chrono::system_clock::now());
+          current_state_start_ = std::chrono::system_clock::now();
+          current_state_ = new_state;
+        } else {
+          // invalid state transition?
+          current_state_start_ = std::chrono::system_clock::now();
+          current_state_ = new_state;
+        }
+        break;
+      }
+    }
+  }
+}
+
+void Chunk::logStateDuration(LockState state, const TimePoint& start,
+                             const TimePoint& end) const {
+  std::ofstream log_file(kLockSequenceFile, std::ios::out | std::ios::app);
+  double d_start =
+      static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+          start - global_start_).count()) *
+      1e-9;
+  double d_end =
+      static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+          end - global_start_).count()) *
+      1e-9;
+  log_file << self_rank_ << " " << state << " " << d_start << " " << d_end
+           << std::endl;
 }
 
 } // namespace map_api
