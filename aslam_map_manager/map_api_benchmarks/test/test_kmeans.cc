@@ -86,7 +86,7 @@ TEST(KmeansView, InsertFetch) {
   app::kill();
 }
 
-DEFINE_uint64(num_clusters, 10, "Amount of clusters in kmeans exeriment");
+DEFINE_uint64(num_clusters, 10, "Amount of clusters in kmeans experiment");
 
 class MultiKmeans : public map_api_test_suite::MultiprocessTest {
  protected:
@@ -129,7 +129,7 @@ class MultiKmeans : public map_api_test_suite::MultiprocessTest {
     IPC::push(membership_chunk_->id());
   }
 
-  void initChunkLogging() { membership_chunk_->logLocking(); }
+  void initChunkLogging() { membership_chunk_->enableLockLogging(); }
 
   static void clearFile(const char* file_name) {
     std::ofstream filestream;
