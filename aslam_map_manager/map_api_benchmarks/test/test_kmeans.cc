@@ -121,19 +121,19 @@ class MultiKmeans : public map_api_test_suite::MultiprocessTest {
                                         membership_chunk));
   }
 
-  void pushIds() {
+  void pushIds() const {
     IPC::push(data_chunk_id_);
     IPC::push(center_chunk_id_);
     IPC::push(membership_chunk_id_);
   }
 
-  void clearFile(const char* file_name) {
+  static void clearFile(const char* file_name) {
     std::ofstream filestream;
     filestream.open(file_name, std::ios::out | std::ios::trunc);
     filestream.close();
   }
 
-  void putRankMeanMinMax(const char* file_name, const char* tag) {
+  static void putRankMeanMinMax(const char* file_name, const char* tag) {
     std::ofstream filestream;
     filestream.open(file_name, std::ios::out | std::ios::app);
     filestream << PeerId::selfRank() << " " <<
@@ -144,7 +144,7 @@ class MultiKmeans : public map_api_test_suite::MultiprocessTest {
   }
 
   template <typename ValueType>
-  void putValue(const char* file_name, const ValueType& value) {
+  static void putValue(const char* file_name, const ValueType& value) {
     std::ofstream filestream;
     filestream.open(file_name, std::ios::out | std::ios::app);
     filestream << value << std::endl;
@@ -152,13 +152,13 @@ class MultiKmeans : public map_api_test_suite::MultiprocessTest {
   }
 
   template <typename ValueTypeA, typename ValueTypeB>
-    void putValues(const char* file_name, const ValueTypeA& value_a,
-                  const ValueTypeB& value_b) {
-      std::ofstream filestream;
-      filestream.open(file_name, std::ios::out | std::ios::app);
-      filestream << value_a << " " << value_b << std::endl;
-      filestream.close();
-    }
+  static void putValues(const char* file_name, const ValueTypeA& value_a,
+                        const ValueTypeB& value_b) {
+    std::ofstream filestream;
+    filestream.open(file_name, std::ios::out | std::ios::app);
+    filestream << value_a << " " << value_b << std::endl;
+    filestream.close();
+  }
 
   static constexpr size_t kNumClusters = 20;
   static constexpr size_t kNumfeaturesPerCluster = 40;
@@ -260,7 +260,7 @@ TEST_F(MultiKmeans, CenterWorkers) {
     LOG(INFO) << timing::Timing::Print();
     LOG(INFO) << statistics::Statistics::Print();
     putValues(kAcceptanceFile, PeerId::selfRank(),
-             statistics::Statistics::GetMean(kAcceptanceTag));
+              statistics::Statistics::GetMean(kAcceptanceTag));
     putRankMeanMinMax(kReadLockFile, kReadLockTag);
     putRankMeanMinMax(kWriteLockFile, kWriteLockTag);
     IPC::barrier(DIE, kNumClusters);

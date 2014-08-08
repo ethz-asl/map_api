@@ -9,7 +9,7 @@ namespace map_api {
 namespace benchmarks {
 
 DEFINE_bool(gnuplot_persist, false, "if set, gnuplot detaches from test");
-DEFINE_bool(visualization_enabled, true, "allows disabling visualization");
+DEFINE_bool(enable_visualization, true, "allows disabling visualization");
 
 void MultiKmeansHoarder::init(
     const DescriptorVector& descriptors, const DescriptorVector& gt_centers,
@@ -42,7 +42,7 @@ void MultiKmeansHoarder::init(
   exporter.insert(descriptors, *centers, membership);
 
   // launch gnuplot
-  if (FLAGS_visualization_enabled) {
+  if (FLAGS_enable_visualization) {
     if (FLAGS_gnuplot_persist) {
       gnuplot_ = popen("gnuplot --persist", "w");
     } else {
@@ -57,7 +57,7 @@ void MultiKmeansHoarder::init(
 }
 
 void MultiKmeansHoarder::refresh() {
-  if (FLAGS_visualization_enabled) {
+  if (FLAGS_enable_visualization) {
     DescriptorVector descriptors, centers;
     std::vector<unsigned int> membership;
     KmeansView view(descriptor_chunk_, center_chunk_, membership_chunk_);
@@ -74,14 +74,14 @@ void MultiKmeansHoarder::refreshThread() {
 }
 
 void MultiKmeansHoarder::startRefreshThread() {
-  if (FLAGS_visualization_enabled) {
+  if (FLAGS_enable_visualization) {
     terminate_refresh_thread_ = false;
     refresh_thread_ = std::thread(&MultiKmeansHoarder::refreshThread, this);
   }
 }
 
 void MultiKmeansHoarder::stopRefreshThread() {
-  if (FLAGS_visualization_enabled) {
+  if (FLAGS_enable_visualization) {
     terminate_refresh_thread_ = true;
     refresh_thread_.join();
   }

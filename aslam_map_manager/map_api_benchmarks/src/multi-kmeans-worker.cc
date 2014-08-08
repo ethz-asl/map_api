@@ -1,5 +1,7 @@
 #include "map_api_benchmarks/multi-kmeans-worker.h"
 
+#include <multiagent_mapping_common/conversions.h>
+
 #include "map_api_benchmarks/common.h"
 #include "map_api_benchmarks/simple-kmeans.h"
 
@@ -31,7 +33,7 @@ bool MultiKmeansWorker::clusterOnceOne(size_t target_cluster, int random_seed,
   std::vector<unsigned int> membership;
   KmeansView view(descriptor_chunk_, center_chunk_, membership_chunk_);
   result = clusterOnce(random_seed, &centers, &membership, &view);
-  usleep(1e3 * ms_before_commit);
+  usleep(ms_before_commit * kMillisecondsToMicroseconds);
   return view.updateCenterRelated(target_cluster, *centers, membership);
 }
 
