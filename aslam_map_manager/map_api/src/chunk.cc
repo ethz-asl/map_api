@@ -8,8 +8,8 @@
 #include "map-api/cru-table.h"
 #include "map-api/net-table-manager.h"
 #include "map-api/map-api-hub.h"
-#include "core.pb.h"
-#include "chunk.pb.h"
+#include "./core.pb.h"
+#include "./chunk.pb.h"
 
 namespace map_api {
 
@@ -75,7 +75,7 @@ bool Chunk::check(const ChunkTransaction& transaction) {
     CHECK(isWriter(PeerId::self()));
   }
   CRTable::RevisionMap contents;
-  //TODO(tcies) caching entire table is not a long-term solution
+  // TODO(tcies) caching entire table is not a long-term solution
   underlying_table_->dump(LogicalTime::sample(), &contents);
   std::unordered_set<Id> present_ids;
   for (const CRTable::RevisionMap::value_type& item : contents) {
@@ -151,7 +151,7 @@ bool Chunk::insert(Revision* item) {
   proto::PatchRequest insert_request;
   fillMetadata(&insert_request);
   Message request;
-  distributedReadLock(); // avoid adding of new peers while inserting
+  distributedReadLock();  // avoid adding of new peers while inserting
   underlying_table_->insert(item);
   // at this point, insert() has modified the revision such that all default
   // fields are also set, which allows remote peers to just patch the revision
@@ -174,7 +174,7 @@ bool Chunk::bulkInsert(const CRTable::RevisionMap& items) {
     ++i;
   }
   Message request;
-  distributedReadLock(); // avoid adding of new peers while inserting
+  distributedReadLock();  // avoid adding of new peers while inserting
   underlying_table_->bulkInsert(items);
   // at this point, insert() has modified the revisions such that all default
   // fields are also set, which allows remote peers to just patch the revision
@@ -229,7 +229,7 @@ void Chunk::leave() {
   CHECK(peers_.undisputableBroadcast(&request));
   relinquished_ = true;
   leave_lock_.unlock();
-  distributedUnlock(); // i.e. must be able to handle unlocks from outside
+  distributedUnlock();  // i.e. must be able to handle unlocks from outside
   // the swarm. Should this pose problems in the future, we could tie unlocking
   // to leaving.
 }
@@ -266,7 +266,7 @@ void Chunk::update(Revision* item) {
   proto::PatchRequest update_request;
   fillMetadata(&update_request);
   Message request;
-  distributedWriteLock(); // avoid adding of new peers while inserting
+  distributedWriteLock();  // avoid adding of new peers while inserting
   table->update(item);
   // at this point, update() has modified the revision such that all default
   // fields are also set, which allows remote peers to just patch the revision
@@ -392,7 +392,7 @@ void Chunk::distributedWriteLock() {
   }
   timing::Timer timer("map_api::Chunk::distributedWriteLock");
   std::unique_lock<std::mutex> metalock(lock_.mutex);
-  // case recursion
+  // case recursion TODO(tcies) abolish if possible
   if (isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id()) {
     ++lock_.write_recursion_depth;
     metalock.unlock();
@@ -404,7 +404,7 @@ void Chunk::distributedWriteLock() {
       isWriter(PeerId::self()) && lock_.thread != std::this_thread::get_id()) {
     lock_.cv.wait(metalock);
   }
-  while(true) { // lock: attempt until success
+  while (true) {  // lock: attempt until success
     while (lock_.state != DistributedRWLock::State::UNLOCKED &&
         lock_.state != DistributedRWLock::State::ATTEMPTING) {
       lock_.cv.wait(metalock);
@@ -499,12 +499,8 @@ void Chunk::distributedUnlock() {
       // if peer with address A considers the lock unlocked, any peer B > A
       // (including the local one) does as well
       if (peers_.empty()) {
-        if (log_locking_) {
-          startState(UL);
-        }
         lock_.state = DistributedRWLock::State::UNLOCKED;
-      }
-      else {
+      } else {
         bool self_unlocked = false;
         for (std::set<PeerId>::const_reverse_iterator rit =
             peers_.peers().rbegin(); rit != peers_.peers().rend(); ++rit) {
@@ -592,7 +588,7 @@ void Chunk::handleConnectRequestThread(Chunk* self, const PeerId& peer) {
   // peer
   self->distributedWriteLock();
   if (self->peers_.peers().find(peer) == self->peers_.peers().end()) {
-    CHECK(self->addPeer(peer)); // peer has no reason to refuse the init request
+    CHECK(self->addPeer(peer));  // peer has no reason to refuse init request
   } else {
     LOG(INFO) << "Peer requesting to join already in swarm, could have been "\
         "added by some requestParticipation() call.";
@@ -628,7 +624,7 @@ void Chunk::handleInsertRequest(const Revision& item, Message* response) {
 void Chunk::handleLeaveRequest(const PeerId& leaver, Message* response) {
   CHECK_NOTNULL(response);
   leave_lock_.readLock();
-  CHECK(!relinquished_); // sending a leave request to a disconnected peer
+  CHECK(!relinquished_);  // sending a leave request to a disconnected peer
   // should be impossible by design
   std::lock_guard<std::mutex> metalock(lock_.mutex);
   CHECK(lock_.state == DistributedRWLock::State::WRITE_LOCKED);
@@ -641,7 +637,7 @@ void Chunk::handleLeaveRequest(const PeerId& leaver, Message* response) {
 void Chunk::handleLockRequest(const PeerId& locker, Message* response) {
   CHECK_NOTNULL(response);
   leave_lock_.readLock();
-  if(relinquished_) {
+  if (relinquished_) {
     // possible if two peer try to lock for leaving at the same time
     leave_lock_.unlock();
     response->decline();
@@ -671,8 +667,7 @@ void Chunk::handleLockRequest(const PeerId& locker, Message* response) {
       if (PeerId::self() < *peers_.peers().begin()) {
         CHECK(PeerId::self() < locker);
         response->impose<Message::kDecline>();
-      }
-      else {
+      } else {
         // we DON'T need to roll back possible past requests. The current
         // situation can only happen if the requester has successfully achieved
         // the lock at all low-address peers, otherwise this situation couldn't
@@ -694,7 +689,7 @@ void Chunk::handleNewPeerRequest(const PeerId& peer, const PeerId& sender,
                                  Message* response) {
   CHECK_NOTNULL(response);
   leave_lock_.readLock();
-  CHECK(!relinquished_); // sending a new peer request to a disconnected peer
+  CHECK(!relinquished_);  // sending a new peer request to a disconnected peer
   // should be impossible by design
   std::lock_guard<std::mutex> metalock(lock_.mutex);
   CHECK(lock_.state == DistributedRWLock::State::WRITE_LOCKED);
@@ -707,7 +702,7 @@ void Chunk::handleNewPeerRequest(const PeerId& peer, const PeerId& sender,
 void Chunk::handleUnlockRequest(const PeerId& locker, Message* response) {
   CHECK_NOTNULL(response);
   leave_lock_.readLock();
-  CHECK(!relinquished_); // sending a leave request to a disconnected peer
+  CHECK(!relinquished_);  // sending a leave request to a disconnected peer
   // should be impossible by design
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   CHECK(lock_.state == DistributedRWLock::State::WRITE_LOCKED);
@@ -750,8 +745,7 @@ void Chunk::startState(LockState new_state) {
                            std::chrono::system_clock::now());
           current_state_ = UL;
         } else {
-          // LOG(FATAL) << "Invalid state transition";
-          current_state_ = new_state;
+          LOG(FATAL) << "Invalid state transition: UL from " << current_state_;
         }
         break;
       }
@@ -761,7 +755,7 @@ void Chunk::startState(LockState new_state) {
           current_state_start_ = std::chrono::system_clock::now();
           current_state_ = new_state;
         } else {
-          // possibly recursive locking, or other thread
+          LOG(FATAL) << "Invalid state transition: A from " << current_state_;
         }
         break;
       }
@@ -773,9 +767,7 @@ void Chunk::startState(LockState new_state) {
           current_state_start_ = std::chrono::system_clock::now();
           current_state_ = new_state;
         } else {
-          // invalid state transition?
-          current_state_start_ = std::chrono::system_clock::now();
-          current_state_ = new_state;
+          LOG(FATAL) << "Invalid state transition: S from " << current_state_;
         }
         break;
       }
@@ -798,4 +790,4 @@ void Chunk::logStateDuration(LockState state, const TimePoint& start,
            << std::endl;
 }
 
-} // namespace map_api
+}  // namespace map_api
