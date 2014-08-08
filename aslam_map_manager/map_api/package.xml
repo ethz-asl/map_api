@@ -20,6 +20,8 @@
   <build_depend>map_api_test_suite</build_depend>
   <build_depend>multiagent_mapping_common</build_depend>
   <build_depend>protobuf_catkin</build_depend>
+  <build_depend>statistics</build_depend>
+  <build_depend>timing</build_depend>
   <build_depend>zeromq_catkin</build_depend>
 
 </package>

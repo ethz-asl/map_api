@@ -2,6 +2,8 @@
 
 #include <unordered_set>
 
+#include <timing/timer.h>
+
 #include "map-api/cru-table.h"
 #include "map-api/net-table-manager.h"
 #include "map-api/map-api-hub.h"
@@ -345,12 +347,14 @@ bool Chunk::addPeer(const PeerId& peer) {
 }
 
 void Chunk::distributedReadLock() {
+  timing::Timer timer("map_api::Chunk::distributedReadLock");
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   if (isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id()) {
     // special case: also succeed. This is necessary e.g. when committing
     // transactions
     ++lock_.write_recursion_depth;
     metalock.unlock();
+    timer.Discard();
     return;
   }
   while (lock_.state != DistributedRWLock::State::UNLOCKED &&
@@ -361,14 +365,17 @@ void Chunk::distributedReadLock() {
   lock_.state = DistributedRWLock::State::READ_LOCKED;
   ++lock_.n_readers;
   metalock.unlock();
+  timer.Stop();
 }
 
 void Chunk::distributedWriteLock() {
+  timing::Timer timer("map_api::Chunk::distributedWriteLock");
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   // case recursion
   if (isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id()) {
     ++lock_.write_recursion_depth;
     metalock.unlock();
+    timer.Discard();
     return;
   }
   // case self, but other thread
@@ -426,6 +433,7 @@ void Chunk::distributedWriteLock() {
   lock_.holder = PeerId::self();
   lock_.thread = std::this_thread::get_id();
   ++lock_.write_recursion_depth;
+  timer.Stop();
 }
 
 void Chunk::distributedUnlock() {
