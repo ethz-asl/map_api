@@ -2,7 +2,7 @@
 
 #include <unordered_set>
 
-#include <sm_timing/timer.h>
+#include <timing/timer.h>
 
 #include "map-api/cru-table.h"
 #include "map-api/net-table-manager.h"
