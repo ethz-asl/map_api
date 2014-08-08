@@ -16,7 +16,7 @@
 #include "map_api_benchmarks/multi-kmeans-hoarder.h"
 #include "map_api_benchmarks/multi-kmeans-worker.h"
 #include "map_api_benchmarks/simple-kmeans.h"
-#include "floating-point-test-helpers.h"
+#include "./floating-point-test-helpers.h"
 
 namespace map_api {
 namespace benchmarks {
@@ -86,11 +86,13 @@ TEST(KmeansView, InsertFetch) {
   app::kill();
 }
 
+DEFINE_uint64(num_clusters, 10, "Amount of clusters in kmeans exeriment");
+
 class MultiKmeans : public map_api_test_suite::MultiprocessTest {
  protected:
   void SetUpImpl() {
     app::init();
-    if (getSubprocessId() == 0){
+    if (getSubprocessId() == 0) {
       DescriptorVector gt_centers;
       DescriptorVector descriptors;
       std::vector<unsigned int> gt_membership, membership;
@@ -109,7 +111,7 @@ class MultiKmeans : public map_api_test_suite::MultiprocessTest {
     app::kill();
   }
 
-  void popIdsInitWorker(){
+  void popIdsInitWorker() {
     map_api::Id data_chunk_id, center_chunk_id, membership_chunk_id;
     CHECK(IPC::pop(&data_chunk_id));
     CHECK(IPC::pop(&center_chunk_id));
@@ -162,7 +164,7 @@ class MultiKmeans : public map_api_test_suite::MultiprocessTest {
     filestream.close();
   }
 
-  static constexpr size_t kNumClusters = 20;
+  size_t kNumClusters = FLAGS_num_clusters;
   static constexpr size_t kNumfeaturesPerCluster = 40;
   static constexpr size_t kNumNoise = 100;
   static constexpr double kAreaWidth = 20.;
@@ -225,6 +227,7 @@ TEST_F(MultiKmeans, KmeansHoarderWorker) {
 }
 
 DEFINE_uint64(process_time, 0, "Simulated time between fetch and commit");
+DEFINE_uint64(num_iterations, 5, "Amount of iterations in multi-kmeans");
 
 TEST_F(MultiKmeans, CenterWorkers) {
   enum Barriers {
@@ -233,12 +236,14 @@ TEST_F(MultiKmeans, CenterWorkers) {
     LOG_SYNC,
     DIE
   };
-  constexpr size_t kIterations = 5;
+  const size_t kIterations = FLAGS_num_iterations;
   statistics::StatsCollector accept_reject(kAcceptanceTag);
   if (getSubprocessId() == 0) {
     for (size_t i = 1; i <= kNumClusters; ++i) {
       std::ostringstream extra_flags_ss;
-      extra_flags_ss << "--process_time=" << FLAGS_process_time;
+      extra_flags_ss << "--process_time=" << FLAGS_process_time
+                     << " --num_clusters=" << FLAGS_num_clusters
+                     << " --num_iterations=" << FLAGS_num_iterations;
       launchSubprocess(i, extra_flags_ss.str());
     }
     clearFile(kAcceptanceFile);
@@ -280,7 +285,7 @@ TEST_F(MultiKmeans, CenterWorkers) {
   }
 }
 
-}  // namespace map_api
 }  // namespace benchmarks
+}  // namespace map_api
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT

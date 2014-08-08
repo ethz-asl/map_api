@@ -13,9 +13,13 @@ int main() {
   getchar();
   ifstream file("meas_lock_sequence.txt", ios::in);
   double start, end;
+  size_t max_rank = 0;
   while (!file.eof()) {
     size_t rank, type;
     file >> rank >> type >> start >> end;
+    if (rank > max_rank) {
+      max_rank = rank;
+    }
     fprintf(gnuplot, "set object rect from %f,%lu to %f,%lu fc rgb ", start,
             rank, end, rank + 1);
     switch (type) {
@@ -34,6 +38,6 @@ int main() {
     }
     fflush(gnuplot);
   }
-  fprintf(gnuplot, "set xrange [0:%f]\nset yrange [-0.1:21.1]\n", end);
+  fprintf(gnuplot, "set xrange [0:%f]\nset yrange [0:%lu]\n", end, max_rank);
   fputs("plot '-' w p\n-1 -1\ne\n", gnuplot);
 }
