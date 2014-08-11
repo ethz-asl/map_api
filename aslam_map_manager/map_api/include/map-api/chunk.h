@@ -72,7 +72,7 @@ class Chunk {
 
   int peerSize() const;
 
-  void logLocking();
+  void enableLockLogging();
 
   void leave();
 
@@ -259,11 +259,11 @@ class Chunk {
 
   static const char kLockSequenceFile[];
   enum LockState {
-    UL,
-    RA,
-    RS,
-    WA,
-    WS
+    UNLOCKED,
+    READ_ATTEMPT,
+    READ_SUCCESS,
+    WRITE_ATTEMPT,
+    WRITE_SUCCESS
   };
   LockState current_state_;
   typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;

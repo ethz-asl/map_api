@@ -3,6 +3,7 @@
 #include <fstream>
 #include <unordered_set>
 
+#include <multiagent_mapping_common/conversions.h>
 #include <timing/timer.h>
 
 #include "map-api/cru-table.h"
@@ -218,12 +219,12 @@ int Chunk::peerSize() const {
   return peers_.size();
 }
 
-void Chunk::logLocking() {
+void Chunk::enableLockLogging() {
   log_locking_ = true;
   self_rank_ = PeerId::selfRank();
   std::ofstream file(kLockSequenceFile, std::ios::out | std::ios::trunc);
   global_start_ = std::chrono::system_clock::now();
-  current_state_ = UL;
+  current_state_ = UNLOCKED;
   main_thread_id_ = std::this_thread::get_id();
 }
 
@@ -371,7 +372,7 @@ bool Chunk::addPeer(const PeerId& peer) {
 
 void Chunk::distributedReadLock() {
   if (log_locking_) {
-    startState(RA);
+    startState(READ_ATTEMPT);
   }
   timing::Timer timer("map_api::Chunk::distributedReadLock");
   std::unique_lock<std::mutex> metalock(lock_.mutex);
@@ -393,13 +394,13 @@ void Chunk::distributedReadLock() {
   metalock.unlock();
   timer.Stop();
   if (log_locking_) {
-    startState(RS);
+    startState(READ_SUCCESS);
   }
 }
 
 void Chunk::distributedWriteLock() {
   if (log_locking_) {
-    startState(WA);
+    startState(WRITE_ATTEMPT);
   }
   timing::Timer timer("map_api::Chunk::distributedWriteLock");
   std::unique_lock<std::mutex> metalock(lock_.mutex);
@@ -441,10 +442,11 @@ void Chunk::distributedWriteLock() {
         if (response.isType<Message::kDecline>()) {
           declined = true;
         } else {
-          for (++it; it != peers_.peers().cend(); ++it) {
+          ++it;
+          for (; it != peers_.peers().cend(); ++it) {
             MapApiHub::instance().request(*it, &request, &response);
             while (response.isType<Message::kDecline>()) {
-              usleep(5000);
+              usleep(5000);  // TODO(tcies) flag?
               MapApiHub::instance().request(*it, &request, &response);
             }
           }
@@ -487,7 +489,7 @@ void Chunk::distributedWriteLock() {
   ++lock_.write_recursion_depth;
   timer.Stop();
   if (log_locking_) {
-    startState(WS);
+    startState(WRITE_SUCCESS);
   }
 }
 
@@ -503,7 +505,7 @@ void Chunk::distributedUnlock() {
         metalock.unlock();
         lock_.cv.notify_all();
         if (log_locking_) {
-          startState(UL);
+          startState(UNLOCKED);
         }
         return;
       }
@@ -529,11 +531,12 @@ void Chunk::distributedUnlock() {
         lock_.state = DistributedRWLock::State::UNLOCKED;
       } else {
         bool self_unlocked = false;
+        // NB peers can only change if someone else has locked the chunk
+        const std::set<PeerId>& peers = peers_.peers();
         switch (static_cast<UnlockStrategy>(FLAGS_unlock_strategy)) {
           case REVERSE: {
-            for (std::set<PeerId>::const_reverse_iterator rit =
-                     peers_.peers().rbegin();
-                 rit != peers_.peers().rend(); ++rit) {
+            for (std::set<PeerId>::const_reverse_iterator rit = peers.rbegin();
+                 rit != peers.rend(); ++rit) {
               if (!self_unlocked && *rit < PeerId::self()) {
                 lock_.state = DistributedRWLock::State::UNLOCKED;
                 self_unlocked = true;
@@ -545,7 +548,9 @@ void Chunk::distributedUnlock() {
             break;
           }
           case FORWARD: {
-            for (const PeerId& peer : peers_.peers()) {
+            CHECK(FLAGS_writelock_persist) << "forward unlock only works with "
+                                              "writelock persist";
+            for (const PeerId& peer : peers) {
               if (!self_unlocked && PeerId::self() < peer) {
                 lock_.state = DistributedRWLock::State::UNLOCKED;
                 self_unlocked = true;
@@ -558,16 +563,14 @@ void Chunk::distributedUnlock() {
           }
           case RANDOM: {
             CHECK(FLAGS_writelock_persist)
-                << "Random currently hangs without "
-                   "writelock-persist";  // TODO(tcies) investigate
+                << "Random doesn't work without writelock-persist";
             std::srand(LogicalTime::sample().serialize());
-            std::vector<PeerId> mixed_peers(peers_.peers().cbegin(),
-                                            peers_.peers().cend());
+            std::vector<PeerId> mixed_peers(peers.cbegin(), peers.cend());
             std::random_shuffle(mixed_peers.begin(), mixed_peers.end());
             for (const PeerId& peer : mixed_peers) {
               MapApiHub::instance().request(peer, &request, &response);
               CHECK(response.isType<Message::kAck>());
-              LOG(INFO) << PeerId::self() << " released lock from " << peer;
+              VLOG(3) << PeerId::self() << " released lock from " << peer;
             }
             break;
           }
@@ -580,7 +583,7 @@ void Chunk::distributedUnlock() {
       metalock.unlock();
       lock_.cv.notify_all();
       if (log_locking_) {
-        startState(UL);
+        startState(UNLOCKED);
       }
       return;
   }
@@ -799,19 +802,19 @@ void Chunk::startState(LockState new_state) {
   // only log main thread
   if (std::this_thread::get_id() == main_thread_id_) {
     switch (new_state) {
-      case LockState::UL: {
-        if (current_state_ == RS || current_state_ == WS) {
+      case LockState::UNLOCKED: {
+        if (current_state_ == READ_SUCCESS || current_state_ == WRITE_SUCCESS) {
           logStateDuration(current_state_, current_state_start_,
                            std::chrono::system_clock::now());
-          current_state_ = UL;
+          current_state_ = UNLOCKED;
         } else {
           LOG(FATAL) << "Invalid state transition: UL from " << current_state_;
         }
         break;
       }
-      case LockState::RA:  // fallthrough intended
-      case LockState::WA: {
-        if (current_state_ == UL) {
+      case LockState::READ_ATTEMPT:  // fallthrough intended
+      case LockState::WRITE_ATTEMPT: {
+        if (current_state_ == UNLOCKED) {
           current_state_start_ = std::chrono::system_clock::now();
           current_state_ = new_state;
         } else {
@@ -819,9 +822,9 @@ void Chunk::startState(LockState new_state) {
         }
         break;
       }
-      case LockState::RS:  // fallthrough intended
-      case LockState::WS: {
-        if (current_state_ == RA || current_state_ == WA) {
+      case LockState::READ_SUCCESS:  // fallthrough intended
+      case LockState::WRITE_SUCCESS: {
+        if (current_state_ == READ_ATTEMPT || current_state_ == WRITE_ATTEMPT) {
           logStateDuration(current_state_, current_state_start_,
                            std::chrono::system_clock::now());
           current_state_start_ = std::chrono::system_clock::now();
@@ -841,11 +844,11 @@ void Chunk::logStateDuration(LockState state, const TimePoint& start,
   double d_start =
       static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(
           start - global_start_).count()) *
-      1e-9;
+      kNanosecondsToSeconds;
   double d_end =
       static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(
           end - global_start_).count()) *
-      1e-9;
+      kNanosecondsToSeconds;
   log_file << self_rank_ << " " << state << " " << d_start << " " << d_end
            << std::endl;
 }
