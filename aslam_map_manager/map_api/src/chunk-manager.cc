@@ -13,7 +13,7 @@ void ChunkManagerBase::requestParticipationAllChunks() {
     CHECK_NOTNULL(item.second);
     item.second->requestParticipation();
   }
-  LOG(INFO) << "Done.";
+  LOG(INFO) << "Done. " << active_chunks_.size() << " chunks sent.";
 }
 
 Chunk* ChunkManagerChunkSize::getChunkForItem(const Revision& revision) {
