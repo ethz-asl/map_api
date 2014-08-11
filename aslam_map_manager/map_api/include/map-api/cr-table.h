@@ -4,6 +4,7 @@
 #include <vector>
 #include <memory>
 #include <map>
+#include <string>
 #include <unordered_map>
 
 #include <Poco/Data/Common.h>
@@ -12,7 +13,7 @@
 #include "map-api/id.h"
 #include "map-api/table-descriptor.h"
 #include "map-api/revision.h"
-#include "core.pb.h"
+#include "./core.pb.h"
 
 namespace map_api {
 
@@ -22,7 +23,10 @@ namespace map_api {
  */
 class CRTable {
  public:
-  enum class Type{CR, CRU};
+  enum class Type {
+    CR,
+    CRU
+  };
   typedef std::unordered_map<Id, std::shared_ptr<Revision> > RevisionMap;
   /**
    * Default fields
@@ -112,13 +116,31 @@ class CRTable {
   template<typename ValueType>
   std::shared_ptr<Revision> findUnique(
       const std::string& key, const ValueType& value, const LogicalTime& time);
+
+  /**
+   * Same as count() but not typed. Value is looked up in the corresponding
+   * field
+   * of valueHolder.
+   */
+  virtual int countByRevision(const std::string& key,
+                              const Revision& valueHolder,
+                              const LogicalTime& time) final;
+
   virtual void dump(const LogicalTime& time, RevisionMap* dest) final;
+
+  /**
+   * Count all items that match key = value at time.
+   * If "key" is an empty string, no filter will be applied.
+   */
+  template <typename ValueType>
+  int count(const std::string& key, const ValueType& value,
+            const LogicalTime& time);
 
   /**
    * The following struct can be used to automatically supply table name and
    * item id to a glog message.
    */
-  typedef struct ItemDebugInfo{
+  typedef struct ItemDebugInfo {
     std::string table;
     std::string id;
     ItemDebugInfo(const std::string& _table, const Id& _id) :
@@ -150,14 +172,21 @@ class CRTable {
       const std::string& key, const Revision& valueHolder,
       const LogicalTime& time, RevisionMap* dest) = 0;
 
+  /**
+   * If key is an empty string, this should return all the data in the table.
+   */
+  virtual int countByRevisionCRDerived(const std::string& key,
+                                       const Revision& valueHolder,
+                                       const LogicalTime& time) = 0;
+
   bool initialized_ = false;
 };
 
 std::ostream& operator<< (std::ostream& stream, const
                           CRTable::ItemDebugInfo& info);
 
-} /* namespace map_api */
+}  // namespace map_api
 
 #include "map-api/cr-table-inl.h"
 
-#endif /* MAP_API_CR_TABLE_H_ */
+#endif  // MAP_API_CR_TABLE_H_

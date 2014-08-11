@@ -12,7 +12,7 @@
 
 #include "map-api/map-api-core.h"
 #include "map-api/local-transaction.h"
-#include "core.pb.h"
+#include "./core.pb.h"
 
 DEFINE_bool(cru_linked, false, "Determines whether a revision has references "\
             "to the previous and next revision.");
@@ -23,7 +23,7 @@ CRUTable::~CRUTable() {}
 
 bool CRUTable::update(Revision* query) {
   update(CHECK_NOTNULL(query), LogicalTime::sample());
-  return true; // TODO(tcies) void
+  return true;  // TODO(tcies) void
 }
 
 void CRUTable::update(Revision* query, const LogicalTime& time) {
@@ -66,7 +66,7 @@ bool CRUTable::getLatestUpdateTime(const Id& id, LogicalTime* time) {
   CHECK_NOTNULL(time);
   std::shared_ptr<Revision> row = getById(id, LogicalTime::sample());
   ItemDebugInfo itemInfo(name(), id);
-  if (!row){
+  if (!row) {
     LOG(ERROR) << itemInfo << "Failed to retrieve row";
     return false;
   }
@@ -118,4 +118,9 @@ int CRUTable::findByRevisionCRDerived(
   return findByRevisionCRUDerived(key, valueHolder, time, dest);
 }
 
+int CRUTable::countByRevisionCRDerived(const std::string& key,
+                                       const Revision& valueHolder,
+                                       const LogicalTime& time) {
+  return countByRevisionCRUDerived(key, valueHolder, time);
 }
+}  // namespace map_api
