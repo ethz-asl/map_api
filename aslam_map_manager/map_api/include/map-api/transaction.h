@@ -4,12 +4,17 @@
 #include <memory>
 #include <map>
 
-#include "map-api/chunk.h"
+#include <glog/logging.h>
+
+#include "map-api/id.h"
+#include "map-api/logical-time.h"
 #include "map-api/net-table.h"
-#include "map-api/net-table-transaction.h"
-#include "map-api/revision.h"
 
 namespace map_api {
+class Chunk;
+class ChunkManagerBase;
+class NetTableTransaction;
+class Revision;
 
 class Transaction {
  public:
@@ -19,6 +24,8 @@ class Transaction {
   std::shared_ptr<Revision> getById(const Id& id, NetTable* table);
   void insert(
       NetTable* table, Chunk* chunk, std::shared_ptr<Revision> revision);
+  void insert(ChunkManagerBase* chunk_manager,
+              std::shared_ptr<Revision> revision);
   void update(NetTable* table, std::shared_ptr<Revision> revision);
 
   inline LogicalTime time() const {
@@ -44,6 +51,6 @@ class Transaction {
   LogicalTime begin_time_;
 };
 
-} /* namespace map_api */
+}  // namespace map_api
 
-#endif /* MAP_API_TRANSACTION_H_ */
+#endif  // MAP_API_TRANSACTION_H_
