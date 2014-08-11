@@ -14,8 +14,10 @@ namespace map_api {
 PeerId::PeerId() : ip_port_(kInvalidAdress) {}
 
 PeerId::PeerId(const std::string& ip_port) : ip_port_(ip_port) {
-  Poco::RegularExpression re("^\\d+\\.\\d+\\.\\d+\\.\\d+\\:\\d+$");
-  CHECK(re.match(ip_port)) << ip_port;
+  //  Poco::RegularExpression re("^\\d+\\.\\d+\\.\\d+\\.\\d+\\:\\d+$");
+  //  if(!re.match(ip_port)) {
+  //    LOG(ERROR) << "Invalid address " << ip_port;
+  //  }
 }
 
 PeerId& PeerId::operator =(const PeerId& other) {

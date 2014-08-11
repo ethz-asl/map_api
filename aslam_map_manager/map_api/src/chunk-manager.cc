@@ -6,11 +6,14 @@
 
 namespace map_api {
 void ChunkManagerBase::requestParticipationAllChunks() {
-  // TODO(slynen): Parallelize this.
+  // TODO(tcies/slynen): Can we parallelize this?
+  LOG(INFO) << "Requesting participation for " << active_chunks_.size()
+            << " chunks";
   for (const std::pair<Id, Chunk*>& item : active_chunks_) {
     CHECK_NOTNULL(item.second);
     item.second->requestParticipation();
   }
+  LOG(INFO) << "Done.";
 }
 
 Chunk* ChunkManagerChunkSize::getChunkForItem(const Revision& revision) {
@@ -18,6 +21,9 @@ Chunk* ChunkManagerChunkSize::getChunkForItem(const Revision& revision) {
   int total_size = current_chunk_size_bytes_ + item_size;
 
   if (total_size > max_chunk_size_bytes_ || current_chunk_ == nullptr) {
+    LOG(INFO) << "Current chunk size " << total_size
+              << " larger than limit,"
+                 " creating a new chunk.";
     current_chunk_ = underlying_table_->newChunk();
     active_chunks_.insert(std::make_pair(current_chunk_->id(), current_chunk_));
     current_chunk_size_bytes_ = 0;
