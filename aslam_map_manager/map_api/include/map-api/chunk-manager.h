@@ -10,7 +10,7 @@ namespace map_api {
 class ChunkManagerBase {
  public:
   explicit ChunkManagerBase(map_api::NetTable* underlying_table)
-      : underlying_table_(underlying_table) {}
+      : underlying_table_(CHECK_NOTNULL(underlying_table)) {}
 
   virtual ~ChunkManagerBase() {}
 
@@ -25,7 +25,7 @@ class ChunkManagerBase {
 
   void requestParticipationAllChunks();
 
- private:
+ protected:
   map_api::NetTable* underlying_table_;
   std::unordered_map<Id, Chunk*> active_chunks_;
 };
@@ -33,19 +33,20 @@ class ChunkManagerBase {
 // A Chunk manager that splits chunks based on their size.
 class ChunkManagerChunkSize : public ChunkManagerBase {
  public:
-  ChunkManagerChunkSize(int max_chunk_size, map_api::NetTable* underlying_table)
-      : ChunkManagerBase(underlying_table),
-        max_chunk_size_(max_chunk_size),
+  ChunkManagerChunkSize(int max_chunk_size_bytes,
+                        map_api::NetTable* underlying_table)
+      : ChunkManagerBase(CHECK_NOTNULL(underlying_table)),
+        max_chunk_size_bytes_(max_chunk_size_bytes),
         current_chunk_(nullptr),
-        current_chunk_size_(0) {}
+        current_chunk_size_bytes_(0) {}
   ~ChunkManagerChunkSize() {}
 
   virtual Chunk* getChunkForItem(const Revision& revision);
 
  private:
-  int max_chunk_size_;
+  int max_chunk_size_bytes_;
   Chunk* current_chunk_;
-  int current_chunk_size_;
+  int current_chunk_size_bytes_;
 };
 
 }  // namespace map_api
