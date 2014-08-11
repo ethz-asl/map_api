@@ -23,7 +23,7 @@ public ::testing::WithParamInterface<bool> {
 
   size_t count() {
     std::unordered_map<Id, std::shared_ptr<Revision> > results;
-    table_->dumpCache(LogicalTime::sample(), &results);
+    table_->dumpActiveChunksAtCurrentTime(&results);
     return results.size();
   }
 
