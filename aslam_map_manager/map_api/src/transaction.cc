@@ -57,6 +57,7 @@ void Transaction::insert(ChunkManagerBase* chunk_manager,
   NetTable* table = chunk_manager->getUnderlyingTable();
   CHECK_NOTNULL(table);
   Chunk* chunk = chunk_manager->getChunkForItem(*revision);
+  CHECK_NOTNULL(chunk);
   insert(table, chunk, revision);
 }
 
