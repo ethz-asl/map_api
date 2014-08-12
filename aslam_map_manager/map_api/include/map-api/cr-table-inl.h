@@ -20,7 +20,8 @@ template <typename ValueType>
 int CRTable::count(const std::string& key, const ValueType& value,
                    const LogicalTime& time) {
   std::shared_ptr<Revision> valueHolder = this->getTemplate();
-  if (key != "") {
+  CHECK(valueHolder != nullptr);
+  if (!key.empty()) {
     valueHolder->set(key, value);
   }
   return this->countByRevision(key, *valueHolder, time);

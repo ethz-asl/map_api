@@ -121,9 +121,9 @@ int CRTable::countByRevision(const std::string& key,
                              const Revision& valueHolder,
                              const LogicalTime& time) {
   CHECK(isInitialized()) << "Attempted to count items in non-initialized table";
-  // whether valueHolder contains key is implicitly checked whenever using
+  // Whether valueHolder contains key is implicitly checked whenever using
   // Revision::insertPlaceHolder - for now it's a pretty safe bet that the
-  // implementation uses that - this would be rather cumbersome to check here
+  // implementation uses that - this would be rather cumbersome to check here.
   CHECK(time < LogicalTime::sample())
       << "Seeing the future is yet to be implemented ;)";
   return countByRevisionCRDerived(key, valueHolder, time);
@@ -132,7 +132,9 @@ int CRTable::countByRevision(const std::string& key,
 // although this is very similar to rawGetRow(), I don't see how to share the
 // features without loss of performance TODO(discuss)
 void CRTable::dump(const LogicalTime& time, RevisionMap* dest) {
+  CHECK_NOTNULL(dest);
   std::shared_ptr<Revision> valueHolder = getTemplate();
+  CHECK(valueHolder != nullptr);
   findByRevision("", *valueHolder, time, dest);
 }
 

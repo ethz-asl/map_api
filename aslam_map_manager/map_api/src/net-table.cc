@@ -130,6 +130,7 @@ void NetTable::dumpActiveChunks(const LogicalTime& time,
   for (const map_api::Id& chunk_id : active_chunk_ids) {
     map_api::CRTable::RevisionMap chunk_revisions;
     map_api::Chunk* chunk = getChunk(chunk_id);
+    CHECK_NOTNULL(chunk);
     chunk->dumpItems(time, &chunk_revisions);
     destination->insert(chunk_revisions.begin(), chunk_revisions.end());
   }
@@ -137,6 +138,7 @@ void NetTable::dumpActiveChunks(const LogicalTime& time,
 
 void NetTable::dumpActiveChunksAtCurrentTime(
     CRTable::RevisionMap* destination) {
+  CHECK_NOTNULL(destination)
   return dumpActiveChunks(map_api::LogicalTime::sample(), destination);
 }
 
