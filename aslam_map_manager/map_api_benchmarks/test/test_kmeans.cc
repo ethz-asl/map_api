@@ -224,7 +224,7 @@ TEST_F(MultiKmeans, KmeansHoarderWorker) {
 
 DEFINE_uint64(process_time, 0, "Simulated time between fetch and commit");
 
-TEST_F(MultiKmeans, CenterWorkers) {
+TEST_F(MultiKmeans, DISABLED_CenterWorkers) {
   enum Barriers {INIT, IDS_PUSHED, DIE};
   constexpr size_t kIterations = 5;
   statistics::StatsCollector accept_reject(kAcceptanceTag);
