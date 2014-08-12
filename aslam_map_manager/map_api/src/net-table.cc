@@ -138,7 +138,7 @@ void NetTable::dumpActiveChunks(const LogicalTime& time,
 
 void NetTable::dumpActiveChunksAtCurrentTime(
     CRTable::RevisionMap* destination) {
-  CHECK_NOTNULL(destination)
+  CHECK_NOTNULL(destination);
   return dumpActiveChunks(map_api::LogicalTime::sample(), destination);
 }
 
