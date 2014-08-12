@@ -1,8 +1,10 @@
+#include <fstream>  // NOLINT
 #include <vector>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest_prod.h>
+#include <timing/timer.h>
 
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 
@@ -152,7 +154,7 @@ TEST_F(ChordIndexTestInitialized, localData) {
 
 TEST_F(ChordIndexTestInitialized, joinStabilizeAddRetrieve) {
   const size_t kNProcesses = FLAGS_chord_processes;
-  const size_t kNData = 5;
+  const size_t kNData = 100;
   enum Barriers{INIT, ROOT_SHARED, JOINED_STABILIZED, ADDED_RETRIEVED};
   if (getSubprocessId() == 0) {
     std::ostringstream command_extra;
@@ -171,9 +173,16 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddRetrieve) {
     for (size_t i = 0; i < kNData; ++i) {
       std::string key, value, result;
       addNonLocalData(&key, &value, i);
+      timing::Timer timer("retrieveData");
       EXPECT_TRUE(TestChordIndex::instance().retrieveData(key, &result));
+      timer.Stop();
       EXPECT_EQ(value, result);
     }
+    std::ofstream file("retrieve_time.txt", std::ios::out);
+    file << timing::Timing::GetMeanSeconds("retrieveData") << " "
+         << timing::Timing::GetMinSeconds("retrieveData") << " "
+         << timing::Timing::GetMaxSeconds("retrieveData") << std::endl;
+    LOG(INFO) << timing::Timing::Print();
     IPC::barrier(ADDED_RETRIEVED, kNProcesses - 1);
   } else {
     IPC::barrier(INIT, kNProcesses - 1);
