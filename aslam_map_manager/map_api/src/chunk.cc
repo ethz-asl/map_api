@@ -12,6 +12,12 @@
 #include "./core.pb.h"
 #include "./chunk.pb.h"
 
+DEFINE_bool(writelock_persist, false,
+            "Enables more persisting write lock "
+            "strategy");
+
+DEFINE_bool(forward_unlock, false, "Changes unlock order to forward");
+
 namespace map_api {
 
 const char Chunk::kConnectRequest[] = "map_api_chunk_connect";
@@ -144,6 +150,13 @@ void Chunk::dumpItems(const LogicalTime& time, CRTable::RevisionMap* items) {
   distributedReadLock();
   underlying_table_->find(NetTable::kChunkIdField, id(), time, items);
   distributedUnlock();
+}
+
+size_t Chunk::numItems(const LogicalTime& time) {
+  distributedReadLock();
+  size_t result = underlying_table_->count(NetTable::kChunkIdField, id(), time);
+  distributedUnlock();
+  return result;
 }
 
 bool Chunk::insert(Revision* item) {
@@ -387,9 +400,6 @@ void Chunk::distributedReadLock() {
   }
 }
 
-DEFINE_bool(writelock_persist, false,
-            "Enables more persisting write lock "
-            "strategy");
 
 void Chunk::distributedWriteLock() {
   if (log_locking_) {
@@ -485,8 +495,6 @@ void Chunk::distributedWriteLock() {
     startState(WRITE_SUCCESS);
   }
 }
-
-DEFINE_bool(forward_unlock, false, "Changes unlock order to forward");
 
 void Chunk::distributedUnlock() {
   std::unique_lock<std::mutex> metalock(lock_.mutex);
@@ -632,7 +640,8 @@ void Chunk::handleConnectRequestThread(Chunk* self, const PeerId& peer) {
   // peer
   self->distributedWriteLock();
   if (self->peers_.peers().find(peer) == self->peers_.peers().end()) {
-    CHECK(self->addPeer(peer));  // peer has no reason to refuse init request
+    // Peer has no reason to refuse the init request.
+    CHECK(self->addPeer(peer));
   } else {
     LOG(INFO) << "Peer requesting to join already in swarm, could have been "\
         "added by some requestParticipation() call.";
@@ -833,5 +842,4 @@ void Chunk::logStateDuration(LockState state, const TimePoint& start,
   log_file << self_rank_ << " " << state << " " << d_start << " " << d_end
            << std::endl;
 }
-
 }  // namespace map_api

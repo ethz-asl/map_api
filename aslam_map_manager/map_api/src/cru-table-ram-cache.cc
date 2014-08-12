@@ -52,9 +52,10 @@ int CRUTableRAMCache::findByRevisionCRUDerived(
     statement << " AND " << key << " LIKE ";
     data_holder.push_back(value_holder.insertPlaceHolder(key, statement));
   }
-  try{
+  try {
     statement.execute();
-  } catch (const std::exception& e){
+  }
+  catch (const std::exception& e) {
     LOG(FATAL) << "Find statement failed: " << statement.toString() <<
         " with exception: " << e.what();
   }
@@ -67,7 +68,7 @@ int CRUTableRAMCache::findByRevisionCRUDerived(
     std::unordered_map<Id, LogicalTime> latest;
     if (FLAGS_cru_linked) {
       // case linked: query guarantees that each ID is unique
-      if(!dest->insert(std::make_pair(id, item)).second) {
+      if (!dest->insert(std::make_pair(id, item)).second) {
         std::ostringstream report;
         report << "Failed to insert:" << std::endl;
         report << item->dumpToString() << std::endl;
@@ -89,6 +90,43 @@ int CRUTableRAMCache::findByRevisionCRUDerived(
     }
   }
   return dest->size();
+}
+
+int CRUTableRAMCache::countByRevisionCRUDerived(const std::string& key,
+                                                const Revision& value_holder,
+                                                const LogicalTime& time) {
+  // TODO(tcies) apart from the more sophisticated time query, this is very
+  // similar to its CR equivalent. Maybe refactor at some time?
+  SqliteInterface::PocoToProto poco_to_proto(getTemplate());
+  std::shared_ptr<Poco::Data::Session> session =
+      sqlite_interface_.getSession().lock();
+  CHECK(session) << "Couldn't lock session weak pointer";
+  Poco::Data::Statement statement(*session);
+  // Hold on to data for Poco.
+  uint64_t serialized_time = time.serialize();
+  std::vector<std::shared_ptr<Poco::Data::BLOB> > data_holder;
+  int count = 0;
+  statement << "SELECT COUNT(" << kIdField << ")", Poco::Data::into(count);
+  statement << " FROM " << name() << " WHERE " << kUpdateTimeField << " <  ? ",
+      Poco::Data::use(serialized_time);
+  if (FLAGS_cru_linked) {
+    statement << " AND (" << kNextTimeField << " = 0 OR " << kNextTimeField
+              << " > ? ",
+        Poco::Data::use(serialized_time);
+    statement << ") ";
+  }
+  if (key != "") {
+    statement << " AND " << key << " LIKE ";
+    data_holder.push_back(value_holder.insertPlaceHolder(key, statement));
+  }
+  try {
+    statement.execute();
+  }
+  catch (const std::exception& e) {
+    LOG(FATAL) << "Find statement failed: " << statement.toString()
+               << " with exception: " << e.what();
+  }
+  return count;
 }
 
 bool CRUTableRAMCache::insertUpdatedCRUDerived(const Revision& query) {
@@ -117,7 +155,8 @@ bool CRUTableRAMCache::updateCurrentReferToUpdatedCRUDerived(
       Poco::Data::use(serialized_current_time);
   try {
     statement.execute();
-  } catch (const std::exception& e) {
+  }
+  catch (const std::exception& e) {
     LOG(FATAL) << info << kNextTimeField << " update failed with exception \""
         << e.what() << "\", " << " statement was \"" << statement.toString() <<
         "\" with times: " << current_time << " " << updated_time;

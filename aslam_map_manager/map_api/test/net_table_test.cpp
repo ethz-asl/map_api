@@ -215,12 +215,12 @@ TEST_P(NetTableTest, ChunkLookup) {
     launchSubprocess(SLAVE);
     IPC::barrier(INIT, 1);
     IPC::barrier(CHUNK_CREATED, 1);
-    table_->dumpCache(LogicalTime::sample(), &results);
+    table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(0, results.size());
     Id chunk_id = popId();
     chunk = table_->getChunk(chunk_id);
     EXPECT_TRUE(chunk);
-    table_->dumpCache(LogicalTime::sample(), &results);
+    table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(1, results.size());
   }
   if (getSubprocessId() == SLAVE) {
