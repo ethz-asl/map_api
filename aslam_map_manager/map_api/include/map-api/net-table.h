@@ -1,6 +1,8 @@
 #ifndef MAP_API_NET_TABLE_H_
 #define MAP_API_NET_TABLE_H_
 
+#include <set>
+#include <string>
 #include <unordered_map>
 
 #include <Poco/RWLock.h>
@@ -26,11 +28,6 @@ class NetTable {
   Chunk* newChunk();
   Chunk* newChunk(const Id& chunk_id);
   Chunk* getChunk(const Id& chunk_id);
-  /**
-   * Intended to be very temporary - bridges use of now removed
-   * Transaction::find() in map_api_tango_interface
-   */
-  Chunk* getUniqueLocalChunk() const;
 
   bool insert(Chunk* chunk, Revision* query);
   /**
@@ -48,12 +45,12 @@ class NetTable {
    */
   std::shared_ptr<Revision> getById(const Id& id, const LogicalTime& time)
   __attribute__((deprecated));
-  /**
-   * Deprecated for the same reasons
-   */
-  void dumpCache(
-      const LogicalTime& time, CRTable::RevisionMap* destination)
-  __attribute__((deprecated));
+
+  void dumpActiveChunks(const LogicalTime& time,
+                        CRTable::RevisionMap* destination);
+
+  void dumpActiveChunksAtCurrentTime(CRTable::RevisionMap* destination);
+
   bool has(const Id& chunk_id);
   /**
    * Connects to the given chunk via the given peer.
@@ -65,7 +62,7 @@ class NetTable {
 
   size_t activeChunksSize() const;
 
-  size_t cachedItemsSize();
+  size_t activeChunksItemsSize();
 
   void shareAllChunks();
 
@@ -74,6 +71,8 @@ class NetTable {
   void leaveAllChunks();
 
   std::string getStatistics();
+
+  void getActiveChunkIds(std::set<Id>* chunk_ids) const;
 
   /**
    * ========================
@@ -126,6 +125,6 @@ class NetTable {
   Poco::RWLock index_lock_;
 };
 
-} // namespace map_api
+}  // namespace map_api
 
-#endif /* MAP_API_NET_TABLE_H_ */
+#endif  // MAP_API_NET_TABLE_H_

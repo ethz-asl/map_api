@@ -120,7 +120,7 @@ TEST_P(NetTableTest, RemoteUpdate) {
     Chunk* chunk = table_->newChunk();
     ASSERT_TRUE(chunk);
     insert(42, chunk);
-    table_->dumpCache(LogicalTime::sample(), &results);
+    table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(1, results.size());
     EXPECT_TRUE(results.begin()->second->verifyEqual(kFieldName, 42));
     IPC::barrier(INIT, 1);
@@ -128,7 +128,7 @@ TEST_P(NetTableTest, RemoteUpdate) {
     chunk->requestParticipation();
     IPC::barrier(A_JOINED, 1);
     IPC::barrier(A_UPDATED, 1);
-    table_->dumpCache(LogicalTime::sample(), &results);
+    table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(1, results.size());
     EXPECT_TRUE(results.begin()->second->verifyEqual(kFieldName, 21));
 
@@ -137,7 +137,7 @@ TEST_P(NetTableTest, RemoteUpdate) {
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 1);
     IPC::barrier(A_JOINED, 1);
-    table_->dumpCache(LogicalTime::sample(), &results);
+    table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(1, results.size());
     results.begin()->second->set(kFieldName, 21);
     EXPECT_TRUE(table_->update(results.begin()->second.get()));
@@ -182,7 +182,7 @@ TEST_P(NetTableTest, Grind) {
       insert(42, chunk);
       // update
       if (GetParam()){
-        table_->dumpCache(LogicalTime::sample(), &results);
+        table_->dumpActiveChunksAtCurrentTime(&results);
         results.begin()->second->set(kFieldName, 21);
         EXPECT_TRUE(table_->update(results.begin()->second.get()));
       }
@@ -212,7 +212,7 @@ TEST_P(NetTableTest, ChunkTransactions) {
     IPC::barrier(IDS_SHARED, kProcesses - 1);
 
     IPC::barrier(DIE, kProcesses - 1);
-    table_->dumpCache(LogicalTime::sample(), &results);
+    table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(kProcesses, results.size());
     std::unordered_map<Id, std::shared_ptr<Revision> >::iterator found =
         results.find(insert_id);
@@ -279,7 +279,7 @@ TEST_P(NetTableTest, ChunkTransactionsConflictConditions) {
     IPC::barrier(ID_SHARED, kProcesses - 1);
 
     IPC::barrier(DIE, kProcesses - 1);
-    table_->dumpCache(LogicalTime::sample(), &results);
+    table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(kUniqueItems, results.size());
     std::set<int> unique_results;
     for (const CRTable::RevisionMap::value_type & item : results) {

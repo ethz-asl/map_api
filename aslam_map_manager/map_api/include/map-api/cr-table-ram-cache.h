@@ -1,6 +1,8 @@
 #ifndef MAP_API_CR_TABLE_RAM_CACHE_H_
 #define MAP_API_CR_TABLE_RAM_CACHE_H_
 
+#include <string>
+
 #include "map-api/cr-table.h"
 #include "map-api/sqlite-interface.h"
 
@@ -21,10 +23,14 @@ class CRTableRAMCache final : public CRTable {
   virtual int findByRevisionCRDerived(
       const std::string& key, const Revision& valueHolder,
       const LogicalTime& time, CRTable::RevisionMap* dest) final override;
+  virtual int countByRevisionCRDerived(const std::string& key,
+                                       const Revision& valueHolder,
+                                       const LogicalTime& time) final override;
+
  private:
   SqliteInterface sqlite_interface_;
 };
 
-} /* namespace map_api */
+}  // namespace map_api
 
-#endif /* MAP_API_CR_TABLE_RAM_CACHE_H_ */
+#endif  // MAP_API_CR_TABLE_RAM_CACHE_H_

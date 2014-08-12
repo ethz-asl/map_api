@@ -1,5 +1,5 @@
-#ifndef CHUNK_H
-#define CHUNK_H
+#ifndef MAP_API_CHUNK_H_
+#define MAP_API_CHUNK_H_
 
 #include <condition_variable>
 #include <memory>
@@ -19,9 +19,9 @@
 #include "map-api/peer-handler.h"
 #include "map-api/message.h"
 #include "map-api/revision.h"
-#include "chunk.pb.h"
+#include "./chunk.pb.h"
 
-namespace map_api{
+namespace map_api {
 /**
  * A chunk is the smallest unit of data sharing among the map_api peers. Each
  * item in a table belongs to some chunk, and each chunk contains data from only
@@ -63,6 +63,7 @@ class Chunk {
   Id id() const;
 
   void dumpItems(const LogicalTime& time, CRTable::RevisionMap* items);
+  size_t numItems(const LogicalTime& time);
 
   bool insert(Revision* item);
   bool bulkInsert(const CRTable::RevisionMap& items);
@@ -149,10 +150,10 @@ class Chunk {
     int n_readers = 0;
     PeerId holder;
     std::thread::id thread;
-    int write_recursion_depth = 0; // the write lock is recursive
+    int write_recursion_depth = 0;  // the write lock is recursive
     // to avoid deadlocks, this mutex may not be locked while awaiting replies
     std::mutex mutex;
-    std::condition_variable cv; // in case lock can't be acquired
+    std::condition_variable cv;  // in case lock can't be acquired
     DistributedRWLock() {}
   };
   /**
@@ -254,8 +255,8 @@ class Chunk {
   bool relinquished_ = false;
 };
 
-} //namespace map_api
+}  // namespace map_api
 
 #include "map-api/chunk-inl.h"
 
-#endif // CHUNK_H
+#endif  // MAP_API_CHUNK_H_
