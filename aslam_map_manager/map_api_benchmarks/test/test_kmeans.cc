@@ -229,7 +229,7 @@ TEST_F(MultiKmeans, KmeansHoarderWorker) {
 DEFINE_uint64(process_time, 0, "Simulated time between fetch and commit");
 DEFINE_uint64(num_iterations, 5, "Amount of iterations in multi-kmeans");
 
-TEST_F(MultiKmeans, CenterWorkers) {
+TEST_F(MultiKmeans, DISABLED_CenterWorkers) {
   enum Barriers {
     INIT,
     IDS_PUSHED,
