@@ -10,7 +10,6 @@
 #include "map-api/map-api-hub.h"
 
 namespace map_api {
-
 PeerId::PeerId() : ip_port_(kInvalidAdress) {}
 
 PeerId::PeerId(const std::string& ip_port) : ip_port_(ip_port) {
