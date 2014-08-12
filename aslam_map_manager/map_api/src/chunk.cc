@@ -1,7 +1,9 @@
 #include "map-api/chunk.h"
 
+#include <fstream>
 #include <unordered_set>
 
+#include <multiagent_mapping_common/conversions.h>
 #include <timing/timer.h>
 
 #include "map-api/cru-table.h"
@@ -9,6 +11,12 @@
 #include "map-api/map-api-hub.h"
 #include "./core.pb.h"
 #include "./chunk.pb.h"
+
+DEFINE_bool(writelock_persist, false,
+            "Enables more persisting write lock "
+            "strategy");
+
+DEFINE_bool(forward_unlock, false, "Changes unlock order to forward");
 
 namespace map_api {
 
@@ -29,6 +37,8 @@ MAP_API_PROTO_MESSAGE(Chunk::kLockRequest, proto::ChunkRequestMetadata);
 MAP_API_PROTO_MESSAGE(Chunk::kNewPeerRequest, proto::NewPeerRequest);
 MAP_API_PROTO_MESSAGE(Chunk::kUnlockRequest, proto::ChunkRequestMetadata);
 MAP_API_PROTO_MESSAGE(Chunk::kUpdateRequest, proto::PatchRequest);
+
+const char Chunk::kLockSequenceFile[] = "meas_lock_sequence.txt";
 
 template<>
 void Chunk::fillMetadata<proto::ChunkRequestMetadata>(
@@ -211,6 +221,15 @@ int Chunk::peerSize() const {
   return peers_.size();
 }
 
+void Chunk::enableLockLogging() {
+  log_locking_ = true;
+  self_rank_ = PeerId::selfRank();
+  std::ofstream file(kLockSequenceFile, std::ios::out | std::ios::trunc);
+  global_start_ = std::chrono::system_clock::now();
+  current_state_ = UNLOCKED;
+  main_thread_id_ = std::this_thread::get_id();
+}
+
 void Chunk::leave() {
   Message request;
   proto::ChunkRequestMetadata metadata;
@@ -354,6 +373,9 @@ bool Chunk::addPeer(const PeerId& peer) {
 }
 
 void Chunk::distributedReadLock() {
+  if (log_locking_) {
+    startState(READ_ATTEMPT);
+  }
   timing::Timer timer("map_api::Chunk::distributedReadLock");
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   if (isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id()) {
@@ -373,12 +395,19 @@ void Chunk::distributedReadLock() {
   ++lock_.n_readers;
   metalock.unlock();
   timer.Stop();
+  if (log_locking_) {
+    startState(READ_SUCCESS);
+  }
 }
 
+
 void Chunk::distributedWriteLock() {
+  if (log_locking_) {
+    startState(WRITE_ATTEMPT);
+  }
   timing::Timer timer("map_api::Chunk::distributedWriteLock");
   std::unique_lock<std::mutex> metalock(lock_.mutex);
-  // case recursion
+  // case recursion TODO(tcies) abolish if possible
   if (isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id()) {
     ++lock_.write_recursion_depth;
     metalock.unlock();
@@ -392,11 +421,13 @@ void Chunk::distributedWriteLock() {
   }
   while (true) {  // lock: attempt until success
     while (lock_.state != DistributedRWLock::State::UNLOCKED &&
-        lock_.state != DistributedRWLock::State::ATTEMPTING) {
+           (lock_.state != DistributedRWLock::State::ATTEMPTING ||
+            lock_.thread != std::this_thread::get_id())) {
       lock_.cv.wait(metalock);
     }
     CHECK(!relinquished_);
     lock_.state = DistributedRWLock::State::ATTEMPTING;
+    lock_.thread = std::this_thread::get_id();
     // unlocking metalock to avoid deadlocks when two peers try to acquire the
     // lock
     metalock.unlock();
@@ -407,21 +438,40 @@ void Chunk::distributedWriteLock() {
     request.impose<kLockRequest>(lock_request);
 
     bool declined = false;
-    for (const PeerId& peer : peers_.peers()) {
-      MapApiHub::instance().request(peer, &request, &response);
-      if (response.isType<Message::kDecline>()) {
-        // assuming no connection loss, a lock may only be declined by the peer
-        // with lowest address
-        declined = true;
-        break;
+    if (FLAGS_writelock_persist) {
+      if (peers_.peers().size()) {
+        std::set<PeerId>::const_iterator it = peers_.peers().cbegin();
+        MapApiHub::instance().request(*it, &request, &response);
+        if (response.isType<Message::kDecline>()) {
+          declined = true;
+        } else {
+          ++it;
+          for (; it != peers_.peers().cend(); ++it) {
+            MapApiHub::instance().request(*it, &request, &response);
+            while (response.isType<Message::kDecline>()) {
+              usleep(5000);  // TODO(tcies) flag?
+              MapApiHub::instance().request(*it, &request, &response);
+            }
+          }
+        }
       }
-      // TODO(tcies) READ_LOCKED case - kReading & pulse - it would be favorable
-      // for peers that have the lock read-locked to respond lest they be
-      // considered disconnected due to timeout. A good solution should be to
-      // have a custom response "reading, please stand by" with lease & pulse to
-      // renew the reading lease.
-      CHECK(response.isType<Message::kAck>());
-      VLOG(3) << PeerId::self() << " got lock from " << peer;
+    } else {
+      for (const PeerId& peer : peers_.peers()) {
+        MapApiHub::instance().request(peer, &request, &response);
+        if (response.isType<Message::kDecline>()) {
+          // assuming no connection loss, a lock may only be declined by the
+          // peer with lowest address
+          declined = true;
+          break;
+        }
+        // TODO(tcies) READ_LOCKED case - kReading & pulse - it would be
+        // favorable for peers that have the lock read-locked to respond lest
+        // they be considered disconnected due to timeout. A good solution
+        // should be to have a custom response "reading, please stand by" with
+        // lease & pulse to renew the reading lease.
+        CHECK(response.isType<Message::kAck>());
+        VLOG(3) << PeerId::self() << " got lock from " << peer;
+      }
     }
     if (declined) {
       // if we fail to acquire the lock we return to "conditional wait if not
@@ -441,6 +491,9 @@ void Chunk::distributedWriteLock() {
   lock_.thread = std::this_thread::get_id();
   ++lock_.write_recursion_depth;
   timer.Stop();
+  if (log_locking_) {
+    startState(WRITE_SUCCESS);
+  }
 }
 
 void Chunk::distributedUnlock() {
@@ -454,6 +507,9 @@ void Chunk::distributedUnlock() {
         lock_.state = DistributedRWLock::State::UNLOCKED;
         metalock.unlock();
         lock_.cv.notify_all();
+        if (log_locking_) {
+          startState(UNLOCKED);
+        }
         return;
       }
       break;
@@ -482,15 +538,31 @@ void Chunk::distributedUnlock() {
         lock_.state = DistributedRWLock::State::UNLOCKED;
       } else {
         bool self_unlocked = false;
-        for (std::set<PeerId>::const_reverse_iterator rit =
-            peers_.peers().rbegin(); rit != peers_.peers().rend(); ++rit) {
-          if (!self_unlocked && *rit < PeerId::self()) {
-            lock_.state = DistributedRWLock::State::UNLOCKED;
-            self_unlocked = true;
+        // NB peers can only change if someone else has locked the chunk
+        const std::set<PeerId>& peers = peers_.peers();
+        if (FLAGS_forward_unlock) {
+          CHECK(FLAGS_writelock_persist) << "forward unlock only works with "
+                                            "writelock persist";
+          for (const PeerId& peer : peers) {
+            if (!self_unlocked && PeerId::self() < peer) {
+              lock_.state = DistributedRWLock::State::UNLOCKED;
+              self_unlocked = true;
+            }
+            MapApiHub::instance().request(peer, &request, &response);
+            CHECK(response.isType<Message::kAck>());
+            VLOG(3) << PeerId::self() << " released lock from " << peer;
           }
-          MapApiHub::instance().request(*rit, &request, &response);
-          CHECK(response.isType<Message::kAck>());
-          VLOG(3) << PeerId::self() << " released lock from " << *rit;
+        } else {
+          for (std::set<PeerId>::const_reverse_iterator rit = peers.rbegin();
+               rit != peers.rend(); ++rit) {
+            if (!self_unlocked && *rit < PeerId::self()) {
+              lock_.state = DistributedRWLock::State::UNLOCKED;
+              self_unlocked = true;
+            }
+            MapApiHub::instance().request(*rit, &request, &response);
+            CHECK(response.isType<Message::kAck>());
+            VLOG(3) << PeerId::self() << " released lock from " << *rit;
+          }
         }
         if (!self_unlocked) {
           // case we had the lowest address
@@ -499,6 +571,9 @@ void Chunk::distributedUnlock() {
       }
       metalock.unlock();
       lock_.cv.notify_all();
+      if (log_locking_) {
+        startState(UNLOCKED);
+      }
       return;
   }
   metalock.unlock();
@@ -713,4 +788,58 @@ void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
   response->ack();
 }
 
+void Chunk::startState(LockState new_state) {
+  // only log main thread
+  if (std::this_thread::get_id() == main_thread_id_) {
+    switch (new_state) {
+      case LockState::UNLOCKED: {
+        if (current_state_ == READ_SUCCESS || current_state_ == WRITE_SUCCESS) {
+          logStateDuration(current_state_, current_state_start_,
+                           std::chrono::system_clock::now());
+          current_state_ = UNLOCKED;
+        } else {
+          LOG(FATAL) << "Invalid state transition: UL from " << current_state_;
+        }
+        break;
+      }
+      case LockState::READ_ATTEMPT:  // fallthrough intended
+      case LockState::WRITE_ATTEMPT: {
+        if (current_state_ == UNLOCKED) {
+          current_state_start_ = std::chrono::system_clock::now();
+          current_state_ = new_state;
+        } else {
+          LOG(FATAL) << "Invalid state transition: A from " << current_state_;
+        }
+        break;
+      }
+      case LockState::READ_SUCCESS:  // fallthrough intended
+      case LockState::WRITE_SUCCESS: {
+        if (current_state_ == READ_ATTEMPT || current_state_ == WRITE_ATTEMPT) {
+          logStateDuration(current_state_, current_state_start_,
+                           std::chrono::system_clock::now());
+          current_state_start_ = std::chrono::system_clock::now();
+          current_state_ = new_state;
+        } else {
+          LOG(FATAL) << "Invalid state transition: S from " << current_state_;
+        }
+        break;
+      }
+    }
+  }
+}
+
+void Chunk::logStateDuration(LockState state, const TimePoint& start,
+                             const TimePoint& end) const {
+  std::ofstream log_file(kLockSequenceFile, std::ios::out | std::ios::app);
+  double d_start =
+      static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+          start - global_start_).count()) *
+      kNanosecondsToSeconds;
+  double d_end =
+      static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+          end - global_start_).count()) *
+      kNanosecondsToSeconds;
+  log_file << self_rank_ << " " << state << " " << d_start << " " << d_end
+           << std::endl;
+}
 }  // namespace map_api

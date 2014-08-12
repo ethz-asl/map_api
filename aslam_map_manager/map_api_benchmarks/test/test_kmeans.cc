@@ -16,7 +16,7 @@
 #include "map_api_benchmarks/multi-kmeans-hoarder.h"
 #include "map_api_benchmarks/multi-kmeans-worker.h"
 #include "map_api_benchmarks/simple-kmeans.h"
-#include "floating-point-test-helpers.h"
+#include "./floating-point-test-helpers.h"
 
 namespace map_api {
 namespace benchmarks {
@@ -86,11 +86,13 @@ TEST(KmeansView, InsertFetch) {
   app::kill();
 }
 
+DEFINE_uint64(num_clusters, 10, "Amount of clusters in kmeans experiment");
+
 class MultiKmeans : public map_api_test_suite::MultiprocessTest {
  protected:
   void SetUpImpl() {
     app::init();
-    if (getSubprocessId() == 0){
+    if (getSubprocessId() == 0) {
       DescriptorVector gt_centers;
       DescriptorVector descriptors;
       std::vector<unsigned int> gt_membership, membership;
@@ -101,7 +103,7 @@ class MultiKmeans : public map_api_test_suite::MultiprocessTest {
       ASSERT_FALSE(descriptors.empty());
       ASSERT_EQ(descriptors[0].size(), 2u);
       hoarder_.init(descriptors, gt_centers, kAreaWidth, generator_(),
-                    &data_chunk_id_, &center_chunk_id_, &membership_chunk_id_);
+                    &data_chunk_, &center_chunk_, &membership_chunk_);
     }
   }
 
@@ -109,23 +111,25 @@ class MultiKmeans : public map_api_test_suite::MultiprocessTest {
     app::kill();
   }
 
-  void popIdsInitWorker(){
-    CHECK(IPC::pop(&data_chunk_id_));
-    CHECK(IPC::pop(&center_chunk_id_));
-    CHECK(IPC::pop(&membership_chunk_id_));
-    Chunk* descriptor_chunk = app::data_point_table->getChunk(data_chunk_id_);
-    Chunk* center_chunk = app::center_table->getChunk(center_chunk_id_);
-    Chunk* membership_chunk =
-        app::association_table->getChunk(membership_chunk_id_);
-    worker_.reset(new MultiKmeansWorker(descriptor_chunk, center_chunk,
-                                        membership_chunk));
+  void popIdsInitWorker() {
+    map_api::Id data_chunk_id, center_chunk_id, membership_chunk_id;
+    CHECK(IPC::pop(&data_chunk_id));
+    CHECK(IPC::pop(&center_chunk_id));
+    CHECK(IPC::pop(&membership_chunk_id));
+    data_chunk_ = app::data_point_table->getChunk(data_chunk_id);
+    center_chunk_ = app::center_table->getChunk(center_chunk_id);
+    membership_chunk_ = app::association_table->getChunk(membership_chunk_id);
+    worker_.reset(
+        new MultiKmeansWorker(data_chunk_, center_chunk_, membership_chunk_));
   }
 
   void pushIds() const {
-    IPC::push(data_chunk_id_);
-    IPC::push(center_chunk_id_);
-    IPC::push(membership_chunk_id_);
+    IPC::push(data_chunk_->id());
+    IPC::push(center_chunk_->id());
+    IPC::push(membership_chunk_->id());
   }
+
+  void initChunkLogging() { membership_chunk_->enableLockLogging(); }
 
   static void clearFile(const char* file_name) {
     std::ofstream filestream;
@@ -160,13 +164,13 @@ class MultiKmeans : public map_api_test_suite::MultiprocessTest {
     filestream.close();
   }
 
-  static constexpr size_t kNumClusters = 20;
+  size_t kNumClusters = FLAGS_num_clusters;
   static constexpr size_t kNumfeaturesPerCluster = 40;
   static constexpr size_t kNumNoise = 100;
   static constexpr double kAreaWidth = 20.;
   static constexpr double kClusterRadius = 1;
 
-  map_api::Id data_chunk_id_, center_chunk_id_, membership_chunk_id_;
+  Chunk* data_chunk_, *center_chunk_, *membership_chunk_;
   MultiKmeansHoarder hoarder_;
   std::unique_ptr<MultiKmeansWorker> worker_;
   std::mt19937 generator_;
@@ -223,14 +227,24 @@ TEST_F(MultiKmeans, KmeansHoarderWorker) {
 }
 
 DEFINE_uint64(process_time, 0, "Simulated time between fetch and commit");
+DEFINE_uint64(num_iterations, 5, "Amount of iterations in multi-kmeans");
 
 TEST_F(MultiKmeans, DISABLED_CenterWorkers) {
-  enum Barriers {INIT, IDS_PUSHED, DIE};
-  constexpr size_t kIterations = 5;
+  enum Barriers {
+    INIT,
+    IDS_PUSHED,
+    LOG_SYNC,
+    DIE
+  };
+  const size_t kIterations = FLAGS_num_iterations;
   statistics::StatsCollector accept_reject(kAcceptanceTag);
   if (getSubprocessId() == 0) {
     for (size_t i = 1; i <= kNumClusters; ++i) {
-      launchSubprocess(i);
+      std::ostringstream extra_flags_ss;
+      extra_flags_ss << "--process_time=" << FLAGS_process_time
+                     << " --num_clusters=" << FLAGS_num_clusters
+                     << " --num_iterations=" << FLAGS_num_iterations;
+      launchSubprocess(i, extra_flags_ss.str());
     }
     clearFile(kAcceptanceFile);
     clearFile(kSequenceFile);
@@ -239,6 +253,8 @@ TEST_F(MultiKmeans, DISABLED_CenterWorkers) {
     IPC::barrier(INIT, kNumClusters);
     pushIds();
     IPC::barrier(IDS_PUSHED, kNumClusters);
+    IPC::barrier(LOG_SYNC, kNumClusters);  // only approximate sync
+    initChunkLogging();
     // TODO(tcies) trigger!
     hoarder_.startRefreshThread();
     IPC::barrier(DIE, kNumClusters);
@@ -248,6 +264,8 @@ TEST_F(MultiKmeans, DISABLED_CenterWorkers) {
     // wait for hoarder to send chunk ids
     IPC::barrier(IDS_PUSHED, kNumClusters);
     popIdsInitWorker();
+    IPC::barrier(LOG_SYNC, kNumClusters);  // only approximate sync
+    initChunkLogging();
     for (size_t i = 0; i < kIterations; ++i) {
       if (worker_->clusterOnceOne(getSubprocessId() - 1, generator_(),
                                   FLAGS_process_time)) {
@@ -267,7 +285,7 @@ TEST_F(MultiKmeans, DISABLED_CenterWorkers) {
   }
 }
 
-}  // namespace map_api
 }  // namespace benchmarks
+}  // namespace map_api
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT

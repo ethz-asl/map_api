@@ -73,6 +73,8 @@ class Chunk {
 
   int peerSize() const;
 
+  void enableLockLogging();
+
   void leave();
 
   void lock();
@@ -253,6 +255,26 @@ class Chunk {
   std::mutex add_peer_mutex_;
   Poco::RWLock leave_lock_;
   bool relinquished_ = false;
+  bool log_locking_ = false;
+  size_t self_rank_;
+
+  static const char kLockSequenceFile[];
+  enum LockState {
+    UNLOCKED,
+    READ_ATTEMPT,
+    READ_SUCCESS,
+    WRITE_ATTEMPT,
+    WRITE_SUCCESS
+  };
+  LockState current_state_;
+  typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
+  TimePoint current_state_start_;
+  TimePoint global_start_;
+  std::thread::id main_thread_id_;
+
+  void startState(LockState new_state);
+  void logStateDuration(LockState state, const TimePoint& start,
+                        const TimePoint& end) const;
 };
 
 }  // namespace map_api

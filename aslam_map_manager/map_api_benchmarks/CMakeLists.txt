@@ -14,6 +14,9 @@ cs_add_library(${PROJECT_NAME} src/app.cc
                                src/kmeans-view.cc
                                src/multi-kmeans-hoarder.cc
                                src/multi-kmeans-worker.cc)
+                               
+# tool for plotting lock sequence diagram
+cs_add_executable(lock-sequence-reader src/lock-sequence-reader.cc)
 
 # we need to add dependencies of external project packages to fetch headers
 # before compilation

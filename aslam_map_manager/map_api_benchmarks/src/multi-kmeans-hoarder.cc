@@ -11,13 +11,14 @@ namespace benchmarks {
 DEFINE_bool(gnuplot_persist, false, "if set, gnuplot detaches from test");
 DEFINE_bool(enable_visualization, true, "allows disabling visualization");
 
-void MultiKmeansHoarder::init(
-    const DescriptorVector& descriptors, const DescriptorVector& gt_centers,
-    const Scalar area_width, int random_seed, map_api::Id* data_chunk_id,
-    map_api::Id* center_chunk_id, map_api::Id* membership_chunk_id) {
-  CHECK_NOTNULL(data_chunk_id);
-  CHECK_NOTNULL(center_chunk_id);
-  CHECK_NOTNULL(membership_chunk_id);
+void MultiKmeansHoarder::init(const DescriptorVector& descriptors,
+                              const DescriptorVector& gt_centers,
+                              const Scalar area_width, int random_seed,
+                              Chunk** data_chunk, Chunk** center_chunk,
+                              Chunk** membership_chunk) {
+  CHECK_NOTNULL(data_chunk);
+  CHECK_NOTNULL(center_chunk);
+  CHECK_NOTNULL(membership_chunk);
 
   // generate random centers and membership
   std::shared_ptr<DescriptorVector> centers =
@@ -35,9 +36,9 @@ void MultiKmeansHoarder::init(
   descriptor_chunk_ = app::data_point_table->newChunk();
   center_chunk_ = app::center_table->newChunk();
   membership_chunk_ = app::association_table->newChunk();
-  *data_chunk_id = descriptor_chunk_->id();
-  *center_chunk_id = center_chunk_->id();
-  *membership_chunk_id = membership_chunk_->id();
+  *data_chunk = descriptor_chunk_;
+  *center_chunk = center_chunk_;
+  *membership_chunk = membership_chunk_;
   KmeansView exporter(descriptor_chunk_, center_chunk_, membership_chunk_);
   exporter.insert(descriptors, *centers, membership);
 
