@@ -1,5 +1,5 @@
-#ifndef CHUNK_H
-#define CHUNK_H
+#ifndef MAP_API_CHUNK_H
+#define MAP_API_CHUNK_H
 
 #include <condition_variable>
 #include <memory>
@@ -19,9 +19,9 @@
 #include "map-api/peer-handler.h"
 #include "map-api/message.h"
 #include "map-api/revision.h"
-#include "chunk.pb.h"
+#include "./chunk.pb.h"
 
-namespace map_api{
+namespace map_api {
 /**
  * A chunk is the smallest unit of data sharing among the map_api peers. Each
  * item in a table belongs to some chunk, and each chunk contains data from only
@@ -71,6 +71,8 @@ class Chunk {
   std::shared_ptr<ChunkTransaction> newTransaction(const LogicalTime& time);
 
   int peerSize() const;
+
+  void enableLockLogging();
 
   void leave();
 
@@ -252,10 +254,30 @@ class Chunk {
   std::mutex add_peer_mutex_;
   Poco::RWLock leave_lock_;
   bool relinquished_ = false;
+  bool log_locking_ = false;
+  size_t self_rank_;
+
+  static const char kLockSequenceFile[];
+  enum LockState {
+    UNLOCKED,
+    READ_ATTEMPT,
+    READ_SUCCESS,
+    WRITE_ATTEMPT,
+    WRITE_SUCCESS
+  };
+  LockState current_state_;
+  typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
+  TimePoint current_state_start_;
+  TimePoint global_start_;
+  std::thread::id main_thread_id_;
+
+  void startState(LockState new_state);
+  void logStateDuration(LockState state, const TimePoint& start,
+                        const TimePoint& end) const;
 };
 
 } //namespace map_api
 
 #include "map-api/chunk-inl.h"
 
-#endif // CHUNK_H
+#endif  // MAP_API_CHUNK_H

@@ -17,10 +17,10 @@ class MultiKmeansHoarder {
    * Commits the supplied data as initial state to the Map API, and displays
    * it with gnuplot
    */
-  void init(
-      const DescriptorVector& descriptors, const DescriptorVector& gt_centers,
-      const Scalar area_width, int random_seed, map_api::Id* data_chunk_id,
-      map_api::Id* center_chunk_id, map_api::Id* membership_chunk_id);
+  void init(const DescriptorVector& descriptors,
+            const DescriptorVector& gt_centers, const Scalar area_width,
+            int random_seed, Chunk** data_chunk, Chunk** center_chunk,
+            Chunk** membership_chunk);
   /**
    * Refreshes the latest Map API data to gnuplot
    */
