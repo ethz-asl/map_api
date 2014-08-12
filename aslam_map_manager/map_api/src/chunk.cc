@@ -1,6 +1,6 @@
 #include "map-api/chunk.h"
 
-#include <fstream>
+#include <fstream>  // NOLINT
 #include <unordered_set>
 
 #include <multiagent_mapping_common/conversions.h>
@@ -20,7 +20,7 @@ enum UnlockStrategy {
 DEFINE_uint64(unlock_strategy, 0,
               "0: reverse of lock ordering, 1: same as"
               "lock ordering, 2: randomized");
-DEFINE_bool(writelock_persist, false,
+DEFINE_bool(writelock_persist, true,
             "Enables more persisting write lock strategy");
 
 namespace map_api {
