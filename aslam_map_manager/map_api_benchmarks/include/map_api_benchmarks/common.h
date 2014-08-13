@@ -38,7 +38,8 @@ inline Id numToId(size_t num) {
   char suffix[4];
   memset(suffix, 0, sizeof(suffix));
   snprintf(suffix, sizeof(suffix), "%03lu", num);
-  result.fromHexString("00000000000000000000000000000" + std::string(suffix));
+  CHECK(result.fromHexString("00000000000000000000000000000" +
+                             std::string(suffix)));
   return result;
 }
 

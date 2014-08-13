@@ -9,6 +9,7 @@ namespace map_api {
 namespace benchmarks {
 
 class KmeansSubdivisionHoarder {
+ public:
   KmeansSubdivisionHoarder(size_t degree, double max_dimension,
                            size_t num_centers);
   void init(const DescriptorVector& descriptors,

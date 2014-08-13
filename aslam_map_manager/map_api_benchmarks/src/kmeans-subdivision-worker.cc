@@ -13,7 +13,10 @@ KmeansSubdivisionWorker::KmeansSubdivisionWorker(
       num_centers_(num_centers),
       descriptor_chunk_(CHECK_NOTNULL(descriptor_chunk)),
       center_chunks_(center_chunks),
-      membership_chunks_(membership_chunks) {}
+      membership_chunks_(membership_chunks) {
+  CHECK_EQ(num_centers, center_chunks.size());
+  CHECK_EQ(degree * degree, membership_chunks.size());
+}
 
 bool KmeansSubdivisionWorker::clusterOnceOne(size_t target_cluster,
                                              int random_seed,

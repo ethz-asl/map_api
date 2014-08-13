@@ -12,6 +12,8 @@
 #include "map_api_benchmarks/app.h"
 #include "map_api_benchmarks/common.h"
 #include "map_api_benchmarks/distance.h"
+#include "map_api_benchmarks/kmeans-subdivision-hoarder.h"
+#include "map_api_benchmarks/kmeans-subdivision-worker.h"
 #include "map_api_benchmarks/kmeans-view.h"
 #include "map_api_benchmarks/multi-kmeans-hoarder.h"
 #include "map_api_benchmarks/multi-kmeans-worker.h"
@@ -277,6 +279,91 @@ TEST_F(MultiKmeans, CenterWorkers) {
               statistics::Statistics::GetMean(kAcceptanceTag));
     putRankMeanMinMax(kReadLockFile, kReadLockTag);
     putRankMeanMinMax(kWriteLockFile, kWriteLockTag);
+    IPC::barrier(DIE, kNumClusters);
+  }
+}
+
+DEFINE_uint64(subdivision_degree, 2, "Amount of sectors per dimension");
+
+class SubdividedKmeans : public map_api_test_suite::MultiprocessTest {
+ protected:
+  void SetUpImpl() {
+    app::init();
+    if (getSubprocessId() == 0) {
+      DescriptorVector gt_centers;
+      DescriptorVector descriptors;
+      std::vector<unsigned int> gt_membership, membership;
+      generator_ = std::mt19937(40);
+      GenerateTestData(kNumfeaturesPerCluster, kNumClusters, kNumNoise,
+                       generator_(), kAreaWidth, kClusterRadius, &gt_centers,
+                       &descriptors, &gt_membership);
+      ASSERT_FALSE(descriptors.empty());
+      ASSERT_EQ(descriptors[0].size(), 2u);
+      hoarder_.reset(
+          new KmeansSubdivisionHoarder(kDegree, kAreaWidth, kNumClusters));
+      hoarder_->init(descriptors, gt_centers, kAreaWidth, generator_(),
+                     &data_chunk_, &center_chunks_, &membership_chunks_);
+    }
+  }
+
+  void TearDownImpl() { app::kill(); }
+
+  void workerInit() {
+    data_chunk_ = app::data_point_table->getChunk(numToId(0u));
+    for (size_t i = 0u; i < kNumClusters; ++i) {
+      center_chunks_.push_back(app::center_table->getChunk(numToId(i)));
+    }
+    for (size_t i = 0u; i < kDegree * kDegree; ++i) {
+      membership_chunks_.push_back(
+          app::association_table->getChunk(numToId(i)));
+    }
+    worker_.reset(new KmeansSubdivisionWorker(kDegree, kAreaWidth, kNumClusters,
+                                              data_chunk_, center_chunks_,
+                                              membership_chunks_));
+  }
+
+  size_t kNumClusters = FLAGS_num_clusters;
+  static constexpr size_t kNumfeaturesPerCluster = 40;
+  static constexpr size_t kNumNoise = 100;
+  static constexpr double kAreaWidth = 20.;
+  static constexpr double kClusterRadius = 1;
+  size_t kDegree = FLAGS_subdivision_degree;
+
+  Chunk* data_chunk_;
+  Chunks center_chunks_, membership_chunks_;
+  std::unique_ptr<KmeansSubdivisionHoarder> hoarder_;
+  std::unique_ptr<KmeansSubdivisionWorker> worker_;
+  std::mt19937 generator_;
+};
+
+TEST_F(SubdividedKmeans, CenterWorkers) {
+  enum Barriers {
+    INIT,
+    IDS_PUSHED,
+    LOG_SYNC,
+    DIE
+  };
+  const size_t kIterations = FLAGS_num_iterations;
+  if (getSubprocessId() == 0) {
+    for (size_t i = 1; i <= kNumClusters; ++i) {
+      launchSubprocess(i);
+    }
+    IPC::barrier(INIT, kNumClusters);
+    IPC::barrier(LOG_SYNC, kNumClusters);  // only approximate sync
+    // TODO(tcies) trigger!
+    hoarder_->startRefreshThread();
+    IPC::barrier(DIE, kNumClusters);
+    hoarder_->stopRefreshThread();
+  } else {
+    IPC::barrier(INIT, kNumClusters);
+    workerInit();
+    IPC::barrier(LOG_SYNC, kNumClusters);  // only approximate sync
+    for (size_t i = 0; i < kIterations; ++i) {
+      if (worker_->clusterOnceOne(getSubprocessId() - 1, generator_(),
+                                  FLAGS_process_time)) {
+      } else {
+      }
+    }
     IPC::barrier(DIE, kNumClusters);
   }
 }

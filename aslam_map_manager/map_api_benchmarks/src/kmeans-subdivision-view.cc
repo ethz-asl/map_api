@@ -34,11 +34,13 @@ void KmeansSubdivisionView::insert(
     descriptor_id_to_index_[id] = i;
     descriptor_index_to_id_[i] = id;
     app::descriptorToRevision(descriptor, id, to_insert.get());
+    CHECK_NOTNULL(descriptor_chunk_);
     transaction_.insert(app::data_point_table, descriptor_chunk_, to_insert);
 
     size_t x_sector = ((descriptors[i][0] / max_dimension_) * degree_);
     size_t y_sector = ((descriptors[i][1] / max_dimension_) * degree_);
     size_t chunk_assignment = y_sector + degree_ * x_sector;
+    CHECK_LT(chunk_assignment, degree_ * degree_);
     descriptor_index_to_chunk_index_[i] = chunk_assignment;
     ++distribution[chunk_assignment];
   }
@@ -50,6 +52,7 @@ void KmeansSubdivisionView::insert(
     center_id_to_index_[id] = i;
     center_index_to_id_[i] = id;
     app::centerToRevision(center, id, to_insert.get());
+    CHECK_NOTNULL(center_chunks_[i]);
     transaction_.insert(app::center_table, center_chunks_[i], to_insert);
   }
   for (size_t i = 0u; i < memberships.size(); ++i) {
@@ -58,6 +61,7 @@ void KmeansSubdivisionView::insert(
     Id descriptor_id = descriptor_index_to_id_[i];
     Id center_id = center_index_to_id_[membership];
     app::membershipToRevision(descriptor_id, center_id, to_insert.get());
+    CHECK_NOTNULL(membership_chunks_[descriptor_index_to_chunk_index_[i]]);
     transaction_.insert(app::association_table,
                         membership_chunks_[descriptor_index_to_chunk_index_[i]],
                         to_insert);

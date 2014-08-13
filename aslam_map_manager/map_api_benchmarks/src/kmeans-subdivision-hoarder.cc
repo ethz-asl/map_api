@@ -40,11 +40,14 @@ void KmeansSubdivisionHoarder::init(const DescriptorVector& descriptors,
 
   // load into database
   descriptor_chunk_ = app::data_point_table->newChunk(numToId(0u));
+  CHECK_NOTNULL(descriptor_chunk_);
   for (size_t i = 0u; i < num_centers_; ++i) {
-    center_chunks_.push_back(app::center_table->newChunk(numToId(i)));
+    Chunk* to_insert = app::center_table->newChunk(numToId(i));
+    center_chunks_.push_back(CHECK_NOTNULL(to_insert));
   }
   for (size_t i = 0u; i < degree_ * degree_; ++i) {
-    membership_chunks_.push_back(app::association_table->newChunk(numToId(i)));
+    Chunk* to_insert = app::association_table->newChunk(numToId(i));
+    membership_chunks_.push_back(CHECK_NOTNULL(to_insert));
   }
   *data_chunk = descriptor_chunk_;
   *center_chunks = center_chunks_;

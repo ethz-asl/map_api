@@ -49,6 +49,10 @@ void GenerateTestData(size_t num_features_per_cluster, size_t num_clusters,
       DescriptorType sample = center;
       for (int k = 0; k < kDescriptorDimensionality; ++k) {
         sample(k, 0) += data_generator(engine);
+        while (sample(k, 0) >= area_width || sample(k, 0) <= 0) {
+          sample(k, 0) = center(k, 0);
+          sample(k, 0) += data_generator(engine);
+        }
       }
       descriptors->push_back(sample);
       gt_membership->push_back(i);
@@ -56,7 +60,7 @@ void GenerateTestData(size_t num_features_per_cluster, size_t num_clusters,
   }
 }
 
-}  // namespace map_api
 }  // namespace benchmarks
+}  // namespace map_api
 
 #endif  // MAP_API_BENCHMARKS_FLOATING_POINT_TEST_HELPERS_H_
