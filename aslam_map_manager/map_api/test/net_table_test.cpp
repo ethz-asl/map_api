@@ -23,16 +23,21 @@ TEST_P(NetTableTest, NetTableTransactions) {
   enum Processes {ROOT, A, B};
   enum Barriers {INIT, SYNC, DIE};
   int kCycles = 10;
+  Id ab_chunk_id, b_chunk_id, ab_id, b_id;
+  Chunk* ab_chunk, *b_chunk;
   if (getSubprocessId() == ROOT) {
-    Chunk* ab_chunk = table_->newChunk(), *b_chunk = table_->newChunk();
-    Id ab_id = insert(0, ab_chunk), b_id = insert(0, b_chunk);
+    ab_chunk = table_->newChunk();
+    b_chunk = table_->newChunk();
+    ab_id = insert(0, ab_chunk);
+    b_id = insert(0, b_chunk);
     launchSubprocess(A);
     launchSubprocess(B);
 
     IPC::barrier(INIT, 2);
-    IPC::push(ab_chunk->id().hexString());
-    IPC::push(ab_id.hexString());
-    IPC::push(b_id.hexString());
+    IPC::push(ab_chunk->id());
+    IPC::push(b_chunk->id());
+    IPC::push(ab_id);
+    IPC::push(b_id);
     ab_chunk->requestParticipation();
     b_chunk->requestParticipation();
 
@@ -49,15 +54,18 @@ TEST_P(NetTableTest, NetTableTransactions) {
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 2);
     IPC::barrier(SYNC, 2);
-    Id chunk_id = popId(), ab_id = popId();
+    IPC::pop(&ab_chunk_id);
+    IPC::pop(&b_chunk_id);
+    IPC::pop(&ab_id);
+    ab_chunk = table_->getChunk(ab_chunk_id);
     for (int i = 0; i < kCycles; ++i) {
       while (true) {
         NetTableTransaction attempt(table_);
-        increment(ab_id, &attempt);
+        increment(ab_id, ab_chunk, &attempt);
         std::shared_ptr<Revision> to_insert = table_->getTemplate();
         to_insert->set(CRTable::kIdField, Id::generate());
         to_insert->set(kFieldName, 42);
-        attempt.insert(table_->getChunk(chunk_id), to_insert);
+        attempt.insert(ab_chunk, to_insert);
         if (attempt.commit()) {
           break;
         }
@@ -68,13 +76,17 @@ TEST_P(NetTableTest, NetTableTransactions) {
   if (getSubprocessId() == B) {
     IPC::barrier(INIT, 2);
     IPC::barrier(SYNC, 2);
-    popId();
-    Id ab_id = popId(), b_id = popId();
+    IPC::pop(&ab_chunk_id);
+    IPC::pop(&b_chunk_id);
+    IPC::pop(&ab_id);
+    IPC::pop(&b_id);
+    ab_chunk = table_->getChunk(ab_chunk_id);
+    b_chunk = table_->getChunk(b_chunk_id);
     for (int i = 0; i < kCycles; ++i) {
       while (true) {
         NetTableTransaction attempt(table_);
-        increment(ab_id, &attempt);
-        increment(b_id, &attempt);
+        increment(ab_id, ab_chunk, &attempt);
+        increment(b_id, b_chunk, &attempt);
         if (attempt.commit()) {
           break;
         }
@@ -104,9 +116,13 @@ TEST_P(NetTableTest, Transactions) {
       &NetTableManager::instance().getTable(kSecondTableName);
   ASSERT_TRUE(second_table);
 
+  Id ab_chunk_id, b_chunk_id, ab_id, b_id;
+  Chunk* ab_chunk, *b_chunk;
+
   if (getSubprocessId() == ROOT) {
-    Chunk* ab_chunk = table_->newChunk(), *b_chunk = second_table->newChunk();
-    Id ab_id = insert(0, ab_chunk), b_id;
+    ab_chunk = table_->newChunk();
+    b_chunk = second_table->newChunk();
+    ab_id = insert(0, ab_chunk);
     b_id = Id::generate();
     std::shared_ptr<Revision> to_insert = second_table->getTemplate();
     to_insert->set(CRTable::kIdField, b_id);
@@ -117,9 +133,10 @@ TEST_P(NetTableTest, Transactions) {
     launchSubprocess(B);
 
     IPC::barrier(INIT, 2);
-    IPC::push(ab_chunk->id().hexString());
-    IPC::push(ab_id.hexString());
-    IPC::push(b_id.hexString());
+    IPC::push(ab_chunk->id());
+    IPC::push(b_chunk->id());
+    IPC::push(ab_id);
+    IPC::push(b_id);
     ab_chunk->requestParticipation();
     b_chunk->requestParticipation();
 
@@ -134,15 +151,18 @@ TEST_P(NetTableTest, Transactions) {
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 2);
     IPC::barrier(SYNC, 2);
-    Id chunk_id = popId(), ab_id = popId();
+    IPC::pop(&ab_chunk_id);
+    ab_chunk = table_->getChunk(ab_chunk_id);
+    IPC::pop(&b_chunk_id);
+    IPC::pop(&ab_id);
     for (int i = 0; i < kCycles; ++i) {
       while (true) {
         Transaction attempt;
-        increment(table_, ab_id, &attempt);
+        increment(table_, ab_id, ab_chunk, &attempt);
         std::shared_ptr<Revision> to_insert = table_->getTemplate();
         to_insert->set(CRTable::kIdField, Id::generate());
         to_insert->set(kFieldName, 42);
-        attempt.insert(table_, table_->getChunk(chunk_id), to_insert);
+        attempt.insert(table_, ab_chunk, to_insert);
         if (attempt.commit()) {
           break;
         }
@@ -153,14 +173,20 @@ TEST_P(NetTableTest, Transactions) {
   if (getSubprocessId() == B) {
     IPC::barrier(INIT, 2);
     IPC::barrier(SYNC, 2);
-    popId();
-    Id ab_id = popId(), b_id = popId();
+    IPC::pop(&ab_chunk_id);
+    IPC::pop(&b_chunk_id);
+    IPC::pop(&ab_id);
+    IPC::pop(&b_id);
+    ab_chunk = table_->getChunk(ab_chunk_id);
+    b_chunk = second_table->getChunk(b_chunk_id);
     for (int i = 0; i < kCycles; ++i) {
       while (true) {
         Transaction attempt;
-        increment(table_, ab_id, &attempt);
-        std::shared_ptr<Revision> to_update =
-            attempt.getById(b_id, second_table);
+        increment(table_, ab_id, ab_chunk, &attempt);
+        CRTable::RevisionMap chunk_dump;
+        b_chunk->dumpItems(attempt.time(), &chunk_dump);
+        CRTable::RevisionMap::iterator found = chunk_dump.find(b_id);
+        std::shared_ptr<Revision> to_update = found->second;
         int transient_value;
         to_update->get(kSecondTableFieldName, &transient_value);
         ++transient_value;
@@ -217,7 +243,8 @@ TEST_P(NetTableTest, ChunkLookup) {
     IPC::barrier(CHUNK_CREATED, 1);
     table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(0, results.size());
-    Id chunk_id = popId();
+    Id chunk_id;
+    IPC::pop(&chunk_id);
     chunk = table_->getChunk(chunk_id);
     EXPECT_TRUE(chunk);
     table_->dumpActiveChunksAtCurrentTime(&results);
