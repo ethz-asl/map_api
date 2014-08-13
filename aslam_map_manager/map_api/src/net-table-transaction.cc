@@ -1,5 +1,7 @@
 #include "map-api/net-table-transaction.h"
 
+#include <statistics/statistics.h>
+
 namespace map_api {
 
 NetTableTransaction::NetTableTransaction(NetTable* table)
@@ -44,9 +46,14 @@ void NetTableTransaction::insert(
 // Deadlocks in lock() are prevented by imposing a global ordering on chunks,
 // and have the locks acquired in that order (resource hierarchy solution)
 void NetTableTransaction::lock() {
+  size_t i = 0u;
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
     chunk_transaction.first->lock();
+    ++i;
   }
+  statistics::StatsCollector stat("map_api::NetTableTransaction::lock - " +
+                                  table_->name());
+  stat.AddSample(i);
 }
 
 void NetTableTransaction::unlock() {

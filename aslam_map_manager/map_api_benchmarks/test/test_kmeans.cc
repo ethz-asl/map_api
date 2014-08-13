@@ -322,6 +322,22 @@ class SubdividedKmeans : public map_api_test_suite::MultiprocessTest {
                                               membership_chunks_));
   }
 
+  static void clearFile(const char* file_name) {
+    std::ofstream filestream;
+    filestream.open(file_name, std::ios::out | std::ios::trunc);
+    filestream.close();
+  }
+
+  template <typename ValueTypeA, typename ValueTypeB>
+  static void putRankValues(const char* file_name, const ValueTypeA& value_a,
+                            const ValueTypeB& value_b) {
+    std::ofstream filestream;
+    filestream.open(file_name, std::ios::out | std::ios::app);
+    filestream << PeerId::selfRank() << " " << value_a << " " << value_b
+               << std::endl;
+    filestream.close();
+  }
+
   size_t kNumClusters = FLAGS_num_clusters;
   static constexpr size_t kNumfeaturesPerCluster = 40;
   static constexpr size_t kNumNoise = 100;
@@ -334,6 +350,13 @@ class SubdividedKmeans : public map_api_test_suite::MultiprocessTest {
   std::unique_ptr<KmeansSubdivisionHoarder> hoarder_;
   std::unique_ptr<KmeansSubdivisionWorker> worker_;
   std::mt19937 generator_;
+
+  const char* kLockCountFile = "meas_lock_count.txt";
+  const char* kLockDurationFile = "meas_lock_duration.txt";
+
+  std::string kLockCountTag =
+      "map_api::NetTableTransaction::lock - " + app::kAssociationTableName;
+  const char* kLockDurationTag = "map_api::Transaction::commit - lock";
 };
 
 TEST_F(SubdividedKmeans, CenterWorkers) {
@@ -348,6 +371,8 @@ TEST_F(SubdividedKmeans, CenterWorkers) {
     for (size_t i = 1; i <= kNumClusters; ++i) {
       launchSubprocess(i);
     }
+    clearFile(kLockCountFile);
+    clearFile(kLockDurationFile);
     IPC::barrier(INIT, kNumClusters);
     IPC::barrier(LOG_SYNC, kNumClusters);  // only approximate sync
     // TODO(tcies) trigger!
@@ -364,6 +389,13 @@ TEST_F(SubdividedKmeans, CenterWorkers) {
       } else {
       }
     }
+    putRankValues(kLockCountFile,
+                  statistics::Statistics::GetMean(kLockCountTag),
+                  sqrt(statistics::Statistics::GetVariance(kLockCountTag)));
+    putRankValues(kLockDurationFile,
+                  timing::Timing::GetMeanSeconds(kLockDurationTag),
+                  sqrt(timing::Timing::GetVarianceSeconds(kLockDurationTag)));
+    LOG(INFO) << "Done";
     IPC::barrier(DIE, kNumClusters);
   }
 }

@@ -1,9 +1,12 @@
 #include "map-api/transaction.h"
 
+#include <timing/timer.h>
+
 namespace map_api {
 
 Transaction::Transaction() : Transaction(LogicalTime::sample()) {}
-Transaction::Transaction(const LogicalTime& begin_time) : begin_time_(begin_time) {
+Transaction::Transaction(const LogicalTime& begin_time)
+    : begin_time_(begin_time) {
   CHECK(begin_time < LogicalTime::sample());
 }
 
@@ -11,9 +14,11 @@ Transaction::Transaction(const LogicalTime& begin_time) : begin_time_(begin_time
 // net_table_transactions_, and have the locks acquired in that order
 // (resource hierarchy solution)
 bool Transaction::commit() {
+  timing::Timer timer("map_api::Transaction::commit - lock");
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->lock();
   }
+  timer.Stop();
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     if (!net_table_transaction.second->check()) {
       for (const TransactionPair& net_table_transaction :
