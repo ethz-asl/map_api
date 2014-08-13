@@ -351,38 +351,43 @@ void MapApiHub::listenThread(MapApiHub *self) {
   server.setsockopt(ZMQ_RCVTIMEO, &timeOutMs, sizeof(timeOutMs));
 
   while (true) {
-    zmq::message_t request;
-    if (!server.recv(&request)) {
-      //timeout, check if termination flag?
-      if (self->terminate_)
-        break;
-      else
-        continue;
-    }
-    Message query;
-    CHECK(query.ParseFromArray(request.data(), request.size()));
-    LogicalTime::synchronize(LogicalTime(query.logical_time()));
-
-    // Query handler
-    HandlerMap::iterator handler = handlers_.find(query.type());
-    if (handler == handlers_.end()) {
-      for (const HandlerMap::value_type& handler : handlers_) {
-        LOG(INFO) << handler.first;
+    try {
+      zmq::message_t request;
+      if (!server.recv(&request)) {
+        // timeout, check if termination flag?
+        if (self->terminate_)
+          break;
+        else
+          continue;
       }
-      LOG(FATAL) << "Handler for message type " << query.type() <<
-          " not registered";
+      Message query;
+      CHECK(query.ParseFromArray(request.data(), request.size()));
+      LogicalTime::synchronize(LogicalTime(query.logical_time()));
+
+      // Query handler
+      HandlerMap::iterator handler = handlers_.find(query.type());
+      if (handler == handlers_.end()) {
+        for (const HandlerMap::value_type& handler : handlers_) {
+          LOG(INFO) << handler.first;
+        }
+        LOG(FATAL) << "Handler for message type " << query.type()
+                   << " not registered";
+      }
+      Message response;
+      VLOG(3) << PeerId::self() << " received request " << query.type();
+      handler->second(query, &response);
+      VLOG(3) << PeerId::self() << " handled request " << query.type();
+      response.set_sender(PeerId::self().ipPort());
+      response.set_logical_time(LogicalTime::sample().serialize());
+      std::string serialized_response = response.SerializeAsString();
+      zmq::message_t response_message(serialized_response.size());
+      memcpy((void*)response_message.data(), serialized_response.c_str(),
+             serialized_response.size());
+      server.send(response_message);
     }
-    Message response;
-    VLOG(3) << PeerId::self() << " received request " << query.type();
-    handler->second(query, &response);
-    VLOG(3) << PeerId::self() << " handled request " << query.type();
-    response.set_sender(PeerId::self().ipPort());
-    response.set_logical_time(LogicalTime::sample().serialize());
-    std::string serialized_response = response.SerializeAsString();
-    zmq::message_t response_message(serialized_response.size());
-    memcpy((void *) response_message.data(), serialized_response.c_str(),
-           serialized_response.size());
-    server.send(response_message);
+    catch (const std::exception& e) {
+      LOG(ERROR) << "Caught exception in server thread : " << e.what();
+    }
   }
   server.close();
 }
