@@ -27,9 +27,14 @@ public ::testing::WithParamInterface<bool> {
     return results.size();
   }
 
-  void increment(const Id& id, NetTableTransaction* transaction) {
+  void increment(const Id& id, Chunk* chunk,
+                 NetTableTransaction* transaction) {
+    CHECK_NOTNULL(chunk);
     CHECK_NOTNULL(transaction);
-    std::shared_ptr<Revision> to_update = transaction->getById(id);
+    CRTable::RevisionMap chunk_dump;
+    chunk->dumpItems(transaction->time(), &chunk_dump);
+    CRTable::RevisionMap::iterator found = chunk_dump.find(id);
+    std::shared_ptr<Revision> to_update = found->second;
     int transient_value;
     to_update->get(kFieldName, &transient_value);
     ++transient_value;
@@ -37,10 +42,16 @@ public ::testing::WithParamInterface<bool> {
     transaction->update(to_update);
   }
 
-  void increment(NetTable* table, const Id& id, Transaction* transaction) {
+  // TODO(tcies) could replace chunk with chunk_id
+  void increment(NetTable* table, const Id& id, Chunk* chunk,
+                 Transaction* transaction) {
     CHECK_NOTNULL(table);
+    CHECK_NOTNULL(chunk);
     CHECK_NOTNULL(transaction);
-    std::shared_ptr<Revision> to_update = transaction->getById(id, table);
+    CRTable::RevisionMap chunk_dump;
+    chunk->dumpItems(transaction->time(), &chunk_dump);
+    CRTable::RevisionMap::iterator found = chunk_dump.find(id);
+    std::shared_ptr<Revision> to_update = found->second;
     int transient_value;
     to_update->get(kFieldName, &transient_value);
     ++transient_value;
@@ -64,14 +75,6 @@ public ::testing::WithParamInterface<bool> {
     to_insert->set(kFieldName, n);
     transaction->insert(to_insert);
     return insert_id;
-  }
-
-  Id popId() const {
-    Id id;
-    std::string id_string;
-    IPC::pop(&id_string);
-    id.fromHexString(id_string);
-    return id;
   }
 
   const std::string kTableName = "chunk_test_table";
