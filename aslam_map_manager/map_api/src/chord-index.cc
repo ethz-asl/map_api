@@ -177,8 +177,8 @@ bool ChordIndex::handleRetrieveData(
   }
   // TODO(tcies) try-again-later & integrate if not integrated
   if (!retrieveDataLocally(key, value)) {
-    LOG(WARNING) << "Data " << key << " requested at " << PeerId::self() <<
-        " is not available, has hash " << hash(key);
+    VLOG(3) << "Data " << key << " requested at " << PeerId::self()
+            << " is not available, has hash " << hash(key);
     return false;
   }
   return true;
