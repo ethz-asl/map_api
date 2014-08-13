@@ -1,4 +1,4 @@
-#include <fstream>
+#include <fstream>  // NOLINT
 #include <random>
 
 #include <gtest/gtest.h>
@@ -240,11 +240,7 @@ TEST_F(MultiKmeans, CenterWorkers) {
   statistics::StatsCollector accept_reject(kAcceptanceTag);
   if (getSubprocessId() == 0) {
     for (size_t i = 1; i <= kNumClusters; ++i) {
-      std::ostringstream extra_flags_ss;
-      extra_flags_ss << "--process_time=" << FLAGS_process_time
-                     << " --num_clusters=" << FLAGS_num_clusters
-                     << " --num_iterations=" << FLAGS_num_iterations;
-      launchSubprocess(i, extra_flags_ss.str());
+      launchSubprocess(i);
     }
     clearFile(kAcceptanceFile);
     clearFile(kSequenceFile);
