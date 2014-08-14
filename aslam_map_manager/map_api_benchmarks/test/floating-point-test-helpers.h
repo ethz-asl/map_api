@@ -19,7 +19,7 @@ void GenerateTestData(size_t num_features_per_cluster, size_t num_clusters,
   CHECK_NOTNULL(descriptors);
   CHECK_NOTNULL(gt_membership);
   CHECK_GT(area_width, 2 * cluster_radius);
-  std::mt19937 generator(seed);
+  std::mt19937 engine(seed);
 
   std::uniform_real_distribution<double> center_generator(
       cluster_radius, area_width - cluster_radius);
@@ -27,7 +27,7 @@ void GenerateTestData(size_t num_features_per_cluster, size_t num_clusters,
       0., area_width);
   std::normal_distribution<double> data_generator(
       0, cluster_radius);
-  std::default_random_engine engine;
+  // std::default_random_engine engine;
 
   for (size_t i = 0; i < num_noise_samples; ++i) {
     DescriptorType sample = DescriptorType::Zero(kDescriptorDimensionality, 1);

@@ -98,7 +98,7 @@ class MultiKmeans : public map_api_test_suite::MultiprocessTest {
       DescriptorVector gt_centers;
       DescriptorVector descriptors;
       std::vector<unsigned int> gt_membership, membership;
-      generator_ = std::mt19937(40);
+      generator_ = std::mt19937(time(NULL));
       GenerateTestData(kNumfeaturesPerCluster, kNumClusters, kNumNoise,
                        generator_(), kAreaWidth, kClusterRadius,
                        &gt_centers, &descriptors, &gt_membership);
@@ -293,7 +293,7 @@ class SubdividedKmeans : public map_api_test_suite::MultiprocessTest {
       DescriptorVector gt_centers;
       DescriptorVector descriptors;
       std::vector<unsigned int> gt_membership, membership;
-      generator_ = std::mt19937(40);
+      generator_ = std::mt19937(time(NULL));
       GenerateTestData(kNumfeaturesPerCluster, kNumClusters, kNumNoise,
                        generator_(), kAreaWidth, kClusterRadius, &gt_centers,
                        &descriptors, &gt_membership);
