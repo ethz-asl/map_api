@@ -400,7 +400,6 @@ void Chunk::distributedReadLock() {
   }
 }
 
-
 void Chunk::distributedWriteLock() {
   if (log_locking_) {
     startState(WRITE_ATTEMPT);
