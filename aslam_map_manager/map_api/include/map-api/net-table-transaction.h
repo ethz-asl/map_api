@@ -41,9 +41,8 @@ class NetTableTransaction {
   // TODO(tcies) conflict conditions
   std::shared_ptr<Revision> getById(const Id& id);
   // TODO(tcies) all other flavors of reading
-  inline LogicalTime time() const {
-    return begin_time_;
-  }
+  inline LogicalTime time() const { return begin_time_; }
+
  private:
   /**
    * Commit with specified time and under the guarantee that the required

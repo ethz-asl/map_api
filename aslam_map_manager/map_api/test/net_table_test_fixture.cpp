@@ -27,8 +27,7 @@ public ::testing::WithParamInterface<bool> {
     return results.size();
   }
 
-  void increment(const Id& id, Chunk* chunk,
-                 NetTableTransaction* transaction) {
+  void increment(const Id& id, Chunk* chunk, NetTableTransaction* transaction) {
     CHECK_NOTNULL(chunk);
     CHECK_NOTNULL(transaction);
     CRTable::RevisionMap chunk_dump;
