@@ -50,6 +50,13 @@ void MultiprocessTest::launchSubprocess(uint64_t id,
   CHECK(subprocesses_.find(id) == subprocesses_.end());
   std::ostringstream command_ss;
   command_ss << getSelfpath() << " ";
+  // forward all flags of the parent. must come before the rest so the rest
+  // can overwrite this
+  std::vector<google::CommandLineFlagInfo> flags;
+  google::GetAllFlags(&flags);
+  for (const google::CommandLineFlagInfo& flag : flags) {
+    command_ss << "--" << flag.name << "=" << flag.current_value << " ";
+  }
   command_ss << "--subprocess_id=" << id << " ";
   // the subprocess must launch only the current test
   const ::testing::TestInfo* const test_info =
@@ -71,9 +78,9 @@ void MultiprocessTest::harvest(bool verbose) {
   for (const std::pair<uint64_t, FILE*>& id_pipe : subprocesses_) {
     FILE* pipe = id_pipe.second;
     CHECK(pipe);
-    const size_t size = 1024;
-    char buffer[size];
-    while (timedFGetS(buffer, size, pipe) != NULL) {
+    constexpr size_t kSize = 1024;
+    char buffer[kSize];
+    while (timedFGetS(buffer, kSize, pipe) != NULL) {
       if (verbose) {
         std::cout << "Sub " << id_pipe.first << ": " << buffer;
       }
@@ -132,4 +139,4 @@ void MultiprocessTest::TearDown() {
     harvest(false);
   }
 }
-}  // map_api_test_suite
+}  // namespace map_api_test_suite
