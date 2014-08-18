@@ -17,7 +17,7 @@ enum UnlockStrategy {
   FORWARD,
   RANDOM
 };
-DEFINE_uint64(unlock_strategy, 0,
+DEFINE_uint64(unlock_strategy, 2,
               "0: reverse of lock ordering, 1: same as"
               "lock ordering, 2: randomized");
 DEFINE_bool(writelock_persist, true,

@@ -1,4 +1,7 @@
 #include <fstream>  // NOLINT
+#include <map>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include <gflags/gflags.h>
@@ -12,11 +15,14 @@
 #include "map-api/map-api-core.h"
 
 #include "test_chord_index.cpp"
-#include "map_api_multiprocess_fixture.h"
+#include "./map_api_multiprocess_fixture.h"
 
 DECLARE_uint64(stabilize_us);
 
 namespace map_api {
+
+const std::string kRetrieveDataTimerTag = "retrieveData";
+const std::string kRetrieveDataTimeFile = "retrieve_time.txt";
 
 class ChordIndexTest : public MultiprocessTest {
  protected:
@@ -38,7 +44,11 @@ TEST_F(ChordIndexTest, create) {
 
 DEFINE_uint64(addresses_to_hash, 5, "Amount of addresses to hash");
 TEST_F(ChordIndexTest, hashDistribution) {
-  enum Barriers{INIT, HASH, DIE};
+  enum Barriers {
+    INIT,
+    HASH,
+    DIE
+  };
   if (getSubprocessId() == 0) {
     std::ostringstream command_extra;
     command_extra << "--addresses_to_hash=" << FLAGS_addresses_to_hash;
@@ -105,7 +115,12 @@ DEFINE_uint64(chord_processes, 10, "Amount of processes to test chord with");
 
 TEST_F(ChordIndexTestInitialized, onePeerJoin) {
   const size_t kNProcesses = FLAGS_chord_processes;
-  enum Barriers{INIT, ROOT_SHARED, JOINED, SHARED_PEERS};
+  enum Barriers {
+    INIT,
+    ROOT_SHARED,
+    JOINED,
+    SHARED_PEERS
+  };
   if (getSubprocessId() == 0) {
     std::ostringstream command_extra;
     command_extra << "--chord_processes=" << FLAGS_chord_processes;
@@ -115,7 +130,7 @@ TEST_F(ChordIndexTestInitialized, onePeerJoin) {
     IPC::barrier(INIT, kNProcesses - 1);
     IPC::push(PeerId::self().ipPort());
     IPC::barrier(ROOT_SHARED, kNProcesses - 1);
-    usleep(10 * kNProcesses * FLAGS_stabilize_us); // yes, 10 is a magic number
+    usleep(10 * kNProcesses * FLAGS_stabilize_us);  // yes, 10 is a magic number
     // it should be an upper bound of the amount of required stabilization
     // iterations per process
     IPC::barrier(JOINED, kNProcesses - 1);
@@ -155,17 +170,20 @@ TEST_F(ChordIndexTestInitialized, localData) {
 TEST_F(ChordIndexTestInitialized, joinStabilizeAddRetrieve) {
   const size_t kNProcesses = FLAGS_chord_processes;
   const size_t kNData = 100;
-  enum Barriers{INIT, ROOT_SHARED, JOINED_STABILIZED, ADDED_RETRIEVED};
+  enum Barriers {
+    INIT,
+    ROOT_SHARED,
+    JOINED_STABILIZED,
+    ADDED_RETRIEVED
+  };
   if (getSubprocessId() == 0) {
-    std::ostringstream command_extra;
-    command_extra << "--chord_processes=" << FLAGS_chord_processes;
     for (size_t i = 1; i < kNProcesses; ++i) {
-      launchSubprocess(i, command_extra.str());
+      launchSubprocess(i);
     }
     IPC::barrier(INIT, kNProcesses - 1);
     IPC::push(PeerId::self().ipPort());
     IPC::barrier(ROOT_SHARED, kNProcesses - 1);
-    usleep(10 * kNProcesses * FLAGS_stabilize_us); // yes, 10 is a magic number
+    usleep(10 * kNProcesses * FLAGS_stabilize_us);  // yes, 10 is a magic number
     // it should be an upper bound of the amount of required stabilization
     // iterations per process
     IPC::barrier(JOINED_STABILIZED, kNProcesses - 1);
@@ -173,15 +191,15 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddRetrieve) {
     for (size_t i = 0; i < kNData; ++i) {
       std::string key, value, result;
       addNonLocalData(&key, &value, i);
-      timing::Timer timer("retrieveData");
+      timing::Timer timer(kRetrieveDataTimerTag);
       EXPECT_TRUE(TestChordIndex::instance().retrieveData(key, &result));
       timer.Stop();
       EXPECT_EQ(value, result);
     }
-    std::ofstream file("retrieve_time.txt", std::ios::out);
-    file << timing::Timing::GetMeanSeconds("retrieveData") << " "
-         << timing::Timing::GetMinSeconds("retrieveData") << " "
-         << timing::Timing::GetMaxSeconds("retrieveData") << std::endl;
+    std::ofstream file(kRetrieveDataTimeFile, std::ios::out);
+    file << timing::Timing::GetMeanSeconds(kRetrieveDataTimerTag) << " "
+         << timing::Timing::GetMinSeconds(kRetrieveDataTimerTag) << " "
+         << timing::Timing::GetMaxSeconds(kRetrieveDataTimerTag) << std::endl;
     LOG(INFO) << timing::Timing::Print();
     IPC::barrier(ADDED_RETRIEVED, kNProcesses - 1);
   } else {
@@ -199,24 +217,29 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddRetrieve) {
 TEST_F(ChordIndexTestInitialized, joinStabilizeAddjoinStabilizeRetrieve) {
   const size_t kNProcessesHalf = FLAGS_chord_processes / 2;
   const size_t kNData = 10;
-  enum Barriers{INIT, ROOT_SHARED, JOINED_STABILIZED__INIT_2,
-    ADDED__ROOT_SHARED_2, JOINED_STABILIZED_2, RETRIEVED};
+  enum Barriers {
+    INIT,
+    ROOT_SHARED,
+    JOINED_STABILIZED__INIT_2,
+    ADDED__ROOT_SHARED_2,
+    JOINED_STABILIZED_2,
+    RETRIEVED
+  };
   if (getSubprocessId() == 0) {
-    std::ostringstream command_extra;
-    command_extra << "--chord_processes=" << FLAGS_chord_processes;
     // first round of joins
     for (size_t i = 1; i <= kNProcessesHalf; ++i) {
-      launchSubprocess(i, command_extra.str());
+      launchSubprocess(i);
     }
     IPC::barrier(INIT, kNProcessesHalf);
     IPC::push(PeerId::self().ipPort());
     IPC::barrier(ROOT_SHARED, kNProcessesHalf);
     // second round of joins
     for (size_t i = 1; i <= kNProcessesHalf; ++i) {
-      launchSubprocess(kNProcessesHalf + i, command_extra.str());
+      launchSubprocess(kNProcessesHalf + i);
     }
     // wait for stabilization of round 1
-    usleep(10 * kNProcessesHalf * FLAGS_stabilize_us); // yes, 10 is a magic number
+    usleep(10 * kNProcessesHalf * FLAGS_stabilize_us);
+    // yes, 10 is a magic number
     // it should be an upper bound of the amount of required stabilization
     // iterations per process
     IPC::barrier(JOINED_STABILIZED__INIT_2, 2*kNProcessesHalf);
@@ -241,7 +264,7 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddjoinStabilizeRetrieve) {
   } else {
     PeerId root;
     std::string root_string;
-    if (getSubprocessId() <= kNProcessesHalf){
+    if (getSubprocessId() <= kNProcessesHalf) {
       IPC::barrier(INIT, kNProcessesHalf);
       IPC::barrier(ROOT_SHARED, kNProcessesHalf);
       IPC::pop(&root_string);
@@ -263,12 +286,17 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddjoinStabilizeRetrieve) {
 TEST_F(ChordIndexTestInitialized, joinStabilizeAddLeaveStabilizeRetrieve) {
   const size_t kNProcessesHalf = FLAGS_chord_processes / 2;
   const size_t kNData = 10;
-  enum Barriers{INIT, ROOT_SHARED, JOINED_STABILIZED, ADDED, LEFT, RETRIEVED};
+  enum Barriers {
+    INIT,
+    ROOT_SHARED,
+    JOINED_STABILIZED,
+    ADDED,
+    LEFT,
+    RETRIEVED
+  };
   if (getSubprocessId() == 0) {
-    std::ostringstream command_extra;
-    command_extra << "--chord_processes=" << FLAGS_chord_processes;
     for (size_t i = 1; i <= 2 * kNProcessesHalf; ++i) {
-      launchSubprocess(i, command_extra.str());
+      launchSubprocess(i);
     }
     IPC::barrier(INIT, 2 * kNProcessesHalf);
     IPC::push(PeerId::self().ipPort());
@@ -312,24 +340,31 @@ TEST_F(ChordIndexTestInitialized,
        joinStabilizeAddjoinStabilizeUpdateLeaveRetrieve) {
   const size_t kNProcessesHalf = FLAGS_chord_processes / 2;
   const size_t kNData = 10;
-  enum Barriers{INIT, ROOT_SHARED, JOINED_STABILIZED__INIT_2,
-    ADDED__ROOT_SHARED_2, JOINED_STABILIZED_2, UPDATED, LEFT, RETRIEVED};
+  enum Barriers {
+    INIT,
+    ROOT_SHARED,
+    JOINED_STABILIZED__INIT_2,
+    ADDED__ROOT_SHARED_2,
+    JOINED_STABILIZED_2,
+    UPDATED,
+    LEFT,
+    RETRIEVED
+  };
   if (getSubprocessId() == 0) {
-    std::ostringstream command_extra;
-    command_extra << "--chord_processes=" << FLAGS_chord_processes;
     // first round of joins
     for (size_t i = 1; i <= kNProcessesHalf; ++i) {
-      launchSubprocess(i, command_extra.str());
+      launchSubprocess(i);
     }
     IPC::barrier(INIT, kNProcessesHalf);
     IPC::push(PeerId::self().ipPort());
     IPC::barrier(ROOT_SHARED, kNProcessesHalf);
     // second round of joins
     for (size_t i = 1; i <= kNProcessesHalf; ++i) {
-      launchSubprocess(kNProcessesHalf + i, command_extra.str());
+      launchSubprocess(kNProcessesHalf + i);
     }
     // wait for stabilization of round 1
-    usleep(10 * kNProcessesHalf * FLAGS_stabilize_us); // yes, 10 is a magic number
+    usleep(10 * kNProcessesHalf * FLAGS_stabilize_us);
+    // yes, 10 is a magic number
     // it should be an upper bound of the amount of required stabilization
     // iterations per process
     IPC::barrier(JOINED_STABILIZED__INIT_2, 2 * kNProcessesHalf);
@@ -368,7 +403,7 @@ TEST_F(ChordIndexTestInitialized,
   } else {
     PeerId root;
     std::string root_string;
-    if (getSubprocessId() <= kNProcessesHalf){
+    if (getSubprocessId() <= kNProcessesHalf) {
       IPC::barrier(INIT, kNProcessesHalf);
       IPC::barrier(ROOT_SHARED, kNProcessesHalf);
       IPC::pop(&root_string);
@@ -391,6 +426,6 @@ TEST_F(ChordIndexTestInitialized,
   }
 }
 
-} // namespace map_api
+}  // namespace map_api
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
