@@ -12,6 +12,9 @@ add_definitions(--std=c++0x -Wall -Wextra -pedantic)
 
 cs_add_library(${PROJECT_NAME} src/app.cc
                                src/kmeans-view.cc
+                               src/kmeans-subdivision-hoarder.cc
+                               src/kmeans-subdivision-view.cc
+                               src/kmeans-subdivision-worker.cc
                                src/multi-kmeans-hoarder.cc
                                src/multi-kmeans-worker.cc)
                                
