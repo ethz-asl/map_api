@@ -30,3 +30,4 @@ tools/lint/autolintc
 # Eclipse.
 .project
 .cproject
+.settings

@@ -12,7 +12,7 @@
 
 #include "map-api/map-api-core.h"
 #include "map-api/local-transaction.h"
-#include "core.pb.h"
+#include "./core.pb.h"
 
 namespace map_api {
 
@@ -32,15 +32,13 @@ bool CRTable::init(std::unique_ptr<TableDescriptor>* descriptor) {
   return true;
 }
 
-bool CRTable::isInitialized() const{
-  return initialized_;
-}
+bool CRTable::isInitialized() const { return initialized_; }
 
 const std::string& CRTable::name() const {
   return descriptor_->name();
 }
 
-std::shared_ptr<Revision> CRTable::getTemplate() const{
+std::shared_ptr<Revision> CRTable::getTemplate() const {
   CHECK(isInitialized()) << "Can't get template of non-initialized table";
   std::shared_ptr<Revision> ret =
       std::shared_ptr<Revision>(
@@ -48,7 +46,7 @@ std::shared_ptr<Revision> CRTable::getTemplate() const{
   // add own name
   ret->set_table(descriptor_->name());
   // add editable fields
-  for (int i = 0; i < descriptor_->fields_size(); ++i){
+  for (int i = 0; i < descriptor_->fields_size(); ++i) {
     ret->addField(descriptor_->fields(i));
   }
   return ret;
@@ -119,11 +117,24 @@ int CRTable::findByRevision(
   return findByRevisionCRDerived(key, valueHolder, time, dest);
 }
 
+int CRTable::countByRevision(const std::string& key,
+                             const Revision& valueHolder,
+                             const LogicalTime& time) {
+  CHECK(isInitialized()) << "Attempted to count items in non-initialized table";
+  // Whether valueHolder contains key is implicitly checked whenever using
+  // Revision::insertPlaceHolder - for now it's a pretty safe bet that the
+  // implementation uses that - this would be rather cumbersome to check here.
+  CHECK(time < LogicalTime::sample())
+      << "Seeing the future is yet to be implemented ;)";
+  return countByRevisionCRDerived(key, valueHolder, time);
+}
+
 // although this is very similar to rawGetRow(), I don't see how to share the
 // features without loss of performance TODO(discuss)
-void CRTable::dump(const LogicalTime& time, RevisionMap* dest)
-{
+void CRTable::dump(const LogicalTime& time, RevisionMap* dest) {
+  CHECK_NOTNULL(dest);
   std::shared_ptr<Revision> valueHolder = getTemplate();
+  CHECK(valueHolder != nullptr);
   findByRevision("", *valueHolder, time, dest);
 }
 
@@ -131,8 +142,8 @@ CRTable::Type CRTable::type() const {
   return Type::CR;
 }
 
-std::ostream& operator<< (std::ostream& stream,
-                          const CRTable::ItemDebugInfo& info){
+std::ostream& operator<<(std::ostream& stream,
+                         const CRTable::ItemDebugInfo& info) {
   return stream << "For table " << info.table << ", item " << info.id << ": ";
 }
 

@@ -1,5 +1,5 @@
-#ifndef MAP_API_CHUNK_H
-#define MAP_API_CHUNK_H
+#ifndef MAP_API_CHUNK_H_
+#define MAP_API_CHUNK_H_
 
 #include <condition_variable>
 #include <memory>
@@ -63,6 +63,7 @@ class Chunk {
   Id id() const;
 
   void dumpItems(const LogicalTime& time, CRTable::RevisionMap* items);
+  size_t numItems(const LogicalTime& time);
 
   bool insert(Revision* item);
   bool bulkInsert(const CRTable::RevisionMap& items);
@@ -151,10 +152,10 @@ class Chunk {
     int n_readers = 0;
     PeerId holder;
     std::thread::id thread;
-    int write_recursion_depth = 0; // the write lock is recursive
+    int write_recursion_depth = 0;  // the write lock is recursive
     // to avoid deadlocks, this mutex may not be locked while awaiting replies
     std::mutex mutex;
-    std::condition_variable cv; // in case lock can't be acquired
+    std::condition_variable cv;  // in case lock can't be acquired
     DistributedRWLock() {}
   };
   /**
@@ -276,8 +277,8 @@ class Chunk {
                         const TimePoint& end) const;
 };
 
-} //namespace map_api
+}  // namespace map_api
 
 #include "map-api/chunk-inl.h"
 
-#endif  // MAP_API_CHUNK_H
+#endif  // MAP_API_CHUNK_H_
