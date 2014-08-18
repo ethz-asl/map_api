@@ -19,10 +19,10 @@ bool NetTable::init(
   (*descriptor)->addField<Id>(kChunkIdField);
   switch (type) {
     case CRTable::Type::CR:
-      cache_.reset(new CRTableRAMCache);
+      cache_.reset(new CRTableRamSqlite);
       break;
     case CRTable::Type::CRU:
-      cache_.reset(new CRUTableRAMCache);
+      cache_.reset(new CRUTableRamSqlite);
       break;
   }
   CHECK(cache_->init(descriptor));

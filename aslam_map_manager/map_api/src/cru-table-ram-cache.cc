@@ -4,30 +4,31 @@
 
 namespace map_api {
 
-CRUTableRAMCache::~CRUTableRAMCache() {}
+CRUTableRamSqlite::~CRUTableRamSqlite() {}
 
-bool CRUTableRAMCache::initCRUDerived() {
+bool CRUTableRamSqlite::initCRUDerived() {
   sqlite_interface_.init(Core::getSession());
   CHECK(sqlite_interface_.isSqlSafe(*descriptor_));
   CHECK(sqlite_interface_.create(*descriptor_));
   return true;
 }
 
-bool CRUTableRAMCache::insertCRUDerived(Revision* query) {
+bool CRUTableRamSqlite::insertCRUDerived(Revision* query) {
   return sqlite_interface_.insert(*query);
 }
 
-bool CRUTableRAMCache::bulkInsertCRUDerived(const RevisionMap& query) {
+bool CRUTableRamSqlite::bulkInsertCRUDerived(const RevisionMap& query) {
   return sqlite_interface_.bulkInsert(query);
 }
 
-bool CRUTableRAMCache::patchCRDerived(const Revision& query) {
+bool CRUTableRamSqlite::patchCRDerived(const Revision& query) {
   return sqlite_interface_.insert(query);
 }
 
-int CRUTableRAMCache::findByRevisionCRUDerived(
-    const std::string& key, const Revision& value_holder,
-    const LogicalTime& time, RevisionMap* dest) {
+int CRUTableRamSqlite::findByRevisionCRUDerived(const std::string& key,
+                                                const Revision& value_holder,
+                                                const LogicalTime& time,
+                                                RevisionMap* dest) {
   // TODO(tcies) apart from the more sophisticated time query, this is very
   // similar to its CR equivalent. Maybe refactor at some time?
   SqliteInterface::PocoToProto poco_to_proto(getTemplate());
@@ -92,9 +93,9 @@ int CRUTableRAMCache::findByRevisionCRUDerived(
   return dest->size();
 }
 
-int CRUTableRAMCache::countByRevisionCRUDerived(const std::string& key,
-                                                const Revision& value_holder,
-                                                const LogicalTime& time) {
+int CRUTableRamSqlite::countByRevisionCRUDerived(const std::string& key,
+                                                 const Revision& value_holder,
+                                                 const LogicalTime& time) {
   // TODO(tcies) apart from the more sophisticated time query, this is very
   // similar to its CR equivalent. Maybe refactor at some time?
   SqliteInterface::PocoToProto poco_to_proto(getTemplate());
@@ -129,12 +130,12 @@ int CRUTableRAMCache::countByRevisionCRUDerived(const std::string& key,
   return count;
 }
 
-bool CRUTableRAMCache::insertUpdatedCRUDerived(const Revision& query) {
+bool CRUTableRamSqlite::insertUpdatedCRUDerived(const Revision& query) {
   sqlite_interface_.insert(query);
   return true;
 }
 
-bool CRUTableRAMCache::updateCurrentReferToUpdatedCRUDerived(
+bool CRUTableRamSqlite::updateCurrentReferToUpdatedCRUDerived(
     const Id& id, const LogicalTime& current_time,
     const LogicalTime& updated_time) {
   CHECK(FLAGS_cru_linked);

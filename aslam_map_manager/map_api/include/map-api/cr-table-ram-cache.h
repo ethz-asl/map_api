@@ -12,9 +12,10 @@ namespace map_api {
  * TODO(tcies) make this a proper RAM cache (maps, not RAM sqlite) and create
  * a CRTableDiskCache for disk SQLite
  */
-class CRTableRAMCache final : public CRTable {
+class CRTableRamSqlite final : public CRTable {
  public:
-  virtual ~CRTableRAMCache();
+  virtual ~CRTableRamSqlite();
+
  private:
   virtual bool initCRDerived() final override;
   virtual bool insertCRDerived(Revision* query) final override;

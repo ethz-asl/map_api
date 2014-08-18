@@ -8,9 +8,10 @@
 
 namespace map_api {
 
-class CRUTableRAMCache : public CRUTable {
+class CRUTableRamSqlite : public CRUTable {
  public:
-  virtual ~CRUTableRAMCache();
+  virtual ~CRUTableRamSqlite();
+
  private:
   virtual bool initCRUDerived() final override;
   virtual bool insertCRUDerived(Revision* query) final override;

@@ -6,30 +6,31 @@
 
 namespace map_api {
 
-CRTableRAMCache::~CRTableRAMCache() {}
+CRTableRamSqlite::~CRTableRamSqlite() {}
 
-bool CRTableRAMCache::initCRDerived() {
+bool CRTableRamSqlite::initCRDerived() {
   sqlite_interface_.init(Core::getSession());
   CHECK(sqlite_interface_.isSqlSafe(*descriptor_));
   CHECK(sqlite_interface_.create(*descriptor_));
   return true;
 }
 
-bool CRTableRAMCache::insertCRDerived(Revision* query) {
+bool CRTableRamSqlite::insertCRDerived(Revision* query) {
   return sqlite_interface_.insert(*query);
 }
 
-bool CRTableRAMCache::bulkInsertCRDerived(const RevisionMap& query) {
+bool CRTableRamSqlite::bulkInsertCRDerived(const RevisionMap& query) {
   return sqlite_interface_.bulkInsert(query);
 }
 
-bool CRTableRAMCache::patchCRDerived(const Revision& query) {
+bool CRTableRamSqlite::patchCRDerived(const Revision& query) {
   return sqlite_interface_.insert(query);
 }
 
-int CRTableRAMCache::findByRevisionCRDerived(
-    const std::string& key, const Revision& value_holder,
-    const LogicalTime& time, RevisionMap* dest) {
+int CRTableRamSqlite::findByRevisionCRDerived(const std::string& key,
+                                              const Revision& value_holder,
+                                              const LogicalTime& time,
+                                              RevisionMap* dest) {
   SqliteInterface::PocoToProto pocoToProto(getTemplate());
   std::shared_ptr<Poco::Data::Session> session =
       sqlite_interface_.getSession().lock();
@@ -64,9 +65,9 @@ int CRTableRAMCache::findByRevisionCRDerived(
   return from_poco.size();
 }
 
-int CRTableRAMCache::countByRevisionCRDerived(const std::string& key,
-                                              const Revision& value_holder,
-                                              const LogicalTime& time) {
+int CRTableRamSqlite::countByRevisionCRDerived(const std::string& key,
+                                               const Revision& value_holder,
+                                               const LogicalTime& time) {
   SqliteInterface::PocoToProto pocoToProto(getTemplate());
   std::shared_ptr<Poco::Data::Session> session =
       sqlite_interface_.getSession().lock();
