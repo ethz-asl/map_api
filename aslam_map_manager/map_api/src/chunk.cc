@@ -1,6 +1,6 @@
 #include "map-api/chunk.h"
 
-#include <fstream>
+#include <fstream>  // NOLINT
 #include <unordered_set>
 
 #include <multiagent_mapping_common/conversions.h>
@@ -12,11 +12,16 @@
 #include "./core.pb.h"
 #include "./chunk.pb.h"
 
-DEFINE_bool(writelock_persist, false,
-            "Enables more persisting write lock "
-            "strategy");
-
-DEFINE_bool(forward_unlock, false, "Changes unlock order to forward");
+enum UnlockStrategy {
+  REVERSE,
+  FORWARD,
+  RANDOM
+};
+DEFINE_uint64(unlock_strategy, 2,
+              "0: reverse of lock ordering, 1: same as"
+              "lock ordering, 2: randomized");
+DEFINE_bool(writelock_persist, true,
+            "Enables more persisting write lock strategy");
 
 namespace map_api {
 
@@ -529,38 +534,52 @@ void Chunk::distributedUnlock() {
       fillMetadata(&unlock_request);
       request.impose<kUnlockRequest, proto::ChunkRequestMetadata>(
           unlock_request);
-      // to make sure that possibly concurrent locking works correctly, we
-      // need to unlock in reverse order of locking, i.e. we must ensure that
-      // if peer with address A considers the lock unlocked, any peer B > A
-      // (including the local one) does as well
       if (peers_.empty()) {
         lock_.state = DistributedRWLock::State::UNLOCKED;
       } else {
         bool self_unlocked = false;
         // NB peers can only change if someone else has locked the chunk
         const std::set<PeerId>& peers = peers_.peers();
-        if (FLAGS_forward_unlock) {
-          CHECK(FLAGS_writelock_persist) << "forward unlock only works with "
-                                            "writelock persist";
-          for (const PeerId& peer : peers) {
-            if (!self_unlocked && PeerId::self() < peer) {
-              lock_.state = DistributedRWLock::State::UNLOCKED;
-              self_unlocked = true;
+        switch (static_cast<UnlockStrategy>(FLAGS_unlock_strategy)) {
+          case REVERSE: {
+            for (std::set<PeerId>::const_reverse_iterator rit = peers.rbegin();
+                 rit != peers.rend(); ++rit) {
+              if (!self_unlocked && *rit < PeerId::self()) {
+                lock_.state = DistributedRWLock::State::UNLOCKED;
+                self_unlocked = true;
+              }
+              MapApiHub::instance().request(*rit, &request, &response);
+              CHECK(response.isType<Message::kAck>());
+              VLOG(3) << PeerId::self() << " released lock from " << *rit;
             }
-            MapApiHub::instance().request(peer, &request, &response);
-            CHECK(response.isType<Message::kAck>());
-            VLOG(3) << PeerId::self() << " released lock from " << peer;
+            break;
           }
-        } else {
-          for (std::set<PeerId>::const_reverse_iterator rit = peers.rbegin();
-               rit != peers.rend(); ++rit) {
-            if (!self_unlocked && *rit < PeerId::self()) {
-              lock_.state = DistributedRWLock::State::UNLOCKED;
-              self_unlocked = true;
+          case FORWARD: {
+            CHECK(FLAGS_writelock_persist) << "forward unlock only works with "
+                                              "writelock persist";
+            for (const PeerId& peer : peers) {
+              if (!self_unlocked && PeerId::self() < peer) {
+                lock_.state = DistributedRWLock::State::UNLOCKED;
+                self_unlocked = true;
+              }
+              MapApiHub::instance().request(peer, &request, &response);
+              CHECK(response.isType<Message::kAck>());
+              VLOG(3) << PeerId::self() << " released lock from " << peer;
             }
-            MapApiHub::instance().request(*rit, &request, &response);
-            CHECK(response.isType<Message::kAck>());
-            VLOG(3) << PeerId::self() << " released lock from " << *rit;
+            break;
+          }
+          case RANDOM: {
+            CHECK(FLAGS_writelock_persist)
+                << "Random doesn't work without writelock-persist";
+            std::srand(LogicalTime::sample().serialize());
+            std::vector<PeerId> mixed_peers(peers.cbegin(), peers.cend());
+            std::random_shuffle(mixed_peers.begin(), mixed_peers.end());
+            for (const PeerId& peer : mixed_peers) {
+              MapApiHub::instance().request(peer, &request, &response);
+              CHECK(response.isType<Message::kAck>());
+              VLOG(3) << PeerId::self() << " released lock from " << peer;
+            }
+            break;
           }
         }
         if (!self_unlocked) {

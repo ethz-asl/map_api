@@ -1,5 +1,7 @@
 #include "map-api/transaction.h"
 
+#include <timing/timer.h>
+
 #include "map-api/chunk.h"
 #include "map-api/chunk-manager.h"
 #include "map-api/net-table.h"
@@ -18,9 +20,11 @@ Transaction::Transaction(const LogicalTime& begin_time)
 // net_table_transactions_, and have the locks acquired in that order
 // (resource hierarchy solution)
 bool Transaction::commit() {
+  timing::Timer timer("map_api::Transaction::commit - lock");
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->lock();
   }
+  timer.Stop();
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     if (!net_table_transaction.second->check()) {
       for (const TransactionPair& net_table_transaction :
