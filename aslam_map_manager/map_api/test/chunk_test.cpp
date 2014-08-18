@@ -25,7 +25,7 @@ TEST_P(NetTableTest, ParticipationRequest) {
 
     IPC::barrier(INIT, 1);
 
-    EXPECT_EQ(1, MapApiHub::instance().peerSize());
+    EXPECT_EQ(1, Hub::instance().peerSize());
     EXPECT_EQ(0, chunk->peerSize());
     EXPECT_EQ(1, chunk->requestParticipation());
     EXPECT_EQ(1, chunk->peerSize());
@@ -48,7 +48,7 @@ TEST_P(NetTableTest, FullJoinTwice) {
 
     IPC::barrier(ROOT_A_INIT, 1);
 
-    EXPECT_EQ(1, MapApiHub::instance().peerSize());
+    EXPECT_EQ(1, Hub::instance().peerSize());
     EXPECT_EQ(0, chunk->peerSize());
     EXPECT_EQ(1, chunk->requestParticipation());
     EXPECT_EQ(1, chunk->peerSize());
@@ -56,7 +56,7 @@ TEST_P(NetTableTest, FullJoinTwice) {
 
     IPC::barrier(A_JOINED_B_INIT, 2);
 
-    EXPECT_EQ(2, MapApiHub::instance().peerSize());
+    EXPECT_EQ(2, Hub::instance().peerSize());
     EXPECT_EQ(1, chunk->peerSize());
     EXPECT_EQ(1, chunk->requestParticipation());
     EXPECT_EQ(2, chunk->peerSize());

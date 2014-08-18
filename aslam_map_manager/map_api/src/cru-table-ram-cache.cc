@@ -1,13 +1,13 @@
 #include "map-api/cru-table-ram-cache.h"
 
-#include "map-api/map-api-core.h"
+#include "map-api/core.h"
 
 namespace map_api {
 
 CRUTableRAMCache::~CRUTableRAMCache() {}
 
 bool CRUTableRAMCache::initCRUDerived() {
-  sqlite_interface_.init(MapApiCore::getSession());
+  sqlite_interface_.init(Core::getSession());
   CHECK(sqlite_interface_.isSqlSafe(*descriptor_));
   CHECK(sqlite_interface_.create(*descriptor_));
   return true;

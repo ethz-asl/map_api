@@ -5,8 +5,8 @@
 
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 
+#include "map-api/core.h"
 #include "map-api/cru-table-ram-cache.h"
-#include "map-api/map-api-core.h"
 #include "map-api/local-transaction.h"
 
 #include "test_table.cpp"
@@ -49,11 +49,11 @@ class TransactionTest : public testing::Test {
  protected:
   virtual void SetUp() override {
     ::testing::FLAGS_gtest_death_test_style = "fast";
-    map_api::MapApiCore::initializeInstance(); // core init
-    ASSERT_TRUE(map_api::MapApiCore::instance() != nullptr);
+    map_api::Core::initializeInstance();  // core init
+    ASSERT_TRUE(map_api::Core::instance() != nullptr);
   }
   virtual void TearDown() final override {
-    MapApiCore::instance()->kill();
+    Core::instance()->kill();
     ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   }
   std::shared_ptr<Revision> sample(double n, CRUTableRAMCache* table) {
@@ -171,8 +171,8 @@ class MultiTransactionTest : public testing::Test {
 class MultiTransactionSingleCRUTest : public MultiTransactionTest {
  protected:
   virtual void SetUp()  {
-    map_api::MapApiCore::initializeInstance(); // core init
-    ASSERT_TRUE(map_api::MapApiCore::instance() != nullptr);
+    map_api::Core::initializeInstance();  // core init
+    ASSERT_TRUE(map_api::Core::instance() != nullptr);
     TransactionTestTable::init();
     table_ = &TransactionTestTable::instance();
     ::testing::FLAGS_gtest_death_test_style = "fast";
@@ -180,7 +180,7 @@ class MultiTransactionSingleCRUTest : public MultiTransactionTest {
 
   virtual void TearDown() {
     ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-    MapApiCore::instance()->kill();
+    Core::instance()->kill();
   }
 
   std::shared_ptr<Revision> sample(double n, CRUTableRAMCache* table) {

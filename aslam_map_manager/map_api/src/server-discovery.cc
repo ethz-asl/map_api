@@ -9,7 +9,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "map-api/map-api-hub.h"
+#include "map-api/hub.h"
 #include "core.pb.h"
 
 namespace map_api {

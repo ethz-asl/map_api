@@ -11,8 +11,8 @@
 
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 
+#include "map-api/core.h"
 #include "map-api/ipc.h"
-#include "map-api/map-api-core.h"
 
 #include "test_chord_index.cpp"
 #include "./map_api_multiprocess_fixture.h"
@@ -30,8 +30,8 @@ class ChordIndexTest : public MultiprocessTest {
     // not using MultiprocessTest::SetUp intentionally - need to register
     // handlers first
     TestChordIndex::staticInit();
-    MapApiCore::initializeInstance();
-    CHECK_NOTNULL(MapApiCore::instance());
+    Core::initializeInstance();
+    CHECK_NOTNULL(Core::instance());
   }
 };
 

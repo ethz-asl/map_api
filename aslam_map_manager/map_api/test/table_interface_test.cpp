@@ -9,10 +9,10 @@
 #include <Poco/Data/BLOB.h>
 #include <Poco/Data/Statement.h>
 
+#include "map-api/core.h"
 #include "map-api/cr-table-ram-cache.h"
 #include "map-api/cru-table-ram-cache.h"
 #include "map-api/id.h"
-#include "map-api/map-api-core.h"
 #include "map-api/logical-time.h"
 
 #include "test_table.cpp"
@@ -43,12 +43,10 @@ template <typename TableType>
 class TableInterfaceTest : public ::testing::Test {
  public:
   virtual void SetUp() final override {
-    MapApiCore::initializeInstance();
-    ASSERT_TRUE(MapApiCore::instance() != nullptr);
+    Core::initializeInstance();
+    ASSERT_TRUE(Core::instance() != nullptr);
   }
-  virtual void TearDown() final override {
-    MapApiCore::instance()->kill();
-  }
+  virtual void TearDown() final override { Core::instance()->kill(); }
 };
 
 typedef ::testing::Types<CRTableRAMCache, CRUTableRAMCache> TableTypes;
@@ -243,13 +241,11 @@ class FieldTestWithInit : public FieldTestWithoutInit<TableDataType> {
   virtual ~FieldTestWithInit() {}
  protected:
   virtual void SetUp() override {
-    MapApiCore::initializeInstance();
-    ASSERT_TRUE(MapApiCore::instance() != nullptr);
+    Core::initializeInstance();
+    ASSERT_TRUE(Core::instance() != nullptr);
     this->table_.reset(FieldTestTable<TableDataType>::forge());
   }
-  virtual void TearDown() override {
-    MapApiCore::instance()->kill();
-  }
+  virtual void TearDown() override { Core::instance()->kill(); }
 };
 
 template <typename TableDataType>
