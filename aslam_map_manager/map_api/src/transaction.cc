@@ -2,6 +2,12 @@
 
 #include <timing/timer.h>
 
+#include "map-api/chunk.h"
+#include "map-api/chunk-manager.h"
+#include "map-api/net-table.h"
+#include "map-api/net-table-transaction.h"
+#include "map-api/revision.h"
+
 namespace map_api {
 
 Transaction::Transaction() : Transaction(LogicalTime::sample()) {}
@@ -46,6 +52,17 @@ void Transaction::insert(
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(chunk);
   transactionOf(table)->insert(chunk, revision);
+}
+
+void Transaction::insert(ChunkManagerBase* chunk_manager,
+                         std::shared_ptr<Revision> revision) {
+  CHECK_NOTNULL(chunk_manager);
+  CHECK(revision != nullptr);
+  NetTable* table = chunk_manager->getUnderlyingTable();
+  CHECK_NOTNULL(table);
+  Chunk* chunk = chunk_manager->getChunkForItem(*revision);
+  CHECK_NOTNULL(chunk);
+  insert(table, chunk, revision);
 }
 
 void Transaction::update(NetTable* table, std::shared_ptr<Revision> revision) {

@@ -25,6 +25,7 @@ add_definitions(--std=c++0x -Wall -Wextra -pedantic -Wno-unused-local-typedefs)
 # Core Library available to all applications
 SET(CORE_SOURCE  src/chord-index.cc
                  src/chunk.cc
+                 src/chunk-manager.cc
                  src/chunk-transaction.cc
                  src/cr-table.cc
                  src/cr-table-ram-cache.cc

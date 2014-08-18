@@ -1,9 +1,10 @@
 #ifndef MAP_API_CR_TABLE_INL_H_
 #define MAP_API_CR_TABLE_INL_H_
 
-#include <sstream>
+#include <string>
+#include <sstream>  // NOLINT
 
-namespace map_api{
+namespace map_api {
 
 template<typename ValueType>
 int CRTable::find(const std::string& key, const ValueType& value,
@@ -15,9 +16,21 @@ int CRTable::find(const std::string& key, const ValueType& value,
   return this->findByRevision(key, *valueHolder, time, dest);
 }
 
-template<typename ValueType>
-std::shared_ptr<Revision> CRTable::findUnique(
-    const std::string& key, const ValueType& value, const LogicalTime& time) {
+template <typename ValueType>
+int CRTable::count(const std::string& key, const ValueType& value,
+                   const LogicalTime& time) {
+  std::shared_ptr<Revision> valueHolder = this->getTemplate();
+  CHECK(valueHolder != nullptr);
+  if (!key.empty()) {
+    valueHolder->set(key, value);
+  }
+  return this->countByRevision(key, *valueHolder, time);
+}
+
+template <typename ValueType>
+std::shared_ptr<Revision> CRTable::findUnique(const std::string& key,
+                                              const ValueType& value,
+                                              const LogicalTime& time) {
   RevisionMap results;
   int count = find(key, value, time, &results);
   if (count > 1) {
@@ -38,6 +51,6 @@ std::shared_ptr<Revision> CRTable::findUnique(
   }
 }
 
-} // namespace map_api
+}  // namespace map_api
 
-#endif /* MAP_API_CR_TABLE_INL_H_ */
+#endif  // MAP_API_CR_TABLE_INL_H_
