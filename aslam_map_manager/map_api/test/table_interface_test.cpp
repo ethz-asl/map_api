@@ -10,8 +10,8 @@
 #include <Poco/Data/Statement.h>
 
 #include "map-api/core.h"
-#include "map-api/cr-table-ram-cache.h"
-#include "map-api/cru-table-ram-cache.h"
+#include "map-api/cr-table-ram-sqlite.h"
+#include "map-api/cru-table-ram-sqlite.h"
 #include "map-api/id.h"
 #include "map-api/logical-time.h"
 
@@ -25,13 +25,13 @@ class ExpectedFieldCount {
   static int get();
 };
 
-template<>
-int ExpectedFieldCount<CRTableRAMCache>::get() {
+template <>
+int ExpectedFieldCount<CRTableRamSqlite>::get() {
   return 2;
 }
 
-template<>
-int ExpectedFieldCount<CRUTableRAMCache>::get() {
+template <>
+int ExpectedFieldCount<CRUTableRamSqlite>::get() {
   if (FLAGS_cru_linked) {
     return 5;
   } else {
@@ -49,7 +49,7 @@ class TableInterfaceTest : public ::testing::Test {
   virtual void TearDown() final override { Core::instance()->kill(); }
 };
 
-typedef ::testing::Types<CRTableRAMCache, CRUTableRAMCache> TableTypes;
+typedef ::testing::Types<CRTableRamSqlite, CRUTableRamSqlite> TableTypes;
 TYPED_TEST_CASE(TableInterfaceTest, TableTypes);
 
 TYPED_TEST(TableInterfaceTest, initEmpty) {
@@ -275,12 +275,10 @@ class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
     TableDataTypes<table_type, int64_t>, \
     TableDataTypes<table_type, map_api::LogicalTime>
 
-typedef ::testing::Types<
-    ALL_DATA_TYPES(CRTableRAMCache),
-    ALL_DATA_TYPES(CRUTableRAMCache)> CrAndCruTypes;
+typedef ::testing::Types<ALL_DATA_TYPES(CRTableRamSqlite),
+                         ALL_DATA_TYPES(CRUTableRamSqlite)> CrAndCruTypes;
 
-typedef ::testing::Types<
-    ALL_DATA_TYPES(CRUTableRAMCache)> CruTypes;
+typedef ::testing::Types<ALL_DATA_TYPES(CRUTableRamSqlite)> CruTypes;
 
 TYPED_TEST_CASE(FieldTestWithoutInit, CrAndCruTypes);
 TYPED_TEST_CASE(FieldTestWithInit, CrAndCruTypes);

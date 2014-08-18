@@ -1,33 +1,34 @@
-#include "map-api/cru-table-ram-cache.h"
+#include "map-api/cru-table-ram-sqlite.h"
 
 #include "map-api/core.h"
 
 namespace map_api {
 
-CRUTableRAMCache::~CRUTableRAMCache() {}
+CRUTableRamSqlite::~CRUTableRamSqlite() {}
 
-bool CRUTableRAMCache::initCRUDerived() {
+bool CRUTableRamSqlite::initCRUDerived() {
   sqlite_interface_.init(Core::getSession());
   CHECK(sqlite_interface_.isSqlSafe(*descriptor_));
   CHECK(sqlite_interface_.create(*descriptor_));
   return true;
 }
 
-bool CRUTableRAMCache::insertCRUDerived(Revision* query) {
+bool CRUTableRamSqlite::insertCRUDerived(Revision* query) {
   return sqlite_interface_.insert(*query);
 }
 
-bool CRUTableRAMCache::bulkInsertCRUDerived(const RevisionMap& query) {
+bool CRUTableRamSqlite::bulkInsertCRUDerived(const RevisionMap& query) {
   return sqlite_interface_.bulkInsert(query);
 }
 
-bool CRUTableRAMCache::patchCRDerived(const Revision& query) {
+bool CRUTableRamSqlite::patchCRDerived(const Revision& query) {
   return sqlite_interface_.insert(query);
 }
 
-int CRUTableRAMCache::findByRevisionCRUDerived(
-    const std::string& key, const Revision& value_holder,
-    const LogicalTime& time, RevisionMap* dest) {
+int CRUTableRamSqlite::findByRevisionCRUDerived(const std::string& key,
+                                                const Revision& value_holder,
+                                                const LogicalTime& time,
+                                                RevisionMap* dest) {
   // TODO(tcies) apart from the more sophisticated time query, this is very
   // similar to its CR equivalent. Maybe refactor at some time?
   SqliteInterface::PocoToProto poco_to_proto(getTemplate());
@@ -44,8 +45,9 @@ int CRUTableRAMCache::findByRevisionCRUDerived(
   statement << " FROM " << name() << " WHERE " << kUpdateTimeField << " <  ? ",
       Poco::Data::use(serialized_time);
   if (FLAGS_cru_linked) {
-    statement << " AND (" << kNextTimeField << " = 0 OR " << kNextTimeField <<
-        " > ? ", Poco::Data::use(serialized_time);
+    statement << " AND (" << kNextTimeField << " = 0 OR " << kNextTimeField
+              << " > ? ",
+        Poco::Data::use(serialized_time);
     statement << ") ";
   }
   if (key != "") {
@@ -56,8 +58,8 @@ int CRUTableRAMCache::findByRevisionCRUDerived(
     statement.execute();
   }
   catch (const std::exception& e) {
-    LOG(FATAL) << "Find statement failed: " << statement.toString() <<
-        " with exception: " << e.what();
+    LOG(FATAL) << "Find statement failed: " << statement.toString()
+               << " with exception: " << e.what();
   }
   std::vector<std::shared_ptr<Revision> > from_poco;
   poco_to_proto.toProto(&from_poco);
@@ -92,9 +94,9 @@ int CRUTableRAMCache::findByRevisionCRUDerived(
   return dest->size();
 }
 
-int CRUTableRAMCache::countByRevisionCRUDerived(const std::string& key,
-                                                const Revision& value_holder,
-                                                const LogicalTime& time) {
+int CRUTableRamSqlite::countByRevisionCRUDerived(const std::string& key,
+                                                 const Revision& value_holder,
+                                                 const LogicalTime& time) {
   // TODO(tcies) apart from the more sophisticated time query, this is very
   // similar to its CR equivalent. Maybe refactor at some time?
   SqliteInterface::PocoToProto poco_to_proto(getTemplate());
@@ -129,12 +131,12 @@ int CRUTableRAMCache::countByRevisionCRUDerived(const std::string& key,
   return count;
 }
 
-bool CRUTableRAMCache::insertUpdatedCRUDerived(const Revision& query) {
+bool CRUTableRamSqlite::insertUpdatedCRUDerived(const Revision& query) {
   sqlite_interface_.insert(query);
   return true;
 }
 
-bool CRUTableRAMCache::updateCurrentReferToUpdatedCRUDerived(
+bool CRUTableRamSqlite::updateCurrentReferToUpdatedCRUDerived(
     const Id& id, const LogicalTime& current_time,
     const LogicalTime& updated_time) {
   CHECK(FLAGS_cru_linked);
@@ -145,12 +147,11 @@ bool CRUTableRAMCache::updateCurrentReferToUpdatedCRUDerived(
   Poco::Data::Statement statement(*session);
   // caching of data needed for Poco::Data to work
   uint64_t serialized_update_time = updated_time.serialize(),
-      serialized_current_time = current_time.serialize();
+           serialized_current_time = current_time.serialize();
   std::string id_string = id.hexString();
   statement << "UPDATE " << name() << " SET " << kNextTimeField << " = ? ",
       Poco::Data::use(serialized_update_time);
-  statement << " WHERE ID = ? ",
-      Poco::Data::use(id_string);
+  statement << " WHERE ID = ? ", Poco::Data::use(id_string);
   statement << " AND " << kUpdateTimeField << " = ? ",
       Poco::Data::use(serialized_current_time);
   try {
@@ -158,8 +159,9 @@ bool CRUTableRAMCache::updateCurrentReferToUpdatedCRUDerived(
   }
   catch (const std::exception& e) {
     LOG(FATAL) << info << kNextTimeField << " update failed with exception \""
-        << e.what() << "\", " << " statement was \"" << statement.toString() <<
-        "\" with times: " << current_time << " " << updated_time;
+               << e.what() << "\", "
+               << " statement was \"" << statement.toString()
+               << "\" with times: " << current_time << " " << updated_time;
   }
   return true;
 }

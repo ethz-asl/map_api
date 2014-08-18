@@ -3,8 +3,8 @@
 #include <glog/logging.h>
 
 #include "map-api/core.h"
-#include "map-api/cr-table-ram-cache.h"
-#include "map-api/cru-table-ram-cache.h"
+#include "map-api/cr-table-ram-sqlite.h"
+#include "map-api/cru-table-ram-sqlite.h"
 #include "map-api/net-table-manager.h"
 
 namespace map_api {
@@ -19,10 +19,10 @@ bool NetTable::init(
   (*descriptor)->addField<Id>(kChunkIdField);
   switch (type) {
     case CRTable::Type::CR:
-      cache_.reset(new CRTableRAMCache);
+      cache_.reset(new CRTableRamSqlite);
       break;
     case CRTable::Type::CRU:
-      cache_.reset(new CRUTableRAMCache);
+      cache_.reset(new CRUTableRamSqlite);
       break;
   }
   CHECK(cache_->init(descriptor));
