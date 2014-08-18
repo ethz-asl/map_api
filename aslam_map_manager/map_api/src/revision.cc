@@ -111,6 +111,15 @@ bool Revision::structureMatch(const Revision& other) const {
   return true;
 }
 
+bool Revision::fieldMatch(const Revision& other, const std::string& key) const {
+  FieldMap::iterator index_here = fields_.find(key);
+  FieldMap::iterator index_there = other.fields_.find(key);
+  CHECK(index_here != fields_.end());
+  CHECK(index_there != other.fields_.end());
+  return fieldqueries_(index_here->second) ==
+         other.fieldqueries_(index_there->second);
+}
+
 bool Revision::ParseFromString(const std::string& data) {
   bool success = proto::Revision::ParseFromString(data);
   CHECK(success) << "Parsing revision from string failed";

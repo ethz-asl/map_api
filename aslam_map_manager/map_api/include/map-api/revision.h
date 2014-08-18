@@ -74,6 +74,11 @@ extern void revEnum ## __FILE__ ## __LINE__(void)
   bool structureMatch(const Revision& other) const;
 
   /**
+   * Returns true if value at key is same as with other
+   */
+  bool fieldMatch(const Revision& other, const std::string& key) const;
+
+  /**
    * Overriding parsing from string in order to add indexing.
    */
   bool ParseFromString(const std::string& data);
