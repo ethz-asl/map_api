@@ -7,7 +7,7 @@
 
 #include <Poco/Data/Common.h>
 
-#include "map-api/cr-table-ram-cache.h"
+#include "map-api/cr-table-ram-sqlite.h"
 #include "map-api/hub.h"
 #include "map-api/id.h"
 #include "map-api/net-table-manager.h"

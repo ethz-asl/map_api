@@ -1,4 +1,4 @@
-#include "map-api/cr-table-ram-cache.h"
+#include "map-api/cr-table-ram-sqlite.h"
 
 #include <glog/logging.h>
 
@@ -51,8 +51,8 @@ int CRTableRamSqlite::findByRevisionCRDerived(const std::string& key,
     statement.execute();
   }
   catch (const std::exception& e) {
-    LOG(FATAL) << "Find statement failed: " << statement.toString() <<
-        " with exception: " << e.what();
+    LOG(FATAL) << "Find statement failed: " << statement.toString()
+               << " with exception: " << e.what();
   }
   std::vector<std::shared_ptr<Revision> > from_poco;
   pocoToProto.toProto(&from_poco);

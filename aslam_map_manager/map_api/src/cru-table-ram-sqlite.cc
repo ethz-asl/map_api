@@ -1,4 +1,4 @@
-#include "map-api/cru-table-ram-cache.h"
+#include "map-api/cru-table-ram-sqlite.h"
 
 #include "map-api/core.h"
 
@@ -45,8 +45,9 @@ int CRUTableRamSqlite::findByRevisionCRUDerived(const std::string& key,
   statement << " FROM " << name() << " WHERE " << kUpdateTimeField << " <  ? ",
       Poco::Data::use(serialized_time);
   if (FLAGS_cru_linked) {
-    statement << " AND (" << kNextTimeField << " = 0 OR " << kNextTimeField <<
-        " > ? ", Poco::Data::use(serialized_time);
+    statement << " AND (" << kNextTimeField << " = 0 OR " << kNextTimeField
+              << " > ? ",
+        Poco::Data::use(serialized_time);
     statement << ") ";
   }
   if (key != "") {
@@ -57,8 +58,8 @@ int CRUTableRamSqlite::findByRevisionCRUDerived(const std::string& key,
     statement.execute();
   }
   catch (const std::exception& e) {
-    LOG(FATAL) << "Find statement failed: " << statement.toString() <<
-        " with exception: " << e.what();
+    LOG(FATAL) << "Find statement failed: " << statement.toString()
+               << " with exception: " << e.what();
   }
   std::vector<std::shared_ptr<Revision> > from_poco;
   poco_to_proto.toProto(&from_poco);
@@ -146,12 +147,11 @@ bool CRUTableRamSqlite::updateCurrentReferToUpdatedCRUDerived(
   Poco::Data::Statement statement(*session);
   // caching of data needed for Poco::Data to work
   uint64_t serialized_update_time = updated_time.serialize(),
-      serialized_current_time = current_time.serialize();
+           serialized_current_time = current_time.serialize();
   std::string id_string = id.hexString();
   statement << "UPDATE " << name() << " SET " << kNextTimeField << " = ? ",
       Poco::Data::use(serialized_update_time);
-  statement << " WHERE ID = ? ",
-      Poco::Data::use(id_string);
+  statement << " WHERE ID = ? ", Poco::Data::use(id_string);
   statement << " AND " << kUpdateTimeField << " = ? ",
       Poco::Data::use(serialized_current_time);
   try {
@@ -159,8 +159,9 @@ bool CRUTableRamSqlite::updateCurrentReferToUpdatedCRUDerived(
   }
   catch (const std::exception& e) {
     LOG(FATAL) << info << kNextTimeField << " update failed with exception \""
-        << e.what() << "\", " << " statement was \"" << statement.toString() <<
-        "\" with times: " << current_time << " " << updated_time;
+               << e.what() << "\", "
+               << " statement was \"" << statement.toString()
+               << "\" with times: " << current_time << " " << updated_time;
   }
   return true;
 }

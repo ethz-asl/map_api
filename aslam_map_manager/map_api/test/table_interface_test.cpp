@@ -10,8 +10,8 @@
 #include <Poco/Data/Statement.h>
 
 #include "map-api/core.h"
-#include "map-api/cr-table-ram-cache.h"
-#include "map-api/cru-table-ram-cache.h"
+#include "map-api/cr-table-ram-sqlite.h"
+#include "map-api/cru-table-ram-sqlite.h"
 #include "map-api/id.h"
 #include "map-api/logical-time.h"
 

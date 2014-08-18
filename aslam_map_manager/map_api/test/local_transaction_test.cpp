@@ -6,7 +6,7 @@
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 
 #include "map-api/core.h"
-#include "map-api/cru-table-ram-cache.h"
+#include "map-api/cru-table-ram-sqlite.h"
 #include "map-api/local-transaction.h"
 
 #include "test_table.cpp"

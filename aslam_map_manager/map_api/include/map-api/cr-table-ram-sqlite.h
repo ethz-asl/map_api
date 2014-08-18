@@ -1,5 +1,5 @@
-#ifndef MAP_API_CR_TABLE_RAM_CACHE_H_
-#define MAP_API_CR_TABLE_RAM_CACHE_H_
+#ifndef MAP_API_CR_TABLE_RAM_SQLITE_H_
+#define MAP_API_CR_TABLE_RAM_SQLITE_H_
 
 #include <string>
 
@@ -34,4 +34,4 @@ class CRTableRamSqlite final : public CRTable {
 
 }  // namespace map_api
 
-#endif  // MAP_API_CR_TABLE_RAM_CACHE_H_
+#endif  // MAP_API_CR_TABLE_RAM_SQLITE_H_
