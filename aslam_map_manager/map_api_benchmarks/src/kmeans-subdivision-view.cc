@@ -9,9 +9,12 @@
 namespace map_api {
 namespace benchmarks {
 
-KmeansSubdivisionView::KmeansSubdivisionView(
-    size_t degree, double max_dimension, size_t center_num,
-    Chunks center_chunks, Chunks membership_chunks, Chunk* descriptor_chunk)
+KmeansSubdivisionView::KmeansSubdivisionView(size_t degree,
+                                             double max_dimension,
+                                             size_t center_num,
+                                             const Chunks& center_chunks,
+                                             const Chunks& membership_chunks,
+                                             Chunk* descriptor_chunk)
     : degree_(degree),
       max_dimension_(max_dimension),
       center_num_(center_num),
