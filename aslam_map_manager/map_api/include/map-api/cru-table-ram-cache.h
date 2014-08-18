@@ -1,5 +1,7 @@
-#ifndef CRU_TABLE_RAM_CACHE_H_
-#define CRU_TABLE_RAM_CACHE_H_
+#ifndef MAP_API_CRU_TABLE_RAM_CACHE_H_
+#define MAP_API_CRU_TABLE_RAM_CACHE_H_
+
+#include <string>
 
 #include "map-api/cru-table.h"
 #include "map-api/sqlite-interface.h"
@@ -17,6 +19,9 @@ class CRUTableRAMCache : public CRUTable {
   virtual int findByRevisionCRUDerived(
       const std::string& key, const Revision& valueHolder,
       const LogicalTime& time, RevisionMap* dest) final override;
+  virtual int countByRevisionCRUDerived(const std::string& key,
+                                        const Revision& valueHolder,
+                                        const LogicalTime& time) final override;
 
   virtual bool insertUpdatedCRUDerived(const Revision& query) final override;
   virtual bool updateCurrentReferToUpdatedCRUDerived(
@@ -26,6 +31,6 @@ class CRUTableRAMCache : public CRUTable {
   SqliteInterface sqlite_interface_;
 };
 
-} /* namespace map_api */
+}  // namespace map_api
 
-#endif /* CRU_TABLE_RAM_CACHE_H_ */
+#endif  // MAP_API_CRU_TABLE_RAM_CACHE_H_

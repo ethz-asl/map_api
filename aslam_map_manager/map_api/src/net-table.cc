@@ -98,15 +98,6 @@ Chunk* NetTable::getChunk(const Id& chunk_id) {
   return result;
 }
 
-Chunk* NetTable::getUniqueLocalChunk() const {
-  active_chunks_lock_.readLock();
-  CHECK_EQ(1u, active_chunks_.size()) <<
-      "Know your Chunks! This is deprecated.";
-  Chunk* result = active_chunks_.begin()->second.get();
-  active_chunks_lock_.unlock();
-  return result;
-}
-
 bool NetTable::insert(Chunk* chunk, Revision* query) {
   CHECK_NOTNULL(chunk);
   CHECK_NOTNULL(query);
@@ -130,12 +121,25 @@ std::shared_ptr<Revision> NetTable::getById(const Id& id,
   return cache_->getById(id, time);
 }
 
-void NetTable::dumpCache(
-    const LogicalTime& time,
-    std::unordered_map<Id, std::shared_ptr<Revision> >* destination) {
+void NetTable::dumpActiveChunks(const LogicalTime& time,
+                                CRTable::RevisionMap* destination) {
   CHECK_NOTNULL(destination);
-  LOG(WARNING) << "Use of deprecated function NetTable::dumpCache";
-  cache_->dump(time, destination);
+  destination->clear();
+  std::set<map_api::Id> active_chunk_ids;
+  getActiveChunkIds(&active_chunk_ids);
+  for (const map_api::Id& chunk_id : active_chunk_ids) {
+    map_api::CRTable::RevisionMap chunk_revisions;
+    map_api::Chunk* chunk = getChunk(chunk_id);
+    CHECK_NOTNULL(chunk);
+    chunk->dumpItems(time, &chunk_revisions);
+    destination->insert(chunk_revisions.begin(), chunk_revisions.end());
+  }
+}
+
+void NetTable::dumpActiveChunksAtCurrentTime(
+    CRTable::RevisionMap* destination) {
+  CHECK_NOTNULL(destination);
+  return dumpActiveChunks(map_api::LogicalTime::sample(), destination);
 }
 
 bool NetTable::has(const Id& chunk_id) {
@@ -176,10 +180,18 @@ size_t NetTable::activeChunksSize() const {
   return active_chunks_.size();
 }
 
-size_t NetTable::cachedItemsSize() {
+size_t NetTable::activeChunksItemsSize() {
   CRTable::RevisionMap result;
-  dumpCache(LogicalTime::sample(), &result);
-  return result.size();
+  std::set<Id> active_chunk_ids;
+  getActiveChunkIds(&active_chunk_ids);
+  size_t num_elements = 0;
+  LogicalTime now = LogicalTime::sample();
+  for (const Id& chunk_id : active_chunk_ids) {
+    Chunk* chunk = getChunk(chunk_id);
+    CHECK_NOTNULL(chunk);
+    num_elements += chunk->numItems(now);
+  }
+  return num_elements;
 }
 
 void NetTable::kill() {
@@ -217,11 +229,20 @@ void NetTable::leaveAllChunks() {
 
 std::string NetTable::getStatistics() {
   std::stringstream ss;
-
-  // TODO(tcies) more lightweight item count method
-  ss << name() << ": " << activeChunksSize() << " chunks and " <<
-      cachedItemsSize() << " items.";
+  ss << name() << ": " << activeChunksSize() << " chunks and "
+     << activeChunksItemsSize() << " items.";
   return ss.str();
+}
+
+void NetTable::getActiveChunkIds(std::set<Id>* chunk_ids) const {
+  CHECK_NOTNULL(chunk_ids);
+  chunk_ids->clear();
+  active_chunks_lock_.readLock();
+  for (const std::pair<const Id, std::unique_ptr<Chunk> >& chunk :
+       active_chunks_) {
+    chunk_ids->insert(chunk.first);
+  }
+  active_chunks_lock_.unlock();
 }
 
 void NetTable::handleConnectRequest(const Id& chunk_id, const PeerId& peer,
@@ -335,4 +356,4 @@ bool NetTable::routingBasics(
   return true;
 }
 
-} // namespace map_api
+}  // namespace map_api

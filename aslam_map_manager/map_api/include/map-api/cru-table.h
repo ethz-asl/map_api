@@ -4,6 +4,7 @@
 #include <vector>
 #include <memory>
 #include <map>
+#include <string>
 
 #include <Poco/Data/Common.h>
 #include <gflags/gflags.h>
@@ -11,7 +12,7 @@
 #include "map-api/cr-table.h"
 #include "map-api/revision.h"
 #include "map-api/logical-time.h"
-#include "core.pb.h"
+#include "./core.pb.h"
 
 DECLARE_bool(cru_linked);
 
@@ -31,7 +32,7 @@ class CRUTable : public CRTable {
    * It is possible to specify update time for singular times of transactions.
    * TODO(tcies) make it the only possible way of setting time
    */
-  bool update(Revision* query); // TODO(tcies) void
+  bool update(Revision* query);  // TODO(tcies) void
   void update(Revision* query, const LogicalTime& time);
   bool getLatestUpdateTime(const Id& id, LogicalTime* time);
 
@@ -41,8 +42,8 @@ class CRUTable : public CRTable {
    * Default fields for internal management,
    */
   static const std::string kUpdateTimeField;
-  static const std::string kPreviousTimeField; // time of previous revision
-  static const std::string kNextTimeField; // time of next revision
+  static const std::string kPreviousTimeField;  // time of previous revision
+  static const std::string kNextTimeField;      // time of next revision
 
  private:
   virtual bool initCRDerived() final override;
@@ -51,6 +52,9 @@ class CRUTable : public CRTable {
   virtual int findByRevisionCRDerived(
       const std::string& key, const Revision& valueHolder,
       const LogicalTime& time, CRTable::RevisionMap* dest) final override;
+  virtual int countByRevisionCRDerived(const std::string& key,
+                                       const Revision& valueHolder,
+                                       const LogicalTime& time) final override;
   /**
    * ================================================
    * FUNCTIONS TO BE IMPLEMENTED BY THE DERIVED CLASS
@@ -64,6 +68,9 @@ class CRUTable : public CRTable {
   virtual int findByRevisionCRUDerived(
       const std::string& key, const Revision& valueHolder,
       const LogicalTime& time, CRTable::RevisionMap* dest) = 0;
+  virtual int countByRevisionCRUDerived(const std::string& key,
+                                        const Revision& valueHolder,
+                                        const LogicalTime& time) = 0;
 
   /**
    * Implement insertion of the updated revision
@@ -79,6 +86,6 @@ class CRUTable : public CRTable {
   friend class Chunk;
 };
 
-}
+}  // namespace map_api
 
 #endif  // MAP_API_CRU_TABLE_H_

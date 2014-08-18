@@ -1,6 +1,6 @@
 #include "map-api/chunk.h"
 
-#include <fstream>
+#include <fstream>  // NOLINT
 #include <unordered_set>
 
 #include <multiagent_mapping_common/conversions.h>
@@ -20,7 +20,7 @@ enum UnlockStrategy {
 DEFINE_uint64(unlock_strategy, 0,
               "0: reverse of lock ordering, 1: same as"
               "lock ordering, 2: randomized");
-DEFINE_bool(writelock_persist, false,
+DEFINE_bool(writelock_persist, true,
             "Enables more persisting write lock strategy");
 
 namespace map_api {
@@ -155,6 +155,13 @@ void Chunk::dumpItems(const LogicalTime& time, CRTable::RevisionMap* items) {
   distributedReadLock();
   underlying_table_->find(NetTable::kChunkIdField, id(), time, items);
   distributedUnlock();
+}
+
+size_t Chunk::numItems(const LogicalTime& time) {
+  distributedReadLock();
+  size_t result = underlying_table_->count(NetTable::kChunkIdField, id(), time);
+  distributedUnlock();
+  return result;
 }
 
 bool Chunk::insert(Revision* item) {
@@ -651,7 +658,8 @@ void Chunk::handleConnectRequestThread(Chunk* self, const PeerId& peer) {
   // peer
   self->distributedWriteLock();
   if (self->peers_.peers().find(peer) == self->peers_.peers().end()) {
-    CHECK(self->addPeer(peer));  // peer has no reason to refuse init request
+    // Peer has no reason to refuse the init request.
+    CHECK(self->addPeer(peer));
   } else {
     LOG(INFO) << "Peer requesting to join already in swarm, could have been "\
         "added by some requestParticipation() call.";
@@ -852,5 +860,4 @@ void Chunk::logStateDuration(LockState state, const TimePoint& start,
   log_file << self_rank_ << " " << state << " " << d_start << " " << d_end
            << std::endl;
 }
-
 }  // namespace map_api

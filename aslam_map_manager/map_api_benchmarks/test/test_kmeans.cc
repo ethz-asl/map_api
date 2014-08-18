@@ -1,4 +1,4 @@
-#include <fstream>
+#include <fstream>  // NOLINT
 #include <random>
 
 #include <gtest/gtest.h>
