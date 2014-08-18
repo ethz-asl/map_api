@@ -27,7 +27,6 @@ void GenerateTestData(size_t num_features_per_cluster, size_t num_clusters,
       0., area_width);
   std::normal_distribution<double> data_generator(
       0, cluster_radius);
-  // std::default_random_engine engine;
 
   for (size_t i = 0; i < num_noise_samples; ++i) {
     DescriptorType sample = DescriptorType::Zero(kDescriptorDimensionality, 1);

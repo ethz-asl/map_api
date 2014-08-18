@@ -17,11 +17,9 @@ namespace benchmarks {
  */
 class KmeansSubdivisionView {
  public:
-  /**
-   * Parameter copy intended.
-   */
   KmeansSubdivisionView(size_t degree, double max_dimension, size_t center_num,
-                        Chunks center_chunks, Chunks membership_chunks,
+                        const Chunks& center_chunks,
+                        const Chunks& membership_chunks,
                         Chunk* descriptor_chunk);
 
   /**
