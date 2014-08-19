@@ -7,8 +7,8 @@
 #include <timing/timer.h>
 
 #include "map-api/cru-table.h"
+#include "map-api/hub.h"
 #include "map-api/net-table-manager.h"
-#include "map-api/map-api-hub.h"
 #include "./core.pb.h"
 #include "./chunk.pb.h"
 
@@ -261,7 +261,7 @@ int Chunk::requestParticipation() {
   int new_participant_count = 0;
   distributedWriteLock();
   std::set<PeerId> hub_peers;
-  MapApiHub::instance().getPeers(&hub_peers);
+  Hub::instance().getPeers(&hub_peers);
   for (const PeerId& hub_peer : hub_peers) {
     if (peers_.peers().find(hub_peer) == peers_.peers().end()) {
       if (addPeer(hub_peer)) {
@@ -361,7 +361,7 @@ bool Chunk::addPeer(const PeerId& peer) {
     return false;
   }
   prepareInitRequest(&request);
-  if (!MapApiHub::instance().ackRequest(peer, &request)) {
+  if (!Hub::instance().ackRequest(peer, &request)) {
     return false;
   }
   // new peer is not ready to handle requests as the rest of the swarm. Still,
@@ -445,23 +445,23 @@ void Chunk::distributedWriteLock() {
     if (FLAGS_writelock_persist) {
       if (peers_.peers().size()) {
         std::set<PeerId>::const_iterator it = peers_.peers().cbegin();
-        MapApiHub::instance().request(*it, &request, &response);
+        Hub::instance().request(*it, &request, &response);
         if (response.isType<Message::kDecline>()) {
           declined = true;
         } else {
           ++it;
           for (; it != peers_.peers().cend(); ++it) {
-            MapApiHub::instance().request(*it, &request, &response);
+            Hub::instance().request(*it, &request, &response);
             while (response.isType<Message::kDecline>()) {
               usleep(5000);  // TODO(tcies) flag?
-              MapApiHub::instance().request(*it, &request, &response);
+              Hub::instance().request(*it, &request, &response);
             }
           }
         }
       }
     } else {
       for (const PeerId& peer : peers_.peers()) {
-        MapApiHub::instance().request(peer, &request, &response);
+        Hub::instance().request(peer, &request, &response);
         if (response.isType<Message::kDecline>()) {
           // assuming no connection loss, a lock may only be declined by the
           // peer with lowest address
@@ -548,7 +548,7 @@ void Chunk::distributedUnlock() {
                 lock_.state = DistributedRWLock::State::UNLOCKED;
                 self_unlocked = true;
               }
-              MapApiHub::instance().request(*rit, &request, &response);
+              Hub::instance().request(*rit, &request, &response);
               CHECK(response.isType<Message::kAck>());
               VLOG(3) << PeerId::self() << " released lock from " << *rit;
             }
@@ -562,7 +562,7 @@ void Chunk::distributedUnlock() {
                 lock_.state = DistributedRWLock::State::UNLOCKED;
                 self_unlocked = true;
               }
-              MapApiHub::instance().request(peer, &request, &response);
+              Hub::instance().request(peer, &request, &response);
               CHECK(response.isType<Message::kAck>());
               VLOG(3) << PeerId::self() << " released lock from " << peer;
             }
@@ -575,7 +575,7 @@ void Chunk::distributedUnlock() {
             std::vector<PeerId> mixed_peers(peers.cbegin(), peers.cend());
             std::random_shuffle(mixed_peers.begin(), mixed_peers.end());
             for (const PeerId& peer : mixed_peers) {
-              MapApiHub::instance().request(peer, &request, &response);
+              Hub::instance().request(peer, &request, &response);
               CHECK(response.isType<Message::kAck>());
               VLOG(3) << PeerId::self() << " released lock from " << peer;
             }

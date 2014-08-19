@@ -10,7 +10,7 @@
 #include <glog/logging.h>
 #include <gflags/gflags.h>
 
-#include "map-api/map-api-core.h"
+#include "map-api/core.h"
 #include "map-api/local-transaction.h"
 #include "./core.pb.h"
 

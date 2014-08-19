@@ -141,28 +141,23 @@ MAP_API_PROTO_MESSAGE(TestChordIndex::kPushResponsibilitiesRequest,
                       proto::FetchResponsibilitiesResponse);
 
 void TestChordIndex::staticInit() {
-  MapApiHub::instance().registerHandler(
-      kGetClosestPrecedingFingerRequest, staticHandleGetClosestPrecedingFinger);
-  MapApiHub::instance().registerHandler(
-      kGetSuccessorRequest, staticHandleGetSuccessor);
-  MapApiHub::instance().registerHandler(
-      kGetPredecessorRequest, staticHandleGetPredecessor);
-  MapApiHub::instance().registerHandler(
-      kLockRequest, staticHandleLock);
-  MapApiHub::instance().registerHandler(
-      kUnlockRequest, staticHandleUnlock);
-  MapApiHub::instance().registerHandler(
-      kNotifyRequest, staticHandleNotify);
-  MapApiHub::instance().registerHandler(
-      kReplaceRequest, staticHandleReplace);
-  MapApiHub::instance().registerHandler(
-      kAddDataRequest, staticHandleAddData);
-  MapApiHub::instance().registerHandler(
-      kRetrieveDataRequest, staticHandleRetrieveData);
-  MapApiHub::instance().registerHandler(
-      kFetchResponsibilitiesRequest, staticHandleFetchResponsibilities);
-  MapApiHub::instance().registerHandler(
-      kPushResponsibilitiesRequest, staticHandlePushResponsibilities);
+  Hub::instance().registerHandler(kGetClosestPrecedingFingerRequest,
+                                  staticHandleGetClosestPrecedingFinger);
+  Hub::instance().registerHandler(kGetSuccessorRequest,
+                                  staticHandleGetSuccessor);
+  Hub::instance().registerHandler(kGetPredecessorRequest,
+                                  staticHandleGetPredecessor);
+  Hub::instance().registerHandler(kLockRequest, staticHandleLock);
+  Hub::instance().registerHandler(kUnlockRequest, staticHandleUnlock);
+  Hub::instance().registerHandler(kNotifyRequest, staticHandleNotify);
+  Hub::instance().registerHandler(kReplaceRequest, staticHandleReplace);
+  Hub::instance().registerHandler(kAddDataRequest, staticHandleAddData);
+  Hub::instance().registerHandler(kRetrieveDataRequest,
+                                  staticHandleRetrieveData);
+  Hub::instance().registerHandler(kFetchResponsibilitiesRequest,
+                                  staticHandleFetchResponsibilities);
+  Hub::instance().registerHandler(kPushResponsibilitiesRequest,
+                                  staticHandlePushResponsibilities);
 }
 
 // ========

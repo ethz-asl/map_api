@@ -8,7 +8,7 @@
 #include <Poco/DigestStream.h>
 #include <Poco/MD5Engine.h>
 
-#include "map-api/map-api-hub.h"
+#include "map-api/hub.h"
 
 namespace map_api {
 
@@ -24,7 +24,7 @@ Id Id::generate(){
   digest_stream << counter;
   digest_stream <<
       std::chrono::high_resolution_clock::now().time_since_epoch().count();
-  digest_stream << MapApiHub::instance().ownAddress();
+  digest_stream << Hub::instance().ownAddress();
   digest_stream.flush();
   const Poco::DigestEngine::Digest& digest = md5.digest();
   Id generated;

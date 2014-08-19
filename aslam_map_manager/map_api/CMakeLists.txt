@@ -27,17 +27,17 @@ SET(CORE_SOURCE  src/chord-index.cc
                  src/chunk.cc
                  src/chunk-manager.cc
                  src/chunk-transaction.cc
+                 src/core.cc
                  src/cr-table.cc
-                 src/cr-table-ram-cache.cc
+                 src/cr-table-ram-sqlite.cc
                  src/cru-table.cc
-                 src/cru-table-ram-cache.cc
+                 src/cru-table-ram-sqlite.cc
                  src/file-discovery.cc
+                 src/hub.cc
                  src/id.cc
                  src/ipc.cc
                  src/local-transaction.cc
                  src/logical-time.cc
-                 src/map-api-core.cc
-                 src/map-api-hub.cc
                  src/message.cc
                  src/net-table.cc
                  src/net-table-index.cc
