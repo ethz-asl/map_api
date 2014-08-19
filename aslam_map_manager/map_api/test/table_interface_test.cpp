@@ -1,15 +1,18 @@
+#include <string>
 #include <type_traits>
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include <multiagent_mapping_common/test/testing_entrypoint.h>
-
 #include <Poco/Data/Common.h>
 #include <Poco/Data/BLOB.h>
 #include <Poco/Data/Statement.h>
 
+#include <multiagent_mapping_common/test/testing_entrypoint.h>
+#include <timing/timer.h>
+
 #include "map-api/core.h"
+#include "map-api/cr-table-ram-map.h"
 #include "map-api/cr-table-ram-sqlite.h"
 #include "map-api/cru-table-ram-sqlite.h"
 #include "map-api/id.h"
@@ -27,6 +30,11 @@ class ExpectedFieldCount {
 
 template <>
 int ExpectedFieldCount<CRTableRamSqlite>::get() {
+  return 2;
+}
+
+template <>
+int ExpectedFieldCount<CRTableRamMap>::get() {
   return 2;
 }
 
@@ -49,7 +57,8 @@ class TableInterfaceTest : public ::testing::Test {
   virtual void TearDown() final override { Core::instance()->kill(); }
 };
 
-typedef ::testing::Types<CRTableRamSqlite, CRUTableRamSqlite> TableTypes;
+typedef ::testing::Types<CRTableRamSqlite, CRUTableRamSqlite, CRTableRamMap>
+    TableTypes;
 TYPED_TEST_CASE(TableInterfaceTest, TableTypes);
 
 TYPED_TEST(TableInterfaceTest, initEmpty) {
@@ -197,8 +206,8 @@ class FieldTest<testBlob> : public ::testing::Test {
 };
 
 template <typename TableDataType>
-class FieldTestWithoutInit :
-    public FieldTest<typename TableDataType::DataType> {
+class FieldTestWithoutInit
+    : public FieldTest<typename TableDataType::DataType> {
      public:
   virtual ~FieldTestWithoutInit() {}
 
@@ -217,15 +226,16 @@ class FieldTestWithoutInit :
     return query_;
   }
 
-  Id fillRevision() {
+  Id fillRevision(const typename TableDataType::DataType& value) {
     getTemplate();
     Id inserted = Id::generate();
     query_->set(CRTable::kIdField, inserted);
     // to_insert_->set("owner", Id::random()); TODO(tcies) later, from core
-    query_->set(FieldTestTable<TableDataType>::kTestField,
-                this->sample_data_1());
+    query_->set(FieldTestTable<TableDataType>::kTestField, value);
     return inserted;
   }
+
+  Id fillRevision() { return fillRevision(this->sample_data_1()); }
 
   bool insertRevision() {
     return this->table_->insert(query_.get());
@@ -260,6 +270,10 @@ class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
   }
 };
 
+template <typename TableType>
+class IntTestWithInit
+    : public FieldTestWithInit<TableDataTypes<TableType, int64_t>> {};
+
 /**
  *************************
  * TYPED TABLE FIELD TESTS
@@ -276,6 +290,7 @@ class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
     TableDataTypes<table_type, map_api::LogicalTime>
 
 typedef ::testing::Types<ALL_DATA_TYPES(CRTableRamSqlite),
+                         ALL_DATA_TYPES(CRTableRamMap),
                          ALL_DATA_TYPES(CRUTableRamSqlite)> CrAndCruTypes;
 
 typedef ::testing::Types<ALL_DATA_TYPES(CRUTableRamSqlite)> CruTypes;
@@ -283,6 +298,7 @@ typedef ::testing::Types<ALL_DATA_TYPES(CRUTableRamSqlite)> CruTypes;
 TYPED_TEST_CASE(FieldTestWithoutInit, CrAndCruTypes);
 TYPED_TEST_CASE(FieldTestWithInit, CrAndCruTypes);
 TYPED_TEST_CASE(UpdateFieldTestWithInit, CruTypes);
+TYPED_TEST_CASE(IntTestWithInit, TableTypes);
 
 TYPED_TEST(FieldTestWithInit, Init) {
   EXPECT_EQ(ExpectedFieldCount<typename TypeParam::TableType>::get() + 1,
@@ -355,6 +371,33 @@ TYPED_TEST(UpdateFieldTestWithInit, UpdateRead) {
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   rowFromTable->get("test_field", &dataFromTable);
   EXPECT_EQ(this->sample_data_2(), dataFromTable);
+}
+
+TYPED_TEST(IntTestWithInit, CreateReadThousand) {
+  for (int i = 0; i < 1000; ++i) {
+    Id inserted = this->fillRevision(i);
+    timing::Timer insert_timer("insert - " +
+                               std::string(::testing::UnitTest::GetInstance()
+                                               ->current_test_info()
+                                               ->test_case_name()));
+    EXPECT_TRUE(this->insertRevision());
+    insert_timer.Stop();
+
+    timing::Timer read_timer("read - " +
+                             std::string(::testing::UnitTest::GetInstance()
+                                             ->current_test_info()
+                                             ->test_case_name()));
+    std::shared_ptr<Revision> rowFromTable =
+        this->table_->getById(inserted, LogicalTime::sample());
+    read_timer.Stop();
+    ASSERT_TRUE(static_cast<bool>(rowFromTable));
+    int64_t dataFromTable;
+    rowFromTable->get(
+        FieldTestTable<TableDataTypes<TypeParam, int64_t>>::kTestField,
+        &dataFromTable);
+    EXPECT_EQ(i, dataFromTable);
+  }
+  LOG(INFO) << timing::Timing::Print();
 }
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT

@@ -18,7 +18,7 @@ bool CRTableRamMap::bulkInsertCRDerived(const RevisionMap& query) {
     }
   }
   for (const RevisionMap::value_type& pair : query) {
-    CHECK(data_.insert(pair).second);
+    CHECK(data_.insert(std::make_pair(pair.first, *pair.second)).second);
   }
   return true;
 }
@@ -38,20 +38,26 @@ int CRTableRamMap::findByRevisionCRDerived(const std::string& key,
   // TODO(tcies) allow optimization by index specification
   // global vs local index: local comes in here, global also allows spatial
   // lookup
+  LogicalTime item_time;
   if (key == kIdField) {
     Id id;
     CHECK(valueHolder.get(kIdField, &id));
-    RevisionMap::const_iterator found = data_.find(id);
+    MapType::const_iterator found = data_.find(id);
     if (found != data_.end()) {
-      dest->insert(*found);
+      found->second.get(kInsertTimeField, &item_time);
+      if (item_time < time) {
+        dest->insert(std::make_pair(found->first,
+                                    std::make_shared<Revision>(found->second)));
+      }
     }
   } else {
-    if (key == "") {
-      dest->insert(data_.begin(), data_.end());
-    } else {
-      for (const RevisionMap::value_type& pair : data_) {
-        if (valueHolder.fieldMatch(pair.second, key)) {
-          CHECK(dest->insert(pair));
+    for (const MapType::value_type& pair : data_) {
+      if (key == "" || valueHolder.fieldMatch(pair.second, key)) {
+        pair.second.get(kInsertTimeField, &item_time);
+        if (item_time < time) {
+          CHECK(dest->insert(
+                          std::make_pair(pair.first, std::make_shared<Revision>(
+                                                         pair.second))).second);
         }
       }
     }
@@ -61,6 +67,30 @@ int CRTableRamMap::findByRevisionCRDerived(const std::string& key,
 
 int CRTableRamMap::countByRevisionCRDerived(const std::string& key,
                                             const Revision& valueHolder,
-                                            const LogicalTime& time) {}
+                                            const LogicalTime& time) {
+  int count = 0;
+  LogicalTime item_time;
+  if (key == kIdField) {
+    Id id;
+    CHECK(valueHolder.get(kIdField, &id));
+    MapType::const_iterator found = data_.find(id);
+    if (found != data_.end()) {
+      found->second.get(kInsertTimeField, &item_time);
+      if (item_time < time) {
+        return 1;
+      }
+    }
+  } else {
+    for (const MapType::value_type& pair : data_) {
+      if (key == "" || valueHolder.fieldMatch(pair.second, key)) {
+        pair.second.get(kInsertTimeField, &item_time);
+        if (item_time < time) {
+          ++count;
+        }
+      }
+    }
+  }
+  return count;
+}
 
 } /* namespace map_api */
