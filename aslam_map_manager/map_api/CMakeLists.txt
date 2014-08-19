@@ -32,6 +32,7 @@ SET(CORE_SOURCE  src/chord-index.cc
                  src/cr-table-ram-map.cc
                  src/cr-table-ram-sqlite.cc
                  src/cru-table.cc
+                 src/cru-table-ram-map.cc
                  src/cru-table-ram-sqlite.cc
                  src/file-discovery.cc
                  src/hub.cc

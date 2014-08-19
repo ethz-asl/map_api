@@ -14,6 +14,7 @@
 #include "map-api/core.h"
 #include "map-api/cr-table-ram-map.h"
 #include "map-api/cr-table-ram-sqlite.h"
+#include "map-api/cru-table-ram-map.h"
 #include "map-api/cru-table-ram-sqlite.h"
 #include "map-api/id.h"
 #include "map-api/logical-time.h"
@@ -47,6 +48,15 @@ int ExpectedFieldCount<CRUTableRamSqlite>::get() {
   }
 }
 
+template <>
+int ExpectedFieldCount<CRUTableRamMap>::get() {
+  if (FLAGS_cru_linked) {
+    return 5;
+  } else {
+    return 3;
+  }
+}
+
 template <typename TableType>
 class TableInterfaceTest : public ::testing::Test {
  public:
@@ -57,8 +67,8 @@ class TableInterfaceTest : public ::testing::Test {
   virtual void TearDown() final override { Core::instance()->kill(); }
 };
 
-typedef ::testing::Types<CRTableRamSqlite, CRUTableRamSqlite, CRTableRamMap>
-    TableTypes;
+typedef ::testing::Types<CRTableRamSqlite, CRUTableRamSqlite, CRTableRamMap,
+                         CRUTableRamMap> TableTypes;
 TYPED_TEST_CASE(TableInterfaceTest, TableTypes);
 
 TYPED_TEST(TableInterfaceTest, initEmpty) {
@@ -291,9 +301,11 @@ class IntTestWithInit
 
 typedef ::testing::Types<ALL_DATA_TYPES(CRTableRamSqlite),
                          ALL_DATA_TYPES(CRTableRamMap),
-                         ALL_DATA_TYPES(CRUTableRamSqlite)> CrAndCruTypes;
+                         ALL_DATA_TYPES(CRUTableRamSqlite),
+                         ALL_DATA_TYPES(CRUTableRamMap)> CrAndCruTypes;
 
-typedef ::testing::Types<ALL_DATA_TYPES(CRUTableRamSqlite)> CruTypes;
+typedef ::testing::Types<ALL_DATA_TYPES(CRUTableRamSqlite),
+                         ALL_DATA_TYPES(CRUTableRamMap)> CruTypes;
 
 TYPED_TEST_CASE(FieldTestWithoutInit, CrAndCruTypes);
 TYPED_TEST_CASE(FieldTestWithInit, CrAndCruTypes);
