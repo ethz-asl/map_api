@@ -36,6 +36,9 @@ bool CRUTableRamMap::patchCRDerived(const Revision& query) {
   query.get(kIdField, &id);
   query.get(kUpdateTimeField, &time);
   HistoryMapType::iterator found = data_.find(id);
+  if (found == data_.end()) {
+    found = data_.insert(std::make_pair(id, HistoryType())).first;
+  }
   for (HistoryType::iterator it = found->second.begin();
        it != found->second.end(); ++it) {
     it->get(kUpdateTimeField, &list_time);
