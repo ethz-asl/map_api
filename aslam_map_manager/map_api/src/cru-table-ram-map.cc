@@ -74,10 +74,15 @@ int CRUTableRamMap::findByRevisionCRUDerived(const std::string& key,
       }
     }
   } else {
+    int field_index, time_index = getTemplate()->indexOf(kUpdateTimeField);
+    if (key != "") {
+      field_index = getTemplate()->indexOf(key);
+    }
     for (const HistoryMapType::value_type& pair : data_) {
-      HistoryType::const_iterator latest = pair.second.latestAt(time);
+      HistoryType::const_iterator latest =
+          pair.second.latestAt(time, time_index);
       if (latest != pair.second.cend()) {
-        if (key == "" || valueHolder.fieldMatch(*latest, key)) {
+        if (key == "" || valueHolder.fieldMatch(*latest, key, field_index)) {
           CHECK(dest->insert(std::make_pair(
                                  pair.first,
                                  std::make_shared<Revision>(*latest))).second);
@@ -104,10 +109,15 @@ int CRUTableRamMap::countByRevisionCRUDerived(const std::string& key,
       }
     }
   } else {
+    int field_index, time_index = getTemplate()->indexOf(kUpdateTimeField);
+    if (key != "") {
+      field_index = getTemplate()->indexOf(key);
+    }
     for (const HistoryMapType::value_type& pair : data_) {
-      HistoryType::const_iterator latest = pair.second.latestAt(time);
+      HistoryType::const_iterator latest =
+          pair.second.latestAt(time, time_index);
       if (latest != pair.second.cend()) {
-        if (key == "" || valueHolder.fieldMatch(*latest, key)) {
+        if (key == "" || valueHolder.fieldMatch(*latest, key, field_index)) {
           ++count;
         }
       }
@@ -130,9 +140,15 @@ bool CRUTableRamMap::updateCurrentReferToUpdatedCRUDerived(
 
 CRUTableRamMap::HistoryType::const_iterator
 CRUTableRamMap::HistoryType::latestAt(const LogicalTime& time) const {
+  return latestAt(time, cbegin()->indexOf(kUpdateTimeField));
+}
+
+CRUTableRamMap::HistoryType::const_iterator
+CRUTableRamMap::HistoryType::latestAt(const LogicalTime& time,
+                                      int index_guess) const {
   LogicalTime item_time;
   for (const_iterator it = cbegin(); it != cend(); ++it) {
-    it->get(kUpdateTimeField, &item_time);
+    it->get(kUpdateTimeField, index_guess, &item_time);
     if (item_time < time) {
       return it;
     }
