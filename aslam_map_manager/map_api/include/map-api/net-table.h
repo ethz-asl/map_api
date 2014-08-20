@@ -37,14 +37,10 @@ class NetTable {
   bool update(Revision* query);
 
   // RETRIEVAL
-  /**
-   * Deprecated - does not readlock chunks, nor does it guarantee consistency
-   * in any other way (what if new data is added to table in an unowned chunk
-   * that would still correspond to the query?). Function kept for
-   * NetTableTest TODO(tcies) cleanup
-   */
-  std::shared_ptr<Revision> getById(const Id& id, const LogicalTime& time)
-  __attribute__((deprecated));
+  std::shared_ptr<Revision> getByIdInconsistent(const Id& id);
+  template <typename ValueType>
+  CRTable::RevisionMap lockFind(const std::string& key, const ValueType& value,
+                                const LogicalTime& time);
 
   void dumpActiveChunks(const LogicalTime& time,
                         CRTable::RevisionMap* destination);
@@ -108,6 +104,9 @@ class NetTable {
   NetTable& operator =(const NetTable&) = delete;
   friend class NetTableManager;
 
+  void readLockActiveChunks();
+  void unlockActiveChunks();
+
   typedef std::unordered_map<Id, std::unique_ptr<Chunk> > ChunkMap;
   bool routingBasics(
       const Id& chunk_id, Message* response, ChunkMap::iterator* found);
@@ -126,5 +125,7 @@ class NetTable {
 };
 
 }  // namespace map_api
+
+#include "map-api/net-table-inl.h"
 
 #endif  // MAP_API_NET_TABLE_H_

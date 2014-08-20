@@ -1,3 +1,5 @@
+#include <string>
+
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
@@ -9,7 +11,7 @@
 
 #include "net_table_test_fixture.cpp"
 
-using namespace map_api;
+namespace map_api {
 
 /**
  * Observation: A does all commits before B does all commits. This makes
@@ -43,10 +45,9 @@ TEST_P(NetTableTest, NetTableTransactions) {
 
     IPC::barrier(SYNC, 2);
     IPC::barrier(DIE, 2);
-    std::shared_ptr<Revision> ab_item =
-        table_->getById(ab_id, LogicalTime::sample());
-    std::shared_ptr<Revision> b_item =
-        table_->getById(b_id, LogicalTime::sample());
+    NetTableTransaction reader(table_);
+    std::shared_ptr<Revision> ab_item = reader.getById(ab_id);
+    std::shared_ptr<Revision> b_item = reader.getById(b_id);
     EXPECT_TRUE(ab_item->verifyEqual(kFieldName, 2 * kCycles));
     EXPECT_TRUE(b_item->verifyEqual(kFieldName, kCycles));
     EXPECT_EQ(kCycles + 2, count());
@@ -142,10 +143,11 @@ TEST_P(NetTableTest, Transactions) {
 
     IPC::barrier(SYNC, 2);
     IPC::barrier(DIE, 2);
-    EXPECT_TRUE(table_->getById(ab_id, LogicalTime::sample())->
-                verifyEqual(kFieldName, 2 * kCycles));
-    EXPECT_TRUE(second_table->getById(b_id, LogicalTime::sample())->
-                verifyEqual(kSecondTableFieldName, kCycles));
+    Transaction reader;
+    EXPECT_TRUE(reader.getById(ab_id, table_, ab_chunk)
+                    ->verifyEqual(kFieldName, 2 * kCycles));
+    EXPECT_TRUE(reader.getById(b_id, second_table, b_chunk)
+                    ->verifyEqual(kSecondTableFieldName, kCycles));
     EXPECT_EQ(kCycles + 1, count());
   }
   if (getSubprocessId() == A) {
@@ -183,8 +185,8 @@ TEST_P(NetTableTest, Transactions) {
       while (true) {
         Transaction attempt;
         increment(table_, ab_id, ab_chunk, &attempt);
-        CRTable::RevisionMap chunk_dump;
-        b_chunk->dumpItems(attempt.time(), &chunk_dump);
+        CRTable::RevisionMap chunk_dump =
+            attempt.dumpChunk(second_table, b_chunk);
         CRTable::RevisionMap::iterator found = chunk_dump.find(b_id);
         std::shared_ptr<Revision> to_update = found->second;
         int transient_value;
@@ -231,7 +233,7 @@ TEST_P(NetTableTest, CommitTime) {
 
 TEST_P(NetTableTest, ChunkLookup) {
   if (GetParam()) {
-    return; // independent of updateability
+    return;  // independent of updateability
   }
   enum Processes {MASTER, SLAVE};
   enum Barriers {INIT, CHUNK_CREATED, DIE};
@@ -260,5 +262,7 @@ TEST_P(NetTableTest, ChunkLookup) {
   }
   IPC::barrier(DIE, 1);
 }
+
+}  // namespace map_api
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT

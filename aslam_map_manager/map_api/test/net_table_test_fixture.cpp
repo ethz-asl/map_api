@@ -1,11 +1,13 @@
+#include <string>
+
 #include "map-api/core.h"
 #include "map-api/net-table.h"
 #include "map-api/net-table-transaction.h"
 #include "map-api/transaction.h"
 
-#include "map_api_multiprocess_fixture.h"
+#include "./map_api_multiprocess_fixture.h"
 
-using namespace map_api;
+namespace map_api {
 
 class NetTableTest : public MultiprocessTest,
 public ::testing::WithParamInterface<bool> {
@@ -30,8 +32,7 @@ public ::testing::WithParamInterface<bool> {
   void increment(const Id& id, Chunk* chunk, NetTableTransaction* transaction) {
     CHECK_NOTNULL(chunk);
     CHECK_NOTNULL(transaction);
-    CRTable::RevisionMap chunk_dump;
-    chunk->dumpItems(transaction->time(), &chunk_dump);
+    CRTable::RevisionMap chunk_dump = transaction->dumpChunk(chunk);
     CRTable::RevisionMap::iterator found = chunk_dump.find(id);
     std::shared_ptr<Revision> to_update = found->second;
     int transient_value;
@@ -47,8 +48,7 @@ public ::testing::WithParamInterface<bool> {
     CHECK_NOTNULL(table);
     CHECK_NOTNULL(chunk);
     CHECK_NOTNULL(transaction);
-    CRTable::RevisionMap chunk_dump;
-    chunk->dumpItems(transaction->time(), &chunk_dump);
+    CRTable::RevisionMap chunk_dump = transaction->dumpChunk(table, chunk);
     CRTable::RevisionMap::iterator found = chunk_dump.find(id);
     std::shared_ptr<Revision> to_update = found->second;
     int transient_value;
@@ -82,3 +82,5 @@ public ::testing::WithParamInterface<bool> {
 };
 
 INSTANTIATE_TEST_CASE_P(Default, NetTableTest, ::testing::Values(false, true));
+
+}  // namespace map_api

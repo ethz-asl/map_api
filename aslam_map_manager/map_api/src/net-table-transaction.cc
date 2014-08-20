@@ -13,34 +13,56 @@ NetTableTransaction::NetTableTransaction(
   CHECK(begin_time < LogicalTime::sample());
 }
 
-// Deadlocks in lock() are prevented by imposing a global ordering on chunks,
-// and have the locks acquired in that order (resource hierarchy solution)
+std::shared_ptr<Revision> NetTableTransaction::getById(const Id& id) {
+  Chunk* chunk = chunkOf(id);
+  return getById(id, chunk);
+}
+
+std::shared_ptr<Revision> NetTableTransaction::getById(const Id& id,
+                                                       Chunk* chunk) {
+  CHECK_NOTNULL(chunk);
+  return transactionOf(chunk)->getById(id);
+}
+
+CRTable::RevisionMap NetTableTransaction::dumpChunk(Chunk* chunk) {
+  CHECK_NOTNULL(chunk);
+  return transactionOf(chunk)->dumpChunk();
+}
+
+CRTable::RevisionMap NetTableTransaction::dumpActiveChunks() {
+  CRTable::RevisionMap result;
+  table_->dumpActiveChunks(begin_time_, &result);
+  return result;
+}
+
+void NetTableTransaction::insert(Chunk* chunk,
+                                 std::shared_ptr<Revision> revision) {
+  CHECK_NOTNULL(chunk);
+  transactionOf(chunk)->insert(revision);
+}
+
+void NetTableTransaction::update(std::shared_ptr<Revision> revision) {
+  Id chunk_id;
+  revision->get(NetTable::kChunkIdField, &chunk_id);
+  Chunk* chunk = table_->getChunk(chunk_id);
+  transactionOf(chunk)->update(revision);
+}
+
 bool NetTableTransaction::commit() {
   lock();
   if (!check()) {
     unlock();
     return false;
   }
-  for (const TransactionPair& chunk_transaction : chunk_transactions_) {
-    CHECK(chunk_transaction.first->commit(*chunk_transaction.second));
-  }
+  checkedCommit(LogicalTime::sample());
   unlock();
   return true;
 }
 
-bool NetTableTransaction::check() {
+void NetTableTransaction::checkedCommit(const LogicalTime& time) {
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
-    if (!chunk_transaction.first->check(*chunk_transaction.second)) {
-      return false;
-    }
+    chunk_transaction.second->checkedCommit(time);
   }
-  return true;
-}
-
-void NetTableTransaction::insert(
-    Chunk* chunk, std::shared_ptr<Revision> revision) {
-  CHECK_NOTNULL(chunk);
-  transactionOf(chunk)->insert(revision);
 }
 
 // Deadlocks in lock() are prevented by imposing a global ordering on chunks,
@@ -48,7 +70,7 @@ void NetTableTransaction::insert(
 void NetTableTransaction::lock() {
   size_t i = 0u;
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
-    chunk_transaction.first->lock();
+    chunk_transaction.first->writeLock();
     ++i;
   }
   statistics::StatsCollector stat("map_api::NetTableTransaction::lock - " +
@@ -62,42 +84,36 @@ void NetTableTransaction::unlock() {
   }
 }
 
-void NetTableTransaction::update(std::shared_ptr<Revision> revision) {
-  Id chunk_id;
-  revision->get(NetTable::kChunkIdField, &chunk_id);
-  Chunk* chunk = table_->getChunk(chunk_id);
-  transactionOf(chunk)->update(revision);
-}
-
-std::shared_ptr<Revision> NetTableTransaction::getById(const Id& id) {
-  std::shared_ptr<Revision> uncommitted;
+bool NetTableTransaction::check() {
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
-    uncommitted = chunk_transaction.second->getByIdFromUncommitted(id);
-    if (uncommitted) {
-      return uncommitted;
+    if (!chunk_transaction.second->check()) {
+      return false;
     }
   }
-  return table_->getById(id, begin_time_);
-}
-
-void NetTableTransaction::checkedCommit(const LogicalTime& time) {
-  for (const TransactionPair& chunk_transaction : chunk_transactions_) {
-    chunk_transaction.first->checkedCommit(*chunk_transaction.second, time);
-  }
+  return true;
 }
 
 ChunkTransaction* NetTableTransaction::transactionOf(Chunk* chunk) {
   CHECK_NOTNULL(chunk);
   TransactionMap::iterator chunk_transaction = chunk_transactions_.find(chunk);
   if (chunk_transaction == chunk_transactions_.end()) {
-    std::shared_ptr<ChunkTransaction> transaction =
-        chunk->newTransaction(begin_time_);
+    std::shared_ptr<ChunkTransaction> transaction(
+        new ChunkTransaction(begin_time_, chunk));
     std::pair<TransactionMap::iterator, bool> inserted =
         chunk_transactions_.insert(std::make_pair(chunk, transaction));
     CHECK(inserted.second);
     chunk_transaction = inserted.first;
   }
   return chunk_transaction->second.get();
+}
+
+Chunk* NetTableTransaction::chunkOf(const Id& id) {
+  // TODO(tcies) uncommitted
+  // using the latest logical time ensures fastest lookup
+  std::shared_ptr<Revision> latest = table_->getByIdInconsistent(id);
+  Id chunk_id;
+  latest->get(NetTable::kChunkIdField, &chunk_id);
+  return table_->getChunk(chunk_id);
 }
 
 } /* namespace map_api */

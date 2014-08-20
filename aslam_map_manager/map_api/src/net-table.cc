@@ -115,10 +115,9 @@ bool NetTable::update(Revision* query) {
 }
 
 // TODO(tcies) net lookup
-std::shared_ptr<Revision> NetTable::getById(const Id& id,
-                                            const LogicalTime& time) {
+std::shared_ptr<Revision> NetTable::getByIdInconsistent(const Id& id) {
   LOG(WARNING) << "Use of deprecated function NetTable::getById";
-  return cache_->getById(id, time);
+  return cache_->getById(id, LogicalTime::sample());
 }
 
 void NetTable::dumpActiveChunks(const LogicalTime& time,
