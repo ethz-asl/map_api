@@ -25,12 +25,12 @@ namespace map_api {
 /**
  * Map Api Hub: Manages connections to other participating nodes
  */
-class MapApiHub final {
+class Hub final {
  public:
   /**
    * Get singleton instance of Map Api Hub
    */
-  static MapApiHub& instance();
+  static Hub& instance();
   /**
    * Initialize hub
    */
@@ -63,9 +63,9 @@ class MapApiHub final {
    * be sent at the end of the handler
    * TODO(tcies) distinguish between pub/sub and rpc
    */
-  bool registerHandler(const char* type,
-                       std::function<void(const Message& request,
-                                          Message* response)> handler);
+  bool registerHandler(
+      const char* type,
+      std::function<void(const Message& request, Message* response)> handler);
   /**
    * Sends out the specified message to all connected peers
    */
@@ -110,7 +110,7 @@ class MapApiHub final {
   /**
    * Constructor: Performs discovery, fetches metadata and loads into database
    */
-  MapApiHub() = default;
+  Hub() = default;
   /**
    * 127.0.0.1 if discovery is from file, own LAN address otherwise
    */
@@ -118,7 +118,7 @@ class MapApiHub final {
   /**
    * Thread for listening to peers
    */
-  static void listenThread(MapApiHub *self);
+  static void listenThread(Hub* self);
   std::thread listener_;
   std::mutex condVarMutex_;
   std::condition_variable listenerStatus_;
@@ -137,14 +137,12 @@ class MapApiHub final {
   /**
    * Maps message types denominations to handler functions
    */
-  typedef std::unordered_map<std::string,
-      std::function<void(const Message&, Message*)> >
-  HandlerMap;
+  typedef std::unordered_map<
+      std::string, std::function<void(const Message&, Message*)> > HandlerMap;
   static HandlerMap handlers_;
 
   std::unique_ptr<Discovery> discovery_;
 };
-
 }
 
 #endif /* MAP_API_HUB_H_ */

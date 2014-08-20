@@ -1,24 +1,29 @@
-#include "map_api_benchmarks/multi-kmeans-hoarder.h"
-
-#include <glog/logging.h>
+#include "map_api_benchmarks/kmeans-subdivision-hoarder.h"
 
 #include "map_api_benchmarks/app.h"
-#include "map_api_benchmarks/kmeans-view.h"
+#include "map_api_benchmarks/kmeans-subdivision-view.h"
 
 namespace map_api {
 namespace benchmarks {
 
-DEFINE_bool(gnuplot_persist, false, "if set, gnuplot detaches from test");
-DEFINE_bool(enable_visualization, false, "enable gnuplot visualization");
+DECLARE_bool(gnuplot_persist);
+DECLARE_bool(enable_visualization);
 
-void MultiKmeansHoarder::init(const DescriptorVector& descriptors,
-                              const DescriptorVector& gt_centers,
-                              const Scalar area_width, int random_seed,
-                              Chunk** data_chunk, Chunk** center_chunk,
-                              Chunk** membership_chunk) {
+KmeansSubdivisionHoarder::KmeansSubdivisionHoarder(size_t degree,
+                                                   double max_dimension,
+                                                   size_t num_centers)
+    : degree_(degree),
+      max_dimension_(max_dimension),
+      num_centers_(num_centers) {}
+
+void KmeansSubdivisionHoarder::init(const DescriptorVector& descriptors,
+                                    const DescriptorVector& gt_centers,
+                                    const Scalar area_width, int random_seed,
+                                    Chunk** data_chunk, Chunks* center_chunks,
+                                    Chunks* membership_chunks) {
   CHECK_NOTNULL(data_chunk);
-  CHECK_NOTNULL(center_chunk);
-  CHECK_NOTNULL(membership_chunk);
+  CHECK_NOTNULL(center_chunks);
+  CHECK_NOTNULL(membership_chunks);
 
   // generate random centers and membership
   std::shared_ptr<DescriptorVector> centers =
@@ -34,13 +39,22 @@ void MultiKmeansHoarder::init(const DescriptorVector& descriptors,
                     &centers);
 
   // load into database
-  descriptor_chunk_ = app::data_point_table->newChunk();
-  center_chunk_ = app::center_table->newChunk();
-  membership_chunk_ = app::association_table->newChunk();
+  descriptor_chunk_ = app::data_point_table->newChunk(numToId(0u));
+  CHECK_NOTNULL(descriptor_chunk_);
+  for (size_t i = 0u; i < num_centers_; ++i) {
+    Chunk* to_insert = app::center_table->newChunk(numToId(i));
+    center_chunks_.push_back(CHECK_NOTNULL(to_insert));
+  }
+  for (size_t i = 0u; i < degree_ * degree_; ++i) {
+    Chunk* to_insert = app::association_table->newChunk(numToId(i));
+    membership_chunks_.push_back(CHECK_NOTNULL(to_insert));
+  }
   *data_chunk = descriptor_chunk_;
-  *center_chunk = center_chunk_;
-  *membership_chunk = membership_chunk_;
-  KmeansView exporter(descriptor_chunk_, center_chunk_, membership_chunk_);
+  *center_chunks = center_chunks_;
+  *membership_chunks = membership_chunks_;
+  KmeansSubdivisionView exporter(degree_, max_dimension_, num_centers_,
+                                 center_chunks_, membership_chunks_,
+                                 descriptor_chunk_);
   exporter.insert(descriptors, *centers, membership);
 
   // launch gnuplot
@@ -58,40 +72,43 @@ void MultiKmeansHoarder::init(const DescriptorVector& descriptors,
   }
 }
 
-void MultiKmeansHoarder::refresh() {
+void KmeansSubdivisionHoarder::refresh() {
   if (FLAGS_enable_visualization) {
     DescriptorVector descriptors, centers;
     std::vector<unsigned int> membership;
-    KmeansView view(descriptor_chunk_, center_chunk_, membership_chunk_);
+    KmeansSubdivisionView view(degree_, max_dimension_, num_centers_,
+                               center_chunks_, membership_chunks_,
+                               descriptor_chunk_);
     view.fetch(&descriptors, &centers, &membership);
     plot(descriptors, centers, membership);
   }
 }
 
-void MultiKmeansHoarder::refreshThread() {
+void KmeansSubdivisionHoarder::refreshThread() {
   while (!terminate_refresh_thread_) {
     refresh();
     sleep(1);
   }
 }
 
-void MultiKmeansHoarder::startRefreshThread() {
+void KmeansSubdivisionHoarder::startRefreshThread() {
   if (FLAGS_enable_visualization) {
     terminate_refresh_thread_ = false;
-    refresh_thread_ = std::thread(&MultiKmeansHoarder::refreshThread, this);
+    refresh_thread_ =
+        std::thread(&KmeansSubdivisionHoarder::refreshThread, this);
   }
 }
 
-void MultiKmeansHoarder::stopRefreshThread() {
+void KmeansSubdivisionHoarder::stopRefreshThread() {
   if (FLAGS_enable_visualization) {
     terminate_refresh_thread_ = true;
     refresh_thread_.join();
   }
 }
 
-void MultiKmeansHoarder::plot(const DescriptorVector& descriptors,
-                              const DescriptorVector& centers,
-                              const std::vector<unsigned int>& membership) {
+void KmeansSubdivisionHoarder::plot(
+    const DescriptorVector& descriptors, const DescriptorVector& centers,
+    const std::vector<unsigned int>& membership) {
   fputs("plot ", gnuplot_);
   for (size_t i = 0; i < centers.size(); ++i) {
     fputs("'-' w p, ", gnuplot_);

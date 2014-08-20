@@ -35,7 +35,7 @@ class FileDiscovery final : public Discovery {
   FileDiscovery() = default;
   FileDiscovery(const FileDiscovery&) = delete;
   FileDiscovery& operator=(const FileDiscovery&) = delete;
-  friend class MapApiHub;
+  friend class Hub;
 };
 
 } /* namespace map_api */

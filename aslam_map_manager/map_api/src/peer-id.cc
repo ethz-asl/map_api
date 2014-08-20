@@ -7,7 +7,7 @@
 
 #include <Poco/RegularExpression.h>
 
-#include "map-api/map-api-hub.h"
+#include "map-api/hub.h"
 
 namespace map_api {
 PeerId::PeerId() : ip_port_(kInvalidAdress) {}
@@ -25,14 +25,12 @@ PeerId& PeerId::operator =(const PeerId& other) {
   return *this;
 }
 
-PeerId PeerId::self() {
-  return PeerId(MapApiHub::instance().ownAddress());
-}
+PeerId PeerId::self() { return PeerId(Hub::instance().ownAddress()); }
 
 size_t PeerId::selfRank() {
   PeerId self_id = self();
   std::set<PeerId> peers;
-  MapApiHub::instance().getPeers(&peers);
+  Hub::instance().getPeers(&peers);
   peers.insert(self_id);
   size_t i = 0;
   for (const PeerId& peer : peers) {

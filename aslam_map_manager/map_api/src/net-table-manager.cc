@@ -1,7 +1,7 @@
 #include "map-api/net-table-manager.h"
 
-#include "map-api/map-api-hub.h"
-#include "map-api/map-api-core.h"
+#include "map-api/core.h"
+#include "map-api/hub.h"
 #include "map-api/revision.h"
 #include "net-table.pb.h"
 
@@ -36,26 +36,18 @@ bool NetTableManager::routeChunkRequestOperations<proto::ChunkRequestMetadata>(
 
 void NetTableManager::registerHandlers() {
   // chunk requests
-  MapApiHub::instance().registerHandler(
-      Chunk::kConnectRequest, handleConnectRequest);
-  MapApiHub::instance().registerHandler(
-      Chunk::kInitRequest, handleInitRequest);
-  MapApiHub::instance().registerHandler(
-      Chunk::kInsertRequest, handleInsertRequest);
-  MapApiHub::instance().registerHandler(
-      Chunk::kLeaveRequest, handleLeaveRequest);
-  MapApiHub::instance().registerHandler(
-      Chunk::kLockRequest, handleLockRequest);
-  MapApiHub::instance().registerHandler(
-      Chunk::kNewPeerRequest, handleNewPeerRequest);
-  MapApiHub::instance().registerHandler(
-      Chunk::kUnlockRequest, handleUnlockRequest);
-  MapApiHub::instance().registerHandler(
-      Chunk::kUpdateRequest, handleUpdateRequest);
+  Hub::instance().registerHandler(Chunk::kConnectRequest, handleConnectRequest);
+  Hub::instance().registerHandler(Chunk::kInitRequest, handleInitRequest);
+  Hub::instance().registerHandler(Chunk::kInsertRequest, handleInsertRequest);
+  Hub::instance().registerHandler(Chunk::kLeaveRequest, handleLeaveRequest);
+  Hub::instance().registerHandler(Chunk::kLockRequest, handleLockRequest);
+  Hub::instance().registerHandler(Chunk::kNewPeerRequest, handleNewPeerRequest);
+  Hub::instance().registerHandler(Chunk::kUnlockRequest, handleUnlockRequest);
+  Hub::instance().registerHandler(Chunk::kUpdateRequest, handleUpdateRequest);
 
   // chord requests
-  MapApiHub::instance().registerHandler(
-      NetTableIndex::kRoutedChordRequest, handleRoutedChordRequests);
+  Hub::instance().registerHandler(NetTableIndex::kRoutedChordRequest,
+                                  handleRoutedChordRequests);
 }
 
 NetTableManager& NetTableManager::instance() {
@@ -97,14 +89,14 @@ void NetTableManager::initMetatable(bool create_metatable_chunk) {
     metatable->createIndex();
   } else {
     std::set<PeerId> hub_peers;
-    MapApiHub::instance().getPeers(&hub_peers);
+    Hub::instance().getPeers(&hub_peers);
     PeerId ready_peer;
     // choosing a ready entry point avoids issues of parallelism such as that
     // e.g. the other peer is at 2. but not at 3. of this procedure.
     bool success = false;
     while (!success) {
       for (const PeerId& peer : hub_peers) {
-        if (MapApiHub::instance().isReady(peer)) {
+        if (Hub::instance().isReady(peer)) {
           ready_peer = peer;
           success = true;
           break;
@@ -197,7 +189,7 @@ void NetTableManager::handleConnectRequest(const Message& request,
   const std::string& table = metadata.table();
   Id chunk_id;
   CHECK(chunk_id.fromHexString(metadata.chunk_id()));
-  CHECK_NOTNULL(MapApiCore::instance());
+  CHECK_NOTNULL(Core::instance());
   instance().tables_lock_.readLock();
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = instance().tables_.find(table);

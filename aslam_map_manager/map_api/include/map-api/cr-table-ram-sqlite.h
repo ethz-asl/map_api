@@ -1,5 +1,5 @@
-#ifndef MAP_API_CR_TABLE_RAM_CACHE_H_
-#define MAP_API_CR_TABLE_RAM_CACHE_H_
+#ifndef MAP_API_CR_TABLE_RAM_SQLITE_H_
+#define MAP_API_CR_TABLE_RAM_SQLITE_H_
 
 #include <string>
 
@@ -12,9 +12,10 @@ namespace map_api {
  * TODO(tcies) make this a proper RAM cache (maps, not RAM sqlite) and create
  * a CRTableDiskCache for disk SQLite
  */
-class CRTableRAMCache final : public CRTable {
+class CRTableRamSqlite final : public CRTable {
  public:
-  virtual ~CRTableRAMCache();
+  virtual ~CRTableRamSqlite();
+
  private:
   virtual bool initCRDerived() final override;
   virtual bool insertCRDerived(Revision* query) final override;
@@ -33,4 +34,4 @@ class CRTableRAMCache final : public CRTable {
 
 }  // namespace map_api
 
-#endif  // MAP_API_CR_TABLE_RAM_CACHE_H_
+#endif  // MAP_API_CR_TABLE_RAM_SQLITE_H_

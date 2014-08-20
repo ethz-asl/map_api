@@ -2,7 +2,7 @@
 
 #include <glog/logging.h>
 
-#include "map-api/map-api-hub.h"
+#include "map-api/hub.h"
 
 namespace map_api {
 
@@ -17,7 +17,7 @@ void PeerHandler::broadcast(
   responses->clear();
   // TODO(tcies) parallelize using std::future
   for (const PeerId& peer: peers_) {
-    MapApiHub::instance().request(peer, request, &(*responses)[peer]);
+    Hub::instance().request(peer, request, &(*responses)[peer]);
   }
 }
 
@@ -51,7 +51,7 @@ void PeerHandler::request(
   if (found == peers_.end()) {
     found = peers_.insert(peer).first;
   }
-  MapApiHub::instance().request(peer, request, response);
+  Hub::instance().request(peer, request, response);
 }
 
 bool PeerHandler::try_request(const PeerId& peer, Message* request,
@@ -63,7 +63,7 @@ bool PeerHandler::try_request(const PeerId& peer, Message* request,
   if (found == peers_.end()) {
     found = peers_.insert(peer).first;
   }
-  return MapApiHub::instance().try_request(peer, request, response);
+  return Hub::instance().try_request(peer, request, response);
 }
 
 size_t PeerHandler::size() const {
