@@ -8,7 +8,7 @@ catkin_simple()
 #############
 # LIBRARIES #
 #############
-add_definitions(--std=c++0x -Wall -Wextra -pedantic)
+add_definitions(--std=c++11)
 
 cs_add_library(${PROJECT_NAME} src/app.cc
                                src/kmeans-view.cc
