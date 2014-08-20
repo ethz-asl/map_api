@@ -27,6 +27,7 @@ namespace map_api {
 class ProtoTableFileIO {
  public:
   ProtoTableFileIO(const map_api::NetTable& table, const std::string& filename);
+  ~ProtoTableFileIO();
   bool StoreTableContents(const map_api::LogicalTime& time,
                           const map_api::NetTable& table);
   bool ReStoreTableContents(map_api::NetTable* table);

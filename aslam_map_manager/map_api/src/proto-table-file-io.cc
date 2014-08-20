@@ -10,9 +10,16 @@ namespace map_api {
 ProtoTableFileIO::ProtoTableFileIO(const map_api::NetTable& table,
                                    const std::string& filename)
     : table_name_(table.name()), file_name_(filename) {
-  file_.open(filename);
+  file_.open(filename,
+             std::fstream::binary | std::ios_base::in | std::ios_base::out);
+  if (!file_.is_open()) {
+    file_.open(filename, std::fstream::binary | std::fstream::in |
+                             std::fstream::out | std::fstream::trunc);
+  }
   CHECK(file_.is_open()) << "Couldn't open file " << filename;
 }
+
+ProtoTableFileIO::~ProtoTableFileIO() { file_.close(); }
 
 bool ProtoTableFileIO::StoreTableContents(const map_api::LogicalTime& time,
                                           const map_api::NetTable& table) {
@@ -34,9 +41,10 @@ bool ProtoTableFileIO::StoreTableContents(const map_api::LogicalTime& time,
     CHECK(revision.get(CRTable::kIdField, &current_item_stamp.first));
     CHECK_EQ(current_item_stamp.first, pair.first);
 
-    bool is_cru =
-        revision.get(CRUTable::kUpdateTimeField, &current_item_stamp.second);
-    if (!is_cru) {
+    if (table.type() == CRTable::Type::CRU) {
+      CHECK(
+          revision.get(CRUTable::kUpdateTimeField, &current_item_stamp.second));
+    } else {
       CHECK(
           revision.get(CRTable::kInsertTimeField, &current_item_stamp.second));
     }
@@ -96,10 +104,16 @@ bool ProtoTableFileIO::ReStoreTableContents(map_api::NetTable* table) {
   file_.seekg(0, std::ios::end);
   std::istream::pos_type file_size = file_.tellg();
 
+  if (file_size == 0) {
+    LOG(ERROR) << "Got file of size: " << file_size;
+    return false;
+  }
+
   file_.clear();
   file_.seekg(0, std::ios::beg);
   google::protobuf::io::IstreamInputStream raw_in(&file_);
   google::protobuf::io::CodedInputStream coded_in(&raw_in);
+
   coded_in.SetTotalBytesLimit(file_size, file_size);
 
   uint32_t message_count;
