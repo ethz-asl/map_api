@@ -1,6 +1,8 @@
 #ifndef MAP_API_CR_TABLE_RAM_MAP_H_
 #define MAP_API_CR_TABLE_RAM_MAP_H_
 
+#include <string>
+
 #include "map-api/cr-table.h"
 
 namespace map_api {
@@ -25,6 +27,6 @@ class CRTableRamMap : public CRTable {
   MapType data_;
 };
 
-} /* namespace map_api */
+}  // namespace map_api
 
-#endif /* MAP_API_CR_TABLE_RAM_MAP_H_ */
+#endif  // MAP_API_CR_TABLE_RAM_MAP_H_
