@@ -47,6 +47,7 @@ SET(CORE_SOURCE  src/chord-index.cc
                  src/peer.cc
                  src/peer-id.cc
                  src/peer-handler.cc
+                 src/proto-table-file-io.cc
                  src/revision.cc
                  src/server-discovery.cc
                  src/sqlite-interface.cc
