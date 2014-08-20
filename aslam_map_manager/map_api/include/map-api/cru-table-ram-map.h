@@ -33,6 +33,11 @@ class CRUTableRamMap : public CRUTable {
   class HistoryType : public std::list<Revision> {
    public:
     const_iterator latestAt(const LogicalTime& time) const;
+    /**
+     * Index_guess guesses the position of the update time field in the Revision
+     * proto.
+     */
+    const_iterator latestAt(const LogicalTime& time, int index_guess) const;
   };
   // Latest at front
   typedef std::unordered_map<Id, HistoryType> HistoryMapType;

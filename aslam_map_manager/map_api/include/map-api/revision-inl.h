@@ -32,21 +32,27 @@ bool Revision::set(const std::string& fieldName, const FieldType& value){
 
 template <typename FieldType>
 bool Revision::get(const std::string& fieldName, FieldType* value) const {
-  // 1. Check if field exists
-  const proto::TableField* field;
-  if (!find(fieldName, &field)){
-    LOG(FATAL) << "Trying to get inexistent field " << fieldName;
+  int index = indexOf(fieldName);
+  return get(fieldName, index, value);
+}
+
+template <typename FieldType>
+bool Revision::get(const std::string& fieldName, int index_guess,
+                   FieldType* value) const {
+  CHECK_NOTNULL(value);
+  const proto::TableField& field = fieldqueries(index_guess);
+  if (field.nametype().name() != fieldName) {
+    LOG(WARNING) << "Index guess failed";
+    return get(fieldName, value);
   }
-  // 2. Check type
-  CHECK_EQ(field->nametype().type(), Revision::protobufEnum<FieldType>()) <<
-      "Type mismatch when trying to get " << fieldName;
-  // 3. Get
-  return get(*field, value);
+  CHECK_EQ(field.nametype().type(), Revision::protobufEnum<FieldType>())
+      << "Type mismatch when trying to get " << fieldName;
+  return get(field, value);
 }
 
 template <typename ExpectedType>
 bool Revision::verifyEqual(const std::string& fieldName,
-                      const ExpectedType& expected) const {
+                           const ExpectedType& expected) const {
   ExpectedType value;
   get(fieldName, &value);
   return value == expected;
