@@ -6,7 +6,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "map-api/map-api-core.h"
+#include "map-api/core.h"
 
 namespace map_api {
 

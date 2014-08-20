@@ -14,7 +14,7 @@
 #include <zeromq_cpp/zmq.hpp>
 
 #include "map-api/chunk-transaction.h"
-#include "map-api/cr-table-ram-cache.h"
+#include "map-api/cr-table-ram-sqlite.h"
 #include "map-api/id.h"
 #include "map-api/peer-handler.h"
 #include "map-api/message.h"

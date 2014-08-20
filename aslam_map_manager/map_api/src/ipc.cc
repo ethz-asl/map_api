@@ -5,7 +5,7 @@
 
 #include <glog/logging.h>
 
-#include "map-api/map-api-hub.h"
+#include "map-api/hub.h"
 #include "map-api/peer-id.h"
 
 namespace map_api {
@@ -24,19 +24,19 @@ MAP_API_STRING_MESSAGE(IPC::kMessageMessage);
 IPC::~IPC() {}
 
 void IPC::registerHandlers() {
-  MapApiHub::instance().registerHandler(kBarrierMessage, barrierHandler);
-  MapApiHub::instance().registerHandler(kMessageMessage, pushHandler);
+  Hub::instance().registerHandler(kBarrierMessage, barrierHandler);
+  Hub::instance().registerHandler(kMessageMessage, pushHandler);
 }
 
 void IPC::barrier(int id, int n_peers) {
   std::ostringstream ss;
   ss << id;
-  while (MapApiHub::instance().peerSize() < n_peers) {
+  while (Hub::instance().peerSize() < n_peers) {
     usleep(10000);
   }
   Message barrier_message;
   barrier_message.impose<kBarrierMessage,std::string>(ss.str());
-  CHECK(MapApiHub::instance().undisputableBroadcast(&barrier_message));
+  CHECK(Hub::instance().undisputableBroadcast(&barrier_message));
   std::unique_lock<std::mutex> lock(barrier_mutex_);
   while (barrier_map_[id] < n_peers) {
     barrier_cv_.wait(lock);
@@ -62,7 +62,7 @@ void IPC::barrierHandler(
 void IPC::push(const std::string& message) {
   Message request;
   request.impose<kMessageMessage>(message);
-  CHECK(MapApiHub::instance().undisputableBroadcast(&request));
+  CHECK(Hub::instance().undisputableBroadcast(&request));
 }
 void IPC::push(const Id& message) {
   push(message.hexString());

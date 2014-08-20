@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include <map-api/map-api-core.h>
+#include <map-api/core.h>
 #include <map-api/net-table-manager.h>
 #include <map-api/revision.h>
 #include <map-api/table-descriptor.h>
@@ -30,7 +30,7 @@ map_api::NetTable* center_table = nullptr;
 map_api::NetTable* association_table = nullptr;
 
 void init() {
-  map_api::MapApiCore::initializeInstance();
+  map_api::Core::initializeInstance();
   std::unique_ptr<map_api::TableDescriptor> descriptor;
 
   // Association table.
@@ -61,9 +61,7 @@ void init() {
       getTable(kCenterTableName);
 }
 
-void kill() {
-  map_api::MapApiCore::instance()->kill();
-}
+void kill() { map_api::Core::instance()->kill(); }
 
 void descriptorFromRevision(const map_api::Revision& revision,
                             DescriptorType* descriptor) {
