@@ -116,11 +116,8 @@ bool NetTable::update(Revision* query) {
   return true;
 }
 
-// TODO(tcies) net lookup
-std::shared_ptr<Revision> NetTable::getById(const Id& id,
-                                            const LogicalTime& time) {
-  LOG(WARNING) << "Use of deprecated function NetTable::getById";
-  return cache_->getById(id, time);
+std::shared_ptr<Revision> NetTable::getByIdInconsistent(const Id& id) {
+  return cache_->getById(id, LogicalTime::sample());
 }
 
 void NetTable::dumpActiveChunks(const LogicalTime& time,
@@ -142,14 +139,6 @@ void NetTable::dumpActiveChunksAtCurrentTime(
     CRTable::RevisionMap* destination) {
   CHECK_NOTNULL(destination);
   return dumpActiveChunks(map_api::LogicalTime::sample(), destination);
-}
-
-bool NetTable::has(const Id& chunk_id) {
-  bool result;
-  active_chunks_lock_.readLock();
-  result = (active_chunks_.find(chunk_id) != active_chunks_.end());
-  active_chunks_lock_.unlock();
-  return result;
 }
 
 Chunk* NetTable::connectTo(const Id& chunk_id,
@@ -179,7 +168,10 @@ Chunk* NetTable::connectTo(const Id& chunk_id,
 }
 
 size_t NetTable::activeChunksSize() const {
-  return active_chunks_.size();
+  active_chunks_lock_.readLock();
+  size_t result = active_chunks_.size();
+  active_chunks_lock_.unlock();
+  return result;
 }
 
 size_t NetTable::activeChunksItemsSize() {

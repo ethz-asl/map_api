@@ -4,22 +4,9 @@
 #include <cstdint>
 #include <iostream>  // NOLINT
 #include <mutex>
-
-namespace map_api {
-class LogicalTime;
-}  // namespace map_api
-
-namespace std {
-template <>
-struct hash<map_api::LogicalTime> {
-  inline size_t operator()(const map_api::LogicalTime& time) const;
-};
-}  // namespace std
-
 namespace map_api {
 class LogicalTime {
  public:
-  friend size_t std::hash<LogicalTime>::operator()(const LogicalTime&) const;
   /**
    * Invalid time
    */
@@ -62,10 +49,12 @@ inline ostream& operator<<(ostream& out, const map_api::LogicalTime& time) {
   return out;
 }
 
-inline size_t std::hash<map_api::LogicalTime>::operator()(
-    const map_api::LogicalTime& time) const {
-  return std::hash<uint64_t>()(time.value_);
-}
+template <>
+struct hash<map_api::LogicalTime> {
+  inline size_t operator()(const map_api::LogicalTime& time) const {
+    return std::hash<uint64_t>()(time.serialize());
+  }
+};
 }  // namespace std
 
 #include "map-api/logical-time-inl.h"
