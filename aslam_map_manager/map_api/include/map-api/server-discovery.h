@@ -40,7 +40,7 @@ class ServerDiscovery final : public Discovery {
   ServerDiscovery(const std::string& address, zmq::context_t& context);
   ServerDiscovery(const ServerDiscovery&) = delete;
   ServerDiscovery& operator=(const ServerDiscovery&) = delete;
-  friend class MapApiHub;
+  friend class Hub;
 
   template <const char* request_type>
   void request(Message* response) {

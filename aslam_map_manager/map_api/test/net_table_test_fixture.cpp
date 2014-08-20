@@ -1,4 +1,4 @@
-#include "map-api/map-api-core.h"
+#include "map-api/core.h"
 #include "map-api/net-table.h"
 #include "map-api/net-table-transaction.h"
 #include "map-api/transaction.h"

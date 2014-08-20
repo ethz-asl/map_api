@@ -2,9 +2,9 @@
 
 #include <glog/logging.h>
 
-#include "map-api/cr-table-ram-cache.h"
-#include "map-api/cru-table-ram-cache.h"
-#include "map-api/map-api-core.h"
+#include "map-api/core.h"
+#include "map-api/cr-table-ram-sqlite.h"
+#include "map-api/cru-table-ram-sqlite.h"
 #include "map-api/net-table-manager.h"
 
 namespace map_api {
@@ -19,10 +19,10 @@ bool NetTable::init(
   (*descriptor)->addField<Id>(kChunkIdField);
   switch (type) {
     case CRTable::Type::CR:
-      cache_.reset(new CRTableRAMCache);
+      cache_.reset(new CRTableRamSqlite);
       break;
     case CRTable::Type::CRU:
-      cache_.reset(new CRUTableRAMCache);
+      cache_.reset(new CRUTableRamSqlite);
       break;
   }
   CHECK(cache_->init(descriptor));
@@ -159,7 +159,7 @@ Chunk* NetTable::connectTo(const Id& chunk_id,
   metadata.set_chunk_id(chunk_id.hexString());
   request.impose<Chunk::kConnectRequest>(metadata);
   // TODO(tcies) add to local peer subset as well?
-  MapApiHub::instance().request(peer, &request, &response);
+  Hub::instance().request(peer, &request, &response);
   CHECK(response.isType<Message::kAck>()) << response.type();
   // wait for connect handle thread of other peer to succeed
   ChunkMap::iterator found;

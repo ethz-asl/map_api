@@ -3,19 +3,19 @@
 
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 
-#include "map-api/map-api-core.h"
+#include "map-api/core.h"
 
 using namespace map_api;
 
-TEST(MapApiCore, validInit) {
-  MapApiCore* instance = MapApiCore::instance();
+TEST(Core, validInit) {
+  Core* instance = Core::instance();
   EXPECT_EQ(nullptr, instance);
-  MapApiCore::initializeInstance();
-  instance = MapApiCore::instance();
+  Core::initializeInstance();
+  instance = Core::instance();
   EXPECT_NE(nullptr, instance);
   EXPECT_TRUE(instance->isInitialized());
   instance->kill();
-  EXPECT_EQ(nullptr, MapApiCore::instance());
+  EXPECT_EQ(nullptr, Core::instance());
 }
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT

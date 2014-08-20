@@ -1,4 +1,4 @@
-#include "map-api/map-api-hub.h"
+#include "map-api/hub.h"
 
 #include <ifaddrs.h>
 #include <iostream>
@@ -13,10 +13,10 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include "map-api/core.h"
 #include "map-api/file-discovery.h"
 #include "map-api/ipc.h"
 #include "map-api/logical-time.h"
-#include "map-api/map-api-core.h"
 #include "map-api/server-discovery.h"
 #include "core.pb.h"
 
@@ -27,20 +27,21 @@ const char kLoopback[] = "lo";
 
 DEFINE_string(discovery_mode, kFileDiscovery,
               ("How new peers are discovered. \"" + kFileDiscovery +
-                  "\" or \"" + kServerDiscovery +
-                  "\". In the latter case, IP and port of the server must "\
-                  "be specified separately with --discovery_server").c_str());
-DEFINE_string(discovery_server, "127.0.0.1:5050", "Server to be used for "\
+               "\" or \"" + kServerDiscovery +
+               "\". In the latter case, IP and port of the server must "
+               "be specified separately with --discovery_server").c_str());
+DEFINE_string(discovery_server, "127.0.0.1:5050",
+              "Server to be used for "
               "server-discovery");
 
 namespace map_api {
 
-const char MapApiHub::kDiscovery[] = "map_api_hub_discovery";
-const char MapApiHub::kReady[] = "map_api_hub_ready";
+const char Hub::kDiscovery[] = "map_api_hub_discovery";
+const char Hub::kReady[] = "map_api_hub_ready";
 
-MapApiHub::HandlerMap MapApiHub::handlers_;
+Hub::HandlerMap Hub::handlers_;
 
-bool MapApiHub::init(bool* is_first_peer) {
+bool Hub::init(bool* is_first_peer) {
   CHECK_NOTNULL(is_first_peer);
   context_.reset(new zmq::context_t());
   terminate_ = false;
@@ -64,7 +65,7 @@ bool MapApiHub::init(bool* is_first_peer) {
       listenerStatus_.wait(lock);
     }
   }
-  if (!listenerConnected_){
+  if (!listenerConnected_) {
     context_.reset();
     return false;
   }
@@ -78,9 +79,10 @@ bool MapApiHub::init(bool* is_first_peer) {
     // don't attempt to connect if already connected
     if (peers_.find(peer) != peers_.end()) continue;
 
-    PeerMap::iterator inserted = peers_.insert(std::make_pair(
-        peer, std::unique_ptr<Peer>(new Peer(peer.ipPort(), *context_,
-                                             ZMQ_REQ)))).first;
+    PeerMap::iterator inserted =
+        peers_.insert(std::make_pair(
+                          peer, std::unique_ptr<Peer>(new Peer(
+                                    peer.ipPort(), *context_, ZMQ_REQ)))).first;
     // connection request is sent outside the peer_mutex_ lock to avoid
     // deadlocks where two peers try to connect to each other:
     // P1                           P2
@@ -121,13 +123,13 @@ bool MapApiHub::init(bool* is_first_peer) {
   return true;
 }
 
-MapApiHub &MapApiHub::instance() {
-  static MapApiHub instance;
+Hub& Hub::instance() {
+  static Hub instance;
   return instance;
 }
 
-void MapApiHub::kill() {
-  if (terminate_){
+void Hub::kill() {
+  if (terminate_) {
     LOG(WARNING) << "Double termination";
     return;
   }
@@ -148,14 +150,14 @@ void MapApiHub::kill() {
   context_.reset();
 }
 
-bool MapApiHub::ackRequest(const PeerId& peer, Message* request) {
+bool Hub::ackRequest(const PeerId& peer, Message* request) {
   CHECK_NOTNULL(request);
   Message response;
   this->request(peer, request, &response);
   return response.isType<Message::kAck>();
 }
 
-void MapApiHub::getPeers(std::set<PeerId>* destination) const {
+void Hub::getPeers(std::set<PeerId>* destination) const {
   CHECK_NOTNULL(destination);
   destination->clear();
   std::vector<PeerId> discovery_peers;
@@ -167,21 +169,18 @@ void MapApiHub::getPeers(std::set<PeerId>* destination) const {
   }
 }
 
-int MapApiHub::peerSize() {
+int Hub::peerSize() {
   int size;
   std::lock_guard<std::mutex> lock(peer_mutex_);
   size = peers_.size();
   return size;
 }
 
-const std::string& MapApiHub::ownAddress() const {
-  return own_address_;
-}
+const std::string& Hub::ownAddress() const { return own_address_; }
 
-bool MapApiHub::registerHandler(
-    const char* name,
-    std::function<void(const Message& serialized_type,
-                       Message* response)> handler) {
+bool Hub::registerHandler(const char* name,
+                          std::function<void(const Message& serialized_type,
+                                             Message* response)> handler) {
   CHECK_NOTNULL(name);
   CHECK(handler);
   // TODO(tcies) div. error handling
@@ -189,8 +188,7 @@ bool MapApiHub::registerHandler(
   return true;
 }
 
-void MapApiHub::request(
-    const PeerId& peer, Message* request, Message* response) {
+void Hub::request(const PeerId& peer, Message* request, Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
   std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
@@ -201,16 +199,15 @@ void MapApiHub::request(
     std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
         peers_.find(peer);
     if (found == peers_.end()) {
-      found = peers_.insert(std::make_pair(
-          peer, std::unique_ptr<Peer>(
-              new Peer(peer.ipPort(), *context_, ZMQ_REQ)))).first;
+      found = peers_.insert(std::make_pair(peer, std::unique_ptr<Peer>(new Peer(
+                                                     peer.ipPort(), *context_,
+                                                     ZMQ_REQ)))).first;
     }
   }
   found->second->request(request, response);
 }
 
-bool MapApiHub::try_request(
-    const PeerId& peer, Message* request, Message* response) {
+bool Hub::try_request(const PeerId& peer, Message* request, Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
   PeerMap::iterator found = peers_.find(peer);
@@ -224,27 +221,27 @@ bool MapApiHub::try_request(
     std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
         peers_.find(peer);
     if (found == peers_.end()) {
-      found = peers_.insert(std::make_pair(
-          peer, std::unique_ptr<Peer>(
-              new Peer(peer.ipPort(), *context_, ZMQ_REQ)))).first;
+      found = peers_.insert(std::make_pair(peer, std::unique_ptr<Peer>(new Peer(
+                                                     peer.ipPort(), *context_,
+                                                     ZMQ_REQ)))).first;
     }
   }
   return found->second->try_request(request, response);
 }
 
-void MapApiHub::broadcast(Message* request,
-                          std::unordered_map<PeerId, Message>* responses) {
+void Hub::broadcast(Message* request,
+                    std::unordered_map<PeerId, Message>* responses) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(responses);
   responses->clear();
   // TODO(tcies) parallelize using std::future
   for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer_pair :
-      peers_) {
+       peers_) {
     peer_pair.second->request(request, &(*responses)[peer_pair.first]);
   }
 }
 
-bool MapApiHub::undisputableBroadcast(Message* request) {
+bool Hub::undisputableBroadcast(Message* request) {
   CHECK_NOTNULL(request);
   std::unordered_map<PeerId, Message> responses;
   broadcast(request, &responses);
@@ -256,36 +253,37 @@ bool MapApiHub::undisputableBroadcast(Message* request) {
   return true;
 }
 
-bool MapApiHub::isReady(const PeerId& peer) {
+bool Hub::isReady(const PeerId& peer) {
   Message ready_request, response;
   ready_request.impose<kReady>();
   request(peer, &ready_request, &response);
   return response.isType<Message::kAck>();
 }
 
-void MapApiHub::discoveryHandler(const Message& request, Message* response) {
+void Hub::discoveryHandler(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
   // lock peer set lock so we can write without a race condition
   instance().peer_mutex_.lock();
   instance().peers_.insert(
-      std::make_pair(PeerId(request.sender()), std::unique_ptr<Peer>(
-          new Peer(request.sender(), *instance().context_, ZMQ_REQ))));
+      std::make_pair(PeerId(request.sender()),
+                     std::unique_ptr<Peer>(new Peer(
+                         request.sender(), *instance().context_, ZMQ_REQ))));
   instance().peer_mutex_.unlock();
   // ack by resend
   response->impose<Message::kAck>();
 }
 
-void MapApiHub::readyHandler(const Message& request, Message* response) {
+void Hub::readyHandler(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
   CHECK(request.isType<kReady>());
-  if (MapApiCore::instance() == nullptr) {
+  if (Core::instance() == nullptr) {
     response->decline();
   } else {
     response->ack();
   }
 }
 
-std::string MapApiHub::ownAddressBeforePort() {
+std::string Hub::ownAddressBeforePort() {
   if (FLAGS_discovery_mode == kFileDiscovery) {
     return kLocalhost;
   } else if (FLAGS_discovery_mode == kServerDiscovery) {
@@ -294,19 +292,19 @@ std::string MapApiHub::ownAddressBeforePort() {
     char host[NI_MAXHOST];
     bool success = false;
     for (struct ifaddrs* interface_address = interface_addresses;
-        interface_address != NULL;
-        interface_address = interface_address->ifa_next) {
+         interface_address != NULL;
+         interface_address = interface_address->ifa_next) {
       if (interface_address->ifa_addr != NULL) {
         // ignore non-ip4 interfaces
         if (interface_address->ifa_addr->sa_family == AF_INET) {
           // ignore local loopback
-          if (strcmp(interface_address->ifa_name, kLoopback) != 0){
+          if (strcmp(interface_address->ifa_name, kLoopback) != 0) {
             // assuming that first address that satisfies these conditions
             // is the right one TODO(tcies) some day, ability to specify
             // custom interface name might be nice
             CHECK(getnameinfo(interface_address->ifa_addr,
                               sizeof(struct sockaddr_in), host, NI_MAXHOST,
-                              NULL,0, NI_NUMERICHOST) == 0);
+                              NULL, 0, NI_NUMERICHOST) == 0);
             success = true;
             break;
           }
@@ -321,7 +319,7 @@ std::string MapApiHub::ownAddressBeforePort() {
   }
 }
 
-void MapApiHub::listenThread(MapApiHub *self) {
+void Hub::listenThread(Hub* self) {
   const unsigned int kMinPort = 1024;
   const unsigned int kMaxPort = 65536;
   zmq::socket_t server(*(self->context_), ZMQ_REP);
@@ -339,7 +337,7 @@ void MapApiHub::listenThread(MapApiHub *self) {
         self->own_address_ = address.str();
         break;
       }
-      catch (const std::exception &e) {
+      catch (const std::exception& e) {
         port = kMinPort + (rng() % (kMaxPort - kMinPort));
       }
     }
@@ -391,5 +389,4 @@ void MapApiHub::listenThread(MapApiHub *self) {
   }
   server.close();
 }
-
 }

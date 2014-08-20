@@ -5,8 +5,8 @@
 
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 
-#include "map-api/cru-table-ram-cache.h"
-#include "map-api/map-api-core.h"
+#include "map-api/core.h"
+#include "map-api/cru-table-ram-sqlite.h"
 #include "map-api/local-transaction.h"
 
 #include "test_table.cpp"
@@ -18,8 +18,8 @@ using namespace map_api;
  */
 class TransactionTestTable {
  public:
-  static CRUTableRAMCache& instance() {
-    static CRUTableRAMCache table;
+  static CRUTableRamSqlite& instance() {
+    static CRUTableRamSqlite table;
     if (!table.isInitialized()) {
       std::unique_ptr<map_api::TableDescriptor> descriptor(
           new map_api::TableDescriptor);
@@ -49,14 +49,14 @@ class TransactionTest : public testing::Test {
  protected:
   virtual void SetUp() override {
     ::testing::FLAGS_gtest_death_test_style = "fast";
-    map_api::MapApiCore::initializeInstance(); // core init
-    ASSERT_TRUE(map_api::MapApiCore::instance() != nullptr);
+    map_api::Core::initializeInstance();  // core init
+    ASSERT_TRUE(map_api::Core::instance() != nullptr);
   }
   virtual void TearDown() final override {
-    MapApiCore::instance()->kill();
+    Core::instance()->kill();
     ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   }
-  std::shared_ptr<Revision> sample(double n, CRUTableRAMCache* table) {
+  std::shared_ptr<Revision> sample(double n, CRUTableRamSqlite* table) {
     CHECK_NOTNULL(table);
     std::shared_ptr<Revision> revision = table->getTemplate();
     if (!revision->set(TransactionTestTable::sampleField(), n)){
@@ -79,7 +79,7 @@ TEST_F(TransactionTest, BeginCommit){
 }
 
 TEST_F(TransactionTest, OperationsBeforeBegin){
-  CRUTableRAMCache* table = &TransactionTestTable::instance();
+  CRUTableRamSqlite* table = &TransactionTestTable::instance();
   std::shared_ptr<Revision> data = sample(6.626e-34, table);
   EXPECT_EQ(Id(), transaction_.insert(data, table));
   // read and update should fail only because transaction hasn't started yet,
@@ -95,7 +95,7 @@ TEST_F(TransactionTest, OperationsBeforeBegin){
 }
 
 TEST_F(TransactionTest, InsertBeforeTableInit){
-  CRUTableRAMCache table;
+  CRUTableRamSqlite table;
   EXPECT_TRUE(transaction_.begin());
   EXPECT_DEATH(transaction_.insert(sample(3.14, &table), &table), "^");
 }
@@ -126,7 +126,7 @@ class TransactionCRUTest : public TransactionTest {
     EXPECT_TRUE(row->get(TransactionTestTable::sampleField(), &actual));
     EXPECT_EQ(expected, actual);
   }
-  CRUTableRAMCache* table_;
+  CRUTableRamSqlite* table_;
 };
 
 TEST_F(TransactionCRUTest, InsertNonsense){
@@ -171,8 +171,8 @@ class MultiTransactionTest : public testing::Test {
 class MultiTransactionSingleCRUTest : public MultiTransactionTest {
  protected:
   virtual void SetUp()  {
-    map_api::MapApiCore::initializeInstance(); // core init
-    ASSERT_TRUE(map_api::MapApiCore::instance() != nullptr);
+    map_api::Core::initializeInstance();  // core init
+    ASSERT_TRUE(map_api::Core::instance() != nullptr);
     TransactionTestTable::init();
     table_ = &TransactionTestTable::instance();
     ::testing::FLAGS_gtest_death_test_style = "fast";
@@ -180,10 +180,10 @@ class MultiTransactionSingleCRUTest : public MultiTransactionTest {
 
   virtual void TearDown() {
     ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-    MapApiCore::instance()->kill();
+    Core::instance()->kill();
   }
 
-  std::shared_ptr<Revision> sample(double n, CRUTableRAMCache* table) {
+  std::shared_ptr<Revision> sample(double n, CRUTableRamSqlite* table) {
     CHECK_NOTNULL(table);
     std::shared_ptr<Revision> revision = table->getTemplate();
     if (!revision->set(TransactionTestTable::sampleField(), n)){
@@ -221,7 +221,7 @@ class MultiTransactionSingleCRUTest : public MultiTransactionTest {
       dump_set_.insert(value);
     }
   }
-  CRUTableRAMCache* table_;
+  CRUTableRamSqlite* table_;
   std::set<double> dump_set_;
 };
 

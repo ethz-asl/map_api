@@ -25,7 +25,7 @@ class Peer {
    * Life cycle management of Peer objects reserved for MapApiHub, with the
    * exception of server discovery.
    */
-  friend class MapApiHub;
+  friend class Hub;
   friend class ServerDiscovery;
   explicit Peer(const std::string& address, zmq::context_t& context,
                 int socket_type);
