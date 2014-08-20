@@ -15,13 +15,14 @@ namespace map_api {
 Peer::Peer(const std::string& address, zmq::context_t& context,
            int socket_type)
 : address_(address), socket_(context, socket_type) {
-  //TODO(tcies) init instead of aborting constructor
+  // TODO(tcies) init instead of aborting constructor
   std::lock_guard<std::mutex> lock(socket_mutex_);
   try {
     socket_.connect(("tcp://" + address).c_str());
-    int timeOutMs = FLAGS_request_timeout; // TODO(tcies) allow custom
+    int timeOutMs = FLAGS_request_timeout;  // TODO(tcies) allow custom
     socket_.setsockopt(ZMQ_RCVTIMEO, &timeOutMs, sizeof(timeOutMs));
-  } catch (const std::exception& e) {
+  }
+  catch (const std::exception& e) {
     LOG(FATAL) << "Connection to " << address << " failed";
   }
 }
@@ -43,6 +44,7 @@ bool Peer::try_request(Message* request, Message* response) {
   request->set_sender(PeerId::self().ipPort());
   request->set_logical_time(LogicalTime::sample().serialize());
   int size = request->ByteSize();
+  VLOG(3) << "Message size is " << size;
   void* buffer = malloc(size);
   CHECK(request->SerializeToArray(buffer, size));
   try {
@@ -72,11 +74,11 @@ bool Peer::disconnect() {
   std::lock_guard<std::mutex> lock(socket_mutex_);
   try {
     socket_.close();
-  } catch (const zmq::error_t& e) {
+  }
+  catch (const zmq::error_t& e) {
     LOG(FATAL) << e.what();
   }
   return true;
 }
 
-}
-// namespace map_api
+}  // namespace map_api

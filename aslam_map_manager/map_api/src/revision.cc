@@ -19,17 +19,6 @@ bool Revision::find(const std::string& name, proto::TableField** field) {
   return true;
 }
 
-bool Revision::find(const std::string& name,
-                    const proto::TableField** field) const {
-  FieldMap::const_iterator find = fields_.find(name);
-  if (find == fields_.end()) {
-    LOG(ERROR) << "Attempted to access inexistent field " << name;
-    return false;
-  }
-  *field = &fieldqueries(find->second);
-  return true;
-}
-
 std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(
     int field, Poco::Data::Statement& stat) const {
   std::shared_ptr<Poco::Data::BLOB> blobPointer;
@@ -112,13 +101,51 @@ bool Revision::structureMatch(const Revision& other) const {
 }
 
 bool Revision::fieldMatch(const Revision& other, const std::string& key) const {
-  FieldMap::const_iterator index_here = fields_.find(key);
-  FieldMap::const_iterator index_there = other.fields_.find(key);
-  CHECK(index_here != fields_.end());
-  CHECK(index_there != other.fields_.end());
-  // TODO(tcies) probably optimizable
-  return fieldqueries(index_here->second).SerializeAsString() ==
-         other.fieldqueries(index_there->second).SerializeAsString();
+  int index = indexOf(key);
+  return fieldMatch(other, key, index);
+}
+
+bool Revision::fieldMatch(const Revision& other, const std::string& key,
+                          int index_guess) const {
+  const proto::TableField& a = fieldqueries(index_guess);
+  const proto::TableField& b = other.fieldqueries(index_guess);
+  if (a.nametype().name() != key) {
+    LOG(WARNING) << "Index guess was wrong!";
+    return fieldMatch(other, key);
+  }
+  CHECK_EQ(key, b.nametype().name());
+  switch (a.nametype().type()) {
+    case proto::TableFieldDescriptor_Type_BLOB: {
+      return a.blobvalue() == b.blobvalue();
+    }
+    case(proto::TableFieldDescriptor_Type_DOUBLE) : {
+      return a.doublevalue() == b.doublevalue();
+    }
+    case(proto::TableFieldDescriptor_Type_HASH128) : {
+      return a.stringvalue() == b.stringvalue();
+    }
+    case(proto::TableFieldDescriptor_Type_INT32) : {
+      return a.intvalue() == b.intvalue();
+    }
+    case(proto::TableFieldDescriptor_Type_INT64) : {
+      return a.longvalue() == b.longvalue();
+    }
+    case(proto::TableFieldDescriptor_Type_UINT64) : {
+      return a.ulongvalue() == b.ulongvalue();
+    }
+    case(proto::TableFieldDescriptor_Type_STRING) : {
+      return a.stringvalue() == b.stringvalue();
+    }
+  }
+  CHECK(false) << "Forgot switch case";
+  return false;
+}
+
+int Revision::indexOf(const std::string& key) const {
+  FieldMap::const_iterator index = fields_.find(key);
+  // assuming same index for speedup
+  CHECK(index != fields_.end()) << "Trying to get inexistent field";
+  return index->second;
 }
 
 bool Revision::ParseFromString(const std::string& data) {
