@@ -59,7 +59,7 @@ TEST_P(NetTableTest, SafeAndRestoreFromFile) {
     EXPECT_TRUE(file_io.StoreTableContents(LogicalTime::sample(), *table_));
   }
 
-  const static std::string kTableName2 = "test_table_restore";
+  const static std::string kTableName2 = "table_restore";
   std::unique_ptr<TableDescriptor> descriptor2(new TableDescriptor);
   descriptor2->setName(kTableName2);
   descriptor2->addField<int>(kFieldName);
@@ -71,6 +71,8 @@ TEST_P(NetTableTest, SafeAndRestoreFromFile) {
     ProtoTableFileIO file_io(*table_2, test_filename);
     ASSERT_TRUE(file_io.ReStoreTableContents(table_2));
   }
+  LOG(ERROR) << "table1:" << table_->getStatistics();
+  LOG(ERROR) << "table2:" << table_2->getStatistics();
 
   {
     chunk = table_2->getChunk(chunk_id);
