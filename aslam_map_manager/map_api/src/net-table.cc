@@ -141,14 +141,6 @@ void NetTable::dumpActiveChunksAtCurrentTime(
   return dumpActiveChunks(map_api::LogicalTime::sample(), destination);
 }
 
-bool NetTable::has(const Id& chunk_id) {
-  bool result;
-  active_chunks_lock_.readLock();
-  result = (active_chunks_.find(chunk_id) != active_chunks_.end());
-  active_chunks_lock_.unlock();
-  return result;
-}
-
 Chunk* NetTable::connectTo(const Id& chunk_id,
                            const PeerId& peer) {
   Message request, response;
@@ -176,7 +168,10 @@ Chunk* NetTable::connectTo(const Id& chunk_id,
 }
 
 size_t NetTable::activeChunksSize() const {
-  return active_chunks_.size();
+  active_chunks_lock_.readLock();
+  size_t result = active_chunks_.size();
+  active_chunks_lock_.unlock();
+  return result;
 }
 
 size_t NetTable::activeChunksItemsSize() {

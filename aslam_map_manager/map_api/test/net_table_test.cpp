@@ -128,7 +128,9 @@ TEST_P(NetTableTest, Transactions) {
     std::shared_ptr<Revision> to_insert = second_table->getTemplate();
     to_insert->set(CRTable::kIdField, b_id);
     to_insert->set(kSecondTableFieldName, 0);
-    EXPECT_TRUE(second_table->insert(b_chunk, to_insert.get()));
+    Transaction initial_insert;
+    initial_insert.insert(second_table, b_chunk, to_insert);
+    ASSERT_TRUE(initial_insert.commit());
 
     launchSubprocess(A);
     launchSubprocess(B);
