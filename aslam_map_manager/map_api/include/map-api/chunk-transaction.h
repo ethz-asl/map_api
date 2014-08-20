@@ -29,7 +29,6 @@ class ChunkTransaction {
   FRIEND_TEST(NetTableTest, ChunkTransactionsConflictConditions);
 
  private:
-  // INIT
   explicit ChunkTransaction(Chunk* chunk);
   ChunkTransaction(const LogicalTime& begin_time, Chunk* chunk);
 

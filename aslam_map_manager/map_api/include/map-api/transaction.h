@@ -20,7 +20,6 @@ class Revision;
 
 class Transaction {
  public:
-  // INIT
   Transaction();
   explicit Transaction(const LogicalTime& begin_time);
 

@@ -19,7 +19,7 @@ ChunkTransaction::ChunkTransaction(const LogicalTime& begin_time, Chunk* chunk)
 
 std::shared_ptr<Revision> ChunkTransaction::getById(const Id& id) {
   std::shared_ptr<Revision> result = getByIdFromUncommitted(id);
-  if (result) {
+  if (result != nullptr) {
     return result;
   }
   chunk_->readLock();
@@ -88,8 +88,8 @@ bool ChunkTransaction::check() {
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
        insertions_) {
     if (present_ids.find(item.first) != present_ids.end()) {
-      LOG(WARNING) << "Table " << chunk_->underlying_table_->name()
-                   << " already contains id " << item.first;
+      LOG(ERROR) << "Table " << chunk_->underlying_table_->name()
+                 << " already contains id " << item.first;
       return false;
     }
   }

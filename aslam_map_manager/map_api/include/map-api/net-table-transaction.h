@@ -22,7 +22,6 @@ class NetTableTransaction {
   FRIEND_TEST(NetTableTest, NetTableTransactions);
 
  private:
-  // INIT
   explicit NetTableTransaction(NetTable* table);
   NetTableTransaction(const LogicalTime& begin_time, NetTable* table);
 
