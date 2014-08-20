@@ -14,16 +14,6 @@
 
 using namespace map_api;
 
-TEST_P(NetTableTest, DieOnSerializeMultipleTablesToSameFile) {
-  //  std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
-  //  descriptor->setName(kTableName);
-  //  descriptor->addField<int>(kFieldName);
-  //  NetTableManager::instance().addTable(
-  //      GetParam() ? CRTable::Type::CRU : CRTable::Type::CR, &descriptor);
-  //  table_ = &NetTableManager::instance().getTable(kTableName);
-  //  table_ = &NetTableManager::instance().getTable(kTableName);
-}
-
 TEST_P(NetTableTest, SafeAndRestoreFromFile) {
   Chunk* chunk = table_->newChunk();
   CHECK_NOTNULL(chunk);
@@ -66,21 +56,25 @@ TEST_P(NetTableTest, SafeAndRestoreFromFile) {
 
   {
     ProtoTableFileIO file_io(*table_, test_filename);
-    file_io.StoreTableContents(LogicalTime::sample(), *table_);
+    EXPECT_TRUE(file_io.StoreTableContents(LogicalTime::sample(), *table_));
   }
 
-  // Drop all data.
-  table_->leaveAllChunks();
+  const static std::string kTableName2 = "test_table_restore";
+  std::unique_ptr<TableDescriptor> descriptor2(new TableDescriptor);
+  descriptor2->setName(kTableName2);
+  descriptor2->addField<int>(kFieldName);
+  NetTableManager::instance().addTable(
+      GetParam() ? CRTable::Type::CRU : CRTable::Type::CR, &descriptor2);
+  NetTable* table_2 = &NetTableManager::instance().getTable(kTableName2);
 
-  EXPECT_FALSE(table_->has(chunk_id));
   {
-    ProtoTableFileIO file_io(*table_, test_filename);
-    file_io.ReStoreTableContents(table_);
-    EXPECT_TRUE(table_->has(chunk_id));
+    ProtoTableFileIO file_io(*table_2, test_filename);
+    ASSERT_TRUE(file_io.ReStoreTableContents(table_2));
   }
 
   {
-    chunk = table_->getChunk(chunk_id);
+    chunk = table_2->getChunk(chunk_id);
+    ASSERT_FALSE(chunk == nullptr);
     CRTable::RevisionMap retrieved;
     LogicalTime time_1, time_2;
     int item_1, item_2;

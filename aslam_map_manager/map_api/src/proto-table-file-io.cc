@@ -2,9 +2,12 @@
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/zero_copy_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <map-api/proto-table-file-io.h>
+
+#include <map-api/chunk-manager.h>
 #include <map-api/cr-table.h>
 #include <map-api/cru-table.h>
+#include <map-api/proto-table-file-io.h>
+#include <map-api/transaction.h>
 
 namespace map_api {
 ProtoTableFileIO::ProtoTableFileIO(const map_api::NetTable& table,
@@ -123,7 +126,10 @@ bool ProtoTableFileIO::ReStoreTableContents(map_api::NetTable* table) {
     return false;
   }
 
-  map_api::Revision revision;
+  Transaction transaction(LogicalTime::sample());
+
+  std::unordered_map<Id, Chunk*> existing_chunks;
+
   for (size_t i = 0; i < message_count; ++i) {
     uint32_t msg_size;
     if (!coded_in.ReadVarint32(&msg_size)) {
@@ -147,22 +153,26 @@ bool ProtoTableFileIO::ReStoreTableContents(map_api::NetTable* table) {
       return false;
     }
 
-    revision.ParseFromString(input_string);
-
-    // Make sure the table has the chunk that this revision belongs to.
+    std::shared_ptr<Revision> revision(new Revision);
+    revision->ParseFromString(input_string);
     Id chunk_id;
-    CHECK(revision.get(NetTable::kChunkIdField, &chunk_id));
-    bool has_chunk = table->has(chunk_id);
+    CHECK(revision->get(NetTable::kChunkIdField, &chunk_id));
     Chunk* chunk = nullptr;
-    if (!has_chunk) {
+    std::unordered_map<Id, Chunk*>::iterator it =
+        existing_chunks.find(chunk_id);
+    if (it == existing_chunks.end()) {
       chunk = table->newChunk(chunk_id);
+      existing_chunks.insert(std::make_pair(chunk_id, chunk));
     } else {
-      chunk = table->getChunk(chunk_id);
+      chunk = it->second;
     }
     CHECK_NOTNULL(chunk);
-    table->insert(chunk, &revision);
+
+    transaction.insert(table, chunk, revision);
   }
-  return true;
+  bool ok = transaction.commit();
+  LOG_IF(WARNING, !ok) << "Transaction commit failed to load data";
+  return ok;
 }
 
 }  // namespace map_api

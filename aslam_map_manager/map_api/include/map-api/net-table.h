@@ -20,6 +20,7 @@ class NetTable {
   friend class NetTableTransaction;
   FRIEND_TEST(NetTableTest, RemoteUpdate);
   FRIEND_TEST(NetTableTest, Grind);
+  FRIEND_TEST(NetTableTest, SafeAndRestoreTableFromFile);
 
  public:
   static const std::string kChunkIdField;
