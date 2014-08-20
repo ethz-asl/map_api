@@ -81,70 +81,6 @@ bool Chunk::init(
   return true;
 }
 
-bool Chunk::check(const ChunkTransaction& transaction) {
-  {
-    std::lock_guard<std::mutex> metalock(lock_.mutex);
-    CHECK(isWriter(PeerId::self()));
-  }
-  CRTable::RevisionMap contents;
-  // TODO(tcies) caching entire table is not a long-term solution
-  underlying_table_->dump(LogicalTime::sample(), &contents);
-  std::unordered_set<Id> present_ids;
-  for (const CRTable::RevisionMap::value_type& item : contents) {
-    present_ids.insert(item.first);
-  }
-  // The following check may be left out if too costly
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
-      transaction.insertions_) {
-    if (present_ids.find(item.first) != present_ids.end()) {
-      LOG(WARNING) << "Table " << underlying_table_->name() <<
-          " already contains id " << item.first;
-      return false;
-    }
-  }
-  std::unordered_map<Id, LogicalTime> update_times;
-  if (!transaction.updates_.empty()) {
-    CHECK(underlying_table_->type() == CRTable::Type::CRU);
-    // TODO(tcies) caching entire table is not a long-term solution (but maybe
-    // caching the entire chunk could be?)
-    for (const CRTable::RevisionMap::value_type& item : contents) {
-      LogicalTime update_time;
-      item.second->get(CRUTable::kUpdateTimeField, &update_time);
-      update_times[item.first] = update_time;
-    }
-  }
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
-      transaction.updates_) {
-    if (update_times[item.first] >= transaction.begin_time_) {
-      return false;
-    }
-  }
-  for (const ChunkTransaction::ConflictCondition& item :
-      transaction.conflict_conditions_) {
-    CRTable::RevisionMap dummy;
-    if (underlying_table_->findByRevision(
-        item.key, *item.value_holder, LogicalTime::sample(), &dummy) > 0) {
-      return false;
-    }
-  }
-  return true;
-}
-
-bool Chunk::commit(const ChunkTransaction& transaction) {
-  distributedWriteLock();
-  if (!check(transaction)) {
-    distributedUnlock();
-    return false;
-  }
-  CHECK(bulkInsert(transaction.insertions_));
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
-      transaction.updates_) {
-    update(item.second.get());
-  }
-  distributedUnlock();
-  return true;
-}
-
 Id Chunk::id() const {
   // TODO(tcies) implement
   return id_;
@@ -211,17 +147,6 @@ bool Chunk::bulkInsert(const CRTable::RevisionMap& items) {
   return true;
 }
 
-std::shared_ptr<ChunkTransaction> Chunk::newTransaction() {
-  return std::shared_ptr<ChunkTransaction>(
-      new ChunkTransaction(LogicalTime::sample(), underlying_table_));
-}
-std::shared_ptr<ChunkTransaction> Chunk::newTransaction(
-    const LogicalTime& time) {
-  CHECK(time < LogicalTime::sample());
-  return std::shared_ptr<ChunkTransaction>(
-      new ChunkTransaction(time, underlying_table_));
-}
-
 int Chunk::peerSize() const {
   return peers_.size();
 }
@@ -253,9 +178,16 @@ void Chunk::leave() {
   // to leaving.
 }
 
-void Chunk::lock() {
-  distributedWriteLock();
+void Chunk::writeLock() { distributedWriteLock(); }
+
+void Chunk::readLock() { distributedReadLock(); }
+
+bool Chunk::isLocked() {
+  std::lock_guard<std::mutex> metalock(lock_.mutex);
+  return isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id();
 }
+
+void Chunk::unlock() { distributedUnlock(); }
 
 int Chunk::requestParticipation() {
   int new_participant_count = 0;
@@ -271,10 +203,6 @@ int Chunk::requestParticipation() {
   }
   distributedUnlock();
   return new_participant_count;
-}
-
-void Chunk::unlock() {
-  distributedUnlock();
 }
 
 void Chunk::update(Revision* item) {
@@ -294,15 +222,6 @@ void Chunk::update(Revision* item) {
   request.impose<kUpdateRequest>(update_request);
   CHECK(peers_.undisputableBroadcast(&request));
   distributedUnlock();
-}
-
-void Chunk::checkedCommit(const ChunkTransaction& transaction,
-                          const LogicalTime& time) {
-  bulkInsertLocked(transaction.insertions_, time);
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
-      transaction.updates_) {
-    updateLocked(time, item.second.get());
-  }
 }
 
 void Chunk::bulkInsertLocked(const CRTable::RevisionMap& items,
@@ -826,7 +745,8 @@ void Chunk::startState(LockState new_state) {
           current_state_start_ = std::chrono::system_clock::now();
           current_state_ = new_state;
         } else {
-          LOG(FATAL) << "Invalid state transition: A from " << current_state_;
+          LOG(FATAL) << "Invalid state transition: " << new_state << " from "
+                     << current_state_;
         }
         break;
       }

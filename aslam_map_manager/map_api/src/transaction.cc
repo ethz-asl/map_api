@@ -16,35 +16,27 @@ Transaction::Transaction(const LogicalTime& begin_time)
   CHECK(begin_time < LogicalTime::sample());
 }
 
-// Deadlocks are prevented by imposing a global ordering on
-// net_table_transactions_, and have the locks acquired in that order
-// (resource hierarchy solution)
-bool Transaction::commit() {
-  timing::Timer timer("map_api::Transaction::commit - lock");
-  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
-    net_table_transaction.second->lock();
-  }
-  timer.Stop();
-  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
-    if (!net_table_transaction.second->check()) {
-      for (const TransactionPair& net_table_transaction :
-          net_table_transactions_) {
-        net_table_transaction.second->unlock();
-      }
-      return false;
-    }
-  }
-  LogicalTime commit_time_ = LogicalTime::sample();
-  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
-    net_table_transaction.second->checkedCommit(commit_time_);
-    net_table_transaction.second->unlock();
-  }
-  return true;
-}
-
 std::shared_ptr<Revision> Transaction::getById(const Id& id, NetTable* table) {
   CHECK_NOTNULL(table);
   return transactionOf(table)->getById(id);
+}
+
+std::shared_ptr<Revision> Transaction::getById(const Id& id, NetTable* table,
+                                               Chunk* chunk) {
+  CHECK_NOTNULL(table);
+  CHECK_NOTNULL(chunk);
+  return transactionOf(table)->getById(id, chunk);
+}
+
+CRTable::RevisionMap Transaction::dumpChunk(NetTable* table, Chunk* chunk) {
+  CHECK_NOTNULL(table);
+  CHECK_NOTNULL(chunk);
+  return transactionOf(table)->dumpChunk(chunk);
+}
+
+CRTable::RevisionMap Transaction::dumpActiveChunks(NetTable* table) {
+  CHECK_NOTNULL(table);
+  return transactionOf(table)->dumpActiveChunks();
 }
 
 void Transaction::insert(
@@ -68,6 +60,32 @@ void Transaction::insert(ChunkManagerBase* chunk_manager,
 void Transaction::update(NetTable* table, std::shared_ptr<Revision> revision) {
   CHECK_NOTNULL(table);
   transactionOf(table)->update(revision);
+}
+
+// Deadlocks are prevented by imposing a global ordering on
+// net_table_transactions_, and have the locks acquired in that order
+// (resource hierarchy solution)
+bool Transaction::commit() {
+  timing::Timer timer("map_api::Transaction::commit - lock");
+  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
+    net_table_transaction.second->lock();
+  }
+  timer.Stop();
+  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
+    if (!net_table_transaction.second->check()) {
+      for (const TransactionPair& net_table_transaction :
+           net_table_transactions_) {
+        net_table_transaction.second->unlock();
+      }
+      return false;
+    }
+  }
+  LogicalTime commit_time_ = LogicalTime::sample();
+  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
+    net_table_transaction.second->checkedCommit(commit_time_);
+    net_table_transaction.second->unlock();
+  }
+  return true;
 }
 
 NetTableTransaction* Transaction::transactionOf(NetTable* table) {
