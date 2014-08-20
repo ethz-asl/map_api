@@ -10,6 +10,8 @@ catkin_simple()
 ############
 # PROTOBUF #
 ############
+add_definitions(--std=c++11)
+
 SET(PROTO_DEFNS proto/chord-index.proto 
                 proto/core.proto
                 proto/chunk.proto
@@ -20,7 +22,6 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 #############
 # LIBRARIES #
 #############
-add_definitions(--std=c++0x -Wall -Wextra -pedantic -Wno-unused-local-typedefs)
 
 # Core Library available to all applications
 SET(CORE_SOURCE  src/chord-index.cc
