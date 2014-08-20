@@ -8,7 +8,7 @@ catkin_simple()
 #############
 # LIBRARIES #
 #############
-add_definitions(--std=c++0x -Wall -Wextra -pedantic)
+add_definitions(--std=c++11)
 
 cs_add_library(${PROJECT_NAME} src/multiprocess_fixture.cc)
 # we need to add dependencies of external project packages to fetch headers

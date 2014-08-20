@@ -13,7 +13,6 @@
 
 #include <zeromq_cpp/zmq.hpp>
 
-#include "map-api/chunk-transaction.h"
 #include "map-api/cr-table-ram-sqlite.h"
 #include "map-api/id.h"
 #include "map-api/peer-handler.h"
@@ -51,14 +50,12 @@ namespace map_api {
  * this could be fixed by adapting a consensus protocol such as Raft.
  */
 class Chunk {
+  friend class ChunkTransaction;
+
  public:
   bool init(const Id& id, CRTable* underlying_table);
   bool init(const Id& id, const proto::InitRequest& request,
             const PeerId& sender, CRTable* underlying_table);
-
-  bool check(const ChunkTransaction& transaction);
-
-  bool commit(const ChunkTransaction& transaction);
 
   Id id() const;
 
@@ -68,16 +65,19 @@ class Chunk {
   bool insert(Revision* item);
   bool bulkInsert(const CRTable::RevisionMap& items);
 
-  std::shared_ptr<ChunkTransaction> newTransaction();
-  std::shared_ptr<ChunkTransaction> newTransaction(const LogicalTime& time);
-
   int peerSize() const;
 
   void enableLockLogging();
 
   void leave();
 
-  void lock();
+  void writeLock();
+
+  void readLock();
+
+  bool isLocked();
+
+  void unlock();
 
   /**
    * Requests all peers in MapApiHub to participate in a given chunk.
@@ -86,8 +86,6 @@ class Chunk {
    * is unlocked.
    */
   int requestParticipation();
-
-  void unlock();
 
   /**
    * Update: First locks chunk, then sends update to all peers for patching.
@@ -105,13 +103,6 @@ class Chunk {
   static const char kUpdateRequest[];
 
  private:
-  /**
-   * Commit function for recursive transactions. Chunk must be locked and
-   * commit must be checked.
-   */
-  void checkedCommit(const ChunkTransaction& transaction,
-                     const LogicalTime& time);
-  friend class NetTableTransaction;
   /**
    * insert and update for transactions.
    */
@@ -155,7 +146,7 @@ class Chunk {
     int write_recursion_depth = 0;  // the write lock is recursive
     // to avoid deadlocks, this mutex may not be locked while awaiting replies
     std::mutex mutex;
-    std::condition_variable cv;  // in case lock can't be acquired
+    std::condition_variable cv;  // in case writeLock can't be acquired
     DistributedRWLock() {}
   };
   /**
