@@ -179,15 +179,14 @@ Chunk* NetTable::connectTo(const Id& chunk_id,
   return found->second.get();
 }
 
-size_t NetTable::activeChunksSize() const {
+size_t NetTable::numActiveChunks() const {
   active_chunks_lock_.readLock();
   size_t result = active_chunks_.size();
   active_chunks_lock_.unlock();
   return result;
 }
 
-size_t NetTable::activeChunksItemsSize() {
-  CRTable::RevisionMap result;
+size_t NetTable::numActiveChunksItems() {
   std::set<Id> active_chunk_ids;
   getActiveChunkIds(&active_chunk_ids);
   size_t num_elements = 0;
@@ -198,6 +197,19 @@ size_t NetTable::activeChunksItemsSize() {
     num_elements += chunk->numItems(now);
   }
   return num_elements;
+}
+
+size_t NetTable::activeChunksItemsSizeBytes() {
+  std::set<Id> active_chunk_ids;
+  getActiveChunkIds(&active_chunk_ids);
+  size_t size_bytes = 0;
+  LogicalTime now = LogicalTime::sample();
+  for (const Id& chunk_id : active_chunk_ids) {
+    Chunk* chunk = getChunk(chunk_id);
+    CHECK_NOTNULL(chunk);
+    size_bytes += chunk->itemsSizeBytes(now);
+  }
+  return size_bytes;
 }
 
 void NetTable::kill() {
@@ -235,8 +247,9 @@ void NetTable::leaveAllChunks() {
 
 std::string NetTable::getStatistics() {
   std::stringstream ss;
-  ss << name() << ": " << activeChunksSize() << " chunks and "
-     << activeChunksItemsSize() << " items.";
+  ss << name() << ": " << numActiveChunks() << " chunks and "
+     << numActiveChunksItems() << " items. ["
+     << humanReadableBytes(activeChunksItemsSizeBytes()) << "]";
   return ss.str();
 }
 

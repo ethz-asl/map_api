@@ -61,6 +61,7 @@ class Chunk {
 
   void dumpItems(const LogicalTime& time, CRTable::RevisionMap* items);
   size_t numItems(const LogicalTime& time);
+  size_t itemsSizeBytes(const LogicalTime& time);
 
   bool insert(Revision* item);
   bool bulkInsert(const CRTable::RevisionMap& items);
