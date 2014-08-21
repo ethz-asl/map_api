@@ -61,6 +61,8 @@ const std::string& NetTable::name() const {
   return cache_->name();
 }
 
+const CRTable::Type& NetTable::type() const { return type_; }
+
 std::shared_ptr<Revision> NetTable::getTemplate() const {
   return cache_->getTemplate();
 }

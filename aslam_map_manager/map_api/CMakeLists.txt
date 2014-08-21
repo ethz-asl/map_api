@@ -49,6 +49,7 @@ SET(CORE_SOURCE  src/chord-index.cc
                  src/peer.cc
                  src/peer-id.cc
                  src/peer-handler.cc
+                 src/proto-table-file-io.cc
                  src/revision.cc
                  src/server-discovery.cc
                  src/sqlite-interface.cc
@@ -90,6 +91,9 @@ target_link_libraries(test_net_table_test ${PROJECT_NAME} ${PROJECT_NAME}_test)
 
 catkin_add_gtest(test_hub_test test/hub_test.cpp)
 target_link_libraries(test_hub_test ${PROJECT_NAME} ${PROJECT_NAME}_test)
+
+catkin_add_gtest(test_proto_table_file_io_test test/proto_table_file_io_test.cpp)
+target_link_libraries(test_proto_table_file_io_test ${PROJECT_NAME} ${PROJECT_NAME}_test)
 
 ##########
 # EXPORT #
