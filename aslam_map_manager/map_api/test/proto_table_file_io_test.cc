@@ -11,7 +11,7 @@
 #include "map-api/transaction.h"
 #include "map-api/proto-table-file-io.h"
 
-#include "net_table_test_fixture.cpp"
+#include "net_table_test_fixture.cc"
 
 using namespace map_api;  // NOLINT
 

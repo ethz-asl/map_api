@@ -9,7 +9,7 @@
 #include "map-api/net-table-transaction.h"
 #include "map-api/transaction.h"
 
-#include "net_table_test_fixture.cpp"
+#include "net_table_test_fixture.cc"
 
 namespace map_api {
 
