@@ -10,7 +10,7 @@
 namespace map_api {
 
 class NetTableTest : public MultiprocessTest,
-public ::testing::WithParamInterface<bool> {
+                     public ::testing::WithParamInterface<bool> {
  protected:
   virtual void SetUp() {
     MultiprocessTest::SetUp();
