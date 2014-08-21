@@ -1,6 +1,7 @@
 #ifndef MAP_API_CHUNK_TRANSACTION_H_
 #define MAP_API_CHUNK_TRANSACTION_H_
 
+#include <list>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -23,6 +24,7 @@ namespace map_api {
  */
 class ChunkTransaction {
   friend class NetTableTransaction;
+  friend class Transaction;      // for internal typedefs
   friend class NetTableManager;  // metatable works directly with this
   friend class NetTableTest;
   FRIEND_TEST(NetTableTest, ChunkTransactions);
@@ -45,9 +47,26 @@ class ChunkTransaction {
   void update(std::shared_ptr<Revision> revision);
   template <typename ValueType>
   void addConflictCondition(const std::string& key, const ValueType& value);
+
+  // TRANSACTION OPERATIONS
   bool commit();
   bool check();
   void checkedCommit(const LogicalTime& time);
+  struct Conflict {
+    const std::shared_ptr<const Revision> theirs;
+    const std::shared_ptr<const Revision> ours;
+  };
+  typedef std::list<Conflict> Conflicts;  // constant splicing, linear iteration
+                                          /**
+* Merging and changeCount are not compatible with conflict conditions.
+*/
+  void merge(const LogicalTime& time,
+             std::shared_ptr<ChunkTransaction>* merge_transaction,
+             Conflicts* conflicts);
+  size_t changeCount() const;
+
+  // INTERNAL
+  void prepareCheck(std::unordered_map<Id, LogicalTime>* chunk_stamp);
 
   /**
    * Strong typing of table operation maps.

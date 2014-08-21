@@ -93,6 +93,39 @@ bool NetTableTransaction::check() {
   return true;
 }
 
+void NetTableTransaction::merge(
+    const LogicalTime& time,
+    std::shared_ptr<NetTableTransaction>* merge_transaction,
+    ChunkTransaction::Conflicts* conflicts) {
+  CHECK_NOTNULL(merge_transaction);
+  CHECK_NOTNULL(conflicts);
+  merge_transaction->reset(new NetTableTransaction(time, table_));
+  conflicts->clear();
+  for (const TransactionPair& chunk_transaction : chunk_transactions_) {
+    std::shared_ptr<ChunkTransaction> merge_chunk_transaction;
+    ChunkTransaction::Conflicts sub_conflicts;
+    chunk_transaction.second->merge(time, &merge_chunk_transaction,
+                                    &sub_conflicts);
+    CHECK_EQ(chunk_transaction.second->changeCount(),
+             merge_chunk_transaction->changeCount() + sub_conflicts.size());
+    if (merge_chunk_transaction->changeCount() > 0u) {
+      merge_transaction->get()->chunk_transactions_.insert(
+          std::make_pair(chunk_transaction.first, merge_chunk_transaction));
+    }
+    if (!sub_conflicts.empty()) {
+      conflicts->splice(conflicts->end(), sub_conflicts);
+    }
+  }
+}
+
+size_t NetTableTransaction::changeCount() const {
+  size_t result = 0;
+  for (const TransactionPair& chunk_transaction : chunk_transactions_) {
+    result += chunk_transaction.second->changeCount();
+  }
+  return result;
+}
+
 ChunkTransaction* NetTableTransaction::transactionOf(Chunk* chunk) {
   CHECK_NOTNULL(chunk);
   TransactionMap::iterator chunk_transaction = chunk_transactions_.find(chunk);
