@@ -63,6 +63,7 @@ class Transaction {
    */
   void merge(std::shared_ptr<Transaction>* merge_transaction,
              ConflictMap* conflicts);
+  size_t changeCount() const;
 
  private:
   NetTableTransaction* transactionOf(NetTable* table);

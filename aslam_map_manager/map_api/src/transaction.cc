@@ -117,6 +117,14 @@ void Transaction::merge(std::shared_ptr<Transaction>* merge_transaction,
   }
 }
 
+size_t Transaction::changeCount() const {
+  size_t count = 0u;
+  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
+    count += net_table_transaction.second->changeCount();
+  }
+  return count;
+}
+
 NetTableTransaction* Transaction::transactionOf(NetTable* table) {
   CHECK_NOTNULL(table);
   TransactionMap::iterator net_table_transaction =

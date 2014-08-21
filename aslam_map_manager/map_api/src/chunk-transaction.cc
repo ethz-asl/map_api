@@ -120,9 +120,6 @@ void ChunkTransaction::merge(
                                          "conditions";
   merge_transaction->reset(new ChunkTransaction(time, chunk_));
   conflicts->clear();
-  CHECK(false);
-  // TODO(tcies) the following code is similar to check, but I don't see how to
-  // make it lambda-able, since check can return inside a loop
   chunk_->readLock();
   std::unordered_map<Id, LogicalTime> stamps;
   prepareCheck(&stamps);
