@@ -20,6 +20,7 @@ class NetTable {
   friend class NetTableTransaction;
   FRIEND_TEST(NetTableTest, RemoteUpdate);
   FRIEND_TEST(NetTableTest, Grind);
+  FRIEND_TEST(NetTableTest, SaveAndRestoreTableFromFile);
 
  public:
   static const std::string kChunkIdField;
@@ -29,6 +30,7 @@ class NetTable {
   void joinIndex(const PeerId& entry_point);
 
   const std::string& name() const;
+  const CRTable::Type& type() const;
 
   std::shared_ptr<Revision> getTemplate() const;
   Chunk* newChunk();
@@ -47,8 +49,7 @@ class NetTable {
   /**
    * Connects to the given chunk via the given peer.
    */
-  Chunk* connectTo(const Id& chunk_id,
-                   const PeerId& peer);
+  Chunk* connectTo(const Id& chunk_id, const PeerId& peer);
 
   bool structureMatch(std::unique_ptr<TableDescriptor>* descriptor) const;
 

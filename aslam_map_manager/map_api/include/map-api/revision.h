@@ -3,6 +3,8 @@
 
 #include <map>
 #include <memory>
+#include <set>
+#include <string>
 
 #include <Poco/Data/BLOB.h>
 #include <Poco/Data/Statement.h>
@@ -38,9 +40,6 @@ class Revision final : public proto::Revision {
   return ENUM ; \
 } \
 extern void revEnum ## __FILE__ ## __LINE__(void)
-  // in order to swallow the semicolon
-  // http://gcc.gnu.org/onlinedocs/cpp/Swallowing-the-Semicolon.html
-  // http://stackoverflow.com/questions/18786848
 
   /**
    * Overriding adding field in order to impose indexing
@@ -142,10 +141,6 @@ extern void revEnum ## __FILE__ ## __LINE__(void)
       return true; \
     } \
     extern void __FILE__ ## __LINE__(void)
-// in order to swallow the semicolon
-// http://gcc.gnu.org/onlinedocs/cpp/Swallowing-the-Semicolon.html
-// http://stackoverflow.com/questions/18786848/macro-that-swallows-semicolon-out
-// side-of-function
 
 /**
  * A generic, blob-y field type for testing blob insertion
@@ -159,8 +154,8 @@ class testBlob : public map_api::proto::TableField{
   }
 };
 
-} /* namespace map_api */
+}  // namespace map_api
 
 #include "map-api/revision-inl.h"
 
-#endif /* REVISION_H_ */
+#endif  // REVISION_H_
