@@ -103,8 +103,7 @@ class FieldTestTable : public TestTable<typename TableDataType::TableType> {
     std::unique_ptr<map_api::TableDescriptor> descriptor(
         new map_api::TableDescriptor);
     descriptor->setName("field_test_table");
-    descriptor->template addField<typename TableDataType::DataType>(
-        kTestField);
+    descriptor->template addField<typename TableDataType::DataType>(kTestField);
     table->init(&descriptor);
     return table;
   }
@@ -131,32 +130,20 @@ class FieldTest : public ::testing::Test {
 template <>
 class FieldTest<std::string> : public ::testing::Test {
  protected:
-  std::string sample_data_1() {
-    return "Test_string_1";
-  }
-  std::string sample_data_2() {
-    return "Test_string_2";
-  }
+  std::string sample_data_1() { return "Test_string_1"; }
+  std::string sample_data_2() { return "Test_string_2"; }
 };
 template <>
 class FieldTest<double> : public ::testing::Test {
  protected:
-  double sample_data_1() {
-    return 3.14;
-  }
-  double sample_data_2() {
-    return -3.14;
-  }
+  double sample_data_1() { return 3.14; }
+  double sample_data_2() { return -3.14; }
 };
 template <>
 class FieldTest<int32_t> : public ::testing::Test {
  protected:
-  int32_t sample_data_1() {
-    return 42;
-  }
-  int32_t sample_data_2() {
-    return -42;
-  }
+  int32_t sample_data_1() { return 42; }
+  int32_t sample_data_2() { return -42; }
 };
 template <>
 class FieldTest<map_api::Id> : public ::testing::Test {
@@ -175,22 +162,14 @@ class FieldTest<map_api::Id> : public ::testing::Test {
 template <>
 class FieldTest<int64_t> : public ::testing::Test {
  protected:
-  int64_t sample_data_1() {
-    return 9223372036854775807;
-  }
-  int64_t sample_data_2() {
-    return -9223372036854775807;
-  }
+  int64_t sample_data_1() { return 9223372036854775807; }
+  int64_t sample_data_2() { return -9223372036854775807; }
 };
 template <>
 class FieldTest<map_api::LogicalTime> : public ::testing::Test {
  protected:
-  LogicalTime sample_data_1() {
-    return LogicalTime(9223372036854775807u);
-  }
-  LogicalTime sample_data_2() {
-    return LogicalTime(9223372036854775u);
-  }
+  LogicalTime sample_data_1() { return LogicalTime(9223372036854775807u); }
+  LogicalTime sample_data_2() { return LogicalTime(9223372036854775u); }
 };
 template <>
 class FieldTest<testBlob> : public ::testing::Test {
@@ -199,8 +178,8 @@ class FieldTest<testBlob> : public ::testing::Test {
     testBlob field;
     *field.mutable_nametype() = map_api::proto::TableFieldDescriptor();
     field.mutable_nametype()->set_name("A name");
-    field.mutable_nametype()->
-        set_type(map_api::proto::TableFieldDescriptor_Type_DOUBLE);
+    field.mutable_nametype()->set_type(
+        map_api::proto::TableFieldDescriptor_Type_DOUBLE);
     field.set_doublevalue(3);
     return field;
   }
@@ -208,8 +187,8 @@ class FieldTest<testBlob> : public ::testing::Test {
     testBlob field;
     *field.mutable_nametype() = map_api::proto::TableFieldDescriptor();
     field.mutable_nametype()->set_name("Another name");
-    field.mutable_nametype()->
-        set_type(map_api::proto::TableFieldDescriptor_Type_INT32);
+    field.mutable_nametype()->set_type(
+        map_api::proto::TableFieldDescriptor_Type_INT32);
     field.set_doublevalue(42);
     return field;
   }
@@ -218,7 +197,7 @@ class FieldTest<testBlob> : public ::testing::Test {
 template <typename TableDataType>
 class FieldTestWithoutInit
     : public FieldTest<typename TableDataType::DataType> {
-     public:
+ public:
   virtual ~FieldTestWithoutInit() {}
 
   virtual void SetUp() override {
@@ -230,7 +209,7 @@ class FieldTestWithoutInit
     FieldTest<typename TableDataType::DataType>::TearDown();
   }
 
-     protected:
+ protected:
   std::shared_ptr<Revision> getTemplate() {
     query_ = this->table_->getTemplate();
     return query_;
@@ -247,9 +226,7 @@ class FieldTestWithoutInit
 
   Id fillRevision() { return fillRevision(this->sample_data_1()); }
 
-  bool insertRevision() {
-    return this->table_->insert(query_.get());
-  }
+  bool insertRevision() { return this->table_->insert(query_.get()); }
 
   std::unique_ptr<typename TableDataType::TableType> table_;
   std::shared_ptr<Revision> query_;
@@ -259,6 +236,7 @@ template <typename TableDataType>
 class FieldTestWithInit : public FieldTestWithoutInit<TableDataType> {
  public:
   virtual ~FieldTestWithInit() {}
+
  protected:
   virtual void SetUp() override {
     Core::initializeInstance();
@@ -271,9 +249,7 @@ class FieldTestWithInit : public FieldTestWithoutInit<TableDataType> {
 template <typename TableDataType>
 class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
  protected:
-  bool updateRevision() {
-    return this->table_->update(this->query_.get());
-  }
+  bool updateRevision() { return this->table_->update(this->query_.get()); }
 
   void fillRevisionWithOtherData() {
     this->query_->set("test_field", this->sample_data_2());
@@ -290,14 +266,13 @@ class IntTestWithInit
  *************************
  */
 
-#define ALL_DATA_TYPES(table_type) \
-    TableDataTypes<table_type, testBlob>, \
-    TableDataTypes<table_type, std::string>, \
-    TableDataTypes<table_type, int32_t>, \
-    TableDataTypes<table_type, double>, \
-    TableDataTypes<table_type, map_api::Id>, \
-    TableDataTypes<table_type, int64_t>, \
-    TableDataTypes<table_type, map_api::LogicalTime>
+#define ALL_DATA_TYPES(table_type)                                             \
+  TableDataTypes<table_type, testBlob>,                                        \
+      TableDataTypes<table_type, std::string>,                                 \
+      TableDataTypes<table_type, int32_t>, TableDataTypes<table_type, double>, \
+      TableDataTypes<table_type, map_api::Id>,                                 \
+      TableDataTypes<table_type, int64_t>,                                     \
+      TableDataTypes<table_type, map_api::LogicalTime>
 
 typedef ::testing::Types<ALL_DATA_TYPES(CRTableRamSqlite),
                          ALL_DATA_TYPES(CRTableRamMap),
@@ -339,8 +314,7 @@ TYPED_TEST(FieldTestWithInit, CreateRead) {
       this->table_->getById(inserted, LogicalTime::sample());
   ASSERT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
-  rowFromTable->get(FieldTestTable<TypeParam>::kTestField,
-                    &dataFromTable);
+  rowFromTable->get(FieldTestTable<TypeParam>::kTestField, &dataFromTable);
   EXPECT_EQ(this->sample_data_1(), dataFromTable);
 }
 

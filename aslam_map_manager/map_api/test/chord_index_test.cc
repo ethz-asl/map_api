@@ -98,7 +98,7 @@ class ChordIndexTestInitialized : public ChordIndexTest {
     CHECK_NOTNULL(key);
     CHECK_NOTNULL(value);
     std::string result;
-    for (size_t salt = 0; ; ++salt) {
+    for (size_t salt = 0;; ++salt) {
       std::ostringstream suffix;
       suffix << index << ":" << salt;
       *key = "key" + suffix.str();
@@ -242,7 +242,7 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddjoinStabilizeRetrieve) {
     // yes, 10 is a magic number
     // it should be an upper bound of the amount of required stabilization
     // iterations per process
-    IPC::barrier(JOINED_STABILIZED__INIT_2, 2*kNProcessesHalf);
+    IPC::barrier(JOINED_STABILIZED__INIT_2, 2 * kNProcessesHalf);
     EXPECT_GT(kNProcessesHalf, 0);
     TestChordIndex::DataMap data;
     for (size_t i = 0; i < kNData; ++i) {
@@ -251,16 +251,16 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddjoinStabilizeRetrieve) {
       EXPECT_TRUE(data.insert(std::make_pair(key, value)).second);
     }
     IPC::push(PeerId::self().ipPort());
-    IPC::barrier(ADDED__ROOT_SHARED_2, 2*kNProcessesHalf);
+    IPC::barrier(ADDED__ROOT_SHARED_2, 2 * kNProcessesHalf);
     // wait for stabilization of round 2
     usleep(10 * kNProcessesHalf * FLAGS_stabilize_us);
-    IPC::barrier(JOINED_STABILIZED_2, 2*kNProcessesHalf);
+    IPC::barrier(JOINED_STABILIZED_2, 2 * kNProcessesHalf);
     for (const TestChordIndex::DataMap::value_type& item : data) {
       std::string result;
       EXPECT_TRUE(TestChordIndex::instance().retrieveData(item.first, &result));
       EXPECT_EQ(item.second, result);
     }
-    IPC::barrier(RETRIEVED, 2*kNProcessesHalf);
+    IPC::barrier(RETRIEVED, 2 * kNProcessesHalf);
   } else {
     PeerId root;
     std::string root_string;
@@ -271,15 +271,15 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddjoinStabilizeRetrieve) {
       root = PeerId(root_string);
       TestChordIndex::instance().join(root);
     }
-    IPC::barrier(JOINED_STABILIZED__INIT_2, 2*kNProcessesHalf);
-    IPC::barrier(ADDED__ROOT_SHARED_2, 2*kNProcessesHalf);
+    IPC::barrier(JOINED_STABILIZED__INIT_2, 2 * kNProcessesHalf);
+    IPC::barrier(ADDED__ROOT_SHARED_2, 2 * kNProcessesHalf);
     if (getSubprocessId() > kNProcessesHalf) {
       IPC::pop(&root_string);
       root = PeerId(root_string);
       TestChordIndex::instance().join(root);
     }
-    IPC::barrier(JOINED_STABILIZED_2, 2*kNProcessesHalf);
-    IPC::barrier(RETRIEVED, 2*kNProcessesHalf);
+    IPC::barrier(JOINED_STABILIZED_2, 2 * kNProcessesHalf);
+    IPC::barrier(RETRIEVED, 2 * kNProcessesHalf);
   }
 }
 
@@ -385,8 +385,8 @@ TEST_F(ChordIndexTestInitialized,
       std::ostringstream new_value;
       new_value << "updated" << i;
       item.second = new_value.str();
-      EXPECT_TRUE(TestChordIndex::instance().addData(
-          item.first, new_value.str()));
+      EXPECT_TRUE(
+          TestChordIndex::instance().addData(item.first, new_value.str()));
       if (++i == kNProcessesHalf) {
         break;
       }

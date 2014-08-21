@@ -18,11 +18,17 @@ TEST_P(NetTableTest, NetInsert) {
 }
 
 TEST_P(NetTableTest, ParticipationRequest) {
-  enum SubProcesses {ROOT, A};
-  enum Barriers {INIT, DIE};
+  enum SubProcesses {
+    ROOT,
+    A
+  };
+  enum Barriers {
+    INIT,
+    DIE
+  };
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
-    Chunk* chunk= table_->newChunk();
+    Chunk* chunk = table_->newChunk();
     ASSERT_TRUE(chunk);
 
     IPC::barrier(INIT, 1);
@@ -40,8 +46,17 @@ TEST_P(NetTableTest, ParticipationRequest) {
 }
 
 TEST_P(NetTableTest, FullJoinTwice) {
-  enum SubProcesses {ROOT, A, B};
-  enum Barriers {ROOT_A_INIT, A_JOINED_B_INIT, B_JOINED, DIE};
+  enum SubProcesses {
+    ROOT,
+    A,
+    B
+  };
+  enum Barriers {
+    ROOT_A_INIT,
+    A_JOINED_B_INIT,
+    B_JOINED,
+    DIE
+  };
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
     Chunk* chunk = table_->newChunk();
@@ -83,8 +98,16 @@ TEST_P(NetTableTest, FullJoinTwice) {
 }
 
 TEST_P(NetTableTest, RemoteInsert) {
-  enum Subprocesses {ROOT, A};
-  enum Barriers {INIT, A_JOINED, A_ADDED, DIE};
+  enum Subprocesses {
+    ROOT,
+    A
+  };
+  enum Barriers {
+    INIT,
+    A_JOINED,
+    A_ADDED,
+    DIE
+  };
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
     Chunk* chunk = table_->newChunk();
@@ -115,8 +138,16 @@ TEST_P(NetTableTest, RemoteUpdate) {
   if (!GetParam()) {  // not updateable - just pass test
     return;
   }
-  enum Subprocesses {ROOT, A};
-  enum Barriers {INIT, A_JOINED, A_UPDATED, DIE};
+  enum Subprocesses {
+    ROOT,
+    A
+  };
+  enum Barriers {
+    INIT,
+    A_JOINED,
+    A_UPDATED,
+    DIE
+  };
   std::unordered_map<Id, std::shared_ptr<Revision> > results;
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
@@ -158,7 +189,11 @@ DEFINE_uint64(grind_cycles, 10u,
 TEST_P(NetTableTest, Grind) {
   const int kInsertUpdateCycles = FLAGS_grind_cycles;
   const uint64_t kProcesses = FLAGS_grind_processes;
-  enum Barriers {INIT, ID_SHARED, DIE};
+  enum Barriers {
+    INIT,
+    ID_SHARED,
+    DIE
+  };
   std::unordered_map<Id, std::shared_ptr<Revision> > results;
   if (getSubprocessId() == 0) {
     std::ostringstream extra_flags_ss;
@@ -197,7 +232,11 @@ TEST_P(NetTableTest, Grind) {
 
 TEST_P(NetTableTest, ChunkTransactions) {
   const uint64_t kProcesses = FLAGS_grind_processes;
-  enum Barriers {INIT, IDS_SHARED, DIE};
+  enum Barriers {
+    INIT,
+    IDS_SHARED,
+    DIE
+  };
   std::unordered_map<Id, std::shared_ptr<Revision> > results;
   if (getSubprocessId() == 0) {
     std::ostringstream extra_flags_ss;
@@ -267,7 +306,11 @@ TEST_P(NetTableTest, ChunkTransactionsConflictConditions) {
   }
   const uint64_t kProcesses = FLAGS_grind_processes;
   const int kUniqueItems = 10;
-  enum Barriers {INIT, ID_SHARED, DIE};
+  enum Barriers {
+    INIT,
+    ID_SHARED,
+    DIE
+  };
   CRTable::RevisionMap results;
   if (getSubprocessId() == 0) {
     std::ostringstream extra_flags_ss;
@@ -287,7 +330,7 @@ TEST_P(NetTableTest, ChunkTransactionsConflictConditions) {
     table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(kUniqueItems, results.size());
     std::set<int> unique_results;
-    for (const CRTable::RevisionMap::value_type & item : results) {
+    for (const CRTable::RevisionMap::value_type& item : results) {
       int result;
       item.second->get(kFieldName, &result);
       unique_results.insert(result);
