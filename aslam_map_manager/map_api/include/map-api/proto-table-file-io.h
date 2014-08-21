@@ -26,15 +26,14 @@ struct hash<map_api::RevisionStamp> {
 namespace map_api {
 class ProtoTableFileIO {
  public:
-  ProtoTableFileIO(const map_api::NetTable& table, const std::string& filename);
+  ProtoTableFileIO(const std::string& filename, map_api::NetTable* table);
   ~ProtoTableFileIO();
-  bool StoreTableContents(const map_api::LogicalTime& time,
-                          const map_api::NetTable& table);
-  bool ReStoreTableContents(map_api::NetTable* table);
+  bool StoreTableContents(const map_api::LogicalTime& time);
+  bool ReStoreTableContents();
 
  private:
-  std::string table_name_;
   std::string file_name_;
+  map_api::NetTable* table_;
   std::fstream file_;
   std::unordered_set<RevisionStamp> already_stored_items_;
 };

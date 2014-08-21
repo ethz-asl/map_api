@@ -10,9 +10,9 @@
 #include <map-api/transaction.h>
 
 namespace map_api {
-ProtoTableFileIO::ProtoTableFileIO(const map_api::NetTable& table,
-                                   const std::string& filename)
-    : table_name_(table.name()), file_name_(filename) {
+ProtoTableFileIO::ProtoTableFileIO(const std::string& filename,
+                                   map_api::NetTable* table)
+    : file_name_(filename), table_(CHECK_NOTNULL(table)) {
   file_.open(filename,
              std::fstream::binary | std::ios_base::in | std::ios_base::out);
   if (!file_.is_open()) {
@@ -22,17 +22,12 @@ ProtoTableFileIO::ProtoTableFileIO(const map_api::NetTable& table,
   CHECK(file_.is_open()) << "Couldn't open file " << filename;
 }
 
-ProtoTableFileIO::~ProtoTableFileIO() { file_.close(); }
+ProtoTableFileIO::~ProtoTableFileIO() {}
 
-bool ProtoTableFileIO::StoreTableContents(const map_api::LogicalTime& time,
-                                          const map_api::NetTable& table) {
-  CHECK_EQ(table_name_, table.name())
-      << "You need a separate file-io for every table.";
-
-  map_api::CRTable::RevisionMap revisions;
-  // TODO(slynen): Replace by full-history dump.
-  map_api::NetTable& table_non_const = const_cast<map_api::NetTable&>(table);
-  table_non_const.dumpActiveChunks(time, &revisions);
+bool ProtoTableFileIO::StoreTableContents(const map_api::LogicalTime& time) {
+  map_api::Transaction transaction(time);
+  map_api::CRTable::RevisionMap revisions =
+      transaction.dumpActiveChunks(table_);
 
   CHECK(file_.is_open());
 
@@ -44,7 +39,7 @@ bool ProtoTableFileIO::StoreTableContents(const map_api::LogicalTime& time,
     CHECK(revision.get(CRTable::kIdField, &current_item_stamp.first));
     CHECK_EQ(current_item_stamp.first, pair.first);
 
-    if (table.type() == CRTable::Type::CRU) {
+    if (table_->type() == CRTable::Type::CRU) {
       CHECK(
           revision.get(CRUTable::kUpdateTimeField, &current_item_stamp.second));
     } else {
@@ -52,6 +47,7 @@ bool ProtoTableFileIO::StoreTableContents(const map_api::LogicalTime& time,
           revision.get(CRTable::kInsertTimeField, &current_item_stamp.second));
     }
 
+    // Look up if we already stored this item, if we have this revision skip.
     bool already_stored = already_stored_items_.count(current_item_stamp) > 0;
     if (!already_stored) {
       // Moving read to the beginning of the file.
@@ -92,15 +88,13 @@ bool ProtoTableFileIO::StoreTableContents(const map_api::LogicalTime& time,
       revision.SerializeToString(&output_string);
       coded_out.WriteVarint32(output_string.size());
       coded_out.WriteRaw(output_string.data(), output_string.size());
+      already_stored_items_.insert(current_item_stamp);
     }
   }
   return true;
 }
 
-bool ProtoTableFileIO::ReStoreTableContents(map_api::NetTable* table) {
-  CHECK_NOTNULL(table);
-  CHECK_EQ(table_name_, table->name())
-      << "You need a separate file-io for every table.";
+bool ProtoTableFileIO::ReStoreTableContents() {
   CHECK(file_.is_open());
 
   file_.clear();
@@ -123,6 +117,7 @@ bool ProtoTableFileIO::ReStoreTableContents(map_api::NetTable* table) {
   coded_in.ReadLittleEndian32(&message_count);
 
   if (message_count == 0) {
+    LOG(ERROR) << "No messages in file.";
     return false;
   }
 
@@ -161,14 +156,14 @@ bool ProtoTableFileIO::ReStoreTableContents(map_api::NetTable* table) {
     std::unordered_map<Id, Chunk*>::iterator it =
         existing_chunks.find(chunk_id);
     if (it == existing_chunks.end()) {
-      chunk = table->newChunk(chunk_id);
+      chunk = table_->newChunk(chunk_id);
       existing_chunks.insert(std::make_pair(chunk_id, chunk));
     } else {
       chunk = it->second;
     }
     CHECK_NOTNULL(chunk);
 
-    transaction.insert(table, chunk, revision);
+    transaction.insert(table_, chunk, revision);
   }
   bool ok = transaction.commit();
   LOG_IF(WARNING, !ok) << "Transaction commit failed to load data";

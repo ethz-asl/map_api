@@ -1,4 +1,5 @@
 #include <fstream>  // NOLINT
+#include <string>
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -12,9 +13,9 @@
 
 #include "net_table_test_fixture.cpp"
 
-using namespace map_api;
+using namespace map_api;  // NOLINT
 
-TEST_P(NetTableTest, SafeAndRestoreFromFile) {
+TEST_P(NetTableTest, SaveAndRestoreFromFile) {
   Chunk* chunk = table_->newChunk();
   CHECK_NOTNULL(chunk);
   Id chunk_id = chunk->id();
@@ -55,8 +56,8 @@ TEST_P(NetTableTest, SafeAndRestoreFromFile) {
                                std::fstream::out | std::fstream::trunc);
 
   {
-    ProtoTableFileIO file_io(*table_, test_filename);
-    EXPECT_TRUE(file_io.StoreTableContents(LogicalTime::sample(), *table_));
+    ProtoTableFileIO file_io(test_filename, table_);
+    EXPECT_TRUE(file_io.StoreTableContents(LogicalTime::sample()));
   }
 
   // Reset the state of the database.
@@ -64,8 +65,8 @@ TEST_P(NetTableTest, SafeAndRestoreFromFile) {
   SetUp();
 
   {
-    ProtoTableFileIO file_io(*table_, test_filename);
-    ASSERT_TRUE(file_io.ReStoreTableContents(table_));
+    ProtoTableFileIO file_io(test_filename, table_);
+    ASSERT_TRUE(file_io.ReStoreTableContents());
   }
 
   {
