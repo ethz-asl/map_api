@@ -92,7 +92,7 @@ bool ProtoTableFileIO::StoreTableContents(const map_api::LogicalTime& time) {
   return true;
 }
 
-bool ProtoTableFileIO::ReStoreTableContents() {
+bool ProtoTableFileIO::RestoreTableContents() {
   CHECK(file_.is_open());
 
   file_.clear();
@@ -148,6 +148,7 @@ bool ProtoTableFileIO::ReStoreTableContents() {
 
     std::shared_ptr<Revision> revision(new Revision);
     revision->ParseFromString(input_string);
+
     Id chunk_id;
     CHECK(revision->get(NetTable::kChunkIdField, &chunk_id));
     Chunk* chunk = nullptr;

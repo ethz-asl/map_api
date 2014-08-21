@@ -29,7 +29,7 @@ class ProtoTableFileIO {
   ProtoTableFileIO(const std::string& filename, map_api::NetTable* table);
   ~ProtoTableFileIO();
   bool StoreTableContents(const map_api::LogicalTime& time);
-  bool ReStoreTableContents();
+  bool RestoreTableContents();
 
  private:
   std::string file_name_;

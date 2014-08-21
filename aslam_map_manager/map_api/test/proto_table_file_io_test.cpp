@@ -66,7 +66,7 @@ TEST_P(NetTableTest, SaveAndRestoreFromFile) {
 
   {
     ProtoTableFileIO file_io(test_filename, table_);
-    ASSERT_TRUE(file_io.ReStoreTableContents());
+    ASSERT_TRUE(file_io.RestoreTableContents());
   }
 
   {
