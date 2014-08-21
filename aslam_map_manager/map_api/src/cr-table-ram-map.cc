@@ -45,7 +45,7 @@ int CRTableRamMap::findByRevisionCRDerived(const std::string& key,
     MapType::const_iterator found = data_.find(id);
     if (found != data_.end()) {
       found->second.get(kInsertTimeField, &item_time);
-      if (item_time < time) {
+      if (item_time <= time) {
         dest->insert(std::make_pair(found->first,
                                     std::make_shared<Revision>(found->second)));
       }
@@ -54,7 +54,7 @@ int CRTableRamMap::findByRevisionCRDerived(const std::string& key,
     for (const MapType::value_type& pair : data_) {
       if (key == "" || valueHolder.fieldMatch(pair.second, key)) {
         pair.second.get(kInsertTimeField, &item_time);
-        if (item_time < time) {
+        if (item_time <= time) {
           CHECK(dest->insert(
                           std::make_pair(pair.first, std::make_shared<Revision>(
                                                          pair.second))).second);
@@ -76,7 +76,7 @@ int CRTableRamMap::countByRevisionCRDerived(const std::string& key,
     MapType::const_iterator found = data_.find(id);
     if (found != data_.end()) {
       found->second.get(kInsertTimeField, &item_time);
-      if (item_time < time) {
+      if (item_time <= time) {
         return 1;
       }
     }
@@ -84,7 +84,7 @@ int CRTableRamMap::countByRevisionCRDerived(const std::string& key,
     for (const MapType::value_type& pair : data_) {
       if (key == "" || valueHolder.fieldMatch(pair.second, key)) {
         pair.second.get(kInsertTimeField, &item_time);
-        if (item_time < time) {
+        if (item_time <= time) {
           ++count;
         }
       }

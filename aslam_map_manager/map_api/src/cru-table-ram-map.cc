@@ -149,7 +149,7 @@ CRUTableRamMap::HistoryType::latestAt(const LogicalTime& time,
   LogicalTime item_time;
   for (const_iterator it = cbegin(); it != cend(); ++it) {
     it->get(kUpdateTimeField, index_guess, &item_time);
-    if (item_time < time) {
+    if (item_time <= time) {
       return it;
     }
   }
