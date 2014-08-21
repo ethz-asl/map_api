@@ -28,7 +28,10 @@ bool ProtoTableFileIO::StoreTableContents(const map_api::LogicalTime& time) {
   map_api::Transaction transaction(time);
   map_api::CRTable::RevisionMap revisions =
       transaction.dumpActiveChunks(table_);
-
+  return StoreTableContents(revisions);
+}
+bool ProtoTableFileIO::StoreTableContents(
+    const map_api::CRTable::RevisionMap& revisions) {
   CHECK(file_.is_open());
 
   for (const std::pair<Id, std::shared_ptr<Revision> >& pair : revisions) {
@@ -99,6 +102,15 @@ bool ProtoTableFileIO::StoreTableContents(const map_api::LogicalTime& time) {
 }
 
 bool ProtoTableFileIO::RestoreTableContents() {
+  Transaction transaction(LogicalTime::sample());
+  RestoreTableContents(&transaction);
+  bool ok = transaction.commit();
+  LOG_IF(WARNING, !ok) << "Transaction commit failed to load data";
+  return ok;
+}
+
+bool ProtoTableFileIO::RestoreTableContents(map_api::Transaction* transaction) {
+  CHECK_NOTNULL(transaction);
   CHECK(file_.is_open());
 
   file_.clear();
@@ -130,8 +142,6 @@ bool ProtoTableFileIO::RestoreTableContents() {
     LOG(ERROR) << "No messages in file.";
     return false;
   }
-
-  Transaction transaction(LogicalTime::sample());
 
   std::unordered_map<Id, Chunk*> existing_chunks;
 
@@ -174,11 +184,9 @@ bool ProtoTableFileIO::RestoreTableContents() {
     }
     CHECK_NOTNULL(chunk);
 
-    transaction.insert(table_, chunk, revision);
+    transaction->insert(table_, chunk, revision);
   }
-  bool ok = transaction.commit();
-  LOG_IF(WARNING, !ok) << "Transaction commit failed to load data";
-  return ok;
+  return true;
 }
 
 }  // namespace map_api
