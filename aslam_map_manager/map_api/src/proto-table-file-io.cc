@@ -47,6 +47,12 @@ bool ProtoTableFileIO::StoreTableContents(const map_api::LogicalTime& time) {
           revision.get(CRTable::kInsertTimeField, &current_item_stamp.second));
     }
 
+    // Format:
+    // Store number of messages.
+    // For each message store:
+    //  -> size
+    //  -> bytes from protobuf
+
     // Look up if we already stored this item, if we have this revision skip.
     bool already_stored = already_stored_items_.count(current_item_stamp) > 0;
     if (!already_stored) {
@@ -110,6 +116,12 @@ bool ProtoTableFileIO::RestoreTableContents() {
   google::protobuf::io::CodedInputStream coded_in(&raw_in);
 
   coded_in.SetTotalBytesLimit(file_size, file_size);
+
+  // Format:
+  // Store number of messages.
+  // For each message store:
+  //  -> size
+  //  -> bytes from protobuf
 
   uint32_t message_count;
   coded_in.ReadLittleEndian32(&message_count);

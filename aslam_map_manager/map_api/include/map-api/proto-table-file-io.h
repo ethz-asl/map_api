@@ -23,6 +23,7 @@ struct hash<map_api::RevisionStamp> {
 };
 }  // namespace std
 
+// Stores all revisions from a table to a file.
 namespace map_api {
 class ProtoTableFileIO {
  public:
