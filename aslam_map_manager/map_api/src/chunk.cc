@@ -35,7 +35,7 @@ const char Chunk::kUnlockRequest[] = "map_api_chunk_unlock_request";
 const char Chunk::kUpdateRequest[] = "map_api_chunk_update_request";
 
 MAP_API_PROTO_MESSAGE(Chunk::kConnectRequest, proto::ChunkRequestMetadata);
-MAP_API_PROTO_MESSAGE(Chunk::kInitRequest, proto::InitRequest);
+MAP_API_COMPRESSED_PROTO_MESSAGE(Chunk::kInitRequest, proto::InitRequest);
 MAP_API_PROTO_MESSAGE(Chunk::kInsertRequest, proto::PatchRequest);
 MAP_API_PROTO_MESSAGE(Chunk::kLeaveRequest, proto::ChunkRequestMetadata);
 MAP_API_PROTO_MESSAGE(Chunk::kLockRequest, proto::ChunkRequestMetadata);
@@ -280,9 +280,12 @@ bool Chunk::addPeer(const PeerId& peer) {
     return false;
   }
   prepareInitRequest(&request);
+  timing::Timer timer("init_request");
   if (!Hub::instance().ackRequest(peer, &request)) {
+    timer.Stop();
     return false;
   }
+  timer.Stop();
   // new peer is not ready to handle requests as the rest of the swarm. Still,
   // one last message is sent to the old swarm, notifying it of the new peer
   // and thus the new configuration:

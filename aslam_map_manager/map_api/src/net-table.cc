@@ -3,9 +3,13 @@
 #include <glog/logging.h>
 
 #include "map-api/core.h"
+#include "map-api/cr-table-ram-map.h"
 #include "map-api/cr-table-ram-sqlite.h"
+#include "map-api/cru-table-ram-map.h"
 #include "map-api/cru-table-ram-sqlite.h"
 #include "map-api/net-table-manager.h"
+
+DEFINE_bool(use_sqlite, false, "SQLite VS ram map table caches");
 
 namespace map_api {
 
@@ -19,10 +23,18 @@ bool NetTable::init(
   (*descriptor)->addField<Id>(kChunkIdField);
   switch (type) {
     case CRTable::Type::CR:
-      cache_.reset(new CRTableRamSqlite);
+      if (FLAGS_use_sqlite) {
+        cache_.reset(new CRTableRamSqlite);
+      } else {
+        cache_.reset(new CRTableRamMap);
+      }
       break;
     case CRTable::Type::CRU:
-      cache_.reset(new CRUTableRamSqlite);
+      if (FLAGS_use_sqlite) {
+        cache_.reset(new CRUTableRamSqlite);
+      } else {
+        cache_.reset(new CRUTableRamMap);
+      }
       break;
   }
   CHECK(cache_->init(descriptor));

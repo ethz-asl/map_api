@@ -1,16 +1,15 @@
-#ifndef MAP_API_CR_TABLE_RAM_SQLITE_H_
-#define MAP_API_CR_TABLE_RAM_SQLITE_H_
+#ifndef MAP_API_CR_TABLE_RAM_MAP_H_
+#define MAP_API_CR_TABLE_RAM_MAP_H_
 
 #include <string>
 
 #include "map-api/cr-table.h"
-#include "map-api/sqlite-interface.h"
 
 namespace map_api {
 
-class CRTableRamSqlite final : public CRTable {
+class CRTableRamMap : public CRTable {
  public:
-  virtual ~CRTableRamSqlite();
+  virtual ~CRTableRamMap();
 
  private:
   virtual bool initCRDerived() final override;
@@ -24,9 +23,10 @@ class CRTableRamSqlite final : public CRTable {
                                        const Revision& valueHolder,
                                        const LogicalTime& time) final override;
 
-  SqliteInterface sqlite_interface_;
+  typedef std::unordered_map<Id, Revision> MapType;
+  MapType data_;
 };
 
 }  // namespace map_api
 
-#endif  // MAP_API_CR_TABLE_RAM_SQLITE_H_
+#endif  // MAP_API_CR_TABLE_RAM_MAP_H_
