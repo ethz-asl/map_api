@@ -14,7 +14,7 @@
 #include "map-api/core.h"
 #include "map-api/ipc.h"
 
-#include "test_chord_index.cpp"
+#include "./test_chord_index.cc"
 #include "./map_api_multiprocess_fixture.h"
 
 DECLARE_uint64(stabilize_us);

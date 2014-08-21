@@ -9,7 +9,7 @@
 #include "map-api/cru-table-ram-sqlite.h"
 #include "map-api/local-transaction.h"
 
-#include "test_table.cpp"
+#include "./test_table.cc"
 
 using namespace map_api;
 

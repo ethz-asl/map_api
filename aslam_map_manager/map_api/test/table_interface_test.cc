@@ -19,7 +19,7 @@
 #include "map-api/id.h"
 #include "map-api/logical-time.h"
 
-#include "test_table.cpp"
+#include "./test_table.cc"
 
 using namespace map_api;
 
