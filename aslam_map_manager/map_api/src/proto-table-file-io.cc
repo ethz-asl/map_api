@@ -84,10 +84,8 @@ bool ProtoTableFileIO::StoreTableContents(const map_api::LogicalTime& time) {
       google::protobuf::io::OstreamOutputStream raw_out(&file_);
       google::protobuf::io::CodedOutputStream coded_out(&raw_out);
 
-      std::string output_string;
-      revision.SerializeToString(&output_string);
-      coded_out.WriteVarint32(output_string.size());
-      coded_out.WriteRaw(output_string.data(), output_string.size());
+      coded_out.WriteVarint32(revision.ByteSize());
+      revision.SerializeToCodedStream(&coded_out);
       already_stored_items_.insert(current_item_stamp);
     }
   }
