@@ -88,6 +88,43 @@ bool Transaction::commit() {
   return true;
 }
 
+void Transaction::merge(std::shared_ptr<Transaction>* merge_transaction,
+                        ConflictMap* conflicts) {
+  CHECK_NOTNULL(merge_transaction);
+  CHECK_NOTNULL(conflicts);
+  merge_transaction->reset(new Transaction);
+  conflicts->clear();
+  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
+    std::shared_ptr<NetTableTransaction> merge_net_table_transaction;
+    ChunkTransaction::Conflicts sub_conflicts;
+    net_table_transaction.second->merge(merge_transaction->get()->begin_time_,
+                                        &merge_net_table_transaction,
+                                        &sub_conflicts);
+    CHECK_EQ(
+        net_table_transaction.second->numChangedItems(),
+        merge_net_table_transaction->numChangedItems() + sub_conflicts.size());
+    if (merge_net_table_transaction->numChangedItems() > 0u) {
+      merge_transaction->get()->net_table_transactions_.insert(std::make_pair(
+          net_table_transaction.first, merge_net_table_transaction));
+    }
+    if (!sub_conflicts.empty()) {
+      std::pair<ConflictMap::iterator, bool> insert_result =
+          conflicts->insert(std::make_pair(net_table_transaction.first,
+                                           ChunkTransaction::Conflicts()));
+      CHECK(insert_result.second);
+      insert_result.first->second.swap(sub_conflicts);
+    }
+  }
+}
+
+size_t Transaction::numChangedItems() const {
+  size_t count = 0u;
+  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
+    count += net_table_transaction.second->numChangedItems();
+  }
+  return count;
+}
+
 NetTableTransaction* Transaction::transactionOf(NetTable* table) {
   CHECK_NOTNULL(table);
   TransactionMap::iterator net_table_transaction =

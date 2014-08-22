@@ -3,6 +3,7 @@
 #include <unordered_set>
 
 #include "map-api/cru-table.h"
+#include "map-api/net-table.h"
 
 namespace map_api {
 
@@ -77,35 +78,19 @@ bool ChunkTransaction::commit() {
 
 bool ChunkTransaction::check() {
   CHECK(chunk_->isLocked());
-  CRTable::RevisionMap contents;
-  // TODO(tcies) caching entire table is not a long-term solution
-  chunk_->underlying_table_->dump(LogicalTime::sample(), &contents);
-  std::unordered_set<Id> present_ids;
-  for (const CRTable::RevisionMap::value_type& item : contents) {
-    present_ids.insert(item.first);
-  }
+  std::unordered_map<Id, LogicalTime> stamps;
+  prepareCheck(&stamps);
   // The following check may be left out if too costly
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
        insertions_) {
-    if (present_ids.find(item.first) != present_ids.end()) {
+    if (stamps.find(item.first) != stamps.end()) {
       LOG(ERROR) << "Table " << chunk_->underlying_table_->name()
                  << " already contains id " << item.first;
       return false;
     }
   }
-  std::unordered_map<Id, LogicalTime> update_times;
-  if (!updates_.empty()) {
-    CHECK(chunk_->underlying_table_->type() == CRTable::Type::CRU);
-    // TODO(tcies) caching entire table is not a long-term solution (but maybe
-    // caching the entire chunk could be?)
-    for (const CRTable::RevisionMap::value_type& item : contents) {
-      LogicalTime update_time;
-      item.second->get(CRUTable::kUpdateTimeField, &update_time);
-      update_times[item.first] = update_time;
-    }
-  }
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item : updates_) {
-    if (update_times[item.first] >= begin_time_) {
+    if (stamps[item.first] >= begin_time_) {
       return false;
     }
   }
@@ -123,6 +108,65 @@ void ChunkTransaction::checkedCommit(const LogicalTime& time) {
   chunk_->bulkInsertLocked(insertions_, time);
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item : updates_) {
     chunk_->updateLocked(time, item.second.get());
+  }
+}
+
+void ChunkTransaction::merge(
+    const LogicalTime& time,
+    std::shared_ptr<ChunkTransaction>* merge_transaction,
+    Conflicts* conflicts) {
+  CHECK_NOTNULL(merge_transaction);
+  CHECK_NOTNULL(conflicts);
+  CHECK(conflict_conditions_.empty()) << "merge not compatible with conflict "
+                                         "conditions";
+  merge_transaction->reset(new ChunkTransaction(time, chunk_));
+  conflicts->clear();
+  chunk_->readLock();
+  std::unordered_map<Id, LogicalTime> stamps;
+  prepareCheck(&stamps);
+  // The following check may be left out if too costly
+  for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
+       insertions_) {
+    CHECK(stamps.find(item.first) == stamps.end()) << "Insert conflict!";
+    merge_transaction->get()->insertions_.insert(item);
+  }
+  for (const std::pair<const Id, std::shared_ptr<Revision> >& item : updates_) {
+    if (stamps[item.first] >= begin_time_) {
+      conflicts->push_back(
+          {merge_transaction->get()->getById(item.first), item.second});
+    } else {
+      merge_transaction->get()->updates_.insert(item);
+    }
+  }
+  chunk_->unlock();
+}
+
+size_t ChunkTransaction::numChangedItems() const {
+  CHECK(conflict_conditions_.empty()) << "changeCount not compatible with "
+                                         "conflict conditions";
+  return insertions_.size() + updates_.size();
+}
+
+void ChunkTransaction::prepareCheck(
+    std::unordered_map<Id, LogicalTime>* chunk_stamp) {
+  CHECK_NOTNULL(chunk_stamp);
+  chunk_stamp->clear();
+  CRTable::RevisionMap contents;
+  // same as "chunk_->dumpItems(LogicalTime::sample(), &contents);" without the
+  // locking (because that is already done)
+  chunk_->underlying_table_->find(NetTable::kChunkIdField, chunk_->id(),
+                                  LogicalTime::sample(), &contents);
+  LogicalTime time;
+  if (!updates_.empty()) {
+    CHECK(chunk_->underlying_table_->type() == CRTable::Type::CRU);
+    for (const CRTable::RevisionMap::value_type& item : contents) {
+      item.second->get(CRUTable::kUpdateTimeField, &time);
+      chunk_stamp->insert(std::make_pair(item.first, time));
+    }
+  } else {
+    for (const CRTable::RevisionMap::value_type& item : contents) {
+      chunk_stamp->insert(std::make_pair(item.first, time));
+    }
   }
 }
 
