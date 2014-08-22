@@ -9,7 +9,7 @@
 
 namespace map_api {
 
-bool Revision::find(const std::string& name, proto::TableField** field){
+bool Revision::find(const std::string& name, proto::TableField** field) {
   FieldMap::iterator find = fields_.find(name);
   if (find == fields_.end()) {
     LOG(ERROR) << "Attempted to access inexistent field " << name;
@@ -19,27 +19,16 @@ bool Revision::find(const std::string& name, proto::TableField** field){
   return true;
 }
 
-bool Revision::find(const std::string& name, const proto::TableField** field)
-const{
-  FieldMap::const_iterator find = fields_.find(name);
-  if (find == fields_.end()) {
-    LOG(ERROR) << "Attempted to access inexistent field " << name;
-    return false;
-  }
-  *field = &fieldqueries(find->second);
-  return true;
-}
-
 std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(
     int field, Poco::Data::Statement& stat) const {
   std::shared_ptr<Poco::Data::BLOB> blobPointer;
-  if (!fieldqueries(field).nametype().has_type()){
+  if (!fieldqueries(field).nametype().has_type()) {
     LOG(FATAL) << "Trying to insert placeholder of undefined type";
     return blobPointer;
   }
   stat << " ";
   switch (fieldqueries(field).nametype().type()) {
-    case (proto::TableFieldDescriptor_Type_BLOB):{
+    case(proto::TableFieldDescriptor_Type_BLOB) : {
       blobPointer = std::make_shared<Poco::Data::BLOB>(
           Poco::Data::BLOB(fieldqueries(field).blobvalue()));
       stat << "?", Poco::Data::use(*blobPointer);
@@ -93,14 +82,14 @@ void Revision::addField(const proto::TableFieldDescriptor& descriptor) {
 }
 
 bool Revision::structureMatch(const Revision& other) const {
-  if (fields_.size() != other.fields_.size()){
+  if (fields_.size() != other.fields_.size()) {
     LOG(INFO) << "Field count does not match";
     return false;
   }
   FieldMap::const_iterator leftIterator = fields_.begin(),
       rightIterator = other.fields_.begin();
-  while (leftIterator != fields_.end()){
-    if (leftIterator->first != rightIterator->first){
+  while (leftIterator != fields_.end()) {
+    if (leftIterator->first != rightIterator->first) {
       LOG(INFO) << "Field name mismatch: " << leftIterator->first << " vs " <<
           rightIterator->first;
       return false;
@@ -111,10 +100,58 @@ bool Revision::structureMatch(const Revision& other) const {
   return true;
 }
 
+bool Revision::fieldMatch(const Revision& other, const std::string& key) const {
+  int index = indexOf(key);
+  return fieldMatch(other, key, index);
+}
+
+bool Revision::fieldMatch(const Revision& other, const std::string& key,
+                          int index_guess) const {
+  const proto::TableField& a = fieldqueries(index_guess);
+  const proto::TableField& b = other.fieldqueries(index_guess);
+  if (a.nametype().name() != key) {
+    LOG(WARNING) << "Index guess was wrong!";
+    return fieldMatch(other, key);
+  }
+  CHECK_EQ(key, b.nametype().name());
+  switch (a.nametype().type()) {
+    case proto::TableFieldDescriptor_Type_BLOB: {
+      return a.blobvalue() == b.blobvalue();
+    }
+    case(proto::TableFieldDescriptor_Type_DOUBLE) : {
+      return a.doublevalue() == b.doublevalue();
+    }
+    case(proto::TableFieldDescriptor_Type_HASH128) : {
+      return a.stringvalue() == b.stringvalue();
+    }
+    case(proto::TableFieldDescriptor_Type_INT32) : {
+      return a.intvalue() == b.intvalue();
+    }
+    case(proto::TableFieldDescriptor_Type_INT64) : {
+      return a.longvalue() == b.longvalue();
+    }
+    case(proto::TableFieldDescriptor_Type_UINT64) : {
+      return a.ulongvalue() == b.ulongvalue();
+    }
+    case(proto::TableFieldDescriptor_Type_STRING) : {
+      return a.stringvalue() == b.stringvalue();
+    }
+  }
+  CHECK(false) << "Forgot switch case";
+  return false;
+}
+
+int Revision::indexOf(const std::string& key) const {
+  FieldMap::const_iterator index = fields_.find(key);
+  // assuming same index for speedup
+  CHECK(index != fields_.end()) << "Trying to get inexistent field";
+  return index->second;
+}
+
 bool Revision::ParseFromString(const std::string& data) {
   bool success = proto::Revision::ParseFromString(data);
   CHECK(success) << "Parsing revision from string failed";
-  for (int i = 0; i < fieldqueries_size(); ++i){
+  for (int i = 0; i < fieldqueries_size(); ++i) {
     fields_[fieldqueries(i).nametype().name()] = i;
   }
   return true;
@@ -171,12 +208,12 @@ REVISION_SET(int32_t) {
   return true;
 }
 
-REVISION_SET(bool){
+REVISION_SET(bool) {
   field.set_intvalue(value ? 1 : 0);
   return true;
 }
 
-REVISION_SET(Id){
+REVISION_SET(Id) {
   field.set_stringvalue(value.hexString());
   return true;
 }
@@ -231,12 +268,12 @@ REVISION_GET(Id) {
   }
   return true;
 }
-REVISION_GET(bool){
+REVISION_GET(bool) {
   *value = field.intvalue() != 0;
   return true;
 }
 REVISION_GET(sm::HashId) {
-  if (!value->fromHexString(field.stringvalue())){
+  if (!value->fromHexString(field.stringvalue())) {
     LOG(FATAL) << "Failed to parse Hash id from string \"" <<
         field.stringvalue() << "\" for field " << field.nametype().name();
   }

@@ -35,7 +35,7 @@ const char Chunk::kUnlockRequest[] = "map_api_chunk_unlock_request";
 const char Chunk::kUpdateRequest[] = "map_api_chunk_update_request";
 
 MAP_API_PROTO_MESSAGE(Chunk::kConnectRequest, proto::ChunkRequestMetadata);
-MAP_API_PROTO_MESSAGE(Chunk::kInitRequest, proto::InitRequest);
+MAP_API_COMPRESSED_PROTO_MESSAGE(Chunk::kInitRequest, proto::InitRequest);
 MAP_API_PROTO_MESSAGE(Chunk::kInsertRequest, proto::PatchRequest);
 MAP_API_PROTO_MESSAGE(Chunk::kLeaveRequest, proto::ChunkRequestMetadata);
 MAP_API_PROTO_MESSAGE(Chunk::kLockRequest, proto::ChunkRequestMetadata);
@@ -98,6 +98,20 @@ size_t Chunk::numItems(const LogicalTime& time) {
   size_t result = underlying_table_->count(NetTable::kChunkIdField, id(), time);
   distributedUnlock();
   return result;
+}
+
+size_t Chunk::itemsSizeBytes(const LogicalTime& time) {
+  CRTable::RevisionMap items;
+  distributedReadLock();
+  underlying_table_->find(NetTable::kChunkIdField, id(), time, &items);
+  distributedUnlock();
+  size_t num_bytes = 0;
+  for (const std::pair<Id, std::shared_ptr<Revision> >& item : items) {
+    CHECK(item.second != nullptr);
+    const Revision& revision = *item.second;
+    num_bytes += revision.ByteSize();
+  }
+  return num_bytes;
 }
 
 bool Chunk::insert(Revision* item) {
@@ -280,9 +294,12 @@ bool Chunk::addPeer(const PeerId& peer) {
     return false;
   }
   prepareInitRequest(&request);
+  timing::Timer timer("init_request");
   if (!Hub::instance().ackRequest(peer, &request)) {
+    timer.Stop();
     return false;
   }
+  timer.Stop();
   // new peer is not ready to handle requests as the rest of the swarm. Still,
   // one last message is sent to the old swarm, notifying it of the new peer
   // and thus the new configuration:

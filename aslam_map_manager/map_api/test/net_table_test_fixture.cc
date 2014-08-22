@@ -10,7 +10,7 @@
 namespace map_api {
 
 class NetTableTest : public MultiprocessTest,
-public ::testing::WithParamInterface<bool> {
+                     public ::testing::WithParamInterface<bool> {
  protected:
   virtual void SetUp() {
     MultiprocessTest::SetUp();
@@ -19,7 +19,6 @@ public ::testing::WithParamInterface<bool> {
     descriptor->addField<int>(kFieldName);
     NetTableManager::instance().addTable(
         GetParam() ? CRTable::Type::CRU : CRTable::Type::CR, &descriptor);
-    table_ = &NetTableManager::instance().getTable(kTableName);
     table_ = &NetTableManager::instance().getTable(kTableName);
   }
 
@@ -42,7 +41,6 @@ public ::testing::WithParamInterface<bool> {
     transaction->update(to_update);
   }
 
-  // TODO(tcies) could replace chunk with chunk_id
   void increment(NetTable* table, const Id& id, Chunk* chunk,
                  Transaction* transaction) {
     CHECK_NOTNULL(table);
@@ -81,6 +79,7 @@ public ::testing::WithParamInterface<bool> {
   NetTable* table_;
 };
 
+// Parameter true / false tests CRU / CR tables.
 INSTANTIATE_TEST_CASE_P(Default, NetTableTest, ::testing::Values(false, true));
 
 }  // namespace map_api

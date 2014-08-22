@@ -1,9 +1,14 @@
 #ifndef MAP_API_MESSAGE_H_
 #define MAP_API_MESSAGE_H_
 
-#include <glog/logging.h>
+#include <string>
 
-#include "core.pb.h"
+#include <glog/logging.h>
+#include <google/protobuf/io/gzip_stream.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
+
+#include "./core.pb.h"
 
 namespace map_api {
 
@@ -48,48 +53,82 @@ class Message : public proto::HubMessage {
  * Anticipated common payload types: String and ProtoBuf
  */
 #define MAP_API_MESSAGE_IMPOSE_STRING_MESSAGE(type_denomination) \
-    template<> \
-    void Message::impose<type_denomination, \
-    std::string>(const std::string& payload) { \
-  this->set_type(type_denomination); \
-  this->set_serialized(payload); \
-} \
-extern void __FILE__ ## __LINE__(void) // swallows the semicolon
+  template <>                                                    \
+  void Message::impose<type_denomination, std::string>(          \
+      const std::string& payload) {                              \
+    this->set_type(type_denomination);                           \
+    this->set_serialized(payload);                               \
+  }                                                              \
+  extern void __FILE__##__LINE__(void)  // swallows the semicolon
 #define MAP_API_MESSAGE_EXTRACT_STRING_MESSAGE(type_denomination) \
-    template<> \
-    void Message::extract<type_denomination, std::string>( \
-std::string* payload) const { \
-  CHECK_NOTNULL(payload); \
-  CHECK(isType<type_denomination>()); \
-  *payload = serialized(); \
-} \
-extern void __FILE__ ## __LINE__ ## 2(void) // swallows the semicolon
+  template <>                                                     \
+  void Message::extract<type_denomination, std::string>(          \
+      std::string* payload) const {                               \
+    CHECK_NOTNULL(payload);                                       \
+    CHECK(isType<type_denomination>());                           \
+    *payload = serialized();                                      \
+  }                                                               \
+  extern void __FILE__##__LINE__##2(void)  // swallows the semicolon
 #define MAP_API_STRING_MESSAGE(type_denomination) \
     MAP_API_MESSAGE_IMPOSE_STRING_MESSAGE(type_denomination); \
     MAP_API_MESSAGE_EXTRACT_STRING_MESSAGE(type_denomination)
 #define MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(type_denomination, proto_type) \
-    template<> \
-    void Message::impose<type_denomination, \
-    proto_type>(const proto_type& payload) { \
-      this->set_type(type_denomination); \
-      this->set_serialized(payload.SerializeAsString()); \
-    } \
-    extern void __FILE__ ## __LINE__(void) // swallows the semicolon
+  template <>                                                               \
+  void Message::impose<type_denomination, proto_type>(                      \
+      const proto_type& payload) {                                          \
+    this->set_type(type_denomination);                                      \
+    this->set_serialized(payload.SerializeAsString());                      \
+  }                                                                         \
+  extern void __FILE__##__LINE__(void)  // swallows the semicolon
 #define MAP_API_MESSAGE_EXTRACT_PROTO_MESSAGE(type_denomination, proto_type) \
-    template<> \
-    void Message::extract<type_denomination, proto_type>(proto_type* payload) \
-    const { \
-      CHECK_NOTNULL(payload); \
-      CHECK(isType<type_denomination>()); \
-      CHECK(payload->ParseFromString(this->serialized())); \
-    } \
-    extern void __FILE__ ## __LINE__ ## 2(void) // swallows the semicolon
+  template <>                                                                \
+  void Message::extract<type_denomination, proto_type>(                      \
+      proto_type* payload) const {                                           \
+    CHECK_NOTNULL(payload);                                                  \
+    CHECK(isType<type_denomination>());                                      \
+    CHECK(payload->ParseFromString(this->serialized()));                     \
+  }                                                                          \
+  extern void __FILE__##__LINE__##2(void)  // swallows the semicolon
 #define MAP_API_PROTO_MESSAGE(type_denomination, proto_type) \
     MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(type_denomination, proto_type); \
     MAP_API_MESSAGE_EXTRACT_PROTO_MESSAGE(type_denomination, proto_type)
 
-} // namespace map_api
+#define MAP_API_MESSAGE_IMPOSE_COMPRESSED_PROTO_MESSAGE(type_denomination,  \
+                                                        proto_type)         \
+  template <>                                                               \
+  void Message::impose<type_denomination, proto_type>(                      \
+      const proto_type& payload) {                                          \
+    this->set_type(type_denomination);                                      \
+    google::protobuf::io::StringOutputStream serialized_stream(             \
+        mutable_serialized());                                              \
+    google::protobuf::io::GzipOutputStream gzip_stream(&serialized_stream); \
+    payload.SerializeToZeroCopyStream(&gzip_stream);                        \
+    gzip_stream.Close();                                                    \
+  }                                                                         \
+  extern void __FILE__##__LINE__(void)
+
+#define MAP_API_MESSAGE_EXTRACT_COMPRESSED_PROTO_MESSAGE(type_denomination, \
+                                                         proto_type)        \
+  template <>                                                               \
+  void Message::extract<type_denomination, proto_type>(                     \
+      proto_type* payload) const {                                          \
+    CHECK_NOTNULL(payload);                                                 \
+    CHECK(isType<type_denomination>());                                     \
+    std::istringstream iss(serialized());                                   \
+    google::protobuf::io::IstreamInputStream serialized_stream(&iss);       \
+    google::protobuf::io::GzipInputStream gzip_stream(&serialized_stream);  \
+    payload->ParseFromZeroCopyStream(&gzip_stream);                         \
+  }                                                                         \
+  extern void __FILE__##__LINE__##2(void)
+
+#define MAP_API_COMPRESSED_PROTO_MESSAGE(type_denomination, proto_type) \
+  MAP_API_MESSAGE_IMPOSE_COMPRESSED_PROTO_MESSAGE(type_denomination,    \
+                                                  proto_type);          \
+  MAP_API_MESSAGE_EXTRACT_COMPRESSED_PROTO_MESSAGE(type_denomination,   \
+                                                   proto_type)
+
+}  // namespace map_api
 
 #include "map-api/message-inl.h"
 
-#endif /* MAP_API_MESSAGE_H_ */
+#endif  // MAP_API_MESSAGE_H_

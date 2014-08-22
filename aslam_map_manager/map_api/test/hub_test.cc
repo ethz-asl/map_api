@@ -13,8 +13,14 @@ using namespace map_api;
 class MultiprocessTest;
 
 TEST_F(MultiprocessTest, LaunchTest) {
-  enum Processes {ROOT, SLAVE};
-  enum Barriers {BEFORE_COUNT, AFTER_COUNT};
+  enum Processes {
+    ROOT,
+    SLAVE
+  };
+  enum Barriers {
+    BEFORE_COUNT,
+    AFTER_COUNT
+  };
   if (getSubprocessId() == ROOT) {
     EXPECT_EQ(0, Hub::instance().peerSize());
     launchSubprocess(SLAVE);

@@ -14,12 +14,24 @@
 #include "map-api/revision.h"
 
 namespace map_api {
+inline std::string humanReadableBytes(double size) {
+  int i = 0;
+  const char* units[] = {"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"};
+  while (size > 1024) {
+    size /= 1024.;
+    ++i;
+  }
+  std::stringstream ss;
+  ss << size << " " << units[i];
+  return ss.str();
+}
 
 class NetTable {
   friend class NetTableTest;
   friend class NetTableTransaction;
   FRIEND_TEST(NetTableTest, RemoteUpdate);
   FRIEND_TEST(NetTableTest, Grind);
+  FRIEND_TEST(NetTableTest, SaveAndRestoreTableFromFile);
 
  public:
   static const std::string kChunkIdField;
@@ -29,6 +41,7 @@ class NetTable {
   void joinIndex(const PeerId& entry_point);
 
   const std::string& name() const;
+  const CRTable::Type& type() const;
 
   std::shared_ptr<Revision> getTemplate() const;
   Chunk* newChunk();
@@ -47,14 +60,15 @@ class NetTable {
   /**
    * Connects to the given chunk via the given peer.
    */
-  Chunk* connectTo(const Id& chunk_id,
-                   const PeerId& peer);
+  Chunk* connectTo(const Id& chunk_id, const PeerId& peer);
 
   bool structureMatch(std::unique_ptr<TableDescriptor>* descriptor) const;
 
-  size_t activeChunksSize() const;
+  size_t numActiveChunks() const;
 
-  size_t activeChunksItemsSize();
+  size_t numActiveChunksItems();
+
+  size_t activeChunksItemsSizeBytes();
 
   void shareAllChunks();
 

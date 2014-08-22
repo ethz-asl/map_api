@@ -108,7 +108,8 @@ int CRUTableRamSqlite::countByRevisionCRUDerived(const std::string& key,
   uint64_t serialized_time = time.serialize();
   std::vector<std::shared_ptr<Poco::Data::BLOB> > data_holder;
   int count = 0;
-  statement << "SELECT COUNT(" << kIdField << ")", Poco::Data::into(count);
+  statement << "SELECT COUNT(DISTINCT " << kIdField << ")",
+      Poco::Data::into(count);
   statement << " FROM " << name() << " WHERE " << kUpdateTimeField << " <  ? ",
       Poco::Data::use(serialized_time);
   if (FLAGS_cru_linked) {
