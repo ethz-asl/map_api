@@ -1,5 +1,6 @@
 #include <glog/logging.h>
 #include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/io/gzip_stream.h>
 #include <google/protobuf/io/zero_copy_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
@@ -13,6 +14,10 @@ namespace map_api {
 ProtoTableFileIO::ProtoTableFileIO(const std::string& filename,
                                    map_api::NetTable* table)
     : file_name_(filename), table_(CHECK_NOTNULL(table)) {
+  zip_options_.format = kOutFormat;
+  zip_options_.buffer_size = kZipBufferSize;
+  zip_options_.compression_level = kZipCompressionLevel;
+
   file_.open(filename,
              std::fstream::binary | std::ios_base::in | std::ios_base::out);
   if (!file_.is_open()) {
@@ -66,14 +71,17 @@ bool ProtoTableFileIO::StoreTableContents(
         file_.clear();
         file_.seekp(0);
         google::protobuf::io::OstreamOutputStream raw_out(&file_);
-        google::protobuf::io::CodedOutputStream coded_out(&raw_out);
+        google::protobuf::io::GzipOutputStream gzip_out(&raw_out, zip_options_);
+        google::protobuf::io::CodedOutputStream coded_out(&gzip_out);
         coded_out.WriteLittleEndian32(1);
       } else {
         file_.clear();
         file_.seekg(0);
+
         // Only creating these once we know the file isn't empty.
         google::protobuf::io::IstreamInputStream raw_in(&file_);
-        google::protobuf::io::CodedInputStream coded_in(&raw_in);
+        google::protobuf::io::GzipInputStream gzip_in(&raw_in, kInFormat);
+        google::protobuf::io::CodedInputStream coded_in(&gzip_in);
         uint32_t message_count;
         coded_in.ReadLittleEndian32(&message_count);
 
@@ -82,7 +90,8 @@ bool ProtoTableFileIO::StoreTableContents(
         file_.clear();
         file_.seekp(0);
         google::protobuf::io::OstreamOutputStream raw_out(&file_);
-        google::protobuf::io::CodedOutputStream coded_out(&raw_out);
+        google::protobuf::io::GzipOutputStream gzip_out(&raw_out, zip_options_);
+        google::protobuf::io::CodedOutputStream coded_out(&gzip_out);
         coded_out.WriteLittleEndian32(message_count);
       }
 
@@ -91,7 +100,8 @@ bool ProtoTableFileIO::StoreTableContents(
       file_.seekp(0, std::ios_base::end);
 
       google::protobuf::io::OstreamOutputStream raw_out(&file_);
-      google::protobuf::io::CodedOutputStream coded_out(&raw_out);
+      google::protobuf::io::GzipOutputStream gzip_out(&raw_out, zip_options_);
+      google::protobuf::io::CodedOutputStream coded_out(&gzip_out);
 
       coded_out.WriteVarint32(revision.ByteSize());
       revision.SerializeToCodedStream(&coded_out);
@@ -125,9 +135,12 @@ bool ProtoTableFileIO::RestoreTableContents(map_api::Transaction* transaction) {
   file_.clear();
   file_.seekg(0, std::ios::beg);
   google::protobuf::io::IstreamInputStream raw_in(&file_);
-  google::protobuf::io::CodedInputStream coded_in(&raw_in);
+  google::protobuf::io::GzipInputStream gzip_in(&raw_in, kInFormat);
+  google::protobuf::io::CodedInputStream coded_in(&gzip_in);
 
-  coded_in.SetTotalBytesLimit(file_size, file_size);
+  int kApproxMessageSizeAfterUncompression = file_size * 10;
+  coded_in.SetTotalBytesLimit(kApproxMessageSizeAfterUncompression,
+                              kApproxMessageSizeAfterUncompression);
 
   // Format:
   // Store number of messages.
