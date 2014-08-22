@@ -51,7 +51,21 @@ class Transaction {
   void insert(ChunkManagerBase* chunk_manager,
               std::shared_ptr<Revision> revision);
   void update(NetTable* table, std::shared_ptr<Revision> revision);
+
+  // TRANSACTION OPERATIONS
   bool commit();
+  using Conflict = ChunkTransaction::Conflict;
+  using Conflicts = ChunkTransaction::Conflicts;
+  typedef std::unordered_map<NetTable*, ChunkTransaction::Conflicts>
+      ConflictMap;
+  /**
+   * Merge_transaction will be filled with all insertions and non-conflicting
+   * updates from this transaction, while the conflicting updates will be
+   * represented in a ConflictMap.
+   */
+  void merge(std::shared_ptr<Transaction>* merge_transaction,
+             ConflictMap* conflicts);
+  size_t numChangedItems() const;
 
  private:
   NetTableTransaction* transactionOf(NetTable* table);
