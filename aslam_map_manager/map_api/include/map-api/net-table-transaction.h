@@ -36,6 +36,8 @@ class NetTableTransaction {
   // WRITE (see transaction.h)
   void insert(Chunk* chunk, std::shared_ptr<Revision> revision);
   void update(std::shared_ptr<Revision> revision);
+
+  // TRANSACTION OPERATIONS
   /**
    * Equivalent to lock(), if (check()) commit each sub-transaction, unlock()
    * Returns false if check fails.
@@ -46,8 +48,6 @@ class NetTableTransaction {
    * sub-transactions are locked and checked.
    */
   void checkedCommit(const LogicalTime& time);
-
-  // AUXILIARY
   /**
    * Locks each chunk write-affected by this transaction
    */
@@ -59,6 +59,10 @@ class NetTableTransaction {
    * lock() MUST have been called
    */
   bool check();
+  void merge(const LogicalTime& time,
+             std::shared_ptr<NetTableTransaction>* merge_transaction,
+             ChunkTransaction::Conflicts* conflicts);
+  size_t numChangedItems() const;
 
   // INTERNAL
   ChunkTransaction* transactionOf(Chunk* chunk);
