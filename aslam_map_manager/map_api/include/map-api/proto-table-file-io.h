@@ -9,6 +9,7 @@
 #include <map-api/net-table.h>
 
 namespace map_api {
+class Transaction;
 typedef std::pair<Id, map_api::LogicalTime> RevisionStamp;
 }  // namespace map_api
 
@@ -30,7 +31,9 @@ class ProtoTableFileIO {
   ProtoTableFileIO(const std::string& filename, map_api::NetTable* table);
   ~ProtoTableFileIO();
   bool StoreTableContents(const map_api::LogicalTime& time);
+  bool StoreTableContents(const map_api::CRTable::RevisionMap& revisions);
   bool RestoreTableContents();
+  bool RestoreTableContents(map_api::Transaction* transaction);
 
  private:
   std::string file_name_;
