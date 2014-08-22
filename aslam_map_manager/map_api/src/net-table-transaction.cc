@@ -106,9 +106,9 @@ void NetTableTransaction::merge(
     ChunkTransaction::Conflicts sub_conflicts;
     chunk_transaction.second->merge(time, &merge_chunk_transaction,
                                     &sub_conflicts);
-    CHECK_EQ(chunk_transaction.second->changeCount(),
-             merge_chunk_transaction->changeCount() + sub_conflicts.size());
-    if (merge_chunk_transaction->changeCount() > 0u) {
+    CHECK_EQ(chunk_transaction.second->numChangedItems(),
+             merge_chunk_transaction->numChangedItems() + sub_conflicts.size());
+    if (merge_chunk_transaction->numChangedItems() > 0u) {
       merge_transaction->get()->chunk_transactions_.insert(
           std::make_pair(chunk_transaction.first, merge_chunk_transaction));
     }
@@ -118,10 +118,10 @@ void NetTableTransaction::merge(
   }
 }
 
-size_t NetTableTransaction::changeCount() const {
+size_t NetTableTransaction::numChangedItems() const {
   size_t result = 0;
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
-    result += chunk_transaction.second->changeCount();
+    result += chunk_transaction.second->numChangedItems();
   }
   return result;
 }

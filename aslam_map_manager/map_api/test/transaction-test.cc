@@ -40,7 +40,7 @@ TEST_P(NetTableTest, TransactionMerge) {
     std::shared_ptr<Transaction> merge_transaction;
     Transaction::ConflictMap conflicts;
     transaction.merge(&merge_transaction, &conflicts);
-    EXPECT_EQ(1u, merge_transaction->changeCount());
+    EXPECT_EQ(1u, merge_transaction->numChangedItems());
     EXPECT_EQ(1u, conflicts.size());
     EXPECT_EQ(1u, conflicts[table_].size());
     EXPECT_TRUE(conflicts[table_].begin()->ours->verifyEqual(kFieldName, 43));

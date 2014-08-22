@@ -56,14 +56,15 @@ class ChunkTransaction {
     const std::shared_ptr<const Revision> theirs;
     const std::shared_ptr<const Revision> ours;
   };
-  typedef std::list<Conflict> Conflicts;  // constant splicing, linear iteration
-                                          /**
-* Merging and changeCount are not compatible with conflict conditions.
-*/
+  // constant splicing, linear iteration
+  typedef std::list<Conflict> Conflicts;
+  /**
+   * Merging and changeCount are not compatible with conflict conditions.
+   */
   void merge(const LogicalTime& time,
              std::shared_ptr<ChunkTransaction>* merge_transaction,
              Conflicts* conflicts);
-  size_t changeCount() const;
+  size_t numChangedItems() const;
 
   // INTERNAL
   void prepareCheck(std::unordered_map<Id, LogicalTime>* chunk_stamp);

@@ -100,10 +100,10 @@ void Transaction::merge(std::shared_ptr<Transaction>* merge_transaction,
     net_table_transaction.second->merge(merge_transaction->get()->begin_time_,
                                         &merge_net_table_transaction,
                                         &sub_conflicts);
-    CHECK_EQ(net_table_transaction.second->changeCount(),
-             merge_net_table_transaction->changeCount() + sub_conflicts.size());
-    if (merge_net_table_transaction->changeCount() > 0u) {
-      // use emplace with later gcc
+    CHECK_EQ(
+        net_table_transaction.second->numChangedItems(),
+        merge_net_table_transaction->numChangedItems() + sub_conflicts.size());
+    if (merge_net_table_transaction->numChangedItems() > 0u) {
       merge_transaction->get()->net_table_transactions_.insert(std::make_pair(
           net_table_transaction.first, merge_net_table_transaction));
     }
@@ -117,10 +117,10 @@ void Transaction::merge(std::shared_ptr<Transaction>* merge_transaction,
   }
 }
 
-size_t Transaction::changeCount() const {
+size_t Transaction::numChangedItems() const {
   size_t count = 0u;
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
-    count += net_table_transaction.second->changeCount();
+    count += net_table_transaction.second->numChangedItems();
   }
   return count;
 }

@@ -3,6 +3,7 @@
 #include <unordered_set>
 
 #include "map-api/cru-table.h"
+#include "map-api/net-table.h"
 
 namespace map_api {
 
@@ -140,7 +141,7 @@ void ChunkTransaction::merge(
   chunk_->unlock();
 }
 
-size_t ChunkTransaction::changeCount() const {
+size_t ChunkTransaction::numChangedItems() const {
   CHECK(conflict_conditions_.empty()) << "changeCount not compatible with "
                                          "conflict conditions";
   return insertions_.size() + updates_.size();
@@ -151,7 +152,10 @@ void ChunkTransaction::prepareCheck(
   CHECK_NOTNULL(chunk_stamp);
   chunk_stamp->clear();
   CRTable::RevisionMap contents;
-  chunk_->dumpItems(LogicalTime::sample(), &contents);
+  // same as "chunk_->dumpItems(LogicalTime::sample(), &contents);" without the
+  // locking (because that is already done)
+  chunk_->underlying_table_->find(NetTable::kChunkIdField, chunk_->id(),
+                                  LogicalTime::sample(), &contents);
   LogicalTime time;
   if (!updates_.empty()) {
     CHECK(chunk_->underlying_table_->type() == CRTable::Type::CRU);

@@ -62,7 +62,7 @@ class NetTableTransaction {
   void merge(const LogicalTime& time,
              std::shared_ptr<NetTableTransaction>* merge_transaction,
              ChunkTransaction::Conflicts* conflicts);
-  size_t changeCount() const;
+  size_t numChangedItems() const;
 
   // INTERNAL
   ChunkTransaction* transactionOf(Chunk* chunk);
