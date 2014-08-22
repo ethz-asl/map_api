@@ -29,13 +29,13 @@ ProtoTableFileIO::ProtoTableFileIO(const std::string& filename,
 
 ProtoTableFileIO::~ProtoTableFileIO() {}
 
-bool ProtoTableFileIO::StoreTableContents(const map_api::LogicalTime& time) {
+bool ProtoTableFileIO::storeTableContents(const map_api::LogicalTime& time) {
   map_api::Transaction transaction(time);
   map_api::CRTable::RevisionMap revisions =
       transaction.dumpActiveChunks(table_);
-  return StoreTableContents(revisions);
+  return storeTableContents(revisions);
 }
-bool ProtoTableFileIO::StoreTableContents(
+bool ProtoTableFileIO::storeTableContents(
     const map_api::CRTable::RevisionMap& revisions) {
   CHECK(file_.is_open());
 
@@ -111,15 +111,15 @@ bool ProtoTableFileIO::StoreTableContents(
   return true;
 }
 
-bool ProtoTableFileIO::RestoreTableContents() {
+bool ProtoTableFileIO::restoreTableContents() {
   Transaction transaction(LogicalTime::sample());
-  RestoreTableContents(&transaction);
+  restoreTableContents(&transaction);
   bool ok = transaction.commit();
   LOG_IF(WARNING, !ok) << "Transaction commit failed to load data";
   return ok;
 }
 
-bool ProtoTableFileIO::RestoreTableContents(map_api::Transaction* transaction) {
+bool ProtoTableFileIO::restoreTableContents(map_api::Transaction* transaction) {
   CHECK_NOTNULL(transaction);
   CHECK(file_.is_open());
 
