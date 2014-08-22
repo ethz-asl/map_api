@@ -5,6 +5,7 @@
 #include <string>
 #include <unordered_map>
 
+#include <gtest/gtest_prod.h>
 #include <Poco/RWLock.h>
 
 #include "map-api/chunk.h"
@@ -13,8 +14,25 @@
 #include "map-api/revision.h"
 
 namespace map_api {
+inline std::string humanReadableBytes(double size) {
+  int i = 0;
+  const char* units[] = {"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"};
+  while (size > 1024) {
+    size /= 1024.;
+    ++i;
+  }
+  std::stringstream ss;
+  ss << size << " " << units[i];
+  return ss.str();
+}
 
 class NetTable {
+  friend class NetTableTest;
+  friend class NetTableTransaction;
+  FRIEND_TEST(NetTableTest, RemoteUpdate);
+  FRIEND_TEST(NetTableTest, Grind);
+  FRIEND_TEST(NetTableTest, SaveAndRestoreTableFromFile);
+
  public:
   static const std::string kChunkIdField;
 
@@ -23,46 +41,34 @@ class NetTable {
   void joinIndex(const PeerId& entry_point);
 
   const std::string& name() const;
+  const CRTable::Type& type() const;
 
   std::shared_ptr<Revision> getTemplate() const;
   Chunk* newChunk();
   Chunk* newChunk(const Id& chunk_id);
   Chunk* getChunk(const Id& chunk_id);
 
-  bool insert(Chunk* chunk, Revision* query);
-  /**
-   * Must not change the chunk id. TODO(tcies) immutable fields of Revisions
-   * could be nice and simple to implement
-   */
-  bool update(Revision* query);
-
-  // RETRIEVAL
-  /**
-   * Deprecated - does not readlock chunks, nor does it guarantee consistency
-   * in any other way (what if new data is added to table in an unowned chunk
-   * that would still correspond to the query?). Function kept for
-   * NetTableTest TODO(tcies) cleanup
-   */
-  std::shared_ptr<Revision> getById(const Id& id, const LogicalTime& time)
-  __attribute__((deprecated));
+  // RETRIEVAL (locking all chunks)
+  template <typename ValueType>
+  CRTable::RevisionMap lockFind(const std::string& key, const ValueType& value,
+                                const LogicalTime& time);
 
   void dumpActiveChunks(const LogicalTime& time,
                         CRTable::RevisionMap* destination);
-
   void dumpActiveChunksAtCurrentTime(CRTable::RevisionMap* destination);
 
-  bool has(const Id& chunk_id);
   /**
    * Connects to the given chunk via the given peer.
    */
-  Chunk* connectTo(const Id& chunk_id,
-                   const PeerId& peer);
+  Chunk* connectTo(const Id& chunk_id, const PeerId& peer);
 
   bool structureMatch(std::unique_ptr<TableDescriptor>* descriptor) const;
 
-  size_t activeChunksSize() const;
+  size_t numActiveChunks() const;
 
-  size_t activeChunksItemsSize();
+  size_t numActiveChunksItems();
+
+  size_t activeChunksItemsSizeBytes();
 
   void shareAllChunks();
 
@@ -108,6 +114,17 @@ class NetTable {
   NetTable& operator =(const NetTable&) = delete;
   friend class NetTableManager;
 
+  bool insert(Chunk* chunk, Revision* query);
+  /**
+   * Must not change the chunk id. TODO(tcies) immutable fields of Revisions
+   * could be nice and simple to implement
+   */
+  bool update(Revision* query);
+  std::shared_ptr<Revision> getByIdInconsistent(const Id& id);
+
+  void readLockActiveChunks();
+  void unlockActiveChunks();
+
   typedef std::unordered_map<Id, std::unique_ptr<Chunk> > ChunkMap;
   bool routingBasics(
       const Id& chunk_id, Message* response, ChunkMap::iterator* found);
@@ -126,5 +143,7 @@ class NetTable {
 };
 
 }  // namespace map_api
+
+#include "map-api/net-table-inl.h"
 
 #endif  // MAP_API_NET_TABLE_H_

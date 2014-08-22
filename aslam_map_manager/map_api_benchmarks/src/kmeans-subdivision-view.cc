@@ -93,17 +93,18 @@ void KmeansSubdivisionView::fetch(DescriptorVector* descriptors,
   center_index_to_id_.clear();
 
   // cache revisions
-  descriptor_chunk_->dumpItems(transaction_.time(), &descriptor_revisions_);
+  descriptor_revisions_ =
+      transaction_.dumpChunk(app::data_point_table, descriptor_chunk_);
   center_revisions_.clear();
   for (Chunk* center_chunk : center_chunks_) {
-    CRTable::RevisionMap center_revisions;
-    center_chunk->dumpItems(transaction_.time(), &center_revisions);
+    CRTable::RevisionMap center_revisions =
+        transaction_.dumpChunk(app::center_table, center_chunk);
     center_revisions_.insert(center_revisions.begin(), center_revisions.end());
   }
   membership_revisions_.clear();
   for (Chunk* membership_chunk : membership_chunks_) {
-    CRTable::RevisionMap membership_revisions;
-    membership_chunk->dumpItems(transaction_.time(), &membership_revisions);
+    CRTable::RevisionMap membership_revisions =
+        transaction_.dumpChunk(app::association_table, membership_chunk);
     membership_revisions_.insert(membership_revisions.begin(),
                                  membership_revisions.end());
   }

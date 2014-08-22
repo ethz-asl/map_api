@@ -3,12 +3,14 @@
 
 #include <memory>
 #include <map>
+#include <string>
 
 #include <glog/logging.h>
 
 #include "map-api/id.h"
 #include "map-api/logical-time.h"
 #include "map-api/net-table.h"
+#include "map-api/net-table-transaction.h"
 
 namespace map_api {
 class Chunk;
@@ -20,17 +22,36 @@ class Transaction {
  public:
   Transaction();
   explicit Transaction(const LogicalTime& begin_time);
-  bool commit();
+
+  // READ
+  /**
+   * By Id or chunk:
+   * Use the overload with chunk specification to increase performance. Use
+   * dumpChunk() for best performance if reading out most of a chunk.
+   */
   std::shared_ptr<Revision> getById(const Id& id, NetTable* table);
+  std::shared_ptr<Revision> getById(const Id& id, NetTable* table,
+                                    Chunk* chunk);
+  CRTable::RevisionMap dumpChunk(NetTable* table, Chunk* chunk);
+  CRTable::RevisionMap dumpActiveChunks(NetTable* table);
+  /**
+   * By some other field: Searches in ALL active chunks of a table, thus
+   * fundamentally differing from getById or dumpChunk.
+   */
+  template <typename ValueType>
+  CRTable::RevisionMap find(const std::string& key, const ValueType& value,
+                            NetTable* table);
+
+  // WRITE
   void insert(
       NetTable* table, Chunk* chunk, std::shared_ptr<Revision> revision);
+  /**
+   * Uses ChunkManager to auto-size chunks.
+   */
   void insert(ChunkManagerBase* chunk_manager,
               std::shared_ptr<Revision> revision);
   void update(NetTable* table, std::shared_ptr<Revision> revision);
-
-  inline LogicalTime time() const {
-    return begin_time_;
-  }
+  bool commit();
 
  private:
   NetTableTransaction* transactionOf(NetTable* table);
@@ -52,5 +73,7 @@ class Transaction {
 };
 
 }  // namespace map_api
+
+#include "map-api/transaction-inl.h"
 
 #endif  // MAP_API_TRANSACTION_H_

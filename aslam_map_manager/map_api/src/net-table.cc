@@ -3,9 +3,13 @@
 #include <glog/logging.h>
 
 #include "map-api/core.h"
+#include "map-api/cr-table-ram-map.h"
 #include "map-api/cr-table-ram-sqlite.h"
+#include "map-api/cru-table-ram-map.h"
 #include "map-api/cru-table-ram-sqlite.h"
 #include "map-api/net-table-manager.h"
+
+DEFINE_bool(use_sqlite, false, "SQLite VS ram map table caches");
 
 namespace map_api {
 
@@ -19,10 +23,18 @@ bool NetTable::init(
   (*descriptor)->addField<Id>(kChunkIdField);
   switch (type) {
     case CRTable::Type::CR:
-      cache_.reset(new CRTableRamSqlite);
+      if (FLAGS_use_sqlite) {
+        cache_.reset(new CRTableRamSqlite);
+      } else {
+        cache_.reset(new CRTableRamMap);
+      }
       break;
     case CRTable::Type::CRU:
-      cache_.reset(new CRUTableRamSqlite);
+      if (FLAGS_use_sqlite) {
+        cache_.reset(new CRUTableRamSqlite);
+      } else {
+        cache_.reset(new CRUTableRamMap);
+      }
       break;
   }
   CHECK(cache_->init(descriptor));
@@ -48,6 +60,8 @@ void NetTable::joinIndex(const PeerId& entry_point) {
 const std::string& NetTable::name() const {
   return cache_->name();
 }
+
+const CRTable::Type& NetTable::type() const { return type_; }
 
 std::shared_ptr<Revision> NetTable::getTemplate() const {
   return cache_->getTemplate();
@@ -114,11 +128,8 @@ bool NetTable::update(Revision* query) {
   return true;
 }
 
-// TODO(tcies) net lookup
-std::shared_ptr<Revision> NetTable::getById(const Id& id,
-                                            const LogicalTime& time) {
-  LOG(WARNING) << "Use of deprecated function NetTable::getById";
-  return cache_->getById(id, time);
+std::shared_ptr<Revision> NetTable::getByIdInconsistent(const Id& id) {
+  return cache_->getById(id, LogicalTime::sample());
 }
 
 void NetTable::dumpActiveChunks(const LogicalTime& time,
@@ -140,14 +151,6 @@ void NetTable::dumpActiveChunksAtCurrentTime(
     CRTable::RevisionMap* destination) {
   CHECK_NOTNULL(destination);
   return dumpActiveChunks(map_api::LogicalTime::sample(), destination);
-}
-
-bool NetTable::has(const Id& chunk_id) {
-  bool result;
-  active_chunks_lock_.readLock();
-  result = (active_chunks_.find(chunk_id) != active_chunks_.end());
-  active_chunks_lock_.unlock();
-  return result;
 }
 
 Chunk* NetTable::connectTo(const Id& chunk_id,
@@ -176,12 +179,14 @@ Chunk* NetTable::connectTo(const Id& chunk_id,
   return found->second.get();
 }
 
-size_t NetTable::activeChunksSize() const {
-  return active_chunks_.size();
+size_t NetTable::numActiveChunks() const {
+  active_chunks_lock_.readLock();
+  size_t result = active_chunks_.size();
+  active_chunks_lock_.unlock();
+  return result;
 }
 
-size_t NetTable::activeChunksItemsSize() {
-  CRTable::RevisionMap result;
+size_t NetTable::numActiveChunksItems() {
   std::set<Id> active_chunk_ids;
   getActiveChunkIds(&active_chunk_ids);
   size_t num_elements = 0;
@@ -192,6 +197,19 @@ size_t NetTable::activeChunksItemsSize() {
     num_elements += chunk->numItems(now);
   }
   return num_elements;
+}
+
+size_t NetTable::activeChunksItemsSizeBytes() {
+  std::set<Id> active_chunk_ids;
+  getActiveChunkIds(&active_chunk_ids);
+  size_t size_bytes = 0;
+  LogicalTime now = LogicalTime::sample();
+  for (const Id& chunk_id : active_chunk_ids) {
+    Chunk* chunk = getChunk(chunk_id);
+    CHECK_NOTNULL(chunk);
+    size_bytes += chunk->itemsSizeBytes(now);
+  }
+  return size_bytes;
 }
 
 void NetTable::kill() {
@@ -229,8 +247,9 @@ void NetTable::leaveAllChunks() {
 
 std::string NetTable::getStatistics() {
   std::stringstream ss;
-  ss << name() << ": " << activeChunksSize() << " chunks and "
-     << activeChunksItemsSize() << " items.";
+  ss << name() << ": " << numActiveChunks() << " chunks and "
+     << numActiveChunksItems() << " items. ["
+     << humanReadableBytes(activeChunksItemsSizeBytes()) << "]";
   return ss.str();
 }
 

@@ -1,8 +1,10 @@
 #ifndef REVISION_H_
 #define REVISION_H_
 
-#include <map>
 #include <memory>
+#include <unordered_map>
+#include <set>
+#include <string>
 
 #include <Poco/Data/BLOB.h>
 #include <Poco/Data/Statement.h>
@@ -38,9 +40,6 @@ class Revision final : public proto::Revision {
   return ENUM ; \
 } \
 extern void revEnum ## __FILE__ ## __LINE__(void)
-  // in order to swallow the semicolon
-  // http://gcc.gnu.org/onlinedocs/cpp/Swallowing-the-Semicolon.html
-  // http://stackoverflow.com/questions/18786848
 
   /**
    * Overriding adding field in order to impose indexing
@@ -60,18 +59,29 @@ extern void revEnum ## __FILE__ ## __LINE__(void)
    */
   template <typename FieldType>
   bool get(const std::string& fieldName, FieldType* value) const;
+  template <typename FieldType>
+  bool get(const std::string& fieldName, int index_guess,
+           FieldType* value) const;
 
   /**
    * Verifies field value according to type.
    */
   template <typename ExpectedType>
   bool verifyEqual(const std::string& fieldName,
-              const ExpectedType& expected) const;
+                   const ExpectedType& expected) const;
 
   /**
    * Returns true if Revision contains same fields as other
    */
   bool structureMatch(const Revision& other) const;
+
+  /**
+   * Returns true if value at key is same as with other
+   */
+  bool fieldMatch(const Revision& other, const std::string& key) const;
+  bool fieldMatch(const Revision& other, const std::string& key,
+                  int index_guess) const;
+  int indexOf(const std::string& key) const;
 
   /**
    * Overriding parsing from string in order to add indexing.
@@ -90,13 +100,12 @@ extern void revEnum ## __FILE__ ## __LINE__(void)
   /**
    * A map of fields for more intuitive access.
    */
-  typedef std::map<std::string, int> FieldMap;
+  typedef std::unordered_map<std::string, int> FieldMap;
   FieldMap fields_;
   /**
    * Access to the map.
    */
   bool find(const std::string& name, proto::TableField** field);
-  bool find(const std::string& name, const proto::TableField** field) const;
   /**
    * Sets field according to type.
    */
@@ -142,10 +151,6 @@ extern void revEnum ## __FILE__ ## __LINE__(void)
       return true; \
     } \
     extern void __FILE__ ## __LINE__(void)
-// in order to swallow the semicolon
-// http://gcc.gnu.org/onlinedocs/cpp/Swallowing-the-Semicolon.html
-// http://stackoverflow.com/questions/18786848/macro-that-swallows-semicolon-out
-// side-of-function
 
 /**
  * A generic, blob-y field type for testing blob insertion
@@ -159,8 +164,8 @@ class testBlob : public map_api::proto::TableField{
   }
 };
 
-} /* namespace map_api */
+}  // namespace map_api
 
 #include "map-api/revision-inl.h"
 
-#endif /* REVISION_H_ */
+#endif  // REVISION_H_

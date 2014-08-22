@@ -3,7 +3,7 @@
 #include "map_api_benchmarks/app.h"
 
 namespace map_api {
-namespace benchmarks{
+namespace benchmarks {
 
 KmeansView::KmeansView(Chunk* descriptor_chunk, Chunk* center_chunk,
                        Chunk* membership_chunk)
@@ -65,9 +65,11 @@ void KmeansView::fetch(DescriptorVector* descriptors,
   center_index_to_id_.clear();
 
   // cache revisions
-  descriptor_chunk_->dumpItems(transaction_.time(), &descriptor_revisions_);
-  center_chunk_->dumpItems(transaction_.time(), &center_revisions_);
-  membership_chunk_->dumpItems(transaction_.time(), &membership_revisions_);
+  descriptor_revisions_ =
+      transaction_.dumpChunk(app::data_point_table, descriptor_chunk_);
+  center_revisions_ = transaction_.dumpChunk(app::center_table, center_chunk_);
+  membership_revisions_ =
+      transaction_.dumpChunk(app::association_table, membership_chunk_);
 
   // construct k-means problem
   int i = 0;
@@ -177,14 +179,16 @@ bool KmeansView::updateCenterRelated(
     std::shared_ptr<Revision> cached_revision = found_revision->second;
 
     Id former_center_id;
-    cached_revision->get(app::kAssociationTableCenterIdField, &former_center_id);
+    cached_revision->get(app::kAssociationTableCenterIdField,
+                         &former_center_id);
     size_t former_center_index = center_id_to_index_[former_center_id];
 
     // update coloring only if a descriptor has previously been assigned to
     // the chosen center or is newly assigned to it
     if (memberships[i] == chosen_center ||
         former_center_index == chosen_center) {
-      app::membershipToRevision(descriptor_id, center_id, cached_revision.get());
+      app::membershipToRevision(descriptor_id, center_id,
+                                cached_revision.get());
       transaction_.update(app::association_table, cached_revision);
     }
   }
