@@ -9,7 +9,7 @@
 #include "map-api/cru-table-ram-sqlite.h"
 #include "map-api/local-transaction.h"
 
-#include "test_table.cpp"
+#include "./test_table.cc"
 
 using namespace map_api;
 
@@ -37,9 +37,7 @@ class TransactionTestTable {
     descriptor->addField<double>(sampleField());
     instance().init(&descriptor);
   }
-  inline static const std::string sampleField(){
-    return "n";
-  }
+  inline static const std::string sampleField() { return "n"; }
 };
 
 /**
@@ -59,7 +57,7 @@ class TransactionTest : public testing::Test {
   std::shared_ptr<Revision> sample(double n, CRUTableRamSqlite* table) {
     CHECK_NOTNULL(table);
     std::shared_ptr<Revision> revision = table->getTemplate();
-    if (!revision->set(TransactionTestTable::sampleField(), n)){
+    if (!revision->set(TransactionTestTable::sampleField(), n)) {
       LOG(ERROR) << "Failed to set " << TransactionTestTable::sampleField();
       return std::shared_ptr<Revision>();
     }
@@ -68,17 +66,17 @@ class TransactionTest : public testing::Test {
   LocalTransaction transaction_;
 };
 
-TEST_F(TransactionTest, BeginAbort){
+TEST_F(TransactionTest, BeginAbort) {
   EXPECT_TRUE(transaction_.begin());
   EXPECT_TRUE(transaction_.abort());
 }
 
-TEST_F(TransactionTest, BeginCommit){
+TEST_F(TransactionTest, BeginCommit) {
   EXPECT_TRUE(transaction_.begin());
   EXPECT_FALSE(transaction_.commit());
 }
 
-TEST_F(TransactionTest, OperationsBeforeBegin){
+TEST_F(TransactionTest, OperationsBeforeBegin) {
   CRUTableRamSqlite* table = &TransactionTestTable::instance();
   std::shared_ptr<Revision> data = sample(6.626e-34, table);
   EXPECT_EQ(Id(), transaction_.insert(data, table));
@@ -94,7 +92,7 @@ TEST_F(TransactionTest, OperationsBeforeBegin){
   EXPECT_FALSE(transaction_.update(inserted, data, table));
 }
 
-TEST_F(TransactionTest, InsertBeforeTableInit){
+TEST_F(TransactionTest, InsertBeforeTableInit) {
   CRUTableRamSqlite table;
   EXPECT_TRUE(transaction_.begin());
   EXPECT_DEATH(transaction_.insert(sample(3.14, &table), &table), "^");
@@ -110,16 +108,16 @@ class TransactionCRUTest : public TransactionTest {
     table_ = &TransactionTestTable::instance();
     transaction_.begin();
   }
-  Id insertSample(double n){
+  Id insertSample(double n) {
     return transaction_.insert(sample(n, table_), table_);
   }
-  bool updateSample(const Id& id, double newValue){
+  bool updateSample(const Id& id, double newValue) {
     std::shared_ptr<Revision> revision = transaction_.read(id, table_);
     EXPECT_TRUE(static_cast<bool>(revision));
     revision->set(TransactionTestTable::sampleField(), newValue);
     return transaction_.update(id, revision, table_);
   }
-  void verify(const Id& id, double expected){
+  void verify(const Id& id, double expected) {
     double actual;
     std::shared_ptr<Revision> row = transaction_.read(id, table_);
     ASSERT_TRUE(static_cast<bool>(row));
@@ -129,12 +127,12 @@ class TransactionCRUTest : public TransactionTest {
   CRUTableRamSqlite* table_;
 };
 
-TEST_F(TransactionCRUTest, InsertNonsense){
+TEST_F(TransactionCRUTest, InsertNonsense) {
   std::shared_ptr<Revision> nonsense(new Revision());
   EXPECT_DEATH(transaction_.insert(nonsense, table_), "^");
 }
 
-TEST_F(TransactionCRUTest, InsertUpdateReadBeforeCommit){
+TEST_F(TransactionCRUTest, InsertUpdateReadBeforeCommit) {
   Id id = insertSample(1.618);
   verify(id, 1.618);
   EXPECT_TRUE(updateSample(id, 007));
@@ -146,18 +144,19 @@ TEST_F(TransactionCRUTest, InsertUpdateReadBeforeCommit){
  */
 class MultiTransactionTest : public testing::Test {
  protected:
-  class Agent{
+  class Agent {
    public:
-    LocalTransaction& beginNewTransaction(){
+    LocalTransaction& beginNewTransaction() {
       transactions_.push_back(LocalTransaction());
       LocalTransaction& current_transaction = transactions_.back();
       current_transaction.begin();
       return current_transaction;
     }
+
    private:
     std::list<LocalTransaction> transactions_;
   };
-  Agent& addAgent(){
+  Agent& addAgent() {
     agents_.push_back(Agent());
     return agents_.back();
   }
@@ -170,7 +169,7 @@ class MultiTransactionTest : public testing::Test {
  */
 class MultiTransactionSingleCRUTest : public MultiTransactionTest {
  protected:
-  virtual void SetUp()  {
+  virtual void SetUp() {
     map_api::Core::initializeInstance();  // core init
     ASSERT_TRUE(map_api::Core::instance() != nullptr);
     TransactionTestTable::init();
@@ -186,25 +185,25 @@ class MultiTransactionSingleCRUTest : public MultiTransactionTest {
   std::shared_ptr<Revision> sample(double n, CRUTableRamSqlite* table) {
     CHECK_NOTNULL(table);
     std::shared_ptr<Revision> revision = table->getTemplate();
-    if (!revision->set(TransactionTestTable::sampleField(), n)){
+    if (!revision->set(TransactionTestTable::sampleField(), n)) {
       LOG(ERROR) << "Failed to set " << TransactionTestTable::sampleField();
       return std::shared_ptr<Revision>();
     }
     return revision;
   }
 
-  Id insertSample(double n, LocalTransaction* transaction){
+  Id insertSample(double n, LocalTransaction* transaction) {
     return transaction->insert(sample(n, table_), table_);
   }
 
   bool updateSample(const Id& id, double newValue,
-                    LocalTransaction* transaction){
+                    LocalTransaction* transaction) {
     std::shared_ptr<Revision> toUpdate = transaction->read(id, table_);
     CHECK(toUpdate);
     toUpdate->set("n", newValue);
     return transaction->update(id, toUpdate, table_);
   }
-  void verify(const Id& id, double expected, LocalTransaction* transaction){
+  void verify(const Id& id, double expected, LocalTransaction* transaction) {
     double actual;
     std::shared_ptr<Revision> row = transaction->read(id, table_);
     ASSERT_TRUE(static_cast<bool>(row));
@@ -308,7 +307,7 @@ TEST_F(MultiTransactionSingleCRUTest, ParallelUpdate) {
   verify(itemId, 12.34, &aCheck);
 }
 
-TEST_F(MultiTransactionSingleCRUTest, InsertInsertCommitDump){
+TEST_F(MultiTransactionSingleCRUTest, InsertInsertCommitDump) {
   Agent& a = addAgent();
   LocalTransaction& a_insert = a.beginNewTransaction();
   insertSample(3.14, &a_insert);
@@ -321,7 +320,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertInsertCommitDump){
   EXPECT_NE(dump_set_.end(), dump_set_.find(5.67));
 }
 
-TEST_F(MultiTransactionSingleCRUTest, InsertCommitInsertDump){
+TEST_F(MultiTransactionSingleCRUTest, InsertCommitInsertDump) {
   Agent& a = addAgent();
   LocalTransaction& a_insert = a.beginNewTransaction();
   insertSample(3.14, &a_insert);
@@ -334,7 +333,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertCommitInsertDump){
   EXPECT_NE(dump_set_.end(), dump_set_.find(5.67));
 }
 
-TEST_F(MultiTransactionSingleCRUTest, InsertInsertCommitUpdateCommitDump){
+TEST_F(MultiTransactionSingleCRUTest, InsertInsertCommitUpdateCommitDump) {
   Id to_update;
   Agent& a = addAgent();
   LocalTransaction& a_insert = a.beginNewTransaction();
@@ -351,7 +350,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertInsertCommitUpdateCommitDump){
   EXPECT_NE(dump_set_.end(), dump_set_.find(9.81));
 }
 
-TEST_F(MultiTransactionSingleCRUTest, InsertInsertCommitUpdateDump){
+TEST_F(MultiTransactionSingleCRUTest, InsertInsertCommitUpdateDump) {
   Id to_update;
   Agent& a = addAgent();
   LocalTransaction& a_insert = a.beginNewTransaction();
@@ -366,7 +365,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertInsertCommitUpdateDump){
   EXPECT_NE(dump_set_.end(), dump_set_.find(9.81));
 }
 
-TEST_F(MultiTransactionSingleCRUTest, InsertCommitInsertUpdateDump){
+TEST_F(MultiTransactionSingleCRUTest, InsertCommitInsertUpdateDump) {
   Id to_update;
   Agent& a = addAgent();
   LocalTransaction& a_insert = a.beginNewTransaction();
@@ -381,7 +380,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertCommitInsertUpdateDump){
   EXPECT_NE(dump_set_.end(), dump_set_.find(9.81));
 }
 
-TEST_F(MultiTransactionSingleCRUTest, InsertCommitFindUnique){
+TEST_F(MultiTransactionSingleCRUTest, InsertCommitFindUnique) {
   Id expected_find;
   Agent& a = addAgent();
   LocalTransaction& a_insert = a.beginNewTransaction();
@@ -398,7 +397,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertCommitFindUnique){
   EXPECT_EQ(expected_find, found_id);
 }
 
-TEST_F(MultiTransactionSingleCRUTest, InsertCommitInsertFindUnique){
+TEST_F(MultiTransactionSingleCRUTest, InsertCommitInsertFindUnique) {
   Id expected_find;
   Agent& a = addAgent();
   LocalTransaction& a_insert = a.beginNewTransaction();
@@ -415,7 +414,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertCommitInsertFindUnique){
   EXPECT_EQ(expected_find, found_id);
 }
 
-TEST_F(MultiTransactionSingleCRUTest, InsertCommitFindNotQuiteUnique){
+TEST_F(MultiTransactionSingleCRUTest, InsertCommitFindNotQuiteUnique) {
   Agent& a = addAgent();
   LocalTransaction& a_insert = a.beginNewTransaction();
   insertSample(3.14, &a_insert);
@@ -423,14 +422,15 @@ TEST_F(MultiTransactionSingleCRUTest, InsertCommitFindNotQuiteUnique){
   insertSample(5.67, &a_insert);
   a_insert.commit();
   LocalTransaction& a_find = a.beginNewTransaction();
-  EXPECT_DEATH(a_find.findUnique(
-      TransactionTestTable::sampleField(), 5.67, table_), "^");
+  EXPECT_DEATH(
+      a_find.findUnique(TransactionTestTable::sampleField(), 5.67, table_),
+      "^");
 }
 
 // InsertCommitInsertFindNotQuiteUnique test fails for now, see implementation
 // documentation of Transaction::findUnique
 
-TEST_F(MultiTransactionSingleCRUTest, FindMultiCommitetd){
+TEST_F(MultiTransactionSingleCRUTest, FindMultiCommitetd) {
   std::set<Id> expected_find;
   Agent& a = addAgent();
   LocalTransaction& a_insert = a.beginNewTransaction();
@@ -441,14 +441,14 @@ TEST_F(MultiTransactionSingleCRUTest, FindMultiCommitetd){
 
   LocalTransaction& a_find = a.beginNewTransaction();
   std::unordered_map<Id, std::shared_ptr<Revision> > found;
-  EXPECT_EQ(2u, a_find.find(
-      TransactionTestTable::sampleField(), 5.67, table_, &found));
+  EXPECT_EQ(2u, a_find.find(TransactionTestTable::sampleField(), 5.67, table_,
+                            &found));
   for (const Id& expected : expected_find) {
     EXPECT_NE(found.end(), found.find(expected));
   }
 }
 
-TEST_F(MultiTransactionSingleCRUTest, FindMultiMixed){
+TEST_F(MultiTransactionSingleCRUTest, FindMultiMixed) {
   std::set<Id> expected_find;
   Agent& a = addAgent();
   LocalTransaction& a_insert = a.beginNewTransaction();

@@ -9,7 +9,7 @@
 #include "map-api/net-table-transaction.h"
 #include "map-api/transaction.h"
 
-#include "net_table_test_fixture.cpp"
+#include "net_table_test_fixture.cc"
 
 namespace map_api {
 
@@ -22,8 +22,16 @@ TEST_P(NetTableTest, NetTableTransactions) {
   if (!GetParam()) {
     return;
   }
-  enum Processes {ROOT, A, B};
-  enum Barriers {INIT, SYNC, DIE};
+  enum Processes {
+    ROOT,
+    A,
+    B
+  };
+  enum Barriers {
+    INIT,
+    SYNC,
+    DIE
+  };
   int kCycles = 10;
   Id ab_chunk_id, b_chunk_id, ab_id, b_id;
   Chunk* ab_chunk, *b_chunk;
@@ -102,8 +110,16 @@ TEST_P(NetTableTest, Transactions) {
   if (!GetParam()) {
     return;
   }
-  enum Processes {ROOT, A, B};
-  enum Barriers {INIT, SYNC, DIE};
+  enum Processes {
+    ROOT,
+    A,
+    B
+  };
+  enum Barriers {
+    INIT,
+    SYNC,
+    DIE
+  };
   int kCycles = 10;
   const std::string kSecondTableName = "net_transaction_test_table";
   const std::string kSecondTableFieldName = "n";
@@ -111,8 +127,7 @@ TEST_P(NetTableTest, Transactions) {
   std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
   descriptor->setName(kSecondTableName);
   descriptor->addField<int>(kSecondTableFieldName);
-  NetTableManager::instance().addTable(
-      CRTable::Type::CRU, &descriptor);
+  NetTableManager::instance().addTable(CRTable::Type::CRU, &descriptor);
   NetTable* second_table =
       &NetTableManager::instance().getTable(kSecondTableName);
   ASSERT_TRUE(second_table);
@@ -237,8 +252,15 @@ TEST_P(NetTableTest, ChunkLookup) {
   if (GetParam()) {
     return;  // independent of updateability
   }
-  enum Processes {MASTER, SLAVE};
-  enum Barriers {INIT, CHUNK_CREATED, DIE};
+  enum Processes {
+    MASTER,
+    SLAVE
+  };
+  enum Barriers {
+    INIT,
+    CHUNK_CREATED,
+    DIE
+  };
   Chunk* chunk;
   CRTable::RevisionMap results;
   if (getSubprocessId() == MASTER) {
