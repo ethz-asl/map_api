@@ -8,6 +8,8 @@
 #include <unordered_set>
 #include <map-api/net-table.h>
 
+#include <google/protobuf/io/gzip_stream.h>
+
 namespace map_api {
 class Transaction;
 typedef std::pair<Id, map_api::LogicalTime> RevisionStamp;
@@ -36,6 +38,14 @@ class ProtoTableFileIO {
   bool RestoreTableContents(map_api::Transaction* transaction);
 
  private:
+  static constexpr google::protobuf::io::GzipOutputStream::Format kOutFormat =
+      google::protobuf::io::GzipOutputStream::Format::GZIP;
+  static constexpr google::protobuf::io::GzipInputStream::Format kInFormat =
+      google::protobuf::io::GzipInputStream::Format::GZIP;
+  static constexpr int kZipBufferSize = 64;
+  static constexpr int kZipCompressionLevel = -1;
+  google::protobuf::io::GzipOutputStream::Options zip_options_;
+
   std::string file_name_;
   map_api::NetTable* table_;
   std::fstream file_;
