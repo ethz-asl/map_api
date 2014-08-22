@@ -32,10 +32,10 @@ class ProtoTableFileIO {
  public:
   ProtoTableFileIO(const std::string& filename, map_api::NetTable* table);
   ~ProtoTableFileIO();
-  bool StoreTableContents(const map_api::LogicalTime& time);
-  bool StoreTableContents(const map_api::CRTable::RevisionMap& revisions);
-  bool RestoreTableContents();
-  bool RestoreTableContents(map_api::Transaction* transaction);
+  bool storeTableContents(const map_api::LogicalTime& time);
+  bool storeTableContents(const map_api::CRTable::RevisionMap& revisions);
+  bool restoreTableContents();
+  bool restoreTableContents(map_api::Transaction* transaction);
 
  private:
   static constexpr google::protobuf::io::GzipOutputStream::Format kOutFormat =

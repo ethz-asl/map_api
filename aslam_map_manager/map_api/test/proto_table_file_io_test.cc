@@ -59,7 +59,7 @@ TEST_P(NetTableTest, SaveAndRestoreFromFile) {
 
   {
     ProtoTableFileIO file_io(test_filename, table_);
-    EXPECT_TRUE(file_io.StoreTableContents(LogicalTime::sample()));
+    EXPECT_TRUE(file_io.storeTableContents(LogicalTime::sample()));
   }
 
   // Reset the state of the database.
@@ -68,7 +68,7 @@ TEST_P(NetTableTest, SaveAndRestoreFromFile) {
 
   {
     ProtoTableFileIO file_io(test_filename, table_);
-    ASSERT_TRUE(file_io.RestoreTableContents());
+    ASSERT_TRUE(file_io.restoreTableContents());
   }
 
   {
