@@ -79,7 +79,7 @@ bool ChunkTransaction::commit() {
 bool ChunkTransaction::check() {
   CHECK(chunk_->isLocked());
   std::unordered_map<Id, LogicalTime> stamps;
-  prepareCheck(&stamps);
+  prepareCheck(LogicalTime::sample(), &stamps);
   // The following check may be left out if too costly
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
        insertions_) {
@@ -112,30 +112,28 @@ void ChunkTransaction::checkedCommit(const LogicalTime& time) {
 }
 
 void ChunkTransaction::merge(
-    const LogicalTime& time,
-    std::shared_ptr<ChunkTransaction>* merge_transaction,
+    const std::shared_ptr<ChunkTransaction>& merge_transaction,
     Conflicts* conflicts) {
-  CHECK_NOTNULL(merge_transaction);
+  CHECK_NOTNULL(merge_transaction.get());
   CHECK_NOTNULL(conflicts);
   CHECK(conflict_conditions_.empty()) << "merge not compatible with conflict "
                                          "conditions";
-  merge_transaction->reset(new ChunkTransaction(time, chunk_));
   conflicts->clear();
   chunk_->readLock();
   std::unordered_map<Id, LogicalTime> stamps;
-  prepareCheck(&stamps);
+  prepareCheck(merge_transaction->begin_time_, &stamps);
   // The following check may be left out if too costly
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
        insertions_) {
     CHECK(stamps.find(item.first) == stamps.end()) << "Insert conflict!";
-    merge_transaction->get()->insertions_.insert(item);
+    merge_transaction->insertions_.insert(item);
   }
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item : updates_) {
     if (stamps[item.first] >= begin_time_) {
       conflicts->push_back(
-          {merge_transaction->get()->getById(item.first), item.second});
+          {merge_transaction->getById(item.first), item.second});
     } else {
-      merge_transaction->get()->updates_.insert(item);
+      merge_transaction->updates_.insert(item);
     }
   }
   chunk_->unlock();
@@ -148,6 +146,7 @@ size_t ChunkTransaction::numChangedItems() const {
 }
 
 void ChunkTransaction::prepareCheck(
+    const LogicalTime& check_time,
     std::unordered_map<Id, LogicalTime>* chunk_stamp) {
   CHECK_NOTNULL(chunk_stamp);
   chunk_stamp->clear();
@@ -155,7 +154,7 @@ void ChunkTransaction::prepareCheck(
   // same as "chunk_->dumpItems(LogicalTime::sample(), &contents);" without the
   // locking (because that is already done)
   chunk_->underlying_table_->find(NetTable::kChunkIdField, chunk_->id(),
-                                  LogicalTime::sample(), &contents);
+                                  check_time, &contents);
   LogicalTime time;
   if (!updates_.empty()) {
     CHECK(chunk_->underlying_table_->type() == CRTable::Type::CRU);

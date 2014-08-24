@@ -61,13 +61,13 @@ class ChunkTransaction {
   /**
    * Merging and changeCount are not compatible with conflict conditions.
    */
-  void merge(const LogicalTime& time,
-             std::shared_ptr<ChunkTransaction>* merge_transaction,
+  void merge(const std::shared_ptr<ChunkTransaction>& merge_transaction,
              Conflicts* conflicts);
   size_t numChangedItems() const;
 
   // INTERNAL
-  void prepareCheck(std::unordered_map<Id, LogicalTime>* chunk_stamp);
+  void prepareCheck(const LogicalTime& check_time,
+                    std::unordered_map<Id, LogicalTime>* chunk_stamp);
 
   /**
    * Strong typing of table operation maps.
