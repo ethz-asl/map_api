@@ -731,14 +731,6 @@ void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
   CHECK(underlying_table_->type() == CRTable::Type::CRU);
   CRUTable* table = static_cast<CRUTable*>(underlying_table_);
   table->patch(item);
-  if (FLAGS_cru_linked) {
-    Id id;
-    LogicalTime current, updated;
-    item.get(CRTable::kIdField, &id);
-    item.get(CRUTable::kPreviousTimeField, &current);
-    item.get(CRUTable::kUpdateTimeField, &updated);
-    table->updateCurrentReferToUpdatedCRUDerived(id, current, updated);
-  }
   response->ack();
 }
 
