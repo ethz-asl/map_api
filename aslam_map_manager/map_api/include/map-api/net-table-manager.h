@@ -33,6 +33,8 @@ class NetTableManager {
    */
   NetTable& getTable(const std::string& name);
 
+  void tableList(std::vector<std::string>* tables);
+
   void kill();
 
   /**
