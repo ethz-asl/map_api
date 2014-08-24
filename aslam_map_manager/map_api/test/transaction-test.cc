@@ -37,9 +37,9 @@ TEST_P(NetTableTest, TransactionMerge) {
     increment(table_, b_id, chunk, &transaction);
     IPC::barrier(A_COMMITTED, 1);
     EXPECT_FALSE(transaction.commit());
-    std::shared_ptr<Transaction> merge_transaction;
+    std::shared_ptr<Transaction> merge_transaction(new Transaction);
     Transaction::ConflictMap conflicts;
-    transaction.merge(&merge_transaction, &conflicts);
+    transaction.merge(merge_transaction, &conflicts);
     EXPECT_EQ(1u, merge_transaction->numChangedItems());
     EXPECT_EQ(1u, conflicts.size());
     EXPECT_EQ(1u, conflicts[table_].size());
