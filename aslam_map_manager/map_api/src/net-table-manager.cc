@@ -166,6 +166,17 @@ NetTable& NetTableManager::getTable(const std::string& name) {
   return *found->second;
 }
 
+void NetTableManager::tableList(std::vector<std::string>* tables) {
+  CHECK_NOTNULL(tables);
+  tables->clear();
+  tables_lock_.readLock();
+  for (const std::pair<const std::string, std::unique_ptr<NetTable> >& pair :
+       tables_) {
+    tables->push_back(pair.first);
+  }
+  tables_lock_.unlock();
+}
+
 void NetTableManager::kill() {
   tables_lock_.readLock();
   for (const std::pair<const std::string, std::unique_ptr<NetTable> >& table :
