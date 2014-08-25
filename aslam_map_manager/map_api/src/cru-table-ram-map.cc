@@ -130,14 +130,6 @@ bool CRUTableRamMap::insertUpdatedCRUDerived(const Revision& query) {
   return patchCRDerived(query);
 }
 
-bool CRUTableRamMap::updateCurrentReferToUpdatedCRUDerived(
-    const Id& id, const LogicalTime& current_time,
-    const LogicalTime& updated_time) {
-  // TODO(tcies) pointless, abolish
-  CHECK(false) << "Abolish high-level linking";
-  return false;
-}
-
 CRUTableRamMap::HistoryType::const_iterator
 CRUTableRamMap::HistoryType::latestAt(const LogicalTime& time) const {
   return latestAt(time, cbegin()->indexOf(kUpdateTimeField));

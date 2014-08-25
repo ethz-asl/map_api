@@ -63,7 +63,7 @@ class Transaction {
    * updates from this transaction, while the conflicting updates will be
    * represented in a ConflictMap.
    */
-  void merge(std::shared_ptr<Transaction>* merge_transaction,
+  void merge(const std::shared_ptr<Transaction>& merge_transaction,
              ConflictMap* conflicts);
   size_t numChangedItems() const;
 
