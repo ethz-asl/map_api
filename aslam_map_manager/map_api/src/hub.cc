@@ -1,8 +1,8 @@
 #include "map-api/hub.h"
 
 #include <ifaddrs.h>
-#include <iostream>
-#include <fstream>
+#include <iostream>  // NOLINT
+#include <fstream>   // NOLINT
 #include <memory>
 #include <netdb.h>
 #include <sys/types.h>
@@ -18,7 +18,7 @@
 #include "map-api/ipc.h"
 #include "map-api/logical-time.h"
 #include "map-api/server-discovery.h"
-#include "core.pb.h"
+#include "./core.pb.h"
 
 const std::string kFileDiscovery = "file";
 const std::string kServerDiscovery = "server";
@@ -178,9 +178,9 @@ int Hub::peerSize() {
 
 const std::string& Hub::ownAddress() const { return own_address_; }
 
-bool Hub::registerHandler(const char* name,
-                          std::function<void(const Message& serialized_type,
-                                             Message* response)> handler) {
+bool Hub::registerHandler(
+    const char* name, const std::function<void(const Message& serialized_type,
+                                               Message* response)>& handler) {
   CHECK_NOTNULL(name);
   CHECK(handler);
   // TODO(tcies) div. error handling
@@ -288,7 +288,7 @@ std::string Hub::ownAddressBeforePort() {
     return kLocalhost;
   } else if (FLAGS_discovery_mode == kServerDiscovery) {
     struct ifaddrs* interface_addresses;
-    CHECK(getifaddrs(&interface_addresses) != -1);
+    CHECK_NE(getifaddrs(&interface_addresses), -1);
     char host[NI_MAXHOST];
     bool success = false;
     for (struct ifaddrs* interface_address = interface_addresses;
@@ -337,7 +337,7 @@ void Hub::listenThread(Hub* self) {
         self->own_address_ = address.str();
         break;
       }
-      catch (const std::exception& e) {
+      catch (const std::exception& e) {  // NOLINT
         port = kMinPort + (rng() % (kMaxPort - kMinPort));
       }
     }
@@ -379,14 +379,15 @@ void Hub::listenThread(Hub* self) {
       response.set_logical_time(LogicalTime::sample().serialize());
       std::string serialized_response = response.SerializeAsString();
       zmq::message_t response_message(serialized_response.size());
-      memcpy((void*)response_message.data(), serialized_response.c_str(),
-             serialized_response.size());
+      memcpy(reinterpret_cast<void*>(response_message.data()),
+             serialized_response.c_str(), serialized_response.size());
       server.send(response_message);
     }
-    catch (const std::exception& e) {
+    catch (const std::exception& e) {  // NOLINT
       LOG(ERROR) << "Caught exception in server thread : " << e.what();
     }
   }
   server.close();
 }
-}
+
+}  // namespace map_api

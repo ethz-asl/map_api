@@ -82,9 +82,7 @@ class Chunk {
 
   /**
    * Requests all peers in MapApiHub to participate in a given chunk.
-   * This write-locks the chunk and directly sends init requests to the affected
-   * peers. Those that respond with ACK are added to the swarm and the chunk
-   * is unlocked.
+   * At the moment, this is not disputable by the other peers.
    */
   int requestParticipation();
 
@@ -93,6 +91,12 @@ class Chunk {
    * Requires underlying table to be CRU (verified).
    */
   void update(Revision* item);
+
+  /**
+   * Allows attaching a callback to incoming patch requests (insert/update).
+   * The callback is passed the ID of the inserted/modified item.
+   */
+  void attachTrigger(const std::function<void(const Id& id)>& callback);
 
   static const char kConnectRequest[];
   static const char kInitRequest[];
@@ -157,53 +161,9 @@ class Chunk {
    * altogether.
    */
   void distributedReadLock();
-  /**
-   * Acquiring write locks happens over the network: Unless the caller knows
-   * that the lock is held by some other peer, a lock request is broadcast to
-   * the chunk swarm, and the peers reply with a lock response which contains
-   * the address of the peer they consider the lock holder, or either
-   * acknowledge or decline, depending on the used strategy.
-   *
-   * SERIAL LOCK STRATEGY (the one used now, for simplicity):
-   * We know the chunk swarm is fully connected, and assume the broadcast is
-   * performed serially, in lexicographical order of peer addresses.
-   * Then, we can either stop the broadcast when we receive a negative response
-   * from the peer with the lowest address, or, once we pass this first burden,
-   * may assume that all other peers will respond positively, as no other peer
-   * could have gotten to them (as they would have needed to lock the first
-   * peer as well). Consequently, the lock must be released in reverse
-   * lexicographical order.
-   *
-   * PARALLEL LOCK STRATEGY (probably faster with many peers and little lock
-   * contention):
-   * Peers are requested in parallel and respond with the address of the peer
-   * they consider lock holder.
-   * If all peers respond with the address of the caller, the caller considers
-   * the lock acquired.
-   * In all other cases, at least one other peer is also attempting to get the
-   * lock and will respond with an invalid ("") address. TODO(tcies) what if
-   * disconnected? Depending on the responses of the remaining peers:
-   * - If more of them have returned the address of the other peer, the caller
-   * sends a lock redirect request asking the peers accepting the caller as
-   * lock holder to yield the lock to the other peer. It then also yields to
-   * the other peer with lock yield request.
-   * - If more of them have returned the caller address, the caller waits for
-   * the remaining peers to yield.
-   * - If the votes are split equally, the lock contender with the lower
-   * IP:port string yields.
-   * Unlocking is tricky.
-   *
-   * TODO(tcies) benchmark serial VS parallel lock strategy?
-   * TODO(tcies) define timeout after which the lock is released automatically
-   * TODO(tcies) option to renew lock if operations take a long time
-   */
+
   void distributedWriteLock();
 
-  /**
-   * Unlocking a lock should be coupled to sending the updated data TODO(tcies)
-   * This would ensure that all peers can satisfy 1) and 2) of the
-   * aforementioned contract.
-   */
   void distributedUnlock();
 
   template <typename RequestType>
@@ -221,9 +181,9 @@ class Chunk {
   void prepareInitRequest(Message* request);
 
   /**
-   * ===================================================================
-   * Handles for ChunkManager requests that are addressed at this Chunk.
-   * ===================================================================
+   * ====================================================================
+   * Handlers for ChunkManager requests that are addressed at this Chunk.
+   * ====================================================================
    */
   friend class NetTable;
   /**
@@ -244,6 +204,8 @@ class Chunk {
   PeerHandler peers_;
   CRTable* underlying_table_;
   DistributedRWLock lock_;
+  std::function<void(const Id& id)> trigger_;
+  std::mutex trigger_mutex_;
   std::mutex add_peer_mutex_;
   Poco::RWLock leave_lock_;
   bool relinquished_ = false;
