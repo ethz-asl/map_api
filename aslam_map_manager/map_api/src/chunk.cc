@@ -635,8 +635,10 @@ void Chunk::handleInsertRequest(const Revision& item, Message* response) {
   Id id;  // TODO(tcies) what if leave during trigger?
   item.get(CRTable::kIdField, &id);
   std::lock_guard<std::mutex> lock(trigger_mutex_);
-  std::thread trigger_thread(trigger_, id);
-  trigger_thread.detach();
+  if (trigger_) {
+    std::thread trigger_thread(trigger_, id);
+    trigger_thread.detach();
+  }
 }
 
 void Chunk::handleLeaveRequest(const PeerId& leaver, Message* response) {
@@ -747,8 +749,10 @@ void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
   Id id;  // TODO(tcies) what if leave during trigger?
   item.get(CRTable::kIdField, &id);
   std::lock_guard<std::mutex> lock(trigger_mutex_);
-  std::thread trigger_thread(trigger_, id);
-  trigger_thread.detach();
+  if (trigger_) {
+    std::thread trigger_thread(trigger_, id);
+    trigger_thread.detach();
+  }
 }
 
 void Chunk::startState(LockState new_state) {

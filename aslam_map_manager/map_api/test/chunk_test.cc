@@ -408,7 +408,7 @@ TEST_P(NetTableTest, Triggers) {
     item->set(kFieldName, 0);
     transaction.insert(table_, chunk, item);
     CHECK(transaction.commit());
-    usleep(1e5);  // should suffice for the triggers to do their magic
+    usleep(5e5);  // should suffice for the triggers to do their magic
     IPC::barrier(DIE, 1);
     EXPECT_EQ(10, highest_value);
   }

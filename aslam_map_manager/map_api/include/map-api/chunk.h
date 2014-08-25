@@ -204,8 +204,7 @@ class Chunk {
   PeerHandler peers_;
   CRTable* underlying_table_;
   DistributedRWLock lock_;
-  std::function<void(const Id& id)> trigger_ = [](const Id& /*id*/) {
-  };  // NOLINT
+  std::function<void(const Id& id)> trigger_;
   std::mutex trigger_mutex_;
   std::mutex add_peer_mutex_;
   Poco::RWLock leave_lock_;
