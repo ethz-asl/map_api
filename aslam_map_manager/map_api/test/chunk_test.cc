@@ -313,10 +313,8 @@ TEST_P(NetTableTest, ChunkTransactionsConflictConditions) {
   };
   CRTable::RevisionMap results;
   if (getSubprocessId() == 0) {
-    std::ostringstream extra_flags_ss;
-    extra_flags_ss << "--grind_processes=" << FLAGS_grind_processes << " ";
     for (uint64_t i = 1u; i < kProcesses; ++i) {
-      launchSubprocess(i, extra_flags_ss.str());
+      launchSubprocess(i);
     }
     Chunk* chunk = table_->newChunk();
     ASSERT_TRUE(chunk);
@@ -355,6 +353,67 @@ TEST_P(NetTableTest, ChunkTransactionsConflictConditions) {
       transaction.commit();
     }
     IPC::barrier(DIE, kProcesses - 1);
+  }
+}
+
+TEST_P(NetTableTest, Triggers) {
+  enum Processes {
+    ROOT,
+    A
+  };
+  enum Barriers {
+    INIT,
+    ID_SHARED,
+    TRIGGER_READY,
+    DIE
+  };
+  int highest_value;
+  Chunk* chunk;
+  Id chunk_id;
+  if (getSubprocessId() == ROOT) {
+    launchSubprocess(A);
+    IPC::barrier(INIT, 1);
+    chunk = table_->newChunk();
+    chunk_id = chunk->id();
+    IPC::push(chunk_id);
+    IPC::barrier(ID_SHARED, 1);
+  }
+  if (getSubprocessId() == A) {
+    IPC::barrier(INIT, 1);
+    IPC::barrier(ID_SHARED, 1);
+    IPC::pop(&chunk_id);
+    chunk = table_->getChunk(chunk_id);
+  }
+  chunk->attachTrigger([this, chunk, &highest_value](const Id& id) {
+    Transaction transaction;
+    std::shared_ptr<Revision> item = transaction.getById(id, table_, chunk);
+    item->get(kFieldName, &highest_value);
+    if (highest_value < 10) {
+      ++highest_value;
+      item->set(kFieldName, highest_value);
+      if (GetParam()) {
+        transaction.update(table_, item);
+      } else {
+        item->set(CRTable::kIdField, Id::generate());
+        transaction.insert(table_, chunk, item);
+      }
+      CHECK(transaction.commit());
+    }
+  });
+  IPC::barrier(TRIGGER_READY, 1);
+  if (getSubprocessId() == ROOT) {
+    Transaction transaction;
+    std::shared_ptr<Revision> item = table_->getTemplate();
+    item->set(CRTable::kIdField, Id::generate());
+    item->set(kFieldName, 0);
+    transaction.insert(table_, chunk, item);
+    CHECK(transaction.commit());
+    usleep(1e5);  // should suffice for the triggers to do their magic
+    IPC::barrier(DIE, 1);
+    EXPECT_EQ(10, highest_value);
+  }
+  if (getSubprocessId() == A) {
+    IPC::barrier(DIE, 1);
   }
 }
 
