@@ -5,7 +5,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 find_package(catkin_simple REQUIRED)
 find_package(Poco REQUIRED)
 
-catkin_simple()
+catkin_simple(ALL_DEPS_REQUIRED)
 
 ############
 # PROTOBUF #

@@ -88,23 +88,24 @@ bool Transaction::commit() {
   return true;
 }
 
-void Transaction::merge(std::shared_ptr<Transaction>* merge_transaction,
+void Transaction::merge(const std::shared_ptr<Transaction>& merge_transaction,
                         ConflictMap* conflicts) {
-  CHECK_NOTNULL(merge_transaction);
+  CHECK(merge_transaction.get() != nullptr) << "Merge requires an initiated "
+                                               "transaction";
   CHECK_NOTNULL(conflicts);
-  merge_transaction->reset(new Transaction);
   conflicts->clear();
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
-    std::shared_ptr<NetTableTransaction> merge_net_table_transaction;
+    std::shared_ptr<NetTableTransaction> merge_net_table_transaction(
+        new NetTableTransaction(merge_transaction->begin_time_,
+                                net_table_transaction.first));
     ChunkTransaction::Conflicts sub_conflicts;
-    net_table_transaction.second->merge(merge_transaction->get()->begin_time_,
-                                        &merge_net_table_transaction,
+    net_table_transaction.second->merge(merge_net_table_transaction,
                                         &sub_conflicts);
     CHECK_EQ(
         net_table_transaction.second->numChangedItems(),
         merge_net_table_transaction->numChangedItems() + sub_conflicts.size());
     if (merge_net_table_transaction->numChangedItems() > 0u) {
-      merge_transaction->get()->net_table_transactions_.insert(std::make_pair(
+      merge_transaction->net_table_transactions_.insert(std::make_pair(
           net_table_transaction.first, merge_net_table_transaction));
     }
     if (!sub_conflicts.empty()) {

@@ -59,8 +59,7 @@ class NetTableTransaction {
    * lock() MUST have been called
    */
   bool check();
-  void merge(const LogicalTime& time,
-             std::shared_ptr<NetTableTransaction>* merge_transaction,
+  void merge(const std::shared_ptr<NetTableTransaction>& merge_transaction,
              ChunkTransaction::Conflicts* conflicts);
   size_t numChangedItems() const;
 
