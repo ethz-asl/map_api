@@ -46,6 +46,10 @@ std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(
       stat << fieldqueries(field).intvalue();
       break;
     }
+    case(proto::TableFieldDescriptor_Type_UINT32) : {
+      stat << fieldqueries(field).uintvalue();
+      break;
+    }
     case (proto::TableFieldDescriptor_Type_INT64): {
       stat << fieldqueries(field).longvalue();
       break;
@@ -127,6 +131,9 @@ bool Revision::fieldMatch(const Revision& other, const std::string& key,
     case(proto::TableFieldDescriptor_Type_INT32) : {
       return a.intvalue() == b.intvalue();
     }
+    case(proto::TableFieldDescriptor_Type_UINT32) : {
+      return a.uintvalue() == b.uintvalue();
+    }
     case(proto::TableFieldDescriptor_Type_INT64) : {
       return a.longvalue() == b.longvalue();
     }
@@ -166,6 +173,7 @@ std::string Revision::dumpToString() const {
     if (field.has_blobvalue()) dump_ss << field.blobvalue();
     if (field.has_doublevalue()) dump_ss << field.doublevalue();
     if (field.has_intvalue()) dump_ss << field.intvalue();
+    if (field.has_uintvalue()) dump_ss << field.uintvalue();
     if (field.has_longvalue()) dump_ss << field.longvalue();
     if (field.has_ulongvalue()) dump_ss << field.ulongvalue();
     if (field.has_stringvalue()) dump_ss << field.stringvalue();
@@ -182,6 +190,7 @@ std::string Revision::dumpToString() const {
 REVISION_ENUM(std::string, proto::TableFieldDescriptor_Type_STRING);
 REVISION_ENUM(double, proto::TableFieldDescriptor_Type_DOUBLE);
 REVISION_ENUM(int32_t, proto::TableFieldDescriptor_Type_INT32);
+REVISION_ENUM(uint32_t, proto::TableFieldDescriptor_Type_UINT32);
 REVISION_ENUM(bool, proto::TableFieldDescriptor_Type_INT32);
 REVISION_ENUM(Id, proto::TableFieldDescriptor_Type_HASH128);
 REVISION_ENUM(sm::HashId, proto::TableFieldDescriptor_Type_HASH128);
@@ -207,12 +216,14 @@ REVISION_SET(int32_t) {
   field.set_intvalue(value);
   return true;
 }
-
+REVISION_SET(uint32_t) {
+  field.set_uintvalue(value);
+  return true;
+}
 REVISION_SET(bool) {
   field.set_intvalue(value ? 1 : 0);
   return true;
 }
-
 REVISION_SET(Id) {
   field.set_stringvalue(value.hexString());
   return true;
@@ -259,6 +270,10 @@ REVISION_GET(double) {
 }
 REVISION_GET(int32_t) {
   *value = field.intvalue();
+  return true;
+}
+REVISION_GET(uint32_t) {
+  *value = field.uintvalue();
   return true;
 }
 REVISION_GET(Id) {

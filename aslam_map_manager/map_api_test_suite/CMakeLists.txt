@@ -3,7 +3,7 @@ project(map_api_test_suite)
 
 find_package(catkin_simple REQUIRED)
 
-catkin_simple()
+catkin_simple(ALL_DEPS_REQUIRED)
 
 #############
 # LIBRARIES #

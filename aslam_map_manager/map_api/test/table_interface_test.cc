@@ -21,7 +21,7 @@
 
 #include "./test_table.cc"
 
-using namespace map_api;
+namespace map_api {
 
 template <typename TableType>
 class ExpectedFieldCount {
@@ -41,20 +41,12 @@ int ExpectedFieldCount<CRTableRamMap>::get() {
 
 template <>
 int ExpectedFieldCount<CRUTableRamSqlite>::get() {
-  if (FLAGS_cru_linked) {
-    return 5;
-  } else {
-    return 3;
-  }
+  return 3;
 }
 
 template <>
 int ExpectedFieldCount<CRUTableRamMap>::get() {
-  if (FLAGS_cru_linked) {
-    return 5;
-  } else {
-    return 3;
-  }
+  return 3;
 }
 
 template <typename TableType>
@@ -385,5 +377,7 @@ TYPED_TEST(IntTestWithInit, CreateReadThousand) {
   }
   LOG(INFO) << timing::Timing::Print();
 }
+
+}  // namespace map_api
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT

@@ -14,14 +14,14 @@
 #include "map-api/logical-time.h"
 #include "./core.pb.h"
 
-DECLARE_bool(cru_linked);
-
 namespace map_api {
 
 /**
  * Provides interface to map api tables.
  */
 class CRUTable : public CRTable {
+  friend class Chunk;
+
  public:
   virtual ~CRUTable();
   /**
@@ -76,14 +76,6 @@ class CRUTable : public CRTable {
    * Implement insertion of the updated revision
    */
   virtual bool insertUpdatedCRUDerived(const Revision& query) = 0;
-  /**
-   * Implement the maintenance of each revision referring to the next revision
-   * by setting kNextTimeField of (id, current_time) to updated_time
-   */
-  virtual bool updateCurrentReferToUpdatedCRUDerived(
-      const Id& id, const LogicalTime& current_time,
-      const LogicalTime& updated_time) = 0;
-  friend class Chunk;
 };
 
 }  // namespace map_api

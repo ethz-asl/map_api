@@ -44,12 +44,6 @@ int CRUTableRamSqlite::findByRevisionCRUDerived(const std::string& key,
   poco_to_proto.into(statement);
   statement << " FROM " << name() << " WHERE " << kUpdateTimeField << " <  ? ",
       Poco::Data::use(serialized_time);
-  if (FLAGS_cru_linked) {
-    statement << " AND (" << kNextTimeField << " = 0 OR " << kNextTimeField
-              << " > ? ",
-        Poco::Data::use(serialized_time);
-    statement << ") ";
-  }
   if (key != "") {
     statement << " AND " << key << " LIKE ";
     data_holder.push_back(value_holder.insertPlaceHolder(key, statement));
@@ -68,27 +62,11 @@ int CRUTableRamSqlite::findByRevisionCRUDerived(const std::string& key,
     item->get(kIdField, &id);
     CHECK(id.isValid());
     std::unordered_map<Id, LogicalTime> latest;
-    if (FLAGS_cru_linked) {
-      // case linked: query guarantees that each ID is unique
-      if (!dest->insert(std::make_pair(id, item)).second) {
-        std::ostringstream report;
-        report << "Failed to insert:" << std::endl;
-        report << item->dumpToString() << std::endl;
-        report << "Into map with:";
-        for (const std::pair<Id, std::shared_ptr<Revision> >& in_dest : *dest) {
-          report << in_dest.second->dumpToString() << std::endl;
-        }
-        LOG(FATAL) << report.str();
-      }
-    } else {
-      // case not linked: result contains entire history of each ID up to the
-      // specified time, need to return latest only
-      LogicalTime item_time;
-      item->get(kUpdateTimeField, &item_time);
-      if (item_time > latest[id]) {
-        (*dest)[id] = item;
-        latest[id] = item_time;
-      }
+    LogicalTime item_time;
+    item->get(kUpdateTimeField, &item_time);
+    if (item_time > latest[id]) {
+      (*dest)[id] = item;
+      latest[id] = item_time;
     }
   }
   return dest->size();
@@ -112,12 +90,6 @@ int CRUTableRamSqlite::countByRevisionCRUDerived(const std::string& key,
       Poco::Data::into(count);
   statement << " FROM " << name() << " WHERE " << kUpdateTimeField << " <  ? ",
       Poco::Data::use(serialized_time);
-  if (FLAGS_cru_linked) {
-    statement << " AND (" << kNextTimeField << " = 0 OR " << kNextTimeField
-              << " > ? ",
-        Poco::Data::use(serialized_time);
-    statement << ") ";
-  }
   if (key != "") {
     statement << " AND " << key << " LIKE ";
     data_holder.push_back(value_holder.insertPlaceHolder(key, statement));
@@ -134,36 +106,6 @@ int CRUTableRamSqlite::countByRevisionCRUDerived(const std::string& key,
 
 bool CRUTableRamSqlite::insertUpdatedCRUDerived(const Revision& query) {
   sqlite_interface_.insert(query);
-  return true;
-}
-
-bool CRUTableRamSqlite::updateCurrentReferToUpdatedCRUDerived(
-    const Id& id, const LogicalTime& current_time,
-    const LogicalTime& updated_time) {
-  CHECK(FLAGS_cru_linked);
-  ItemDebugInfo info(this->name(), id);
-  std::shared_ptr<Poco::Data::Session> session =
-      sqlite_interface_.getSession().lock();
-  CHECK(session) << "Couldn't lock session weak pointer";
-  Poco::Data::Statement statement(*session);
-  // caching of data needed for Poco::Data to work
-  uint64_t serialized_update_time = updated_time.serialize(),
-           serialized_current_time = current_time.serialize();
-  std::string id_string = id.hexString();
-  statement << "UPDATE " << name() << " SET " << kNextTimeField << " = ? ",
-      Poco::Data::use(serialized_update_time);
-  statement << " WHERE ID = ? ", Poco::Data::use(id_string);
-  statement << " AND " << kUpdateTimeField << " = ? ",
-      Poco::Data::use(serialized_current_time);
-  try {
-    statement.execute();
-  }
-  catch (const std::exception& e) {
-    LOG(FATAL) << info << kNextTimeField << " update failed with exception \""
-               << e.what() << "\", "
-               << " statement was \"" << statement.toString()
-               << "\" with times: " << current_time << " " << updated_time;
-  }
   return true;
 }
 
