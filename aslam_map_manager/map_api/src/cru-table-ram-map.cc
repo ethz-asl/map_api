@@ -10,7 +10,7 @@ bool CRUTableRamMap::insertCRUDerived(Revision* query) {
   CHECK_NOTNULL(query);
   Id id;
   query->get(kIdField, &id);
-  HistoryMapType::iterator found = data_.find(id);
+  HistoryMap::iterator found = data_.find(id);
   if (found != data_.end()) {
     return false;
   }
@@ -35,12 +35,12 @@ bool CRUTableRamMap::patchCRDerived(const Revision& query) {
   LogicalTime time, list_time;
   query.get(kIdField, &id);
   query.get(kUpdateTimeField, &time);
-  HistoryMapType::iterator found = data_.find(id);
+  HistoryMap::iterator found = data_.find(id);
   if (found == data_.end()) {
-    found = data_.insert(std::make_pair(id, HistoryType())).first;
+    found = data_.insert(std::make_pair(id, History())).first;
   }
-  for (HistoryType::iterator it = found->second.begin();
-       it != found->second.end(); ++it) {
+  for (History::iterator it = found->second.begin(); it != found->second.end();
+       ++it) {
     it->get(kUpdateTimeField, &list_time);
     if (list_time < time) {
       found->second.insert(it, query);
@@ -64,9 +64,9 @@ int CRUTableRamMap::findByRevisionCRUDerived(const std::string& key,
   if (key == kIdField) {
     Id id;
     CHECK(valueHolder.get(kIdField, &id));
-    HistoryMapType::const_iterator found = data_.find(id);
+    HistoryMap::const_iterator found = data_.find(id);
     if (found != data_.end()) {
-      HistoryType::const_iterator latest = found->second.latestAt(time);
+      History::const_iterator latest = found->second.latestAt(time);
       if (latest != found->second.cend()) {
         CHECK(dest->insert(std::make_pair(found->first,
                                           std::make_shared<Revision>(*latest)))
@@ -78,9 +78,8 @@ int CRUTableRamMap::findByRevisionCRUDerived(const std::string& key,
     if (key != "") {
       field_index = getTemplate()->indexOf(key);
     }
-    for (const HistoryMapType::value_type& pair : data_) {
-      HistoryType::const_iterator latest =
-          pair.second.latestAt(time, time_index);
+    for (const HistoryMap::value_type& pair : data_) {
+      History::const_iterator latest = pair.second.latestAt(time, time_index);
       if (latest != pair.second.cend()) {
         if (key == "" || valueHolder.fieldMatch(*latest, key, field_index)) {
           CHECK(dest->insert(std::make_pair(
@@ -101,9 +100,9 @@ int CRUTableRamMap::countByRevisionCRUDerived(const std::string& key,
   if (key == kIdField) {
     Id id;
     CHECK(valueHolder.get(kIdField, &id));
-    HistoryMapType::const_iterator found = data_.find(id);
+    HistoryMap::const_iterator found = data_.find(id);
     if (found != data_.end()) {
-      HistoryType::const_iterator latest = found->second.latestAt(time);
+      History::const_iterator latest = found->second.latestAt(time);
       if (latest != found->second.cend()) {
         return 1;
       }
@@ -113,9 +112,8 @@ int CRUTableRamMap::countByRevisionCRUDerived(const std::string& key,
     if (key != "") {
       field_index = getTemplate()->indexOf(key);
     }
-    for (const HistoryMapType::value_type& pair : data_) {
-      HistoryType::const_iterator latest =
-          pair.second.latestAt(time, time_index);
+    for (const HistoryMap::value_type& pair : data_) {
+      History::const_iterator latest = pair.second.latestAt(time, time_index);
       if (latest != pair.second.cend()) {
         if (key == "" || valueHolder.fieldMatch(*latest, key, field_index)) {
           ++count;
@@ -130,22 +128,30 @@ bool CRUTableRamMap::insertUpdatedCRUDerived(const Revision& query) {
   return patchCRDerived(query);
 }
 
-CRUTableRamMap::HistoryType::const_iterator
-CRUTableRamMap::HistoryType::latestAt(const LogicalTime& time) const {
-  return latestAt(time, cbegin()->indexOf(kUpdateTimeField));
-}
-
-CRUTableRamMap::HistoryType::const_iterator
-CRUTableRamMap::HistoryType::latestAt(const LogicalTime& time,
-                                      int index_guess) const {
-  LogicalTime item_time;
-  for (const_iterator it = cbegin(); it != cend(); ++it) {
-    it->get(kUpdateTimeField, index_guess, &item_time);
-    if (item_time <= time) {
-      return it;
+void CRUTableRamMap::findHistoryByRevisionCRUDerived(
+    const std::string& key, const Revision& valueHolder, HistoryMap* dest) {
+  CHECK_NOTNULL(dest);
+  dest->clear();
+  if (key == kIdField) {
+    Id id;
+    CHECK(valueHolder.get(kIdField, &id));
+    HistoryMap::const_iterator found = data_.find(id);
+    if (found != data_.end()) {
+      CHECK(dest->insert(*found).second);
+    }
+  } else {
+    int field_index;
+    if (key != "") {
+      field_index = getTemplate()->indexOf(key);
+    }
+    for (const HistoryMap::value_type& pair : data_) {
+      // using current state for filter
+      if (key == "" ||
+          valueHolder.fieldMatch(*pair.second.begin(), key, field_index)) {
+        CHECK(dest->insert(pair).second);
+      }
     }
   }
-  return cend();
 }
 
 } /* namespace map_api */

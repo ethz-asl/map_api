@@ -74,9 +74,22 @@ class NetTableTest : public MultiprocessTest,
     return insert_id;
   }
 
+  bool insert(int n, Id* id, Transaction* transaction) {
+    CHECK_NOTNULL(id);
+    CHECK_NOTNULL(transaction);
+    *id = Id::generate();
+    std::shared_ptr<Revision> to_insert = table_->getTemplate();
+    to_insert->set(CRTable::kIdField, *id);
+    to_insert->set(kFieldName, n);
+    transaction->insert(table_, chunk_, to_insert);
+    return transaction->commit();
+  }
+
   const std::string kTableName = "chunk_test_table";
   const std::string kFieldName = "chunk_test_field";
   NetTable* table_;
+  Chunk* chunk_;           // generic chunk pointer for custom use
+  Id chunk_id_, item_id_;  // equally generic
 };
 
 // Parameter true / false tests CRU / CR tables.

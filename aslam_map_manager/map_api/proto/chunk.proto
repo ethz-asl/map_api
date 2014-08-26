@@ -13,7 +13,8 @@ message PatchRequest {
 message InitRequest {
   required ChunkRequestMetadata metadata = 1;
   repeated string peer_address = 2; // List of peers participating in chunk
-  repeated bytes serialized_revision = 3; // All revisions in chunk
+  repeated bytes serialized_items = 3; // All revisions / histories in chunk
+  // TODO(tcies) avoid multi-serialization by having revisions/history here
 }
 
 message NewPeerRequest {

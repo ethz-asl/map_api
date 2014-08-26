@@ -51,7 +51,7 @@ int CRUTableRamSqlite::findByRevisionCRUDerived(const std::string& key,
   try {
     statement.execute();
   }
-  catch (const std::exception& e) {
+  catch (const std::exception& e) {  // NOLINT
     LOG(FATAL) << "Find statement failed: " << statement.toString()
                << " with exception: " << e.what();
   }
@@ -97,7 +97,7 @@ int CRUTableRamSqlite::countByRevisionCRUDerived(const std::string& key,
   try {
     statement.execute();
   }
-  catch (const std::exception& e) {
+  catch (const std::exception& e) {  // NOLINT
     LOG(FATAL) << "Find statement failed: " << statement.toString()
                << " with exception: " << e.what();
   }
@@ -107,6 +107,12 @@ int CRUTableRamSqlite::countByRevisionCRUDerived(const std::string& key,
 bool CRUTableRamSqlite::insertUpdatedCRUDerived(const Revision& query) {
   sqlite_interface_.insert(query);
   return true;
+}
+
+void CRUTableRamSqlite::findHistoryByRevisionCRUDerived(
+    const std::string& /*key*/, const Revision& /*valueHolder*/,
+    HistoryMap* /*dest*/) {
+  CHECK(false) << "Remains to be implemented";
 }
 
 } /* namespace map_api */

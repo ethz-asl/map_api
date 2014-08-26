@@ -28,6 +28,10 @@ message Revision {
   repeated TableField fieldQueries = 2;
 }
 
+message History {
+  repeated bytes serialized_revisions = 1; // TODO(tcies) no serialize
+}
+
 message HubMessage {
   required string type = 1;
   required bytes serialized = 2;
