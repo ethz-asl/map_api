@@ -69,9 +69,9 @@ class SqliteInterface {
      * Maps where the data is store intermediately
      */
     std::map<std::string, std::vector<double> > doubles_;
-    std::map<std::string, std::vector<int32_t> > ints_;
-    std::map<std::string, std::vector<int64_t> > longs_;
-    std::map<std::string, std::vector<uint64_t> > ulongs_;
+    std::map<std::string, std::vector<Poco::Int32> > ints_;
+    std::map<std::string, std::vector<Poco::Int64> > longs_;
+    std::map<std::string, std::vector<Poco::UInt64> > ulongs_;
     std::map<std::string, std::vector<Poco::Data::BLOB> > blobs_;
     std::map<std::string, std::vector<std::string> > strings_;
     std::map<std::string, std::vector<std::string> > hashes_;

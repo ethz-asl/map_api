@@ -37,12 +37,12 @@ int CRTableRamSqlite::findByRevisionCRDerived(const std::string& key,
   CHECK(session) << "Couldn't lock session weak pointer";
   Poco::Data::Statement statement(*session);
   // need to cache data for Poco
-  uint64_t serialized_time = time.serialize();
+  Poco::UInt64 serialized_time = time.serialize();
   std::vector<std::shared_ptr<Poco::Data::BLOB> > data_holder;
   statement << "SELECT";
   pocoToProto.into(statement);
   statement << "FROM " << name() << " WHERE " << kInsertTimeField << " <= ? ",
-      Poco::Data::use(serialized_time);
+    Poco::Data::use(serialized_time);
   if (key != "") {
     statement << " AND " << key << " LIKE ";
     data_holder.push_back(value_holder.insertPlaceHolder(key, statement));
@@ -74,7 +74,7 @@ int CRTableRamSqlite::countByRevisionCRDerived(const std::string& key,
   CHECK(session) << "Couldn't lock session weak pointer";
   Poco::Data::Statement statement(*session);
   // Hold on to data for Poco.
-  uint64_t serialized_time = time.serialize();
+  Poco::UInt64 serialized_time = time.serialize();
   std::vector<std::shared_ptr<Poco::Data::BLOB> > data_holder;
   int count = 0;
   statement << "SELECT COUNT(DISTINCT " << kIdField << ")",
