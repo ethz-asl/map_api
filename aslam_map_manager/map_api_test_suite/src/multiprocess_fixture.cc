@@ -84,8 +84,8 @@ void MultiprocessTest::harvest(bool verbose) {
       if (verbose) {
         std::cout << "Sub " << id_pipe.first << ": " << buffer;
       }
-      EXPECT_EQ(NULL, strstr(buffer, "[  FAILED  ]"));
-      EXPECT_EQ(NULL, strstr(buffer, "*** Check failure stack trace: ***"));
+      CHECK_EQ(NULL, strstr(buffer, "[  FAILED  ]"));
+      CHECK_EQ(NULL, strstr(buffer, "*** Check failure stack trace: ***"));
     }
   }
 }
