@@ -238,6 +238,11 @@ void Chunk::update(Revision* item) {
   distributedUnlock();
 }
 
+void Chunk::attachTrigger(const std::function<void(const Id& id)>& callback) {
+  std::lock_guard<std::mutex> lock(trigger_mutex_);
+  trigger_ = callback;
+}
+
 void Chunk::bulkInsertLocked(const CRTable::RevisionMap& items,
                              const LogicalTime& time) {
   std::vector<proto::PatchRequest> insert_requests;
@@ -626,6 +631,14 @@ void Chunk::handleInsertRequest(const Revision& item, Message* response) {
   underlying_table_->patch(item);
   response->ack();
   leave_lock_.unlock();
+
+  Id id;  // TODO(tcies) what if leave during trigger?
+  item.get(CRTable::kIdField, &id);
+  std::lock_guard<std::mutex> lock(trigger_mutex_);
+  if (trigger_) {
+    std::thread trigger_thread(trigger_, id);
+    trigger_thread.detach();
+  }
 }
 
 void Chunk::handleLeaveRequest(const PeerId& leaver, Message* response) {
@@ -732,6 +745,14 @@ void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
   CRUTable* table = static_cast<CRUTable*>(underlying_table_);
   table->patch(item);
   response->ack();
+
+  Id id;  // TODO(tcies) what if leave during trigger?
+  item.get(CRTable::kIdField, &id);
+  std::lock_guard<std::mutex> lock(trigger_mutex_);
+  if (trigger_) {
+    std::thread trigger_thread(trigger_, id);
+    trigger_thread.detach();
+  }
 }
 
 void Chunk::startState(LockState new_state) {
