@@ -18,7 +18,7 @@
 #include "map-api/message.h"
 #include "map-api/peer.h"
 #include "map-api/peer-id.h"
-#include "core.pb.h"
+#include "./core.pb.h"
 
 namespace map_api {
 
@@ -63,9 +63,9 @@ class Hub final {
    * be sent at the end of the handler
    * TODO(tcies) distinguish between pub/sub and rpc
    */
-  bool registerHandler(
-      const char* type,
-      std::function<void(const Message& request, Message* response)> handler);
+  bool registerHandler(const char* type,
+                       const std::function<void(const Message& request,
+                                                Message* response)>& handler);
   /**
    * Sends out the specified message to all connected peers
    */
@@ -143,6 +143,7 @@ class Hub final {
 
   std::unique_ptr<Discovery> discovery_;
 };
-}
 
-#endif /* MAP_API_HUB_H_ */
+}  // namespace map_api
+
+#endif  // MAP_API_HUB_H_
