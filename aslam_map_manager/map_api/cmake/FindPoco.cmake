@@ -8,7 +8,7 @@ find_path(POCO_INCLUDE_DIR Poco/Poco.h)
 
 find_library(PocoFoundation_LIBRARY PocoFoundation)
 find_library(PocoData_LIBRARY PocoData)
-find_library(PocoSQLite_LIBRARY PocoSQLite)
+find_library(PocoSQLite_LIBRARY PocoDataSQLite)
 
 set(POCO_LIBRARIES ${PocoFoundation_LIBRARY}
                    ${PocoData_LIBRARY}
