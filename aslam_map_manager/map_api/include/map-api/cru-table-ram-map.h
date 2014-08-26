@@ -26,9 +26,6 @@ class CRUTableRamMap : public CRUTable {
                                         const LogicalTime& time) final override;
 
   virtual bool insertUpdatedCRUDerived(const Revision& query) final override;
-  virtual bool updateCurrentReferToUpdatedCRUDerived(
-      const Id& id, const LogicalTime& current_time,
-      const LogicalTime& updated_time) final override;
 
   class HistoryType : public std::list<Revision> {
    public:
