@@ -1,6 +1,6 @@
 #include <cstdio>
-#include <fstream>
-#include <iostream>
+#include <fstream>  // NOLINT
+#include <iostream>  // NOLINT
 #include <map>
 #include <sstream>
 #include <string>
@@ -84,8 +84,8 @@ void MultiprocessTest::harvest(bool verbose) {
       if (verbose) {
         std::cout << "Sub " << id_pipe.first << ": " << buffer;
       }
-      CHECK_EQ(NULL, strstr(buffer, "[  FAILED  ]"));
-      CHECK_EQ(NULL, strstr(buffer, "*** Check failure stack trace: ***"));
+      CHECK(nullptr == strstr(buffer, "[  FAILED  ]"));
+      CHECK(nullptr == strstr(buffer, "*** Check failure stack trace: ***"));
     }
   }
 }
