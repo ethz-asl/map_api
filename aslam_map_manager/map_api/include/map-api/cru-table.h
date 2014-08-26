@@ -2,6 +2,7 @@
 #define MAP_API_CRU_TABLE_H_
 
 #include <vector>
+#include <list>
 #include <memory>
 #include <map>
 #include <string>
@@ -23,6 +24,18 @@ class CRUTable : public CRTable {
   friend class Chunk;
 
  public:
+  // Latest at front
+  class History : public std::list<Revision> {
+   public:
+    const_iterator latestAt(const LogicalTime& time) const;
+    /**
+     * Index_guess guesses the position of the update time field in the Revision
+     * proto.
+     */
+    const_iterator latestAt(const LogicalTime& time, int index_guess) const;
+  };
+  typedef std::unordered_map<Id, History> HistoryMap;
+
   virtual ~CRUTable();
   /**
    * Field ID in revision must correspond to an already present item, revision
@@ -35,6 +48,19 @@ class CRUTable : public CRTable {
   bool update(Revision* query);  // TODO(tcies) void
   void update(Revision* query, const LogicalTime& time);
   bool getLatestUpdateTime(const Id& id, LogicalTime* time);
+  /**
+   * For now, the entire history up to the current point is returned, without
+   * a view. It is assumed that this function is used only for chunk sharing
+   * for now. TODO(tcies) filter history up to given time for other purposes,
+   * such as savefiles
+   */
+  template <typename ValueType>
+  void findHistory(const std::string& key, const ValueType& value,
+                   HistoryMap* dest);
+
+  virtual void findHistoryByRevision(const std::string& key,
+                                     const Revision& valueHolder,
+                                     HistoryMap* dest) final;
 
   virtual Type type() const final override;
 
@@ -76,8 +102,13 @@ class CRUTable : public CRTable {
    * Implement insertion of the updated revision
    */
   virtual bool insertUpdatedCRUDerived(const Revision& query) = 0;
+  virtual void findHistoryByRevisionCRUDerived(const std::string& key,
+                                               const Revision& valueHolder,
+                                               HistoryMap* dest) = 0;
 };
 
 }  // namespace map_api
+
+#include "map-api/cru-table-inl.h"
 
 #endif  // MAP_API_CRU_TABLE_H_

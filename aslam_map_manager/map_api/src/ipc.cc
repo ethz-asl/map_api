@@ -6,6 +6,7 @@
 #include <glog/logging.h>
 
 #include "map-api/hub.h"
+#include "map-api/logical-time.h"
 #include "map-api/peer-id.h"
 
 namespace map_api {
@@ -35,7 +36,7 @@ void IPC::barrier(int id, int n_peers) {
     usleep(10000);
   }
   Message barrier_message;
-  barrier_message.impose<kBarrierMessage,std::string>(ss.str());
+  barrier_message.impose<kBarrierMessage, std::string>(ss.str());
   CHECK(Hub::instance().undisputableBroadcast(&barrier_message));
   std::unique_lock<std::mutex> lock(barrier_mutex_);
   while (barrier_map_[id] < n_peers) {
@@ -59,13 +60,21 @@ void IPC::barrierHandler(
   response->ack();
 }
 
+template <>
 void IPC::push(const std::string& message) {
   Message request;
   request.impose<kMessageMessage>(message);
   CHECK(Hub::instance().undisputableBroadcast(&request));
 }
+template <>
 void IPC::push(const Id& message) {
   push(message.hexString());
+}
+template <>
+void IPC::push(const LogicalTime& message) {
+  std::ostringstream oss;
+  oss << message.serialize();
+  push(oss.str());
 }
 
 void IPC::pushHandler(const Message& request, Message* response) {
@@ -77,6 +86,7 @@ void IPC::pushHandler(const Message& request, Message* response) {
   response->ack();
 }
 
+template <>
 bool IPC::pop(std::string* destination) {
   CHECK_NOTNULL(destination);
   std::lock_guard<std::mutex> lock(message_mutex_);
@@ -88,6 +98,7 @@ bool IPC::pop(std::string* destination) {
   messages_.pop();
   return true;
 }
+template <>
 bool IPC::pop(Id* destination) {
   CHECK_NOTNULL(destination);
   std::string serialized;
@@ -95,6 +106,19 @@ bool IPC::pop(Id* destination) {
     return false;
   }
   CHECK(destination->fromHexString(serialized));
+  return true;
+}
+template <>
+bool IPC::pop(LogicalTime* destination) {
+  CHECK_NOTNULL(destination);
+  std::string serialized_stream;
+  if (!pop(&serialized_stream)) {
+    return false;
+  }
+  std::istringstream iss(serialized_stream);
+  uint64_t serialized;
+  iss >> serialized;
+  *destination = LogicalTime(serialized);
   return true;
 }
 
