@@ -20,8 +20,8 @@
 *.out
 *.app
 
-# Matlab temporary editor files
-*.m~
+# temporary editor files
+*~
 
 # Compiled python.
 tools/lint/autolintc

@@ -1,0 +1,7 @@
+- git: {local-name: doxygen_catkin, uri: 'git@github.com:ethz-asl/doxygen_catkin.git'}
+- git: {local-name: eigen_checks, uri: 'git@github.com:ethz-asl/eigen_checks.git'}
+- git: {local-name: kindr_catkin, uri: 'git@github.com:ethz-asl/kindr_catkin.git'}
+- git: {local-name: libnabo, uri: 'git@github.com:ethz-asl/libnabo.git'}
+- git: {local-name: opengv, uri: 'git@github.com:ethz-asl/opengv.git'}
+- git: {local-name: Schweizer-Messer, uri: 'git@github.com:ethz-asl/Schweizer-Messer.git'}
+- git: {local-name: thirdparty_submodules, uri: 'git@github.com:ethz-asl/thirdparty_submodules.git'}

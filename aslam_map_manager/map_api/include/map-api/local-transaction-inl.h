@@ -50,7 +50,7 @@ LocalTransaction::SharedRevisionPointer LocalTransaction::findUnique(
     const std::string& key, const ValueType& value, CRTable* table)
 const {
   if (LocalTransaction::notifyAbortedOrInactive()){
-    return false;
+    return NULL;
   }
   SharedRevisionPointer uncommitted =
       findUniqueInUncommitted(*table, key, value);
