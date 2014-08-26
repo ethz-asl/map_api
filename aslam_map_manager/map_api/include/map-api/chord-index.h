@@ -4,6 +4,7 @@
 #include <condition_variable>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <thread>
 #include <unordered_map>
 
@@ -32,7 +33,7 @@ class ChordIndex {
  public:
   typedef uint16_t Key;
   typedef std::unordered_map<std::string, std::string> DataMap;
-  //TODO(tcies) in the long term, public functions
+  // TODO(tcies) in the long term, public functions
   // shouldn't expose these kinds of typedefs unless e.g. a serialization
   // method is given as well
   // static constexpr size_t kSuccessorListSize = 3; TODO(tcies) later
@@ -100,30 +101,8 @@ class ChordIndex {
   void leave();
   void leaveClean();
 
-  template<typename DataType>
-  static Key hash(const DataType& data) {
-    // TODO(tcies) better method?
-    Poco::MD5Engine md5;
-    Poco::DigestOutputStream digest_stream(md5);
-    digest_stream << data;
-    digest_stream.flush();
-    const Poco::DigestEngine::Digest& digest = md5.digest();
-    constexpr bool digest_still_uchar_vec =
-      std::is_same<
-      Poco::DigestEngine::Digest, std::vector<unsigned char> >::value;
-    static_assert(digest_still_uchar_vec,
-		  "Underlying type of Digest changed since Poco 1.3.6");
-    union KeyUnion {
-      Key key;
-      unsigned char bytes[sizeof(Key)];
-    };
-
-    static_assert(sizeof(Key) == sizeof(KeyUnion), "Bad union size");
-    KeyUnion return_value;
-    memcpy(return_value.bytes, &digest[0], sizeof(KeyUnion));
-
-    return return_value.key;
-  }
+  template <typename DataType>
+  static Key hash(const DataType& data);
 
  private:
   // ======================
@@ -157,7 +136,7 @@ class ChordIndex {
   struct ChordPeer {
     PeerId id;
     Key key;
-    ChordPeer(const PeerId& _id) : id(_id), key(hash(_id)) {}
+    explicit ChordPeer(const PeerId& _id) : id(_id), key(hash(_id)) {}
     inline bool isValid() const {
       return id.isValid();
     }
@@ -255,6 +234,6 @@ class ChordIndex {
   PeerId node_lock_holder_;
 };
 
-} /* namespace map_api */
-
-#endif /* MAP_API_CHORD_INDEX_H_ */
+}  // namespace map_api
+#include <map-api/chord-index-inl.h>
+#endif  // MAP_API_CHORD_INDEX_H_
