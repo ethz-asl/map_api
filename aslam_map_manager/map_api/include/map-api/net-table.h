@@ -80,6 +80,8 @@ class NetTable {
 
   void getActiveChunkIds(std::set<Id>* chunk_ids) const;
 
+  void getActiveChunks(std::set<Chunk*>* chunks) const;
+
   /**
    * ========================
    * Diverse request handlers

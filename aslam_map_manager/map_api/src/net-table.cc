@@ -264,6 +264,17 @@ void NetTable::getActiveChunkIds(std::set<Id>* chunk_ids) const {
   active_chunks_lock_.unlock();
 }
 
+void NetTable::getActiveChunks(std::set<Chunk*>* chunks) const {
+  CHECK_NOTNULL(chunks);
+  chunks->clear();
+  active_chunks_lock_.readLock();
+  for (const std::pair<const Id, std::unique_ptr<Chunk> >& chunk :
+       active_chunks_) {
+    chunks->insert(chunk.second.get());
+  }
+  active_chunks_lock_.unlock();
+}
+
 void NetTable::handleConnectRequest(const Id& chunk_id, const PeerId& peer,
                                     Message* response) {
   ChunkMap::iterator found;
