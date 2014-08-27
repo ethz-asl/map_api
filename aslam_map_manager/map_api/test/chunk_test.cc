@@ -368,25 +368,23 @@ TEST_P(NetTableTest, Triggers) {
     DIE
   };
   int highest_value;
-  Chunk* chunk;
-  Id chunk_id;
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
     IPC::barrier(INIT, 1);
-    chunk = table_->newChunk();
-    chunk_id = chunk->id();
-    IPC::push(chunk_id);
+    chunk_ = table_->newChunk();
+    chunk_id_ = chunk_->id();
+    IPC::push(chunk_id_);
     IPC::barrier(ID_SHARED, 1);
   }
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 1);
     IPC::barrier(ID_SHARED, 1);
-    IPC::pop(&chunk_id);
-    chunk = table_->getChunk(chunk_id);
+    IPC::pop(&chunk_id_);
+    chunk_ = table_->getChunk(chunk_id_);
   }
-  chunk->attachTrigger([this, chunk, &highest_value](const Id& id) {
+  chunk_->attachTrigger([this, &highest_value](const Id& id) {
     Transaction transaction;
-    std::shared_ptr<Revision> item = transaction.getById(id, table_, chunk);
+    std::shared_ptr<Revision> item = transaction.getById(id, table_, chunk_);
     item->get(kFieldName, &highest_value);
     if (highest_value < 10) {
       ++highest_value;
@@ -395,7 +393,7 @@ TEST_P(NetTableTest, Triggers) {
         transaction.update(table_, item);
       } else {
         item->set(CRTable::kIdField, Id::generate());
-        transaction.insert(table_, chunk, item);
+        transaction.insert(table_, chunk_, item);
       }
       CHECK(transaction.commit());
     }
@@ -406,13 +404,76 @@ TEST_P(NetTableTest, Triggers) {
     std::shared_ptr<Revision> item = table_->getTemplate();
     item->set(CRTable::kIdField, Id::generate());
     item->set(kFieldName, 0);
-    transaction.insert(table_, chunk, item);
+    transaction.insert(table_, chunk_, item);
     CHECK(transaction.commit());
     usleep(5e5);  // should suffice for the triggers to do their magic
     IPC::barrier(DIE, 1);
     EXPECT_EQ(10, highest_value);
   }
   if (getSubprocessId() == A) {
+    IPC::barrier(DIE, 1);
+  }
+}
+
+TEST_P(NetTableTest, SendHistory) {
+  enum Processes {
+    ROOT,
+    A
+  };
+  enum Barriers {
+    INIT,
+    A_DONE,
+    DIE
+  };
+  LogicalTime before_mod;
+  constexpr int kBefore = 42, kAfter = 21;
+  if (getSubprocessId() == ROOT) {
+    launchSubprocess(A);
+    IPC::barrier(INIT, 1);
+    IPC::barrier(A_DONE, 1);
+    IPC::pop(&chunk_id_);
+    IPC::pop(&before_mod);
+    IPC::pop(&item_id_);
+    chunk_ = table_->getChunk(chunk_id_);
+    IPC::barrier(DIE, 1);
+
+    Transaction current_transaction;
+    std::shared_ptr<Revision> current_version =
+        current_transaction.getById(item_id_, table_, chunk_);
+    ASSERT_TRUE(current_version.get() != nullptr);
+    EXPECT_TRUE(current_version->verifyEqual(kFieldName,
+                                             GetParam() ? kAfter : kBefore));
+
+    Transaction time_travel(before_mod);
+    std::shared_ptr<Revision> past_version =
+        time_travel.getById(item_id_, table_, chunk_);
+    if (GetParam()) {
+      ASSERT_TRUE(past_version.get() != nullptr);
+      EXPECT_TRUE(past_version->verifyEqual(kFieldName, kBefore));
+    } else {
+      EXPECT_FALSE(past_version);
+    }
+  }
+  if (getSubprocessId() == A) {
+    IPC::barrier(INIT, 1);
+    chunk_ = table_->newChunk();
+    IPC::push(chunk_->id());
+    if (!GetParam()) {
+      IPC::push(LogicalTime::sample());
+    }
+    Transaction insert_transaction;
+    CHECK(insert(kBefore, &item_id_, &insert_transaction));
+    if (GetParam()) {
+      IPC::push(LogicalTime::sample());
+      Transaction update_transaction;
+      std::shared_ptr<Revision> to_update =
+          update_transaction.getById(item_id_, table_, chunk_);
+      to_update->set(kFieldName, kAfter);
+      update_transaction.update(table_, to_update);
+      CHECK(update_transaction.commit());
+    }
+    IPC::push(item_id_);
+    IPC::barrier(A_DONE, 1);
     IPC::barrier(DIE, 1);
   }
 }

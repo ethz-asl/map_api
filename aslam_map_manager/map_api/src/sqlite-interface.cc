@@ -209,43 +209,45 @@ int SqliteInterface::PocoToProto::toProto(
       (*dest)[i]->set(fieldDouble.first, fieldDouble.second[i]);
     }
   }
-  for (const std::pair<std::string, std::vector<int32_t> >& fieldInt :
-      ints_){
+  for (const std::pair<std::string, std::vector<Poco::Int32> >& fieldInt :
+       ints_) {
     for (size_t i = 0; i < dest->size(); ++i) {
-          (*dest)[i]->set(fieldInt.first, fieldInt.second[i]);
+      (*dest)[i]->set(fieldInt.first, static_cast<int32_t>(fieldInt.second[i]));
     }
   }
-  for (const std::pair<std::string, std::vector<int64_t> >& fieldLong :
-      longs_){
+  for (const std::pair<std::string, std::vector<Poco::Int64> >& fieldLong :
+       longs_) {
     for (size_t i = 0; i < dest->size(); ++i) {
-          (*dest)[i]->set(fieldLong.first, fieldLong.second[i]);
+      (*dest)[i]
+          ->set(fieldLong.first, static_cast<int64_t>(fieldLong.second[i]));
     }
   }
-  for (const std::pair<std::string, std::vector<uint64_t> >& fieldULong :
-      ulongs_){
+  for (const std::pair<std::string, std::vector<Poco::UInt64> >& fieldULong :
+       ulongs_) {
     for (size_t i = 0; i < dest->size(); ++i) {
-          (*dest)[i]->set(fieldULong.first, fieldULong.second[i]);
+      (*dest)[i]
+          ->set(fieldULong.first, static_cast<uint64_t>(fieldULong.second[i]));
     }
   }
   for (const std::pair<std::string, std::vector<Poco::Data::BLOB> >&
       fieldBlob : blobs_){
     for (size_t i = 0; i < dest->size(); ++i) {
-          (*dest)[i]->set(fieldBlob.first, fieldBlob.second[i]);
+      (*dest)[i]->set(fieldBlob.first, fieldBlob.second[i]);
     }
   }
   for (const std::pair<std::string, std::vector<std::string> >& fieldString :
       strings_){
     for (size_t i = 0; i < dest->size(); ++i) {
-          (*dest)[i]->set(fieldString.first, fieldString.second[i]);
+      (*dest)[i]->set(fieldString.first, fieldString.second[i]);
     }
   }
   for (const std::pair<std::string, std::vector<std::string> >& fieldHash :
-      hashes_){
+       hashes_) {
     for (size_t i = 0; i < dest->size(); ++i) {
-          Id value;
-    CHECK(value.fromHexString(fieldHash.second[i])) << "Can't parse id from "
-        << fieldHash.second[i];
-    (*dest)[i]->set(fieldHash.first, value);
+      Id value;
+      CHECK(value.fromHexString(fieldHash.second[i])) << "Can't parse id from "
+                                                      << fieldHash.second[i];
+      (*dest)[i]->set(fieldHash.first, value);
     }
   }
 
