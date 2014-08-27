@@ -53,17 +53,18 @@ void Chunk::fillMetadata<proto::ChunkRequestMetadata>(
   destination->set_chunk_id(id().hexString());
 }
 
-bool Chunk::init(const Id& id, CRTable* underlying_table) {
+bool Chunk::init(const Id& id, CRTable* underlying_table, bool initialize) {
   CHECK_NOTNULL(underlying_table);
   id_ = id;
   underlying_table_ = underlying_table;
+  initialized_ = initialize;
   return true;
 }
 
 bool Chunk::init(
     const Id& id, const proto::InitRequest& init_request, const PeerId& sender,
     CRTable* underlying_table) {
-  CHECK(init(id, underlying_table));
+  CHECK(init(id, underlying_table, false));
   CHECK_GT(init_request.peer_address_size(), 0);
   for (int i = 0; i < init_request.peer_address_size(); ++i) {
     peers_.add(PeerId(init_request.peer_address(i)));
@@ -87,8 +88,10 @@ bool Chunk::init(
     }
   }
   std::lock_guard<std::mutex> metalock(lock_.mutex);
+  lock_.preempted_state = DistributedRWLock::State::UNLOCKED;
   lock_.state = DistributedRWLock::State::WRITE_LOCKED;
   lock_.holder = sender;
+  initialized_ = true;
   return true;
 }
 
@@ -377,8 +380,8 @@ void Chunk::distributedWriteLock() {
   }
   while (true) {  // lock: attempt until success
     while (lock_.state != DistributedRWLock::State::UNLOCKED &&
-           (lock_.state != DistributedRWLock::State::ATTEMPTING ||
-            lock_.thread != std::this_thread::get_id())) {
+           !(lock_.state == DistributedRWLock::State::ATTEMPTING &&
+             lock_.thread == std::this_thread::get_id())) {
       lock_.cv.wait(metalock);
     }
     CHECK(!relinquished_);
@@ -590,6 +593,7 @@ void Chunk::prepareInitRequest(Message* request) {
 }
 
 void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
+  awaitInitialized();
   VLOG(3) << "Received connect request from " << peer;
   CHECK_NOTNULL(response);
   leave_lock_.readLock();
@@ -612,6 +616,7 @@ void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
 }
 
 void Chunk::handleConnectRequestThread(Chunk* self, const PeerId& peer) {
+  self->awaitInitialized();
   CHECK_NOTNULL(self);
   self->leave_lock_.readLock();
   // the following is a special case which shall not be covered for now:
@@ -635,6 +640,7 @@ void Chunk::handleConnectRequestThread(Chunk* self, const PeerId& peer) {
 
 void Chunk::handleInsertRequest(const Revision& item, Message* response) {
   CHECK_NOTNULL(response);
+  awaitInitialized();
   leave_lock_.readLock();
   if (relinquished_) {
     leave_lock_.unlock();
@@ -667,6 +673,7 @@ void Chunk::handleInsertRequest(const Revision& item, Message* response) {
 
 void Chunk::handleLeaveRequest(const PeerId& leaver, Message* response) {
   CHECK_NOTNULL(response);
+  awaitInitialized();
   leave_lock_.readLock();
   CHECK(!relinquished_);  // sending a leave request to a disconnected peer
   // should be impossible by design
@@ -680,6 +687,7 @@ void Chunk::handleLeaveRequest(const PeerId& leaver, Message* response) {
 
 void Chunk::handleLockRequest(const PeerId& locker, Message* response) {
   CHECK_NOTNULL(response);
+  awaitInitialized();
   leave_lock_.readLock();
   if (relinquished_) {
     // possible if two peer try to lock for leaving at the same time
@@ -693,8 +701,11 @@ void Chunk::handleLockRequest(const PeerId& locker, Message* response) {
   while (lock_.state == DistributedRWLock::State::READ_LOCKED) {
     lock_.cv.wait(metalock);
   }
+  // preempted_state MUST NOT be set here, else it might be wrongly set to
+  // write_locked if two peers contend for the same lock.
   switch (lock_.state) {
     case DistributedRWLock::State::UNLOCKED:
+      lock_.preempted_state = DistributedRWLock::State::UNLOCKED;
       lock_.state = DistributedRWLock::State::WRITE_LOCKED;
       lock_.holder = locker;
       response->impose<Message::kAck>();
@@ -716,6 +727,7 @@ void Chunk::handleLockRequest(const PeerId& locker, Message* response) {
         // situation can only happen if the requester has successfully achieved
         // the lock at all low-address peers, otherwise this situation couldn't
         // have occurred
+        lock_.preempted_state = DistributedRWLock::State::ATTEMPTING;
         lock_.state = DistributedRWLock::State::WRITE_LOCKED;
         lock_.holder = locker;
         response->impose<Message::kAck>();
@@ -732,6 +744,7 @@ void Chunk::handleLockRequest(const PeerId& locker, Message* response) {
 void Chunk::handleNewPeerRequest(const PeerId& peer, const PeerId& sender,
                                  Message* response) {
   CHECK_NOTNULL(response);
+  awaitInitialized();
   leave_lock_.readLock();
   CHECK(!relinquished_);  // sending a new peer request to a disconnected peer
   // should be impossible by design
@@ -745,13 +758,16 @@ void Chunk::handleNewPeerRequest(const PeerId& peer, const PeerId& sender,
 
 void Chunk::handleUnlockRequest(const PeerId& locker, Message* response) {
   CHECK_NOTNULL(response);
+  awaitInitialized();
   leave_lock_.readLock();
   CHECK(!relinquished_);  // sending a leave request to a disconnected peer
   // should be impossible by design
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   CHECK(lock_.state == DistributedRWLock::State::WRITE_LOCKED);
   CHECK(lock_.holder == locker);
-  lock_.state = DistributedRWLock::State::UNLOCKED;
+  CHECK(lock_.preempted_state == DistributedRWLock::State::UNLOCKED ||
+        lock_.preempted_state == DistributedRWLock::State::ATTEMPTING);
+  lock_.state = lock_.preempted_state;
   metalock.unlock();
   leave_lock_.unlock();
   lock_.cv.notify_all();
@@ -761,6 +777,7 @@ void Chunk::handleUnlockRequest(const PeerId& locker, Message* response) {
 void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
                                 Message* response) {
   CHECK_NOTNULL(response);
+  awaitInitialized();
   {
     std::lock_guard<std::mutex> metalock(lock_.mutex);
     CHECK(isWriter(sender));
@@ -776,6 +793,12 @@ void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
   if (trigger_) {
     std::thread trigger_thread(trigger_, id);
     trigger_thread.detach();
+  }
+}
+
+void Chunk::awaitInitialized() const {
+  while (!initialized_) {
+    usleep(1000);
   }
 }
 
