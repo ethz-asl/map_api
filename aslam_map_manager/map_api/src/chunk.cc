@@ -590,7 +590,8 @@ void Chunk::prepareInitRequest(Message* request) {
     CHECK(underlying_table_->type() == CRTable::Type::CRU);
     CRUTable::HistoryMap data;
     CRUTable* table = static_cast<CRUTable*>(underlying_table_);
-    table->findHistory(NetTable::kChunkIdField, id(), &data);
+    table->findHistory(NetTable::kChunkIdField, id(), LogicalTime::sample(),
+                       &data);
     for (const CRUTable::HistoryMap::value_type& data_pair : data) {
       proto::History history_proto;
       for (const Revision& revision : data_pair.second) {

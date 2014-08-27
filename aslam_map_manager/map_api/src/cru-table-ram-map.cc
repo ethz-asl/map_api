@@ -129,9 +129,11 @@ bool CRUTableRamMap::insertUpdatedCRUDerived(const Revision& query) {
 }
 
 void CRUTableRamMap::findHistoryByRevisionCRUDerived(
-    const std::string& key, const Revision& valueHolder, HistoryMap* dest) {
+    const std::string& key, const Revision& valueHolder,
+    const LogicalTime& time, HistoryMap* dest) {
   CHECK_NOTNULL(dest);
   dest->clear();
+  // copy over history
   if (key == kIdField) {
     Id id;
     CHECK(valueHolder.get(kIdField, &id));
@@ -151,6 +153,14 @@ void CRUTableRamMap::findHistoryByRevisionCRUDerived(
         CHECK(dest->insert(pair).second);
       }
     }
+  }
+  // trim to time
+  for (HistoryMap::value_type& pair : *dest) {
+    pair.second.remove_if([&time](const Revision& item) {
+      LogicalTime item_time;
+      item.get(kUpdateTimeField, &item_time);
+      return item_time > time;
+    });
   }
 }
 

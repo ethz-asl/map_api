@@ -52,11 +52,13 @@ bool CRUTable::getLatestUpdateTime(const Id& id, LogicalTime* time) {
 
 void CRUTable::findHistoryByRevision(const std::string& key,
                                      const Revision& valueHolder,
+                                     const LogicalTime& time,
                                      HistoryMap* dest) {
   CHECK(isInitialized()) << "Attempted to find in non-initialized table";
   CHECK_NOTNULL(dest);
   dest->clear();
-  return findHistoryByRevisionCRUDerived(key, valueHolder, dest);
+  CHECK(time < LogicalTime::sample());
+  return findHistoryByRevisionCRUDerived(key, valueHolder, time, dest);
 }
 
 CRUTable::Type CRUTable::type() const {
