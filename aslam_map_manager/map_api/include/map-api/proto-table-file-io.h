@@ -29,6 +29,9 @@ struct hash<map_api::RevisionStamp> {
 // Stores all revisions from a table to a file.
 namespace map_api {
 class ProtoTableFileIO {
+  std::ios_base::openmode kDefaultOpenmode =
+      std::fstream::binary | std::ios_base::in | std::ios_base::out;
+
  public:
   ProtoTableFileIO(const std::string& filename, map_api::NetTable* table);
   ~ProtoTableFileIO();
@@ -36,6 +39,7 @@ class ProtoTableFileIO {
   bool storeTableContents(const map_api::CRTable::RevisionMap& revisions);
   bool restoreTableContents();
   bool restoreTableContents(map_api::Transaction* transaction);
+  void truncFile();
 
  private:
   static constexpr google::protobuf::io::GzipOutputStream::Format kOutFormat =

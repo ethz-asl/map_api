@@ -18,8 +18,7 @@ ProtoTableFileIO::ProtoTableFileIO(const std::string& filename,
   zip_options_.buffer_size = kZipBufferSize;
   zip_options_.compression_level = kZipCompressionLevel;
 
-  file_.open(filename,
-             std::fstream::binary | std::ios_base::in | std::ios_base::out);
+  file_.open(filename, kDefaultOpenmode);
   if (!file_.is_open()) {
     file_.open(filename, std::fstream::binary | std::fstream::in |
                              std::fstream::out | std::fstream::trunc);
@@ -28,6 +27,11 @@ ProtoTableFileIO::ProtoTableFileIO(const std::string& filename,
 }
 
 ProtoTableFileIO::~ProtoTableFileIO() {}
+
+void ProtoTableFileIO::truncFile() {
+  file_.close();
+  file_.open(file_name_, kDefaultOpenmode | std::ofstream::trunc);
+}
 
 bool ProtoTableFileIO::storeTableContents(const map_api::LogicalTime& time) {
   map_api::Transaction transaction(time);
