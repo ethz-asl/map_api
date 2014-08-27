@@ -63,6 +63,9 @@ class Chunk {
   size_t numItems(const LogicalTime& time);
   size_t itemsSizeBytes(const LogicalTime& time);
 
+  void getCommitTimes(const LogicalTime& sample_time,
+                      std::set<LogicalTime>* commit_times);
+
   bool insert(Revision* item);
   bool bulkInsert(const CRTable::RevisionMap& items);
 

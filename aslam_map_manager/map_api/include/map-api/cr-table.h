@@ -163,7 +163,8 @@ class CRTable {
    */
   virtual bool initCRDerived() = 0;
   virtual bool insertCRDerived(Revision* query) = 0;
-  virtual bool bulkInsertCRDerived(const RevisionMap& query) = 0;
+  virtual bool bulkInsertCRDerived(const RevisionMap& query,
+                                   const LogicalTime& time) = 0;
   virtual bool patchCRDerived(const Revision& query) = 0;
   /**
    * If key is an empty string, this should return all the data in the table.
