@@ -202,6 +202,7 @@ class FieldTestWithoutInit
   }
 
  protected:
+  typedef FieldTestTable<TableDataType> FieldTestTableType;
   std::shared_ptr<Revision> getTemplate() {
     query_ = this->table_->getTemplate();
     return query_;
@@ -212,13 +213,17 @@ class FieldTestWithoutInit
     Id inserted = Id::generate();
     query_->set(CRTable::kIdField, inserted);
     // to_insert_->set("owner", Id::random()); TODO(tcies) later, from core
-    query_->set(FieldTestTable<TableDataType>::kTestField, value);
+    query_->set(FieldTestTableType::kTestField, value);
     return inserted;
   }
 
   Id fillRevision() { return fillRevision(this->sample_data_1()); }
 
   bool insertRevision() { return this->table_->insert(query_.get()); }
+
+  void getRevision(const Id& id) {
+    query_ = this->table_->getById(id, LogicalTime::sample());
+  }
 
   std::unique_ptr<typename TableDataType::TableType> table_;
   std::shared_ptr<Revision> query_;
@@ -250,7 +255,13 @@ class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
 
 template <typename TableType>
 class IntTestWithInit
-    : public FieldTestWithInit<TableDataTypes<TableType, int64_t>> {};
+    : public FieldTestWithInit<TableDataTypes<TableType, int64_t>> {
+};  // NOLINT
+
+// TODO(tcies) extend tests to SQLite
+class CruMapIntTestWithInit
+    : public UpdateFieldTestWithInit<TableDataTypes<CRUTableRamMap, int64_t>> {
+};
 
 /**
  *************************
@@ -376,6 +387,34 @@ TYPED_TEST(IntTestWithInit, CreateReadThousand) {
     EXPECT_EQ(i, dataFromTable);
   }
   LOG(INFO) << timing::Timing::Print();
+}
+
+TEST_F(CruMapIntTestWithInit, HistoryAtTime) {
+  constexpr int64_t kFirst = 42, kSecond = 21, kThird = 84;
+  Id id = fillRevision(kFirst);
+  ASSERT_TRUE(insertRevision());
+  getRevision(id);
+  ASSERT_TRUE(query_.get() != nullptr);
+  query_->set(FieldTestTableType::kTestField, kSecond);
+  ASSERT_TRUE(updateRevision());
+  LogicalTime before_third = LogicalTime::sample();
+  getRevision(id);
+  ASSERT_TRUE(query_.get() != nullptr);
+  query_->set(FieldTestTableType::kTestField, kThird);
+  ASSERT_TRUE(updateRevision());
+
+  CRUTable::HistoryMap old_history_map;
+  table_->findHistory(CRTable::kIdField, id, before_third, &old_history_map);
+  EXPECT_EQ(1, old_history_map.size());
+  const CRUTable::History& old_history = old_history_map.begin()->second;
+  EXPECT_EQ(2, old_history.size());
+
+  CRUTable::HistoryMap new_history_map;
+  table_->findHistory(CRTable::kIdField, id, LogicalTime::sample(),
+                      &new_history_map);
+  EXPECT_EQ(1, new_history_map.size());
+  const CRUTable::History& new_history = new_history_map.begin()->second;
+  EXPECT_EQ(3, new_history.size());
 }
 
 }  // namespace map_api

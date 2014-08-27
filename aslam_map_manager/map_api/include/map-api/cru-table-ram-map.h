@@ -28,6 +28,7 @@ class CRUTableRamMap : public CRUTable {
   virtual bool insertUpdatedCRUDerived(const Revision& query) final override;
   virtual void findHistoryByRevisionCRUDerived(const std::string& key,
                                                const Revision& valueHolder,
+                                               const LogicalTime& time,
                                                HistoryMap* dest) final override;
 
   HistoryMap data_;
