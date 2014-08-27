@@ -29,7 +29,7 @@ std::string getSelfpath() {
   uint32_t len = sizeof(buff) - 1;
   int status = _NSGetExecutablePath(buff, &len);
   if (status != 0) {
-    len = status;
+    len = -1;
   }
 #elif defined __linux__
   ssize_t len = ::readlink("/proc/self/exe", buff, sizeof(buff) - 1);
@@ -43,7 +43,7 @@ std::string getSelfpath() {
 #ifdef TARGET_OS_MAC
     LOG(FATAL) << "Failed to get executable path from _NSGetExecutablePath()";
 #elif defined __linux__
-    LOG(FATAL)<< "Failed to read link of /proc/self/exe";
+    LOG(FATAL) << "Failed to read link of /proc/self/exe";
 #else
     LOG(FATAL) << "getSelfpath() not implemented for this platform.";
 #endif
