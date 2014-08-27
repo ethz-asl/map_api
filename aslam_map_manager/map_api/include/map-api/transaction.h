@@ -75,7 +75,7 @@ class Transaction {
    * solution)
    */
   struct NetTableOrdering {
-    inline bool operator() (const NetTable* a, const NetTable* b) const {
+    inline bool operator()(const NetTable* a, const NetTable* b) const {
       return CHECK_NOTNULL(a)->name() < CHECK_NOTNULL(b)->name();
     }
   };
