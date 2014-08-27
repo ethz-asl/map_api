@@ -48,18 +48,14 @@ class CRUTable : public CRTable {
   bool update(Revision* query);  // TODO(tcies) void
   void update(Revision* query, const LogicalTime& time);
   bool getLatestUpdateTime(const Id& id, LogicalTime* time);
-  /**
-   * For now, the entire history up to the current point is returned, without
-   * a view. It is assumed that this function is used only for chunk sharing
-   * for now. TODO(tcies) filter history up to given time for other purposes,
-   * such as savefiles
-   */
+
   template <typename ValueType>
   void findHistory(const std::string& key, const ValueType& value,
-                   HistoryMap* dest);
+                   const LogicalTime& time, HistoryMap* dest);
 
   virtual void findHistoryByRevision(const std::string& key,
                                      const Revision& valueHolder,
+                                     const LogicalTime& time,
                                      HistoryMap* dest) final;
 
   virtual Type type() const final override;
@@ -104,6 +100,7 @@ class CRUTable : public CRTable {
   virtual bool insertUpdatedCRUDerived(const Revision& query) = 0;
   virtual void findHistoryByRevisionCRUDerived(const std::string& key,
                                                const Revision& valueHolder,
+                                               const LogicalTime& time,
                                                HistoryMap* dest) = 0;
 };
 
