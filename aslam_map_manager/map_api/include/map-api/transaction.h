@@ -54,7 +54,7 @@ class Transaction {
 
   // TRANSACTION OPERATIONS
   bool commit();
-  inline LogicalTime getCommitTime() { return commit_time_; }
+  inline LogicalTime getCommitTime() const { return commit_time_; }
   using Conflict = ChunkTransaction::Conflict;
   using Conflicts = ChunkTransaction::Conflicts;
   typedef std::unordered_map<NetTable*, ChunkTransaction::Conflicts>

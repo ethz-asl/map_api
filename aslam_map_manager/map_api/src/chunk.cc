@@ -125,10 +125,15 @@ size_t Chunk::itemsSizeBytes(const LogicalTime& time) {
   return num_bytes;
 }
 
-// TODO(tcies) cache?
+// TODO(tcies) cache? : Store commit times with chunks as commits occur,
+// share this info consistently.
 void Chunk::getCommitTimes(const LogicalTime& sample_time,
                            std::set<LogicalTime>* commit_times) {
   CHECK_NOTNULL(commit_times);
+  //  Using a temporary unordered map because it should have a faster insertion
+  //  time. The expected amount of commit times << the expected amount of items,
+  //  so this should be worth it.
+  std::unordered_set<LogicalTime> unordered_commit_times;
   CRTable::RevisionMap items;
   CRUTable::HistoryMap histories;
   distributedReadLock();
@@ -140,23 +145,24 @@ void Chunk::getCommitTimes(const LogicalTime& sample_time,
     table->findHistory(NetTable::kChunkIdField, id(), sample_time, &histories);
   }
   distributedUnlock();
-  LogicalTime commit_time;
   if (underlying_table_->type() == CRTable::Type::CR) {
     for (const CRTable::RevisionMap::value_type& item : items) {
+      LogicalTime commit_time;
       item.second->get(CRTable::kInsertTimeField, &commit_time);
-      commit_times->insert(commit_time);
-      // with many same times, insertion into an unordered set, then copy to
-      // ordered set might be faster?
+      unordered_commit_times.insert(commit_time);
     }
   } else {
     CHECK(underlying_table_->type() == CRTable::Type::CRU);
     for (const CRUTable::HistoryMap::value_type& history : histories) {
       for (const Revision& revision : history.second) {
+        LogicalTime commit_time;
         revision.get(CRUTable::kUpdateTimeField, &commit_time);
-        commit_times->insert(commit_time);
+        unordered_commit_times.insert(commit_time);
       }
     }
   }
+  commit_times->insert(unordered_commit_times.begin(),
+                       unordered_commit_times.end());
 }
 
 bool Chunk::insert(Revision* item) {
