@@ -26,20 +26,12 @@ class CRUTableRamMap : public CRUTable {
                                         const LogicalTime& time) final override;
 
   virtual bool insertUpdatedCRUDerived(const Revision& query) final override;
+  virtual void findHistoryByRevisionCRUDerived(const std::string& key,
+                                               const Revision& valueHolder,
+                                               const LogicalTime& time,
+                                               HistoryMap* dest) final override;
 
-  class HistoryType : public std::list<Revision> {
-   public:
-    const_iterator latestAt(const LogicalTime& time) const;
-    /**
-     * Index_guess guesses the position of the update time field in the Revision
-     * proto.
-     */
-    const_iterator latestAt(const LogicalTime& time, int index_guess) const;
-  };
-  // Latest at front
-  typedef std::unordered_map<Id, HistoryType> HistoryMapType;
-
-  HistoryMapType data_;
+  HistoryMap data_;
 };
 
 } /* namespace map_api */

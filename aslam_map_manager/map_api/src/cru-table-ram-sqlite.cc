@@ -37,7 +37,7 @@ int CRUTableRamSqlite::findByRevisionCRUDerived(const std::string& key,
   CHECK(session) << "Couldn't lock session weak pointer";
   Poco::Data::Statement statement(*session);
   // caching of data needed for Poco::Data to work
-  uint64_t serialized_time = time.serialize();
+  Poco::UInt64 serialized_time = time.serialize();
   std::vector<std::shared_ptr<Poco::Data::BLOB> > data_holder;
   // TODO(tcies) evt. optimizations from http://www.sqlite.org/queryplanner.html
   statement << "SELECT ";
@@ -51,7 +51,7 @@ int CRUTableRamSqlite::findByRevisionCRUDerived(const std::string& key,
   try {
     statement.execute();
   }
-  catch (const std::exception& e) {
+  catch (const std::exception& e) {  // NOLINT
     LOG(FATAL) << "Find statement failed: " << statement.toString()
                << " with exception: " << e.what();
   }
@@ -83,7 +83,7 @@ int CRUTableRamSqlite::countByRevisionCRUDerived(const std::string& key,
   CHECK(session) << "Couldn't lock session weak pointer";
   Poco::Data::Statement statement(*session);
   // Hold on to data for Poco.
-  uint64_t serialized_time = time.serialize();
+  Poco::UInt64 serialized_time = time.serialize();
   std::vector<std::shared_ptr<Poco::Data::BLOB> > data_holder;
   int count = 0;
   statement << "SELECT COUNT(DISTINCT " << kIdField << ")",
@@ -97,7 +97,7 @@ int CRUTableRamSqlite::countByRevisionCRUDerived(const std::string& key,
   try {
     statement.execute();
   }
-  catch (const std::exception& e) {
+  catch (const std::exception& e) {  // NOLINT
     LOG(FATAL) << "Find statement failed: " << statement.toString()
                << " with exception: " << e.what();
   }
@@ -107,6 +107,13 @@ int CRUTableRamSqlite::countByRevisionCRUDerived(const std::string& key,
 bool CRUTableRamSqlite::insertUpdatedCRUDerived(const Revision& query) {
   sqlite_interface_.insert(query);
   return true;
+}
+
+void CRUTableRamSqlite::findHistoryByRevisionCRUDerived(
+    const std::string& /*key*/, const Revision& /*valueHolder*/,
+    const LogicalTime& /*time*/, HistoryMap* /*dest*/) {
+  // TODO(tcies) implement
+  CHECK(false) << "Remains to be implemented";
 }
 
 } /* namespace map_api */

@@ -71,7 +71,7 @@ class NetTableTransaction {
    * solution)
    */
   struct ChunkOrdering {
-    inline bool operator() (const Chunk* a, const Chunk* b) {
+    inline bool operator() (const Chunk* a, const Chunk* b) const {
       return CHECK_NOTNULL(a)->id() < CHECK_NOTNULL(b)->id();
     }
   };

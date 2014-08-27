@@ -50,6 +50,17 @@ bool CRUTable::getLatestUpdateTime(const Id& id, LogicalTime* time) {
   return true;
 }
 
+void CRUTable::findHistoryByRevision(const std::string& key,
+                                     const Revision& valueHolder,
+                                     const LogicalTime& time,
+                                     HistoryMap* dest) {
+  CHECK(isInitialized()) << "Attempted to find in non-initialized table";
+  CHECK_NOTNULL(dest);
+  dest->clear();
+  CHECK(time < LogicalTime::sample());
+  return findHistoryByRevisionCRUDerived(key, valueHolder, time, dest);
+}
+
 CRUTable::Type CRUTable::type() const {
   return Type::CRU;
 }
@@ -87,4 +98,22 @@ int CRUTable::countByRevisionCRDerived(const std::string& key,
                                        const LogicalTime& time) {
   return countByRevisionCRUDerived(key, valueHolder, time);
 }
+
+CRUTable::History::const_iterator CRUTable::History::latestAt(
+    const LogicalTime& time) const {
+  return latestAt(time, cbegin()->indexOf(kUpdateTimeField));
+}
+
+CRUTable::History::const_iterator CRUTable::History::latestAt(
+    const LogicalTime& time, int index_guess) const {
+  LogicalTime item_time;
+  for (const_iterator it = cbegin(); it != cend(); ++it) {
+    it->get(kUpdateTimeField, index_guess, &item_time);
+    if (item_time <= time) {
+      return it;
+    }
+  }
+  return cend();
+}
+
 }  // namespace map_api

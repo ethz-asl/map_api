@@ -64,16 +64,27 @@ bool Chunk::init(
     const Id& id, const proto::InitRequest& init_request, const PeerId& sender,
     CRTable* underlying_table) {
   CHECK(init(id, underlying_table));
-  // connect to peers from connect_response TODO(tcies) notify of self
   CHECK_GT(init_request.peer_address_size(), 0);
   for (int i = 0; i < init_request.peer_address_size(); ++i) {
     peers_.add(PeerId(init_request.peer_address(i)));
   }
   // feed data from connect_response into underlying table TODO(tcies) piecewise
-  for (int i = 0; i < init_request.serialized_revision_size(); ++i) {
-    Revision data;
-    CHECK(data.ParseFromString((init_request.serialized_revision(i))));
-    CHECK(underlying_table->patch(data));
+  for (int i = 0; i < init_request.serialized_items_size(); ++i) {
+    if (underlying_table->type() == CRTable::Type::CR) {
+      Revision data;
+      CHECK(data.ParseFromString((init_request.serialized_items(i))));
+      CHECK(underlying_table->patch(data));
+    } else {
+      CHECK(underlying_table->type() == CRTable::Type::CRU);
+      proto::History history_proto;
+      CHECK(history_proto.ParseFromString(init_request.serialized_items(i)));
+      CHECK_GT(history_proto.serialized_revisions_size(), 0);
+      for (int j = 0; j < history_proto.serialized_revisions_size(); ++j) {
+        Revision data;
+        CHECK(data.ParseFromString(history_proto.serialized_revisions(j)));
+        CHECK(underlying_table->patch(data));
+      }
+    }
   }
   std::lock_guard<std::mutex> metalock(lock_.mutex);
   lock_.state = DistributedRWLock::State::WRITE_LOCKED;
@@ -553,13 +564,26 @@ void Chunk::prepareInitRequest(Message* request) {
   }
   init_request.add_peer_address(PeerId::self().ipPort());
 
-  std::unordered_map<Id, std::shared_ptr<Revision> > data;
-  underlying_table_->find(NetTable::kChunkIdField, id(), LogicalTime::sample(),
-                          &data);
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& data_pair :
-      data) {
-    init_request.add_serialized_revision(
-        data_pair.second->SerializeAsString());
+  if (underlying_table_->type() == CRTable::Type::CR) {
+    CRTable::RevisionMap data;
+    underlying_table_->find(NetTable::kChunkIdField, id(),
+                            LogicalTime::sample(), &data);
+    for (const CRTable::RevisionMap::value_type& data_pair : data) {
+      init_request.add_serialized_items(data_pair.second->SerializeAsString());
+    }
+  } else {
+    CHECK(underlying_table_->type() == CRTable::Type::CRU);
+    CRUTable::HistoryMap data;
+    CRUTable* table = static_cast<CRUTable*>(underlying_table_);
+    table->findHistory(NetTable::kChunkIdField, id(), LogicalTime::sample(),
+                       &data);
+    for (const CRUTable::HistoryMap::value_type& data_pair : data) {
+      proto::History history_proto;
+      for (const Revision& revision : data_pair.second) {
+        history_proto.add_serialized_revisions(revision.SerializeAsString());
+      }
+      init_request.add_serialized_items(history_proto.SerializeAsString());
+    }
   }
 
   request->impose<kInitRequest, proto::InitRequest>(init_request);

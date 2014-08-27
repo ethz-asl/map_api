@@ -81,6 +81,11 @@ class NetTable {
   void getActiveChunkIds(std::set<Id>* chunk_ids) const;
 
   /**
+   * Chunks are owned by the table, this function does not leak.
+   */
+  void getActiveChunks(std::set<Chunk*>* chunks) const;
+
+  /**
    * ========================
    * Diverse request handlers
    * ========================
