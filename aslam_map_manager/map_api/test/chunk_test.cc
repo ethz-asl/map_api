@@ -462,7 +462,8 @@ TEST_P(NetTableTest, SendHistory) {
       IPC::push(LogicalTime::sample());
     }
     Transaction insert_transaction;
-    CHECK(insert(kBefore, &item_id_, &insert_transaction));
+    insert(kBefore, &item_id_, &insert_transaction);
+    CHECK(insert_transaction.commit());
     if (GetParam()) {
       IPC::push(LogicalTime::sample());
       Transaction update_transaction;
@@ -476,6 +477,25 @@ TEST_P(NetTableTest, SendHistory) {
     IPC::barrier(A_DONE, 1);
     IPC::barrier(DIE, 1);
   }
+}
+
+TEST_P(NetTableTest, GetCommitTimes) {
+  chunk_ = table_->newChunk();
+  Transaction first;
+  Id id;
+  insert(42, &id, &first);
+  ASSERT_TRUE(first.commit());
+  Transaction second;
+  if (GetParam()) {
+    update(21, id, &second);
+  }
+  insert(42, &id, &second);
+  ASSERT_TRUE(second.commit());
+  std::set<LogicalTime> commit_times;
+  chunk_->getCommitTimes(LogicalTime::sample(), &commit_times);
+  EXPECT_EQ(2, commit_times.size());
+  EXPECT_TRUE(commit_times.find(first.getCommitTime()) != commit_times.end());
+  EXPECT_TRUE(commit_times.find(second.getCommitTime()) != commit_times.end());
 }
 
 }  // namespace map_api

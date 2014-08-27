@@ -125,19 +125,38 @@ size_t Chunk::itemsSizeBytes(const LogicalTime& time) {
   return num_bytes;
 }
 
+// TODO(tcies) cache?
 void Chunk::getCommitTimes(const LogicalTime& sample_time,
                            std::set<LogicalTime>* commit_times) {
+  CHECK_NOTNULL(commit_times);
   CRTable::RevisionMap items;
-  CRUTable::HistoryMap history;
+  CRUTable::HistoryMap histories;
   distributedReadLock();
   if (underlying_table_->type() == CRTable::Type::CR) {
     underlying_table_->find(NetTable::kChunkIdField, id(), sample_time, &items);
   } else {
     CHECK(underlying_table_->type() == CRTable::Type::CRU);
     CRUTable* table = static_cast<CRUTable*>(underlying_table_);
-    table->findHistory(NetTable::kChunkIdField, id(), sample_time, &items);
+    table->findHistory(NetTable::kChunkIdField, id(), sample_time, &histories);
   }
   distributedUnlock();
+  LogicalTime commit_time;
+  if (underlying_table_->type() == CRTable::Type::CR) {
+    for (const CRTable::RevisionMap::value_type& item : items) {
+      item.second->get(CRTable::kInsertTimeField, &commit_time);
+      commit_times->insert(commit_time);
+      // with many same times, insertion into an unordered set, then copy to
+      // ordered set might be faster?
+    }
+  } else {
+    CHECK(underlying_table_->type() == CRTable::Type::CRU);
+    for (const CRUTable::HistoryMap::value_type& history : histories) {
+      for (const Revision& revision : history.second) {
+        revision.get(CRUTable::kUpdateTimeField, &commit_time);
+        commit_times->insert(commit_time);
+      }
+    }
+  }
 }
 
 bool Chunk::insert(Revision* item) {
