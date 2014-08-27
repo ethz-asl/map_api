@@ -53,7 +53,7 @@ class Chunk {
   friend class ChunkTransaction;
 
  public:
-  bool init(const Id& id, CRTable* underlying_table, bool initialize = true);
+  bool init(const Id& id, CRTable* underlying_table, bool initialize);
   bool init(const Id& id, const proto::InitRequest& request,
             const PeerId& sender, CRTable* underlying_table);
 

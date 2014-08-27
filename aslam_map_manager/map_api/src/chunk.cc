@@ -57,9 +57,7 @@ bool Chunk::init(const Id& id, CRTable* underlying_table, bool initialize) {
   CHECK_NOTNULL(underlying_table);
   id_ = id;
   underlying_table_ = underlying_table;
-  if (initialize) {
-    initialized_ = true;
-  }
+  initialized_ = initialize;
   return true;
 }
 
