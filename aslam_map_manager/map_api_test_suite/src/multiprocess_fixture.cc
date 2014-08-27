@@ -7,6 +7,10 @@
 #include <thread>
 #include <unistd.h>
 
+#ifdef TARGET_OS_MAC
+#include <mach-o/dyld.h>
+#endif
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -21,12 +25,28 @@ namespace map_api_test_suite {
 // http://stackoverflow.com/questions/5525668/how-to-implement-readlink-to-find-the-path
 std::string getSelfpath() {
   char buff[1024];
+#ifdef TARGET_OS_MAC
+  uint32_t len = sizeof(buff) - 1;
+  int status = _NSGetExecutablePath(buff, &len);
+  if (status != 0) {
+    len = -1;
+  }
+#elif defined __linux__
   ssize_t len = ::readlink("/proc/self/exe", buff, sizeof(buff) - 1);
+#else
+  LOG(FATAL) << "getSelfpath() not implemented for this platform.";
+#endif
   if (len != -1) {
     buff[len] = '\0';
     return std::string(buff);
   } else {
-    LOG(FATAL)<< "Failed to read link of /proc/self/exe";
+#ifdef TARGET_OS_MAC
+    LOG(FATAL) << "Failed to get executable path from _NSGetExecutablePath()";
+#elif defined __linux__
+    LOG(FATAL) << "Failed to read link of /proc/self/exe";
+#else
+    LOG(FATAL) << "getSelfpath() not implemented for this platform.";
+#endif
     return "";
   }
 }
