@@ -111,7 +111,8 @@ bool CRUTableRamSqlite::insertUpdatedCRUDerived(const Revision& query) {
 
 void CRUTableRamSqlite::findHistoryByRevisionCRUDerived(
     const std::string& /*key*/, const Revision& /*valueHolder*/,
-    HistoryMap* /*dest*/) {
+    const LogicalTime& /*time*/, HistoryMap* /*dest*/) {
+  // TODO(tcies) implement
   CHECK(false) << "Remains to be implemented";
 }
 
