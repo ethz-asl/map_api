@@ -10,7 +10,8 @@ catkin_simple(ALL_DEPS_REQUIRED)
 #############
 add_definitions(--std=c++11)
 
-include_directories("/usr/include/")
+# OSX mavericks mach-o/dyld.h
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/usr/include")
 
 cs_add_library(${PROJECT_NAME} src/multiprocess_fixture.cc)
 
