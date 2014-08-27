@@ -1,5 +1,5 @@
 #include <cstdio>
-#include <fstream>  // NOLINT
+#include <fstream>   // NOLINT
 #include <iostream>  // NOLINT
 #include <map>
 #include <sstream>
