@@ -125,6 +125,21 @@ size_t Chunk::itemsSizeBytes(const LogicalTime& time) {
   return num_bytes;
 }
 
+void Chunk::getCommitTimes(const LogicalTime& sample_time,
+                           std::set<LogicalTime>* commit_times) {
+  CRTable::RevisionMap items;
+  CRUTable::HistoryMap history;
+  distributedReadLock();
+  if (underlying_table_->type() == CRTable::Type::CR) {
+    underlying_table_->find(NetTable::kChunkIdField, id(), sample_time, &items);
+  } else {
+    CHECK(underlying_table_->type() == CRTable::Type::CRU);
+    CRUTable* table = static_cast<CRUTable*>(underlying_table_);
+    table->findHistory(NetTable::kChunkIdField, id(), sample_time, &items);
+  }
+  distributedUnlock();
+}
+
 bool Chunk::insert(Revision* item) {
   CHECK_NOTNULL(item);
   item->set(NetTable::kChunkIdField, id());
