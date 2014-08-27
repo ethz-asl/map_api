@@ -196,11 +196,8 @@ TEST_P(NetTableTest, Grind) {
   };
   std::unordered_map<Id, std::shared_ptr<Revision> > results;
   if (getSubprocessId() == 0) {
-    std::ostringstream extra_flags_ss;
-    extra_flags_ss << "--grind_processes=" << FLAGS_grind_processes << " ";
-    extra_flags_ss << "--grind_cycles=" << FLAGS_grind_cycles;
     for (uint64_t i = 1u; i < kProcesses; ++i) {
-      launchSubprocess(i, extra_flags_ss.str());
+      launchSubprocess(i);
     }
     Chunk* chunk = table_->newChunk();
     ASSERT_TRUE(chunk);
@@ -462,7 +459,8 @@ TEST_P(NetTableTest, SendHistory) {
       IPC::push(LogicalTime::sample());
     }
     Transaction insert_transaction;
-    CHECK(insert(kBefore, &item_id_, &insert_transaction));
+    insert(kBefore, &item_id_, &insert_transaction);
+    CHECK(insert_transaction.commit());
     if (GetParam()) {
       IPC::push(LogicalTime::sample());
       Transaction update_transaction;
@@ -476,6 +474,25 @@ TEST_P(NetTableTest, SendHistory) {
     IPC::barrier(A_DONE, 1);
     IPC::barrier(DIE, 1);
   }
+}
+
+TEST_P(NetTableTest, GetCommitTimes) {
+  chunk_ = table_->newChunk();
+  Transaction first;
+  Id id;
+  insert(42, &id, &first);
+  ASSERT_TRUE(first.commit());
+  Transaction second;
+  if (GetParam()) {
+    update(21, id, &second);
+  }
+  insert(42, &id, &second);
+  ASSERT_TRUE(second.commit());
+  std::set<LogicalTime> commit_times;
+  chunk_->getCommitTimes(LogicalTime::sample(), &commit_times);
+  EXPECT_EQ(2, commit_times.size());
+  EXPECT_TRUE(commit_times.find(first.getCommitTime()) != commit_times.end());
+  EXPECT_TRUE(commit_times.find(second.getCommitTime()) != commit_times.end());
 }
 
 }  // namespace map_api

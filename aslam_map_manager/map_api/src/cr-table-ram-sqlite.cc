@@ -19,7 +19,8 @@ bool CRTableRamSqlite::insertCRDerived(Revision* query) {
   return sqlite_interface_.insert(*query);
 }
 
-bool CRTableRamSqlite::bulkInsertCRDerived(const RevisionMap& query) {
+bool CRTableRamSqlite::bulkInsertCRDerived(const RevisionMap& query,
+                                           const LogicalTime& /*time*/) {
   return sqlite_interface_.bulkInsert(query);
 }
 
@@ -50,7 +51,7 @@ int CRTableRamSqlite::findByRevisionCRDerived(const std::string& key,
   try {
     statement.execute();
   }
-  catch (const std::exception& e) {
+  catch (const std::exception& e) {  // NOLINT
     LOG(FATAL) << "Find statement failed: " << statement.toString()
                << " with exception: " << e.what();
   }
@@ -88,7 +89,7 @@ int CRTableRamSqlite::countByRevisionCRDerived(const std::string& key,
   try {
     statement.execute();
   }
-  catch (const std::exception& e) {
+  catch (const std::exception& e) {  // NOLINT
     LOG(FATAL) << "Count statement failed: " << statement.toString()
                << " with exception: " << e.what();
   }

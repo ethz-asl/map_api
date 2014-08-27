@@ -11,7 +11,8 @@ bool CRTableRamMap::insertCRDerived(Revision* query) {
   return patchCRDerived(*query);
 }
 
-bool CRTableRamMap::bulkInsertCRDerived(const RevisionMap& query) {
+bool CRTableRamMap::bulkInsertCRDerived(const RevisionMap& query,
+                                        const LogicalTime& /*time*/) {
   for (const RevisionMap::value_type& pair : query) {
     if (data_.find(pair.first) != data_.end()) {
       return false;

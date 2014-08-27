@@ -80,7 +80,7 @@ bool Transaction::commit() {
       return false;
     }
   }
-  LogicalTime commit_time_ = LogicalTime::sample();
+  commit_time_ = LogicalTime::sample();
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->checkedCommit(commit_time_);
     net_table_transaction.second->unlock();

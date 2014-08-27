@@ -83,7 +83,7 @@ bool CRTable::bulkInsert(const RevisionMap& query,
     CHECK(id == id_revision.first) << "ID in RevisionMap doesn't match";
     id_revision.second->set(kInsertTimeField, time);
   }
-  return bulkInsertCRDerived(query);
+  return bulkInsertCRDerived(query, time);
 }
 
 bool CRTable::patch(const Revision& query) {
