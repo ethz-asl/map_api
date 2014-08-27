@@ -210,21 +210,23 @@ int SqliteInterface::PocoToProto::toProto(
     }
   }
   for (const std::pair<std::string, std::vector<Poco::Int32> >& fieldInt :
-      ints_){
+       ints_) {
     for (size_t i = 0; i < dest->size(); ++i) {
       (*dest)[i]->set(fieldInt.first, static_cast<int32_t>(fieldInt.second[i]));
     }
   }
   for (const std::pair<std::string, std::vector<Poco::Int64> >& fieldLong :
-      longs_){
+       longs_) {
     for (size_t i = 0; i < dest->size(); ++i) {
-      (*dest)[i]->set(fieldLong.first,static_cast<int64_t>(fieldLong.second[i]));
+      (*dest)[i]
+          ->set(fieldLong.first, static_cast<int64_t>(fieldLong.second[i]));
     }
   }
   for (const std::pair<std::string, std::vector<Poco::UInt64> >& fieldULong :
-      ulongs_){
+       ulongs_) {
     for (size_t i = 0; i < dest->size(); ++i) {
-      (*dest)[i]->set(fieldULong.first, static_cast<uint64_t>(fieldULong.second[i]));
+      (*dest)[i]
+          ->set(fieldULong.first, static_cast<uint64_t>(fieldULong.second[i]));
     }
   }
   for (const std::pair<std::string, std::vector<Poco::Data::BLOB> >&
@@ -240,11 +242,11 @@ int SqliteInterface::PocoToProto::toProto(
     }
   }
   for (const std::pair<std::string, std::vector<std::string> >& fieldHash :
-	 hashes_){
+       hashes_) {
     for (size_t i = 0; i < dest->size(); ++i) {
       Id value;
       CHECK(value.fromHexString(fieldHash.second[i])) << "Can't parse id from "
-						      << fieldHash.second[i];
+                                                      << fieldHash.second[i];
       (*dest)[i]->set(fieldHash.first, value);
     }
   }
