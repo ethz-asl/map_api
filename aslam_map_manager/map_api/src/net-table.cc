@@ -74,7 +74,7 @@ Chunk* NetTable::newChunk() {
 
 Chunk* NetTable::newChunk(const Id& chunk_id) {
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
-  CHECK(chunk->init(chunk_id, cache_.get()));
+  CHECK(chunk->init(chunk_id, cache_.get(), true));
   active_chunks_lock_.writeLock();
   std::pair<ChunkMap::iterator, bool> inserted =
       active_chunks_.insert(std::make_pair(chunk_id, std::unique_ptr<Chunk>()));

@@ -74,7 +74,7 @@ class NetTableTest : public MultiprocessTest,
     return insert_id;
   }
 
-  bool insert(int n, Id* id, Transaction* transaction) {
+  void insert(int n, Id* id, Transaction* transaction) {
     CHECK_NOTNULL(id);
     CHECK_NOTNULL(transaction);
     *id = Id::generate();
@@ -82,7 +82,14 @@ class NetTableTest : public MultiprocessTest,
     to_insert->set(CRTable::kIdField, *id);
     to_insert->set(kFieldName, n);
     transaction->insert(table_, chunk_, to_insert);
-    return transaction->commit();
+  }
+
+  void update(int n, const Id& id, Transaction* transaction) {
+    CHECK_NOTNULL(transaction);
+    std::shared_ptr<Revision> to_update =
+        transaction->getById(id, table_, chunk_);
+    to_update->set(kFieldName, n);
+    transaction->update(table_, to_update);
   }
 
   const std::string kTableName = "chunk_test_table";

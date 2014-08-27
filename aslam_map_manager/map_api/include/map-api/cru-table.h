@@ -70,7 +70,8 @@ class CRUTable : public CRTable {
  private:
   virtual bool initCRDerived() final override;
   virtual bool insertCRDerived(Revision* query) final override;
-  virtual bool bulkInsertCRDerived(const RevisionMap& query) final override;
+  virtual bool bulkInsertCRDerived(const RevisionMap& query,
+                                   const LogicalTime& time) final override;
   virtual int findByRevisionCRDerived(
       const std::string& key, const Revision& valueHolder,
       const LogicalTime& time, CRTable::RevisionMap* dest) final override;
