@@ -53,7 +53,7 @@ class Chunk {
   friend class ChunkTransaction;
 
  public:
-  bool init(const Id& id, CRTable* underlying_table);
+  bool init(const Id& id, CRTable* underlying_table, bool initialize = true);
   bool init(const Id& id, const proto::InitRequest& request,
             const PeerId& sender, CRTable* underlying_table);
 
@@ -145,6 +145,7 @@ class Chunk {
       WRITE_LOCKED
     };
     State state = State::UNLOCKED;
+    State preempted_state = State::UNLOCKED;
     int n_readers = 0;
     PeerId holder;
     std::thread::id thread;
@@ -200,6 +201,8 @@ class Chunk {
   void handleUpdateRequest(const Revision& item, const PeerId& sender,
                            Message* response);
 
+  void awaitInitialized() const;
+
   Id id_;
   PeerHandler peers_;
   CRTable* underlying_table_;
@@ -208,7 +211,8 @@ class Chunk {
   std::mutex trigger_mutex_;
   std::mutex add_peer_mutex_;
   Poco::RWLock leave_lock_;
-  bool relinquished_ = false;
+  volatile bool initialized_ = false;
+  volatile bool relinquished_ = false;
   bool log_locking_ = false;
   size_t self_rank_;
 

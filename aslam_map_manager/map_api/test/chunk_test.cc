@@ -196,11 +196,8 @@ TEST_P(NetTableTest, Grind) {
   };
   std::unordered_map<Id, std::shared_ptr<Revision> > results;
   if (getSubprocessId() == 0) {
-    std::ostringstream extra_flags_ss;
-    extra_flags_ss << "--grind_processes=" << FLAGS_grind_processes << " ";
-    extra_flags_ss << "--grind_cycles=" << FLAGS_grind_cycles;
     for (uint64_t i = 1u; i < kProcesses; ++i) {
-      launchSubprocess(i, extra_flags_ss.str());
+      launchSubprocess(i);
     }
     Chunk* chunk = table_->newChunk();
     ASSERT_TRUE(chunk);

@@ -82,6 +82,7 @@ int CRUTableRamMap::findByRevisionCRUDerived(const std::string& key,
       History::const_iterator latest = pair.second.latestAt(time, time_index);
       if (latest != pair.second.cend()) {
         if (key == "" || valueHolder.fieldMatch(*latest, key, field_index)) {
+          CHECK(dest->find(pair.first) == dest->end());
           CHECK(dest->insert(std::make_pair(
                                  pair.first,
                                  std::make_shared<Revision>(*latest))).second);
