@@ -8,7 +8,6 @@
 #include <glog/logging.h>
 
 #include <map-api/chunk.h>
-#include <map-api/id.h>
 #include <multiagent_mapping_common/aligned_allocation.h>
 #include <multiagent_mapping_common/unique_id.h>
 

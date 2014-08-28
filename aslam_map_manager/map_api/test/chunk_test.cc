@@ -389,7 +389,9 @@ TEST_P(NetTableTest, Triggers) {
       if (GetParam()) {
         transaction.update(table_, item);
       } else {
-        item->set(CRTable::kIdField, Id::generate());
+        Id insert_id;
+        generateId(&insert_id);
+        item->set(CRTable::kIdField, insert_id);
         transaction.insert(table_, chunk_, item);
       }
       CHECK(transaction.commit());
@@ -399,7 +401,9 @@ TEST_P(NetTableTest, Triggers) {
   if (getSubprocessId() == ROOT) {
     Transaction transaction;
     std::shared_ptr<Revision> item = table_->getTemplate();
-    item->set(CRTable::kIdField, Id::generate());
+    Id insert_id;
+    generateId(&insert_id);
+    item->set(CRTable::kIdField, insert_id);
     item->set(kFieldName, 0);
     transaction.insert(table_, chunk_, item);
     CHECK(transaction.commit());

@@ -1,11 +1,10 @@
 #include <Poco/Data/Common.h>
 #include <Poco/Data/BLOB.h>
 
-#include <map-api/id.h>
-#include <map-api/revision.h>
-#include <map-api/logical-time.h>
-
 #include <glog/logging.h>
+#include <map-api/logical-time.h>
+#include <map-api/revision.h>
+#include <map-api/unique-id.h>
 
 namespace map_api {
 

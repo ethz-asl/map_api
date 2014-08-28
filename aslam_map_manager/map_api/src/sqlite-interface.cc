@@ -1,6 +1,5 @@
 #include "map-api/sqlite-interface.h"
-
-#include "map-api/id.h"
+#include "map-api/unique-id.h"
 
 namespace map_api {
 

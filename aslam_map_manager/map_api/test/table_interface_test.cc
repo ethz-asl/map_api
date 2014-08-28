@@ -16,8 +16,8 @@
 #include "map-api/cr-table-ram-sqlite.h"
 #include "map-api/cru-table-ram-map.h"
 #include "map-api/cru-table-ram-sqlite.h"
-#include "map-api/id.h"
 #include "map-api/logical-time.h"
+#include "map-api/unique-id.h"
 
 #include "./test_table.cc"
 
@@ -210,7 +210,8 @@ class FieldTestWithoutInit
 
   Id fillRevision(const typename TableDataType::DataType& value) {
     getTemplate();
-    Id inserted = Id::generate();
+    Id inserted;
+    generateId(&inserted);
     query_->set(CRTable::kIdField, inserted);
     // to_insert_->set("owner", Id::random()); TODO(tcies) later, from core
     query_->set(FieldTestTableType::kTestField, value);
@@ -304,7 +305,9 @@ TYPED_TEST(FieldTestWithoutInit, CreateBeforeInit) {
 
 TYPED_TEST(FieldTestWithoutInit, ReadBeforeInit) {
   ::testing::FLAGS_gtest_death_test_style = "fast";
-  EXPECT_DEATH(this->table_->getById(Id::generate(), LogicalTime::sample()),
+  Id item_id;
+  generateId(&item_id);
+  EXPECT_DEATH(this->table_->getById(item_id, LogicalTime::sample()),
                "Attempted to getById from non-initialized table");
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 }
@@ -325,7 +328,8 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRow) {
   this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
-  Id other_id = Id::generate();
+  Id other_id;
+  generateId(&other_id);
   EXPECT_FALSE(this->table_->getById(other_id, LogicalTime::sample()));
 }
 

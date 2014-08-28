@@ -13,6 +13,7 @@
 #include <Poco/RWLock.h>
 
 #include <gtest/gtest.h>
+#include <map-api/unique-id.h>
 
 #include "map-api/message.h"
 #include "map-api/peer-id.h"

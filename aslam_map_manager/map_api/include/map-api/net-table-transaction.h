@@ -9,10 +9,10 @@
 
 #include "map-api/chunk.h"
 #include "map-api/chunk-transaction.h"
-#include "map-api/id.h"
+#include "map-api/logical-time.h"
 #include "map-api/net-table.h"
 #include "map-api/revision.h"
-#include "map-api/logical-time.h"
+#include "map-api/unique-id.h"
 
 namespace map_api {
 

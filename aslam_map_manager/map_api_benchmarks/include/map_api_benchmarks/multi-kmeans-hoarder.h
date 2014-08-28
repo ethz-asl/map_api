@@ -4,7 +4,7 @@
 #include <vector>
 
 #include <map-api/chunk.h>
-#include <map-api/id.h>
+#include <multiagent_mapping_common/unique_id.h>
 
 #include "map_api_benchmarks/common.h"
 
