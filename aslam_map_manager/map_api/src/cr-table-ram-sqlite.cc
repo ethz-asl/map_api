@@ -43,7 +43,7 @@ int CRTableRamSqlite::findByRevisionCRDerived(const std::string& key,
   statement << "SELECT";
   pocoToProto.into(statement);
   statement << "FROM " << name() << " WHERE " << kInsertTimeField << " <= ? ",
-    Poco::Data::use(serialized_time);
+      Poco::Data::use(serialized_time);
   if (key != "") {
     statement << " AND " << key << " LIKE ";
     data_holder.push_back(value_holder.insertPlaceHolder(key, statement));
