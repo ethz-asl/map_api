@@ -7,7 +7,7 @@
 #include <thread>
 #include <unistd.h>
 
-#ifdef TARGET_OS_MAC
+#ifdef __APPLE__
 #include <mach-o/dyld.h>
 #endif
 
@@ -25,7 +25,7 @@ namespace map_api_test_suite {
 // http://stackoverflow.com/questions/5525668/how-to-implement-readlink-to-find-the-path
 std::string getSelfpath() {
   char buff[1024];
-#ifdef TARGET_OS_MAC
+#ifdef __APPLE__
   uint32_t len = sizeof(buff) - 1;
   int status = _NSGetExecutablePath(buff, &len);
   if (status != 0) {
@@ -40,7 +40,7 @@ std::string getSelfpath() {
     buff[len] = '\0';
     return std::string(buff);
   } else {
-#ifdef TARGET_OS_MAC
+#ifdef __APPLE__
     LOG(FATAL) << "Failed to get executable path from _NSGetExecutablePath()";
 #elif defined __linux__
     LOG(FATAL) << "Failed to read link of /proc/self/exe";
