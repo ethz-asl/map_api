@@ -6,11 +6,16 @@
 #include <map-api/hub.h>
 #include <sm/hash_id.hpp>
 
-#define UNIQUE_ID_DEFINE_ID(TypeName)                  \
-  class TypeName : public common::UniqueId<TypeName> { \
-   public:                                             \
-    TypeName() = default;                              \
-  };                                                   \
+namespace map_api {
+template <typename IdType>
+class UniqueId;
+}  // namespace map_api
+
+#define UNIQUE_ID_DEFINE_ID(TypeName)                   \
+  class TypeName : public map_api::UniqueId<TypeName> { \
+   public:                                              \
+    TypeName() = default;                               \
+  };                                                    \
   extern void defineId##__FILE__##__LINE__(void)
 
 // this macro needs to be called outside of any namespace

@@ -8,8 +8,8 @@
 #include <glog/logging.h>
 
 #include <map-api/chunk.h>
+#include <map-api/unique-id.h>
 #include <multiagent_mapping_common/aligned_allocation.h>
-#include <multiagent_mapping_common/unique_id.h>
 
 #include "map_api_benchmarks/distance.h"
 #include "map_api_benchmarks/simple-kmeans.h"
