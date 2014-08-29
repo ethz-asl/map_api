@@ -41,12 +41,12 @@ int CRUTableRamSqlite::findByRevisionCRUDerived(const std::string& key,
   std::vector<std::shared_ptr<Poco::Data::BLOB> > data_holder;
   // TODO(tcies) evt. optimizations from http://www.sqlite.org/queryplanner.html
   statement << "SELECT ";
-  poco_to_proto.into(statement);
+  poco_to_proto.into(&statement);
   statement << " FROM " << name() << " WHERE " << kUpdateTimeField << " <  ? ",
       Poco::Data::use(serialized_time);
   if (key != "") {
     statement << " AND " << key << " LIKE ";
-    data_holder.push_back(value_holder.insertPlaceHolder(key, statement));
+    data_holder.push_back(value_holder.insertPlaceHolder(key, &statement));
   }
   try {
     statement.execute();
@@ -92,7 +92,7 @@ int CRUTableRamSqlite::countByRevisionCRUDerived(const std::string& key,
       Poco::Data::use(serialized_time);
   if (key != "") {
     statement << " AND " << key << " LIKE ";
-    data_holder.push_back(value_holder.insertPlaceHolder(key, statement));
+    data_holder.push_back(value_holder.insertPlaceHolder(key, &statement));
   }
   try {
     statement.execute();

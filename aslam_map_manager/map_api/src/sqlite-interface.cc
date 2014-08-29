@@ -27,7 +27,7 @@ bool SqliteInterface::create(const TableDescriptor& descriptor) {
   Poco::Data::Statement stat(*session);
   stat << "CREATE TABLE IF NOT EXISTS " << descriptor.name() << " (";
   // parse fields from descriptor as database fields
-  for (int i = 0; i < descriptor.fields_size(); ++i){
+  for (int i = 0; i < descriptor.fields_size(); ++i) {
     const proto::TableFieldDescriptor &fieldDescriptor = descriptor.fields(i);
     proto::TableField field;
     // The following is specified in protobuf but not available.
@@ -35,18 +35,32 @@ bool SqliteInterface::create(const TableDescriptor& descriptor) {
     // Consider upgrading once overwhelmingly necessary.
     // field.set_allocated_nametype(&fieldDescriptor);
     *field.mutable_nametype() = fieldDescriptor;
-    if (i != 0){
+    if (i != 0) {
       stat << ", ";
     }
     stat << fieldDescriptor.name() << " ";
-    switch (fieldDescriptor.type()){
-      case (proto::TableFieldDescriptor_Type_BLOB): stat << "BLOB"; break;
-      case (proto::TableFieldDescriptor_Type_DOUBLE): stat << "REAL"; break;
-      case (proto::TableFieldDescriptor_Type_HASH128): stat << "TEXT"; break;
-      case (proto::TableFieldDescriptor_Type_INT32): stat << "INTEGER"; break;
-      case (proto::TableFieldDescriptor_Type_INT64): stat << "INTEGER"; break;
-      case (proto::TableFieldDescriptor_Type_STRING): stat << "TEXT"; break;
-      case (proto::TableFieldDescriptor_Type_UINT64): stat << "INTEGER"; break;
+    switch (fieldDescriptor.type()) {
+      case proto::TableFieldDescriptor_Type_BLOB:
+        stat << "BLOB";
+        break;
+      case proto::TableFieldDescriptor_Type_DOUBLE:
+        stat << "REAL";
+        break;
+      case proto::TableFieldDescriptor_Type_HASH128:
+        stat << "TEXT";
+        break;
+      case proto::TableFieldDescriptor_Type_INT32:
+        stat << "INTEGER";
+        break;
+      case proto::TableFieldDescriptor_Type_INT64:
+        stat << "INTEGER";
+        break;
+      case proto::TableFieldDescriptor_Type_STRING:
+        stat << "TEXT";
+        break;
+      case proto::TableFieldDescriptor_Type_UINT64:
+        stat << "INTEGER";
+        break;
       default:
         LOG(FATAL) << "Field type not handled";
     }
@@ -57,7 +71,8 @@ bool SqliteInterface::create(const TableDescriptor& descriptor) {
 
   try {
     stat.execute();
-  } catch(const std::exception &e){
+  }
+  catch (const std::exception& e) {  // NOLINT
     LOG(FATAL) << "Create failed with exception " << e.what();
   }
 
@@ -77,17 +92,17 @@ bool SqliteInterface::insert(const Revision& to_insert) {
 
   statement << "(";
   for (int i = 0; i < to_insert.fieldqueries_size(); ++i) {
-    if (i > 0){
+    if (i > 0) {
       statement << ", ";
     }
     statement << to_insert.fieldqueries(i).nametype().name();
   }
   statement << ") VALUES ( ";
   for (int i = 0; i < to_insert.fieldqueries_size(); ++i) {
-    if (i > 0){
+    if (i > 0) {
       statement << " , ";
     }
-    placeholderBlobs.push_back(to_insert.insertPlaceHolder(i, statement));
+    placeholderBlobs.push_back(to_insert.insertPlaceHolder(i, &statement));
   }
   statement << " ); ";
 
@@ -107,7 +122,7 @@ bool SqliteInterface::bulkInsert(const CRTable::RevisionMap& to_insert) {
   std::shared_ptr<Poco::Data::Session> session = session_.lock();
   CHECK(session) << "Couldn't lock session weak pointer!";
   *session << "BEGIN TRANSACTION", Poco::Data::now;
-  for(const CRTable::RevisionMap::value_type& id_revision : to_insert) {
+  for (const CRTable::RevisionMap::value_type& id_revision : to_insert) {
     CHECK(insert(*id_revision.second));
   }
   *session << "COMMIT", Poco::Data::now;
@@ -133,49 +148,50 @@ SqliteInterface::PocoToProto::PocoToProto(
     const std::shared_ptr<Revision>& reference)
 : reference_(reference) {}
 
-void SqliteInterface::PocoToProto::into(Poco::Data::Statement& statement) {
-  statement << " ";
+void SqliteInterface::PocoToProto::into(Poco::Data::Statement* statement) {
+  CHECK_NOTNULL(statement);
+  *statement << " ";
   for (int i = 0; i < reference_->fieldqueries_size(); ++i) {
     if (i > 0) {
-      statement << ", ";
+      *statement << ", ";
     }
     const proto::TableField& field = reference_->fieldqueries(i);
-    statement << field.nametype().name();
-    switch(field.nametype().type()){
-      case (proto::TableFieldDescriptor_Type_BLOB):{
-        statement, Poco::Data::into(blobs_[field.nametype().name()]);
+    *statement << field.nametype().name();
+    switch (field.nametype().type()) {
+      case proto::TableFieldDescriptor_Type_BLOB: {
+        *statement, Poco::Data::into(blobs_[field.nametype().name()]);
         break;
       }
-      case (proto::TableFieldDescriptor_Type_DOUBLE):{
-        statement, Poco::Data::into(doubles_[field.nametype().name()]);
+      case proto::TableFieldDescriptor_Type_DOUBLE: {
+        *statement, Poco::Data::into(doubles_[field.nametype().name()]);
         break;
       }
-      case (proto::TableFieldDescriptor_Type_INT32):{
-        statement, Poco::Data::into(ints_[field.nametype().name()]);
+      case proto::TableFieldDescriptor_Type_INT32: {
+        *statement, Poco::Data::into(ints_[field.nametype().name()]);
         break;
       }
-      case (proto::TableFieldDescriptor_Type_INT64):{
-        statement, Poco::Data::into(longs_[field.nametype().name()]);
+      case proto::TableFieldDescriptor_Type_INT64: {
+        *statement, Poco::Data::into(longs_[field.nametype().name()]);
         break;
       }
-      case (proto::TableFieldDescriptor_Type_UINT64):{
-        statement, Poco::Data::into(ulongs_[field.nametype().name()]);
+      case proto::TableFieldDescriptor_Type_UINT64: {
+        *statement, Poco::Data::into(ulongs_[field.nametype().name()]);
         break;
       }
-      case (proto::TableFieldDescriptor_Type_STRING):{
-        statement, Poco::Data::into(strings_[field.nametype().name()]);
+      case proto::TableFieldDescriptor_Type_STRING: {
+        *statement, Poco::Data::into(strings_[field.nametype().name()]);
         break;
       }
-      case (proto::TableFieldDescriptor_Type_HASH128):{
-        statement, Poco::Data::into(hashes_[field.nametype().name()]);
+      case proto::TableFieldDescriptor_Type_HASH128: {
+        *statement, Poco::Data::into(hashes_[field.nametype().name()]);
         break;
       }
-      default:{
+      default: {
         LOG(FATAL) << "Type of field supplied to select query unknown";
       }
     }
   }
-  statement << " ";
+  *statement << " ";
 }
 
 int SqliteInterface::PocoToProto::resultSize() const {
@@ -203,7 +219,7 @@ int SqliteInterface::PocoToProto::toProto(
   // first by type, then by destination is necessary, otherwise cache-miss
   // heavy
   for (const std::pair<std::string, std::vector<double> >& fieldDouble :
-      doubles_){
+       doubles_) {
     for (size_t i = 0; i < dest->size(); ++i) {
       (*dest)[i]->set(fieldDouble.first, fieldDouble.second[i]);
     }
@@ -228,14 +244,14 @@ int SqliteInterface::PocoToProto::toProto(
           ->set(fieldULong.first, static_cast<uint64_t>(fieldULong.second[i]));
     }
   }
-  for (const std::pair<std::string, std::vector<Poco::Data::BLOB> >&
-      fieldBlob : blobs_){
+  for (const std::pair<std::string, std::vector<Poco::Data::BLOB> >& fieldBlob :
+       blobs_) {
     for (size_t i = 0; i < dest->size(); ++i) {
       (*dest)[i]->set(fieldBlob.first, fieldBlob.second[i]);
     }
   }
   for (const std::pair<std::string, std::vector<std::string> >& fieldString :
-      strings_){
+       strings_) {
     for (size_t i = 0; i < dest->size(); ++i) {
       (*dest)[i]->set(fieldString.first, fieldString.second[i]);
     }
