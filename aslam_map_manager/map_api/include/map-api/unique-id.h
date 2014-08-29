@@ -1,6 +1,7 @@
-#ifndef ID_H_
-#define ID_H_
+#ifndef MAP_API_UNIQUE_ID_H_
+#define MAP_API_UNIQUE_ID_H_
 #include <atomic>
+#include <string>
 
 #include <glog/logging.h>
 #include <map-api/hub.h>
@@ -87,7 +88,15 @@ class UniqueId : private Id {
     return sm::HashId::operator==(other);
   }
 
+  inline bool operator==(const Id& other) const {
+    return sm::HashId::operator==(other);
+  }
+
   inline bool operator!=(const IdType& other) const {
+    return sm::HashId::operator!=(other);
+  }
+
+  inline bool operator!=(const Id& other) const {
     return sm::HashId::operator!=(other);
   }
 
@@ -110,4 +119,4 @@ struct hash<map_api::Id> {
 };
 }  // namespace std
 
-#endif  // ID_H_
+#endif  // MAP_API_UNIQUE_ID_H_
