@@ -1,7 +1,10 @@
 #ifndef MAP_API_SQLITE_INTERFACE_H_
 #define MAP_API_SQLITE_INTERFACE_H_
 
+#include <map>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "map-api/cr-table.h"
 #include "map-api/revision.h"
@@ -56,12 +59,13 @@ class SqliteInterface {
      * To be inserted between "SELECT" and "FROM": Bind database outputs to
      * own structure.
      */
-    void into(Poco::Data::Statement& statement);
+    void into(Poco::Data::Statement* statement);
     /**
      * Applies the data obtained after statement execution onto a vector of
      * Protos. Returns the element count.
      */
     int toProto(std::vector<std::shared_ptr<Revision> >* dest) const;
+
    private:
     int resultSize() const;
     std::shared_ptr<Revision> reference_;
@@ -82,6 +86,6 @@ class SqliteInterface {
   std::weak_ptr<Poco::Data::Session> session_;
 };
 
-} /* namespace map_api */
+}  // namespace map_api
 
-#endif /* MAP_API_SQLITE_INTERFACE_H_ */
+#endif  // MAP_API_SQLITE_INTERFACE_H_

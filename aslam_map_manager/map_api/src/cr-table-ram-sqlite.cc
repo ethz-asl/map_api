@@ -41,12 +41,12 @@ int CRTableRamSqlite::findByRevisionCRDerived(const std::string& key,
   Poco::UInt64 serialized_time = time.serialize();
   std::vector<std::shared_ptr<Poco::Data::BLOB> > data_holder;
   statement << "SELECT";
-  pocoToProto.into(statement);
+  pocoToProto.into(&statement);
   statement << "FROM " << name() << " WHERE " << kInsertTimeField << " <= ? ",
       Poco::Data::use(serialized_time);
   if (key != "") {
     statement << " AND " << key << " LIKE ";
-    data_holder.push_back(value_holder.insertPlaceHolder(key, statement));
+    data_holder.push_back(value_holder.insertPlaceHolder(key, &statement));
   }
   try {
     statement.execute();
@@ -84,7 +84,7 @@ int CRTableRamSqlite::countByRevisionCRDerived(const std::string& key,
       Poco::Data::use(serialized_time);
   if (key != "") {
     statement << " AND " << key << " LIKE ";
-    data_holder.push_back(value_holder.insertPlaceHolder(key, statement));
+    data_holder.push_back(value_holder.insertPlaceHolder(key, &statement));
   }
   try {
     statement.execute();

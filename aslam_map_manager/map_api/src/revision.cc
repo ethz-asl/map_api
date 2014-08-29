@@ -19,58 +19,59 @@ bool Revision::find(const std::string& name, proto::TableField** field) {
 }
 
 std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(
-    int field, Poco::Data::Statement& stat) const {
+    int field, Poco::Data::Statement* stat) const {
+  CHECK_NOTNULL(stat);
   std::shared_ptr<Poco::Data::BLOB> blobPointer;
   if (!fieldqueries(field).nametype().has_type()) {
     LOG(FATAL) << "Trying to insert placeholder of undefined type";
     return blobPointer;
   }
-  stat << " ";
+  *stat << " ";
   switch (fieldqueries(field).nametype().type()) {
-    case(proto::TableFieldDescriptor_Type_BLOB) : {
+    case proto::TableFieldDescriptor_Type_BLOB: {
       blobPointer = std::make_shared<Poco::Data::BLOB>(
           Poco::Data::BLOB(fieldqueries(field).blobvalue()));
-      stat << "?", Poco::Data::use(*blobPointer);
+      *stat << "?", Poco::Data::use(*blobPointer);
       break;
     }
-    case (proto::TableFieldDescriptor_Type_DOUBLE): {
-      stat << fieldqueries(field).doublevalue();
+    case proto::TableFieldDescriptor_Type_DOUBLE: {
+      *stat << fieldqueries(field).doublevalue();
       break;
     }
-    case (proto::TableFieldDescriptor_Type_HASH128): {
-      stat << "?", Poco::Data::use(fieldqueries(field).stringvalue());
+    case proto::TableFieldDescriptor_Type_HASH128: {
+      *stat << "?", Poco::Data::use(fieldqueries(field).stringvalue());
       break;
     }
-    case (proto::TableFieldDescriptor_Type_INT32): {
-      stat << fieldqueries(field).intvalue();
+    case proto::TableFieldDescriptor_Type_INT32: {
+      *stat << fieldqueries(field).intvalue();
       break;
     }
     case(proto::TableFieldDescriptor_Type_UINT32) : {
-      stat << fieldqueries(field).uintvalue();
+      *stat << fieldqueries(field).uintvalue();
       break;
     }
-    case (proto::TableFieldDescriptor_Type_INT64): {
-      stat << fieldqueries(field).longvalue();
+    case proto::TableFieldDescriptor_Type_INT64: {
+      *stat << fieldqueries(field).longvalue();
       break;
     }
-    case (proto::TableFieldDescriptor_Type_UINT64): {
-      stat << fieldqueries(field).ulongvalue();
+    case proto::TableFieldDescriptor_Type_UINT64: {
+      *stat << fieldqueries(field).ulongvalue();
       break;
     }
-    case (proto::TableFieldDescriptor_Type_STRING): {
-      stat << "?",    Poco::Data::use(fieldqueries(field).stringvalue());
+    case proto::TableFieldDescriptor_Type_STRING: {
+      *stat << "?", Poco::Data::use(fieldqueries(field).stringvalue());
       break;
     }
     default:
       LOG(FATAL) << "Field type not handled";
       return blobPointer;
   }
-  stat << " ";
+  *stat << " ";
   return blobPointer;
 }
 
 std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(
-    const std::string& field, Poco::Data::Statement& stat) const {
+    const std::string& field, Poco::Data::Statement* stat) const {
   FieldMap::const_iterator fieldIt = fields_.find(field);
   CHECK(fieldIt != fields_.end()) << "Attempted to access inexisting field " <<
       field;
@@ -207,7 +208,7 @@ REVISION_SET(std::string) {
   field.set_stringvalue(value);
   return true;
 }
-REVISION_SET(double) {
+REVISION_SET(double) {  // NOLINT ("All parameters should be named ...")
   field.set_doublevalue(value);
   return true;
 }
@@ -219,7 +220,7 @@ REVISION_SET(uint32_t) {
   field.set_uintvalue(value);
   return true;
 }
-REVISION_SET(bool) {
+REVISION_SET(bool) {  // NOLINT ("All parameters should be named ...")
   field.set_intvalue(value ? 1 : 0);
   return true;
 }
@@ -263,7 +264,7 @@ REVISION_GET(std::string) {
   *value = field.stringvalue();
   return true;
 }
-REVISION_GET(double) {
+REVISION_GET(double) {  // NOLINT ("All parameters should be named ...")
   *value = field.doublevalue();
   return true;
 }
@@ -282,7 +283,7 @@ REVISION_GET(Id) {
   }
   return true;
 }
-REVISION_GET(bool) {
+REVISION_GET(bool) {  // NOLINT ("All parameters should be named ...")
   *value = field.intvalue() != 0;
   return true;
 }
