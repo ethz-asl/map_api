@@ -4,13 +4,12 @@
 #include <memory>
 
 #include <gtest/gtest.h>
-
 #include <Poco/Data/Common.h>
 
 #include "map-api/cr-table-ram-sqlite.h"
 #include "map-api/hub.h"
-#include "map-api/id.h"
 #include "map-api/net-table-manager.h"
+#include "map-api/unique-id.h"
 #include "core.pb.h"
 
 namespace map_api {

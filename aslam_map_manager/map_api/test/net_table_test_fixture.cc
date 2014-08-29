@@ -57,7 +57,8 @@ class NetTableTest : public MultiprocessTest,
   }
 
   Id insert(int n, Chunk* chunk) {
-    Id insert_id = Id::generate();
+    Id insert_id;
+    generateId(&insert_id);
     std::shared_ptr<Revision> to_insert = table_->getTemplate();
     to_insert->set(CRTable::kIdField, insert_id);
     to_insert->set(kFieldName, n);
@@ -66,7 +67,8 @@ class NetTableTest : public MultiprocessTest,
   }
 
   Id insert(int n, ChunkTransaction* transaction) {
-    Id insert_id = Id::generate();
+    Id insert_id;
+    generateId(&insert_id);
     std::shared_ptr<Revision> to_insert = table_->getTemplate();
     to_insert->set(CRTable::kIdField, insert_id);
     to_insert->set(kFieldName, n);
@@ -77,7 +79,7 @@ class NetTableTest : public MultiprocessTest,
   void insert(int n, Id* id, Transaction* transaction) {
     CHECK_NOTNULL(id);
     CHECK_NOTNULL(transaction);
-    *id = Id::generate();
+    generateId(id);
     std::shared_ptr<Revision> to_insert = table_->getTemplate();
     to_insert->set(CRTable::kIdField, *id);
     to_insert->set(kFieldName, n);

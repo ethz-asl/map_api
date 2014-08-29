@@ -68,7 +68,8 @@ std::shared_ptr<Revision> NetTable::getTemplate() const {
 }
 
 Chunk* NetTable::newChunk() {
-  Id chunk_id = Id::generate();
+  Id chunk_id;
+  map_api::generateId(&chunk_id);
   return newChunk(chunk_id);
 }
 
