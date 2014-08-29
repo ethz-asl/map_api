@@ -149,8 +149,8 @@ class CRTable {
 
   virtual Type type() const;
 
-  template <typename UniqueIdDerived>
-  static bool checkId(const Revision& revision, const UniqueIdDerived& id);
+  template <typename Derived>
+  static bool isIdEqual(const Revision& revision, const UniqueId<Derived>& id);
 
  protected:
   std::unique_ptr<TableDescriptor> descriptor_;
