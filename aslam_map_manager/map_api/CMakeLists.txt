@@ -37,7 +37,6 @@ SET(CORE_SOURCE  src/chord-index.cc
                  src/cru-table-ram-sqlite.cc
                  src/file-discovery.cc
                  src/hub.cc
-                 src/id.cc
                  src/ipc.cc
                  src/local-transaction.cc
                  src/logical-time.cc
@@ -54,7 +53,8 @@ SET(CORE_SOURCE  src/chord-index.cc
                  src/server-discovery.cc
                  src/sqlite-interface.cc
                  src/table-descriptor.cc
-                 src/transaction.cc)
+                 src/transaction.cc
+                 src/unique-id.cc)
                  
 cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
 # we need to add dependencies of external project packages to fetch headers
@@ -65,6 +65,10 @@ target_link_libraries(${PROJECT_NAME} ${POCO_LIBRARIES})
 cs_add_executable(discovery-server discovery-server/discovery-server.cc
                    ${PROTO_SRCS} ${PROTO_HDRS})
 target_link_libraries(discovery-server ${PROJECT_NAME})
+
+catkin_add_gtest(test_hash_id_hashing
+  test/test_hash_id_hashing.cc)
+target_link_libraries(test_hash_id_hashing ${PROJECT_NAME})
 
 ##########
 # GTESTS #

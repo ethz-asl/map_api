@@ -72,7 +72,9 @@ TEST_P(NetTableTest, NetTableTransactions) {
         NetTableTransaction attempt(table_);
         increment(ab_id, ab_chunk, &attempt);
         std::shared_ptr<Revision> to_insert = table_->getTemplate();
-        to_insert->set(CRTable::kIdField, Id::generate());
+        Id insert_id;
+        generateId(&insert_id);
+        to_insert->set(CRTable::kIdField, insert_id);
         to_insert->set(kFieldName, 42);
         attempt.insert(ab_chunk, to_insert);
         if (attempt.commit()) {
@@ -139,7 +141,7 @@ TEST_P(NetTableTest, Transactions) {
     ab_chunk = table_->newChunk();
     b_chunk = second_table->newChunk();
     ab_id = insert(0, ab_chunk);
-    b_id = Id::generate();
+    generateId(&b_id);
     std::shared_ptr<Revision> to_insert = second_table->getTemplate();
     to_insert->set(CRTable::kIdField, b_id);
     to_insert->set(kSecondTableFieldName, 0);
@@ -179,7 +181,9 @@ TEST_P(NetTableTest, Transactions) {
         Transaction attempt;
         increment(table_, ab_id, ab_chunk, &attempt);
         std::shared_ptr<Revision> to_insert = table_->getTemplate();
-        to_insert->set(CRTable::kIdField, Id::generate());
+        Id insert_id;
+        generateId(&insert_id);
+        to_insert->set(CRTable::kIdField, insert_id);
         to_insert->set(kFieldName, 42);
         attempt.insert(table_, ab_chunk, to_insert);
         if (attempt.commit()) {
@@ -228,10 +232,13 @@ TEST_P(NetTableTest, CommitTime) {
   Transaction transaction;
   // TODO(tcies) factor insertion into a NetTableTest function
   std::shared_ptr<Revision> to_insert_1 = table_->getTemplate();
-  to_insert_1->set(CRTable::kIdField, Id::generate());
+  Id insert_id;
+  generateId(&insert_id);
+  to_insert_1->set(CRTable::kIdField, insert_id);
   to_insert_1->set(kFieldName, 42);
   std::shared_ptr<Revision> to_insert_2 = table_->getTemplate();
-  to_insert_2->set(CRTable::kIdField, Id::generate());
+  generateId(&insert_id);
+  to_insert_2->set(CRTable::kIdField, insert_id);
   to_insert_2->set(kFieldName, 21);
   transaction.insert(table_, chunk, to_insert_1);
   transaction.insert(table_, chunk, to_insert_2);
