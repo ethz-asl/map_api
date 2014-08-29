@@ -202,6 +202,7 @@ inline bool LocalTransaction::hasContainerConflict<LocalTransaction::UpdateMap>(
     LocalTransaction::UpdateMap* container) {
   for (const std::pair<ItemId, const SharedRevisionPointer>& item :
        *container) {
+    CHECK(item.first.table->type() == CRTable::Type::CRU);
     CRUTable* table = static_cast<CRUTable*>(item.first.table);
     if (this->insertions_.find(item.first) != this->insertions_.end()) {
       return false;
