@@ -18,7 +18,21 @@ class UniqueId;
    public:                                              \
     TypeName() = default;                               \
   };                                                    \
-  extern void defineId##__FILE__##__LINE__(void)
+extern void defineId##__FILE__##__LINE__(void)
+
+
+#define UNIQUE_ID_DEFINE_IMMUTABLE_ID(TypeName, BaseTypeName)       \
+class TypeName : public map_api::UniqueId<TypeName> {               \
+ public:                                                            \
+ TypeName() = default;                                              \
+ inline void FromLandmarkId(const BaseTypeName& landmark_id) {      \
+   sm::HashId hash_id;                                              \
+   landmark_id.toHashId(&hash_id);                                  \
+   this->fromHashId(hash_id);                                       \
+ }                                                                  \
+};                                                                  \
+extern void defineId##__FILE__##__LINE__(void)
+
 
 // this macro needs to be called outside of any namespace
 #define UNIQUE_ID_DEFINE_ID_HASH(TypeName)                      \
