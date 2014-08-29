@@ -30,7 +30,7 @@ int LocalTransaction::find(const std::string& key, const ValueType& value,
   }
   dest->clear();
   findInUncommitted(*table, key, value, dest);
-  if (dest->size() > 0) {  // already have results in uncommited, merge from db
+  if (!dest->empty()) {  // already have results in uncommited, merge from db
     CRTable::RevisionMap from_database;
     {
       std::lock_guard<std::recursive_mutex> lock(dbMutex_);
