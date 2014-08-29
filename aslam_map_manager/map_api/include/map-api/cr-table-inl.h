@@ -17,8 +17,11 @@ std::shared_ptr<Revision> CRTable::getById(const IdType& id,
 template <typename Derived>
 CRTable::RevisionMap::iterator CRTable::RevisionMap::find(
     const UniqueId<Derived>& key) {
-  Id id_key(key);
-  return find(key);
+  Id id_key;
+  sm::HashId hash_id;
+  key.toHashId(&hash_id);
+  id_key.fromHashId(hash_id);  // TODO(tcies) avoid conversion? how?
+  return find(id_key);
 }
 
 template <typename Derived>
