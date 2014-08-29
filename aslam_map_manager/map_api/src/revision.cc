@@ -1,7 +1,7 @@
+#include <glog/logging.h>
 #include <Poco/Data/Common.h>
 #include <Poco/Data/BLOB.h>
 
-#include <glog/logging.h>
 #include <map-api/logical-time.h>
 #include <map-api/revision.h>
 #include <map-api/unique-id.h>

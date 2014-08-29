@@ -4,6 +4,7 @@
 
 #include <glog/logging.h>
 #include <map-api/hub.h>
+#include <map-api/internal/unique-id.h>
 #include <sm/hash_id.hpp>
 
 namespace map_api {
@@ -33,10 +34,6 @@ class UniqueId;
   extern void defineId##__FILE__##__LINE__(void)
 
 namespace map_api {
-namespace internal {
-std::string generateUniqueHexString();
-}  // namespace
-
 template <typename IdType>
 void generateId(IdType* id) {
   id->fromHexString(internal::generateUniqueHexString());
