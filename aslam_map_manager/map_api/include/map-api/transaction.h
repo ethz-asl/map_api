@@ -29,8 +29,10 @@ class Transaction {
    * Use the overload with chunk specification to increase performance. Use
    * dumpChunk() for best performance if reading out most of a chunk.
    */
-  std::shared_ptr<Revision> getById(const Id& id, NetTable* table);
-  std::shared_ptr<Revision> getById(const Id& id, NetTable* table,
+  template <typename IdType>
+  std::shared_ptr<Revision> getById(const IdType& id, NetTable* table);
+  template <typename IdType>
+  std::shared_ptr<Revision> getById(const IdType& id, NetTable* table,
                                     Chunk* chunk);
   CRTable::RevisionMap dumpChunk(NetTable* table, Chunk* chunk);
   CRTable::RevisionMap dumpActiveChunks(NetTable* table);

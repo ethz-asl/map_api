@@ -35,8 +35,10 @@ class ChunkTransaction {
   ChunkTransaction(const LogicalTime& begin_time, Chunk* chunk);
 
   // READ
-  std::shared_ptr<Revision> getById(const Id& id);
-  std::shared_ptr<Revision> getByIdFromUncommitted(const Id& id) const;
+  template <typename IdType>
+  std::shared_ptr<Revision> getById(const IdType& id);
+  template <typename IdType>
+  std::shared_ptr<Revision> getByIdFromUncommitted(const IdType& id) const;
   template <typename ValueType>
   std::shared_ptr<Revision> findUnique(
       const std::string& key, const ValueType& value);
@@ -72,10 +74,8 @@ class ChunkTransaction {
   /**
    * Strong typing of table operation maps.
    */
-  class InsertMap : public std::unordered_map<Id, std::shared_ptr<Revision> > {
-  };
-  class UpdateMap : public std::unordered_map<Id, std::shared_ptr<Revision> > {
-  };
+  class InsertMap : public CRTable::RevisionMap {};
+  class UpdateMap : public CRTable::RevisionMap {};
   struct ConflictCondition {
     const std::string key;
     const std::shared_ptr<Revision> value_holder;

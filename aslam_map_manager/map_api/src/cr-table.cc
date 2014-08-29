@@ -19,6 +19,14 @@ namespace map_api {
 const std::string CRTable::kIdField = "ID";
 const std::string CRTable::kInsertTimeField = "insert_time";
 
+std::pair<CRTable::RevisionMap::iterator, bool> CRTable::RevisionMap::insert(
+    const std::shared_ptr<Revision>& revision) {
+  CHECK_NOTNULL(revision.get());
+  Id id;
+  revision->get(kIdField, &id);
+  return insert(std::make_pair(id, revision));
+}
+
 CRTable::~CRTable() {}
 
 bool CRTable::init(std::unique_ptr<TableDescriptor>* descriptor) {
@@ -94,13 +102,6 @@ bool CRTable::patch(const Revision& query) {
   query.get(kIdField, &id);
   CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
   return patchCRDerived(query);
-}
-
-std::shared_ptr<Revision> CRTable::getById(
-    const Id &id, const LogicalTime& time) {
-  CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
-  CHECK_NE(id, Id()) << "Supplied invalid ID";
-  return findUnique(kIdField, id, time);
 }
 
 int CRTable::findByRevision(

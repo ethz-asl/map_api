@@ -18,30 +18,6 @@ ChunkTransaction::ChunkTransaction(const LogicalTime& begin_time, Chunk* chunk)
   structure_reference_ = chunk_->underlying_table_->getTemplate();
 }
 
-std::shared_ptr<Revision> ChunkTransaction::getById(const Id& id) {
-  std::shared_ptr<Revision> result = getByIdFromUncommitted(id);
-  if (result != nullptr) {
-    return result;
-  }
-  chunk_->readLock();
-  result = chunk_->underlying_table_->getById(id, begin_time_);
-  chunk_->unlock();
-  return result;
-}
-
-std::shared_ptr<Revision> ChunkTransaction::getByIdFromUncommitted(const Id& id)
-    const {
-  UpdateMap::const_iterator updated = updates_.find(id);
-  if (updated != updates_.end()) {
-    return updated->second;
-  }
-  InsertMap::const_iterator inserted = insertions_.find(id);
-  if (inserted != insertions_.end()) {
-    return inserted->second;
-  }
-  return std::shared_ptr<Revision>();
-}
-
 CRTable::RevisionMap ChunkTransaction::dumpChunk() {
   CRTable::RevisionMap result;
   chunk_->dumpItems(begin_time_, &result);
