@@ -6,9 +6,9 @@
 #include <set>
 #include <string>
 
+#include <glog/logging.h>
 #include <Poco/Data/BLOB.h>
 #include <Poco/Data/Statement.h>
-#include <glog/logging.h>
 
 #include "./core.pb.h"
 
