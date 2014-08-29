@@ -51,6 +51,13 @@ std::shared_ptr<Revision> CRTable::findUnique(const std::string& key,
   }
 }
 
+template <typename Derived>
+bool CRTable::isIdEqual(const Revision& revision, const UniqueId<Derived>& id) {
+  Id revision_id;
+  revision.get(kIdField, &revision_id);
+  return id == revision_id;
+}
+
 }  // namespace map_api
 
 #endif  // MAP_API_CR_TABLE_INL_H_
