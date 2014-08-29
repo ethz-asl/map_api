@@ -6,6 +6,7 @@
 #include <map>
 #include <string>
 #include <unordered_map>
+#include <utility>
 
 #include <Poco/Data/Common.h>
 #include <gflags/gflags.h>
@@ -27,7 +28,12 @@ class CRTable {
     CR,
     CRU
   };
-  typedef std::unordered_map<Id, std::shared_ptr<Revision> > RevisionMap;
+  class RevisionMap
+      : public std::unordered_map<Id, std::shared_ptr<Revision> > {
+   public:
+    using std::unordered_map<Id, std::shared_ptr<Revision> >::insert;
+    std::pair<iterator, bool> insert(const std::shared_ptr<Revision>& revision);
+  };
   /**
    * Default fields
    */

@@ -6,7 +6,9 @@
 #include <queue>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "map-api/cr-table.h"
 #include "map-api/cru-table.h"
@@ -65,8 +67,7 @@ class LocalTransaction {
   /**
    * Returns latest revision prior to transaction begin time for all contents
    */
-  bool dumpTable(CRTable* table,
-                 std::unordered_map<Id, SharedRevisionPointer>* dest);
+  bool dumpTable(CRTable* table, CRTable::RevisionMap* dest);
 
   /**
    * Fails if global state differs from groundState before updating
@@ -79,9 +80,9 @@ class LocalTransaction {
    * CRTableInterface because partial template
    * specialization of functions is not allowed in C++.
    */
-  template<typename ValueType>
+  template <typename ValueType>
   int find(const std::string& key, const ValueType& value, CRTable* table,
-           std::unordered_map<Id, SharedRevisionPointer>* dest) const;
+           CRTable::RevisionMap* dest) const;
   /**
    * Same as find(), but ensuring that there is only one result
    */
@@ -110,22 +111,20 @@ class LocalTransaction {
       const CRTable& table, const std::string& key, const ValueType& value)
   const;
 
-  class InsertMap : public std::map<ItemId, const SharedRevisionPointer>{
-  };
-  class UpdateMap : public std::map<ItemId, const SharedRevisionPointer>{
-  };
+  class InsertMap : public std::map<ItemId, const SharedRevisionPointer> {};
+  class UpdateMap : public std::map<ItemId, const SharedRevisionPointer> {};
 
   bool notifyAbortedOrInactive() const;
   /**
    * Returns true if the supplied insert/update request has a conflict
    */
-  template<typename Identifier>
-  bool hasItemConflict(Identifier& item);
+  template <typename Identifier>
+  bool hasItemConflict(Identifier* item);
   /**
    * Returns true if the supplied container has a conflict
    */
-  template<typename Container>
-  inline bool hasContainerConflict(Container& container);
+  template <typename Container>
+  inline bool hasContainerConflict(Container* container);
 
   /**
    * Maps of insert queries requested over the course of the
@@ -171,8 +170,8 @@ class LocalTransaction {
   static std::recursive_mutex dbMutex_;
 };
 
-} /* namespace map_api */
+}  // namespace map_api
 
 #include "map-api/local-transaction-inl.h"
 
-#endif /* MAP_API_LOCAL_TRANSACTION_H_ */
+#endif  // MAP_API_LOCAL_TRANSACTION_H_
