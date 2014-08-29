@@ -101,7 +101,8 @@ bool LocalTransaction::abort(){
 Id LocalTransaction::insert(const SharedRevisionPointer& item,
                             CRTable* table){
   CHECK_NOTNULL(table);
-  Id id(Id::generate());
+  Id id;
+  map_api::generateId(&id);
   if (!insert(id, item, table)){
     return Id();
   }

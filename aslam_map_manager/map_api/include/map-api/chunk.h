@@ -14,10 +14,10 @@
 #include <zeromq_cpp/zmq.hpp>
 
 #include "map-api/cr-table-ram-sqlite.h"
-#include "map-api/id.h"
 #include "map-api/peer-handler.h"
 #include "map-api/message.h"
 #include "map-api/revision.h"
+#include "map-api/unique-id.h"
 #include "./chunk.pb.h"
 
 namespace map_api {

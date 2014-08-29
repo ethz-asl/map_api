@@ -33,7 +33,7 @@ void KmeansSubdivisionView::insert(
     const DescriptorType& descriptor = descriptors[i];
     std::shared_ptr<Revision> to_insert = app::data_point_table->getTemplate();
     Id id;
-    common::generateId(&id);
+    map_api::generateId(&id);
     descriptor_id_to_index_[id] = i;
     descriptor_index_to_id_[i] = id;
     app::descriptorToRevision(descriptor, id, to_insert.get());
@@ -51,7 +51,7 @@ void KmeansSubdivisionView::insert(
     const DescriptorType& center = centers[i];
     std::shared_ptr<Revision> to_insert = app::center_table->getTemplate();
     Id id;
-    common::generateId(&id);
+    map_api::generateId(&id);
     center_id_to_index_[id] = i;
     center_index_to_id_[i] = id;
     app::centerToRevision(center, id, to_insert.get());

@@ -7,8 +7,8 @@
 #include <string>
 #include <unordered_map>
 
-#include "map-api/id.h"
 #include "map-api/message.h"
+#include "map-api/unique-id.h"
 #include "./core.pb.h"
 
 namespace map_api {

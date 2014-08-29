@@ -321,7 +321,9 @@ bool NetTableManager::syncTableDefinition(
   ChunkTransaction try_insert(metatable_chunk_);
   NetTable& metatable = getTable(kMetaTableName);
   std::shared_ptr<Revision> attempt = metatable.getTemplate();
-  attempt->set(CRTable::kIdField, Id::generate());
+  Id metatable_id;
+  map_api::generateId(&metatable_id);
+  attempt->set(CRTable::kIdField, metatable_id);
   attempt->set(kMetaTableNameField, descriptor.name());
   proto::PeerList peers;
   peers.add_peers(PeerId::self().ipPort());

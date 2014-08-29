@@ -7,10 +7,10 @@
 
 #include <glog/logging.h>
 
-#include "map-api/id.h"
 #include "map-api/logical-time.h"
 #include "map-api/net-table.h"
 #include "map-api/net-table-transaction.h"
+#include "map-api/unique-id.h"
 
 namespace map_api {
 class Chunk;

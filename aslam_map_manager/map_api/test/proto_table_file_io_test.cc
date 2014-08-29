@@ -19,8 +19,10 @@ TEST_P(NetTableTest, SaveAndRestoreFromFile) {
   Chunk* chunk = table_->newChunk();
   CHECK_NOTNULL(chunk);
   Id chunk_id = chunk->id();
-  Id item_1_id = Id::generate();
-  Id item_2_id = Id::generate();
+  Id item_1_id;
+  generateId(&item_1_id);
+  Id item_2_id;
+  generateId(&item_2_id);
   {
     Transaction transaction;
     std::shared_ptr<Revision> to_insert_1 = table_->getTemplate();
