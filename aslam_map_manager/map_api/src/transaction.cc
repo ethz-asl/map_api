@@ -16,18 +16,6 @@ Transaction::Transaction(const LogicalTime& begin_time)
   CHECK(begin_time < LogicalTime::sample());
 }
 
-std::shared_ptr<Revision> Transaction::getById(const Id& id, NetTable* table) {
-  CHECK_NOTNULL(table);
-  return transactionOf(table)->getById(id);
-}
-
-std::shared_ptr<Revision> Transaction::getById(const Id& id, NetTable* table,
-                                               Chunk* chunk) {
-  CHECK_NOTNULL(table);
-  CHECK_NOTNULL(chunk);
-  return transactionOf(table)->getById(id, chunk);
-}
-
 CRTable::RevisionMap Transaction::dumpChunk(NetTable* table, Chunk* chunk) {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(chunk);
