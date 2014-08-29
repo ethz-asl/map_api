@@ -35,8 +35,10 @@ class ChunkTransaction {
   ChunkTransaction(const LogicalTime& begin_time, Chunk* chunk);
 
   // READ
-  std::shared_ptr<Revision> getById(const Id& id);
-  std::shared_ptr<Revision> getByIdFromUncommitted(const Id& id) const;
+  template <typename IdType>
+  std::shared_ptr<Revision> getById(const IdType& id);
+  template <typename IdType>
+  std::shared_ptr<Revision> getByIdFromUncommitted(const IdType& id) const;
   template <typename ValueType>
   std::shared_ptr<Revision> findUnique(
       const std::string& key, const ValueType& value);

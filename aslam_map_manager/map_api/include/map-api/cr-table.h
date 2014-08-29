@@ -31,6 +31,11 @@ class CRTable {
   class RevisionMap
       : public std::unordered_map<Id, std::shared_ptr<Revision> > {
    public:
+    using std::unordered_map<Id, std::shared_ptr<Revision> >::find;
+    template <typename Derived>
+    iterator find(const UniqueId<Derived>& key);
+    template <typename Derived>
+    const_iterator find(const UniqueId<Derived>& key) const;
     using std::unordered_map<Id, std::shared_ptr<Revision> >::insert;
     std::pair<iterator, bool> insert(const std::shared_ptr<Revision>& revision);
   };
@@ -98,8 +103,8 @@ class CRTable {
    * Returns revision of item that has been current at "time" or an invalid
    * pointer if the item hasn't been inserted at "time"
    */
-  virtual std::shared_ptr<Revision> getById(
-      const Id& id, const LogicalTime& time);
+  template <typename IdType>
+  std::shared_ptr<Revision> getById(const IdType& id, const LogicalTime& time);
   /**
    * Puts all items that match key = value at time into dest and returns the
    * amount of items in dest.

@@ -104,13 +104,6 @@ bool CRTable::patch(const Revision& query) {
   return patchCRDerived(query);
 }
 
-std::shared_ptr<Revision> CRTable::getById(
-    const Id &id, const LogicalTime& time) {
-  CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
-  CHECK_NE(id, Id()) << "Supplied invalid ID";
-  return findUnique(kIdField, id, time);
-}
-
 int CRTable::findByRevision(
     const std::string& key, const Revision& valueHolder,
     const LogicalTime& time, RevisionMap* dest) {
