@@ -202,11 +202,11 @@ inline bool LocalTransaction::hasContainerConflict<LocalTransaction::UpdateMap>(
     LocalTransaction::UpdateMap* container) {
   for (const std::pair<ItemId, const SharedRevisionPointer>& item :
        *container) {
-    CHECK(item.first.table->type() == CRTable::Type::CRU);
-    CRUTable* table = static_cast<CRUTable*>(item.first.table);
     if (this->insertions_.find(item.first) != this->insertions_.end()) {
       return false;
     }
+    CHECK(item.first.table->type() == CRTable::Type::CRU);
+    CRUTable* table = static_cast<CRUTable*>(item.first.table);
     LogicalTime latest_update;
     if (!table->getLatestUpdateTime(item.first.id, &latest_update)) {
       LOG(FATAL) << "Error retrieving update time";
