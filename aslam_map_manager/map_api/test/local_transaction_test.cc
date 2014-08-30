@@ -11,7 +11,7 @@
 
 #include "./test_table.cc"
 
-using namespace map_api;
+namespace map_api {
 
 /**
  * CRU table for query tests TODO(tcies) test a CRTable
@@ -210,10 +210,11 @@ class MultiTransactionSingleCRUTest : public MultiTransactionTest {
     EXPECT_TRUE(row->get(TransactionTestTable::sampleField(), &actual));
     EXPECT_EQ(expected, actual);
   }
-  void dump(LocalTransaction& transaction) {
+  void dump(LocalTransaction* transaction) {
+    CHECK_NOTNULL(transaction);
     dump_set_.clear();
-    std::unordered_map<Id, std::shared_ptr<Revision> > dump;
-    transaction.dumpTable(table_, &dump);
+    CRTable::RevisionMap dump;
+    transaction->dumpTable(table_, &dump);
     for (const std::pair<Id, std::shared_ptr<Revision> >& item : dump) {
       double value;
       item.second->get(TransactionTestTable::sampleField(), &value);
@@ -314,7 +315,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertInsertCommitDump) {
   insertSample(5.67, &a_insert);
   a_insert.commit();
   LocalTransaction& a_dump = a.beginNewTransaction();
-  dump(a_dump);
+  dump(&a_dump);
   EXPECT_EQ(2u, dump_set_.size());
   EXPECT_NE(dump_set_.end(), dump_set_.find(3.14));
   EXPECT_NE(dump_set_.end(), dump_set_.find(5.67));
@@ -327,7 +328,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertCommitInsertDump) {
   a_insert.commit();
   LocalTransaction& a_dump = a.beginNewTransaction();
   insertSample(5.67, &a_dump);
-  dump(a_dump);
+  dump(&a_dump);
   EXPECT_EQ(2u, dump_set_.size());
   EXPECT_NE(dump_set_.end(), dump_set_.find(3.14));
   EXPECT_NE(dump_set_.end(), dump_set_.find(5.67));
@@ -344,7 +345,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertInsertCommitUpdateCommitDump) {
   updateSample(to_update, 9.81, &a_update);
   a_update.commit();
   LocalTransaction& a_dump = a.beginNewTransaction();
-  dump(a_dump);
+  dump(&a_dump);
   EXPECT_EQ(2u, dump_set_.size());
   EXPECT_NE(dump_set_.end(), dump_set_.find(3.14));
   EXPECT_NE(dump_set_.end(), dump_set_.find(9.81));
@@ -359,7 +360,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertInsertCommitUpdateDump) {
   a_insert.commit();
   LocalTransaction& a_dump = a.beginNewTransaction();
   updateSample(to_update, 9.81, &a_dump);
-  dump(a_dump);
+  dump(&a_dump);
   EXPECT_EQ(2u, dump_set_.size());
   EXPECT_NE(dump_set_.end(), dump_set_.find(3.14));
   EXPECT_NE(dump_set_.end(), dump_set_.find(9.81));
@@ -374,7 +375,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertCommitInsertUpdateDump) {
   LocalTransaction& a_dump = a.beginNewTransaction();
   to_update = insertSample(5.67, &a_dump);
   updateSample(to_update, 9.81, &a_dump);
-  dump(a_dump);
+  dump(&a_dump);
   EXPECT_EQ(2u, dump_set_.size());
   EXPECT_NE(dump_set_.end(), dump_set_.find(3.14));
   EXPECT_NE(dump_set_.end(), dump_set_.find(9.81));
@@ -440,7 +441,7 @@ TEST_F(MultiTransactionSingleCRUTest, FindMultiCommitetd) {
   a_insert.commit();
 
   LocalTransaction& a_find = a.beginNewTransaction();
-  std::unordered_map<Id, std::shared_ptr<Revision> > found;
+  CRTable::RevisionMap found;
   EXPECT_EQ(2u, a_find.find(TransactionTestTable::sampleField(), 5.67, table_,
                             &found));
   for (const Id& expected : expected_find) {
@@ -458,7 +459,7 @@ TEST_F(MultiTransactionSingleCRUTest, FindMultiMixed) {
 
   LocalTransaction& a_find = a.beginNewTransaction();
   expected_find.insert(insertSample(5.67, &a_find));
-  std::unordered_map<Id, std::shared_ptr<Revision> > found;
+  CRTable::RevisionMap found;
   EXPECT_EQ(
       expected_find.size(),
       a_find.find(TransactionTestTable::sampleField(), 5.67, table_, &found));
@@ -466,5 +467,7 @@ TEST_F(MultiTransactionSingleCRUTest, FindMultiMixed) {
     EXPECT_NE(found.end(), found.find(expected));
   }
 }
+
+}  // namespace map_api
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
