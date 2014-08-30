@@ -16,6 +16,11 @@ CRTable::RevisionMap NetTable::lockFind(const std::string& key,
   return result;
 }
 
+template <typename IdType>
+std::shared_ptr<Revision> NetTable::getByIdInconsistent(const IdType& id) {
+  return cache_->getById(id, LogicalTime::sample());
+}
+
 }  // namespace map_api
 
 #endif  // MAP_API_NET_TABLE_INL_H_

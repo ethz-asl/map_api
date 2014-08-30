@@ -13,17 +13,6 @@ NetTableTransaction::NetTableTransaction(
   CHECK(begin_time < LogicalTime::sample());
 }
 
-std::shared_ptr<Revision> NetTableTransaction::getById(const Id& id) {
-  Chunk* chunk = chunkOf(id);
-  return getById(id, chunk);
-}
-
-std::shared_ptr<Revision> NetTableTransaction::getById(const Id& id,
-                                                       Chunk* chunk) {
-  CHECK_NOTNULL(chunk);
-  return transactionOf(chunk)->getById(id);
-}
-
 CRTable::RevisionMap NetTableTransaction::dumpChunk(Chunk* chunk) {
   CHECK_NOTNULL(chunk);
   return transactionOf(chunk)->dumpChunk();
@@ -137,15 +126,6 @@ ChunkTransaction* NetTableTransaction::transactionOf(Chunk* chunk) {
     chunk_transaction = inserted.first;
   }
   return chunk_transaction->second.get();
-}
-
-Chunk* NetTableTransaction::chunkOf(const Id& id) {
-  // TODO(tcies) uncommitted
-  // using the latest logical time ensures fastest lookup
-  std::shared_ptr<Revision> latest = table_->getByIdInconsistent(id);
-  Id chunk_id;
-  latest->get(NetTable::kChunkIdField, &chunk_id);
-  return table_->getChunk(chunk_id);
 }
 
 } /* namespace map_api */
