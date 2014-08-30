@@ -125,7 +125,8 @@ class NetTable {
    * could be nice and simple to implement
    */
   bool update(Revision* query);
-  std::shared_ptr<Revision> getByIdInconsistent(const Id& id);
+  template <typename IdType>
+  std::shared_ptr<Revision> getByIdInconsistent(const IdType& id);
 
   void readLockActiveChunks();
   void unlockActiveChunks();

@@ -148,7 +148,7 @@ TEST_P(NetTableTest, RemoteUpdate) {
     A_UPDATED,
     DIE
   };
-  std::unordered_map<Id, std::shared_ptr<Revision> > results;
+  CRTable::RevisionMap results;
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
     Chunk* chunk = table_->newChunk();
@@ -194,7 +194,7 @@ TEST_P(NetTableTest, Grind) {
     ID_SHARED,
     DIE
   };
-  std::unordered_map<Id, std::shared_ptr<Revision> > results;
+  CRTable::RevisionMap results;
   if (getSubprocessId() == 0) {
     for (uint64_t i = 1u; i < kProcesses; ++i) {
       launchSubprocess(i);
@@ -234,7 +234,7 @@ TEST_P(NetTableTest, ChunkTransactions) {
     IDS_SHARED,
     DIE
   };
-  std::unordered_map<Id, std::shared_ptr<Revision> > results;
+  CRTable::RevisionMap results;
   if (getSubprocessId() == 0) {
     std::ostringstream extra_flags_ss;
     extra_flags_ss << "--grind_processes=" << FLAGS_grind_processes << " ";

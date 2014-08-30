@@ -123,6 +123,13 @@ inline ostream& operator<<(ostream& out, const map_api::Id& hash) {
   return out;
 }
 
+template <typename IdType>
+inline ostream& operator<<(ostream& out,
+                           const map_api::UniqueId<IdType>& hash) {
+  out << "Id(" << hash.hexString() << ")";
+  return out;
+}
+
 template <>
 struct hash<map_api::Id> {
   std::size_t operator()(const map_api::Id& hashId) const {

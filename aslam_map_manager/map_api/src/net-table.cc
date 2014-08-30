@@ -129,10 +129,6 @@ bool NetTable::update(Revision* query) {
   return true;
 }
 
-std::shared_ptr<Revision> NetTable::getByIdInconsistent(const Id& id) {
-  return cache_->getById(id, LogicalTime::sample());
-}
-
 void NetTable::dumpActiveChunks(const LogicalTime& time,
                                 CRTable::RevisionMap* destination) {
   CHECK_NOTNULL(destination);

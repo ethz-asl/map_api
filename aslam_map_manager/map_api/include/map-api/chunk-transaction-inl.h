@@ -14,6 +14,32 @@ void ChunkTransaction::addConflictCondition(
   conflict_conditions_.push_back(ConflictCondition(key, value_holder));
 }
 
+template <typename IdType>
+std::shared_ptr<Revision> ChunkTransaction::getById(const IdType& id) {
+  std::shared_ptr<Revision> result = getByIdFromUncommitted(id);
+  if (result != nullptr) {
+    return result;
+  }
+  chunk_->readLock();
+  result = chunk_->underlying_table_->getById(id, begin_time_);
+  chunk_->unlock();
+  return result;
+}
+
+template <typename IdType>
+std::shared_ptr<Revision> ChunkTransaction::getByIdFromUncommitted(
+    const IdType& id) const {
+  UpdateMap::const_iterator updated = updates_.find(id);
+  if (updated != updates_.end()) {
+    return updated->second;
+  }
+  InsertMap::const_iterator inserted = insertions_.find(id);
+  if (inserted != insertions_.end()) {
+    return inserted->second;
+  }
+  return std::shared_ptr<Revision>();
+}
+
 template <typename ValueType>
 std::shared_ptr<Revision> ChunkTransaction::findUnique(
     const std::string& key, const ValueType& value) {
