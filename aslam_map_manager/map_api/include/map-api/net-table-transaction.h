@@ -26,8 +26,10 @@ class NetTableTransaction {
   NetTableTransaction(const LogicalTime& begin_time, NetTable* table);
 
   // READ (see transaction.h)
-  std::shared_ptr<Revision> getById(const Id& id);
-  std::shared_ptr<Revision> getById(const Id& id, Chunk* chunk);
+  template <typename IdType>
+  std::shared_ptr<Revision> getById(const IdType& id);
+  template <typename IdType>
+  std::shared_ptr<Revision> getById(const IdType& id, Chunk* chunk);
   CRTable::RevisionMap dumpChunk(Chunk* chunk);
   CRTable::RevisionMap dumpActiveChunks();
   template <typename ValueType>
@@ -65,7 +67,8 @@ class NetTableTransaction {
 
   // INTERNAL
   ChunkTransaction* transactionOf(Chunk* chunk);
-  Chunk* chunkOf(const Id& id);
+  template <typename IdType>
+  Chunk* chunkOf(const IdType& id);
   /**
    * A global ordering of chunks prevents deadlocks (resource hierarchy
    * solution)

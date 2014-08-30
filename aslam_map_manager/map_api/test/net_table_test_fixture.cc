@@ -23,7 +23,7 @@ class NetTableTest : public MultiprocessTest,
   }
 
   size_t count() {
-    std::unordered_map<Id, std::shared_ptr<Revision> > results;
+    CRTable::RevisionMap results;
     table_->dumpActiveChunksAtCurrentTime(&results);
     return results.size();
   }

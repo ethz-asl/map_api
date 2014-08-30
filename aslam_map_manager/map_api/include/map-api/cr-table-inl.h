@@ -6,9 +6,37 @@
 
 namespace map_api {
 
-template<typename ValueType>
+template <typename IdType>
+std::shared_ptr<Revision> CRTable::getById(const IdType& id,
+                                           const LogicalTime& time) {
+  CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
+  CHECK(id.isValid()) << "Supplied invalid ID";
+  return findUnique(kIdField, id, time);
+}
+
+template <typename Derived>
+CRTable::RevisionMap::iterator CRTable::RevisionMap::find(
+    const UniqueId<Derived>& key) {
+  Id id_key;
+  sm::HashId hash_id;
+  key.toHashId(&hash_id);
+  id_key.fromHashId(hash_id);  // TODO(tcies) avoid conversion? how?
+  return find(id_key);
+}
+
+template <typename Derived>
+CRTable::RevisionMap::const_iterator CRTable::RevisionMap::find(
+    const UniqueId<Derived>& key) const {
+  Id id_key;
+  sm::HashId hash_id;
+  key.toHashId(&hash_id);
+  id_key.fromHashId(hash_id);  // TODO(tcies) avoid conversion? how?
+  return find(id_key);
+}
+
+template <typename ValueType>
 int CRTable::find(const std::string& key, const ValueType& value,
-                     const LogicalTime& time, RevisionMap* dest) {
+                  const LogicalTime& time, RevisionMap* dest) {
   std::shared_ptr<Revision> valueHolder = this->getTemplate();
   if (key != "") {
     valueHolder->set(key, value);
