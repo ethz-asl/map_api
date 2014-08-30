@@ -161,7 +161,7 @@ NetTable& NetTableManager::getTable(const std::string& name) {
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = tables_.find(name);
   // TODO(tcies) load table schema from metatable if not active
-  CHECK(found != tables_.end());
+  CHECK(found != tables_.end()) << "Table not found: " << name;
   tables_lock_.unlock();
   return *found->second;
 }
