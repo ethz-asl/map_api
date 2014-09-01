@@ -2,6 +2,7 @@
 
 #include <timing/timer.h>
 
+#include "map-api/cache-base.h"
 #include "map-api/chunk.h"
 #include "map-api/chunk-manager.h"
 #include "map-api/net-table.h"
@@ -54,6 +55,9 @@ void Transaction::update(NetTable* table, std::shared_ptr<Revision> revision) {
 // net_table_transactions_, and have the locks acquired in that order
 // (resource hierarchy solution)
 bool Transaction::commit() {
+  for (const CacheMap::value_type& cache_pair : attached_caches_) {
+    cache_pair.second->prepareForCommit();
+  }
   timing::Timer timer("map_api::Transaction::commit - lock");
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->lock();
@@ -112,6 +116,10 @@ size_t Transaction::numChangedItems() const {
     count += net_table_transaction.second->numChangedItems();
   }
   return count;
+}
+
+void Transaction::attachCache(NetTable* table, CacheBase* cache) {
+  attached_caches_.emplace(table, cache);
 }
 
 NetTableTransaction* Transaction::transactionOf(NetTable* table) {

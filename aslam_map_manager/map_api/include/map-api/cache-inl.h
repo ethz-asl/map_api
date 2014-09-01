@@ -11,7 +11,7 @@ Cache<IdType, Value>::Cache(const std::shared_ptr<Transaction>& transaction,
     : transaction_(transaction), underlying_table_(CHECK_NOTNULL(table)) {}
 
 template <typename IdType, typename Value>
-std::shared_ptr<Value> Cache<IdType, Value>::get(const UniqueId<IdType>& id) {}
+Value& Cache<IdType, Value>::get(const UniqueId<IdType>& id) {}
 
 template <typename IdType, typename Value>
 bool Cache<IdType, Value>::insert(const UniqueId<IdType>& id,

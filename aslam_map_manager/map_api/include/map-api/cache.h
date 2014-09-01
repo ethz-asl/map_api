@@ -1,11 +1,13 @@
 #ifndef MAP_API_CACHE_H_
 #define MAP_API_CACHE_H_
 
+#include "map-api/cache-base.h"
 #include "map-api/revision.h"
-#include "map-api/transaction.h"
 #include "map-api/unique-id.h"
 
 namespace map_api {
+class NetTable;
+class Transaction;
 
 /**
  * Needs to be implemented by applications.
@@ -20,10 +22,10 @@ void objectToRevision(const ObjectType& vertex, map_api::Revision* revision);
  * IdType needs to be a UniqueId
  */
 template <typename IdType, typename Value>
-class Cache {
+class Cache : public CacheBase {
  public:
   Cache(const std::shared_ptr<Transaction>& transaction, NetTable* table);
-  std::shared_ptr<Value> get(const UniqueId<IdType>& id);
+  Value& get(const UniqueId<IdType>& id);
   /**
    * @return false if some item with same id already in cache
    */
@@ -35,6 +37,8 @@ class Cache {
   void getAllAvailableIds(std::unordered_set<IdType>* available_ids);
 
  private:
+  virtual void prepareForCommit() override;
+
   std::unordered_map<IdType, std::shared_ptr<Value> > cache_;
   CRTable::RevisionMap revisions_;
   std::shared_ptr<Transaction> transaction_;
