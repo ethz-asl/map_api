@@ -13,7 +13,7 @@ namespace map_api {
 
 Transaction::Transaction() : Transaction(LogicalTime::sample()) {}
 Transaction::Transaction(const LogicalTime& begin_time)
-    : begin_time_(begin_time), cache_access_override_(false) {
+    : begin_time_(begin_time) {
   CHECK(begin_time < LogicalTime::sample());
 }
 
