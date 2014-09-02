@@ -8,6 +8,8 @@
 #include <map-api/internal/unique-id.h>
 #include <sm/hash_id.hpp>
 
+static constexpr int kDefaultIDPrintLength = 10;
+
 namespace map_api {
 template <typename IdType>
 class UniqueId;
@@ -85,7 +87,9 @@ class UniqueId : private Id {
   using sm::HashId::isValid;
   using sm::HashId::setInvalid;
 
-  std::ostream& operator<<(std::ostream& os) const { return os << hexString(); }
+  std::ostream& operator<<(std::ostream& os) const {
+    return os << hexString().substr(0, kDefaultIDPrintLength);
+  }
 
   inline void fromHashId(const sm::HashId& id) {
     static_cast<sm::HashId&>(*this) = id;
@@ -119,14 +123,14 @@ class UniqueId : private Id {
 
 namespace std {
 inline ostream& operator<<(ostream& out, const map_api::Id& hash) {
-  out << "Id(" << hash.hexString() << ")";
+  out << "Id(" << hash.hexString().substr(0, kDefaultIDPrintLength) << ")";
   return out;
 }
 
 template <typename IdType>
 inline ostream& operator<<(ostream& out,
                            const map_api::UniqueId<IdType>& hash) {
-  out << "Id(" << hash.hexString() << ")";
+  out << "Id(" << hash.hexString().substr(0, kDefaultIDPrintLength) << ")";
   return out;
 }
 
