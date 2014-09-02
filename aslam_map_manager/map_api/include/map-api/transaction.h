@@ -4,9 +4,11 @@
 #include <memory>
 #include <map>
 #include <string>
+#include <unordered_map>
 
 #include <glog/logging.h>
 
+#include "map-api/cache-base.h"
 #include "map-api/logical-time.h"
 #include "map-api/net-table.h"
 #include "map-api/net-table-transaction.h"
@@ -15,10 +17,13 @@
 namespace map_api {
 class Chunk;
 class ChunkManagerBase;
-class NetTableTransaction;
 class Revision;
 
 class Transaction {
+  friend class CacheBase;
+  template <typename IdType, typename Value>
+  friend class Cache;
+
  public:
   Transaction();
   explicit Transaction(const LogicalTime& begin_time);
@@ -71,6 +76,8 @@ class Transaction {
   size_t numChangedItems() const;
 
  private:
+  void attachCache(NetTable* table, CacheBase* cache);
+
   NetTableTransaction* transactionOf(NetTable* table);
 
   /**
@@ -87,6 +94,8 @@ class Transaction {
   typedef TransactionMap::value_type TransactionPair;
   TransactionMap net_table_transactions_;
   LogicalTime begin_time_, commit_time_;
+  typedef std::unordered_multimap<NetTable*, CacheBase*> CacheMap;
+  CacheMap attached_caches_;
 };
 
 }  // namespace map_api

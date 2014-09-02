@@ -11,7 +11,7 @@ namespace map_api {
 
 class NetTableTest : public MultiprocessTest,
                      public ::testing::WithParamInterface<bool> {
- protected:
+ public:
   virtual void SetUp() {
     MultiprocessTest::SetUp();
     std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
@@ -94,12 +94,15 @@ class NetTableTest : public MultiprocessTest,
     transaction->update(table_, to_update);
   }
 
-  const std::string kTableName = "chunk_test_table";
-  const std::string kFieldName = "chunk_test_field";
+  static const std::string kTableName;
+  static const std::string kFieldName;
   NetTable* table_;
   Chunk* chunk_;           // generic chunk pointer for custom use
   Id chunk_id_, item_id_;  // equally generic
 };
+
+const std::string NetTableTest::kTableName = "chunk_test_table";
+const std::string NetTableTest::kFieldName = "chunk_test_field";
 
 // Parameter true / false tests CRU / CR tables.
 INSTANTIATE_TEST_CASE_P(Default, NetTableTest, ::testing::Values(false, true));

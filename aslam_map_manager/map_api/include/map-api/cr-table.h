@@ -38,6 +38,9 @@ class CRTable {
     const_iterator find(const UniqueId<Derived>& key) const;
     using std::unordered_map<Id, std::shared_ptr<Revision> >::insert;
     std::pair<iterator, bool> insert(const std::shared_ptr<Revision>& revision);
+    template <typename Derived>
+    std::pair<iterator, bool> insert(const UniqueId<Derived>& key,
+                                     const std::shared_ptr<Revision>& revision);
   };
   /**
    * Default fields
