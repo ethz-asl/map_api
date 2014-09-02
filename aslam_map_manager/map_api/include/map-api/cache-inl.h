@@ -19,20 +19,21 @@ Cache<IdType, Value>::Cache(
   CHECK_NOTNULL(chunk_manager.get());
   // Caching available ids. TODO(tcies) fetch ids only
   revisions_ = transaction_->dumpActiveChunks(underlying_table_);
-  for (const std::shared_ptr<const Revision>& revision : revisions_) {
+  for (const CRTable::RevisionMap::value_type& revision : revisions_) {
     // need to fetch id from revision for lack of conversion from map_api Id to
     // unique id.
     IdType id;
-    revision->get(CRTable::kIdField, &id);
-    available_ids_->emplace(id);
+    revision.second->get(CRTable::kIdField, &id);
+    available_ids_.emplace(id);
   }
+  transaction_->attachCache(underlying_table_, this);
 }
 
 template <typename IdType, typename Value>
 Cache<IdType, Value>::~Cache() {}
 
 template <typename IdType, typename Value>
-Value& Cache<IdType, Value>::get(const UniqueId<IdType>& id) {
+Value& Cache<IdType, Value>::get(const IdType& id) {
   typename CacheMap::iterator found = this->cache_.find(id);
   if (found == this->cache_.end()) {
     std::shared_ptr<Revision> revision = getRevision(id);
@@ -47,18 +48,19 @@ Value& Cache<IdType, Value>::get(const UniqueId<IdType>& id) {
 }
 
 template <typename IdType, typename Value>
-bool Cache<IdType, Value>::insert(const UniqueId<IdType>& id,
+bool Cache<IdType, Value>::insert(const IdType& id,
                                   const std::shared_ptr<Value>& value) {
   typename IdSet::iterator found = available_ids_.find(id);
   if (found != available_ids_.end()) {
     return false;
   }
   CHECK(cache_.emplace(id, value).second);
-  CHECK(available_ids_.emplace(id));
+  CHECK(available_ids_.emplace(id).second);
+  return true;
 }
 
 template <typename IdType, typename Value>
-bool Cache<IdType, Value>::has(const UniqueId<IdType>& id) {
+bool Cache<IdType, Value>::has(const IdType& id) {
   typename IdSet::iterator found = this->available_ids_.find(id);
   return found != available_ids_.end();
 }
@@ -72,8 +74,7 @@ void Cache<IdType, Value>::getAllAvailableIds(
 }
 
 template <typename IdType, typename Value>
-std::shared_ptr<Revision> Cache<IdType, Value>::getRevision(
-    const UniqueId<IdType>& id) {
+std::shared_ptr<Revision> Cache<IdType, Value>::getRevision(const IdType& id) {
   typedef CRTable::RevisionMap::iterator RevisionIterator;
   RevisionIterator found = revisions_.find(id);
   if (found == revisions_.end()) {
@@ -81,7 +82,7 @@ std::shared_ptr<Revision> Cache<IdType, Value>::getRevision(
         transaction_->getById(id, underlying_table_);
     CHECK(revision);
     std::pair<RevisionIterator, bool> insertion =
-        revisions_.emplace(id, revision);
+        revisions_.insert(id, revision);
     CHECK(insertion.second);
   }
   return found->second;
@@ -92,13 +93,13 @@ void Cache<IdType, Value>::prepareForCommit() {
   CHECK(!staged_);
   for (const typename CacheMap::value_type& cached_pair : cache_) {
     CRTable::RevisionMap::iterator corresponding_revision =
-        revisions_.find(cached_pair);
+        revisions_.find(cached_pair.first);
     if (corresponding_revision == revisions_.end()) {
       // all items that were in the db before must have been gotten through
       // the revision cache, so an item not present in the revision cache must
       // have been inserted newly.
-      std::shared_ptr<Revision> insertion(new Revision);
-      objectToRevision(*cached_pair.second, insertion.get());
+      std::shared_ptr<Revision> insertion = underlying_table_->getTemplate();
+      objectToRevision(cached_pair.first, *cached_pair.second, insertion.get());
       transaction_->insert(chunk_manager_.get(), insertion);
     } else {
       // TODO(slynen) could be a place to work the is_specialized magic you
@@ -106,7 +107,7 @@ void Cache<IdType, Value>::prepareForCommit() {
       // not specialized?
       if (requiresUpdate(*cached_pair.second,
                          *corresponding_revision->second)) {
-        objectToRevision(*cached_pair.second,
+        objectToRevision(cached_pair.first, *cached_pair.second,
                          corresponding_revision->second.get());
         transaction_->update(underlying_table_, corresponding_revision->second);
       }

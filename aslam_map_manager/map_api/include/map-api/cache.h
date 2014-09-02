@@ -19,10 +19,24 @@ class NetTable;
 template <typename ObjectType>
 void objectFromRevision(const map_api::Revision& revision, ObjectType* object);
 template <typename ObjectType>
-void objectToRevision(const ObjectType& vertex, map_api::Revision* revision);
+void objectToRevision(const ObjectType& object, map_api::Revision* revision);
 template <typename ObjectType>
 bool requiresUpdate(const ObjectType& object,
                     const map_api::Revision& revision);
+
+template <typename IdType, typename ObjectType>
+void objectToRevision(const IdType id, const ObjectType& object,
+                      map_api::Revision* revision) {
+  CHECK_NOTNULL(revision);
+  objectToRevision(object, revision);
+  IdType present_id;
+  revision->get(CRTable::kIdField, &present_id);
+  if (present_id.isValid()) {
+    CHECK_EQ(id, present_id);
+  } else {
+    revision->set(CRTable::kIdField, id);
+  }
+}
 
 /**
  * IdType needs to be a UniqueId
@@ -33,16 +47,16 @@ class Cache : public CacheBase {
   Cache(const std::shared_ptr<Transaction>& transaction, NetTable* const table,
         const std::shared_ptr<ChunkManagerBase>& chunk_manager);
   virtual ~Cache();
-  Value& get(const UniqueId<IdType>& id);
+  Value& get(const IdType& id);
   /**
    * Inserted objects will live in cache_, but not in revisions_.
    * @return false if some item with same id already exists (in current chunks)
    */
-  bool insert(const UniqueId<IdType>& id, const std::shared_ptr<Value>& value);
+  bool insert(const IdType& id, const std::shared_ptr<Value>& value);
   /**
    * Will cache revision of object. TODO(tcies) NetTable::has?
    */
-  bool has(const UniqueId<IdType>& id);
+  bool has(const IdType& id);
   /**
    * Available with the currently active set of chunks.
    * For now, revisions will be cached. TODO(tcies) method NetTable::dumpIds?
@@ -50,18 +64,17 @@ class Cache : public CacheBase {
   void getAllAvailableIds(std::unordered_set<IdType>* available_ids);
 
  private:
-  std::shared_ptr<Revision> getRevision(const UniqueId<IdType>& id);
-  bool hasRevision(const UniqueId<IdType>& id);
+  std::shared_ptr<Revision> getRevision(const IdType& id);
   virtual void prepareForCommit() override;
 
   typedef std::unordered_map<IdType, std::shared_ptr<Value> > CacheMap;
-  typedef std::unordered_set<UniqueId<IdType>> IdSet;
+  typedef std::unordered_set<IdType> IdSet;
   CacheMap cache_;
   CRTable::RevisionMap revisions_;
   IdSet available_ids_;
   std::shared_ptr<Transaction> transaction_;
-  std::shared_ptr<ChunkManagerBase> chunk_manager_;
   NetTable* underlying_table_;
+  std::shared_ptr<ChunkManagerBase> chunk_manager_;
   bool staged_;
 };
 
