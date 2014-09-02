@@ -15,7 +15,6 @@ class NetTable;
 
 /**
  * Needs to be implemented by applications.
- * TODO(tcies) move to another header?
  */
 template <typename ObjectType>
 void objectFromRevision(const map_api::Revision& revision, ObjectType* object);
