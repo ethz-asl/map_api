@@ -10,6 +10,7 @@
 #include "map-api/unique-id.h"
 
 namespace map_api {
+class ChunkManagerBase;
 class NetTable;
 
 /**
@@ -30,12 +31,13 @@ bool requiresUpdate(const ObjectType& object,
 template <typename IdType, typename Value>
 class Cache : public CacheBase {
  public:
-  Cache(const std::shared_ptr<Transaction>& transaction, NetTable* table,
+  Cache(const std::shared_ptr<Transaction>& transaction, NetTable* const table,
         const std::shared_ptr<ChunkManagerBase>& chunk_manager);
+  virtual ~Cache();
   Value& get(const UniqueId<IdType>& id);
   /**
    * Inserted objects will live in cache_, but not in revisions_.
-   * @return false if some item with same id already in cache
+   * @return false if some item with same id already exists (in current chunks)
    */
   bool insert(const UniqueId<IdType>& id, const std::shared_ptr<Value>& value);
   /**
@@ -54,11 +56,14 @@ class Cache : public CacheBase {
   virtual void prepareForCommit() override;
 
   typedef std::unordered_map<IdType, std::shared_ptr<Value> > CacheMap;
+  typedef std::unordered_set<UniqueId<IdType>> IdSet;
   CacheMap cache_;
   CRTable::RevisionMap revisions_;
+  IdSet available_ids_;
   std::shared_ptr<Transaction> transaction_;
   std::shared_ptr<ChunkManagerBase> chunk_manager_;
   NetTable* underlying_table_;
+  bool staged_;
 };
 
 }  // namespace map_api

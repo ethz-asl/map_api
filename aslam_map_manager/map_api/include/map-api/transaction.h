@@ -20,6 +20,10 @@ class ChunkManagerBase;
 class Revision;
 
 class Transaction {
+  friend class CacheBase;
+  template <typename IdType, typename Value>
+  friend class Cache;
+
  public:
   Transaction();
   explicit Transaction(const LogicalTime& begin_time);
@@ -70,9 +74,10 @@ class Transaction {
   void merge(const std::shared_ptr<Transaction>& merge_transaction,
              ConflictMap* conflicts);
   size_t numChangedItems() const;
-  void attachCache(NetTable* table, CacheBase* cache);
 
  private:
+  void attachCache(NetTable* table, CacheBase* cache);
+
   NetTableTransaction* transactionOf(NetTable* table);
 
   /**

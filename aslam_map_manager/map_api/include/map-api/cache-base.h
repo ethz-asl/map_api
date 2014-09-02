@@ -10,6 +10,9 @@ namespace map_api {
 class CacheBase {
   friend class Transaction;
 
+ public:
+  virtual ~CacheBase();
+
  private:
   virtual void prepareForCommit() = 0;
 };
