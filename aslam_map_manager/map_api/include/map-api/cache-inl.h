@@ -11,14 +11,15 @@ template <typename IdType, typename Value>
 Cache<IdType, Value>::Cache(
     const std::shared_ptr<Transaction>& transaction, NetTable* const table,
     const std::shared_ptr<ChunkManagerBase>& chunk_manager)
-    : transaction_(transaction),
-      underlying_table_(CHECK_NOTNULL(table)),
+    : underlying_table_(CHECK_NOTNULL(table)),
       chunk_manager_(chunk_manager),
-      staged_(false) {
+      staged_(false),
+      transaction_(transaction) {
   CHECK_NOTNULL(transaction.get());
   CHECK_NOTNULL(chunk_manager.get());
+  transaction_.get()->attachCache(underlying_table_, this);
   // Caching available ids. TODO(tcies) fetch ids only
-  revisions_ = transaction_->dumpActiveChunks(underlying_table_);
+  revisions_ = transaction_.get()->dumpActiveChunks(underlying_table_);
   for (const CRTable::RevisionMap::value_type& revision : revisions_) {
     // need to fetch id from revision for lack of conversion from map_api Id to
     // unique id.
@@ -26,7 +27,6 @@ Cache<IdType, Value>::Cache(
     revision.second->get(CRTable::kIdField, &id);
     available_ids_.emplace(id);
   }
-  transaction_->attachCache(underlying_table_, this);
 }
 
 template <typename IdType, typename Value>
@@ -79,7 +79,7 @@ std::shared_ptr<Revision> Cache<IdType, Value>::getRevision(const IdType& id) {
   RevisionIterator found = revisions_.find(id);
   if (found == revisions_.end()) {
     std::shared_ptr<Revision> revision =
-        transaction_->getById(id, underlying_table_);
+        transaction_.get()->getById(id, underlying_table_);
     CHECK(revision);
     std::pair<RevisionIterator, bool> insertion =
         revisions_.insert(id, revision);
@@ -100,7 +100,7 @@ void Cache<IdType, Value>::prepareForCommit() {
       // have been inserted newly.
       std::shared_ptr<Revision> insertion = underlying_table_->getTemplate();
       objectToRevision(cached_pair.first, *cached_pair.second, insertion.get());
-      transaction_->insert(chunk_manager_.get(), insertion);
+      transaction_.get()->insert(chunk_manager_.get(), insertion);
     } else {
       // TODO(slynen) could be a place to work the is_specialized magic you
       // talked about yesterday wrt CHECK_EQ, to use == only if requiresUpdate
@@ -109,7 +109,8 @@ void Cache<IdType, Value>::prepareForCommit() {
                          *corresponding_revision->second)) {
         objectToRevision(cached_pair.first, *cached_pair.second,
                          corresponding_revision->second.get());
-        transaction_->update(underlying_table_, corresponding_revision->second);
+        transaction_.get()->update(underlying_table_,
+                                   corresponding_revision->second);
       }
     }
   }
