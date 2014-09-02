@@ -3,6 +3,7 @@
 
 #include <string>
 #include <sstream>  // NOLINT
+#include <utility>
 
 namespace map_api {
 
@@ -32,6 +33,16 @@ CRTable::RevisionMap::const_iterator CRTable::RevisionMap::find(
   key.toHashId(&hash_id);
   id_key.fromHashId(hash_id);  // TODO(tcies) avoid conversion? how?
   return find(id_key);
+}
+
+template <typename Derived>
+std::pair<CRTable::RevisionMap::iterator, bool> CRTable::RevisionMap::insert(
+    const UniqueId<Derived>& key, const std::shared_ptr<Revision>& revision) {
+  Id id_key;
+  sm::HashId hash_id;
+  key.toHashId(&hash_id);
+  id_key.fromHashId(hash_id);  // TODO(tcies) avoid conversion? how?
+  return insert(std::make_pair(id_key, revision));
 }
 
 template <typename ValueType>

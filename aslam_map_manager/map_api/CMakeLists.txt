@@ -77,6 +77,9 @@ target_link_libraries(test_hash_id_hashing ${PROJECT_NAME})
 cs_add_library(${PROJECT_NAME}_test test/map_api_multiprocess_fixture.cc)
 target_link_libraries(${PROJECT_NAME}_test ${PROJECT_NAME} gtest)
 
+catkin_add_gtest(test_cache_test test/cache_test.cc)
+target_link_libraries(test_cache_test ${PROJECT_NAME}_test)
+
 catkin_add_gtest(test_chord_index_test test/chord_index_test.cc)
 target_link_libraries(test_chord_index_test ${PROJECT_NAME}_test)
 
