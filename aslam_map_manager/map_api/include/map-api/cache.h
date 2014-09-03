@@ -51,11 +51,20 @@ class Cache : public CacheBase,
         const std::shared_ptr<ChunkManagerBase>& chunk_manager);
   virtual ~Cache();
   Value& get(const IdType& id);
+  const Value& get(const IdType& id) const;
+  std::shared_ptr<Value> getPtr(const IdType& id);
+  std::shared_ptr<const Value> getPtr(const IdType& id) const;
   /**
    * Inserted objects will live in cache_, but not in revisions_.
    * @return false if some item with same id already exists (in current chunks)
    */
   bool insert(const IdType& id, const std::shared_ptr<Value>& value);
+
+  /**
+   * Erase object from cache and database.
+   */
+  void erase(const IdType& id);
+
   /**
    * Will cache revision of object. TODO(tcies) NetTable::has?
    */
@@ -64,18 +73,19 @@ class Cache : public CacheBase,
    * Available with the currently active set of chunks.
    * For now, revisions will be cached. TODO(tcies) method NetTable::dumpIds?
    */
-  void getAllAvailableIds(std::unordered_set<IdType>* available_ids);
+  void getAllAvailableIds(std::unordered_set<IdType>* available_ids) const;
 
   size_t numElements() const;
 
  private:
   std::shared_ptr<Revision> getRevision(const IdType& id);
+  std::shared_ptr<Revision> getRevision(const IdType& id) const;
   virtual void prepareForCommit() override;
 
   typedef std::unordered_map<IdType, std::shared_ptr<Value> > CacheMap;
   typedef std::unordered_set<IdType> IdSet;
-  CacheMap cache_;
-  CRTable::RevisionMap revisions_;
+  mutable CacheMap cache_;
+  mutable CRTable::RevisionMap revisions_;
   IdSet available_ids_;
   std::shared_ptr<Transaction> transaction_;
   NetTable* underlying_table_;
