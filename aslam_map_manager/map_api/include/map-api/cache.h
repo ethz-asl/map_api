@@ -105,10 +105,39 @@ class Cache : public CacheBase,
   mutable CacheMap cache_;
   mutable CRTable::RevisionMap revisions_;
   IdSet available_ids_;
-  std::shared_ptr<Transaction> transaction_;
   NetTable* underlying_table_;
   std::shared_ptr<ChunkManagerBase> chunk_manager_;
   bool staged_;
+
+  class TransactionAccessFactory {
+   public:
+    class TransactionAccess {
+      friend class TransactionAccessFactory;
+
+     public:
+      inline Transaction* operator->() const { return transaction_; }
+      inline ~TransactionAccess() {
+        transaction_->disableDirectAccessForCache();
+      }
+
+     private:
+      explicit inline TransactionAccess(Transaction* transaction)
+          : transaction_(transaction) {
+        transaction_->enableDirectAccessForCache();
+      }
+      Transaction* transaction_;
+    };
+    explicit inline TransactionAccessFactory(
+        std::shared_ptr<Transaction> transaction)
+        : transaction_(transaction) {}
+    inline TransactionAccess get() const {
+      return TransactionAccess(transaction_.get());
+    }
+
+   private:
+    std::shared_ptr<Transaction> transaction_;
+  };
+  TransactionAccessFactory transaction_;
 };
 
 }  // namespace map_api
