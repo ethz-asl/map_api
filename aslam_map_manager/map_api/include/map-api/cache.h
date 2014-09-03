@@ -4,6 +4,7 @@
 #include <unordered_set>
 
 #include <multiagent_mapping_common/mapped-container-base.h>
+#include <multiagent_mapping_common/traits.h>
 
 #include "map-api/cache-base.h"
 #include "map-api/cr-table.h"
@@ -12,6 +13,21 @@
 #include "map-api/unique-id.h"
 
 namespace map_api {
+namespace traits {
+template <bool IsSharedPointer, typename T>
+struct InstanceFactory {
+  static T GetNewInstance() { return T(); }
+  static T* GetPointerTo(T& value) { return &value; }
+};
+template <typename Type>
+struct InstanceFactory<true, Type> {
+  static Type GetNewInstance() { return Type(new typename Type::element_type); }
+  static typename Type::element_type* GetPointerTo(Type& value) {
+    return value.get();
+  }
+};
+}  // namespace traits
+
 class ChunkManagerBase;
 class NetTable;
 
@@ -52,13 +68,11 @@ class Cache : public CacheBase,
   virtual ~Cache();
   Value& get(const IdType& id);
   const Value& get(const IdType& id) const;
-  std::shared_ptr<Value> getPtr(const IdType& id);
-  std::shared_ptr<const Value> getPtr(const IdType& id) const;
   /**
    * Inserted objects will live in cache_, but not in revisions_.
    * @return false if some item with same id already exists (in current chunks)
    */
-  bool insert(const IdType& id, const std::shared_ptr<Value>& value);
+  bool insert(const IdType& id, const Value& value);
 
   /**
    * Erase object from cache and database.
@@ -68,21 +82,25 @@ class Cache : public CacheBase,
   /**
    * Will cache revision of object. TODO(tcies) NetTable::has?
    */
-  bool has(const IdType& id);
+  bool has(const IdType& id) const;
   /**
    * Available with the currently active set of chunks.
    * For now, revisions will be cached. TODO(tcies) method NetTable::dumpIds?
    */
   void getAllAvailableIds(std::unordered_set<IdType>* available_ids) const;
 
-  size_t numElements() const;
+  size_t size() const;
+  bool empty() const;
 
  private:
+  static constexpr bool kIsPointer = common::IsPointerType<Value>::value;
+  typedef traits::InstanceFactory<kIsPointer, Value> Factory;
+
   std::shared_ptr<Revision> getRevision(const IdType& id);
   std::shared_ptr<Revision> getRevision(const IdType& id) const;
   virtual void prepareForCommit() override;
 
-  typedef std::unordered_map<IdType, std::shared_ptr<Value> > CacheMap;
+  typedef std::unordered_map<IdType, Value> CacheMap;
   typedef std::unordered_set<IdType> IdSet;
   mutable CacheMap cache_;
   mutable CRTable::RevisionMap revisions_;

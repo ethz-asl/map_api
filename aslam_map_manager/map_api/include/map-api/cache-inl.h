@@ -33,49 +33,39 @@ template <typename IdType, typename Value>
 Cache<IdType, Value>::~Cache() {}
 
 template <typename IdType, typename Value>
-std::shared_ptr<Value> Cache<IdType, Value>::getPtr(const IdType& id) {
-  typename CacheMap::iterator found = this->cache_.find(id);
-  if (found == this->cache_.end()) {
-    std::shared_ptr<Revision> revision = getRevision(id);
-    CHECK(revision);
-    std::pair<typename CacheMap::iterator, bool> cache_insertion;
-    cache_insertion = cache_.emplace(id, std::shared_ptr<Value>(new Value));
-    CHECK(cache_insertion.second);
-    objectFromRevision(*revision, cache_insertion.first->second.get());
-    found = cache_insertion.first;
-  }
-  return found->second;
-}
-
-template <typename IdType, typename Value>
-std::shared_ptr<const Value> Cache<IdType, Value>::getPtr(const IdType& id)
-    const {
-  typename CacheMap::iterator found = this->cache_.find(id);
-  if (found == this->cache_.end()) {
-    std::shared_ptr<Revision> revision = getRevision(id);
-    CHECK(revision);
-    std::pair<typename CacheMap::iterator, bool> cache_insertion;
-    cache_insertion = cache_.emplace(id, std::shared_ptr<Value>(new Value));
-    CHECK(cache_insertion.second);
-    objectFromRevision(*revision, cache_insertion.first->second.get());
-    found = cache_insertion.first;
-  }
-  return found->second;
-}
-
-template <typename IdType, typename Value>
 Value& Cache<IdType, Value>::get(const IdType& id) {
-  return *getPtr(id);
+  typename CacheMap::iterator found = this->cache_.find(id);
+  if (found == this->cache_.end()) {
+    std::shared_ptr<Revision> revision = getRevision(id);
+    CHECK(revision);
+    std::pair<typename CacheMap::iterator, bool> cache_insertion;
+
+    cache_insertion = cache_.emplace(id, Factory::GetNewInstance());
+    CHECK(cache_insertion.second);
+    objectFromRevision(*revision,
+                       Factory::GetPointerTo(cache_insertion.first->second));
+    found = cache_insertion.first;
+  }
+  return found->second;
 }
 
 template <typename IdType, typename Value>
 const Value& Cache<IdType, Value>::get(const IdType& id) const {
-  return *getPtr(id);
+  typename CacheMap::iterator found = this->cache_.find(id);
+  if (found == this->cache_.end()) {
+    std::shared_ptr<Revision> revision = getRevision(id);
+    CHECK(revision);
+    std::pair<typename CacheMap::iterator, bool> cache_insertion;
+    cache_insertion = cache_.emplace(id, Factory::GetNewInstance());
+    CHECK(cache_insertion.second);
+    objectFromRevision(*revision, cache_insertion.first->second.get());
+    found = cache_insertion.first;
+  }
+  return found->second;
 }
 
 template <typename IdType, typename Value>
-bool Cache<IdType, Value>::insert(const IdType& id,
-                                  const std::shared_ptr<Value>& value) {
+bool Cache<IdType, Value>::insert(const IdType& id, const Value& value) {
   typename IdSet::iterator found = available_ids_.find(id);
   if (found != available_ids_.end()) {
     return false;
@@ -92,8 +82,8 @@ void Cache<IdType, Value>::erase(const IdType& /*id*/) {
 }
 
 template <typename IdType, typename Value>
-bool Cache<IdType, Value>::has(const IdType& id) {
-  typename IdSet::iterator found = this->available_ids_.find(id);
+bool Cache<IdType, Value>::has(const IdType& id) const {
+  typename IdSet::const_iterator found = this->available_ids_.find(id);
   return found != available_ids_.end();
 }
 
@@ -106,8 +96,13 @@ void Cache<IdType, Value>::getAllAvailableIds(
 }
 
 template <typename IdType, typename Value>
-size_t Cache<IdType, Value>::numElements() const {
+size_t Cache<IdType, Value>::size() const {
   return available_ids_.size();
+}
+
+template <typename IdType, typename Value>
+bool Cache<IdType, Value>::empty() const {
+  return available_ids_.empty();
 }
 
 template <typename IdType, typename Value>
