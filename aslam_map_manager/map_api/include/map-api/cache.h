@@ -3,6 +3,8 @@
 
 #include <unordered_set>
 
+#include <multiagent_mapping_common/mapped-container-base.h>
+
 #include "map-api/cache-base.h"
 #include "map-api/cr-table.h"
 #include "map-api/revision.h"
@@ -42,7 +44,8 @@ void objectToRevision(const IdType id, const ObjectType& object,
  * IdType needs to be a UniqueId
  */
 template <typename IdType, typename Value>
-class Cache : public CacheBase {
+class Cache : public CacheBase,
+              public common::MappedContainerBase<IdType, Value> {
  public:
   Cache(const std::shared_ptr<Transaction>& transaction, NetTable* const table,
         const std::shared_ptr<ChunkManagerBase>& chunk_manager);
@@ -62,6 +65,8 @@ class Cache : public CacheBase {
    * For now, revisions will be cached. TODO(tcies) method NetTable::dumpIds?
    */
   void getAllAvailableIds(std::unordered_set<IdType>* available_ids);
+
+  size_t numElements() const;
 
  private:
   std::shared_ptr<Revision> getRevision(const IdType& id);

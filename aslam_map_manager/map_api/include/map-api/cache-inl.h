@@ -74,6 +74,11 @@ void Cache<IdType, Value>::getAllAvailableIds(
 }
 
 template <typename IdType, typename Value>
+void Cache<IdType, Value>::numElements() const {
+  return available_ids.size();
+}
+
+template <typename IdType, typename Value>
 std::shared_ptr<Revision> Cache<IdType, Value>::getRevision(const IdType& id) {
   typedef CRTable::RevisionMap::iterator RevisionIterator;
   RevisionIterator found = revisions_.find(id);
