@@ -77,8 +77,13 @@ class Transaction {
 
  private:
   void attachCache(NetTable* table, CacheBase* cache);
+  void enableDirectAccessForCache();
+  void disableDirectAccessForCache();
 
   NetTableTransaction* transactionOf(NetTable* table);
+
+  void ensureAccessIsCache(NetTable* table);
+  void ensureAccessIsDirect(NetTable* table);
 
   /**
    * A global ordering of tables prevents deadlocks (resource hierarchy
@@ -94,8 +99,26 @@ class Transaction {
   typedef TransactionMap::value_type TransactionPair;
   TransactionMap net_table_transactions_;
   LogicalTime begin_time_, commit_time_;
-  typedef std::unordered_multimap<NetTable*, CacheBase*> CacheMap;
+
+  // direct access vs. caching
+  enum class TableAccessMode {
+    kDirect,
+    kCache
+  };
+  typedef std::unordered_map<NetTable*, TableAccessMode> TableAccessModeMap;
+  /**
+   * A table may only be accessed directly through a transaction or through a
+   * cache, but not both. Otherwise, getting uncommitted entries becomes rather
+   * complicated.
+   */
+  TableAccessModeMap access_mode_;
+  typedef std::unordered_map<NetTable*, CacheBase*> CacheMap;
   CacheMap attached_caches_;
+  /**
+   * Cache must be able to access transaction directly, even though table
+   * is in cache access mode. This on a per-thread basis.
+   */
+  std::unordered_set<std::thread::id> cache_access_override_;
 };
 
 }  // namespace map_api

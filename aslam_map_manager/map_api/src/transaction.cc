@@ -119,11 +119,23 @@ size_t Transaction::numChangedItems() const {
 }
 
 void Transaction::attachCache(NetTable* table, CacheBase* cache) {
+  CHECK_NOTNULL(table);
+  CHECK_NOTNULL(cache);
+  ensureAccessIsCache(table);
   attached_caches_.emplace(table, cache);
+}
+
+void Transaction::enableDirectAccessForCache() {
+  CHECK(cache_access_override_.insert(std::this_thread::get_id()).second);
+}
+
+void Transaction::disableDirectAccessForCache() {
+  CHECK_EQ(1u, cache_access_override_.erase(std::this_thread::get_id()));
 }
 
 NetTableTransaction* Transaction::transactionOf(NetTable* table) {
   CHECK_NOTNULL(table);
+  ensureAccessIsDirect(table);
   TransactionMap::iterator net_table_transaction =
       net_table_transactions_.find(table);
   if (net_table_transaction == net_table_transactions_.end()) {
@@ -135,6 +147,31 @@ NetTableTransaction* Transaction::transactionOf(NetTable* table) {
     net_table_transaction = inserted.first;
   }
   return net_table_transaction->second.get();
+}
+
+void Transaction::ensureAccessIsCache(NetTable* table) {
+  TableAccessModeMap::iterator found = access_mode_.find(table);
+  if (found == access_mode_.end()) {
+    access_mode_[table] = TableAccessMode::kCache;
+  } else {
+    CHECK(found->second == TableAccessMode::kCache)
+        << "Access mode for table " << table->name() << " is already direct, "
+                                                        "may not attach cache.";
+  }
+}
+
+void Transaction::ensureAccessIsDirect(NetTable* table) {
+  TableAccessModeMap::iterator found = access_mode_.find(table);
+  if (found == access_mode_.end()) {
+    access_mode_[table] = TableAccessMode::kDirect;
+  } else {
+    if (found->second != TableAccessMode::kDirect) {
+      CHECK(cache_access_override_.find(std::this_thread::get_id()) !=
+            cache_access_override_.end())
+          << "Access mode for table " << table->name()
+          << " is already by cache, may not access directly.";
+    }
+  }
 }
 
 } /* namespace map_api */
