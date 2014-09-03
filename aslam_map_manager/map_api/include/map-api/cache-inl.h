@@ -40,10 +40,10 @@ Value& Cache<IdType, Value>::get(const IdType& id) {
     CHECK(revision);
     std::pair<typename CacheMap::iterator, bool> cache_insertion;
 
-    cache_insertion = cache_.emplace(id, Factory::GetNewInstance());
+    cache_insertion = cache_.emplace(id, Factory::getNewInstance());
     CHECK(cache_insertion.second);
     objectFromRevision(*revision,
-                       Factory::GetPointerTo(cache_insertion.first->second));
+                       Factory::getPointerTo(cache_insertion.first->second));
     found = cache_insertion.first;
   }
   return found->second;
@@ -56,7 +56,7 @@ const Value& Cache<IdType, Value>::get(const IdType& id) const {
     std::shared_ptr<Revision> revision = getRevision(id);
     CHECK(revision);
     std::pair<typename CacheMap::iterator, bool> cache_insertion;
-    cache_insertion = cache_.emplace(id, Factory::GetNewInstance());
+    cache_insertion = cache_.emplace(id, Factory::getNewInstance());
     CHECK(cache_insertion.second);
     objectFromRevision(*revision, cache_insertion.first->second.get());
     found = cache_insertion.first;

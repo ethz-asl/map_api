@@ -16,13 +16,13 @@ namespace map_api {
 namespace traits {
 template <bool IsSharedPointer, typename T>
 struct InstanceFactory {
-  static T GetNewInstance() { return T(); }
-  static T* GetPointerTo(T& value) { return &value; }
+  static T getNewInstance() { return T(); }
+  static T* getPointerTo(T& value) { return &value; }
 };
 template <typename Type>
 struct InstanceFactory<true, Type> {
-  static Type GetNewInstance() { return Type(new typename Type::element_type); }
-  static typename Type::element_type* GetPointerTo(Type& value) {
+  static Type getNewInstance() { return Type(new typename Type::element_type); }
+  static typename Type::element_type* getPointerTo(Type& value) {
     return value.get();
   }
 };
