@@ -88,6 +88,7 @@ class Chunk {
    * At the moment, this is not disputable by the other peers.
    */
   int requestParticipation();
+  int requestParticipation(const PeerId& peer);
 
   /**
    * Update: First locks chunk, then sends update to all peers for patching.

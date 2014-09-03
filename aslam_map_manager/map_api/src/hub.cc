@@ -169,6 +169,12 @@ void Hub::getPeers(std::set<PeerId>* destination) const {
   }
 }
 
+bool Hub::hasPeer(const PeerId& peer) const {
+  std::set<PeerId> peers;
+  getPeers(&peers);
+  return peers.find(peer) != peers.end();
+}
+
 int Hub::peerSize() {
   int size;
   std::lock_guard<std::mutex> lock(peer_mutex_);

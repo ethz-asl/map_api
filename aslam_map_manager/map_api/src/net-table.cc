@@ -230,6 +230,15 @@ void NetTable::shareAllChunks() {
   active_chunks_lock_.unlock();
 }
 
+void NetTable::shareAllChunks(const PeerId& peer) {
+  active_chunks_lock_.readLock();
+  for (const std::pair<const Id, std::unique_ptr<Chunk> >& chunk :
+       active_chunks_) {
+    chunk.second->requestParticipation(peer);
+  }
+  active_chunks_lock_.unlock();
+}
+
 void NetTable::leaveAllChunks() {
   active_chunks_lock_.readLock();
   for (const std::pair<const Id, std::unique_ptr<Chunk> >& chunk :
