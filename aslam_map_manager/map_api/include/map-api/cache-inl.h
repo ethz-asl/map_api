@@ -43,8 +43,8 @@ Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) {
 
     cache_insertion = cache_.emplace(id, Factory::getNewInstance());
     CHECK(cache_insertion.second);
-    objectFromRevision(*revision,
-                       Factory::getPointerTo(cache_insertion.first->second));
+    objectFromRevision(
+        *revision, Factory::getPointerToDerived(cache_insertion.first->second));
     found = cache_insertion.first;
   }
   return found->second;
@@ -59,8 +59,8 @@ const Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) const {
     std::pair<typename CacheMap::iterator, bool> cache_insertion;
     cache_insertion = cache_.emplace(id, Factory::getNewInstance());
     CHECK(cache_insertion.second);
-    objectFromRevision(*revision,
-                       Factory::getPointerTo(cache_insertion.first->second));
+    objectFromRevision(
+        *revision, Factory::getPointerToDerived(cache_insertion.first->second));
     found = cache_insertion.first;
   }
   return found->second;
@@ -152,16 +152,16 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
       // have been inserted newly.
       std::shared_ptr<Revision> insertion = underlying_table_->getTemplate();
       objectToRevision(cached_pair.first,
-                       Factory::getReferenceTo(cached_pair.second),
+                       Factory::getReferenceToDerived(cached_pair.second),
                        insertion.get());
       transaction_.get()->insert(chunk_manager_.get(), insertion);
     } else {
       // TODO(slynen) determine if the method requires update is specialized.
       // If not try to use operator==, otherwise emit useful message.
-      if (requiresUpdate(Factory::getReferenceTo(cached_pair.second),
+      if (requiresUpdate(Factory::getReferenceToDerived(cached_pair.second),
                          *corresponding_revision->second)) {
         objectToRevision(cached_pair.first,
-                         Factory::getReferenceTo(cached_pair.second),
+                         Factory::getReferenceToDerived(cached_pair.second),
                          corresponding_revision->second.get());
         transaction_.get()->update(underlying_table_,
                                    corresponding_revision->second);

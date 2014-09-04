@@ -17,10 +17,27 @@ namespace traits {
 template <bool IsSharedPointer, typename Type, typename DerivedType>
 struct InstanceFactory {
   static Type getNewInstance() { return DerivedType(); }
-  static Type* getPointerTo(Type& value) { return &value; }   // NOLINT
-  static Type& getReferenceTo(Type& value) { return value; }  // NOLINT
-  static const Type& getReferenceTo(const Type& value) {      // NOLINT
+  static DerivedType* getPointerTo(Type& value) { return &value; }   // NOLINT
+  static DerivedType& getReferenceTo(Type& value) { return value; }  // NOLINT
+  static const DerivedType& getReferenceTo(const Type& value) {      // NOLINT
     return value;
+  }
+  static DerivedType* getPointerToDerived(Type& value) {  // NOLINT
+    DerivedType* ptr = dynamic_cast<DerivedType*>(&value);  // NOLINT
+    CHECK_NOTNULL(ptr);
+    return ptr;
+  }  // NOLINT
+  static DerivedType& getReferenceToDerived(Type& value) {  // NOLINT
+    DerivedType* ptr = dynamic_cast<DerivedType*>(&value);  // NOLINT
+    CHECK_NOTNULL(ptr);
+    return *ptr;
+  }  // NOLINT
+  static const DerivedType& getReferenceToDerived(
+      const Type& value) {  // NOLINT
+    const DerivedType* ptr =
+        dynamic_cast<const DerivedType*>(&value);  // NOLINT
+    CHECK_NOTNULL(ptr);
+    return *ptr;
   }
 };
 template <typename Type, typename DerivedType>
@@ -43,6 +60,33 @@ struct InstanceFactory<true, Type, DerivedType> {
       const Type& value) {  // NOLINT
     CHECK(value != nullptr);
     return *value;
+  }
+  static typename DerivedType::element_type* getPointerToDerived(
+      Type& value) {  // NOLINT
+    CHECK(value != nullptr);
+    typename DerivedType::element_type* ptr =
+        dynamic_cast<typename DerivedType::element_type*>(  // NOLINT
+            value.get());
+    CHECK_NOTNULL(ptr);
+    return ptr;
+  }
+  static typename DerivedType::element_type& getReferenceToDerived(
+      Type& value) {  // NOLINT
+    CHECK(value != nullptr);
+    typename DerivedType::element_type* ptr =
+        dynamic_cast<typename DerivedType::element_type*>(  // NOLINT
+            value.get());
+    CHECK_NOTNULL(ptr);
+    return *ptr;
+  }
+  static const typename DerivedType::element_type& getReferenceToDerived(
+      const Type& value) {  // NOLINT
+    CHECK(value != nullptr);
+    const typename DerivedType::element_type* ptr =
+        dynamic_cast<const typename DerivedType::element_type*>(  // NOLINT
+            value.get());
+    CHECK_NOTNULL(ptr);
+    return *ptr;
   }
 };
 }  // namespace traits
