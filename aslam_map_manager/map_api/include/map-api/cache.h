@@ -65,7 +65,7 @@ struct InstanceFactory<true, Type, DerivedType> {
       Type& value) {  // NOLINT
     CHECK(value != nullptr);
     typename DerivedType::element_type* ptr =
-        dynamic_cast<typename DerivedType::element_type*>(  // NOLINT
+        static_cast<typename DerivedType::element_type*>(  // NOLINT
             value.get());
     CHECK_NOTNULL(ptr);
     return ptr;
@@ -74,7 +74,7 @@ struct InstanceFactory<true, Type, DerivedType> {
       Type& value) {  // NOLINT
     CHECK(value != nullptr);
     typename DerivedType::element_type* ptr =
-        dynamic_cast<typename DerivedType::element_type*>(  // NOLINT
+        static_cast<typename DerivedType::element_type*>(  // NOLINT
             value.get());
     CHECK_NOTNULL(ptr);
     return *ptr;
@@ -83,7 +83,7 @@ struct InstanceFactory<true, Type, DerivedType> {
       const Type& value) {  // NOLINT
     CHECK(value != nullptr);
     const typename DerivedType::element_type* ptr =
-        dynamic_cast<const typename DerivedType::element_type*>(  // NOLINT
+        static_cast<const typename DerivedType::element_type*>(  // NOLINT
             value.get());
     CHECK_NOTNULL(ptr);
     return *ptr;
