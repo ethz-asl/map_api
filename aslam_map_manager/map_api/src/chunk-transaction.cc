@@ -29,6 +29,7 @@ void ChunkTransaction::insert(std::shared_ptr<Revision> revision) {
   CHECK(revision->structureMatch(*structure_reference_));
   Id id;
   revision->get(CRTable::kIdField, &id);
+  CHECK(id.isValid());
   CHECK(insertions_.insert(std::make_pair(id, revision)).second);
 }
 
@@ -38,6 +39,7 @@ void ChunkTransaction::update(std::shared_ptr<Revision> revision) {
   CHECK(chunk_->underlying_table_->type() == CRTable::Type::CRU);
   Id id;
   revision->get(CRTable::kIdField, &id);
+  CHECK(id.isValid());
   CHECK(updates_.insert(std::make_pair(id, revision)).second);
 }
 
