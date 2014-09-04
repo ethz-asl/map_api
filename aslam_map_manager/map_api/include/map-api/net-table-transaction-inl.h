@@ -28,7 +28,7 @@ CRTable::RevisionMap NetTableTransaction::find(const std::string& key,
 template <typename IdType>
 void NetTableTransaction::getAvailableIds(std::unordered_set<IdType>* ids) {
   CHECK_NOTNULL(ids);
-  table_->getAvailableIds(begin_time_, CHECK_NOTNULL(ids));
+  table_->getAvailableIds(begin_time_, ids);
 }
 
 template <typename IdType>

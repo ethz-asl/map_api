@@ -24,9 +24,10 @@ std::shared_ptr<Revision> NetTable::getByIdInconsistent(const IdType& id) {
 template <typename IdType>
 void NetTable::getAvailableIds(const LogicalTime& time,
                                std::unordered_set<IdType>* ids) {
+  CHECK_NOTNULL(ids);
   ids->clear();
   readLockActiveChunks();
-  cache_->getAvailableIds(time, CHECK_NOTNULL(ids));
+  cache_->getAvailableIds(time, ids);
   unlockActiveChunks();
 }
 

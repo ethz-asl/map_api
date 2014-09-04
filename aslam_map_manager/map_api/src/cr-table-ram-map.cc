@@ -70,6 +70,7 @@ void CRTableRamMap::getAvailableIdsCRDerived(const LogicalTime& time,
                                              std::unordered_set<Id>* ids) {
   CHECK_NOTNULL(ids);
   LogicalTime item_time;
+  ids->rehash(data_.size());
   for (const MapType::value_type& pair : data_) {
     pair.second.get(kInsertTimeField, &item_time);
     if (item_time <= time) {

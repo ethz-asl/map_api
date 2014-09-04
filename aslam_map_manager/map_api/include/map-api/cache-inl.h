@@ -120,6 +120,7 @@ std::shared_ptr<Revision> Cache<IdType, Value, DerivedValue>::getRevision(
     std::pair<RevisionIterator, bool> insertion =
         revisions_.insert(id, revision);
     CHECK(insertion.second);
+    found = insertion.first;
   }
   return found->second;
 }
