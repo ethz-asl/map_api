@@ -27,9 +27,10 @@ Cache<IdType, Value, DerivedValue>::~Cache() {}
 
 template <typename IdType, typename Value, typename DerivedValue>
 Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) {
+  LockGuard lock(mutex_);
   typename CacheMap::iterator found = this->cache_.find(id);
   if (found == this->cache_.end()) {
-    std::shared_ptr<Revision> revision = getRevision(id);
+    std::shared_ptr<Revision> revision = getRevisionLocked(id);
     CHECK(revision);
     std::pair<typename CacheMap::iterator, bool> cache_insertion;
 
@@ -44,9 +45,10 @@ Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) {
 
 template <typename IdType, typename Value, typename DerivedValue>
 const Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) const {
+  LockGuard lock(mutex_);
   typename CacheMap::iterator found = this->cache_.find(id);
   if (found == this->cache_.end()) {
-    std::shared_ptr<Revision> revision = getRevision(id);
+    std::shared_ptr<Revision> revision = getRevisionLocked(id);
     CHECK(revision);
     std::pair<typename CacheMap::iterator, bool> cache_insertion;
     cache_insertion = cache_.emplace(id, Factory::getNewInstance());
@@ -61,6 +63,7 @@ const Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) const {
 template <typename IdType, typename Value, typename DerivedValue>
 bool Cache<IdType, Value, DerivedValue>::insert(const IdType& id,
                                                 const Value& value) {
+  LockGuard lock(mutex_);
   typename IdSet::iterator found = available_ids_.find(id);
   if (found != available_ids_.end()) {
     return false;
@@ -72,6 +75,7 @@ bool Cache<IdType, Value, DerivedValue>::insert(const IdType& id,
 
 template <typename IdType, typename Value, typename DerivedValue>
 void Cache<IdType, Value, DerivedValue>::erase(const IdType& id) {
+  LockGuard lock(mutex_);
   // TODO(tcies): Implement erase from DB.
   LOG_FIRST_N(ERROR, 1) << "Erase on cache will lead to dangling items in the "
                            "db.";
@@ -86,6 +90,7 @@ void Cache<IdType, Value, DerivedValue>::erase(const IdType& id) {
 
 template <typename IdType, typename Value, typename DerivedValue>
 bool Cache<IdType, Value, DerivedValue>::has(const IdType& id) const {
+  LockGuard lock(mutex_);
   typename IdSet::const_iterator found = this->available_ids_.find(id);
   return found != available_ids_.end();
 }
@@ -93,6 +98,7 @@ bool Cache<IdType, Value, DerivedValue>::has(const IdType& id) const {
 template <typename IdType, typename Value, typename DerivedValue>
 void Cache<IdType, Value, DerivedValue>::getAllAvailableIds(
     std::unordered_set<IdType>* available_ids) const {
+  LockGuard lock(mutex_);
   CHECK_NOTNULL(available_ids);
   available_ids->clear();
   available_ids->insert(available_ids_.begin(), available_ids_.end());
@@ -100,16 +106,18 @@ void Cache<IdType, Value, DerivedValue>::getAllAvailableIds(
 
 template <typename IdType, typename Value, typename DerivedValue>
 size_t Cache<IdType, Value, DerivedValue>::size() const {
+  LockGuard lock(mutex_);
   return available_ids_.size();
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
 bool Cache<IdType, Value, DerivedValue>::empty() const {
+  LockGuard lock(mutex_);
   return available_ids_.empty();
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
-std::shared_ptr<Revision> Cache<IdType, Value, DerivedValue>::getRevision(
+std::shared_ptr<Revision> Cache<IdType, Value, DerivedValue>::getRevisionLocked(
     const IdType& id) {
   typedef CRTable::RevisionMap::iterator RevisionIterator;
   RevisionIterator found = revisions_.find(id);
@@ -126,7 +134,7 @@ std::shared_ptr<Revision> Cache<IdType, Value, DerivedValue>::getRevision(
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
-std::shared_ptr<Revision> Cache<IdType, Value, DerivedValue>::getRevision(
+std::shared_ptr<Revision> Cache<IdType, Value, DerivedValue>::getRevisionLocked(
     const IdType& id) const {
   typedef CRTable::RevisionMap::iterator RevisionIterator;
   RevisionIterator found = revisions_.find(id);
@@ -144,6 +152,7 @@ std::shared_ptr<Revision> Cache<IdType, Value, DerivedValue>::getRevision(
 
 template <typename IdType, typename Value, typename DerivedValue>
 void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
+  LockGuard lock(mutex_);
   CHECK(!staged_);
   for (const typename CacheMap::value_type& cached_pair : cache_) {
     CRTable::RevisionMap::iterator corresponding_revision =
