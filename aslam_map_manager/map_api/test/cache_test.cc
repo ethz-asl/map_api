@@ -45,7 +45,7 @@ TEST_P(NetTableTest, Cache) {
   constexpr int kKb = 1024;
   std::shared_ptr<Transaction> transaction;
   std::shared_ptr<ChunkManagerChunkSize> manager;
-  std::shared_ptr<Cache<IntId, int>> cache;
+  std::shared_ptr<Cache<IntId, std::shared_ptr<int>>> cache;
   IntId kId[3];
   std::shared_ptr<int> kVal[3];
   for (int i = 0; i < 3; ++i) {
@@ -57,7 +57,8 @@ TEST_P(NetTableTest, Cache) {
     launchSubprocess(A);
     transaction.reset(new Transaction);
     manager.reset(new ChunkManagerChunkSize(kKb, table_));
-    cache.reset(new Cache<IntId, int>(transaction, table_, manager));
+    cache.reset(
+        new Cache<IntId, std::shared_ptr<int>>(transaction, table_, manager));
     cache->getAllAvailableIds(&id_result);
     EXPECT_TRUE(id_result.empty());
     for (int i = 0; i < 3; ++i) {
@@ -72,24 +73,26 @@ TEST_P(NetTableTest, Cache) {
 
     transaction.reset(new Transaction);
     manager.reset(new ChunkManagerChunkSize(kKb, table_));
-    cache.reset(new Cache<IntId, int>(transaction, table_, manager));
+    cache.reset(
+        new Cache<IntId, std::shared_ptr<int>>(transaction, table_, manager));
     cache->getAllAvailableIds(&id_result);
     EXPECT_EQ(2u, id_result.size());
     ASSERT_TRUE(cache->has(kId[0]));
     ASSERT_TRUE(cache->has(kId[1]));
     EXPECT_FALSE(cache->has(kId[2]));
-    EXPECT_EQ((GetParam() ? (*kVal[2]) : (*kVal[0])), cache->get(kId[0]));
-    EXPECT_EQ(*kVal[1], cache->get(kId[1]));
+    EXPECT_EQ((GetParam() ? (*kVal[2]) : (*kVal[0])), *cache->get(kId[0]));
+    EXPECT_EQ(*kVal[1], *cache->get(kId[1]));
   }
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 1);
     IPC::barrier(ROOT_INSERTED, 1);
     transaction.reset(new Transaction);
     manager.reset(new ChunkManagerChunkSize(kKb, table_));
-    cache.reset(new Cache<IntId, int>(transaction, table_, manager));
+    cache.reset(
+        new Cache<IntId, std::shared_ptr<int>>(transaction, table_, manager));
     if (GetParam()) {
       CHECK(cache->has(kId[0]));
-      cache->get(kId[0]) = *kVal[2];
+      *cache->get(kId[0]) = *kVal[2];
     }
     CHECK(cache->insert(kId[1], kVal[1]));
     CHECK(transaction->commit());
