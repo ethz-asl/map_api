@@ -127,7 +127,7 @@ std::shared_ptr<Revision> Cache<IdType, Value>::getRevision(const IdType& id)
   RevisionIterator found = revisions_.find(id);
   if (found == revisions_.end()) {
     std::shared_ptr<Revision> revision =
-        transaction_->getById(id, underlying_table_);
+        transaction_.get()->getById(id, underlying_table_);
     CHECK(revision);
     std::pair<RevisionIterator, bool> insertion =
         revisions_.insert(id, revision);
