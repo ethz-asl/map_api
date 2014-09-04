@@ -48,6 +48,8 @@ class Hub final {
    * Lists the addresses of connected peers, ordered set for user convenience
    */
   void getPeers(std::set<PeerId>* destination) const;
+
+  bool hasPeer(const PeerId& peer) const;
   /**
    * Get amount of peers
    */
