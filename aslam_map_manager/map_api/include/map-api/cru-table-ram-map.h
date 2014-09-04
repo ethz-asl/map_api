@@ -24,6 +24,8 @@ class CRUTableRamMap : public CRUTable {
   virtual int countByRevisionCRUDerived(const std::string& key,
                                         const Revision& valueHolder,
                                         const LogicalTime& time) final override;
+  virtual void getAvailableIdsCRDerived(
+      const LogicalTime& time, std::unordered_set<Id>* ids) final override;
 
   virtual bool insertUpdatedCRUDerived(const Revision& query) final override;
   virtual void findHistoryByRevisionCRUDerived(const std::string& key,

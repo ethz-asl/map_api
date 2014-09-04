@@ -6,6 +6,7 @@
 #include <map>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
 #include <Poco/Data/Common.h>
@@ -108,6 +109,10 @@ class CRTable {
    */
   template <typename IdType>
   std::shared_ptr<Revision> getById(const IdType& id, const LogicalTime& time);
+
+  template <typename IdType>
+  void getAvailableIds(const LogicalTime& time,
+                       std::unordered_set<IdType>* ids);
   /**
    * Puts all items that match key = value at time into dest and returns the
    * amount of items in dest.
@@ -189,6 +194,8 @@ class CRTable {
   virtual int findByRevisionCRDerived(
       const std::string& key, const Revision& valueHolder,
       const LogicalTime& time, RevisionMap* dest) = 0;
+  virtual void getAvailableIdsCRDerived(const LogicalTime& time,
+                                        std::unordered_set<Id>* ids) = 0;
 
   /**
    * If key is an empty string, this should return all the data in the table.

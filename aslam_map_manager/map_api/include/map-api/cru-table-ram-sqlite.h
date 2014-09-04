@@ -21,6 +21,8 @@ class CRUTableRamSqlite : public CRUTable {
                                        const Revision& valueHolder,
                                        const LogicalTime& time,
                                        RevisionMap* dest) final override;
+  virtual void getAvailableIdsCRDerived(
+      const LogicalTime& time, std::unordered_set<Id>* ids) final override;
   virtual int countByRevisionCRUDerived(const std::string& key,
                                         const Revision& valueHolder,
                                         const LogicalTime& time) final override;

@@ -66,6 +66,11 @@ int CRTableRamSqlite::findByRevisionCRDerived(const std::string& key,
   return from_poco.size();
 }
 
+void __attribute__((deprecated)) CRTableRamSqlite::getAvailableIdsCRDerived(
+    const LogicalTime& /*time*/, std::unordered_set<Id>* /*ids*/) {
+  LOG(FATAL) << "Needs implementation";
+}
+
 int CRTableRamSqlite::countByRevisionCRDerived(const std::string& key,
                                                const Revision& value_holder,
                                                const LogicalTime& time) {

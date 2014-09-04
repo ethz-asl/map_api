@@ -34,6 +34,8 @@ class NetTableTransaction {
   CRTable::RevisionMap dumpActiveChunks();
   template <typename ValueType>
   CRTable::RevisionMap find(const std::string& key, const ValueType& value);
+  template <typename IdType>
+  void getAvailableIds(std::unordered_set<IdType>* ids);
 
   // WRITE (see transaction.h)
   void insert(Chunk* chunk, std::shared_ptr<Revision> revision);

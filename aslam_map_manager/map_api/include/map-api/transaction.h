@@ -41,6 +41,8 @@ class Transaction {
                                     Chunk* chunk);
   CRTable::RevisionMap dumpChunk(NetTable* table, Chunk* chunk);
   CRTable::RevisionMap dumpActiveChunks(NetTable* table);
+  template <typename IdType>
+  void getAvailableIds(NetTable* table, std::unordered_set<IdType>* ids);
   /**
    * By some other field: Searches in ALL active chunks of a table, thus
    * fundamentally differing from getById or dumpChunk.

@@ -72,6 +72,11 @@ int CRUTableRamSqlite::findByRevisionCRUDerived(const std::string& key,
   return dest->size();
 }
 
+void __attribute__((deprecated)) CRUTableRamSqlite::getAvailableIdsCRDerived(
+    const LogicalTime& /*time*/, std::unordered_set<Id>* /*ids*/) {
+  LOG(FATAL) << "Needs implementation";
+}
+
 int CRUTableRamSqlite::countByRevisionCRUDerived(const std::string& key,
                                                  const Revision& value_holder,
                                                  const LogicalTime& time) {

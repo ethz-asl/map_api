@@ -21,6 +21,15 @@ std::shared_ptr<Revision> NetTable::getByIdInconsistent(const IdType& id) {
   return cache_->getById(id, LogicalTime::sample());
 }
 
+template <typename IdType>
+void NetTable::getAvailableIds(const LogicalTime& time,
+                               std::unordered_set<IdType>* ids) {
+  ids->clear();
+  readLockActiveChunks();
+  cache_->getAvailableIds(time, CHECK_NOTNULL(ids));
+  unlockActiveChunks();
+}
+
 }  // namespace map_api
 
 #endif  // MAP_API_NET_TABLE_INL_H_

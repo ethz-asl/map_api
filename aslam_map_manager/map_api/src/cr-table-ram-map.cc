@@ -66,6 +66,18 @@ int CRTableRamMap::findByRevisionCRDerived(const std::string& key,
   return dest->size();  // TODO(tcies) returning the count is silly, abolish
 }
 
+void CRTableRamMap::getAvailableIdsCRDerived(const LogicalTime& time,
+                                             std::unordered_set<Id>* ids) {
+  CHECK_NOTNULL(ids);
+  LogicalTime item_time;
+  for (const MapType::value_type& pair : data_) {
+    pair.second.get(kInsertTimeField, &item_time);
+    if (item_time <= time) {
+      ids->insert(pair.first);
+    }
+  }
+}
+
 int CRTableRamMap::countByRevisionCRDerived(const std::string& key,
                                             const Revision& valueHolder,
                                             const LogicalTime& time) {

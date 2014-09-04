@@ -28,6 +28,13 @@ std::shared_ptr<Revision> Transaction::getById(const IdType& id,
   return transactionOf(table)->getById(id, chunk);
 }
 
+template <typename IdType>
+void Transaction::getAvailableIds(NetTable* table,
+                                  std::unordered_set<IdType>* ids) {
+  return transactionOf(CHECK_NOTNULL(table))
+      ->getAvailableIds(CHECK_NOTNULL(ids));
+}
+
 }  // namespace map_api
 
 #endif  // MAP_API_TRANSACTION_INL_H_
