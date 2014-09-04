@@ -26,12 +26,12 @@ struct InstanceFactory {
     DerivedType* ptr = dynamic_cast<DerivedType*>(&value);  // NOLINT
     CHECK_NOTNULL(ptr);
     return ptr;
-  }  // NOLINT
+  }
   static DerivedType& getReferenceToDerived(Type& value) {  // NOLINT
     DerivedType* ptr = dynamic_cast<DerivedType*>(&value);  // NOLINT
     CHECK_NOTNULL(ptr);
     return *ptr;
-  }  // NOLINT
+  }
   static const DerivedType& getReferenceToDerived(
       const Type& value) {  // NOLINT
     const DerivedType* ptr =
