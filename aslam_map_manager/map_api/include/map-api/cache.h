@@ -14,16 +14,75 @@
 
 namespace map_api {
 namespace traits {
-template <bool IsSharedPointer, typename T>
+template <bool IsSharedPointer, typename Type, typename DerivedType>
 struct InstanceFactory {
-  static T getNewInstance() { return T(); }
-  static T* getPointerTo(T& value) { return &value; }
+  static Type getNewInstance() { return DerivedType(); }
+  static DerivedType* getPointerTo(Type& value) { return &value; }   // NOLINT
+  static DerivedType& getReferenceTo(Type& value) { return value; }  // NOLINT
+  static const DerivedType& getReferenceTo(const Type& value) {      // NOLINT
+    return value;
+  }
+  static DerivedType* getPointerToDerived(Type& value) {  // NOLINT
+    DerivedType* ptr = static_cast<DerivedType*>(&value);
+    CHECK_NOTNULL(ptr);
+    return ptr;
+  }
+  static DerivedType& getReferenceToDerived(Type& value) {  // NOLINT
+    DerivedType* ptr = static_cast<DerivedType*>(&value);
+    CHECK_NOTNULL(ptr);
+    return *ptr;
+  }
+  static const DerivedType& getReferenceToDerived(
+      const Type& value) {  // NOLINT
+    const DerivedType* ptr = static_cast<const DerivedType*>(&value);
+    CHECK_NOTNULL(ptr);
+    return *ptr;
+  }
 };
-template <typename Type>
-struct InstanceFactory<true, Type> {
-  static Type getNewInstance() { return Type(new typename Type::element_type); }
-  static typename Type::element_type* getPointerTo(Type& value) {
+template <typename Type, typename DerivedType>
+struct InstanceFactory<true, Type, DerivedType> {
+  static Type getNewInstance() {
+    // If you get a compiler error here, then you have to set the DerivedValue
+    // template parameter of the cache to the type of the derived class you want
+    // to store in the cache.
+    return Type(new typename DerivedType::element_type);
+  }
+  static typename Type::element_type* getPointerTo(Type& value) {  // NOLINT
+    CHECK(value != nullptr);
     return value.get();
+  }
+  static typename Type::element_type& getReferenceTo(Type& value) {  // NOLINT
+    CHECK(value != nullptr);
+    return *value;
+  }
+  static const typename Type::element_type& getReferenceTo(
+      const Type& value) {  // NOLINT
+    CHECK(value != nullptr);
+    return *value;
+  }
+  static typename DerivedType::element_type* getPointerToDerived(
+      Type& value) {  // NOLINT
+    CHECK(value != nullptr);
+    typename DerivedType::element_type* ptr =
+        static_cast<typename DerivedType::element_type*>(value.get());
+    CHECK_NOTNULL(ptr);
+    return ptr;
+  }
+  static typename DerivedType::element_type& getReferenceToDerived(
+      Type& value) {  // NOLINT
+    CHECK(value != nullptr);
+    typename DerivedType::element_type* ptr =
+        static_cast<typename DerivedType::element_type*>(value.get());
+    CHECK_NOTNULL(ptr);
+    return *ptr;
+  }
+  static const typename DerivedType::element_type& getReferenceToDerived(
+      const Type& value) {  // NOLINT
+    CHECK(value != nullptr);
+    const typename DerivedType::element_type* ptr =
+        static_cast<const typename DerivedType::element_type*>(value.get());
+    CHECK_NOTNULL(ptr);
+    return *ptr;
   }
 };
 }  // namespace traits
@@ -38,9 +97,17 @@ template <typename ObjectType>
 void objectFromRevision(const map_api::Revision& revision, ObjectType* object);
 template <typename ObjectType>
 void objectToRevision(const ObjectType& object, map_api::Revision* revision);
+/**
+ * May be specialized to avoid creating the object from revision, or if ==
+ * can't be implemented.
+ */
 template <typename ObjectType>
 bool requiresUpdate(const ObjectType& object,
-                    const map_api::Revision& revision);
+                    const map_api::Revision& revision) {
+  ObjectType from_revision;
+  objectFromRevision(revision, &from_revision);
+  return (from_revision != object);
+}
 
 template <typename IdType, typename ObjectType>
 void objectToRevision(const IdType id, const ObjectType& object,
@@ -57,12 +124,17 @@ void objectToRevision(const IdType id, const ObjectType& object,
 }
 
 /**
- * IdType needs to be a UniqueId
+ * IdType needs to be a UniqueId.
+ * The type Value is the type of the actual container objects.
+ * The type DerivedValue is the type of the objects to be newly constructed.
  */
-template <typename IdType, typename Value>
+template <typename IdType, typename Value, typename DerivedValue = Value>
 class Cache : public CacheBase,
               public common::MappedContainerBase<IdType, Value> {
  public:
+  typedef std::shared_ptr<Cache<IdType, Value, DerivedValue> > Ptr;
+  typedef std::shared_ptr<const Cache<IdType, Value, DerivedValue> > ConstPtr;
+
   Cache(const std::shared_ptr<Transaction>& transaction, NetTable* const table,
         const std::shared_ptr<ChunkManagerBase>& chunk_manager);
   virtual ~Cache();
@@ -94,7 +166,7 @@ class Cache : public CacheBase,
 
  private:
   static constexpr bool kIsPointer = common::IsPointerType<Value>::value;
-  typedef traits::InstanceFactory<kIsPointer, Value> Factory;
+  typedef traits::InstanceFactory<kIsPointer, Value, DerivedValue> Factory;
 
   std::shared_ptr<Revision> getRevision(const IdType& id);
   std::shared_ptr<Revision> getRevision(const IdType& id) const;
