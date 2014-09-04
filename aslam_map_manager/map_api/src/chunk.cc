@@ -257,6 +257,8 @@ bool Chunk::isLocked() {
 
 void Chunk::unlock() { distributedUnlock(); }
 
+// not expressing in terms of the peer-specifying overload in order to avoid
+// unnecessary distributed lock and unlocks
 int Chunk::requestParticipation() {
   int new_participant_count = 0;
   distributedWriteLock();
@@ -267,6 +269,21 @@ int Chunk::requestParticipation() {
       if (addPeer(hub_peer)) {
         ++new_participant_count;
       }
+    }
+  }
+  distributedUnlock();
+  return new_participant_count;
+}
+
+int Chunk::requestParticipation(const PeerId& peer) {
+  CHECK(Hub::instance().hasPeer(peer));
+  int new_participant_count = 0;
+  distributedWriteLock();
+  std::set<PeerId> hub_peers;
+  Hub::instance().getPeers(&hub_peers);
+  if (peers_.peers().find(peer) == peers_.peers().end()) {
+    if (addPeer(peer)) {
+      ++new_participant_count;
     }
   }
   distributedUnlock();
