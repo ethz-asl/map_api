@@ -72,6 +72,8 @@ class NetTable {
 
   void shareAllChunks();
 
+  void shareAllChunks(const PeerId& peer);
+
   void kill();
 
   void leaveAllChunks();
