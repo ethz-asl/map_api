@@ -21,7 +21,7 @@ class Revision;
 
 class Transaction {
   friend class CacheBase;
-  template <typename IdType, typename Value>
+  template <typename IdType, typename Value, typename DerivedValue>
   friend class Cache;
 
  public:
