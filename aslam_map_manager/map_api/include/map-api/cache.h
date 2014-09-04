@@ -23,19 +23,18 @@ struct InstanceFactory {
     return value;
   }
   static DerivedType* getPointerToDerived(Type& value) {  // NOLINT
-    DerivedType* ptr = dynamic_cast<DerivedType*>(&value);  // NOLINT
+    DerivedType* ptr = static_cast<DerivedType*>(&value);
     CHECK_NOTNULL(ptr);
     return ptr;
   }
   static DerivedType& getReferenceToDerived(Type& value) {  // NOLINT
-    DerivedType* ptr = dynamic_cast<DerivedType*>(&value);  // NOLINT
+    DerivedType* ptr = static_cast<DerivedType*>(&value);
     CHECK_NOTNULL(ptr);
     return *ptr;
   }
   static const DerivedType& getReferenceToDerived(
       const Type& value) {  // NOLINT
-    const DerivedType* ptr =
-        dynamic_cast<const DerivedType*>(&value);  // NOLINT
+    const DerivedType* ptr = static_cast<const DerivedType*>(&value);
     CHECK_NOTNULL(ptr);
     return *ptr;
   }
@@ -65,8 +64,7 @@ struct InstanceFactory<true, Type, DerivedType> {
       Type& value) {  // NOLINT
     CHECK(value != nullptr);
     typename DerivedType::element_type* ptr =
-        static_cast<typename DerivedType::element_type*>(  // NOLINT
-            value.get());
+        static_cast<typename DerivedType::element_type*>(value.get());
     CHECK_NOTNULL(ptr);
     return ptr;
   }
@@ -74,8 +72,7 @@ struct InstanceFactory<true, Type, DerivedType> {
       Type& value) {  // NOLINT
     CHECK(value != nullptr);
     typename DerivedType::element_type* ptr =
-        static_cast<typename DerivedType::element_type*>(  // NOLINT
-            value.get());
+        static_cast<typename DerivedType::element_type*>(value.get());
     CHECK_NOTNULL(ptr);
     return *ptr;
   }
@@ -83,8 +80,7 @@ struct InstanceFactory<true, Type, DerivedType> {
       const Type& value) {  // NOLINT
     CHECK(value != nullptr);
     const typename DerivedType::element_type* ptr =
-        static_cast<const typename DerivedType::element_type*>(  // NOLINT
-            value.get());
+        static_cast<const typename DerivedType::element_type*>(value.get());
     CHECK_NOTNULL(ptr);
     return *ptr;
   }
