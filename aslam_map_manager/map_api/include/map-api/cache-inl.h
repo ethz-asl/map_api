@@ -39,17 +39,33 @@ Value& Cache<IdType, Value>::get(const IdType& id) {
     std::shared_ptr<Revision> revision = getRevision(id);
     CHECK(revision);
     std::pair<typename CacheMap::iterator, bool> cache_insertion;
-    cache_insertion = cache_.emplace(id, std::shared_ptr<Value>(new Value));
+
+    cache_insertion = cache_.emplace(id, Factory::getNewInstance());
+    CHECK(cache_insertion.second);
+    objectFromRevision(*revision,
+                       Factory::getPointerTo(cache_insertion.first->second));
+    found = cache_insertion.first;
+  }
+  return found->second;
+}
+
+template <typename IdType, typename Value>
+const Value& Cache<IdType, Value>::get(const IdType& id) const {
+  typename CacheMap::iterator found = this->cache_.find(id);
+  if (found == this->cache_.end()) {
+    std::shared_ptr<Revision> revision = getRevision(id);
+    CHECK(revision);
+    std::pair<typename CacheMap::iterator, bool> cache_insertion;
+    cache_insertion = cache_.emplace(id, Factory::getNewInstance());
     CHECK(cache_insertion.second);
     objectFromRevision(*revision, cache_insertion.first->second.get());
     found = cache_insertion.first;
   }
-  return *found->second;
+  return found->second;
 }
 
 template <typename IdType, typename Value>
-bool Cache<IdType, Value>::insert(const IdType& id,
-                                  const std::shared_ptr<Value>& value) {
+bool Cache<IdType, Value>::insert(const IdType& id, const Value& value) {
   typename IdSet::iterator found = available_ids_.find(id);
   if (found != available_ids_.end()) {
     return false;
@@ -60,21 +76,53 @@ bool Cache<IdType, Value>::insert(const IdType& id,
 }
 
 template <typename IdType, typename Value>
-bool Cache<IdType, Value>::has(const IdType& id) {
-  typename IdSet::iterator found = this->available_ids_.find(id);
+void Cache<IdType, Value>::erase(const IdType& /*id*/) {
+  // TODO(tcies): Implement erase from DB.
+  CHECK(false) << "Erase on cache not implemented.";
+}
+
+template <typename IdType, typename Value>
+bool Cache<IdType, Value>::has(const IdType& id) const {
+  typename IdSet::const_iterator found = this->available_ids_.find(id);
   return found != available_ids_.end();
 }
 
 template <typename IdType, typename Value>
 void Cache<IdType, Value>::getAllAvailableIds(
-    std::unordered_set<IdType>* available_ids) {
+    std::unordered_set<IdType>* available_ids) const {
   CHECK_NOTNULL(available_ids);
   available_ids->clear();
   available_ids->insert(available_ids_.begin(), available_ids_.end());
 }
 
 template <typename IdType, typename Value>
+size_t Cache<IdType, Value>::size() const {
+  return available_ids_.size();
+}
+
+template <typename IdType, typename Value>
+bool Cache<IdType, Value>::empty() const {
+  return available_ids_.empty();
+}
+
+template <typename IdType, typename Value>
 std::shared_ptr<Revision> Cache<IdType, Value>::getRevision(const IdType& id) {
+  typedef CRTable::RevisionMap::iterator RevisionIterator;
+  RevisionIterator found = revisions_.find(id);
+  if (found == revisions_.end()) {
+    std::shared_ptr<Revision> revision =
+        transaction_.get()->getById(id, underlying_table_);
+    CHECK(revision);
+    std::pair<RevisionIterator, bool> insertion =
+        revisions_.insert(id, revision);
+    CHECK(insertion.second);
+  }
+  return found->second;
+}
+
+template <typename IdType, typename Value>
+std::shared_ptr<Revision> Cache<IdType, Value>::getRevision(const IdType& id)
+    const {
   typedef CRTable::RevisionMap::iterator RevisionIterator;
   RevisionIterator found = revisions_.find(id);
   if (found == revisions_.end()) {
