@@ -19,15 +19,7 @@ Cache<IdType, Value, DerivedValue>::Cache(
   CHECK_NOTNULL(chunk_manager.get());
 
   transaction_.get()->attachCache(underlying_table_, this);
-  // Caching available ids. TODO(tcies) fetch ids only
-  revisions_ = transaction_.get()->dumpActiveChunks(underlying_table_);
-  for (const CRTable::RevisionMap::value_type& revision : revisions_) {
-    // need to fetch id from revision for lack of conversion from map_api Id to
-    // unique id.
-    IdType id;
-    revision.second->get(CRTable::kIdField, &id);
-    available_ids_.emplace(id);
-  }
+  transaction_.get()->getAvailableIds(underlying_table_, &available_ids_);
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
@@ -128,6 +120,7 @@ std::shared_ptr<Revision> Cache<IdType, Value, DerivedValue>::getRevision(
     std::pair<RevisionIterator, bool> insertion =
         revisions_.insert(id, revision);
     CHECK(insertion.second);
+    found = insertion.first;
   }
   return found->second;
 }
@@ -144,6 +137,7 @@ std::shared_ptr<Revision> Cache<IdType, Value, DerivedValue>::getRevision(
     std::pair<RevisionIterator, bool> insertion =
         revisions_.insert(id, revision);
     CHECK(insertion.second);
+    found = insertion.first;
   }
   return found->second;
 }

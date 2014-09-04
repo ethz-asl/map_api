@@ -15,13 +15,29 @@ std::shared_ptr<Revision> CRTable::getById(const IdType& id,
   return findUnique(kIdField, id, time);
 }
 
+template <typename IdType>
+void CRTable::getAvailableIds(const LogicalTime& time,
+                              std::unordered_set<IdType>* ids) {
+  CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
+  CHECK_NOTNULL(ids);
+  std::unordered_set<Id> map_api_ids;
+  sm::HashId hash_id;
+  IdType out_id;
+  getAvailableIdsCRDerived(time, &map_api_ids);
+  for (const Id& id : map_api_ids) {
+    id.toHashId(&hash_id);
+    out_id.fromHashId(hash_id);
+    ids->emplace(out_id);
+  }
+}
+
 template <typename Derived>
 CRTable::RevisionMap::iterator CRTable::RevisionMap::find(
     const UniqueId<Derived>& key) {
   Id id_key;
   sm::HashId hash_id;
   key.toHashId(&hash_id);
-  id_key.fromHashId(hash_id);  // TODO(tcies) avoid conversion? how?
+  id_key.fromHashId(hash_id);
   return find(id_key);
 }
 

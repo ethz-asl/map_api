@@ -93,6 +93,20 @@ int CRUTableRamMap::findByRevisionCRUDerived(const std::string& key,
   return dest->size();  // TODO(tcies) returning the count is silly, abolish
 }
 
+void CRUTableRamMap::getAvailableIdsCRDerived(const LogicalTime& time,
+                                              std::unordered_set<Id>* ids) {
+  CHECK_NOTNULL(ids);
+  LogicalTime item_time;
+  ids->rehash(data_.size());
+  int time_index = getTemplate()->indexOf(kUpdateTimeField);
+  for (const HistoryMap::value_type& pair : data_) {
+    History::const_iterator latest = pair.second.latestAt(time, time_index);
+    if (latest != pair.second.cend()) {
+      ids->insert(pair.first);
+    }
+  }
+}
+
 int CRUTableRamMap::countByRevisionCRUDerived(const std::string& key,
                                               const Revision& valueHolder,
                                               const LogicalTime& time) {

@@ -20,6 +20,8 @@ class CRTableRamMap : public CRTable {
   virtual int findByRevisionCRDerived(
       const std::string& key, const Revision& valueHolder,
       const LogicalTime& time, CRTable::RevisionMap* dest) final override;
+  virtual void getAvailableIdsCRDerived(
+      const LogicalTime& time, std::unordered_set<Id>* ids) final override;
   virtual int countByRevisionCRDerived(const std::string& key,
                                        const Revision& valueHolder,
                                        const LogicalTime& time) final override;
