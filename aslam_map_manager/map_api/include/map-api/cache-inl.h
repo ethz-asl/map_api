@@ -79,9 +79,17 @@ bool Cache<IdType, Value, DerivedValue>::insert(const IdType& id,
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
-void Cache<IdType, Value, DerivedValue>::erase(const IdType& /*id*/) {
+void Cache<IdType, Value, DerivedValue>::erase(const IdType& id) {
   // TODO(tcies): Implement erase from DB.
-  CHECK(false) << "Erase on cache not implemented.";
+  LOG_FIRST_N(ERROR, 1) << "Erase on cache will lead to dangling items in the "
+                           "db.";
+  cache_.erase(id);
+  available_ids_.erase(id);
+  Id db_id;
+  sm::HashId hash_id;
+  id.toHashId(&hash_id);
+  db_id.fromHashId(hash_id);
+  revisions_.erase(db_id);
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
