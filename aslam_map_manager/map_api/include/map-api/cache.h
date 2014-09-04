@@ -168,8 +168,11 @@ class Cache : public CacheBase,
   static constexpr bool kIsPointer = common::IsPointerType<Value>::value;
   typedef traits::InstanceFactory<kIsPointer, Value, DerivedValue> Factory;
 
-  std::shared_ptr<Revision> getRevision(const IdType& id);
-  std::shared_ptr<Revision> getRevision(const IdType& id) const;
+  /**
+   * Mutex MUST be locked prior to calling the getRevisionLocked functions.
+   */
+  std::shared_ptr<Revision> getRevisionLocked(const IdType& id);
+  std::shared_ptr<Revision> getRevisionLocked(const IdType& id) const;
   virtual void prepareForCommit() override;
 
   typedef std::unordered_map<IdType, Value> CacheMap;
@@ -210,6 +213,9 @@ class Cache : public CacheBase,
     std::shared_ptr<Transaction> transaction_;
   };
   TransactionAccessFactory transaction_;
+
+  mutable std::mutex mutex_;
+  typedef std::lock_guard<std::mutex> LockGuard;
 };
 
 }  // namespace map_api
