@@ -63,6 +63,9 @@ template <typename IdType, typename Value>
 class Cache : public CacheBase,
               public common::MappedContainerBase<IdType, Value> {
  public:
+  typedef std::shared_ptr<Cache<IdType, Value> > Ptr;
+  typedef std::shared_ptr<const Cache<IdType, Value> > ConstPtr;
+
   Cache(const std::shared_ptr<Transaction>& transaction, NetTable* const table,
         const std::shared_ptr<ChunkManagerBase>& chunk_manager);
   virtual ~Cache();
