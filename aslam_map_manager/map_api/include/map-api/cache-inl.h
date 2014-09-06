@@ -64,12 +64,12 @@ template <typename IdType, typename Value, typename DerivedValue>
 bool Cache<IdType, Value, DerivedValue>::insert(const IdType& id,
                                                 const Value& value) {
   LockGuard lock(mutex_);
-  typename IdSet::iterator found = getAvailableIdsLocked()->find(id);
-  if (found != getAvailableIdsLocked()->end()) {
+  typename IdSet::iterator found = getAvailableIdsLocked().find(id);
+  if (found != getAvailableIdsLocked().end()) {
     return false;
   }
   CHECK(cache_.emplace(id, value).second);
-  CHECK(getAvailableIdsLocked()->emplace(id).second);
+  CHECK(getAvailableIdsLocked().emplace(id).second);
   return true;
 }
 
@@ -80,7 +80,7 @@ void Cache<IdType, Value, DerivedValue>::erase(const IdType& id) {
   LOG_FIRST_N(ERROR, 1) << "Erase on cache will lead to dangling items in the "
                            "db.";
   cache_.erase(id);
-  getAvailableIdsLocked()->erase(id);
+  getAvailableIdsLocked().erase(id);
   Id db_id;
   sm::HashId hash_id;
   id.toHashId(&hash_id);
@@ -91,8 +91,8 @@ void Cache<IdType, Value, DerivedValue>::erase(const IdType& id) {
 template <typename IdType, typename Value, typename DerivedValue>
 bool Cache<IdType, Value, DerivedValue>::has(const IdType& id) const {
   LockGuard lock(mutex_);
-  typename IdSet::const_iterator found = getAvailableIdsLocked()->find(id);
-  return found != getAvailableIdsLocked()->end();
+  typename IdSet::const_iterator found = getAvailableIdsLocked().find(id);
+  return found != getAvailableIdsLocked().end();
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
@@ -101,20 +101,20 @@ void Cache<IdType, Value, DerivedValue>::getAllAvailableIds(
   LockGuard lock(mutex_);
   CHECK_NOTNULL(available_ids);
   available_ids->clear();
-  available_ids->insert(getAvailableIdsLocked()->begin(),
-                        getAvailableIdsLocked()->end());
+  available_ids->insert(getAvailableIdsLocked().begin(),
+                        getAvailableIdsLocked().end());
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
 size_t Cache<IdType, Value, DerivedValue>::size() const {
   LockGuard lock(mutex_);
-  return getAvailableIdsLocked()->size();
+  return getAvailableIdsLocked().size();
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
 bool Cache<IdType, Value, DerivedValue>::empty() const {
   LockGuard lock(mutex_);
-  return getAvailableIdsLocked()->empty();
+  return getAvailableIdsLocked().empty();
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
@@ -184,23 +184,23 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
-typename Cache<IdType, Value, DerivedValue>::IdSet*
+typename Cache<IdType, Value, DerivedValue>::IdSet&
 Cache<IdType, Value, DerivedValue>::getAvailableIdsLocked() {
   if (!ids_fetched_) {
     transaction_.get()->getAvailableIds(underlying_table_, &available_ids_);
     ids_fetched_ = true;
   }
-  return &available_ids_;
+  return available_ids_;
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
-const typename Cache<IdType, Value, DerivedValue>::IdSet*
+const typename Cache<IdType, Value, DerivedValue>::IdSet&
 Cache<IdType, Value, DerivedValue>::getAvailableIdsLocked() const {
   if (!ids_fetched_) {
     transaction_.get()->getAvailableIds(underlying_table_, &available_ids_);
     ids_fetched_ = true;
   }
-  return &available_ids_;
+  return available_ids_;
 }
 
 }  // namespace map_api
