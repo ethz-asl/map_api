@@ -177,9 +177,14 @@ class Cache : public CacheBase,
 
   typedef std::unordered_map<IdType, Value> CacheMap;
   typedef std::unordered_set<IdType> IdSet;
+
+  inline IdSet* getAvailableIdsLocked();
+  inline const IdSet* getAvailableIdsLocked() const;
+
   mutable CacheMap cache_;
   mutable CRTable::RevisionMap revisions_;
-  IdSet available_ids_;
+  mutable IdSet available_ids_;
+  mutable bool ids_fetched_;
   NetTable* underlying_table_;
   std::shared_ptr<ChunkManagerBase> chunk_manager_;
   bool staged_;
