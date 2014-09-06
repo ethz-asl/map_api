@@ -8,7 +8,11 @@ namespace map_api {
 template <typename IdType>
 std::shared_ptr<Revision> NetTableTransaction::getById(const IdType& id) {
   Chunk* chunk = chunkOf(id);
-  return getById(id, chunk);
+  if (chunk) {
+    return getById(id, chunk);
+  } else {
+    return std::shared_ptr<Revision>();
+  }
 }
 
 template <typename IdType>
@@ -36,6 +40,9 @@ Chunk* NetTableTransaction::chunkOf(const IdType& id) {
   // TODO(tcies) uncommitted
   // using the latest logical time ensures fastest lookup
   std::shared_ptr<Revision> latest = table_->getByIdInconsistent(id);
+  if (!latest) {
+    return nullptr;
+  }
   Id chunk_id;
   latest->get(NetTable::kChunkIdField, &chunk_id);
   return table_->getChunk(chunk_id);
