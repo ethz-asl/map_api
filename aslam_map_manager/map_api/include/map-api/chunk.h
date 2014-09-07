@@ -135,6 +135,7 @@ class Chunk {
    * to join it by responding with Message::kDecline.
    */
   bool addPeer(const PeerId& peer);
+  size_t addAllPeers();
   /**
    * Distributed RW lock structure. Because it is distributed, unlocking from
    * a remote peer can potentially be handled by a different thread than the
@@ -183,6 +184,8 @@ class Chunk {
    */
   bool isWriter(const PeerId& peer);
 
+  void initRequestSetData(proto::InitRequest* request);
+  void initRequestSetPeers(proto::InitRequest* request);
   void prepareInitRequest(Message* request);
 
   /**
