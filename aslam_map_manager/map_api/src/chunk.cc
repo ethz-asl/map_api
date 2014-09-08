@@ -75,6 +75,7 @@ bool Chunk::init(
       Revision data;
       CHECK(data.ParseFromString((init_request.serialized_items(i))));
       CHECK(underlying_table->patch(data));
+      syncLatestCommitTime(data);
     } else {
       CHECK(underlying_table->type() == CRTable::Type::CRU);
       proto::History history_proto;
@@ -84,6 +85,8 @@ bool Chunk::init(
         Revision data;
         CHECK(data.ParseFromString(history_proto.serialized_revisions(j)));
         CHECK(underlying_table->patch(data));
+        // TODO(tcies) guarantee order, then only sync latest time
+        syncLatestCommitTime(data);
       }
     }
   }
@@ -92,12 +95,9 @@ bool Chunk::init(
   lock_.state = DistributedRWLock::State::WRITE_LOCKED;
   lock_.holder = sender;
   initialized_ = true;
+  // Because it would be wasteful to iterate over all entries to find the
+  // actual latest time:
   return true;
-}
-
-Id Chunk::id() const {
-  // TODO(tcies) implement
-  return id_;
 }
 
 void Chunk::dumpItems(const LogicalTime& time, CRTable::RevisionMap* items) {
@@ -182,6 +182,7 @@ bool Chunk::insert(Revision* item) {
   insert_request.set_serialized_revision(item->SerializeAsString());
   request.impose<kInsertRequest>(insert_request);
   CHECK(peers_.undisputableBroadcast(&request));
+  syncLatestCommitTime(*item);
   distributedUnlock();
   return true;
 }
@@ -195,6 +196,7 @@ bool Chunk::bulkInsert(const CRTable::RevisionMap& items) {
     item.second->set(NetTable::kChunkIdField, id());
     fillMetadata(&insert_requests[i]);
     ++i;
+    syncLatestCommitTime(*item.second);
   }
   Message request;
   distributedReadLock();  // avoid adding of new peers while inserting
@@ -306,6 +308,7 @@ void Chunk::update(Revision* item) {
   update_request.set_serialized_revision(item->SerializeAsString());
   request.impose<kUpdateRequest>(update_request);
   CHECK(peers_.undisputableBroadcast(&request));
+  syncLatestCommitTime(*item);
   distributedUnlock();
 }
 
@@ -716,6 +719,7 @@ void Chunk::handleInsertRequest(const Revision& item, Message* response) {
     CHECK(!isWriter(PeerId::self()));
   }
   underlying_table_->patch(item);
+  syncLatestCommitTime(item);
   response->ack();
   leave_lock_.unlock();
 
@@ -842,6 +846,7 @@ void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
   CHECK(underlying_table_->type() == CRTable::Type::CRU);
   CRUTable* table = static_cast<CRUTable*>(underlying_table_);
   table->patch(item);
+  syncLatestCommitTime(item);
   response->ack();
 
   Id id;  // TODO(tcies) what if leave during trigger?
