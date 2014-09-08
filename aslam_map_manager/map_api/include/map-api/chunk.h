@@ -13,7 +13,8 @@
 
 #include <zeromq_cpp/zmq.hpp>
 
-#include "map-api/cr-table-ram-sqlite.h"
+#include "map-api/cr-table.h"
+#include "map-api/cru-table.h"
 #include "map-api/peer-handler.h"
 #include "map-api/message.h"
 #include "map-api/revision.h"
@@ -57,7 +58,7 @@ class Chunk {
   bool init(const Id& id, const proto::InitRequest& request,
             const PeerId& sender, CRTable* underlying_table);
 
-  Id id() const;
+  inline Id id() const;
 
   void dumpItems(const LogicalTime& time, CRTable::RevisionMap* items);
   size_t numItems(const LogicalTime& time);
@@ -101,6 +102,8 @@ class Chunk {
    * The callback is passed the ID of the inserted/modified item.
    */
   void attachTrigger(const std::function<void(const Id& id)>& callback);
+
+  inline LogicalTime getLatestCommitTime();
 
   static const char kConnectRequest[];
   static const char kInitRequest[];
@@ -188,6 +191,8 @@ class Chunk {
   void initRequestSetPeers(proto::InitRequest* request);
   void prepareInitRequest(Message* request);
 
+  inline void syncLatestCommitTime(const Revision& item);
+
   /**
    * ====================================================================
    * Handlers for ChunkManager requests that are addressed at this Chunk.
@@ -222,6 +227,7 @@ class Chunk {
   volatile bool relinquished_ = false;
   bool log_locking_ = false;
   size_t self_rank_;
+  LogicalTime latest_commit_time_;
 
   static const char kLockSequenceFile[];
   enum LockState {
