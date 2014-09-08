@@ -70,7 +70,7 @@ class NetTableTransaction {
   // INTERNAL
   ChunkTransaction* transactionOf(Chunk* chunk);
   template <typename IdType>
-  Chunk* chunkOf(const IdType& id);
+  Chunk* chunkOf(const IdType& id, std::shared_ptr<Revision>* latest);
   /**
    * A global ordering of chunks prevents deadlocks (resource hierarchy
    * solution)
