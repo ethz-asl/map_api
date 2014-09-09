@@ -10,6 +10,28 @@ void Chunk::fillMetadata(RequestType* destination) {
   destination->mutable_metadata()->set_chunk_id(id().hexString());
 }
 
-} // namespace map_api
+inline Id Chunk::id() const { return id_; }
 
-#endif /* MAP_API_CHUNK_INL_H_ */
+inline void Chunk::syncLatestCommitTime(const Revision& item) {
+  LogicalTime commit_time;
+  if (underlying_table_->type() == CRTable::Type::CR) {
+    item.get(CRTable::kInsertTimeField, &commit_time);
+  } else {
+    CHECK(underlying_table_->type() == CRTable::Type::CRU);
+    item.get(CRUTable::kUpdateTimeField, &commit_time);
+  }
+  if (commit_time > latest_commit_time_) {
+    latest_commit_time_ = commit_time;
+  }
+}
+
+inline LogicalTime Chunk::getLatestCommitTime() {
+  distributedReadLock();
+  LogicalTime result = latest_commit_time_;
+  distributedUnlock();
+  return result;
+}
+
+}  // namespace map_api
+
+#endif  // MAP_API_CHUNK_INL_H_
