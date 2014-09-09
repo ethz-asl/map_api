@@ -10,15 +10,16 @@ std::shared_ptr<Revision> NetTableTransaction::getById(const IdType& id) {
   std::shared_ptr<Revision> result;
   Chunk* chunk = chunkOf(id, &result);
   if (chunk) {
-    LogicalTime inconsistent_latest_time, chunk_latest_commit;
+    LogicalTime inconsistent_time, chunk_latest_commit;
     if (table_->type() == CRTable::Type::CR) {
-      result->get(CRTable::kInsertTimeField, &inconsistent_latest_time);
+      result->get(CRTable::kInsertTimeField, &inconsistent_time);
     } else {
       CHECK(table_->type() == CRTable::Type::CRU);
-      result->get(CRUTable::kUpdateTimeField, &inconsistent_latest_time);
+      result->get(CRUTable::kUpdateTimeField, &inconsistent_time);
     }
     chunk_latest_commit = chunk->getLatestCommitTime();
-    if (chunk_latest_commit <= inconsistent_latest_time) {
+
+    if (chunk_latest_commit <= inconsistent_time) {
       return result;
     } else {
       // TODO(tcies) another optimization possibility: item dug deep in
@@ -54,16 +55,15 @@ void NetTableTransaction::getAvailableIds(std::unordered_set<IdType>* ids) {
 
 template <typename IdType>
 Chunk* NetTableTransaction::chunkOf(const IdType& id,
-                                    std::shared_ptr<Revision>* latest) {
-  CHECK_NOTNULL(latest);
+                                    std::shared_ptr<Revision>* inconsistent) {
+  CHECK_NOTNULL(inconsistent);
   // TODO(tcies) uncommitted
-  // using the latest logical time ensures fastest lookup
-  *latest = table_->getByIdInconsistent(id);
-  if (!(*latest)) {
+  *inconsistent = table_->getByIdInconsistent(id, begin_time_);
+  if (!(*inconsistent)) {
     return nullptr;
   }
   Id chunk_id;
-  (*latest)->get(NetTable::kChunkIdField, &chunk_id);
+  (*inconsistent)->get(NetTable::kChunkIdField, &chunk_id);
   return table_->getChunk(chunk_id);
 }
 

@@ -130,8 +130,13 @@ class NetTable {
    * could be nice and simple to implement
    */
   bool update(Revision* query);
+  /**
+   * getById even though the corresponding chunk isn't locked
+   * TODO(tcies) probably requires mutex on a data level
+   */
   template <typename IdType>
-  std::shared_ptr<Revision> getByIdInconsistent(const IdType& id);
+  std::shared_ptr<Revision> getByIdInconsistent(
+      const IdType& id, const LogicalTime& time);
 
   void readLockActiveChunks();
   void unlockActiveChunks();
