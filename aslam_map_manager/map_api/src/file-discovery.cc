@@ -9,15 +9,13 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "map-api/map-api-hub.h"
+#include "map-api/hub.h"
 
 namespace map_api {
 
 FileDiscovery::~FileDiscovery() {}
 
-void FileDiscovery::announce() {
-  append(MapApiHub::instance().ownAddress());
-}
+void FileDiscovery::announce() { append(Hub::instance().ownAddress()); }
 
 int FileDiscovery::getPeers(std::vector<PeerId>* peers) {
   CHECK_NOTNULL(peers);
@@ -26,7 +24,7 @@ int FileDiscovery::getPeers(std::vector<PeerId>* peers) {
   std::istringstream discovery_stream(file_contents);
   std::string address;
   while (discovery_stream >> address) {
-    if (address == MapApiHub::instance().ownAddress() || address == "") {
+    if (address == Hub::instance().ownAddress() || address == "") {
       continue;
     }
     peers->push_back(PeerId(address));

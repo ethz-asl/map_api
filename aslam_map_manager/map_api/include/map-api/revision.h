@@ -1,13 +1,16 @@
-#ifndef REVISION_H_
-#define REVISION_H_
+#ifndef MAP_API_REVISION_H_
+#define MAP_API_REVISION_H_
 
-#include <map>
 #include <memory>
+#include <unordered_map>
+#include <set>
+#include <string>
 
+#include <glog/logging.h>
 #include <Poco/Data/BLOB.h>
 #include <Poco/Data/Statement.h>
 
-#include "core.pb.h"
+#include "./core.pb.h"
 
 namespace map_api {
 
@@ -17,11 +20,10 @@ class Revision final : public proto::Revision {
    * Insert placeholder in SQLite insert statements. Returns blob shared pointer
    * for dynamically created blob objects
    */
-  std::shared_ptr<Poco::Data::BLOB>
-  insertPlaceHolder(int field, Poco::Data::Statement& stat) const;
-  std::shared_ptr<Poco::Data::BLOB>
-  insertPlaceHolder(const std::string& field,
-                    Poco::Data::Statement& stat) const;
+  std::shared_ptr<Poco::Data::BLOB> insertPlaceHolder(
+      int field, Poco::Data::Statement* stat) const;
+  std::shared_ptr<Poco::Data::BLOB> insertPlaceHolder(
+      const std::string& field, Poco::Data::Statement* stat) const;
 
   /**
    * Gets protocol buffer enum for type
@@ -38,9 +40,6 @@ class Revision final : public proto::Revision {
   return ENUM ; \
 } \
 extern void revEnum ## __FILE__ ## __LINE__(void)
-  // in order to swallow the semicolon
-  // http://gcc.gnu.org/onlinedocs/cpp/Swallowing-the-Semicolon.html
-  // http://stackoverflow.com/questions/18786848
 
   /**
    * Overriding adding field in order to impose indexing
@@ -60,18 +59,29 @@ extern void revEnum ## __FILE__ ## __LINE__(void)
    */
   template <typename FieldType>
   bool get(const std::string& fieldName, FieldType* value) const;
+  template <typename FieldType>
+  bool get(const std::string& fieldName, int index_guess,
+           FieldType* value) const;
 
   /**
    * Verifies field value according to type.
    */
   template <typename ExpectedType>
   bool verifyEqual(const std::string& fieldName,
-              const ExpectedType& expected) const;
+                   const ExpectedType& expected) const;
 
   /**
    * Returns true if Revision contains same fields as other
    */
   bool structureMatch(const Revision& other) const;
+
+  /**
+   * Returns true if value at key is same as with other
+   */
+  bool fieldMatch(const Revision& other, const std::string& key) const;
+  bool fieldMatch(const Revision& other, const std::string& key,
+                  int index_guess) const;
+  int indexOf(const std::string& key) const;
 
   /**
    * Overriding parsing from string in order to add indexing.
@@ -90,13 +100,12 @@ extern void revEnum ## __FILE__ ## __LINE__(void)
   /**
    * A map of fields for more intuitive access.
    */
-  typedef std::map<std::string, int> FieldMap;
+  typedef std::unordered_map<std::string, int> FieldMap;
   FieldMap fields_;
   /**
    * Access to the map.
    */
   bool find(const std::string& name, proto::TableField** field);
-  bool find(const std::string& name, const proto::TableField** field) const;
   /**
    * Sets field according to type.
    */
@@ -119,48 +128,58 @@ extern void revEnum ## __FILE__ ## __LINE__(void)
 #define REVISION_GET(TYPE) \
     template <> \
     bool Revision::get<TYPE>(const proto::TableField& field, TYPE* value) const
-
 };
 
 /**
  * One Macro to define REVISION_ENUM, _SET and _GET for Protobuf objects
  */
-#define REVISION_PROTOBUF(TYPE) \
-    REVISION_ENUM(TYPE, ::map_api::proto::TableFieldDescriptor_Type_BLOB); \
-    \
-    REVISION_SET(TYPE){ \
-      field.set_blobvalue(value.SerializeAsString()); \
-      return true; \
-    } \
-    \
-    REVISION_GET(TYPE){ \
-      bool parsed = value->ParseFromString(field.blobvalue()); \
-      if (!parsed) { \
-        LOG(ERROR) << "Failed to parse " << #TYPE; \
-        return false; \
-      } \
-      return true; \
-    } \
-    extern void __FILE__ ## __LINE__(void)
-// in order to swallow the semicolon
-// http://gcc.gnu.org/onlinedocs/cpp/Swallowing-the-Semicolon.html
-// http://stackoverflow.com/questions/18786848/macro-that-swallows-semicolon-out
-// side-of-function
+#define REVISION_PROTOBUF(TYPE)                                          \
+  REVISION_ENUM(TYPE, ::map_api::proto::TableFieldDescriptor_Type_BLOB); \
+                                                                         \
+  REVISION_SET(TYPE) {                                                   \
+    field.set_blobvalue(value.SerializeAsString());                      \
+    return true;                                                         \
+  }                                                                      \
+                                                                         \
+  REVISION_GET(TYPE) {                                                   \
+    CHECK_NOTNULL(value);                                                \
+    bool parsed = value->ParseFromString(field.blobvalue());             \
+    if (!parsed) {                                                       \
+      LOG(ERROR) << "Failed to parse " << #TYPE;                         \
+      return false;                                                      \
+    }                                                                    \
+    return true;                                                         \
+  }                                                                      \
+  extern void __FILE__##__LINE__(void)
+/**
+ * Same for UniqueId derivates
+ */
+#define MAP_API_REVISION_UNIQUE_ID(TypeName)                          \
+  REVISION_ENUM(TypeName,                                             \
+                ::map_api::proto::TableFieldDescriptor_Type_HASH128); \
+  REVISION_SET(TypeName) {                                            \
+    field.set_stringvalue(value.hexString());                         \
+    return true;                                                      \
+  }                                                                   \
+  REVISION_GET(TypeName) {                                            \
+    return CHECK_NOTNULL(value)->fromHexString(field.stringvalue());  \
+  }                                                                   \
+  extern void __FILE__##__LINE__(void)
 
 /**
  * A generic, blob-y field type for testing blob insertion
  */
-class testBlob : public map_api::proto::TableField{
+class testBlob : public map_api::proto::TableField {
  public:
-  inline bool operator==(const testBlob& other) const{
+  inline bool operator==(const testBlob& other) const {
     if (!this->has_nametype())
       return !other.has_nametype();
     return nametype().name() == other.nametype().name();
   }
 };
 
-} /* namespace map_api */
+}  // namespace map_api
 
 #include "map-api/revision-inl.h"
 
-#endif /* REVISION_H_ */
+#endif  // MAP_API_REVISION_H_

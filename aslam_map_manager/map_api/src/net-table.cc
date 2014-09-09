@@ -2,10 +2,14 @@
 
 #include <glog/logging.h>
 
-#include "map-api/cr-table-ram-cache.h"
-#include "map-api/cru-table-ram-cache.h"
-#include "map-api/map-api-core.h"
+#include "map-api/core.h"
+#include "map-api/cr-table-ram-map.h"
+#include "map-api/cr-table-ram-sqlite.h"
+#include "map-api/cru-table-ram-map.h"
+#include "map-api/cru-table-ram-sqlite.h"
 #include "map-api/net-table-manager.h"
+
+DEFINE_bool(use_sqlite, false, "SQLite VS ram map table caches");
 
 namespace map_api {
 
@@ -19,10 +23,18 @@ bool NetTable::init(
   (*descriptor)->addField<Id>(kChunkIdField);
   switch (type) {
     case CRTable::Type::CR:
-      cache_.reset(new CRTableRAMCache);
+      if (FLAGS_use_sqlite) {
+        cache_.reset(new CRTableRamSqlite);
+      } else {
+        cache_.reset(new CRTableRamMap);
+      }
       break;
     case CRTable::Type::CRU:
-      cache_.reset(new CRUTableRAMCache);
+      if (FLAGS_use_sqlite) {
+        cache_.reset(new CRUTableRamSqlite);
+      } else {
+        cache_.reset(new CRUTableRamMap);
+      }
       break;
   }
   CHECK(cache_->init(descriptor));
@@ -49,18 +61,21 @@ const std::string& NetTable::name() const {
   return cache_->name();
 }
 
+const CRTable::Type& NetTable::type() const { return type_; }
+
 std::shared_ptr<Revision> NetTable::getTemplate() const {
   return cache_->getTemplate();
 }
 
 Chunk* NetTable::newChunk() {
-  Id chunk_id = Id::generate();
+  Id chunk_id;
+  map_api::generateId(&chunk_id);
   return newChunk(chunk_id);
 }
 
 Chunk* NetTable::newChunk(const Id& chunk_id) {
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
-  CHECK(chunk->init(chunk_id, cache_.get()));
+  CHECK(chunk->init(chunk_id, cache_.get(), true));
   active_chunks_lock_.writeLock();
   std::pair<ChunkMap::iterator, bool> inserted =
       active_chunks_.insert(std::make_pair(chunk_id, std::unique_ptr<Chunk>()));
@@ -114,13 +129,6 @@ bool NetTable::update(Revision* query) {
   return true;
 }
 
-// TODO(tcies) net lookup
-std::shared_ptr<Revision> NetTable::getById(const Id& id,
-                                            const LogicalTime& time) {
-  LOG(WARNING) << "Use of deprecated function NetTable::getById";
-  return cache_->getById(id, time);
-}
-
 void NetTable::dumpActiveChunks(const LogicalTime& time,
                                 CRTable::RevisionMap* destination) {
   CHECK_NOTNULL(destination);
@@ -142,14 +150,6 @@ void NetTable::dumpActiveChunksAtCurrentTime(
   return dumpActiveChunks(map_api::LogicalTime::sample(), destination);
 }
 
-bool NetTable::has(const Id& chunk_id) {
-  bool result;
-  active_chunks_lock_.readLock();
-  result = (active_chunks_.find(chunk_id) != active_chunks_.end());
-  active_chunks_lock_.unlock();
-  return result;
-}
-
 Chunk* NetTable::connectTo(const Id& chunk_id,
                            const PeerId& peer) {
   Message request, response;
@@ -159,7 +159,7 @@ Chunk* NetTable::connectTo(const Id& chunk_id,
   metadata.set_chunk_id(chunk_id.hexString());
   request.impose<Chunk::kConnectRequest>(metadata);
   // TODO(tcies) add to local peer subset as well?
-  MapApiHub::instance().request(peer, &request, &response);
+  Hub::instance().request(peer, &request, &response);
   CHECK(response.isType<Message::kAck>()) << response.type();
   // wait for connect handle thread of other peer to succeed
   ChunkMap::iterator found;
@@ -176,12 +176,14 @@ Chunk* NetTable::connectTo(const Id& chunk_id,
   return found->second.get();
 }
 
-size_t NetTable::activeChunksSize() const {
-  return active_chunks_.size();
+size_t NetTable::numActiveChunks() const {
+  active_chunks_lock_.readLock();
+  size_t result = active_chunks_.size();
+  active_chunks_lock_.unlock();
+  return result;
 }
 
-size_t NetTable::activeChunksItemsSize() {
-  CRTable::RevisionMap result;
+size_t NetTable::numActiveChunksItems() {
   std::set<Id> active_chunk_ids;
   getActiveChunkIds(&active_chunk_ids);
   size_t num_elements = 0;
@@ -192,6 +194,19 @@ size_t NetTable::activeChunksItemsSize() {
     num_elements += chunk->numItems(now);
   }
   return num_elements;
+}
+
+size_t NetTable::activeChunksItemsSizeBytes() {
+  std::set<Id> active_chunk_ids;
+  getActiveChunkIds(&active_chunk_ids);
+  size_t size_bytes = 0;
+  LogicalTime now = LogicalTime::sample();
+  for (const Id& chunk_id : active_chunk_ids) {
+    Chunk* chunk = getChunk(chunk_id);
+    CHECK_NOTNULL(chunk);
+    size_bytes += chunk->itemsSizeBytes(now);
+  }
+  return size_bytes;
 }
 
 void NetTable::kill() {
@@ -215,6 +230,15 @@ void NetTable::shareAllChunks() {
   active_chunks_lock_.unlock();
 }
 
+void NetTable::shareAllChunks(const PeerId& peer) {
+  active_chunks_lock_.readLock();
+  for (const std::pair<const Id, std::unique_ptr<Chunk> >& chunk :
+       active_chunks_) {
+    chunk.second->requestParticipation(peer);
+  }
+  active_chunks_lock_.unlock();
+}
+
 void NetTable::leaveAllChunks() {
   active_chunks_lock_.readLock();
   for (const std::pair<const Id, std::unique_ptr<Chunk> >& chunk :
@@ -229,8 +253,9 @@ void NetTable::leaveAllChunks() {
 
 std::string NetTable::getStatistics() {
   std::stringstream ss;
-  ss << name() << ": " << activeChunksSize() << " chunks and "
-     << activeChunksItemsSize() << " items.";
+  ss << name() << ": " << numActiveChunks() << " chunks and "
+     << numActiveChunksItems() << " items. ["
+     << humanReadableBytes(activeChunksItemsSizeBytes()) << "]";
   return ss.str();
 }
 
@@ -241,6 +266,31 @@ void NetTable::getActiveChunkIds(std::set<Id>* chunk_ids) const {
   for (const std::pair<const Id, std::unique_ptr<Chunk> >& chunk :
        active_chunks_) {
     chunk_ids->insert(chunk.first);
+  }
+  active_chunks_lock_.unlock();
+}
+
+void NetTable::getActiveChunks(std::set<Chunk*>* chunks) const {
+  CHECK_NOTNULL(chunks);
+  chunks->clear();
+  active_chunks_lock_.readLock();
+  for (const std::pair<const Id, std::unique_ptr<Chunk> >& chunk :
+       active_chunks_) {
+    chunks->insert(chunk.second.get());
+  }
+  active_chunks_lock_.unlock();
+}
+
+void NetTable::readLockActiveChunks() {
+  active_chunks_lock_.readLock();
+  for (const ChunkMap::value_type& chunk : active_chunks_) {
+    chunk.second->readLock();
+  }
+}
+
+void NetTable::unlockActiveChunks() {
+  for (const ChunkMap::value_type& chunk : active_chunks_) {
+    chunk.second->unlock();
   }
   active_chunks_lock_.unlock();
 }

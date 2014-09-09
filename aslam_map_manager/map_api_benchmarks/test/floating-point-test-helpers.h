@@ -19,7 +19,7 @@ void GenerateTestData(size_t num_features_per_cluster, size_t num_clusters,
   CHECK_NOTNULL(descriptors);
   CHECK_NOTNULL(gt_membership);
   CHECK_GT(area_width, 2 * cluster_radius);
-  std::mt19937 generator(seed);
+  std::mt19937 engine(seed);
 
   std::uniform_real_distribution<double> center_generator(
       cluster_radius, area_width - cluster_radius);
@@ -27,7 +27,6 @@ void GenerateTestData(size_t num_features_per_cluster, size_t num_clusters,
       0., area_width);
   std::normal_distribution<double> data_generator(
       0, cluster_radius);
-  std::default_random_engine engine;
 
   for (size_t i = 0; i < num_noise_samples; ++i) {
     DescriptorType sample = DescriptorType::Zero(kDescriptorDimensionality, 1);
@@ -49,6 +48,10 @@ void GenerateTestData(size_t num_features_per_cluster, size_t num_clusters,
       DescriptorType sample = center;
       for (int k = 0; k < kDescriptorDimensionality; ++k) {
         sample(k, 0) += data_generator(engine);
+        while (sample(k, 0) >= area_width || sample(k, 0) <= 0) {
+          sample(k, 0) = center(k, 0);
+          sample(k, 0) += data_generator(engine);
+        }
       }
       descriptors->push_back(sample);
       gt_membership->push_back(i);
@@ -56,7 +59,7 @@ void GenerateTestData(size_t num_features_per_cluster, size_t num_clusters,
   }
 }
 
-}  // namespace map_api
 }  // namespace benchmarks
+}  // namespace map_api
 
 #endif  // MAP_API_BENCHMARKS_FLOATING_POINT_TEST_HELPERS_H_

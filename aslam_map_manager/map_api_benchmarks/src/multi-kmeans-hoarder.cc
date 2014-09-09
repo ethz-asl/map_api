@@ -9,7 +9,7 @@ namespace map_api {
 namespace benchmarks {
 
 DEFINE_bool(gnuplot_persist, false, "if set, gnuplot detaches from test");
-DEFINE_bool(enable_visualization, true, "allows disabling visualization");
+DEFINE_bool(enable_visualization, false, "enable gnuplot visualization");
 
 void MultiKmeansHoarder::init(const DescriptorVector& descriptors,
                               const DescriptorVector& gt_centers,
@@ -30,7 +30,8 @@ void MultiKmeansHoarder::init(const DescriptorVector& descriptors,
   Kmeans2D generator(descriptor_zero);
   generator.SetInitMethod(InitRandom<DescriptorType>(descriptor_zero));
   generator.SetMaxIterations(0);
-  generator.Cluster(descriptors, centers->size(), random_seed, &membership, &centers);
+  generator.Cluster(descriptors, centers->size(), random_seed, &membership,
+                    &centers);
 
   // load into database
   descriptor_chunk_ = app::data_point_table->newChunk();
@@ -102,7 +103,7 @@ void MultiKmeansHoarder::plot(const DescriptorVector& descriptors,
         fprintf(gnuplot_, "%f %f\n", descriptors[j][0], descriptors[j][1]);
       }
     }
-    fputs("-1 -1\n", gnuplot_); // so there are no empty plot groups
+    fputs("-1 -1\n", gnuplot_);  // so there are no empty plot groups
     fputs("e\n", gnuplot_);
   }
   for (const DescriptorType center : centers) {

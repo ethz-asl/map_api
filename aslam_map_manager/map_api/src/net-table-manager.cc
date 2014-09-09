@@ -1,9 +1,10 @@
 #include "map-api/net-table-manager.h"
 
-#include "map-api/map-api-hub.h"
-#include "map-api/map-api-core.h"
+#include "map-api/chunk-transaction.h"
+#include "map-api/core.h"
+#include "map-api/hub.h"
 #include "map-api/revision.h"
-#include "net-table.pb.h"
+#include "./net-table.pb.h"
 
 namespace map_api {
 
@@ -36,26 +37,18 @@ bool NetTableManager::routeChunkRequestOperations<proto::ChunkRequestMetadata>(
 
 void NetTableManager::registerHandlers() {
   // chunk requests
-  MapApiHub::instance().registerHandler(
-      Chunk::kConnectRequest, handleConnectRequest);
-  MapApiHub::instance().registerHandler(
-      Chunk::kInitRequest, handleInitRequest);
-  MapApiHub::instance().registerHandler(
-      Chunk::kInsertRequest, handleInsertRequest);
-  MapApiHub::instance().registerHandler(
-      Chunk::kLeaveRequest, handleLeaveRequest);
-  MapApiHub::instance().registerHandler(
-      Chunk::kLockRequest, handleLockRequest);
-  MapApiHub::instance().registerHandler(
-      Chunk::kNewPeerRequest, handleNewPeerRequest);
-  MapApiHub::instance().registerHandler(
-      Chunk::kUnlockRequest, handleUnlockRequest);
-  MapApiHub::instance().registerHandler(
-      Chunk::kUpdateRequest, handleUpdateRequest);
+  Hub::instance().registerHandler(Chunk::kConnectRequest, handleConnectRequest);
+  Hub::instance().registerHandler(Chunk::kInitRequest, handleInitRequest);
+  Hub::instance().registerHandler(Chunk::kInsertRequest, handleInsertRequest);
+  Hub::instance().registerHandler(Chunk::kLeaveRequest, handleLeaveRequest);
+  Hub::instance().registerHandler(Chunk::kLockRequest, handleLockRequest);
+  Hub::instance().registerHandler(Chunk::kNewPeerRequest, handleNewPeerRequest);
+  Hub::instance().registerHandler(Chunk::kUnlockRequest, handleUnlockRequest);
+  Hub::instance().registerHandler(Chunk::kUpdateRequest, handleUpdateRequest);
 
   // chord requests
-  MapApiHub::instance().registerHandler(
-      NetTableIndex::kRoutedChordRequest, handleRoutedChordRequests);
+  Hub::instance().registerHandler(NetTableIndex::kRoutedChordRequest,
+                                  handleRoutedChordRequests);
 }
 
 NetTableManager& NetTableManager::instance() {
@@ -97,14 +90,14 @@ void NetTableManager::initMetatable(bool create_metatable_chunk) {
     metatable->createIndex();
   } else {
     std::set<PeerId> hub_peers;
-    MapApiHub::instance().getPeers(&hub_peers);
+    Hub::instance().getPeers(&hub_peers);
     PeerId ready_peer;
     // choosing a ready entry point avoids issues of parallelism such as that
     // e.g. the other peer is at 2. but not at 3. of this procedure.
     bool success = false;
     while (!success) {
       for (const PeerId& peer : hub_peers) {
-        if (MapApiHub::instance().isReady(peer)) {
+        if (Hub::instance().isReady(peer)) {
           ready_peer = peer;
           success = true;
           break;
@@ -132,7 +125,7 @@ void NetTableManager::addTable(
     CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor) {
   CHECK_NOTNULL(descriptor);
   CHECK(*descriptor);
-  TableDescriptor* descriptor_raw = descriptor->get(); // needed later
+  TableDescriptor* descriptor_raw = descriptor->get();  // needed later
   tables_lock_.writeLock();
   TableMap::iterator found = tables_.find((*descriptor)->name());
   if (found != tables_.end()) {
@@ -168,15 +161,26 @@ NetTable& NetTableManager::getTable(const std::string& name) {
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = tables_.find(name);
   // TODO(tcies) load table schema from metatable if not active
-  CHECK(found != tables_.end());
+  CHECK(found != tables_.end()) << "Table not found: " << name;
   tables_lock_.unlock();
   return *found->second;
 }
 
+void NetTableManager::tableList(std::vector<std::string>* tables) {
+  CHECK_NOTNULL(tables);
+  tables->clear();
+  tables_lock_.readLock();
+  for (const std::pair<const std::string, std::unique_ptr<NetTable> >& pair :
+       tables_) {
+    tables->push_back(pair.first);
+  }
+  tables_lock_.unlock();
+}
+
 void NetTableManager::kill() {
   tables_lock_.readLock();
-  for(const std::pair<const std::string, std::unique_ptr<NetTable> >& table :
-      tables_) {
+  for (const std::pair<const std::string, std::unique_ptr<NetTable> >& table :
+       tables_) {
     table.second->kill();
   }
   tables_lock_.unlock();
@@ -197,7 +201,7 @@ void NetTableManager::handleConnectRequest(const Message& request,
   const std::string& table = metadata.table();
   Id chunk_id;
   CHECK(chunk_id.fromHexString(metadata.chunk_id()));
-  CHECK_NOTNULL(MapApiCore::instance());
+  CHECK_NOTNULL(Core::instance());
   instance().tables_lock_.readLock();
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = instance().tables_.find(table);
@@ -314,11 +318,12 @@ bool NetTableManager::syncTableDefinition(
   CHECK_NOTNULL(first);
   CHECK_NOTNULL(entry_point);
   CHECK_NOTNULL(metatable_chunk_);
-  std::shared_ptr<ChunkTransaction> try_insert =
-      metatable_chunk_->newTransaction();
+  ChunkTransaction try_insert(metatable_chunk_);
   NetTable& metatable = getTable(kMetaTableName);
   std::shared_ptr<Revision> attempt = metatable.getTemplate();
-  attempt->set(CRTable::kIdField, Id::generate());
+  Id metatable_id;
+  map_api::generateId(&metatable_id);
+  attempt->set(CRTable::kIdField, metatable_id);
   attempt->set(kMetaTableNameField, descriptor.name());
   proto::PeerList peers;
   peers.add_peers(PeerId::self().ipPort());
@@ -334,10 +339,10 @@ bool NetTableManager::syncTableDefinition(
     default:
       LOG(FATAL) << "Unknown table type";
   }
-  try_insert->insert(attempt);
-  try_insert->addConflictCondition(kMetaTableNameField, descriptor.name());
+  try_insert.insert(attempt);
+  try_insert.addConflictCondition(kMetaTableNameField, descriptor.name());
 
-  if (metatable_chunk_->commit(*try_insert)) {
+  if (try_insert.commit()) {
     *first = true;
     return true;
   } else {
@@ -346,11 +351,10 @@ bool NetTableManager::syncTableDefinition(
 
   // Case Table definition already in metatable
   while (true) {
-    std::shared_ptr<ChunkTransaction> try_join =
-        metatable_chunk_->newTransaction();
+    ChunkTransaction try_join(metatable_chunk_);
     // 1. Read previous registration in metatable
     std::shared_ptr<Revision> previous =
-        try_join->findUnique(kMetaTableNameField, descriptor.name());
+        try_join.findUnique(kMetaTableNameField, descriptor.name());
     CHECK(previous) << "Can't find table " << descriptor.name() <<
         " even though its presence seemingly caused a conflict";
     // 2. Verify structure

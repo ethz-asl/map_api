@@ -1,6 +1,9 @@
 #ifndef MAP_API_LOCAL_TRANSACTION_INL_H_
 #define MAP_API_LOCAL_TRANSACTION_INL_H_
 
+#include <string>
+#include <utility>
+
 namespace map_api {
 
 template<typename ValueType>
@@ -18,18 +21,17 @@ bool LocalTransaction::addConflictCondition(const std::string& key,
   return true;
 }
 
-template<typename ValueType>
-int LocalTransaction::find(
-    const std::string& key, const ValueType& value, CRTable* table,
-    std::unordered_map<Id, SharedRevisionPointer>* dest) const {
+template <typename ValueType>
+int LocalTransaction::find(const std::string& key, const ValueType& value,
+                           CRTable* table, CRTable::RevisionMap* dest) const {
   CHECK_NOTNULL(dest);
-  if (LocalTransaction::notifyAbortedOrInactive()){
+  if (LocalTransaction::notifyAbortedOrInactive()) {
     return false;
   }
   dest->clear();
   findInUncommitted(*table, key, value, dest);
-  if (dest->size() > 0) { // already have results in uncommited, merge from db
-    std::unordered_map<Id, SharedRevisionPointer> from_database;
+  if (!dest->empty()) {  // already have results in uncommited, merge from db
+    CRTable::RevisionMap from_database;
     {
       std::lock_guard<std::recursive_mutex> lock(dbMutex_);
       table->find(key, value, this->beginTime_, &from_database);
@@ -49,8 +51,8 @@ template<typename ValueType>
 LocalTransaction::SharedRevisionPointer LocalTransaction::findUnique(
     const std::string& key, const ValueType& value, CRTable* table)
 const {
-  if (LocalTransaction::notifyAbortedOrInactive()){
-    return false;
+  if (LocalTransaction::notifyAbortedOrInactive()) {
+    return NULL;
   }
   SharedRevisionPointer uncommitted =
       findUniqueInUncommitted(*table, key, value);
@@ -72,7 +74,7 @@ int LocalTransaction::findInUncommitted(
   dest->clear();
   for (const std::pair<ItemId, SharedRevisionPointer> &insertion :
       insertions_) {
-    if (insertion.first.table->name() == table.name()){
+    if (insertion.first.table->name() == table.name()) {
       if (key != "") {
         if (insertion.second->verifyEqual(key, value)) {
           (*dest)[insertion.first.id] = insertion.second;
@@ -85,7 +87,7 @@ int LocalTransaction::findInUncommitted(
   // possible optimization: don't browse updates if CRTable
   // (template this function or dynamic cast)
   for (const std::pair<ItemId, SharedRevisionPointer>& update : updates_) {
-    if (update.first.table->name() == table.name()){
+    if (update.first.table->name() == table.name()) {
       if (key != "") {
         if (update.second->verifyEqual(key, value)) {
           (*dest)[update.first.id] = update.second;
@@ -114,6 +116,6 @@ const {
   }
 }
 
-} // namespace map_api
+}  // namespace map_api
 
-#endif /* MAP_API_LOCAL_TRANSACTION_INL_H_ */
+#endif  // MAP_API_LOCAL_TRANSACTION_INL_H_

@@ -8,9 +8,10 @@ using namespace std;
 int main() {
   FILE* gnuplot = popen("gnuplot --persist", "w");
   fputs("set key off\n", gnuplot);
-  fputs("plot sin(x)\n", gnuplot);
-  fflush(gnuplot);
-  getchar();
+  fputs("set terminal wxt enhanced font 'Verdana,15'\n", gnuplot);
+  fputs("set xlabel \"time[s]\"\n", gnuplot);
+  fputs("set ylabel \"peer rank\"\n", gnuplot);
+  fputs("set title \"Reader-writer lock acquisition sequence\"\n", gnuplot);
   ifstream file("meas_lock_sequence.txt", ios::in);
   double start, end;
   size_t max_rank = 0;
@@ -38,6 +39,7 @@ int main() {
     }
     fflush(gnuplot);
   }
-  fprintf(gnuplot, "set xrange [0:%f]\nset yrange [0:%lu]\n", end, max_rank);
+  fprintf(gnuplot, "set xrange [0:%f]\nset yrange [0:%lu]\n", end,
+          max_rank + 1);
   fputs("plot '-' w p\n-1 -1\ne\n", gnuplot);
 }

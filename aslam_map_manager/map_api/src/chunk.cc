@@ -1,22 +1,27 @@
 #include "map-api/chunk.h"
 
-#include <fstream>
+#include <fstream>  // NOLINT
 #include <unordered_set>
 
 #include <multiagent_mapping_common/conversions.h>
 #include <timing/timer.h>
 
 #include "map-api/cru-table.h"
+#include "map-api/hub.h"
 #include "map-api/net-table-manager.h"
-#include "map-api/map-api-hub.h"
 #include "./core.pb.h"
 #include "./chunk.pb.h"
 
-DEFINE_bool(writelock_persist, false,
-            "Enables more persisting write lock "
-            "strategy");
-
-DEFINE_bool(forward_unlock, false, "Changes unlock order to forward");
+enum UnlockStrategy {
+  REVERSE,
+  FORWARD,
+  RANDOM
+};
+DEFINE_uint64(unlock_strategy, 2,
+              "0: reverse of lock ordering, 1: same as"
+              "lock ordering, 2: randomized");
+DEFINE_bool(writelock_persist, true,
+            "Enables more persisting write lock strategy");
 
 namespace map_api {
 
@@ -30,7 +35,7 @@ const char Chunk::kUnlockRequest[] = "map_api_chunk_unlock_request";
 const char Chunk::kUpdateRequest[] = "map_api_chunk_update_request";
 
 MAP_API_PROTO_MESSAGE(Chunk::kConnectRequest, proto::ChunkRequestMetadata);
-MAP_API_PROTO_MESSAGE(Chunk::kInitRequest, proto::InitRequest);
+MAP_API_COMPRESSED_PROTO_MESSAGE(Chunk::kInitRequest, proto::InitRequest);
 MAP_API_PROTO_MESSAGE(Chunk::kInsertRequest, proto::PatchRequest);
 MAP_API_PROTO_MESSAGE(Chunk::kLeaveRequest, proto::ChunkRequestMetadata);
 MAP_API_PROTO_MESSAGE(Chunk::kLockRequest, proto::ChunkRequestMetadata);
@@ -48,101 +53,51 @@ void Chunk::fillMetadata<proto::ChunkRequestMetadata>(
   destination->set_chunk_id(id().hexString());
 }
 
-bool Chunk::init(const Id& id, CRTable* underlying_table) {
+bool Chunk::init(const Id& id, CRTable* underlying_table, bool initialize) {
   CHECK_NOTNULL(underlying_table);
   id_ = id;
   underlying_table_ = underlying_table;
+  initialized_ = initialize;
   return true;
 }
 
 bool Chunk::init(
     const Id& id, const proto::InitRequest& init_request, const PeerId& sender,
     CRTable* underlying_table) {
-  CHECK(init(id, underlying_table));
-  // connect to peers from connect_response TODO(tcies) notify of self
+  CHECK(init(id, underlying_table, false));
   CHECK_GT(init_request.peer_address_size(), 0);
   for (int i = 0; i < init_request.peer_address_size(); ++i) {
     peers_.add(PeerId(init_request.peer_address(i)));
   }
   // feed data from connect_response into underlying table TODO(tcies) piecewise
-  for (int i = 0; i < init_request.serialized_revision_size(); ++i) {
-    Revision data;
-    CHECK(data.ParseFromString((init_request.serialized_revision(i))));
-    CHECK(underlying_table->patch(data));
+  for (int i = 0; i < init_request.serialized_items_size(); ++i) {
+    if (underlying_table->type() == CRTable::Type::CR) {
+      Revision data;
+      CHECK(data.ParseFromString((init_request.serialized_items(i))));
+      CHECK(underlying_table->patch(data));
+      syncLatestCommitTime(data);
+    } else {
+      CHECK(underlying_table->type() == CRTable::Type::CRU);
+      proto::History history_proto;
+      CHECK(history_proto.ParseFromString(init_request.serialized_items(i)));
+      CHECK_GT(history_proto.serialized_revisions_size(), 0);
+      for (int j = 0; j < history_proto.serialized_revisions_size(); ++j) {
+        Revision data;
+        CHECK(data.ParseFromString(history_proto.serialized_revisions(j)));
+        CHECK(underlying_table->patch(data));
+        // TODO(tcies) guarantee order, then only sync latest time
+        syncLatestCommitTime(data);
+      }
+    }
   }
   std::lock_guard<std::mutex> metalock(lock_.mutex);
+  lock_.preempted_state = DistributedRWLock::State::UNLOCKED;
   lock_.state = DistributedRWLock::State::WRITE_LOCKED;
   lock_.holder = sender;
+  initialized_ = true;
+  // Because it would be wasteful to iterate over all entries to find the
+  // actual latest time:
   return true;
-}
-
-bool Chunk::check(const ChunkTransaction& transaction) {
-  {
-    std::lock_guard<std::mutex> metalock(lock_.mutex);
-    CHECK(isWriter(PeerId::self()));
-  }
-  CRTable::RevisionMap contents;
-  // TODO(tcies) caching entire table is not a long-term solution
-  underlying_table_->dump(LogicalTime::sample(), &contents);
-  std::unordered_set<Id> present_ids;
-  for (const CRTable::RevisionMap::value_type& item : contents) {
-    present_ids.insert(item.first);
-  }
-  // The following check may be left out if too costly
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
-      transaction.insertions_) {
-    if (present_ids.find(item.first) != present_ids.end()) {
-      LOG(WARNING) << "Table " << underlying_table_->name() <<
-          " already contains id " << item.first;
-      return false;
-    }
-  }
-  std::unordered_map<Id, LogicalTime> update_times;
-  if (!transaction.updates_.empty()) {
-    CHECK(underlying_table_->type() == CRTable::Type::CRU);
-    // TODO(tcies) caching entire table is not a long-term solution (but maybe
-    // caching the entire chunk could be?)
-    for (const CRTable::RevisionMap::value_type& item : contents) {
-      LogicalTime update_time;
-      item.second->get(CRUTable::kUpdateTimeField, &update_time);
-      update_times[item.first] = update_time;
-    }
-  }
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
-      transaction.updates_) {
-    if (update_times[item.first] >= transaction.begin_time_) {
-      return false;
-    }
-  }
-  for (const ChunkTransaction::ConflictCondition& item :
-      transaction.conflict_conditions_) {
-    CRTable::RevisionMap dummy;
-    if (underlying_table_->findByRevision(
-        item.key, *item.value_holder, LogicalTime::sample(), &dummy) > 0) {
-      return false;
-    }
-  }
-  return true;
-}
-
-bool Chunk::commit(const ChunkTransaction& transaction) {
-  distributedWriteLock();
-  if (!check(transaction)) {
-    distributedUnlock();
-    return false;
-  }
-  CHECK(bulkInsert(transaction.insertions_));
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
-      transaction.updates_) {
-    update(item.second.get());
-  }
-  distributedUnlock();
-  return true;
-}
-
-Id Chunk::id() const {
-  // TODO(tcies) implement
-  return id_;
 }
 
 void Chunk::dumpItems(const LogicalTime& time, CRTable::RevisionMap* items) {
@@ -159,6 +114,60 @@ size_t Chunk::numItems(const LogicalTime& time) {
   return result;
 }
 
+size_t Chunk::itemsSizeBytes(const LogicalTime& time) {
+  CRTable::RevisionMap items;
+  distributedReadLock();
+  underlying_table_->find(NetTable::kChunkIdField, id(), time, &items);
+  distributedUnlock();
+  size_t num_bytes = 0;
+  for (const std::pair<Id, std::shared_ptr<Revision> >& item : items) {
+    CHECK(item.second != nullptr);
+    const Revision& revision = *item.second;
+    num_bytes += revision.ByteSize();
+  }
+  return num_bytes;
+}
+
+// TODO(tcies) cache? : Store commit times with chunks as commits occur,
+// share this info consistently.
+void Chunk::getCommitTimes(const LogicalTime& sample_time,
+                           std::set<LogicalTime>* commit_times) {
+  CHECK_NOTNULL(commit_times);
+  //  Using a temporary unordered map because it should have a faster insertion
+  //  time. The expected amount of commit times << the expected amount of items,
+  //  so this should be worth it.
+  std::unordered_set<LogicalTime> unordered_commit_times;
+  CRTable::RevisionMap items;
+  CRUTable::HistoryMap histories;
+  distributedReadLock();
+  if (underlying_table_->type() == CRTable::Type::CR) {
+    underlying_table_->find(NetTable::kChunkIdField, id(), sample_time, &items);
+  } else {
+    CHECK(underlying_table_->type() == CRTable::Type::CRU);
+    CRUTable* table = static_cast<CRUTable*>(underlying_table_);
+    table->findHistory(NetTable::kChunkIdField, id(), sample_time, &histories);
+  }
+  distributedUnlock();
+  if (underlying_table_->type() == CRTable::Type::CR) {
+    for (const CRTable::RevisionMap::value_type& item : items) {
+      LogicalTime commit_time;
+      item.second->get(CRTable::kInsertTimeField, &commit_time);
+      unordered_commit_times.insert(commit_time);
+    }
+  } else {
+    CHECK(underlying_table_->type() == CRTable::Type::CRU);
+    for (const CRUTable::HistoryMap::value_type& history : histories) {
+      for (const Revision& revision : history.second) {
+        LogicalTime commit_time;
+        revision.get(CRUTable::kUpdateTimeField, &commit_time);
+        unordered_commit_times.insert(commit_time);
+      }
+    }
+  }
+  commit_times->insert(unordered_commit_times.begin(),
+                       unordered_commit_times.end());
+}
+
 bool Chunk::insert(Revision* item) {
   CHECK_NOTNULL(item);
   item->set(NetTable::kChunkIdField, id());
@@ -173,6 +182,7 @@ bool Chunk::insert(Revision* item) {
   insert_request.set_serialized_revision(item->SerializeAsString());
   request.impose<kInsertRequest>(insert_request);
   CHECK(peers_.undisputableBroadcast(&request));
+  syncLatestCommitTime(*item);
   distributedUnlock();
   return true;
 }
@@ -186,6 +196,7 @@ bool Chunk::bulkInsert(const CRTable::RevisionMap& items) {
     item.second->set(NetTable::kChunkIdField, id());
     fillMetadata(&insert_requests[i]);
     ++i;
+    syncLatestCommitTime(*item.second);
   }
   Message request;
   distributedReadLock();  // avoid adding of new peers while inserting
@@ -204,17 +215,6 @@ bool Chunk::bulkInsert(const CRTable::RevisionMap& items) {
   }
   distributedUnlock();
   return true;
-}
-
-std::shared_ptr<ChunkTransaction> Chunk::newTransaction() {
-  return std::shared_ptr<ChunkTransaction>(
-      new ChunkTransaction(LogicalTime::sample(), underlying_table_));
-}
-std::shared_ptr<ChunkTransaction> Chunk::newTransaction(
-    const LogicalTime& time) {
-  CHECK(time < LogicalTime::sample());
-  return std::shared_ptr<ChunkTransaction>(
-      new ChunkTransaction(time, underlying_table_));
 }
 
 int Chunk::peerSize() const {
@@ -248,15 +248,24 @@ void Chunk::leave() {
   // to leaving.
 }
 
-void Chunk::lock() {
-  distributedWriteLock();
+void Chunk::writeLock() { distributedWriteLock(); }
+
+void Chunk::readLock() { distributedReadLock(); }
+
+bool Chunk::isLocked() {
+  std::lock_guard<std::mutex> metalock(lock_.mutex);
+  return isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id();
 }
 
+void Chunk::unlock() { distributedUnlock(); }
+
+// not expressing in terms of the peer-specifying overload in order to avoid
+// unnecessary distributed lock and unlocks
 int Chunk::requestParticipation() {
   int new_participant_count = 0;
   distributedWriteLock();
   std::set<PeerId> hub_peers;
-  MapApiHub::instance().getPeers(&hub_peers);
+  Hub::instance().getPeers(&hub_peers);
   for (const PeerId& hub_peer : hub_peers) {
     if (peers_.peers().find(hub_peer) == peers_.peers().end()) {
       if (addPeer(hub_peer)) {
@@ -268,8 +277,19 @@ int Chunk::requestParticipation() {
   return new_participant_count;
 }
 
-void Chunk::unlock() {
+int Chunk::requestParticipation(const PeerId& peer) {
+  CHECK(Hub::instance().hasPeer(peer));
+  int new_participant_count = 0;
+  distributedWriteLock();
+  std::set<PeerId> hub_peers;
+  Hub::instance().getPeers(&hub_peers);
+  if (peers_.peers().find(peer) == peers_.peers().end()) {
+    if (addPeer(peer)) {
+      ++new_participant_count;
+    }
+  }
   distributedUnlock();
+  return new_participant_count;
 }
 
 void Chunk::update(Revision* item) {
@@ -288,16 +308,13 @@ void Chunk::update(Revision* item) {
   update_request.set_serialized_revision(item->SerializeAsString());
   request.impose<kUpdateRequest>(update_request);
   CHECK(peers_.undisputableBroadcast(&request));
+  syncLatestCommitTime(*item);
   distributedUnlock();
 }
 
-void Chunk::checkedCommit(const ChunkTransaction& transaction,
-                          const LogicalTime& time) {
-  bulkInsertLocked(transaction.insertions_, time);
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
-      transaction.updates_) {
-    updateLocked(time, item.second.get());
-  }
+void Chunk::attachTrigger(const std::function<void(const Id& id)>& callback) {
+  std::lock_guard<std::mutex> lock(trigger_mutex_);
+  trigger_ = callback;
 }
 
 void Chunk::bulkInsertLocked(const CRTable::RevisionMap& items,
@@ -356,9 +373,12 @@ bool Chunk::addPeer(const PeerId& peer) {
     return false;
   }
   prepareInitRequest(&request);
-  if (!MapApiHub::instance().ackRequest(peer, &request)) {
+  timing::Timer timer("init_request");
+  if (!Hub::instance().ackRequest(peer, &request)) {
+    timer.Stop();
     return false;
   }
+  timer.Stop();
   // new peer is not ready to handle requests as the rest of the swarm. Still,
   // one last message is sent to the old swarm, notifying it of the new peer
   // and thus the new configuration:
@@ -400,7 +420,6 @@ void Chunk::distributedReadLock() {
   }
 }
 
-
 void Chunk::distributedWriteLock() {
   if (log_locking_) {
     startState(WRITE_ATTEMPT);
@@ -421,8 +440,8 @@ void Chunk::distributedWriteLock() {
   }
   while (true) {  // lock: attempt until success
     while (lock_.state != DistributedRWLock::State::UNLOCKED &&
-           (lock_.state != DistributedRWLock::State::ATTEMPTING ||
-            lock_.thread != std::this_thread::get_id())) {
+           !(lock_.state == DistributedRWLock::State::ATTEMPTING &&
+             lock_.thread == std::this_thread::get_id())) {
       lock_.cv.wait(metalock);
     }
     CHECK(!relinquished_);
@@ -441,23 +460,23 @@ void Chunk::distributedWriteLock() {
     if (FLAGS_writelock_persist) {
       if (peers_.peers().size()) {
         std::set<PeerId>::const_iterator it = peers_.peers().cbegin();
-        MapApiHub::instance().request(*it, &request, &response);
+        Hub::instance().request(*it, &request, &response);
         if (response.isType<Message::kDecline>()) {
           declined = true;
         } else {
           ++it;
           for (; it != peers_.peers().cend(); ++it) {
-            MapApiHub::instance().request(*it, &request, &response);
+            Hub::instance().request(*it, &request, &response);
             while (response.isType<Message::kDecline>()) {
               usleep(5000);  // TODO(tcies) flag?
-              MapApiHub::instance().request(*it, &request, &response);
+              Hub::instance().request(*it, &request, &response);
             }
           }
         }
       }
     } else {
       for (const PeerId& peer : peers_.peers()) {
-        MapApiHub::instance().request(peer, &request, &response);
+        Hub::instance().request(peer, &request, &response);
         if (response.isType<Message::kDecline>()) {
           // assuming no connection loss, a lock may only be declined by the
           // peer with lowest address
@@ -530,38 +549,52 @@ void Chunk::distributedUnlock() {
       fillMetadata(&unlock_request);
       request.impose<kUnlockRequest, proto::ChunkRequestMetadata>(
           unlock_request);
-      // to make sure that possibly concurrent locking works correctly, we
-      // need to unlock in reverse order of locking, i.e. we must ensure that
-      // if peer with address A considers the lock unlocked, any peer B > A
-      // (including the local one) does as well
       if (peers_.empty()) {
         lock_.state = DistributedRWLock::State::UNLOCKED;
       } else {
         bool self_unlocked = false;
         // NB peers can only change if someone else has locked the chunk
         const std::set<PeerId>& peers = peers_.peers();
-        if (FLAGS_forward_unlock) {
-          CHECK(FLAGS_writelock_persist) << "forward unlock only works with "
-                                            "writelock persist";
-          for (const PeerId& peer : peers) {
-            if (!self_unlocked && PeerId::self() < peer) {
-              lock_.state = DistributedRWLock::State::UNLOCKED;
-              self_unlocked = true;
+        switch (static_cast<UnlockStrategy>(FLAGS_unlock_strategy)) {
+          case REVERSE: {
+            for (std::set<PeerId>::const_reverse_iterator rit = peers.rbegin();
+                 rit != peers.rend(); ++rit) {
+              if (!self_unlocked && *rit < PeerId::self()) {
+                lock_.state = DistributedRWLock::State::UNLOCKED;
+                self_unlocked = true;
+              }
+              Hub::instance().request(*rit, &request, &response);
+              CHECK(response.isType<Message::kAck>());
+              VLOG(3) << PeerId::self() << " released lock from " << *rit;
             }
-            MapApiHub::instance().request(peer, &request, &response);
-            CHECK(response.isType<Message::kAck>());
-            VLOG(3) << PeerId::self() << " released lock from " << peer;
+            break;
           }
-        } else {
-          for (std::set<PeerId>::const_reverse_iterator rit = peers.rbegin();
-               rit != peers.rend(); ++rit) {
-            if (!self_unlocked && *rit < PeerId::self()) {
-              lock_.state = DistributedRWLock::State::UNLOCKED;
-              self_unlocked = true;
+          case FORWARD: {
+            CHECK(FLAGS_writelock_persist) << "forward unlock only works with "
+                                              "writelock persist";
+            for (const PeerId& peer : peers) {
+              if (!self_unlocked && PeerId::self() < peer) {
+                lock_.state = DistributedRWLock::State::UNLOCKED;
+                self_unlocked = true;
+              }
+              Hub::instance().request(peer, &request, &response);
+              CHECK(response.isType<Message::kAck>());
+              VLOG(3) << PeerId::self() << " released lock from " << peer;
             }
-            MapApiHub::instance().request(*rit, &request, &response);
-            CHECK(response.isType<Message::kAck>());
-            VLOG(3) << PeerId::self() << " released lock from " << *rit;
+            break;
+          }
+          case RANDOM: {
+            CHECK(FLAGS_writelock_persist)
+                << "Random doesn't work without writelock-persist";
+            std::srand(LogicalTime::sample().serialize());
+            std::vector<PeerId> mixed_peers(peers.cbegin(), peers.cend());
+            std::random_shuffle(mixed_peers.begin(), mixed_peers.end());
+            for (const PeerId& peer : mixed_peers) {
+              Hub::instance().request(peer, &request, &response);
+              CHECK(response.isType<Message::kAck>());
+              VLOG(3) << PeerId::self() << " released lock from " << peer;
+            }
+            break;
           }
         }
         if (!self_unlocked) {
@@ -594,19 +627,33 @@ void Chunk::prepareInitRequest(Message* request) {
   }
   init_request.add_peer_address(PeerId::self().ipPort());
 
-  std::unordered_map<Id, std::shared_ptr<Revision> > data;
-  underlying_table_->find(NetTable::kChunkIdField, id(), LogicalTime::sample(),
-                          &data);
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& data_pair :
-      data) {
-    init_request.add_serialized_revision(
-        data_pair.second->SerializeAsString());
+  if (underlying_table_->type() == CRTable::Type::CR) {
+    CRTable::RevisionMap data;
+    underlying_table_->find(NetTable::kChunkIdField, id(),
+                            LogicalTime::sample(), &data);
+    for (const CRTable::RevisionMap::value_type& data_pair : data) {
+      init_request.add_serialized_items(data_pair.second->SerializeAsString());
+    }
+  } else {
+    CHECK(underlying_table_->type() == CRTable::Type::CRU);
+    CRUTable::HistoryMap data;
+    CRUTable* table = static_cast<CRUTable*>(underlying_table_);
+    table->findHistory(NetTable::kChunkIdField, id(), LogicalTime::sample(),
+                       &data);
+    for (const CRUTable::HistoryMap::value_type& data_pair : data) {
+      proto::History history_proto;
+      for (const Revision& revision : data_pair.second) {
+        history_proto.add_serialized_revisions(revision.SerializeAsString());
+      }
+      init_request.add_serialized_items(history_proto.SerializeAsString());
+    }
   }
 
   request->impose<kInitRequest, proto::InitRequest>(init_request);
 }
 
 void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
+  awaitInitialized();
   VLOG(3) << "Received connect request from " << peer;
   CHECK_NOTNULL(response);
   leave_lock_.readLock();
@@ -629,6 +676,7 @@ void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
 }
 
 void Chunk::handleConnectRequestThread(Chunk* self, const PeerId& peer) {
+  self->awaitInitialized();
   CHECK_NOTNULL(self);
   self->leave_lock_.readLock();
   // the following is a special case which shall not be covered for now:
@@ -652,6 +700,7 @@ void Chunk::handleConnectRequestThread(Chunk* self, const PeerId& peer) {
 
 void Chunk::handleInsertRequest(const Revision& item, Message* response) {
   CHECK_NOTNULL(response);
+  awaitInitialized();
   leave_lock_.readLock();
   if (relinquished_) {
     leave_lock_.unlock();
@@ -670,12 +719,22 @@ void Chunk::handleInsertRequest(const Revision& item, Message* response) {
     CHECK(!isWriter(PeerId::self()));
   }
   underlying_table_->patch(item);
+  syncLatestCommitTime(item);
   response->ack();
   leave_lock_.unlock();
+
+  Id id;  // TODO(tcies) what if leave during trigger?
+  item.get(CRTable::kIdField, &id);
+  std::lock_guard<std::mutex> lock(trigger_mutex_);
+  if (trigger_) {
+    std::thread trigger_thread(trigger_, id);
+    trigger_thread.detach();
+  }
 }
 
 void Chunk::handleLeaveRequest(const PeerId& leaver, Message* response) {
   CHECK_NOTNULL(response);
+  awaitInitialized();
   leave_lock_.readLock();
   CHECK(!relinquished_);  // sending a leave request to a disconnected peer
   // should be impossible by design
@@ -689,6 +748,7 @@ void Chunk::handleLeaveRequest(const PeerId& leaver, Message* response) {
 
 void Chunk::handleLockRequest(const PeerId& locker, Message* response) {
   CHECK_NOTNULL(response);
+  awaitInitialized();
   leave_lock_.readLock();
   if (relinquished_) {
     // possible if two peer try to lock for leaving at the same time
@@ -702,8 +762,11 @@ void Chunk::handleLockRequest(const PeerId& locker, Message* response) {
   while (lock_.state == DistributedRWLock::State::READ_LOCKED) {
     lock_.cv.wait(metalock);
   }
+  // preempted_state MUST NOT be set here, else it might be wrongly set to
+  // write_locked if two peers contend for the same lock.
   switch (lock_.state) {
     case DistributedRWLock::State::UNLOCKED:
+      lock_.preempted_state = DistributedRWLock::State::UNLOCKED;
       lock_.state = DistributedRWLock::State::WRITE_LOCKED;
       lock_.holder = locker;
       response->impose<Message::kAck>();
@@ -725,6 +788,7 @@ void Chunk::handleLockRequest(const PeerId& locker, Message* response) {
         // situation can only happen if the requester has successfully achieved
         // the lock at all low-address peers, otherwise this situation couldn't
         // have occurred
+        lock_.preempted_state = DistributedRWLock::State::ATTEMPTING;
         lock_.state = DistributedRWLock::State::WRITE_LOCKED;
         lock_.holder = locker;
         response->impose<Message::kAck>();
@@ -741,6 +805,7 @@ void Chunk::handleLockRequest(const PeerId& locker, Message* response) {
 void Chunk::handleNewPeerRequest(const PeerId& peer, const PeerId& sender,
                                  Message* response) {
   CHECK_NOTNULL(response);
+  awaitInitialized();
   leave_lock_.readLock();
   CHECK(!relinquished_);  // sending a new peer request to a disconnected peer
   // should be impossible by design
@@ -754,13 +819,16 @@ void Chunk::handleNewPeerRequest(const PeerId& peer, const PeerId& sender,
 
 void Chunk::handleUnlockRequest(const PeerId& locker, Message* response) {
   CHECK_NOTNULL(response);
+  awaitInitialized();
   leave_lock_.readLock();
   CHECK(!relinquished_);  // sending a leave request to a disconnected peer
   // should be impossible by design
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   CHECK(lock_.state == DistributedRWLock::State::WRITE_LOCKED);
   CHECK(lock_.holder == locker);
-  lock_.state = DistributedRWLock::State::UNLOCKED;
+  CHECK(lock_.preempted_state == DistributedRWLock::State::UNLOCKED ||
+        lock_.preempted_state == DistributedRWLock::State::ATTEMPTING);
+  lock_.state = lock_.preempted_state;
   metalock.unlock();
   leave_lock_.unlock();
   lock_.cv.notify_all();
@@ -770,6 +838,7 @@ void Chunk::handleUnlockRequest(const PeerId& locker, Message* response) {
 void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
                                 Message* response) {
   CHECK_NOTNULL(response);
+  awaitInitialized();
   {
     std::lock_guard<std::mutex> metalock(lock_.mutex);
     CHECK(isWriter(sender));
@@ -777,15 +846,22 @@ void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
   CHECK(underlying_table_->type() == CRTable::Type::CRU);
   CRUTable* table = static_cast<CRUTable*>(underlying_table_);
   table->patch(item);
-  if (FLAGS_cru_linked) {
-    Id id;
-    LogicalTime current, updated;
-    item.get(CRTable::kIdField, &id);
-    item.get(CRUTable::kPreviousTimeField, &current);
-    item.get(CRUTable::kUpdateTimeField, &updated);
-    table->updateCurrentReferToUpdatedCRUDerived(id, current, updated);
-  }
+  syncLatestCommitTime(item);
   response->ack();
+
+  Id id;  // TODO(tcies) what if leave during trigger?
+  item.get(CRTable::kIdField, &id);
+  std::lock_guard<std::mutex> lock(trigger_mutex_);
+  if (trigger_) {
+    std::thread trigger_thread(trigger_, id);
+    trigger_thread.detach();
+  }
+}
+
+void Chunk::awaitInitialized() const {
+  while (!initialized_) {
+    usleep(1000);
+  }
 }
 
 void Chunk::startState(LockState new_state) {
@@ -808,7 +884,8 @@ void Chunk::startState(LockState new_state) {
           current_state_start_ = std::chrono::system_clock::now();
           current_state_ = new_state;
         } else {
-          LOG(FATAL) << "Invalid state transition: A from " << current_state_;
+          LOG(FATAL) << "Invalid state transition: " << new_state << " from "
+                     << current_state_;
         }
         break;
       }

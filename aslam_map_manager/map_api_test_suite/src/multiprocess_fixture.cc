@@ -1,11 +1,15 @@
 #include <cstdio>
-#include <fstream>
-#include <iostream>
+#include <fstream>   // NOLINT
+#include <iostream>  // NOLINT
 #include <map>
 #include <sstream>
 #include <string>
 #include <thread>
 #include <unistd.h>
+
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -21,12 +25,28 @@ namespace map_api_test_suite {
 // http://stackoverflow.com/questions/5525668/how-to-implement-readlink-to-find-the-path
 std::string getSelfpath() {
   char buff[1024];
+#ifdef __APPLE__
+  uint32_t len = sizeof(buff) - 1;
+  int status = _NSGetExecutablePath(buff, &len);
+  if (status != 0) {
+    len = -1;
+  }
+#elif defined __linux__
   ssize_t len = ::readlink("/proc/self/exe", buff, sizeof(buff) - 1);
+#else
+  LOG(FATAL) << "getSelfpath() not implemented for this platform.";
+#endif
   if (len != -1) {
     buff[len] = '\0';
     return std::string(buff);
   } else {
-    LOG(FATAL)<< "Failed to read link of /proc/self/exe";
+#ifdef __APPLE__
+    LOG(FATAL) << "Failed to get executable path from _NSGetExecutablePath()";
+#elif defined __linux__
+    LOG(FATAL) << "Failed to read link of /proc/self/exe";
+#else
+    LOG(FATAL) << "getSelfpath() not implemented for this platform.";
+#endif
     return "";
   }
 }
@@ -84,8 +104,8 @@ void MultiprocessTest::harvest(bool verbose) {
       if (verbose) {
         std::cout << "Sub " << id_pipe.first << ": " << buffer;
       }
-      EXPECT_EQ(NULL, strstr(buffer, "[  FAILED  ]"));
-      EXPECT_EQ(NULL, strstr(buffer, "*** Check failure stack trace: ***"));
+      CHECK(nullptr == strstr(buffer, "[  FAILED  ]"));
+      CHECK(nullptr == strstr(buffer, "*** Check failure stack trace: ***"));
     }
   }
 }

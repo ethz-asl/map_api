@@ -1,6 +1,8 @@
 #ifndef MAP_API_BENCHMARKS_KMEANS_VIEW_H_
 #define MAP_API_BENCHMARKS_KMEANS_VIEW_H_
 
+#include <vector>
+
 #include <map-api/cr-table.h>
 #include <map-api/transaction.h>
 
@@ -29,7 +31,7 @@ class KmeansView {
               const std::vector<unsigned int>& memberships);
 
   /**
-   * Meant for use in association with updateCenterRelated()
+   * Meant for use in association with updateX()
    */
   void fetch(DescriptorVector* descriptors,
              DescriptorVector* centers,
@@ -60,4 +62,4 @@ class KmeansView {
 } /* namespace benchmarks */
 } /* namespace map_api */
 
-#endif /* MAP_API_BENCHMARKS_KMEANS_VIEW_H_ */
+#endif  // MAP_API_BENCHMARKS_KMEANS_VIEW_H_

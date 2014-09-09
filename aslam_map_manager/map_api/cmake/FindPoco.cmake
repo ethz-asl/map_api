@@ -8,7 +8,11 @@ find_path(POCO_INCLUDE_DIR Poco/Poco.h)
 
 find_library(PocoFoundation_LIBRARY PocoFoundation)
 find_library(PocoData_LIBRARY PocoData)
-find_library(PocoSQLite_LIBRARY PocoSQLite)
+if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin") 
+  find_library(PocoSQLite_LIBRARY PocoDataSQLite)
+else()
+  find_library(PocoSQLite_LIBRARY PocoSQLite)
+endif()
 
 set(POCO_LIBRARIES ${PocoFoundation_LIBRARY}
                    ${PocoData_LIBRARY}

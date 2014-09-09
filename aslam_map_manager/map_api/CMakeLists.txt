@@ -5,11 +5,13 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 find_package(catkin_simple REQUIRED)
 find_package(Poco REQUIRED)
 
-catkin_simple()
+catkin_simple(ALL_DEPS_REQUIRED)
 
 ############
 # PROTOBUF #
 ############
+add_definitions(--std=c++11)
+
 SET(PROTO_DEFNS proto/chord-index.proto 
                 proto/core.proto
                 proto/chunk.proto
@@ -20,24 +22,25 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 #############
 # LIBRARIES #
 #############
-add_definitions(--std=c++0x -Wall -Wextra -pedantic -Wno-unused-local-typedefs)
 
 # Core Library available to all applications
-SET(CORE_SOURCE  src/chord-index.cc
+SET(CORE_SOURCE  src/cache-base.cc
+                 src/chord-index.cc
                  src/chunk.cc
                  src/chunk-manager.cc
                  src/chunk-transaction.cc
+                 src/core.cc
                  src/cr-table.cc
-                 src/cr-table-ram-cache.cc
+                 src/cr-table-ram-map.cc
+                 src/cr-table-ram-sqlite.cc
                  src/cru-table.cc
-                 src/cru-table-ram-cache.cc
+                 src/cru-table-ram-map.cc
+                 src/cru-table-ram-sqlite.cc
                  src/file-discovery.cc
-                 src/id.cc
+                 src/hub.cc
                  src/ipc.cc
                  src/local-transaction.cc
                  src/logical-time.cc
-                 src/map-api-core.cc
-                 src/map-api-hub.cc
                  src/message.cc
                  src/net-table.cc
                  src/net-table-index.cc
@@ -46,11 +49,13 @@ SET(CORE_SOURCE  src/chord-index.cc
                  src/peer.cc
                  src/peer-id.cc
                  src/peer-handler.cc
+                 src/proto-table-file-io.cc
                  src/revision.cc
                  src/server-discovery.cc
                  src/sqlite-interface.cc
                  src/table-descriptor.cc
-                 src/transaction.cc)
+                 src/transaction.cc
+                 src/unique-id.cc)
                  
 cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
 # we need to add dependencies of external project packages to fetch headers
@@ -62,31 +67,45 @@ cs_add_executable(discovery-server discovery-server/discovery-server.cc
                    ${PROTO_SRCS} ${PROTO_HDRS})
 target_link_libraries(discovery-server ${PROJECT_NAME})
 
+catkin_add_gtest(test_hash_id_hashing
+  test/test_hash_id_hashing.cc)
+target_link_libraries(test_hash_id_hashing ${PROJECT_NAME})
+
 ##########
 # GTESTS #
 ##########
-cs_add_library(${PROJECT_NAME}_test test/map_api_multiprocess_fixture.cpp)
+cs_add_library(${PROJECT_NAME}_test test/map_api_multiprocess_fixture.cc)
+target_link_libraries(${PROJECT_NAME}_test ${PROJECT_NAME} gtest)
 
-catkin_add_gtest(test_chord_index_test test/chord_index_test.cpp)
-target_link_libraries(test_chord_index_test ${PROJECT_NAME} ${PROJECT_NAME}_test)
+catkin_add_gtest(test_cache_test test/cache_test.cc)
+target_link_libraries(test_cache_test ${PROJECT_NAME}_test)
 
-catkin_add_gtest(test_chunk_test test/chunk_test.cpp)
-target_link_libraries(test_chunk_test ${PROJECT_NAME} ${PROJECT_NAME}_test)
+catkin_add_gtest(test_chord_index_test test/chord_index_test.cc)
+target_link_libraries(test_chord_index_test ${PROJECT_NAME}_test)
 
-catkin_add_gtest(test_table_interface_test test/table_interface_test.cpp)
-target_link_libraries(test_table_interface_test ${PROJECT_NAME} ${PROJECT_NAME}_test)
+catkin_add_gtest(test_chunk_test test/chunk_test.cc)
+target_link_libraries(test_chunk_test ${PROJECT_NAME}_test)
 
-catkin_add_gtest(test_core_test test/core_test.cpp)
-target_link_libraries(test_core_test ${PROJECT_NAME} ${PROJECT_NAME}_test)
+catkin_add_gtest(test_table_interface_test test/table_interface_test.cc)
+target_link_libraries(test_table_interface_test ${PROJECT_NAME}_test)
 
-catkin_add_gtest(test_local_transaction_test test/local_transaction_test.cpp)
-target_link_libraries(test_local_transaction_test ${PROJECT_NAME} ${PROJECT_NAME}_test)
+catkin_add_gtest(test_core_test test/core_test.cc)
+target_link_libraries(test_core_test ${PROJECT_NAME}_test)
 
-catkin_add_gtest(test_net_table_test test/net_table_test.cpp)
-target_link_libraries(test_net_table_test ${PROJECT_NAME} ${PROJECT_NAME}_test)
+catkin_add_gtest(test_local_transaction_test test/local_transaction_test.cc)
+target_link_libraries(test_local_transaction_test ${PROJECT_NAME}_test)
 
-catkin_add_gtest(test_hub_test test/hub_test.cpp)
-target_link_libraries(test_hub_test ${PROJECT_NAME} ${PROJECT_NAME}_test)
+catkin_add_gtest(test_net_table_test test/net_table_test.cc)
+target_link_libraries(test_net_table_test ${PROJECT_NAME}_test)
+
+catkin_add_gtest(test_transaction_test test/transaction-test.cc)
+target_link_libraries(test_transaction_test ${PROJECT_NAME}_test)
+
+catkin_add_gtest(test_hub_test test/hub_test.cc)
+target_link_libraries(test_hub_test ${PROJECT_NAME}_test)
+
+catkin_add_gtest(test_proto_table_file_io_test test/proto_table_file_io_test.cc)
+target_link_libraries(test_proto_table_file_io_test ${PROJECT_NAME}_test)
 
 ##########
 # EXPORT #

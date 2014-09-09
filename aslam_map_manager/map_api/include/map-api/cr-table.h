@@ -6,13 +6,15 @@
 #include <map>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
+#include <utility>
 
 #include <Poco/Data/Common.h>
 #include <gflags/gflags.h>
 
-#include "map-api/id.h"
 #include "map-api/table-descriptor.h"
 #include "map-api/revision.h"
+#include "map-api/unique-id.h"
 #include "./core.pb.h"
 
 namespace map_api {
@@ -27,7 +29,20 @@ class CRTable {
     CR,
     CRU
   };
-  typedef std::unordered_map<Id, std::shared_ptr<Revision> > RevisionMap;
+  class RevisionMap
+      : public std::unordered_map<Id, std::shared_ptr<Revision> > {
+   public:
+    using std::unordered_map<Id, std::shared_ptr<Revision> >::find;
+    template <typename Derived>
+    iterator find(const UniqueId<Derived>& key);
+    template <typename Derived>
+    const_iterator find(const UniqueId<Derived>& key) const;
+    using std::unordered_map<Id, std::shared_ptr<Revision> >::insert;
+    std::pair<iterator, bool> insert(const std::shared_ptr<Revision>& revision);
+    template <typename Derived>
+    std::pair<iterator, bool> insert(const UniqueId<Derived>& key,
+                                     const std::shared_ptr<Revision>& revision);
+  };
   /**
    * Default fields
    */
@@ -92,8 +107,12 @@ class CRTable {
    * Returns revision of item that has been current at "time" or an invalid
    * pointer if the item hasn't been inserted at "time"
    */
-  virtual std::shared_ptr<Revision> getById(
-      const Id& id, const LogicalTime& time);
+  template <typename IdType>
+  std::shared_ptr<Revision> getById(const IdType& id, const LogicalTime& time);
+
+  template <typename IdType>
+  void getAvailableIds(const LogicalTime& time,
+                       std::unordered_set<IdType>* ids);
   /**
    * Puts all items that match key = value at time into dest and returns the
    * amount of items in dest.
@@ -149,6 +168,9 @@ class CRTable {
 
   virtual Type type() const;
 
+  template <typename Derived>
+  static bool isIdEqual(const Revision& revision, const UniqueId<Derived>& id);
+
  protected:
   std::unique_ptr<TableDescriptor> descriptor_;
 
@@ -163,7 +185,8 @@ class CRTable {
    */
   virtual bool initCRDerived() = 0;
   virtual bool insertCRDerived(Revision* query) = 0;
-  virtual bool bulkInsertCRDerived(const RevisionMap& query) = 0;
+  virtual bool bulkInsertCRDerived(const RevisionMap& query,
+                                   const LogicalTime& time) = 0;
   virtual bool patchCRDerived(const Revision& query) = 0;
   /**
    * If key is an empty string, this should return all the data in the table.
@@ -171,6 +194,8 @@ class CRTable {
   virtual int findByRevisionCRDerived(
       const std::string& key, const Revision& valueHolder,
       const LogicalTime& time, RevisionMap* dest) = 0;
+  virtual void getAvailableIdsCRDerived(const LogicalTime& time,
+                                        std::unordered_set<Id>* ids) = 0;
 
   /**
    * If key is an empty string, this should return all the data in the table.

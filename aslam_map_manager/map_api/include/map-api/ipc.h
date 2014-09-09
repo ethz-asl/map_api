@@ -1,14 +1,15 @@
-#ifndef IPC_H_
-#define IPC_H_
+#ifndef MAP_API_IPC_H_
+#define MAP_API_IPC_H_
 
 #include <condition_variable>
 #include <mutex>
 #include <queue>
+#include <string>
 #include <unordered_map>
 
-#include "map-api/id.h"
 #include "map-api/message.h"
-#include "core.pb.h"
+#include "map-api/unique-id.h"
+#include "./core.pb.h"
 
 namespace map_api {
 
@@ -35,16 +36,16 @@ class IPC {
    */
   static void barrierHandler(const Message& request, Message* response);
   /**
-   * Allows to broadcast a single string or Id to all other peers
+   * Allows to broadcast an object to all other peers
    */
-  static void push(const std::string& message);
-  static void push(const Id& message);
+  template <typename Type>
+  static void push(const Type& message);
   static void pushHandler(const Message& request, Message* response);
   /**
    * Read the oldest broadcast message (false if empty queue)
    */
-  static bool pop(std::string* destination);
-  static bool pop(Id* destination);
+  template <typename Type>
+  static bool pop(Type* destination);
 
   /**
    * Message declarations
@@ -61,6 +62,6 @@ class IPC {
   static std::queue<std::string> messages_;
 };
 
-} /* namespace map_api */
+}  // namespace map_api
 
-#endif /* IPC_H_ */
+#endif  // MAP_API_IPC_H_

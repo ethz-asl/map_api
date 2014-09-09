@@ -4,12 +4,16 @@
 #include <condition_variable>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <thread>
 #include <unordered_map>
 
+#include <Poco/DigestStream.h>
+#include <Poco/MD5Engine.h>
 #include <Poco/RWLock.h>
 
 #include <gtest/gtest.h>
+#include <map-api/unique-id.h>
 
 #include "map-api/message.h"
 #include "map-api/peer-id.h"
@@ -30,7 +34,7 @@ class ChordIndex {
  public:
   typedef uint16_t Key;
   typedef std::unordered_map<std::string, std::string> DataMap;
-  //TODO(tcies) in the long term, public functions
+  // TODO(tcies) in the long term, public functions
   // shouldn't expose these kinds of typedefs unless e.g. a serialization
   // method is given as well
   // static constexpr size_t kSuccessorListSize = 3; TODO(tcies) later
@@ -98,7 +102,7 @@ class ChordIndex {
   void leave();
   void leaveClean();
 
-  template<typename DataType>
+  template <typename DataType>
   static Key hash(const DataType& data);
 
  private:
@@ -133,7 +137,7 @@ class ChordIndex {
   struct ChordPeer {
     PeerId id;
     Key key;
-    ChordPeer(const PeerId& _id) : id(_id), key(hash(_id)) {}
+    explicit ChordPeer(const PeerId& _id) : id(_id), key(hash(_id)) {}
     inline bool isValid() const {
       return id.isValid();
     }
@@ -231,6 +235,6 @@ class ChordIndex {
   PeerId node_lock_holder_;
 };
 
-} /* namespace map_api */
-
-#endif /* MAP_API_CHORD_INDEX_H_ */
+}  // namespace map_api
+#include <map-api/chord-index-inl.h>
+#endif  // MAP_API_CHORD_INDEX_H_

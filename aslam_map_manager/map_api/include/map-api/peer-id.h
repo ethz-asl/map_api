@@ -1,7 +1,7 @@
 #ifndef MAP_API_PEER_ID_H_
 #define MAP_API_PEER_ID_H_
 
-#include <iostream>
+#include <iostream>  // NOLINT
 #include <string>
 
 namespace map_api {
@@ -11,6 +11,11 @@ class PeerId {
   PeerId();
 
   explicit PeerId(const std::string& ip_port);
+
+  /**
+   * checks whether serialized PeerId string is valid
+   */
+  static bool isValid(const std::string& serialized);
 
   PeerId& operator =(const PeerId& other);
 
@@ -46,8 +51,8 @@ inline ostream& operator<<(ostream& out, const map_api::PeerId& peer_id) {
   return out;
 }
 
-template<>
-struct hash<map_api::PeerId>{
+template <>
+struct hash<map_api::PeerId> {
   std::size_t operator()(const map_api::PeerId& peer_id) const {
     return std::hash<std::string>()(peer_id.ipPort());
   }
@@ -55,4 +60,4 @@ struct hash<map_api::PeerId>{
 
 } /* namespace std */
 
-#endif /* MAP_API_PEER_ID_H_ */
+#endif  // MAP_API_PEER_ID_H_

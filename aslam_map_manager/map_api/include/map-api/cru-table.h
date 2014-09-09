@@ -2,6 +2,7 @@
 #define MAP_API_CRU_TABLE_H_
 
 #include <vector>
+#include <list>
 #include <memory>
 #include <map>
 #include <string>
@@ -14,15 +15,27 @@
 #include "map-api/logical-time.h"
 #include "./core.pb.h"
 
-DECLARE_bool(cru_linked);
-
 namespace map_api {
 
 /**
  * Provides interface to map api tables.
  */
 class CRUTable : public CRTable {
+  friend class Chunk;
+
  public:
+  // Latest at front
+  class History : public std::list<Revision> {
+   public:
+    const_iterator latestAt(const LogicalTime& time) const;
+    /**
+     * Index_guess guesses the position of the update time field in the Revision
+     * proto.
+     */
+    const_iterator latestAt(const LogicalTime& time, int index_guess) const;
+  };
+  typedef std::unordered_map<Id, History> HistoryMap;
+
   virtual ~CRUTable();
   /**
    * Field ID in revision must correspond to an already present item, revision
@@ -36,6 +49,15 @@ class CRUTable : public CRTable {
   void update(Revision* query, const LogicalTime& time);
   bool getLatestUpdateTime(const Id& id, LogicalTime* time);
 
+  template <typename ValueType>
+  void findHistory(const std::string& key, const ValueType& value,
+                   const LogicalTime& time, HistoryMap* dest);
+
+  virtual void findHistoryByRevision(const std::string& key,
+                                     const Revision& valueHolder,
+                                     const LogicalTime& time,
+                                     HistoryMap* dest) final;
+
   virtual Type type() const final override;
 
   /**
@@ -48,7 +70,8 @@ class CRUTable : public CRTable {
  private:
   virtual bool initCRDerived() final override;
   virtual bool insertCRDerived(Revision* query) final override;
-  virtual bool bulkInsertCRDerived(const RevisionMap& query) final override;
+  virtual bool bulkInsertCRDerived(const RevisionMap& query,
+                                   const LogicalTime& time) final override;
   virtual int findByRevisionCRDerived(
       const std::string& key, const Revision& valueHolder,
       const LogicalTime& time, CRTable::RevisionMap* dest) final override;
@@ -76,16 +99,14 @@ class CRUTable : public CRTable {
    * Implement insertion of the updated revision
    */
   virtual bool insertUpdatedCRUDerived(const Revision& query) = 0;
-  /**
-   * Implement the maintenance of each revision referring to the next revision
-   * by setting kNextTimeField of (id, current_time) to updated_time
-   */
-  virtual bool updateCurrentReferToUpdatedCRUDerived(
-      const Id& id, const LogicalTime& current_time,
-      const LogicalTime& updated_time) = 0;
-  friend class Chunk;
+  virtual void findHistoryByRevisionCRUDerived(const std::string& key,
+                                               const Revision& valueHolder,
+                                               const LogicalTime& time,
+                                               HistoryMap* dest) = 0;
 };
 
 }  // namespace map_api
+
+#include "map-api/cru-table-inl.h"
 
 #endif  // MAP_API_CRU_TABLE_H_
