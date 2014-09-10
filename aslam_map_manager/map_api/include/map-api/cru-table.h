@@ -49,6 +49,11 @@ class CRUTable : public CRTable {
   void update(Revision* query, const LogicalTime& time);
   bool getLatestUpdateTime(const Id& id, LogicalTime* time);
 
+  void remove(const LogicalTime& time, Revision* query);
+  // TODO(tcies) implement? Will this be used? Should be less fast.
+  template <typename IdType>
+  void remove(const LogicalTime& time, const IdType& id);
+
   template <typename ValueType>
   void findHistory(const std::string& key, const ValueType& value,
                    const LogicalTime& time, HistoryMap* dest);
@@ -64,8 +69,7 @@ class CRUTable : public CRTable {
    * Default fields for internal management,
    */
   static const std::string kUpdateTimeField;
-  static const std::string kPreviousTimeField;  // time of previous revision
-  static const std::string kNextTimeField;      // time of next revision
+  static const std::string kRemovedField;
 
  private:
   virtual bool initCRDerived() final override;
