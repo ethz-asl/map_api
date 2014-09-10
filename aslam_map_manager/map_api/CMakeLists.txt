@@ -69,13 +69,13 @@ target_link_libraries(discovery-server ${PROJECT_NAME})
 
 catkin_add_gtest(test_hash_id_hashing
   test/test_hash_id_hashing.cc)
-target_link_libraries(test_hash_id_hashing ${PROJECT_NAME})
+target_link_libraries(test_hash_id_hashing ${PROJECT_NAME} pthread)
 
 ##########
 # GTESTS #
 ##########
-cs_add_library(${PROJECT_NAME}_test test/map_api_multiprocess_fixture.cc)
-target_link_libraries(${PROJECT_NAME}_test ${PROJECT_NAME} gtest)
+cs_add_library(${PROJECT_NAME}_test STATIC test/map_api_multiprocess_fixture.cc)
+target_link_libraries(${PROJECT_NAME}_test ${PROJECT_NAME} gtest pthread)
 
 catkin_add_gtest(test_cache_test test/cache_test.cc)
 target_link_libraries(test_cache_test ${PROJECT_NAME}_test)
