@@ -76,16 +76,9 @@ bool Cache<IdType, Value, DerivedValue>::insert(const IdType& id,
 template <typename IdType, typename Value, typename DerivedValue>
 void Cache<IdType, Value, DerivedValue>::erase(const IdType& id) {
   LockGuard lock(mutex_);
-  // TODO(tcies): Implement erase from DB.
-  LOG_FIRST_N(ERROR, 1) << "Erase on cache will lead to dangling items in the "
-                           "db.";
   cache_.erase(id);
   getAvailableIdsLocked().erase(id);
-  Id db_id;
-  sm::HashId hash_id;
-  id.toHashId(&hash_id);
-  db_id.fromHashId(hash_id);
-  revisions_.erase(db_id);
+  removals_.emplace(id);
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
@@ -179,6 +172,10 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
                                    corresponding_revision->second);
       }
     }
+  }
+  for (const IdType& id : removals_) {
+    std::shared_ptr<Revision> to_remove = getRevisionLocked(id);
+    transaction_.get()->remove(underlying_table_, to_remove);
   }
   staged_ = true;
 }
