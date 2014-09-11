@@ -27,12 +27,13 @@ void CRUTable::update(Revision* query, const LogicalTime& time) {
   CHECK_NOTNULL(query);
   CHECK(isInitialized()) << "Attempted to update in non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
+  // TODO(tcies) const template, cow template?
   CHECK(reference->structureMatch(*query)) <<
       "Bad structure of update revision";
   Id id;
   query->get(kIdField, &id);
   CHECK_NE(id, Id()) << "Attempted to update element with invalid ID";
-  LogicalTime update_time = time, previous_time;
+  LogicalTime update_time = time;
   query->set(kUpdateTimeField, update_time);
   CHECK(insertUpdatedCRUDerived(*query));
 }
@@ -48,6 +49,20 @@ bool CRUTable::getLatestUpdateTime(const Id& id, LogicalTime* time) {
   }
   row->get(kUpdateTimeField, time);
   return true;
+}
+
+void CRUTable::remove(const LogicalTime& time, Revision* query) {
+  CHECK_NOTNULL(query);
+  CHECK(isInitialized());
+  std::shared_ptr<Revision> reference = getTemplate();
+  CHECK(reference->structureMatch(*query));
+  Id id;
+  query->get(kIdField, &id);
+  CHECK_NE(id, Id());
+  LogicalTime update_time = time;
+  query->set(kUpdateTimeField, update_time);
+  query->set(kRemovedField, true);
+  CHECK(insertUpdatedCRUDerived(*query));
 }
 
 void CRUTable::findHistoryByRevision(const std::string& key,
@@ -66,17 +81,18 @@ CRUTable::Type CRUTable::type() const {
 }
 
 const std::string CRUTable::kUpdateTimeField = "update_time";
-const std::string CRUTable::kPreviousTimeField = "previous_time";
-const std::string CRUTable::kNextTimeField = "next_time";
+const std::string CRUTable::kRemovedField = "removed";
 
 bool CRUTable::initCRDerived() {
   descriptor_->addField<LogicalTime>(kUpdateTimeField);
+  descriptor_->addField<bool>(kRemovedField);
   initCRUDerived();
   return true;
 }
 
 bool CRUTable::insertCRDerived(Revision* query) {
   query->set(kUpdateTimeField, LogicalTime::sample());
+  query->set(kRemovedField, false);
   return insertCRUDerived(query);
 }
 
@@ -84,6 +100,7 @@ bool CRUTable::bulkInsertCRDerived(const RevisionMap& query,
                                    const LogicalTime& time) {
   for (const RevisionMap::value_type& item : query) {
     item.second->set(kUpdateTimeField, time);
+    item.second->set(kRemovedField, false);
   }
   return bulkInsertCRUDerived(query);
 }

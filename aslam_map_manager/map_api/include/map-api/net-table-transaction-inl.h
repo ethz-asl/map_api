@@ -54,6 +54,13 @@ void NetTableTransaction::getAvailableIds(std::unordered_set<IdType>* ids) {
 }
 
 template <typename IdType>
+void NetTableTransaction::remove(const IdType& id) {
+  std::shared_ptr<Revision> revision;
+  Chunk* chunk = chunkOf(id, &revision);
+  transactionOf(CHECK_NOTNULL(chunk))->remove(revision);
+}
+
+template <typename IdType>
 Chunk* NetTableTransaction::chunkOf(const IdType& id,
                                     std::shared_ptr<Revision>* inconsistent) {
   CHECK_NOTNULL(inconsistent);
