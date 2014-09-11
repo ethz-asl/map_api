@@ -185,6 +185,7 @@ class Cache : public CacheBase,
   mutable CRTable::RevisionMap revisions_;
   mutable IdSet available_ids_;
   mutable bool ids_fetched_;
+  IdSet removals_;
   NetTable* underlying_table_;
   std::shared_ptr<ChunkManagerBase> chunk_manager_;
   bool staged_;
