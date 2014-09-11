@@ -204,7 +204,7 @@ class FieldTestWithoutInit
     FieldTest<typename TableDataType::DataType>::TearDown();
   }
 
-     protected:
+ protected:
   typedef FieldTestTable<TableDataType> FieldTestTableType;
   std::shared_ptr<Revision> getTemplate() {
     query_ = this->table_->getTemplate();

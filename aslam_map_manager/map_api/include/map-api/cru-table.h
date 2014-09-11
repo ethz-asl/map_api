@@ -50,7 +50,7 @@ class CRUTable : public CRTable {
   bool getLatestUpdateTime(const Id& id, LogicalTime* time);
 
   void remove(const LogicalTime& time, Revision* query);
-  // TODO(tcies) implement? Will this be used? Should be less fast.
+  // avoid if possible - this is slower
   template <typename IdType>
   void remove(const LogicalTime& time, const IdType& id);
 
