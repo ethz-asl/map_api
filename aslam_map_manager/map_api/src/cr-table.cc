@@ -22,9 +22,7 @@ const std::string CRTable::kInsertTimeField = "insert_time";
 std::pair<CRTable::RevisionMap::iterator, bool> CRTable::RevisionMap::insert(
     const std::shared_ptr<Revision>& revision) {
   CHECK_NOTNULL(revision.get());
-  Id id;
-  revision->get(kIdField, &id);
-  return insert(std::make_pair(id, revision));
+  return insert(std::make_pair(revision->getId(), revision));
 }
 
 CRTable::~CRTable() {}
@@ -48,14 +46,12 @@ const std::string& CRTable::name() const {
 
 std::shared_ptr<Revision> CRTable::getTemplate() const {
   CHECK(isInitialized()) << "Can't get template of non-initialized table";
+  std::shared_ptr<proto::Revision> proto;
   std::shared_ptr<Revision> ret =
-      std::shared_ptr<Revision>(
-          new Revision);
-  // add own name
-  ret->set_table(descriptor_->name());
+      std::shared_ptr<Revision>(new Revision(proto));
   // add editable fields
   for (int i = 0; i < descriptor_->fields_size(); ++i) {
-    ret->addField(descriptor_->fields(i));
+    ret->addField(i, descriptor_->fields(i));
   }
   return ret;
 }
@@ -66,10 +62,9 @@ bool CRTable::insert(Revision* query) {
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(reference->structureMatch(*query)) <<
       "Bad structure of insert revision";
-  Id id;
-  query->get(kIdField, &id);
-  CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
-  query->set(kInsertTimeField, LogicalTime::sample());
+  CHECK(query->getId().isValid())
+      << "Attempted to insert element with invalid ID";
+  query->setInsertTime(LogicalTime::sample());
   return insertCRDerived(query);
 }
 
@@ -86,10 +81,10 @@ bool CRTable::bulkInsert(const RevisionMap& query,
     CHECK_NOTNULL(id_revision.second.get());
     CHECK(reference->structureMatch(*id_revision.second)) <<
         "Bad structure of insert revision";
-    id_revision.second->get(kIdField, &id);
+    id = id_revision.second->getId();
     CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
     CHECK(id == id_revision.first) << "ID in RevisionMap doesn't match";
-    id_revision.second->set(kInsertTimeField, time);
+    id_revision.second->setInsertTime(time);
   }
   return bulkInsertCRDerived(query, time);
 }
@@ -98,9 +93,8 @@ bool CRTable::patch(const Revision& query) {
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(reference->structureMatch(query)) << "Bad structure of patch revision";
-  Id id;
-  query.get(kIdField, &id);
-  CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
+  CHECK(query.getId().isValid())
+      << "Attempted to insert element with invalid ID";
   return patchCRDerived(query);
 }
 

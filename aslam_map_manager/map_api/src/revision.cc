@@ -8,58 +8,50 @@
 
 namespace map_api {
 
-bool Revision::find(const std::string& name, proto::TableField** field) {
-  FieldMap::iterator find = fields_.find(name);
-  if (find == fields_.end()) {
-    LOG(ERROR) << "Attempted to access inexistent field " << name;
-    return false;
-  }
-  *field = mutable_fieldqueries(find->second);
-  return true;
-}
+Revision::Revision(const std::shared_ptr<proto::Revision>& revision)
+    : underlying_revision_(revision) {}
 
 std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(
-    int field, Poco::Data::Statement* stat) const {
+    int index, Poco::Data::Statement* stat) const {
   CHECK_NOTNULL(stat);
   std::shared_ptr<Poco::Data::BLOB> blobPointer;
-  if (!fieldqueries(field).nametype().has_type()) {
-    LOG(FATAL) << "Trying to insert placeholder of undefined type";
-    return blobPointer;
-  }
+  const proto::TableField& field =
+      underlying_revision_->custom_field_values(index);
+  CHECK(field.has_type()) << "Trying to insert placeholder of undefined type";
   *stat << " ";
-  switch (fieldqueries(field).nametype().type()) {
-    case proto::TableFieldDescriptor_Type_BLOB: {
+  switch (field.type()) {
+    case proto::Type_BLOB: {
       blobPointer = std::make_shared<Poco::Data::BLOB>(
-          Poco::Data::BLOB(fieldqueries(field).blobvalue()));
+          Poco::Data::BLOB(field.blobvalue()));
       *stat << "?", Poco::Data::use(*blobPointer);
       break;
     }
-    case proto::TableFieldDescriptor_Type_DOUBLE: {
-      *stat << fieldqueries(field).doublevalue();
+    case proto::Type_DOUBLE: {
+      *stat << field.doublevalue();
       break;
     }
-    case proto::TableFieldDescriptor_Type_HASH128: {
-      *stat << "?", Poco::Data::use(fieldqueries(field).stringvalue());
+    case proto::Type_HASH128: {
+      *stat << "?", Poco::Data::use(field.stringvalue());
       break;
     }
-    case proto::TableFieldDescriptor_Type_INT32: {
-      *stat << fieldqueries(field).intvalue();
+    case proto::Type_INT32: {
+      *stat << field.intvalue();
       break;
     }
-    case(proto::TableFieldDescriptor_Type_UINT32) : {
-      *stat << fieldqueries(field).uintvalue();
+    case(proto::Type_UINT32) : {
+      *stat << field.uintvalue();
       break;
     }
-    case proto::TableFieldDescriptor_Type_INT64: {
-      *stat << fieldqueries(field).longvalue();
+    case proto::Type_INT64: {
+      *stat << field.longvalue();
       break;
     }
-    case proto::TableFieldDescriptor_Type_UINT64: {
-      *stat << fieldqueries(field).ulongvalue();
+    case proto::Type_UINT64: {
+      *stat << field.ulongvalue();
       break;
     }
-    case proto::TableFieldDescriptor_Type_STRING: {
-      *stat << "?", Poco::Data::use(fieldqueries(field).stringvalue());
+    case proto::Type_STRING: {
+      *stat << "?", Poco::Data::use(field.stringvalue());
       break;
     }
     default:

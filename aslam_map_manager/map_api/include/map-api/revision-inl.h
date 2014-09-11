@@ -1,5 +1,5 @@
-#ifndef REVISION_INL_H_
-#define REVISION_INL_H_
+#ifndef MAP_API_REVISION_INL_H_
+#define MAP_API_REVISION_INL_H_
 
 #include <glog/logging.h>
 
@@ -8,58 +8,37 @@
 
 namespace map_api {
 
-template<typename FieldType>
-void Revision::addField(const std::string& name) {
-  proto::TableFieldDescriptor descriptor;
-  descriptor.set_name(name);
-  descriptor.set_type(Revision::protobufEnum<FieldType>());
-  addField(descriptor);
+template <typename FieldType>
+void Revision::addField(int index) {
+  addCustomField(index, getProtobufTypeEnum<FieldType>());
 }
 
 template <typename FieldType>
-bool Revision::set(const std::string& fieldName, const FieldType& value){
-  // 1. Check if field exists
-  proto::TableField* field;
-  if (!find(fieldName, &field)){
-    LOG(FATAL) << "Trying to set inexistent field " << fieldName;
-  }
-  // 2. Check type
-  CHECK_EQ(field->nametype().type(), Revision::protobufEnum<FieldType>()) <<
-      "Type mismatch when trying to set " << fieldName;
-  // 3. Set
-  return set(*field, value);
+bool Revision::set(int index, const FieldType& value) {
+  proto::TableField* field =
+      underlying_revision_->mutable_custom_field_values(index);
+  CHECK_EQ(field->type(), getProtobufTypeEnum<FieldType>())
+      << "Type mismatch when trying to set field " << index;
+  return set(field, value);
 }
 
 template <typename FieldType>
-bool Revision::get(const std::string& fieldName, FieldType* value) const {
-  int index = indexOf(fieldName);
-  return get(fieldName, index, value);
-}
-
-template <typename FieldType>
-bool Revision::get(const std::string& fieldName, int index_guess,
-                   FieldType* value) const {
+bool Revision::get(int index, FieldType* value) const {
   CHECK_NOTNULL(value);
-  const proto::TableField& field = fieldqueries(index_guess);
-  if (field.nametype().name() != fieldName) {
-    LOG(WARNING) << "Index guess failed";
-    return get(fieldName, value);
-  }
-  CHECK_EQ(field.nametype().type(), Revision::protobufEnum<FieldType>())
-      << "Type mismatch when trying to get " << fieldName;
+  const proto::TableField& field =
+      underlying_revision_->custom_field_values(index);
+  CHECK_EQ(field.type(), getProtobufTypeEnum<FieldType>())
+      << "Type mismatch when trying to get field " << index;
   return get(field, value);
 }
 
 template <typename ExpectedType>
-bool Revision::verifyEqual(const std::string& fieldName,
-                           const ExpectedType& expected) const {
+bool Revision::verifyEqual(int index, const ExpectedType& expected) const {
   ExpectedType value;
-  get(fieldName, &value);
+  get(index, &value);
   return value == expected;
 }
 
-} // namespace map_api
+}  // namespace map_api
 
-
-
-#endif /* REVISION_INL_H_ */
+#endif  // MAP_API_REVISION_INL_H_

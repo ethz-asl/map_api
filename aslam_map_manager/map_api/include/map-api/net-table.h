@@ -44,6 +44,7 @@ class NetTable {
   const CRTable::Type& type() const;
 
   std::shared_ptr<Revision> getTemplate() const;
+  Revision* getAllocatedTemplate() const;
   Chunk* newChunk();
   Chunk* newChunk(const Id& chunk_id);
   Chunk* getChunk(const Id& chunk_id);

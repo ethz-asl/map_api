@@ -20,7 +20,8 @@ message TableField {
 }
 
 message Id {
-  repeated double value = 1;  // needs to be repeated for contiguousness	
+  required string hash = 1;  // TODO(tcies) replace with below
+  // repeated double value = 1;  // needs to be repeated for contiguousness	
 }
 
 message Revision {
@@ -28,7 +29,8 @@ message Revision {
   optional uint64 insert_time = 2;
   optional uint64 update_time = 3;
   optional bool removed = 4;
-  repeated TableField custom_field_values = 5;
+  optional Id chunk_id = 5;
+  repeated TableField custom_field_values = 6;
 }
 
 message History {
@@ -36,8 +38,8 @@ message History {
 }
 
 message HubMessage {
-  required string type = 1;
-  required bytes serialized = 2;
+  optional string type = 1;
+  optional bytes serialized = 2;
   optional string sender = 3;
   optional uint64 logical_time = 4;
 }
