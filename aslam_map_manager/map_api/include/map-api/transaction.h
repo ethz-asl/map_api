@@ -60,6 +60,11 @@ class Transaction {
   void insert(ChunkManagerBase* chunk_manager,
               std::shared_ptr<Revision> revision);
   void update(NetTable* table, std::shared_ptr<Revision> revision);
+  // fast
+  void remove(NetTable* table, std::shared_ptr<Revision> revision);
+  // slow
+  template <typename IdType>
+  void remove(NetTable* table, const IdType& id);
 
   // TRANSACTION OPERATIONS
   bool commit();

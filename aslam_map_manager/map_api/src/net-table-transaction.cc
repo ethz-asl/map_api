@@ -37,6 +37,13 @@ void NetTableTransaction::update(std::shared_ptr<Revision> revision) {
   transactionOf(chunk)->update(revision);
 }
 
+void NetTableTransaction::remove(std::shared_ptr<Revision> revision) {
+  Id chunk_id;
+  revision->get(NetTable::kChunkIdField, &chunk_id);
+  Chunk* chunk = table_->getChunk(chunk_id);
+  transactionOf(chunk)->remove(revision);
+}
+
 bool NetTableTransaction::commit() {
   lock();
   if (!check()) {
