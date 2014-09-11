@@ -60,11 +60,10 @@ int CRUTableRamMap::findByRevisionCRUDerived(const std::string& key,
   dest->clear();
   forEachItemFoundAtTime(
       key, value_holder, time,
-      [&dest](const Id& id, History::const_iterator item) {
+      [&dest](const Id& id, const History::const_iterator& item) {
     CHECK(dest->find(id) == dest->end());
-    CHECK(dest->insert(std::make_pair(
-        id, std::make_shared<Revision>(*item))).second);
-  });
+    CHECK(dest->emplace(id, std::make_shared<Revision>(*item)).second);
+      });
   return dest->size();  // TODO(tcies) returning the count is silly, abolish
 }
 
@@ -92,7 +91,8 @@ int CRUTableRamMap::countByRevisionCRUDerived(const std::string& key,
   int count = 0;
   forEachItemFoundAtTime(
       key, value_holder, time,
-      [&count](const Id& /*id*/, History::const_iterator /*item*/) {++count;});
+      [&count](const Id& /*id*/,
+               const History::const_iterator& /*item*/) { ++count; });
   return count;
 }
 
@@ -136,11 +136,11 @@ void CRUTableRamMap::findHistoryByRevisionCRUDerived(
   }
 }
 
-void CRUTableRamMap::forEachItemFoundAtTime(
+inline void CRUTableRamMap::forEachItemFoundAtTime(
     const std::string& key, const Revision& value_holder,
     const LogicalTime& time,
-    const std::function<void(
-        const Id& id, History::const_iterator item)>& action) {
+    const std::function<
+        void(const Id& id, const History::const_iterator& item)>& action) {
   if (key == kIdField) {
     Id id;
     CHECK(value_holder.get(kIdField, &id));

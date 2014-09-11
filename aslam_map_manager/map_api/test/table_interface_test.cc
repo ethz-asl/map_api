@@ -192,7 +192,7 @@ class FieldTest<testBlob> : public ::testing::Test {
 template <typename TableDataType>
 class FieldTestWithoutInit
     : public FieldTest<typename TableDataType::DataType> {
-     public:
+ public:
   virtual ~FieldTestWithoutInit() {}
 
   virtual void SetUp() override {
@@ -274,12 +274,12 @@ class CruMapIntTestWithInit
  */
 
 #define ALL_DATA_TYPES(table_type)                                             \
-    TableDataTypes<table_type, testBlob>,                                      \
-    TableDataTypes<table_type, std::string>,                                 \
-    TableDataTypes<table_type, int32_t>, TableDataTypes<table_type, double>, \
-    TableDataTypes<table_type, map_api::Id>,                                 \
-    TableDataTypes<table_type, int64_t>,                                     \
-    TableDataTypes<table_type, map_api::LogicalTime>
+  TableDataTypes<table_type, testBlob>,                                        \
+      TableDataTypes<table_type, std::string>,                                 \
+      TableDataTypes<table_type, int32_t>, TableDataTypes<table_type, double>, \
+      TableDataTypes<table_type, map_api::Id>,                                 \
+      TableDataTypes<table_type, int64_t>,                                     \
+      TableDataTypes<table_type, map_api::LogicalTime>
 
 // TODO(tcies) implement remove in CRU sqlite and re-enable tests
 typedef ::testing::Types<ALL_DATA_TYPES(CRTableRamSqlite),

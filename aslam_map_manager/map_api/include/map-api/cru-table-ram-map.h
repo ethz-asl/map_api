@@ -33,11 +33,11 @@ class CRUTableRamMap : public CRUTable {
                                                const LogicalTime& time,
                                                HistoryMap* dest) final override;
 
-  void forEachItemFoundAtTime(
+  inline void forEachItemFoundAtTime(
       const std::string& key, const Revision& value_holder,
       const LogicalTime& time,
-      const std::function<void(
-          const Id& id, History::const_iterator item)>& action);
+      const std::function<
+          void(const Id& id, const History::const_iterator& item)>& action);
 
   HistoryMap data_;
 };
