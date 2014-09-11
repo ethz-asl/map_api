@@ -30,7 +30,7 @@ void ChunkTransaction::insert(std::shared_ptr<Revision> revision) {
   Id id;
   revision->get(CRTable::kIdField, &id);
   CHECK(id.isValid());
-  CHECK(insertions_.insert(std::make_pair(id, revision)).second);
+  CHECK(insertions_.emplace(id, revision).second);
 }
 
 void ChunkTransaction::update(std::shared_ptr<Revision> revision) {
@@ -40,7 +40,18 @@ void ChunkTransaction::update(std::shared_ptr<Revision> revision) {
   Id id;
   revision->get(CRTable::kIdField, &id);
   CHECK(id.isValid());
-  CHECK(updates_.insert(std::make_pair(id, revision)).second);
+  CHECK(updates_.emplace(id, revision).second);
+}
+
+void ChunkTransaction::remove(std::shared_ptr<Revision> revision) {
+  CHECK_NOTNULL(revision.get());
+  CHECK(revision->structureMatch(*structure_reference_));
+  CHECK(chunk_->underlying_table_->type() == CRTable::Type::CRU);
+  Id id;
+  revision->get(CRTable::kIdField, &id);
+  CHECK(id.isValid());
+  CHECK(removes_.emplace(id, revision).second);
+  // TODO(tcies) situation uncommitted
 }
 
 bool ChunkTransaction::commit() {
@@ -72,6 +83,11 @@ bool ChunkTransaction::check() {
       return false;
     }
   }
+  for (const std::pair<const Id, std::shared_ptr<Revision> >& item : removes_) {
+    if (stamps[item.first] >= begin_time_) {
+      return false;
+    }
+  }
   for (const ChunkTransaction::ConflictCondition& item : conflict_conditions_) {
     CRTable::RevisionMap dummy;
     if (chunk_->underlying_table_->findByRevision(
@@ -86,6 +102,9 @@ void ChunkTransaction::checkedCommit(const LogicalTime& time) {
   chunk_->bulkInsertLocked(insertions_, time);
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item : updates_) {
     chunk_->updateLocked(time, item.second.get());
+  }
+  for (const std::pair<const Id, std::shared_ptr<Revision> >& item : removes_) {
+    chunk_->removeLocked(time, item.second.get());
   }
 }
 
@@ -114,13 +133,21 @@ void ChunkTransaction::merge(
       merge_transaction->updates_.insert(item);
     }
   }
+  for (const std::pair<const Id, std::shared_ptr<Revision> >& item : removes_) {
+    if (stamps[item.first] >= begin_time_) {
+      conflicts->push_back(
+          {merge_transaction->getById(item.first), item.second});
+    } else {
+      merge_transaction->removes_.insert(item);
+    }
+  }
   chunk_->unlock();
 }
 
 size_t ChunkTransaction::numChangedItems() const {
   CHECK(conflict_conditions_.empty()) << "changeCount not compatible with "
                                          "conflict conditions";
-  return insertions_.size() + updates_.size();
+  return insertions_.size() + updates_.size() + removes_.size();
 }
 
 void ChunkTransaction::prepareCheck(

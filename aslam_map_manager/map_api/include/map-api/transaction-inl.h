@@ -35,6 +35,11 @@ void Transaction::getAvailableIds(NetTable* table,
       ->getAvailableIds(CHECK_NOTNULL(ids));
 }
 
+template <typename IdType>
+void Transaction::remove(NetTable* table, const IdType& id) {
+  return transactionOf(CHECK_NOTNULL(table))->remove(id);
+}
+
 }  // namespace map_api
 
 #endif  // MAP_API_TRANSACTION_INL_H_
