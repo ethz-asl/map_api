@@ -106,13 +106,13 @@ bool Chunk::init(
 void Chunk::dumpItems(const LogicalTime& time, CRTable::RevisionMap* items) {
   CHECK_NOTNULL(items);
   distributedReadLock();
-  underlying_table_->find(NetTable::kChunkIdField, id(), time, items);
+  underlying_table_->dumpChunk(id(), time, items);
   distributedUnlock();
 }
 
 size_t Chunk::numItems(const LogicalTime& time) {
   distributedReadLock();
-  size_t result = underlying_table_->count(NetTable::kChunkIdField, id(), time);
+  size_t result = underlying_table_->countByChunk(id(), time);
   distributedUnlock();
   return result;
 }
@@ -120,7 +120,7 @@ size_t Chunk::numItems(const LogicalTime& time) {
 size_t Chunk::itemsSizeBytes(const LogicalTime& time) {
   CRTable::RevisionMap items;
   distributedReadLock();
-  underlying_table_->find(NetTable::kChunkIdField, id(), time, &items);
+  underlying_table_->dumpChunk(id(), time, &items);
   distributedUnlock();
   size_t num_bytes = 0;
   for (const std::pair<Id, std::shared_ptr<Revision> >& item : items) {
@@ -144,11 +144,11 @@ void Chunk::getCommitTimes(const LogicalTime& sample_time,
   CRUTable::HistoryMap histories;
   distributedReadLock();
   if (underlying_table_->type() == CRTable::Type::CR) {
-    underlying_table_->find(NetTable::kChunkIdField, id(), sample_time, &items);
+    underlying_table_->dumpChunk(id(), sample_time, &items);
   } else {
     CHECK(underlying_table_->type() == CRTable::Type::CRU);
     CRUTable* table = static_cast<CRUTable*>(underlying_table_);
-    table->findHistory(NetTable::kChunkIdField, id(), sample_time, &histories);
+    table->chunkHistory(id(), sample_time, &histories);
   }
   distributedUnlock();
   if (underlying_table_->type() == CRTable::Type::CR) {
@@ -167,14 +167,14 @@ void Chunk::getCommitTimes(const LogicalTime& sample_time,
                        unordered_commit_times.end());
 }
 
-bool Chunk::insert(Revision* item) {
+bool Chunk::insert(const LogicalTime& time, Revision* item) {
   CHECK_NOTNULL(item);
   item->setChunkId(id());
   proto::PatchRequest insert_request;
   fillMetadata(&insert_request);
   Message request;
   distributedReadLock();  // avoid adding of new peers while inserting
-  underlying_table_->insert(item);
+  underlying_table_->insert(time, item);
   // at this point, insert() has modified the revision such that all default
   // fields are also set, which allows remote peers to just patch the revision
   // into their table.
@@ -182,36 +182,6 @@ bool Chunk::insert(Revision* item) {
   request.impose<kInsertRequest>(insert_request);
   CHECK(peers_.undisputableBroadcast(&request));
   syncLatestCommitTime(*item);
-  distributedUnlock();
-  return true;
-}
-
-bool Chunk::bulkInsert(const CRTable::RevisionMap& items) {
-  std::vector<proto::PatchRequest> insert_requests;
-  insert_requests.resize(items.size());
-  int i = 0;
-  for (const CRTable::RevisionMap::value_type& item : items) {
-    CHECK_NOTNULL(item.second.get());
-    item.second->setChunkId(id());
-    fillMetadata(&insert_requests[i]);
-    ++i;
-    syncLatestCommitTime(*item.second);
-  }
-  Message request;
-  distributedReadLock();  // avoid adding of new peers while inserting
-  underlying_table_->bulkInsert(items);
-  // at this point, insert() has modified the revisions such that all default
-  // fields are also set, which allows remote peers to just patch the revision
-  // into their table.
-  i = 0;
-  for (const CRTable::RevisionMap::value_type& item : items) {
-    insert_requests[i]
-        .set_serialized_revision(item.second->serializeUnderlying());
-    request.impose<kInsertRequest>(insert_requests[i]);
-    CHECK(peers_.undisputableBroadcast(&request));
-    // TODO(tcies) also bulk this
-    ++i;
-  }
   distributedUnlock();
   return true;
 }
@@ -645,8 +615,7 @@ void Chunk::prepareInitRequest(Message* request) {
 
   if (underlying_table_->type() == CRTable::Type::CR) {
     CRTable::RevisionMap data;
-    underlying_table_->find(NetTable::kChunkIdField, id(),
-                            LogicalTime::sample(), &data);
+    underlying_table_->dumpChunk(id(), LogicalTime::sample(), &data);
     for (const CRTable::RevisionMap::value_type& data_pair : data) {
       init_request.add_serialized_items(
           data_pair.second->serializeUnderlying());
@@ -655,8 +624,7 @@ void Chunk::prepareInitRequest(Message* request) {
     CHECK(underlying_table_->type() == CRTable::Type::CRU);
     CRUTable::HistoryMap data;
     CRUTable* table = static_cast<CRUTable*>(underlying_table_);
-    table->findHistory(NetTable::kChunkIdField, id(), LogicalTime::sample(),
-                       &data);
+    table->chunkHistory(id(), LogicalTime::sample(), &data);
     for (const CRUTable::HistoryMap::value_type& data_pair : data) {
       proto::History history_proto;
       for (const Revision& revision : data_pair.second) {

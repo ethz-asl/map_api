@@ -22,36 +22,36 @@ std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(
   switch (field.type()) {
     case proto::Type_BLOB: {
       blobPointer = std::make_shared<Poco::Data::BLOB>(
-          Poco::Data::BLOB(field.blobvalue()));
+          Poco::Data::BLOB(field.blob_value()));
       *stat << "?", Poco::Data::use(*blobPointer);
       break;
     }
     case proto::Type_DOUBLE: {
-      *stat << field.doublevalue();
+      *stat << field.double_value();
       break;
     }
     case proto::Type_HASH128: {
-      *stat << "?", Poco::Data::use(field.stringvalue());
+      *stat << "?", Poco::Data::use(field.string_value());
       break;
     }
     case proto::Type_INT32: {
-      *stat << field.intvalue();
+      *stat << field.int_value();
       break;
     }
     case(proto::Type_UINT32) : {
-      *stat << field.uintvalue();
+      *stat << field.uint_value();
       break;
     }
     case proto::Type_INT64: {
-      *stat << field.longvalue();
+      *stat << field.long_value();
       break;
     }
     case proto::Type_UINT64: {
-      *stat << field.ulongvalue();
+      *stat << field.ulong_value();
       break;
     }
     case proto::Type_STRING: {
-      *stat << "?", Poco::Data::use(field.stringvalue());
+      *stat << "?", Poco::Data::use(field.string_value());
       break;
     }
     default:
@@ -96,45 +96,20 @@ bool Revision::structureMatch(const Revision& other) const {
   return true;
 }
 
-bool Revision::fieldMatch(const Revision& other, const std::string& key) const {
-  int index = indexOf(key);
-  return fieldMatch(other, key, index);
-}
-
-bool Revision::fieldMatch(const Revision& other, const std::string& key,
-                          int index_guess) const {
-  const proto::TableField& a = fieldqueries(index_guess);
-  const proto::TableField& b = other.fieldqueries(index_guess);
-  if (a.nametype().name() != key) {
-    LOG(WARNING) << "Index guess was wrong!";
-    return fieldMatch(other, key);
-  }
-  CHECK_EQ(key, b.nametype().name());
-  switch (a.nametype().type()) {
-    case proto::TableFieldDescriptor_Type_BLOB: {
-      return a.blobvalue() == b.blobvalue();
+bool Revision::fieldMatch(const Revision& other, int key) const {
+  const proto::TableField& a = fieldqueries(key);
+  const proto::TableField& b = other.fieldqueries(key);
+  switch (a.type()) {
+    case proto::Type::BLOB: { return a.blob_value() == b.blob_value(); }
+    case(proto::Type::DOUBLE) : { return a.double_value() == b.double_value(); }
+    case(proto::Type::HASH128) : {
+      return a.string_value() == b.string_value();
     }
-    case(proto::TableFieldDescriptor_Type_DOUBLE) : {
-      return a.doublevalue() == b.doublevalue();
-    }
-    case(proto::TableFieldDescriptor_Type_HASH128) : {
-      return a.stringvalue() == b.stringvalue();
-    }
-    case(proto::TableFieldDescriptor_Type_INT32) : {
-      return a.intvalue() == b.intvalue();
-    }
-    case(proto::TableFieldDescriptor_Type_UINT32) : {
-      return a.uintvalue() == b.uintvalue();
-    }
-    case(proto::TableFieldDescriptor_Type_INT64) : {
-      return a.longvalue() == b.longvalue();
-    }
-    case(proto::TableFieldDescriptor_Type_UINT64) : {
-      return a.ulongvalue() == b.ulongvalue();
-    }
-    case(proto::TableFieldDescriptor_Type_STRING) : {
-      return a.stringvalue() == b.stringvalue();
-    }
+    case(proto::Type::INT32) : { return a.int_value() == b.int_value(); }
+    case(proto::Type::UINT32) : { return a.uint_value() == b.uint_value(); }
+    case(proto::Type::INT64) : { return a.long_value() == b.long_value(); }
+    case(proto::Type::UINT64) : { return a.ulong_value() == b.ulong_value(); }
+    case(proto::Type::STRING) : { return a.string_value() == b.string_value(); }
   }
   CHECK(false) << "Forgot switch case";
   return false;
@@ -162,13 +137,13 @@ std::string Revision::dumpToString() const {
   for (const std::pair<const std::string, int>& name_field : fields_) {
     dump_ss << "\t" << name_field.first << ": ";
     const proto::TableField& field = fieldqueries(name_field.second);
-    if (field.has_blobvalue()) dump_ss << field.blobvalue();
-    if (field.has_doublevalue()) dump_ss << field.doublevalue();
-    if (field.has_intvalue()) dump_ss << field.intvalue();
-    if (field.has_uintvalue()) dump_ss << field.uintvalue();
-    if (field.has_longvalue()) dump_ss << field.longvalue();
-    if (field.has_ulongvalue()) dump_ss << field.ulongvalue();
-    if (field.has_stringvalue()) dump_ss << field.stringvalue();
+    if (field.has_blob_value()) dump_ss << field.blob_value();
+    if (field.has_double_value()) dump_ss << field.double_value();
+    if (field.has_int_value()) dump_ss << field.int_value();
+    if (field.has_uint_value()) dump_ss << field.uint_value();
+    if (field.has_long_value()) dump_ss << field.long_value();
+    if (field.has_ulong_value()) dump_ss << field.ulong_value();
+    if (field.has_string_value()) dump_ss << field.string_value();
     dump_ss << std::endl;
   }
   dump_ss << "}" << std::endl;
@@ -179,72 +154,72 @@ std::string Revision::dumpToString() const {
  * PROTOBUFENUM
  */
 
-REVISION_ENUM(std::string, proto::TableFieldDescriptor_Type_STRING);
-REVISION_ENUM(double, proto::TableFieldDescriptor_Type_DOUBLE);
-REVISION_ENUM(int32_t, proto::TableFieldDescriptor_Type_INT32);
-REVISION_ENUM(uint32_t, proto::TableFieldDescriptor_Type_UINT32);
-REVISION_ENUM(bool, proto::TableFieldDescriptor_Type_INT32);
-REVISION_ENUM(Id, proto::TableFieldDescriptor_Type_HASH128);
-REVISION_ENUM(sm::HashId, proto::TableFieldDescriptor_Type_HASH128);
-REVISION_ENUM(int64_t, proto::TableFieldDescriptor_Type_INT64);
-REVISION_ENUM(uint64_t, proto::TableFieldDescriptor_Type_UINT64);
-REVISION_ENUM(LogicalTime, proto::TableFieldDescriptor_Type_UINT64);
-REVISION_ENUM(Revision, proto::TableFieldDescriptor_Type_BLOB);
-REVISION_ENUM(testBlob, proto::TableFieldDescriptor_Type_BLOB);
-REVISION_ENUM(Poco::Data::BLOB, proto::TableFieldDescriptor_Type_BLOB);
+MAP_API_TYPE_ENUM(std::string, proto::Type::STRING);
+MAP_API_TYPE_ENUM(double, proto::Type::DOUBLE);
+MAP_API_TYPE_ENUM(int32_t, proto::Type::INT32);
+MAP_API_TYPE_ENUM(uint32_t, proto::Type::UINT32);
+MAP_API_TYPE_ENUM(bool, proto::Type::INT32);
+MAP_API_TYPE_ENUM(Id, proto::Type::HASH128);
+MAP_API_TYPE_ENUM(sm::HashId, proto::Type::HASH128);
+MAP_API_TYPE_ENUM(int64_t, proto::Type::INT64);
+MAP_API_TYPE_ENUM(uint64_t, proto::Type::UINT64);
+MAP_API_TYPE_ENUM(LogicalTime, proto::Type::UINT64);
+MAP_API_TYPE_ENUM(Revision, proto::Type::BLOB);
+MAP_API_TYPE_ENUM(testBlob, proto::Type::BLOB);
+MAP_API_TYPE_ENUM(Poco::Data::BLOB, proto::Type::BLOB);
 
 /**
  * SET
  */
-REVISION_SET(std::string) {
+MAP_API_REVISION_SET(std::string) {
   field.set_stringvalue(value);
   return true;
 }
-REVISION_SET(double) {  // NOLINT ("All parameters should be named ...")
+MAP_API_REVISION_SET(double) {  // NOLINT ("All parameters should be named ...")
   field.set_doublevalue(value);
   return true;
 }
-REVISION_SET(int32_t) {
+MAP_API_REVISION_SET(int32_t) {
   field.set_intvalue(value);
   return true;
 }
-REVISION_SET(uint32_t) {
+MAP_API_REVISION_SET(uint32_t) {
   field.set_uintvalue(value);
   return true;
 }
-REVISION_SET(bool) {  // NOLINT ("All parameters should be named ...")
+MAP_API_REVISION_SET(bool) {  // NOLINT ("All parameters should be named ...")
   field.set_intvalue(value ? 1 : 0);
   return true;
 }
-REVISION_SET(Id) {
+MAP_API_REVISION_SET(Id) {
   field.set_stringvalue(value.hexString());
   return true;
 }
-REVISION_SET(sm::HashId) {
+MAP_API_REVISION_SET(sm::HashId) {
   field.set_stringvalue(value.hexString());
   return true;
 }
-REVISION_SET(int64_t) {
+MAP_API_REVISION_SET(int64_t) {
   field.set_longvalue(value);
   return true;
 }
-REVISION_SET(uint64_t) {
+MAP_API_REVISION_SET(uint64_t) {
   field.set_ulongvalue(value);
   return true;
 }
-REVISION_SET(LogicalTime) {
+MAP_API_REVISION_SET(LogicalTime) {
   field.set_ulongvalue(value.serialize());
   return true;
 }
-REVISION_SET(Revision) {
+MAP_API_REVISION_SET(Revision) {
   field.set_blobvalue(value.SerializeAsString());
   return true;
 }
-REVISION_SET(testBlob) {
+MAP_API_REVISION_SET(testBlob) {
   field.set_blobvalue(value.SerializeAsString());
   return true;
 }
-REVISION_SET(Poco::Data::BLOB) {
+MAP_API_REVISION_SET(Poco::Data::BLOB) {
   field.set_blobvalue(value.rawContent(), value.size());
   return true;
 }
@@ -252,70 +227,72 @@ REVISION_SET(Poco::Data::BLOB) {
 /**
  * GET
  */
-REVISION_GET(std::string) {
-  *value = field.stringvalue();
+MAP_API_REVISION_GET(std::string) {
+  *value = field.string_value();
   return true;
 }
-REVISION_GET(double) {  // NOLINT ("All parameters should be named ...")
-  *value = field.doublevalue();
+MAP_API_REVISION_GET(double) {  // NOLINT ("All parameters should be named ...")
+  *value = field.double_value();
   return true;
 }
-REVISION_GET(int32_t) {
-  *value = field.intvalue();
+MAP_API_REVISION_GET(int32_t) {
+  *value = field.int_value();
   return true;
 }
-REVISION_GET(uint32_t) {
-  *value = field.uintvalue();
+MAP_API_REVISION_GET(uint32_t) {
+  *value = field.uint_value();
   return true;
 }
-REVISION_GET(Id) {
-  if (!value->fromHexString(field.stringvalue())) {
-    LOG(FATAL) << "Failed to parse Hash id from string \"" <<
-        field.stringvalue() << "\" for field " << field.nametype().name();
+MAP_API_REVISION_GET(Id) {
+  if (!value->fromHexString(field.string_value())) {
+    LOG(FATAL) << "Failed to parse Hash id from string \""
+               << field.string_value() << "\" for field "
+               << field.nametype().name();
   }
   return true;
 }
-REVISION_GET(bool) {  // NOLINT ("All parameters should be named ...")
-  *value = field.intvalue() != 0;
+MAP_API_REVISION_GET(bool) {  // NOLINT ("All parameters should be named ...")
+  *value = field.int_value() != 0;
   return true;
 }
-REVISION_GET(sm::HashId) {
-  if (!value->fromHexString(field.stringvalue())) {
-    LOG(FATAL) << "Failed to parse Hash id from string \"" <<
-        field.stringvalue() << "\" for field " << field.nametype().name();
+MAP_API_REVISION_GET(sm::HashId) {
+  if (!value->fromHexString(field.string_value())) {
+    LOG(FATAL) << "Failed to parse Hash id from string \""
+               << field.string_value() << "\" for field "
+               << field.nametype().name();
   }
   return true;
 }
-REVISION_GET(int64_t) {
-  *value = field.longvalue();
+MAP_API_REVISION_GET(int64_t) {
+  *value = field.long_value();
   return true;
 }
-REVISION_GET(uint64_t) {
-  *value = field.ulongvalue();
+MAP_API_REVISION_GET(uint64_t) {
+  *value = field.ulong_value();
   return true;
 }
-REVISION_GET(LogicalTime) {
-  *value = LogicalTime(field.ulongvalue());
+MAP_API_REVISION_GET(LogicalTime) {
+  *value = LogicalTime(field.ulong_value());
   return true;
 }
-REVISION_GET(Revision) {
-  bool parsed = value->ParseFromString(field.blobvalue());
+MAP_API_REVISION_GET(Revision) {
+  bool parsed = value->ParseFromString(field.blob_value());
   if (!parsed) {
     LOG(FATAL) << "Failed to parse revision";
     return false;
   }
   return true;
 }
-REVISION_GET(testBlob) {
-  bool parsed = value->ParseFromString(field.blobvalue());
+MAP_API_REVISION_GET(testBlob) {
+  bool parsed = value->ParseFromString(field.blob_value());
   if (!parsed) {
     LOG(FATAL) << "Failed to parse test blob";
     return false;
   }
   return true;
 }
-REVISION_GET(Poco::Data::BLOB) {
-  *value = Poco::Data::BLOB(field.blobvalue());
+MAP_API_REVISION_GET(Poco::Data::BLOB) {
+  *value = Poco::Data::BLOB(field.blob_value());
   return true;
 }
 

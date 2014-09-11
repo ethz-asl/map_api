@@ -10,14 +10,8 @@ std::shared_ptr<Revision> NetTableTransaction::getById(const IdType& id) {
   std::shared_ptr<Revision> result;
   Chunk* chunk = chunkOf(id, &result);
   if (chunk) {
-    LogicalTime inconsistent_time, chunk_latest_commit;
-    if (table_->type() == CRTable::Type::CR) {
-      result->get(CRTable::kInsertTimeField, &inconsistent_time);
-    } else {
-      CHECK(table_->type() == CRTable::Type::CRU);
-      result->get(CRUTable::kUpdateTimeField, &inconsistent_time);
-    }
-    chunk_latest_commit = chunk->getLatestCommitTime();
+    LogicalTime inconsistent_time = result->getModificationTime();
+    LogicalTime chunk_latest_commit = chunk->getLatestCommitTime();
 
     if (chunk_latest_commit <= inconsistent_time) {
       return result;
@@ -69,9 +63,7 @@ Chunk* NetTableTransaction::chunkOf(const IdType& id,
   if (!(*inconsistent)) {
     return nullptr;
   }
-  Id chunk_id;
-  (*inconsistent)->get(NetTable::kChunkIdField, &chunk_id);
-  return table_->getChunk(chunk_id);
+  return table_->getChunk((*inconsistent)->getChunkId());
 }
 
 }  // namespace map_api

@@ -94,7 +94,7 @@ class CRTable {
    * for singular transaction commit times.
    * TODO(tcies) make void where possible
    */
-  virtual bool insert(Revision* query) final;
+  virtual bool insert(const LogicalTime& time, Revision* query) final;
   virtual bool bulkInsert(const RevisionMap& query) final;
   virtual bool bulkInsert(const RevisionMap& query,
                           const LogicalTime& time) final;
@@ -116,33 +116,33 @@ class CRTable {
   /**
    * Puts all items that match key = value at time into dest and returns the
    * amount of items in dest.
-   * If "key" is an empty string, no filter will be applied (equivalent to
-   * dump())
+   * If "key" is -1, no filter will be applied
    */
-  template<typename ValueType>
-  int find(const std::string& key, const ValueType& value,
-           const LogicalTime& time, RevisionMap* dest);
+  template <typename ValueType>
+  int find(int key, const ValueType& value, const LogicalTime& time,
+           RevisionMap* dest);
+  void dumpChunk(const Id& chunk_id, const LogicalTime& time,
+                 RevisionMap* dest);
+
   /**
    * Same as find() but not typed. Value is looked up in the corresponding field
    * of valueHolder.
    */
-  virtual int findByRevision(
-      const std::string& key, const Revision& valueHolder,
-      const LogicalTime& time, RevisionMap* dest) final;
+  virtual int findByRevision(int key, const Revision& valueHolder,
+                             const LogicalTime& time, RevisionMap* dest) final;
   /**
    * Same as find() but makes the assumption that there is only one result.
    */
-  template<typename ValueType>
-  std::shared_ptr<Revision> findUnique(
-      const std::string& key, const ValueType& value, const LogicalTime& time);
+  template <typename ValueType>
+  std::shared_ptr<Revision> findUnique(int key, const ValueType& value,
+                                       const LogicalTime& time);
 
   /**
    * Same as count() but not typed. Value is looked up in the corresponding
    * field
    * of valueHolder.
    */
-  virtual int countByRevision(const std::string& key,
-                              const Revision& valueHolder,
+  virtual int countByRevision(int key, const Revision& valueHolder,
                               const LogicalTime& time) final;
 
   virtual void dump(const LogicalTime& time, RevisionMap* dest) final;
@@ -152,8 +152,8 @@ class CRTable {
    * If "key" is an empty string, no filter will be applied.
    */
   template <typename ValueType>
-  int count(const std::string& key, const ValueType& value,
-            const LogicalTime& time);
+  int count(int key, const ValueType& value, const LogicalTime& time);
+  int countByChunk(const Id& id, const LogicalTime& time);
 
   /**
    * The following struct can be used to automatically supply table name and
@@ -168,9 +168,6 @@ class CRTable {
 
   virtual Type type() const;
 
-  template <typename Derived>
-  static bool isIdEqual(const Revision& revision, const UniqueId<Derived>& id);
-
  protected:
   std::unique_ptr<TableDescriptor> descriptor_;
 
@@ -184,24 +181,25 @@ class CRTable {
    * Do here whatever is specific to initializing the derived type
    */
   virtual bool initCRDerived() = 0;
-  virtual bool insertCRDerived(Revision* query) = 0;
+  virtual bool insertCRDerived(const LogicalTime& time, Revision* query) = 0;
   virtual bool bulkInsertCRDerived(const RevisionMap& query,
                                    const LogicalTime& time) = 0;
   virtual bool patchCRDerived(const Revision& query) = 0;
+  virtual std::shared_ptr<Revision> getByIdCRDerived(
+      const Id& id, const LogicalTime& time) = 0;
   /**
-   * If key is an empty string, this should return all the data in the table.
+   * If key is -1, this should return all the data in the table.
    */
-  virtual int findByRevisionCRDerived(
-      const std::string& key, const Revision& valueHolder,
-      const LogicalTime& time, RevisionMap* dest) = 0;
+  virtual int findByRevisionCRDerived(int key, const Revision& valueHolder,
+                                      const LogicalTime& time,
+                                      RevisionMap* dest) = 0;
   virtual void getAvailableIdsCRDerived(const LogicalTime& time,
                                         std::unordered_set<Id>* ids) = 0;
 
   /**
    * If key is an empty string, this should return all the data in the table.
    */
-  virtual int countByRevisionCRDerived(const std::string& key,
-                                       const Revision& valueHolder,
+  virtual int countByRevisionCRDerived(int key, const Revision& valueHolder,
                                        const LogicalTime& time) = 0;
 
   bool initialized_ = false;

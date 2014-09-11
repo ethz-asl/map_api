@@ -19,6 +19,7 @@ namespace map_api {
 class Revision {
   friend class Chunk;
   friend class CRTable;
+  friend class CRTableRamMap;
   friend class CRUTable;
 
  public:
@@ -63,6 +64,9 @@ class Revision {
     id.fromHexString(underlying_revision_->id().hash());
     return id;
   }
+  inline void setId(const Id& id) {
+    underlying_revision_->mutable_id()->set_hash(id.hexString());
+  }
   inline bool isRemoved() const { return underlying_revision_->has_removed(); }
 
   template <typename ExpectedType>
@@ -98,8 +102,10 @@ class Revision {
   }
   inline void setRemoved() { underlying_revision_->set_removed(true); }
 
+  // exception to parameter ordering: The standard way would make the function
+  // call ambiguous if FieldType = int
   template <typename FieldType>
-  bool set(const FieldType& value, proto::TableField* field);
+  bool set(proto::TableField* field, const FieldType& value);
 
   template <typename FieldType>
   bool get(const proto::TableField& field, FieldType* value) const;
@@ -119,7 +125,7 @@ class Revision {
 
 #define MAP_API_REVISION_SET(TYPE) \
   template <>                      \
-  bool Revision::set<TYPE>(const TYPE& value, proto::TableField* field)
+  bool Revision::set<TYPE>(proto::TableField* field, const TYPE& value)
 
 #define MAP_API_REVISION_GET(TYPE) \
   template <>                      \
@@ -128,23 +134,23 @@ class Revision {
 /**
  * One Macro to define REVISION_ENUM, _SET and _GET for Protobuf objects
  */
-#define MAP_API_REVISION_PROTOBUF(TYPE)                                      \
-  MAP_API_TYPE_ENUM(TYPE, ::map_api::proto::TableFieldDescriptor_Type_BLOB); \
-                                                                             \
-  MAP_API_REVISION_SET(TYPE) {                                               \
-    CHECK_NOTNULL(field)->set_blobvalue(value.SerializeAsString());          \
-    return true;                                                             \
-  }                                                                          \
-                                                                             \
-  MAP_API_REVISION_GET(TYPE) {                                               \
-    CHECK_NOTNULL(value);                                                    \
-    bool parsed = value->ParseFromString(field.blobvalue());                 \
-    if (!parsed) {                                                           \
-      LOG(ERROR) << "Failed to parse " << #TYPE;                             \
-      return false;                                                          \
-    }                                                                        \
-    return true;                                                             \
-  }                                                                          \
+#define MAP_API_REVISION_PROTOBUF(TYPE)                              \
+  MAP_API_TYPE_ENUM(TYPE, ::map_api::proto::Type::BLOB);             \
+                                                                     \
+  MAP_API_REVISION_SET(TYPE) {                                       \
+    CHECK_NOTNULL(field)->set_blob_value(value.SerializeAsString()); \
+    return true;                                                     \
+  }                                                                  \
+                                                                     \
+  MAP_API_REVISION_GET(TYPE) {                                       \
+    CHECK_NOTNULL(value);                                            \
+    bool parsed = value->ParseFromString(field.blob_value());        \
+    if (!parsed) {                                                   \
+      LOG(ERROR) << "Failed to parse " << #TYPE;                     \
+      return false;                                                  \
+    }                                                                \
+    return true;                                                     \
+  }                                                                  \
   extern void __FILE__##__LINE__(void)
 /**
  * Same for UniqueId derivates

@@ -13,13 +13,7 @@ void Chunk::fillMetadata(RequestType* destination) {
 inline Id Chunk::id() const { return id_; }
 
 inline void Chunk::syncLatestCommitTime(const Revision& item) {
-  LogicalTime commit_time;
-  if (underlying_table_->type() == CRTable::Type::CR) {
-    item.get(CRTable::kInsertTimeField, &commit_time);
-  } else {
-    CHECK(underlying_table_->type() == CRTable::Type::CRU);
-    item.get(CRUTable::kUpdateTimeField, &commit_time);
-  }
+  LogicalTime commit_time = item.getModificationTime();
   if (commit_time > latest_commit_time_) {
     latest_commit_time_ = commit_time;
   }

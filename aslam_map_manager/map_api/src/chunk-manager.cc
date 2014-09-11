@@ -18,7 +18,7 @@ void ChunkManagerBase::requestParticipationAllChunks() {
 }
 
 Chunk* ChunkManagerChunkSize::getChunkForItem(const Revision& revision) {
-  int item_size = revision.ByteSize();
+  int item_size = revision.byteSize();
   int total_size = current_chunk_size_bytes_ + item_size;
 
   if (total_size > max_chunk_size_bytes_ || current_chunk_ == nullptr) {

@@ -15,7 +15,8 @@ bool CRTableRamSqlite::initCRDerived() {
   return true;
 }
 
-bool CRTableRamSqlite::insertCRDerived(Revision* query) {
+bool CRTableRamSqlite::insertCRDerived(const LogicalTime& /*time*/,
+                                       Revision* query) {
   return sqlite_interface_.insert(*query);
 }
 
@@ -28,10 +29,11 @@ bool CRTableRamSqlite::patchCRDerived(const Revision& query) {
   return sqlite_interface_.insert(query);
 }
 
-int CRTableRamSqlite::findByRevisionCRDerived(const std::string& key,
+int CRTableRamSqlite::findByRevisionCRDerived(int key,
                                               const Revision& value_holder,
                                               const LogicalTime& time,
                                               RevisionMap* dest) {
+  LOG(FATAL) << "Adapt to int keys";  // TODO(tcies) adapt to int keys
   SqliteInterface::PocoToProto pocoToProto(getTemplate());
   std::shared_ptr<Poco::Data::Session> session =
       sqlite_interface_.getSession().lock();
@@ -44,7 +46,7 @@ int CRTableRamSqlite::findByRevisionCRDerived(const std::string& key,
   pocoToProto.into(&statement);
   statement << "FROM " << name() << " WHERE " << kInsertTimeField << " <= ? ",
       Poco::Data::use(serialized_time);
-  if (key != "") {
+  if (key >= 0) {
     statement << " AND " << key << " LIKE ";
     data_holder.push_back(value_holder.insertPlaceHolder(key, &statement));
   }
@@ -58,12 +60,16 @@ int CRTableRamSqlite::findByRevisionCRDerived(const std::string& key,
   std::vector<std::shared_ptr<Revision> > from_poco;
   pocoToProto.toProto(&from_poco);
   for (const std::shared_ptr<Revision>& item : from_poco) {
-    Id id;
-    item->get(kIdField, &id);
+    Id id = item->getId();
     CHECK(id.isValid());
     (*dest)[id] = item;
   }
   return from_poco.size();
+}
+
+std::shared_ptr<Revision> CRTableRamSqlite::getByIdCRDerived(
+    const Id& /*id*/, const LogicalTime& /*time*/) {
+  LOG(FATAL) << "Not implemented";  // TODO(tcies) implement
 }
 
 void __attribute__((deprecated)) CRTableRamSqlite::getAvailableIdsCRDerived(
@@ -71,9 +77,10 @@ void __attribute__((deprecated)) CRTableRamSqlite::getAvailableIdsCRDerived(
   LOG(FATAL) << "Needs implementation";
 }
 
-int CRTableRamSqlite::countByRevisionCRDerived(const std::string& key,
+int CRTableRamSqlite::countByRevisionCRDerived(int key,
                                                const Revision& value_holder,
                                                const LogicalTime& time) {
+  LOG(FATAL) << "Adapt to int keys";  // TODO(tcies) adapt to int keys
   SqliteInterface::PocoToProto pocoToProto(getTemplate());
   std::shared_ptr<Poco::Data::Session> session =
       sqlite_interface_.getSession().lock();
@@ -87,7 +94,7 @@ int CRTableRamSqlite::countByRevisionCRDerived(const std::string& key,
       Poco::Data::into(count);
   statement << " FROM " << name() << " WHERE " << kInsertTimeField << " <= ? ",
       Poco::Data::use(serialized_time);
-  if (key != "") {
+  if (key >= 0) {
     statement << " AND " << key << " LIKE ";
     data_holder.push_back(value_holder.insertPlaceHolder(key, &statement));
   }

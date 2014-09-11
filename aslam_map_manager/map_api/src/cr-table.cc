@@ -31,8 +31,6 @@ bool CRTable::init(std::unique_ptr<TableDescriptor>* descriptor) {
   CHECK_NOTNULL(descriptor);
   CHECK((*descriptor)->has_name());
   descriptor_ = std::move(*descriptor);
-  descriptor_->addField<Id>(kIdField);
-  descriptor_->addField<LogicalTime>(kInsertTimeField);
   CHECK(initCRDerived());
   initialized_ = true;
   return true;
@@ -56,7 +54,7 @@ std::shared_ptr<Revision> CRTable::getTemplate() const {
   return ret;
 }
 
-bool CRTable::insert(Revision* query) {
+bool CRTable::insert(const LogicalTime& time, Revision* query) {
   CHECK_NOTNULL(query);
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
@@ -64,8 +62,8 @@ bool CRTable::insert(Revision* query) {
       "Bad structure of insert revision";
   CHECK(query->getId().isValid())
       << "Attempted to insert element with invalid ID";
-  query->setInsertTime(LogicalTime::sample());
-  return insertCRDerived(query);
+  query->setInsertTime(time);
+  return insertCRDerived(time, query);
 }
 
 bool CRTable::bulkInsert(const RevisionMap& query) {
@@ -98,9 +96,8 @@ bool CRTable::patch(const Revision& query) {
   return patchCRDerived(query);
 }
 
-int CRTable::findByRevision(
-    const std::string& key, const Revision& valueHolder,
-    const LogicalTime& time, RevisionMap* dest) {
+int CRTable::findByRevision(int key, const Revision& valueHolder,
+                            const LogicalTime& time, RevisionMap* dest) {
   CHECK(isInitialized()) << "Attempted to find in non-initialized table";
   // whether valueHolder contains key is implicitly checked whenever using
   // Revision::insertPlaceHolder - for now it's a pretty safe bet that the
@@ -112,8 +109,7 @@ int CRTable::findByRevision(
   return findByRevisionCRDerived(key, valueHolder, time, dest);
 }
 
-int CRTable::countByRevision(const std::string& key,
-                             const Revision& valueHolder,
+int CRTable::countByRevision(int key, const Revision& valueHolder,
                              const LogicalTime& time) {
   CHECK(isInitialized()) << "Attempted to count items in non-initialized table";
   // Whether valueHolder contains key is implicitly checked whenever using
@@ -130,7 +126,7 @@ void CRTable::dump(const LogicalTime& time, RevisionMap* dest) {
   CHECK_NOTNULL(dest);
   std::shared_ptr<Revision> valueHolder = getTemplate();
   CHECK(valueHolder != nullptr);
-  findByRevision("", *valueHolder, time, dest);
+  findByRevision(-1, *valueHolder, time, dest);
 }
 
 CRTable::Type CRTable::type() const {

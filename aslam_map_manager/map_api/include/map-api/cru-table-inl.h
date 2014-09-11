@@ -6,10 +6,10 @@
 namespace map_api {
 
 template <typename ValueType>
-void CRUTable::findHistory(const std::string& key, const ValueType& value,
+void CRUTable::findHistory(int key, const ValueType& value,
                            const LogicalTime& time, HistoryMap* dest) {
   std::shared_ptr<Revision> valueHolder = this->getTemplate();
-  if (key != "") {
+  if (key >= 0) {
     valueHolder->set(key, value);
   }
   return this->findHistoryByRevision(key, *valueHolder, time, dest);

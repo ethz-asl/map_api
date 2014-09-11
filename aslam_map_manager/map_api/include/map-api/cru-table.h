@@ -55,11 +55,12 @@ class CRUTable : public CRTable {
   void remove(const LogicalTime& time, const IdType& id);
 
   template <typename ValueType>
-  void findHistory(const std::string& key, const ValueType& value,
-                   const LogicalTime& time, HistoryMap* dest);
+  void findHistory(int key, const ValueType& value, const LogicalTime& time,
+                   HistoryMap* dest);
+  void chunkHistory(const Id& chunk_id, const LogicalTime& time,
+                    HistoryMap* dest);
 
-  virtual void findHistoryByRevision(const std::string& key,
-                                     const Revision& valueHolder,
+  virtual void findHistoryByRevision(int key, const Revision& valueHolder,
                                      const LogicalTime& time,
                                      HistoryMap* dest) final;
 
@@ -72,39 +73,25 @@ class CRUTable : public CRTable {
   static const std::string kRemovedField;
 
  private:
-  virtual bool initCRDerived() final override;
   virtual bool insertCRDerived(const LogicalTime& time,
                                Revision* query) final override;
   virtual bool bulkInsertCRDerived(const RevisionMap& query,
                                    const LogicalTime& time) final override;
-  virtual int findByRevisionCRDerived(
-      const std::string& key, const Revision& valueHolder,
-      const LogicalTime& time, CRTable::RevisionMap* dest) final override;
-  virtual int countByRevisionCRDerived(const std::string& key,
-                                       const Revision& valueHolder,
-                                       const LogicalTime& time) final override;
   /**
    * ================================================
    * FUNCTIONS TO BE IMPLEMENTED BY THE DERIVED CLASS
    * ================================================
    * The CRTable class contains most documentation on these functions.
    */
-  virtual bool initCRUDerived() = 0;
   virtual bool insertCRUDerived(Revision* query) = 0;
   virtual bool bulkInsertCRUDerived(const RevisionMap& query) = 0;
   virtual bool patchCRDerived(const Revision& query) override = 0;
-  virtual int findByRevisionCRUDerived(
-      const std::string& key, const Revision& valueHolder,
-      const LogicalTime& time, CRTable::RevisionMap* dest) = 0;
-  virtual int countByRevisionCRUDerived(const std::string& key,
-                                        const Revision& valueHolder,
-                                        const LogicalTime& time) = 0;
 
   /**
    * Implement insertion of the updated revision
    */
   virtual bool insertUpdatedCRUDerived(const Revision& query) = 0;
-  virtual void findHistoryByRevisionCRUDerived(const std::string& key,
+  virtual void findHistoryByRevisionCRUDerived(int key,
                                                const Revision& valueHolder,
                                                const LogicalTime& time,
                                                HistoryMap* dest) = 0;

@@ -19,7 +19,7 @@ bool Revision::set(int index, const FieldType& value) {
       underlying_revision_->mutable_custom_field_values(index);
   CHECK_EQ(field->type(), getProtobufTypeEnum<FieldType>())
       << "Type mismatch when trying to set field " << index;
-  return set(field, value);
+  return set(value, field);
 }
 
 template <typename FieldType>

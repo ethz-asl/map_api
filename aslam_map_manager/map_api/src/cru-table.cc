@@ -62,8 +62,7 @@ void CRUTable::remove(const LogicalTime& time, Revision* query) {
   CHECK(insertUpdatedCRUDerived(*query));
 }
 
-void CRUTable::findHistoryByRevision(const std::string& key,
-                                     const Revision& valueHolder,
+void CRUTable::findHistoryByRevision(int key, const Revision& valueHolder,
                                      const LogicalTime& time,
                                      HistoryMap* dest) {
   CHECK(isInitialized()) << "Attempted to find in non-initialized table";
@@ -80,13 +79,6 @@ CRUTable::Type CRUTable::type() const {
 const std::string CRUTable::kUpdateTimeField = "update_time";
 const std::string CRUTable::kRemovedField = "removed";
 
-bool CRUTable::initCRDerived() {
-  descriptor_->addField<LogicalTime>(kUpdateTimeField);
-  descriptor_->addField<bool>(kRemovedField);
-  initCRUDerived();
-  return true;
-}
-
 bool CRUTable::insertCRDerived(const LogicalTime& time, Revision* query) {
   query->setUpdateTime(time);
   return insertCRUDerived(query);
@@ -98,18 +90,6 @@ bool CRUTable::bulkInsertCRDerived(const RevisionMap& query,
     item.second->setUpdateTime(time);
   }
   return bulkInsertCRUDerived(query);
-}
-
-int CRUTable::findByRevisionCRDerived(
-    const std::string& key, const Revision& valueHolder,
-    const LogicalTime& time, RevisionMap* dest) {
-  return findByRevisionCRUDerived(key, valueHolder, time, dest);
-}
-
-int CRUTable::countByRevisionCRDerived(const std::string& key,
-                                       const Revision& valueHolder,
-                                       const LogicalTime& time) {
-  return countByRevisionCRUDerived(key, valueHolder, time);
 }
 
 CRUTable::History::const_iterator CRUTable::History::latestAt(

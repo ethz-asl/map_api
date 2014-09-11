@@ -67,8 +67,7 @@ class Chunk {
   void getCommitTimes(const LogicalTime& sample_time,
                       std::set<LogicalTime>* commit_times);
 
-  bool insert(Revision* item);
-  bool bulkInsert(const CRTable::RevisionMap& items);
+  bool insert(const LogicalTime& time, Revision* item);
 
   int peerSize() const;
 

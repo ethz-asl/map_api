@@ -1,6 +1,6 @@
 #include "map-api/core.h"
 
-#include <iostream>
+#include <iostream>  // NOLINT
 #include <cstring>
 
 #include <Poco/Data/Common.h>
@@ -22,7 +22,7 @@ const std::string Core::kMetatableDescriptorField = "descriptor";
 std::shared_ptr<Poco::Data::Session> Core::db_session_;
 bool Core::db_session_initialized_ = false;
 
-REVISION_PROTOBUF(TableDescriptor);
+MAP_API_REVISION_PROTOBUF(TableDescriptor);
 
 Core* Core::instance() {
   if (!instance_.initialized_mutex_.try_lock()) {
@@ -88,4 +88,5 @@ Core::~Core() {
     kill();  // TODO(tcies) could fail - require of user to invoke instead?
   }
 }
-}
+
+}  // namespace map_api

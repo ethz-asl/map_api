@@ -27,8 +27,7 @@ CRTable::RevisionMap ChunkTransaction::dumpChunk() {
 void ChunkTransaction::insert(std::shared_ptr<Revision> revision) {
   CHECK_NOTNULL(revision.get());
   CHECK(revision->structureMatch(*structure_reference_));
-  Id id;
-  revision->get(CRTable::kIdField, &id);
+  Id id = revision->getId();
   CHECK(id.isValid());
   CHECK(insertions_.emplace(id, revision).second);
 }
@@ -37,8 +36,7 @@ void ChunkTransaction::update(std::shared_ptr<Revision> revision) {
   CHECK_NOTNULL(revision.get());
   CHECK(revision->structureMatch(*structure_reference_));
   CHECK(chunk_->underlying_table_->type() == CRTable::Type::CRU);
-  Id id;
-  revision->get(CRTable::kIdField, &id);
+  Id id = revision->getId();
   CHECK(id.isValid());
   CHECK(updates_.emplace(id, revision).second);
 }
@@ -47,8 +45,7 @@ void ChunkTransaction::remove(std::shared_ptr<Revision> revision) {
   CHECK_NOTNULL(revision.get());
   CHECK(revision->structureMatch(*structure_reference_));
   CHECK(chunk_->underlying_table_->type() == CRTable::Type::CRU);
-  Id id;
-  revision->get(CRTable::kIdField, &id);
+  Id id = revision->getId();
   CHECK(id.isValid());
   CHECK(removes_.emplace(id, revision).second);
   // TODO(tcies) situation uncommitted
@@ -158,13 +155,12 @@ void ChunkTransaction::prepareCheck(
   CRTable::RevisionMap contents;
   // same as "chunk_->dumpItems(LogicalTime::sample(), &contents);" without the
   // locking (because that is already done)
-  chunk_->underlying_table_->find(NetTable::kChunkIdField, chunk_->id(),
-                                  check_time, &contents);
+  chunk_->underlying_table_->dumpChunk(chunk_->id(), check_time, &contents);
   LogicalTime time;
   if (!updates_.empty()) {
     CHECK(chunk_->underlying_table_->type() == CRTable::Type::CRU);
     for (const CRTable::RevisionMap::value_type& item : contents) {
-      item.second->get(CRUTable::kUpdateTimeField, &time);
+      time = item.second->getUpdateTime();
       chunk_stamp->insert(std::make_pair(item.first, time));
     }
   } else {

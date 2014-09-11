@@ -8,13 +8,16 @@
 
 namespace map_api {
 
-REVISION_PROTOBUF(proto::TableDescriptor);
-REVISION_PROTOBUF(proto::PeerList);
+MAP_API_REVISION_PROTOBUF(proto::TableDescriptor);
+MAP_API_REVISION_PROTOBUF(proto::PeerList);
 
-constexpr char kMetaTableNameField[] = "name";
-constexpr char kMetaTableStructureField[] = "structure";
-constexpr char kMetaTableUpdateableField[] = "updateable";
-constexpr char kMetaTableParticipantsField[] = "participants";
+enum MetaTableFields {
+  kMetaTableNameField,
+  kMetaTableStructureField,
+  kMetaTableUpdateableField,
+  kMetaTableParticipantsField
+};
+
 constexpr char kMetaTableChunkHexString[] = "000000000000000000000003E1A1AB7E";
 
 const char NetTableManager::kMetaTableName[] = "map_api_metatable";
@@ -234,8 +237,9 @@ void NetTableManager::handleInsertRequest(
   if (routeChunkRequestOperations(patch_request, response, &found)) {
     Id chunk_id;
     CHECK(chunk_id.fromHexString(patch_request.metadata().chunk_id()));
-    Revision to_insert;
-    CHECK(to_insert.ParseFromString(patch_request.serialized_revision()));
+    std::shared_ptr<proto::Revision> parsed(new proto::Revision);
+    CHECK(parsed->ParseFromString(patch_request.serialized_revision()));
+    Revision to_insert(parsed);
     found->second->handleInsertRequest(chunk_id, to_insert, response);
   }
 }
@@ -294,8 +298,9 @@ void NetTableManager::handleUpdateRequest(
   if (routeChunkRequestOperations(patch_request, response, &found)) {
     Id chunk_id;
     CHECK(chunk_id.fromHexString(patch_request.metadata().chunk_id()));
-    Revision to_insert;
-    CHECK(to_insert.ParseFromString(patch_request.serialized_revision()));
+    std::shared_ptr<proto::Revision> parsed(new proto::Revision);
+    CHECK(parsed->ParseFromString(patch_request.serialized_revision()));
+    Revision to_insert(parsed);
     PeerId sender(request.sender());
     found->second->handleUpdateRequest(chunk_id, to_insert, sender, response);
   }
@@ -323,7 +328,7 @@ bool NetTableManager::syncTableDefinition(
   std::shared_ptr<Revision> attempt = metatable.getTemplate();
   Id metatable_id;
   map_api::generateId(&metatable_id);
-  attempt->set(CRTable::kIdField, metatable_id);
+  attempt->setId(metatable_id);
   attempt->set(kMetaTableNameField, descriptor.name());
   proto::PeerList peers;
   peers.add_peers(PeerId::self().ipPort());
@@ -353,8 +358,8 @@ bool NetTableManager::syncTableDefinition(
   while (true) {
     ChunkTransaction try_join(metatable_chunk_);
     // 1. Read previous registration in metatable
-    std::shared_ptr<Revision> previous =
-        try_join.findUnique(kMetaTableNameField, descriptor.name());
+    std::shared_ptr<Revision> previous = try_join.findUnique(
+        static_cast<int>(kMetaTableNameField), descriptor.name());
     CHECK(previous) << "Can't find table " << descriptor.name() <<
         " even though its presence seemingly caused a conflict";
     // 2. Verify structure
