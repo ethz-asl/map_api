@@ -114,8 +114,7 @@ void KmeansSubdivisionView::fetch(DescriptorVector* descriptors,
   descriptors->resize(descriptor_revisions_.size());
   for (const CRTable::RevisionMap::value_type& descriptor :
        descriptor_revisions_) {
-    Id id;
-    descriptor.second->get(CRTable::kIdField, &id);
+    Id id = descriptor.second->getId<Id>();
     descriptor_id_to_index_[id] = i;
     descriptor_index_to_id_[i] = id;
     app::descriptorFromRevision(*descriptor.second, &(*descriptors)[i]);
@@ -124,8 +123,7 @@ void KmeansSubdivisionView::fetch(DescriptorVector* descriptors,
   i = 0;
   centers->resize(center_revisions_.size());
   for (const CRTable::RevisionMap::value_type& center : center_revisions_) {
-    Id id;
-    center.second->get(CRTable::kIdField, &id);
+    Id id = center.second->getId<Id>();
     center_id_to_index_[id] = i;
     center_index_to_id_[i] = id;
     app::centerFromRevision(*center.second, &(*centers)[i]);
