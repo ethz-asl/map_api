@@ -33,11 +33,11 @@ class TableInterfaceTest : public ::testing::Test {
   virtual void TearDown() final override { Core::instance()->kill(); }
 };
 
-// TODO(tcies) implement remove in CRU sqlite and re-enable tests
-typedef ::testing::Types<CRTableRamSqlite,
+// TODO(tcies) implement CR(U) sqlite and re-enable tests
+typedef ::testing::Types<
+    //    CRTableRamSqlite,
     //    CRUTableRamSqlite,
-    CRTableRamMap,
-    CRUTableRamMap> TableTypes;
+    CRTableRamMap, CRUTableRamMap> TableTypes;
 TYPED_TEST_CASE(TableInterfaceTest, TableTypes);
 
 TYPED_TEST(TableInterfaceTest, initEmpty) {
@@ -253,7 +253,8 @@ class CruMapIntTestWithInit
       TableDataTypes<table_type, map_api::LogicalTime>
 
 // TODO(tcies) implement remove in CRU sqlite and re-enable tests
-typedef ::testing::Types<ALL_DATA_TYPES(CRTableRamSqlite),
+typedef ::testing::Types<
+    //                         ALL_DATA_TYPES(CRTableRamSqlite),
     ALL_DATA_TYPES(CRTableRamMap),
     //                         ALL_DATA_TYPES(CRUTableRamSqlite),
     ALL_DATA_TYPES(CRUTableRamMap)> CrAndCruTypes;
@@ -318,7 +319,7 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
   typename TypeParam::DataType dataFromTable;
   ::testing::FLAGS_gtest_death_test_style = "fast";
   EXPECT_DEATH(rowFromTable->get(13, &dataFromTable),
-               "Trying to get inexistent field");
+               "Index out of custom field bounds");
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 }
 

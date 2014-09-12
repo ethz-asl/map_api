@@ -15,6 +15,8 @@ void Revision::addField(int index) {
 
 template <typename FieldType>
 bool Revision::set(int index, const FieldType& value) {
+  CHECK_LE(index, underlying_revision_->custom_field_values_size())
+      << "Index out of custom field bounds";
   proto::TableField* field =
       underlying_revision_->mutable_custom_field_values(index);
   CHECK_EQ(field->type(), getProtobufTypeEnum<FieldType>())
@@ -25,6 +27,8 @@ bool Revision::set(int index, const FieldType& value) {
 template <typename FieldType>
 bool Revision::get(int index, FieldType* value) const {
   CHECK_NOTNULL(value);
+  CHECK_LE(index, underlying_revision_->custom_field_values_size())
+      << "Index out of custom field bounds";
   const proto::TableField& field =
       underlying_revision_->custom_field_values(index);
   CHECK_EQ(field.type(), getProtobufTypeEnum<FieldType>())

@@ -44,7 +44,7 @@ const std::string& CRTable::name() const {
 
 std::shared_ptr<Revision> CRTable::getTemplate() const {
   CHECK(isInitialized()) << "Can't get template of non-initialized table";
-  std::shared_ptr<proto::Revision> proto;
+  std::shared_ptr<proto::Revision> proto(new proto::Revision);
   std::shared_ptr<Revision> ret =
       std::shared_ptr<Revision>(new Revision(proto));
   // add editable fields

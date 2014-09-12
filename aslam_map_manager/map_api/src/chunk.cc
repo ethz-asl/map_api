@@ -72,7 +72,7 @@ bool Chunk::init(
   // feed data from connect_response into underlying table TODO(tcies) piecewise
   for (int i = 0; i < init_request.serialized_items_size(); ++i) {
     if (underlying_table->type() == CRTable::Type::CR) {
-      std::shared_ptr<proto::Revision> raw_revision;
+      std::shared_ptr<proto::Revision> raw_revision(new proto::Revision);
       CHECK(raw_revision->ParseFromString(init_request.serialized_items(i)));
       Revision data(raw_revision);
       CHECK(underlying_table->patch(data));
