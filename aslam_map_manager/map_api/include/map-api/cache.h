@@ -114,12 +114,11 @@ void objectToRevision(const IdType id, const ObjectType& object,
                       map_api::Revision* revision) {
   CHECK_NOTNULL(revision);
   objectToRevision(object, revision);
-  IdType present_id;
-  revision->get(CRTable::kIdField, &present_id);
+  IdType present_id = revision->getId<IdType>();
   if (present_id.isValid()) {
     CHECK_EQ(id, present_id);
   } else {
-    revision->set(CRTable::kIdField, id);
+    revision->setId(id);
   }
 }
 

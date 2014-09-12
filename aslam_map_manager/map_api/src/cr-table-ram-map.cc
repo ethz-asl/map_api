@@ -26,7 +26,21 @@ bool CRTableRamMap::bulkInsertCRDerived(const RevisionMap& query,
 }
 
 bool CRTableRamMap::patchCRDerived(const Revision& query) {
-  return data_.emplace(query.getId(), query).second;
+  return data_.emplace(query.getId<Id>(), query).second;
+}
+
+void CRTableRamMap::dumpChunkCRDerived(const Id& chunk_id,
+                                       const LogicalTime& time,
+                                       RevisionMap* dest) {
+  CHECK_NOTNULL(dest)->clear();
+  for (const MapType::value_type& pair : data_) {
+    if (pair.second.getChunkId() == chunk_id) {
+      if (pair.second.getInsertTime() <= time) {
+        CHECK(dest->emplace(pair.first, std::make_shared<Revision>(pair.second))
+                  .second);
+      }
+    }
+  }
 }
 
 int CRTableRamMap::findByRevisionCRDerived(int key, const Revision& valueHolder,
@@ -40,9 +54,8 @@ int CRTableRamMap::findByRevisionCRDerived(int key, const Revision& valueHolder,
   for (const MapType::value_type& pair : data_) {
     if (key < 0 || valueHolder.fieldMatch(pair.second, key)) {
       if (pair.second.getInsertTime() <= time) {
-        CHECK(
-            dest->insert(std::make_pair(pair.first, std::make_shared<Revision>(
-                                                        pair.second))).second);
+        CHECK(dest->emplace(pair.first, std::make_shared<Revision>(pair.second))
+                  .second);
       }
     }
   }
@@ -77,6 +90,19 @@ int CRTableRamMap::countByRevisionCRDerived(int key,
   int count = 0;
   for (const MapType::value_type& pair : data_) {
     if (key < 0 || valueHolder.fieldMatch(pair.second, key)) {
+      if (pair.second.getInsertTime() <= time) {
+        ++count;
+      }
+    }
+  }
+  return count;
+}
+
+int CRTableRamMap::countByChunkCRDerived(const Id& chunk_id,
+                                         const LogicalTime& time) {
+  int count = 0;
+  for (const MapType::value_type& pair : data_) {
+    if (pair.second.getChunkId() == chunk_id) {
       if (pair.second.getInsertTime() <= time) {
         ++count;
       }

@@ -61,12 +61,14 @@ class Revision {
     id.fromHexString(underlying_revision_->chunk_id().hash());
     return id;
   }
-  inline Id getId() const {
-    Id id;
+  template <typename IdType>
+  inline IdType getId() const {
+    IdType id;
     id.fromHexString(underlying_revision_->id().hash());
     return id;
   }
-  inline void setId(const Id& id) {
+  template <typename IdType>
+  inline void setId(const IdType& id) {
     underlying_revision_->mutable_id()->set_hash(id.hexString());
   }
   inline bool isRemoved() const { return underlying_revision_->has_removed(); }
@@ -98,6 +100,10 @@ class Revision {
 
   inline bool parse(const std::string& origin) {
     return underlying_revision_->ParseFromString(origin);
+  }
+
+  inline int customFieldCount() const {
+    return underlying_revision_->custom_field_values_size();
   }
 
  private:
@@ -165,16 +171,15 @@ class Revision {
 /**
  * Same for UniqueId derivates
  */
-#define MAP_API_REVISION_UNIQUE_ID(TypeName)                              \
-  MAP_API_TYPE_ENUM(TypeName,                                             \
-                    ::map_api::proto::TableFieldDescriptor_Type_HASH128); \
-  MAP_API_REVISION_SET(TypeName) {                                        \
-    CHECK_NOTNULL(field)->set_stringvalue(value.hexString());             \
-    return true;                                                          \
-  }                                                                       \
-  MAP_API_REVISION_GET(TypeName) {                                        \
-    return CHECK_NOTNULL(value)->fromHexString(field.stringvalue());      \
-  }                                                                       \
+#define MAP_API_REVISION_UNIQUE_ID(TypeName)                          \
+  MAP_API_TYPE_ENUM(TypeName, ::map_api::proto::Type::HASH128);       \
+  MAP_API_REVISION_SET(TypeName) {                                    \
+    CHECK_NOTNULL(field)->set_string_value(value.hexString());        \
+    return true;                                                      \
+  }                                                                   \
+  MAP_API_REVISION_GET(TypeName) {                                    \
+    return CHECK_NOTNULL(value)->fromHexString(field.string_value()); \
+  }                                                                   \
   extern void __FILE__##__LINE__(void)
 
 /**

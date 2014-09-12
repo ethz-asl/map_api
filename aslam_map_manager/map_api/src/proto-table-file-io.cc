@@ -48,7 +48,7 @@ bool ProtoTableFileIO::storeTableContents(
     const Revision& revision = *pair.second;
 
     RevisionStamp current_item_stamp;
-    current_item_stamp.first = revision.getId();
+    current_item_stamp.first = revision.getId<Id>();
     CHECK_EQ(current_item_stamp.first, pair.first);
 
     current_item_stamp.second = revision.getModificationTime();

@@ -63,7 +63,7 @@ bool LocalTransaction::commit() {
       const Id& id = insertion.first.id;
       CRTable::ItemDebugInfo debugInfo(table->name(), id);
       const SharedRevisionPointer &revision = insertion.second;
-      CHECK_EQ(id, revision->getId())
+      CHECK_EQ(id, revision->getId<Id>())
           << "Identifier ID does not match revision ID";
       if (!table->insert(commit_time, revision.get())) {
         LOG(ERROR) << debugInfo << "Insertion failed, aborting commit.";
@@ -76,7 +76,7 @@ bool LocalTransaction::commit() {
       const Id& id = update.first.id;
       CRTable::ItemDebugInfo debugInfo(table->name(), id);
       const SharedRevisionPointer &revision = update.second;
-      CHECK_EQ(id, revision->getId())
+      CHECK_EQ(id, revision->getId<Id>())
           << "Identifier ID does not match revision ID";
       if (!table->update(revision.get())) {
         LOG(ERROR) << debugInfo << "Update failed, aborting commit.";

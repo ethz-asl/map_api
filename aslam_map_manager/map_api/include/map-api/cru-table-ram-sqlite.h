@@ -19,6 +19,8 @@ class CRUTableRamSqlite : public CRUTable {
   virtual bool patchCRDerived(const Revision& query) final override;
   virtual std::shared_ptr<Revision> getByIdCRDerived(
       const Id& id, const LogicalTime& time) const final override;
+  virtual void dumpChunkCRDerived(const Id& chunk_id, const LogicalTime& time,
+                                  RevisionMap* dest) final override;
   virtual int findByRevisionCRDerived(int key, const Revision& valueHolder,
                                       const LogicalTime& time,
                                       RevisionMap* dest) final override;
@@ -26,12 +28,18 @@ class CRUTableRamSqlite : public CRUTable {
       const LogicalTime& time, std::unordered_set<Id>* ids) final override;
   virtual int countByRevisionCRDerived(int key, const Revision& valueHolder,
                                        const LogicalTime& time) final override;
+  virtual int countByChunkCRDerived(const Id& chunk_id,
+                                    const LogicalTime& time) final override;
 
   virtual bool insertUpdatedCRUDerived(const Revision& query) final override;
   virtual void findHistoryByRevisionCRUDerived(int key,
                                                const Revision& valueHolder,
                                                const LogicalTime& time,
                                                HistoryMap* dest) final override;
+  virtual void chunkHistory(const Id& chunk_id, const LogicalTime& time,
+                            HistoryMap* dest) final override;
+  virtual void itemHistoryCRUDerived(const Id& id, const LogicalTime& time,
+                                     History* dest) final override;
 
   SqliteInterface sqlite_interface_;
 };

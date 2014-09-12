@@ -22,7 +22,7 @@ const std::string CRTable::kInsertTimeField = "insert_time";
 std::pair<CRTable::RevisionMap::iterator, bool> CRTable::RevisionMap::insert(
     const std::shared_ptr<Revision>& revision) {
   CHECK_NOTNULL(revision.get());
-  return insert(std::make_pair(revision->getId(), revision));
+  return insert(std::make_pair(revision->getId<Id>(), revision));
 }
 
 CRTable::~CRTable() {}
@@ -60,7 +60,7 @@ bool CRTable::insert(const LogicalTime& time, Revision* query) {
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(reference->structureMatch(*query)) <<
       "Bad structure of insert revision";
-  CHECK(query->getId().isValid())
+  CHECK(query->getId<Id>().isValid())
       << "Attempted to insert element with invalid ID";
   query->setInsertTime(time);
   return insertCRDerived(time, query);
@@ -79,7 +79,7 @@ bool CRTable::bulkInsert(const RevisionMap& query,
     CHECK_NOTNULL(id_revision.second.get());
     CHECK(reference->structureMatch(*id_revision.second)) <<
         "Bad structure of insert revision";
-    id = id_revision.second->getId();
+    id = id_revision.second->getId<Id>();
     CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
     CHECK(id == id_revision.first) << "ID in RevisionMap doesn't match";
     id_revision.second->setInsertTime(time);
@@ -91,9 +91,18 @@ bool CRTable::patch(const Revision& query) {
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(reference->structureMatch(query)) << "Bad structure of patch revision";
-  CHECK(query.getId().isValid())
+  CHECK(query.getId<Id>().isValid())
       << "Attempted to insert element with invalid ID";
   return patchCRDerived(query);
+}
+
+void CRTable::dumpChunk(const Id& chunk_id, const LogicalTime& time,
+                        RevisionMap* dest) {
+  CHECK(isInitialized());
+  CHECK_NOTNULL(dest);
+  dest->clear();
+  CHECK_LE(time, LogicalTime::sample());
+  return dumpChunkCRDerived(chunk_id, time, dest);
 }
 
 int CRTable::findByRevision(int key, const Revision& valueHolder,
@@ -127,6 +136,12 @@ void CRTable::dump(const LogicalTime& time, RevisionMap* dest) {
   std::shared_ptr<Revision> valueHolder = getTemplate();
   CHECK(valueHolder != nullptr);
   findByRevision(-1, *valueHolder, time, dest);
+}
+
+int CRTable::countByChunk(const Id& id, const LogicalTime& time) {
+  CHECK(isInitialized());
+  CHECK(time < LogicalTime::sample());
+  return countByChunkCRDerived(id, time);
 }
 
 CRTable::Type CRTable::type() const {

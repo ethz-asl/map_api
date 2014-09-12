@@ -30,7 +30,7 @@ void CRUTable::update(Revision* query, const LogicalTime& time) {
   // TODO(tcies) const template, cow template?
   CHECK(reference->structureMatch(*query)) <<
       "Bad structure of update revision";
-  CHECK_NE(query->getId(), Id())
+  CHECK_NE(query->getId<Id>(), Id())
       << "Attempted to update element with invalid ID";
   LogicalTime update_time = time;
   query->setUpdateTime(update_time);
@@ -55,7 +55,7 @@ void CRUTable::remove(const LogicalTime& time, Revision* query) {
   CHECK(isInitialized());
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(reference->structureMatch(*query));
-  CHECK_NE(query->getId(), Id());
+  CHECK_NE(query->getId<Id>(), Id());
   LogicalTime update_time = time;
   query->setUpdateTime(update_time);
   query->setRemoved();

@@ -16,6 +16,16 @@ void CRUTable::findHistory(int key, const ValueType& value,
 }
 
 template <typename IdType>
+void CRUTable::itemHistory(const IdType& id, const LogicalTime& time,
+                           History* dest) {
+  Id map_api_id;
+  sm::HashId hash_id;
+  id.toHashId(&hash_id);
+  map_api_id.fromHashId(hash_id);
+  itemHistoryCRUDerived(map_api_id, time, dest);
+}
+
+template <typename IdType>
 void CRUTable::remove(const LogicalTime& time, const IdType& id) {
   std::shared_ptr<Revision> latest = getById(id, time);
   remove(time, *latest);

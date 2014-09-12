@@ -114,7 +114,7 @@ bool Revision::fieldMatch(const Revision& other, int key) const {
 std::string Revision::dumpToString() const {
   std::ostringstream dump_ss;
   dump_ss << "{" << std::endl;
-  dump_ss << "\tid:" << getId() << std::endl;
+  dump_ss << "\tid:" << getId<Id>() << std::endl;
   dump_ss << "\tinsert_time:" << getInsertTime() << std::endl;
   if (underlying_revision_->has_chunk_id()) {
     dump_ss << "\tchunk_id:" << getChunkId() << std::endl;

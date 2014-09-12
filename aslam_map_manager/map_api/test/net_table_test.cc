@@ -74,7 +74,7 @@ TEST_P(NetTableTest, NetTableTransactions) {
         std::shared_ptr<Revision> to_insert = table_->getTemplate();
         Id insert_id;
         generateId(&insert_id);
-        to_insert->set(CRTable::kIdField, insert_id);
+        to_insert->setId(insert_id);
         to_insert->set(kFieldName, 42);
         attempt.insert(ab_chunk, to_insert);
         if (attempt.commit()) {
@@ -124,7 +124,9 @@ TEST_P(NetTableTest, Transactions) {
   };
   int kCycles = 10;
   const std::string kSecondTableName = "net_transaction_test_table";
-  const std::string kSecondTableFieldName = "n";
+  enum Fields {
+    kSecondTableFieldName
+  };
 
   std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
   descriptor->setName(kSecondTableName);
@@ -143,7 +145,7 @@ TEST_P(NetTableTest, Transactions) {
     ab_id = insert(0, ab_chunk);
     generateId(&b_id);
     std::shared_ptr<Revision> to_insert = second_table->getTemplate();
-    to_insert->set(CRTable::kIdField, b_id);
+    to_insert->setId(b_id);
     to_insert->set(kSecondTableFieldName, 0);
     Transaction initial_insert;
     initial_insert.insert(second_table, b_chunk, to_insert);
@@ -183,7 +185,7 @@ TEST_P(NetTableTest, Transactions) {
         std::shared_ptr<Revision> to_insert = table_->getTemplate();
         Id insert_id;
         generateId(&insert_id);
-        to_insert->set(CRTable::kIdField, insert_id);
+        to_insert->setId(insert_id);
         to_insert->set(kFieldName, 42);
         attempt.insert(table_, ab_chunk, to_insert);
         if (attempt.commit()) {
@@ -234,11 +236,11 @@ TEST_P(NetTableTest, CommitTime) {
   std::shared_ptr<Revision> to_insert_1 = table_->getTemplate();
   Id insert_id;
   generateId(&insert_id);
-  to_insert_1->set(CRTable::kIdField, insert_id);
+  to_insert_1->setId(insert_id);
   to_insert_1->set(kFieldName, 42);
   std::shared_ptr<Revision> to_insert_2 = table_->getTemplate();
   generateId(&insert_id);
-  to_insert_2->set(CRTable::kIdField, insert_id);
+  to_insert_2->setId(insert_id);
   to_insert_2->set(kFieldName, 21);
   transaction.insert(table_, chunk, to_insert_1);
   transaction.insert(table_, chunk, to_insert_2);
@@ -247,10 +249,9 @@ TEST_P(NetTableTest, CommitTime) {
   chunk->dumpItems(LogicalTime::sample(), &retrieved);
   ASSERT_EQ(2, retrieved.size());
   CRTable::RevisionMap::iterator it = retrieved.begin();
-  LogicalTime time_1, time_2;
-  it->second->get(CRTable::kInsertTimeField, &time_1);
+  LogicalTime time_1 = it->second->getInsertTime();
   ++it;
-  it->second->get(CRTable::kInsertTimeField, &time_2);
+  LogicalTime time_2 = it->second->getInsertTime();
   EXPECT_EQ(time_1, time_2);
   // TODO(tcies) also test update times, and times accross multiple chunks
 }

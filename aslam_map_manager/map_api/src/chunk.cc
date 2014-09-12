@@ -709,7 +709,7 @@ void Chunk::handleInsertRequest(const Revision& item, Message* response) {
   response->ack();
   leave_lock_.unlock();
 
-  Id id = item.getId();  // TODO(tcies) what if leave during trigger?
+  Id id = item.getId<Id>();  // TODO(tcies) what if leave during trigger?
   std::lock_guard<std::mutex> lock(trigger_mutex_);
   if (trigger_) {
     std::thread trigger_thread(trigger_, id);
@@ -834,7 +834,7 @@ void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
   syncLatestCommitTime(item);
   response->ack();
 
-  Id id = item.getId();  // TODO(tcies) what if leave during trigger?
+  Id id = item.getId<Id>();  // TODO(tcies) what if leave during trigger?
   std::lock_guard<std::mutex> lock(trigger_mutex_);
   if (trigger_) {
     std::thread trigger_thread(trigger_, id);

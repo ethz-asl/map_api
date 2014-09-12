@@ -27,7 +27,7 @@ CRTable::RevisionMap ChunkTransaction::dumpChunk() {
 void ChunkTransaction::insert(std::shared_ptr<Revision> revision) {
   CHECK_NOTNULL(revision.get());
   CHECK(revision->structureMatch(*structure_reference_));
-  Id id = revision->getId();
+  Id id = revision->getId<Id>();
   CHECK(id.isValid());
   CHECK(insertions_.emplace(id, revision).second);
 }
@@ -36,7 +36,7 @@ void ChunkTransaction::update(std::shared_ptr<Revision> revision) {
   CHECK_NOTNULL(revision.get());
   CHECK(revision->structureMatch(*structure_reference_));
   CHECK(chunk_->underlying_table_->type() == CRTable::Type::CRU);
-  Id id = revision->getId();
+  Id id = revision->getId<Id>();
   CHECK(id.isValid());
   CHECK(updates_.emplace(id, revision).second);
 }
@@ -45,7 +45,7 @@ void ChunkTransaction::remove(std::shared_ptr<Revision> revision) {
   CHECK_NOTNULL(revision.get());
   CHECK(revision->structureMatch(*structure_reference_));
   CHECK(chunk_->underlying_table_->type() == CRTable::Type::CRU);
-  Id id = revision->getId();
+  Id id = revision->getId<Id>();
   CHECK(id.isValid());
   CHECK(removes_.emplace(id, revision).second);
   // TODO(tcies) situation uncommitted

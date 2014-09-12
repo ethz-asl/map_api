@@ -30,10 +30,15 @@ std::shared_ptr<Revision> CRUTableRamSqlite::getByIdCRDerived(
   LOG(FATAL) << "Not implemented";  // TODO(tcies) implement
 }
 
-int CRUTableRamSqlite::findByRevisionCRDerived(int key,
-                                               const Revision& value_holder,
-                                               const LogicalTime& time,
-                                               RevisionMap* dest) {
+void __attribute__((deprecated)) CRUTableRamSqlite::dumpChunkCRDerived(
+    const Id& /*chunk_id*/, const LogicalTime& /*time*/,
+    RevisionMap* /*dest*/) {
+  LOG(FATAL) << "Not implemented";  // TODO(tcies) implement
+}
+
+int __attribute__((deprecated)) CRUTableRamSqlite::findByRevisionCRDerived(
+    int key, const Revision& value_holder, const LogicalTime& time,
+    RevisionMap* dest) {
   // TODO(tcies) adapt to "removed" flag and int key
   CHECK(false) << "Not adapted to \"removed\" flag and int key!";
   // TODO(tcies) apart from the more sophisticated time query, this is very
@@ -65,7 +70,7 @@ int CRUTableRamSqlite::findByRevisionCRDerived(int key,
   std::vector<std::shared_ptr<Revision> > from_poco;
   poco_to_proto.toProto(&from_poco);
   for (const std::shared_ptr<Revision>& item : from_poco) {
-    Id id = item->getId();
+    Id id = item->getId<Id>();
     CHECK(id.isValid());
     std::unordered_map<Id, LogicalTime> latest;
     LogicalTime item_time = item->getUpdateTime();
@@ -82,9 +87,8 @@ void __attribute__((deprecated)) CRUTableRamSqlite::getAvailableIdsCRDerived(
   LOG(FATAL) << "Needs implementation";
 }
 
-int CRUTableRamSqlite::countByRevisionCRDerived(int key,
-                                                const Revision& value_holder,
-                                                const LogicalTime& time) {
+int __attribute__((deprecated)) CRUTableRamSqlite::countByRevisionCRDerived(
+    int key, const Revision& value_holder, const LogicalTime& time) {
   // TODO(tcies) adapt to "removed" flag and int key
   CHECK(false) << "Not adapted to \"removed\" flag and int key!";
   // TODO(tcies) apart from the more sophisticated time query, this is very
@@ -116,14 +120,33 @@ int CRUTableRamSqlite::countByRevisionCRDerived(int key,
   return count;
 }
 
+int __attribute__((deprecated)) CRUTableRamSqlite::countByChunkCRDerived(
+    const Id& /*chunk_id*/, const LogicalTime& /*time*/) {
+  // TODO(tcies) implement
+  CHECK(false) << "Not implemented";
+}
+
 bool CRUTableRamSqlite::insertUpdatedCRUDerived(const Revision& query) {
   sqlite_interface_.insert(query);
   return true;
 }
 
-void CRUTableRamSqlite::findHistoryByRevisionCRUDerived(
-    int /*key*/, const Revision& /*valueHolder*/, const LogicalTime& /*time*/,
-    HistoryMap* /*dest*/) {
+void __attribute__((deprecated))
+    CRUTableRamSqlite::findHistoryByRevisionCRUDerived(
+        int /*key*/, const Revision& /*valueHolder*/,
+        const LogicalTime& /*time*/, HistoryMap* /*dest*/) {
+  // TODO(tcies) implement
+  CHECK(false) << "Remains to be implemented";
+}
+
+void __attribute__((deprecated)) CRUTableRamSqlite::chunkHistory(
+    const Id& /*chunk_id*/, const LogicalTime& /*time*/, HistoryMap* /*dest*/) {
+  // TODO(tcies) implement
+  CHECK(false) << "Remains to be implemented";
+}
+
+void __attribute__((deprecated)) CRUTableRamSqlite::itemHistoryCRUDerived(
+    const Id& /*id*/, const LogicalTime& /*time*/, History* /*dest*/) {
   // TODO(tcies) implement
   CHECK(false) << "Remains to be implemented";
 }

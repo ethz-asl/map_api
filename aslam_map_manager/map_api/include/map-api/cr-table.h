@@ -187,6 +187,8 @@ class CRTable {
   virtual bool patchCRDerived(const Revision& query) = 0;
   virtual std::shared_ptr<Revision> getByIdCRDerived(
       const Id& id, const LogicalTime& time) const = 0;
+  virtual void dumpChunkCRDerived(const Id& chunk_id, const LogicalTime& time,
+                                  RevisionMap* dest) = 0;
   /**
    * If key is -1, this should return all the data in the table.
    */
@@ -201,6 +203,8 @@ class CRTable {
    */
   virtual int countByRevisionCRDerived(int key, const Revision& valueHolder,
                                        const LogicalTime& time) = 0;
+  virtual int countByChunkCRDerived(const Id& chunk_id,
+                                    const LogicalTime& time) = 0;
 
   bool initialized_ = false;
 };
