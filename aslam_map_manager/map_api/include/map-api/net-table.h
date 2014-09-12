@@ -44,7 +44,6 @@ class NetTable {
   const CRTable::Type& type() const;
 
   std::shared_ptr<Revision> getTemplate() const;
-  Revision* getAllocatedTemplate() const;
   Chunk* newChunk();
   Chunk* newChunk(const Id& chunk_id);
   Chunk* getChunk(const Id& chunk_id);
@@ -125,7 +124,7 @@ class NetTable {
   NetTable& operator =(const NetTable&) = delete;
   friend class NetTableManager;
 
-  bool insert(Chunk* chunk, Revision* query);
+  bool insert(const LogicalTime& time, Chunk* chunk, Revision* query);
   /**
    * Must not change the chunk id. TODO(tcies) immutable fields of Revisions
    * could be nice and simple to implement

@@ -48,6 +48,19 @@ bool CRUTableRamMap::patchCRDerived(const Revision& query) {
   return true;
 }
 
+std::shared_ptr<Revision> CRUTableRamMap::getByIdCRDerived(
+    const Id& id, const LogicalTime& time) const {
+  HistoryMap::const_iterator found = data_.find(id);
+  if (found == data_.end()) {
+    return std::shared_ptr<Revision>();
+  }
+  History::const_iterator latest = found->second.latestAt(time);
+  if (latest == found->second.end()) {
+    return std::shared_ptr<Revision>();
+  }
+  return std::make_shared<Revision>(*latest);
+}
+
 int CRUTableRamMap::findByRevisionCRDerived(int key,
                                             const Revision& value_holder,
                                             const LogicalTime& time,

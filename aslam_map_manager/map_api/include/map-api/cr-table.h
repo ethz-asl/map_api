@@ -186,7 +186,7 @@ class CRTable {
                                    const LogicalTime& time) = 0;
   virtual bool patchCRDerived(const Revision& query) = 0;
   virtual std::shared_ptr<Revision> getByIdCRDerived(
-      const Id& id, const LogicalTime& time) = 0;
+      const Id& id, const LogicalTime& time) const = 0;
   /**
    * If key is -1, this should return all the data in the table.
    */

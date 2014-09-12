@@ -9,7 +9,7 @@ namespace map_api {
 CRTableRamSqlite::~CRTableRamSqlite() {}
 
 bool CRTableRamSqlite::initCRDerived() {
-  sqlite_interface_.init(Core::getSession());
+  sqlite_interface_.init(name(), Core::getSession());
   CHECK(sqlite_interface_.isSqlSafe(*descriptor_));
   CHECK(sqlite_interface_.create(*descriptor_));
   return true;
@@ -68,7 +68,7 @@ int CRTableRamSqlite::findByRevisionCRDerived(int key,
 }
 
 std::shared_ptr<Revision> CRTableRamSqlite::getByIdCRDerived(
-    const Id& /*id*/, const LogicalTime& /*time*/) {
+    const Id& /*id*/, const LogicalTime& /*time*/) const {
   LOG(FATAL) << "Not implemented";  // TODO(tcies) implement
 }
 

@@ -65,9 +65,6 @@ const CRTable::Type& NetTable::type() const { return type_; }
 std::shared_ptr<Revision> NetTable::getTemplate() const {
   return cache_->getTemplate();
 }
-Revision* NetTable::getAllocatedTemplate() const {
-  return cache_->getAllocatedTemplate();
-}
 
 Chunk* NetTable::newChunk() {
   Id chunk_id;

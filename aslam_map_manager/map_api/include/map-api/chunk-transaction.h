@@ -40,8 +40,7 @@ class ChunkTransaction {
   template <typename IdType>
   std::shared_ptr<Revision> getByIdFromUncommitted(const IdType& id) const;
   template <typename ValueType>
-  std::shared_ptr<Revision> findUnique(
-      const std::string& key, const ValueType& value);
+  std::shared_ptr<Revision> findUnique(int key, const ValueType& value);
   CRTable::RevisionMap dumpChunk();
 
   // WRITE

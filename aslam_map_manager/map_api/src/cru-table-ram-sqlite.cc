@@ -7,7 +7,7 @@ namespace map_api {
 CRUTableRamSqlite::~CRUTableRamSqlite() {}
 
 bool CRUTableRamSqlite::initCRDerived() {
-  sqlite_interface_.init(Core::getSession());
+  sqlite_interface_.init(name(), Core::getSession());
   CHECK(sqlite_interface_.isSqlSafe(*descriptor_));
   CHECK(sqlite_interface_.create(*descriptor_));
   return true;
@@ -23,6 +23,11 @@ bool CRUTableRamSqlite::bulkInsertCRUDerived(const RevisionMap& query) {
 
 bool CRUTableRamSqlite::patchCRDerived(const Revision& query) {
   return sqlite_interface_.insert(query);
+}
+
+std::shared_ptr<Revision> CRUTableRamSqlite::getByIdCRDerived(
+    const Id& /*id*/, const LogicalTime& /*time*/) const {
+  LOG(FATAL) << "Not implemented";  // TODO(tcies) implement
 }
 
 int CRUTableRamSqlite::findByRevisionCRDerived(int key,

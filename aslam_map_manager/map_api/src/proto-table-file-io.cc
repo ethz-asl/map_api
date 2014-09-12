@@ -48,16 +48,10 @@ bool ProtoTableFileIO::storeTableContents(
     const Revision& revision = *pair.second;
 
     RevisionStamp current_item_stamp;
-    CHECK(revision.get(CRTable::kIdField, &current_item_stamp.first));
+    current_item_stamp.first = revision.getId();
     CHECK_EQ(current_item_stamp.first, pair.first);
 
-    if (table_->type() == CRTable::Type::CRU) {
-      CHECK(
-          revision.get(CRUTable::kUpdateTimeField, &current_item_stamp.second));
-    } else {
-      CHECK(
-          revision.get(CRTable::kInsertTimeField, &current_item_stamp.second));
-    }
+    current_item_stamp.second = revision.getModificationTime();
 
     // Format:
     // Store number of messages.
@@ -107,8 +101,8 @@ bool ProtoTableFileIO::storeTableContents(
       google::protobuf::io::GzipOutputStream gzip_out(&raw_out, zip_options_);
       google::protobuf::io::CodedOutputStream coded_out(&gzip_out);
 
-      coded_out.WriteVarint32(revision.ByteSize());
-      revision.SerializeToCodedStream(&coded_out);
+      coded_out.WriteVarint32(revision.byteSize());
+      revision.underlyingRevision().SerializeToCodedStream(&coded_out);
       already_stored_items_.insert(current_item_stamp);
     }
   }
@@ -185,11 +179,11 @@ bool ProtoTableFileIO::restoreTableContents(map_api::Transaction* transaction) {
       return false;
     }
 
-    std::shared_ptr<Revision> revision(new Revision);
-    revision->ParseFromString(input_string);
+    std::shared_ptr<proto::Revision> proto_revision(new proto::Revision);
+    std::shared_ptr<Revision> revision(new Revision(proto_revision));
+    revision->parse(input_string);
 
-    Id chunk_id;
-    CHECK(revision->get(NetTable::kChunkIdField, &chunk_id));
+    Id chunk_id = revision->getChunkId();
     Chunk* chunk = nullptr;
     std::unordered_map<Id, Chunk*>::iterator it =
         existing_chunks.find(chunk_id);

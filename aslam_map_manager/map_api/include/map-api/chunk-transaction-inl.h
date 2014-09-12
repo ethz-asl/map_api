@@ -40,8 +40,8 @@ std::shared_ptr<Revision> ChunkTransaction::getByIdFromUncommitted(
 }
 
 template <typename ValueType>
-std::shared_ptr<Revision> ChunkTransaction::findUnique(
-    const std::string& key, const ValueType& value) {
+std::shared_ptr<Revision> ChunkTransaction::findUnique(int key,
+                                                       const ValueType& value) {
   // FIXME(tcies) also search in uncommitted
   std::shared_ptr<Revision> result;
   chunk_->readLock();

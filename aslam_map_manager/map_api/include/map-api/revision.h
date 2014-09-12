@@ -24,6 +24,8 @@ class Revision {
 
  public:
   explicit Revision(const std::shared_ptr<proto::Revision>& revision);
+  explicit Revision(const Revision& other);
+  Revision& operator=(const Revision& other) = delete;
   /**
    * Insert placeholder in SQLite insert statements. Returns blob shared pointer
    * for dynamically created blob objects
@@ -34,7 +36,7 @@ class Revision {
   template <typename FieldType>
   static proto::Type getProtobufTypeEnum();
 
-  void addField(int index, const proto::Type& type);
+  void addField(int index, proto::Type type);
   template <typename FieldType>
   void addField(int index);
 
@@ -84,11 +86,19 @@ class Revision {
 
   std::string dumpToString() const;
 
-  inline std::string serializeUnderlying() {
+  inline std::string serializeUnderlying() const {
     return underlying_revision_->SerializeAsString();
   }
 
   inline int byteSize() const { return underlying_revision_->ByteSize(); }
+
+  inline const proto::Revision& underlyingRevision() const {
+    return *underlying_revision_;
+  }
+
+  inline bool parse(const std::string& origin) {
+    return underlying_revision_->ParseFromString(origin);
+  }
 
  private:
   inline void setInsertTime(const LogicalTime& time) {

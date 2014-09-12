@@ -17,6 +17,8 @@ class CRUTableRamSqlite : public CRUTable {
   virtual bool insertCRUDerived(Revision* query) final override;
   virtual bool bulkInsertCRUDerived(const RevisionMap& query) final override;
   virtual bool patchCRDerived(const Revision& query) final override;
+  virtual std::shared_ptr<Revision> getByIdCRDerived(
+      const Id& id, const LogicalTime& time) const final override;
   virtual int findByRevisionCRDerived(int key, const Revision& valueHolder,
                                       const LogicalTime& time,
                                       RevisionMap* dest) final override;

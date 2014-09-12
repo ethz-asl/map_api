@@ -20,7 +20,7 @@ bool CRTableRamMap::bulkInsertCRDerived(const RevisionMap& query,
     }
   }
   for (const RevisionMap::value_type& pair : query) {
-    CHECK(data_.insert(std::make_pair(pair.first, *pair.second)).second);
+    CHECK(data_.emplace(pair.first, *pair.second).second);
   }
   return true;
 }
@@ -50,7 +50,7 @@ int CRTableRamMap::findByRevisionCRDerived(int key, const Revision& valueHolder,
 }
 
 std::shared_ptr<Revision> CRTableRamMap::getByIdCRDerived(
-    const Id& id, const LogicalTime& time) {
+    const Id& id, const LogicalTime& time) const {
   MapType::const_iterator found = data_.find(id);
   if (found == data_.end() || found->second.getInsertTime() > time) {
     return std::shared_ptr<Revision>();
