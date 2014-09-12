@@ -47,6 +47,7 @@ class ChunkTransaction {
   // WRITE
   void insert(std::shared_ptr<Revision> revision);
   void update(std::shared_ptr<Revision> revision);
+  void remove(std::shared_ptr<Revision> revision);
   template <typename ValueType>
   void addConflictCondition(const std::string& key, const ValueType& value);
 
@@ -76,6 +77,7 @@ class ChunkTransaction {
    */
   class InsertMap : public CRTable::RevisionMap {};
   class UpdateMap : public CRTable::RevisionMap {};
+  class RemoveMap : public CRTable::RevisionMap {};
   struct ConflictCondition {
     const std::string key;
     const std::shared_ptr<Revision> value_holder;
@@ -87,6 +89,7 @@ class ChunkTransaction {
   class ConflictVector : public std::vector<ConflictCondition> {};
   InsertMap insertions_;
   UpdateMap updates_;
+  RemoveMap removes_;
   ConflictVector conflict_conditions_;
   LogicalTime begin_time_;
   Chunk* chunk_;

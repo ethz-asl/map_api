@@ -121,6 +121,7 @@ class Chunk {
   void bulkInsertLocked(const CRTable::RevisionMap& items,
                         const LogicalTime& time);
   void updateLocked(const LogicalTime& time, Revision* item);
+  void removeLocked(const LogicalTime& time, Revision* item);
 
   /**
    * Adds a peer to the chunk swarm by sending it an init request. Assumes

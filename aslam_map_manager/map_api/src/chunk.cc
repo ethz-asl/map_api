@@ -352,6 +352,23 @@ void Chunk::updateLocked(const LogicalTime& time, Revision* item) {
   CHECK(peers_.undisputableBroadcast(&request));
 }
 
+void Chunk::removeLocked(const LogicalTime& time, Revision* item) {
+  CHECK_NOTNULL(item);
+  CHECK(underlying_table_->type() == CRTable::Type::CRU);
+  CRUTable* table = static_cast<CRUTable*>(underlying_table_);
+  CHECK(item->verifyEqual(NetTable::kChunkIdField, id()));
+  proto::PatchRequest remove_request;
+  fillMetadata(&remove_request);
+  Message request;
+  table->remove(time, item);
+  // at this point, update() has modified the revision such that all default
+  // fields are also set, which allows remote peers to just patch the revision
+  // into their table.
+  remove_request.set_serialized_revision(item->SerializeAsString());
+  request.impose<kUpdateRequest>(remove_request);
+  CHECK(peers_.undisputableBroadcast(&request));
+}
+
 bool Chunk::addPeer(const PeerId& peer) {
   std::lock_guard<std::mutex> add_peer_lock(add_peer_mutex_);
   {

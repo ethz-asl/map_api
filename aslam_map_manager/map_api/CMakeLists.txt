@@ -67,15 +67,16 @@ cs_add_executable(discovery-server discovery-server/discovery-server.cc
                    ${PROTO_SRCS} ${PROTO_HDRS})
 target_link_libraries(discovery-server ${PROJECT_NAME})
 
-catkin_add_gtest(test_hash_id_hashing
-  test/test_hash_id_hashing.cc)
-target_link_libraries(test_hash_id_hashing ${PROJECT_NAME})
+# TODO(tcies) reconsider for radix tree hash map benchmarking
+# catkin_add_gtest(test_hash_id_hashing
+#   test/test_hash_id_hashing.cc)
+# target_link_libraries(test_hash_id_hashing ${PROJECT_NAME} pthread)
 
 ##########
 # GTESTS #
 ##########
-cs_add_library(${PROJECT_NAME}_test test/map_api_multiprocess_fixture.cc)
-target_link_libraries(${PROJECT_NAME}_test ${PROJECT_NAME} gtest)
+cs_add_library(${PROJECT_NAME}_test STATIC test/map_api_multiprocess_fixture.cc)
+target_link_libraries(${PROJECT_NAME}_test ${PROJECT_NAME} gtest pthread)
 
 catkin_add_gtest(test_cache_test test/cache_test.cc)
 target_link_libraries(test_cache_test ${PROJECT_NAME}_test)
@@ -92,8 +93,9 @@ target_link_libraries(test_table_interface_test ${PROJECT_NAME}_test)
 catkin_add_gtest(test_core_test test/core_test.cc)
 target_link_libraries(test_core_test ${PROJECT_NAME}_test)
 
-catkin_add_gtest(test_local_transaction_test test/local_transaction_test.cc)
-target_link_libraries(test_local_transaction_test ${PROJECT_NAME}_test)
+# TODO(tcies) eventually remove after moving tests to transaction
+# catkin_add_gtest(test_local_transaction_test test/local_transaction_test.cc)
+# target_link_libraries(test_local_transaction_test ${PROJECT_NAME}_test)
 
 catkin_add_gtest(test_net_table_test test/net_table_test.cc)
 target_link_libraries(test_net_table_test ${PROJECT_NAME}_test)

@@ -15,6 +15,12 @@ void CRUTable::findHistory(const std::string& key, const ValueType& value,
   return this->findHistoryByRevision(key, *valueHolder, time, dest);
 }
 
+template <typename IdType>
+void CRUTable::remove(const LogicalTime& time, const IdType& id) {
+  std::shared_ptr<Revision> latest = getById(id, time);
+  remove(time, *latest);
+}
+
 }  // namespace map_api
 
 #endif  // MAP_API_CRU_TABLE_INL_H_

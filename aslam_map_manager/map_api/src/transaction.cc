@@ -51,6 +51,10 @@ void Transaction::update(NetTable* table, std::shared_ptr<Revision> revision) {
   transactionOf(table)->update(revision);
 }
 
+void Transaction::remove(NetTable* table, std::shared_ptr<Revision> revision) {
+  transactionOf(CHECK_NOTNULL(table))->remove(revision);
+}
+
 // Deadlocks are prevented by imposing a global ordering on
 // net_table_transactions_, and have the locks acquired in that order
 // (resource hierarchy solution)
