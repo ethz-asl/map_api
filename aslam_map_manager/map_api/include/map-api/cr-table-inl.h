@@ -20,6 +20,7 @@ void CRTable::getAvailableIds(const LogicalTime& time,
                               std::unordered_set<IdType>* ids) {
   CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
   CHECK_NOTNULL(ids);
+  ids->clear();
   std::unordered_set<Id> map_api_ids;
   sm::HashId hash_id;
   IdType out_id;

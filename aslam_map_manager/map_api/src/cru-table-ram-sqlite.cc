@@ -29,6 +29,8 @@ int CRUTableRamSqlite::findByRevisionCRUDerived(const std::string& key,
                                                 const Revision& value_holder,
                                                 const LogicalTime& time,
                                                 RevisionMap* dest) {
+  // TODO(tcies) adapt to "removed" flag
+  CHECK(false) << "Not adapted to \"removed\" flag!";
   // TODO(tcies) apart from the more sophisticated time query, this is very
   // similar to its CR equivalent. Maybe refactor at some time?
   SqliteInterface::PocoToProto poco_to_proto(getTemplate());
@@ -80,6 +82,8 @@ void __attribute__((deprecated)) CRUTableRamSqlite::getAvailableIdsCRDerived(
 int CRUTableRamSqlite::countByRevisionCRUDerived(const std::string& key,
                                                  const Revision& value_holder,
                                                  const LogicalTime& time) {
+  // TODO(tcies) adapt to "removed" flag
+  CHECK(false) << "Not adapted to \"removed\" flag!";
   // TODO(tcies) apart from the more sophisticated time query, this is very
   // similar to its CR equivalent. Maybe refactor at some time?
   SqliteInterface::PocoToProto poco_to_proto(getTemplate());
