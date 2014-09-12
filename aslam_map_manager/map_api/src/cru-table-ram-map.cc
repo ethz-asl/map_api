@@ -40,7 +40,7 @@ bool CRUTableRamMap::patchCRDerived(const Revision& query) {
     found = data_.insert(std::make_pair(id, History())).first;
   }
   for (History::iterator it = found->second.begin(); it != found->second.end();
-       ++it) {
+      ++it) {
     it->get(kUpdateTimeField, &list_time);
     if (list_time < time) {
       found->second.insert(it, query);
@@ -61,8 +61,8 @@ int CRUTableRamMap::findByRevisionCRUDerived(const std::string& key,
   forEachItemFoundAtTime(
       key, value_holder, time,
       [&dest](const Id& id, const History::const_iterator& item) {
-        CHECK(dest->find(id) == dest->end());
-        CHECK(dest->emplace(id, std::make_shared<Revision>(*item)).second);
+    CHECK(dest->find(id) == dest->end());
+    CHECK(dest->emplace(id, std::make_shared<Revision>(*item)).second);
       });
   return dest->size();  // TODO(tcies) returning the count is silly, abolish
 }

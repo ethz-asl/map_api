@@ -61,8 +61,9 @@ class TableInterfaceTest : public ::testing::Test {
 
 // TODO(tcies) implement remove in CRU sqlite and re-enable tests
 typedef ::testing::Types<CRTableRamSqlite,
-                         //    CRUTableRamSqlite,
-                         CRTableRamMap, CRUTableRamMap> TableTypes;
+    //    CRUTableRamSqlite,
+    CRTableRamMap,
+    CRUTableRamMap> TableTypes;
 TYPED_TEST_CASE(TableInterfaceTest, TableTypes);
 
 TYPED_TEST(TableInterfaceTest, initEmpty) {
@@ -281,8 +282,8 @@ class CruMapIntTestWithInit
       TableDataTypes<table_type, map_api::LogicalTime>
 
 // TODO(tcies) implement remove in CRU sqlite and re-enable tests
-typedef ::testing::Types<
-    ALL_DATA_TYPES(CRTableRamSqlite), ALL_DATA_TYPES(CRTableRamMap),
+typedef ::testing::Types<ALL_DATA_TYPES(CRTableRamSqlite),
+    ALL_DATA_TYPES(CRTableRamMap),
     //                         ALL_DATA_TYPES(CRUTableRamSqlite),
     ALL_DATA_TYPES(CRUTableRamMap)> CrAndCruTypes;
 
@@ -375,15 +376,15 @@ TYPED_TEST(IntTestWithInit, CreateReadThousand) {
     Id inserted = this->fillRevision(i);
     timing::Timer insert_timer("insert - " +
                                std::string(::testing::UnitTest::GetInstance()
-                                               ->current_test_info()
-                                               ->test_case_name()));
+    ->current_test_info()
+    ->test_case_name()));
     EXPECT_TRUE(this->insertRevision());
     insert_timer.Stop();
 
     timing::Timer read_timer("read - " +
                              std::string(::testing::UnitTest::GetInstance()
-                                             ->current_test_info()
-                                             ->test_case_name()));
+    ->current_test_info()
+    ->test_case_name()));
     std::shared_ptr<Revision> rowFromTable =
         this->table_->getById(inserted, LogicalTime::sample());
     read_timer.Stop();
