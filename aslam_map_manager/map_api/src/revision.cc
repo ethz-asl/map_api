@@ -74,13 +74,13 @@ void Revision::addField(int index, proto::Type type) {
 bool Revision::structureMatch(const Revision& other) const {
   if (underlying_revision_->custom_field_values_size() !=
       other.underlying_revision_->custom_field_values_size()) {
-    LOG(INFO) << "Field count does not match";
+    LOG(ERROR) << "Field count does not match";
     return false;
   }
   for (int i = 0; i < underlying_revision_->custom_field_values_size(); ++i) {
     if (underlying_revision_->custom_field_values(i).type() !=
         other.underlying_revision_->custom_field_values(i).type()) {
-      LOG(INFO) << "Field type mismatch at position " << i;
+      LOG(ERROR) << "Field type mismatch at position " << i;
       return false;
     }
   }
@@ -123,7 +123,7 @@ std::string Revision::dumpToString() const {
     dump_ss << "\tupdate_time:" << getUpdateTime() << std::endl;
   }
   if (underlying_revision_->has_removed()) {
-    dump_ss << "\tremoved" << std::endl;
+    dump_ss << "\tremoved:" << underlying_revision_->removed() << std::endl;
   }
   for (int i = 0; i < underlying_revision_->custom_field_values_size(); ++i) {
     dump_ss << "\t" << i << ": ";

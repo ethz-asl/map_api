@@ -36,8 +36,8 @@ void CRTableRamMap::dumpChunkCRDerived(const Id& chunk_id,
   for (const MapType::value_type& pair : data_) {
     if (pair.second.getChunkId() == chunk_id) {
       if (pair.second.getInsertTime() <= time) {
-        CHECK(dest->emplace(pair.first, std::make_shared<Revision>(pair.second))
-                  .second);
+        CHECK(dest->emplace(pair.first,
+                            std::make_shared<Revision>(pair.second)).second);
       }
     }
   }
@@ -54,8 +54,8 @@ int CRTableRamMap::findByRevisionCRDerived(int key, const Revision& valueHolder,
   for (const MapType::value_type& pair : data_) {
     if (key < 0 || valueHolder.fieldMatch(pair.second, key)) {
       if (pair.second.getInsertTime() <= time) {
-        CHECK(dest->emplace(pair.first, std::make_shared<Revision>(pair.second))
-                  .second);
+        CHECK(dest->emplace(pair.first,
+                            std::make_shared<Revision>(pair.second)).second);
       }
     }
   }

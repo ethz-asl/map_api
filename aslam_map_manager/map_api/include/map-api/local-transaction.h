@@ -102,9 +102,9 @@ class LocalTransaction {
    * among others. If key is an empty string, no filter will be applied.
    */
   template <typename ValueType>
-  int findInUncommitted(const CRTable& table, int key, const ValueType& value,
-                        std::unordered_map<Id, SharedRevisionPointer>* dest)
-      const;
+  int findInUncommitted(
+      const CRTable& table, int key, const ValueType& value,
+      std::unordered_map<Id, SharedRevisionPointer>* dest) const;
   template<typename ValueType>
   SharedRevisionPointer findUniqueInUncommitted(
       const CRTable& table, const std::string& key, const ValueType& value)
@@ -151,9 +151,7 @@ class LocalTransaction {
     CRTable* table;
     ConflictCondition(int _key, const SharedRevisionPointer& _valueHolder,
                       CRTable* _table)
-        : key(_key), valueHolder(_valueHolder), table(_table) {
-      CHECK_NOTNULL(table);
-    }
+        : key(_key), valueHolder(_valueHolder), table(CHECK_NOTNULL(_table)) {}
   };
   typedef std::vector<ConflictCondition> ConflictConditionVector;
   ConflictConditionVector conflictConditions_;

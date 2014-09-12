@@ -38,7 +38,8 @@ bool CRUTableRamMap::patchCRDerived(const Revision& query) {
   }
   for (History::iterator it = found->second.begin(); it != found->second.end();
       ++it) {
-    if (it->getUpdateTime() < time) {
+    if (it->getUpdateTime() <= time) {
+      CHECK_NE(time, it->getUpdateTime());
       found->second.insert(it, query);
       return true;
     }

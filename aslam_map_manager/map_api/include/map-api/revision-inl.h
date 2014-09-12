@@ -10,7 +10,7 @@ namespace map_api {
 
 template <typename FieldType>
 void Revision::addField(int index) {
-  addCustomField(index, getProtobufTypeEnum<FieldType>());
+  addField(index, getProtobufTypeEnum<FieldType>());
 }
 
 template <typename FieldType>
@@ -32,7 +32,8 @@ bool Revision::get(int index, FieldType* value) const {
   const proto::TableField& field =
       underlying_revision_->custom_field_values(index);
   CHECK_EQ(field.type(), getProtobufTypeEnum<FieldType>())
-      << "Type mismatch when trying to get field " << index;
+      << "Type mismatch when trying to get field " << index <<
+      ". May it be that you are using outdated save files?";
   return get(field, value);
 }
 

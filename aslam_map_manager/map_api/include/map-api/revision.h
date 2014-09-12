@@ -71,7 +71,10 @@ class Revision {
   inline void setId(const IdType& id) {
     underlying_revision_->mutable_id()->set_hash(id.hexString());
   }
-  inline bool isRemoved() const { return underlying_revision_->has_removed(); }
+  inline bool isRemoved() const {
+    return
+        underlying_revision_->has_removed() && underlying_revision_->removed();
+  }
 
   template <typename ExpectedType>
   bool verifyEqual(int index, const ExpectedType& expected) const;

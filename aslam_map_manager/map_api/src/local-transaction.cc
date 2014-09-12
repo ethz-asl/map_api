@@ -122,7 +122,6 @@ bool LocalTransaction::insert(const Id& id, const SharedRevisionPointer& item,
       << "Structure of item to be inserted: " << item->dumpToString()
       << " doesn't match table template " << reference->dumpToString();
   item->setId(id);
-  // item->set("owner",owner_); TODO(tcies) later, fetch from core
   CHECK(insertions_.insert(std::make_pair(ItemId(id, table), item)).second)
   << "You seem to already have inserted " << ItemId(id, table);
   return true;
