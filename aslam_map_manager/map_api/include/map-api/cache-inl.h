@@ -185,6 +185,7 @@ template <typename IdType, typename Value, typename DerivedValue>
 typename Cache<IdType, Value, DerivedValue>::IdSet&
 Cache<IdType, Value, DerivedValue>::getAvailableIdsLocked() {
   if (!ids_fetched_) {
+    LOG(WARNING) << "Populating caches for table " << underlying_table_->name();
     transaction_.get()->getAvailableIds(underlying_table_, &available_ids_);
     ids_fetched_ = true;
   }
@@ -195,6 +196,7 @@ template <typename IdType, typename Value, typename DerivedValue>
 const typename Cache<IdType, Value, DerivedValue>::IdSet&
 Cache<IdType, Value, DerivedValue>::getAvailableIdsLocked() const {
   if (!ids_fetched_) {
+    LOG(WARNING) << "Populating caches for table " << underlying_table_->name();
     transaction_.get()->getAvailableIds(underlying_table_, &available_ids_);
     ids_fetched_ = true;
   }
