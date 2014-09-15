@@ -41,6 +41,7 @@ bool LocalTransaction::commit() {
   // Acquire lock for database updates TODO(tcies) per-item locks
   {
     std::lock_guard<std::recursive_mutex> lock(dbMutex_);
+    LogicalTime commit_time = LogicalTime::sample();
     if (hasContainerConflict(&insertions_)) {
       VLOG(3) << "Insert conflict, commit fails";
       return false;
@@ -62,9 +63,9 @@ bool LocalTransaction::commit() {
       const Id& id = insertion.first.id;
       CRTable::ItemDebugInfo debugInfo(table->name(), id);
       const SharedRevisionPointer &revision = insertion.second;
-      CHECK(revision->verifyEqual(CRTable::kIdField, id)) <<
-          "Identifier ID does not match revision ID";
-      if (!table->insert(revision.get())) {
+      CHECK_EQ(id, revision->getId<Id>())
+          << "Identifier ID does not match revision ID";
+      if (!table->insert(commit_time, revision.get())) {
         LOG(ERROR) << debugInfo << "Insertion failed, aborting commit.";
         return false;
       }
@@ -75,8 +76,8 @@ bool LocalTransaction::commit() {
       const Id& id = update.first.id;
       CRTable::ItemDebugInfo debugInfo(table->name(), id);
       const SharedRevisionPointer &revision = update.second;
-      CHECK(revision->verifyEqual(CRTable::kIdField, id)) <<
-          "Identifier ID does not match revision ID";
+      CHECK_EQ(id, revision->getId<Id>())
+          << "Identifier ID does not match revision ID";
       if (!table->update(revision.get())) {
         LOG(ERROR) << debugInfo << "Update failed, aborting commit.";
         return false;
@@ -117,11 +118,10 @@ bool LocalTransaction::insert(const Id& id, const SharedRevisionPointer& item,
   }
   CHECK(item) << "Passed revision pointer is null";
   std::shared_ptr<Revision> reference = table->getTemplate();
-  CHECK(item->structureMatch(*reference)) <<
-      "Structure of item to be inserted: " << item->DebugString() <<
-      " doesn't match table template " << reference->DebugString();
-  item->set(CRTable::kIdField, id);
-  // item->set("owner",owner_); TODO(tcies) later, fetch from core
+  CHECK(item->structureMatch(*reference))
+      << "Structure of item to be inserted: " << item->dumpToString()
+      << " doesn't match table template " << reference->dumpToString();
+  item->setId(id);
   CHECK(insertions_.insert(std::make_pair(ItemId(id, table), item)).second)
   << "You seem to already have inserted " << ItemId(id, table);
   return true;
@@ -130,13 +130,14 @@ bool LocalTransaction::insert(const Id& id, const SharedRevisionPointer& item,
 LocalTransaction::SharedRevisionPointer LocalTransaction::read(const Id& id,
                                                                CRTable* table) {
   CHECK_NOTNULL(table);
-  return findUnique(CRTable::kIdField, id, table);
+  // TODO(tcies) uncommitted (test should fail)
+  return table->getById(id, beginTime_);
 }
 
 bool LocalTransaction::dumpTable(CRTable* table, CRTable::RevisionMap* dest) {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(dest);
-  return find("", 0, table, dest);
+  return find(-1, 0, table, dest);
 }
 
 bool LocalTransaction::update(const Id& id,

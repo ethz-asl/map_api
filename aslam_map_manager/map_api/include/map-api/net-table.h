@@ -124,7 +124,7 @@ class NetTable {
   NetTable& operator =(const NetTable&) = delete;
   friend class NetTableManager;
 
-  bool insert(Chunk* chunk, Revision* query);
+  bool insert(const LogicalTime& time, Chunk* chunk, Revision* query);
   /**
    * Must not change the chunk id. TODO(tcies) immutable fields of Revisions
    * could be nice and simple to implement

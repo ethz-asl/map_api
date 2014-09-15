@@ -12,7 +12,11 @@ std::shared_ptr<Revision> CRTable::getById(const IdType& id,
                                            const LogicalTime& time) {
   CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
   CHECK(id.isValid()) << "Supplied invalid ID";
-  return findUnique(kIdField, id, time);
+  Id map_api_id;
+  sm::HashId hash_id;
+  id.toHashId(&hash_id);
+  map_api_id.fromHashId(hash_id);
+  return getByIdCRDerived(map_api_id, time);
 }
 
 template <typename IdType>
@@ -63,29 +67,27 @@ std::pair<CRTable::RevisionMap::iterator, bool> CRTable::RevisionMap::insert(
 }
 
 template <typename ValueType>
-int CRTable::find(const std::string& key, const ValueType& value,
-                  const LogicalTime& time, RevisionMap* dest) {
+int CRTable::find(int key, const ValueType& value, const LogicalTime& time,
+                  RevisionMap* dest) {
   std::shared_ptr<Revision> valueHolder = this->getTemplate();
-  if (key != "") {
+  if (key >= 0) {
     valueHolder->set(key, value);
   }
   return this->findByRevision(key, *valueHolder, time, dest);
 }
 
 template <typename ValueType>
-int CRTable::count(const std::string& key, const ValueType& value,
-                   const LogicalTime& time) {
+int CRTable::count(int key, const ValueType& value, const LogicalTime& time) {
   std::shared_ptr<Revision> valueHolder = this->getTemplate();
   CHECK(valueHolder != nullptr);
-  if (!key.empty()) {
+  if (key >= 0) {
     valueHolder->set(key, value);
   }
   return this->countByRevision(key, *valueHolder, time);
 }
 
 template <typename ValueType>
-std::shared_ptr<Revision> CRTable::findUnique(const std::string& key,
-                                              const ValueType& value,
+std::shared_ptr<Revision> CRTable::findUnique(int key, const ValueType& value,
                                               const LogicalTime& time) {
   RevisionMap results;
   int count = find(key, value, time, &results);
@@ -96,7 +98,7 @@ std::shared_ptr<Revision> CRTable::findUnique(const std::string& key,
         " value of " << key << ", table " << descriptor_->name() << std::endl;
     report << "Items found at " << time << " are:" << std::endl;
     for (const RevisionMap::value_type result : results) {
-      report << result.second->DebugString() << std::endl;
+      report << result.second->dumpToString() << std::endl;
     }
     LOG(FATAL) << report.str();
   }
@@ -105,13 +107,6 @@ std::shared_ptr<Revision> CRTable::findUnique(const std::string& key,
   } else {
     return results.begin()->second;
   }
-}
-
-template <typename Derived>
-bool CRTable::isIdEqual(const Revision& revision, const UniqueId<Derived>& id) {
-  Id revision_id;
-  revision.get(kIdField, &revision_id);
-  return id == revision_id;
 }
 
 }  // namespace map_api

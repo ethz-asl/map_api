@@ -31,16 +31,12 @@ void NetTableTransaction::insert(Chunk* chunk,
 }
 
 void NetTableTransaction::update(std::shared_ptr<Revision> revision) {
-  Id chunk_id;
-  revision->get(NetTable::kChunkIdField, &chunk_id);
-  Chunk* chunk = table_->getChunk(chunk_id);
+  Chunk* chunk = table_->getChunk(revision->getChunkId());
   transactionOf(chunk)->update(revision);
 }
 
 void NetTableTransaction::remove(std::shared_ptr<Revision> revision) {
-  Id chunk_id;
-  revision->get(NetTable::kChunkIdField, &chunk_id);
-  Chunk* chunk = table_->getChunk(chunk_id);
+  Chunk* chunk = table_->getChunk(revision->getChunkId());
   transactionOf(chunk)->remove(revision);
 }
 

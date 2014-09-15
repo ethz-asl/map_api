@@ -40,8 +40,7 @@ class ChunkTransaction {
   template <typename IdType>
   std::shared_ptr<Revision> getByIdFromUncommitted(const IdType& id) const;
   template <typename ValueType>
-  std::shared_ptr<Revision> findUnique(
-      const std::string& key, const ValueType& value);
+  std::shared_ptr<Revision> findUnique(int key, const ValueType& value);
   CRTable::RevisionMap dumpChunk();
 
   // WRITE
@@ -49,7 +48,7 @@ class ChunkTransaction {
   void update(std::shared_ptr<Revision> revision);
   void remove(std::shared_ptr<Revision> revision);
   template <typename ValueType>
-  void addConflictCondition(const std::string& key, const ValueType& value);
+  void addConflictCondition(int key, const ValueType& value);
 
   // TRANSACTION OPERATIONS
   bool commit();
@@ -79,12 +78,10 @@ class ChunkTransaction {
   class UpdateMap : public CRTable::RevisionMap {};
   class RemoveMap : public CRTable::RevisionMap {};
   struct ConflictCondition {
-    const std::string key;
+    const int key;
     const std::shared_ptr<Revision> value_holder;
-    ConflictCondition(
-        const std::string& _key,
-        const std::shared_ptr<Revision>& _value_holder) : key(_key),
-            value_holder(_value_holder) {}
+    ConflictCondition(int _key, const std::shared_ptr<Revision>& _value_holder)
+        : key(_key), value_holder(_value_holder) {}
   };
   class ConflictVector : public std::vector<ConflictCondition> {};
   InsertMap insertions_;

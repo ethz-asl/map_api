@@ -14,13 +14,19 @@ void init();
 void kill();
 
 extern const std::string kDataPointTableName;
-extern const std::string kDataPointTableDataField;
+enum AssociationTableFields {
+  kAssociationTableCenterIdField
+};
 
 extern const std::string kCenterTableName;
-extern const std::string kCenterTableDataField;
+enum DataPointTableFields {
+  kDataPointTableDataField
+};
 
 extern const std::string kAssociationTableName;
-extern const std::string kAssociationTableCenterIdField;
+enum CenterTableFields {
+  kCenterTableDataField
+};
 
 extern map_api::NetTable* association_table;
 extern map_api::NetTable* data_point_table;

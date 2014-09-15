@@ -81,7 +81,7 @@ class LocalTransaction {
    * specialization of functions is not allowed in C++.
    */
   template <typename ValueType>
-  int find(const std::string& key, const ValueType& value, CRTable* table,
+  int find(int key, const ValueType& value, CRTable* table,
            CRTable::RevisionMap* dest) const;
   /**
    * Same as find(), but ensuring that there is only one result
@@ -101,11 +101,10 @@ class LocalTransaction {
    * (insertions and updates) revisions. Consequently, this is used in find(),
    * among others. If key is an empty string, no filter will be applied.
    */
-  template<typename ValueType>
-  int findInUncommitted(const CRTable& table, const std::string& key,
-                        const ValueType& value,
-                        std::unordered_map<Id, SharedRevisionPointer>* dest)
-  const;
+  template <typename ValueType>
+  int findInUncommitted(
+      const CRTable& table, int key, const ValueType& value,
+      std::unordered_map<Id, SharedRevisionPointer>* dest) const;
   template<typename ValueType>
   SharedRevisionPointer findUniqueInUncommitted(
       const CRTable& table, const std::string& key, const ValueType& value)
@@ -147,15 +146,12 @@ class LocalTransaction {
    * type, thanks to the Revision template specializations.
    */
   struct ConflictCondition {
-    const std::string key;
+    const int key;
     const SharedRevisionPointer valueHolder;
     CRTable* table;
-    ConflictCondition(
-        const std::string& _key, const SharedRevisionPointer& _valueHolder,
-        CRTable* _table) :
-          key(_key), valueHolder(_valueHolder), table(_table) {
-      CHECK_NOTNULL(table);
-    }
+    ConflictCondition(int _key, const SharedRevisionPointer& _valueHolder,
+                      CRTable* _table)
+        : key(_key), valueHolder(_valueHolder), table(CHECK_NOTNULL(_table)) {}
   };
   typedef std::vector<ConflictCondition> ConflictConditionVector;
   ConflictConditionVector conflictConditions_;

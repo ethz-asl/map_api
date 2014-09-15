@@ -20,7 +20,6 @@ NetTable::NetTable() : type_(CRTable::Type::CR) {}
 bool NetTable::init(
     CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor) {
   type_ = type;
-  (*descriptor)->addField<Id>(kChunkIdField);
   switch (type) {
     case CRTable::Type::CR:
       if (FLAGS_use_sqlite) {
@@ -113,19 +112,17 @@ Chunk* NetTable::getChunk(const Id& chunk_id) {
   return result;
 }
 
-bool NetTable::insert(Chunk* chunk, Revision* query) {
+bool NetTable::insert(const LogicalTime& time, Chunk* chunk, Revision* query) {
   CHECK_NOTNULL(chunk);
   CHECK_NOTNULL(query);
-  CHECK(chunk->insert(query));
+  CHECK(chunk->insert(time, query));
   return true;
 }
 
 bool NetTable::update(Revision* query) {
   CHECK_NOTNULL(query);
   CHECK(type_ == CRTable::Type::CRU);
-  Id chunk_id;
-  query->get(kChunkIdField, &chunk_id);
-  CHECK_NOTNULL(getChunk(chunk_id))->update(query);
+  CHECK_NOTNULL(getChunk(query->getChunkId()))->update(query);
   return true;
 }
 

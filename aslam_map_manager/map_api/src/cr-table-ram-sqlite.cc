@@ -9,13 +9,14 @@ namespace map_api {
 CRTableRamSqlite::~CRTableRamSqlite() {}
 
 bool CRTableRamSqlite::initCRDerived() {
-  sqlite_interface_.init(Core::getSession());
+  sqlite_interface_.init(name(), Core::getSession());
   CHECK(sqlite_interface_.isSqlSafe(*descriptor_));
   CHECK(sqlite_interface_.create(*descriptor_));
   return true;
 }
 
-bool CRTableRamSqlite::insertCRDerived(Revision* query) {
+bool CRTableRamSqlite::insertCRDerived(const LogicalTime& /*time*/,
+                                       Revision* query) {
   return sqlite_interface_.insert(*query);
 }
 
@@ -28,10 +29,16 @@ bool CRTableRamSqlite::patchCRDerived(const Revision& query) {
   return sqlite_interface_.insert(query);
 }
 
-int CRTableRamSqlite::findByRevisionCRDerived(const std::string& key,
-                                              const Revision& value_holder,
-                                              const LogicalTime& time,
-                                              RevisionMap* dest) {
+void __attribute__((deprecated)) CRTableRamSqlite::dumpChunkCRDerived(
+    const Id& /*chunk_id*/, const LogicalTime& /*time*/,
+    RevisionMap* /*dest*/) {
+  LOG(FATAL) << "Not implemented";  // TODO(tcies) implement
+}
+
+int __attribute__((deprecated)) CRTableRamSqlite::findByRevisionCRDerived(
+    int key, const Revision& value_holder, const LogicalTime& time,
+    RevisionMap* dest) {
+  LOG(FATAL) << "Adapt to int keys";  // TODO(tcies) adapt to int keys
   SqliteInterface::PocoToProto pocoToProto(getTemplate());
   std::shared_ptr<Poco::Data::Session> session =
       sqlite_interface_.getSession().lock();
@@ -44,7 +51,7 @@ int CRTableRamSqlite::findByRevisionCRDerived(const std::string& key,
   pocoToProto.into(&statement);
   statement << "FROM " << name() << " WHERE " << kInsertTimeField << " <= ? ",
       Poco::Data::use(serialized_time);
-  if (key != "") {
+  if (key >= 0) {
     statement << " AND " << key << " LIKE ";
     data_holder.push_back(value_holder.insertPlaceHolder(key, &statement));
   }
@@ -58,12 +65,17 @@ int CRTableRamSqlite::findByRevisionCRDerived(const std::string& key,
   std::vector<std::shared_ptr<Revision> > from_poco;
   pocoToProto.toProto(&from_poco);
   for (const std::shared_ptr<Revision>& item : from_poco) {
-    Id id;
-    item->get(kIdField, &id);
+    Id id = item->getId<Id>();
     CHECK(id.isValid());
     (*dest)[id] = item;
   }
   return from_poco.size();
+}
+
+std::shared_ptr<Revision> __attribute__((deprecated))
+    CRTableRamSqlite::getByIdCRDerived(const Id& /*id*/,
+                                       const LogicalTime& /*time*/) const {
+  LOG(FATAL) << "Not implemented";  // TODO(tcies) implement
 }
 
 void __attribute__((deprecated)) CRTableRamSqlite::getAvailableIdsCRDerived(
@@ -71,9 +83,9 @@ void __attribute__((deprecated)) CRTableRamSqlite::getAvailableIdsCRDerived(
   LOG(FATAL) << "Needs implementation";
 }
 
-int CRTableRamSqlite::countByRevisionCRDerived(const std::string& key,
-                                               const Revision& value_holder,
-                                               const LogicalTime& time) {
+int __attribute__((deprecated)) CRTableRamSqlite::countByRevisionCRDerived(
+    int key, const Revision& value_holder, const LogicalTime& time) {
+  LOG(FATAL) << "Adapt to int keys";  // TODO(tcies) adapt to int keys
   SqliteInterface::PocoToProto pocoToProto(getTemplate());
   std::shared_ptr<Poco::Data::Session> session =
       sqlite_interface_.getSession().lock();
@@ -87,7 +99,7 @@ int CRTableRamSqlite::countByRevisionCRDerived(const std::string& key,
       Poco::Data::into(count);
   statement << " FROM " << name() << " WHERE " << kInsertTimeField << " <= ? ",
       Poco::Data::use(serialized_time);
-  if (key != "") {
+  if (key >= 0) {
     statement << " AND " << key << " LIKE ";
     data_holder.push_back(value_holder.insertPlaceHolder(key, &statement));
   }
@@ -99,6 +111,11 @@ int CRTableRamSqlite::countByRevisionCRDerived(const std::string& key,
                << " with exception: " << e.what();
   }
   return count;
+}
+
+int __attribute__((deprecated)) CRTableRamSqlite::countByChunkCRDerived(
+    const Id& /*chunk_id*/, const LogicalTime& /*time*/) {
+  LOG(FATAL) << "Not implemented";  // TODO(tcies) implement
 }
 
 } /* namespace map_api */
