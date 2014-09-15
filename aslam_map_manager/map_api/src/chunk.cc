@@ -35,7 +35,7 @@ const char Chunk::kUnlockRequest[] = "map_api_chunk_unlock_request";
 const char Chunk::kUpdateRequest[] = "map_api_chunk_update_request";
 
 MAP_API_PROTO_MESSAGE(Chunk::kConnectRequest, proto::ChunkRequestMetadata);
-MAP_API_COMPRESSED_PROTO_MESSAGE(Chunk::kInitRequest, proto::InitRequest);
+MAP_API_PROTO_MESSAGE(Chunk::kInitRequest, proto::InitRequest);
 MAP_API_PROTO_MESSAGE(Chunk::kInsertRequest, proto::PatchRequest);
 MAP_API_PROTO_MESSAGE(Chunk::kLeaveRequest, proto::ChunkRequestMetadata);
 MAP_API_PROTO_MESSAGE(Chunk::kLockRequest, proto::ChunkRequestMetadata);
@@ -231,17 +231,8 @@ void Chunk::unlock() { distributedUnlock(); }
 // not expressing in terms of the peer-specifying overload in order to avoid
 // unnecessary distributed lock and unlocks
 int Chunk::requestParticipation() {
-  int new_participant_count = 0;
   distributedWriteLock();
-  std::set<PeerId> hub_peers;
-  Hub::instance().getPeers(&hub_peers);
-  for (const PeerId& hub_peer : hub_peers) {
-    if (peers_.peers().find(hub_peer) == peers_.peers().end()) {
-      if (addPeer(hub_peer)) {
-        ++new_participant_count;
-      }
-    }
-  }
+  size_t new_participant_count = addAllPeers();
   distributedUnlock();
   return new_participant_count;
 }
@@ -376,6 +367,43 @@ bool Chunk::addPeer(const PeerId& peer) {
 
   peers_.add(peer);
   return true;
+}
+
+size_t Chunk::addAllPeers() {
+  size_t count = 0;
+  std::lock_guard<std::mutex> add_peer_lock(add_peer_mutex_);
+  {
+    std::lock_guard<std::mutex> metalock(lock_.mutex);
+    CHECK(isWriter(PeerId::self()));
+  }
+  Message request;
+  proto::InitRequest init_request;
+  fillMetadata(&init_request);
+  initRequestSetData(&init_request);
+  proto::NewPeerRequest new_peer_request;
+  fillMetadata(&new_peer_request);
+
+  std::set<PeerId> peers;
+  Hub::instance().getPeers(&peers);
+
+  for (const PeerId& peer : peers) {
+    if (peers_.peers().find(peer) != peers_.peers().end()) {
+      continue;
+    }
+    initRequestSetPeers(&init_request);
+    request.impose<kInitRequest>(init_request);
+    if (!Hub::instance().ackRequest(peer, &request)) {
+      LOG(FATAL) << "Init request not accepted";
+      continue;
+    }
+    new_peer_request.set_new_peer(peer.ipPort());
+    request.impose<kNewPeerRequest>(new_peer_request);
+    CHECK(peers_.undisputableBroadcast(&request));
+
+    peers_.add(peer);
+    ++count;
+  }
+  return count;
 }
 
 void Chunk::distributedReadLock() {
@@ -603,22 +631,13 @@ bool Chunk::isWriter(const PeerId& peer) {
       lock_.holder == peer);
 }
 
-void Chunk::prepareInitRequest(Message* request) {
+void Chunk::initRequestSetData(proto::InitRequest* request) {
   CHECK_NOTNULL(request);
-  proto::InitRequest init_request;
-  fillMetadata(&init_request);
-
-  for (const PeerId& swarm_peer : peers_.peers()) {
-    init_request.add_peer_address(swarm_peer.ipPort());
-  }
-  init_request.add_peer_address(PeerId::self().ipPort());
-
   if (underlying_table_->type() == CRTable::Type::CR) {
     CRTable::RevisionMap data;
     underlying_table_->dumpChunk(id(), LogicalTime::sample(), &data);
     for (const CRTable::RevisionMap::value_type& data_pair : data) {
-      init_request.add_serialized_items(
-          data_pair.second->serializeUnderlying());
+      request->add_serialized_items(data_pair.second->serializeUnderlying());
     }
   } else {
     CHECK(underlying_table_->type() == CRTable::Type::CRU);
@@ -631,10 +650,26 @@ void Chunk::prepareInitRequest(Message* request) {
         history_proto.mutable_revisions()->AddAllocated(
             new proto::Revision(*revision.underlying_revision_));
       }
-      init_request.add_serialized_items(history_proto.SerializeAsString());
+      request->add_serialized_items(history_proto.SerializeAsString());
     }
   }
+}
 
+void Chunk::initRequestSetPeers(proto::InitRequest* request) {
+  CHECK_NOTNULL(request);
+  request->clear_peer_address();
+  for (const PeerId& swarm_peer : peers_.peers()) {
+    request->add_peer_address(swarm_peer.ipPort());
+  }
+  request->add_peer_address(PeerId::self().ipPort());
+}
+
+void Chunk::prepareInitRequest(Message* request) {
+  CHECK_NOTNULL(request);
+  proto::InitRequest init_request;
+  fillMetadata(&init_request);
+  initRequestSetPeers(&init_request);
+  initRequestSetData(&init_request);
   request->impose<kInitRequest, proto::InitRequest>(init_request);
 }
 
