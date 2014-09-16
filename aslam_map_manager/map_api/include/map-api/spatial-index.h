@@ -52,7 +52,7 @@ class SpatialIndex : public ChordIndex {
    * Life cycle managed by NetTable!
    */
   explicit SpatialIndex(const std::string& table_name,
-                        const BoundingBox& max_dimensions,
+                        const BoundingBox& bounds,
                         const std::vector<size_t>& subdivision);
   SpatialIndex(const SpatialIndex&) = delete;
   SpatialIndex& operator=(const SpatialIndex&) = delete;
@@ -61,12 +61,13 @@ class SpatialIndex : public ChordIndex {
   /**
    * Given a bounding box, identifies the indices of the overlapping cells.
    */
-  inline void getCellIndices(const BoundingBox& bounding_box,
-                             std::vector<size_t>* indices);
+  void getCellIndices(const BoundingBox& bounding_box,
+                      std::vector<size_t>* indices) const;
+  inline size_t coefficientOf(size_t dimension, double value) const;
   /**
    * TODO(tcies) template ChordIndex on key type?
    */
-  inline std::string typeHack(size_t cell_index);
+  static inline std::string typeHack(size_t cell_index);
 
   /**
    * TODO(tcies) the below is basically a copy of NetTableIndex AND
@@ -97,7 +98,7 @@ class SpatialIndex : public ChordIndex {
       const PeerId& to, const DataMap& responsibilities) final override;
 
   std::string table_name_;
-  BoundingBox max_dimensions_;
+  BoundingBox bounds_;
   std::vector<size_t> subdivision_;
   PeerHandler peers_;
 };

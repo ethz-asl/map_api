@@ -4,12 +4,16 @@
 namespace map_api {
 
 SpatialIndex::SpatialIndex(const std::string& table_name,
-                           const BoundingBox& max_dimensions,
+                           const BoundingBox& bounds,
                            const std::vector<size_t>& subdivision)
-    : table_name_(table_name),
-      max_dimensions_(max_dimensions),
-      subdivision_(subdivision) {
-  CHECK_EQ(max_dimensions.size(), subdivision.size());
+    : table_name_(table_name), bounds_(bounds), subdivision_(subdivision) {
+  CHECK_EQ(bounds.size(), subdivision.size());
+  for (size_t count : subdivision) {
+    CHECK_GT(count, 0);
+  }
+  for (const Range& bound : bounds) {
+    CHECK_LT(bound.first, bound.second);
+  }
 }
 
 SpatialIndex::~SpatialIndex() {}
@@ -253,10 +257,38 @@ void SpatialIndex::handleRoutedRequest(const Message& routed_request_message,
 }
 
 inline void SpatialIndex::getCellIndices(const BoundingBox& bounding_box,
-                                         std::vector<size_t>* indices) {
-  CHECK_EQ(max_dimensions_.size(), bounding_box.size());
-  CHECK(false);
-  // TODO(tcies) implement
+                                         std::vector<size_t>* indices) const {
+  CHECK_NOTNULL(indices);
+  indices->clear();
+  indices->push_back(0);
+  CHECK_EQ(bounds_.size(), bounding_box.size());
+  size_t unit = 1;
+  for (size_t dimension = 0; dimension < bounds_.size(); ++dimension) {
+    CHECK_GE(bounding_box[dimension].first, bounds_[dimension].first);
+    CHECK_LT(bounding_box[dimension].first, bounding_box[dimension].second);
+    CHECK_LT(bounding_box[dimension].second, bounds_[dimension].second);
+    std::vector<size_t> this_dimension_indices;
+    std::vector<size_t> product;
+    for (size_t i = coefficientOf(dimension, bounding_box[dimension].first);
+         i <= coefficientOf(dimension, bounding_box[dimension].second); ++i) {
+      this_dimension_indices.push_back(i);
+    }
+    for (size_t this_dimension_index : this_dimension_indices) {
+      for (size_t previous_index : *indices) {
+        product.push_back(previous_index + this_dimension_index * unit);
+      }
+    }
+    indices->swap(product);
+    unit *= subdivision_[dimension];
+  }
+}
+
+inline size_t SpatialIndex::coefficientOf(size_t dimension,
+                                          double value) const {
+  value -= bounds_[dimension].first;
+  value *= subdivision_[dimension];
+  value /= (bounds_[dimension].second - bounds_[dimension].first);
+  return static_cast<size_t>(value);
 }
 
 inline std::string SpatialIndex::typeHack(size_t cell_index) {
