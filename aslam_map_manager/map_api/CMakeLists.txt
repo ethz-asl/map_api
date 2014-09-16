@@ -52,6 +52,7 @@ SET(CORE_SOURCE  src/cache-base.cc
                  src/proto-table-file-io.cc
                  src/revision.cc
                  src/server-discovery.cc
+                 src/spatial-index.cc
                  src/sqlite-interface.cc
                  src/table-descriptor.cc
                  src/transaction.cc
