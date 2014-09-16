@@ -6,9 +6,8 @@
 
 namespace map_api {
 
-template<typename ValueType>
-bool LocalTransaction::addConflictCondition(const std::string& key,
-                                            const ValueType& value,
+template <typename ValueType>
+bool LocalTransaction::addConflictCondition(int key, const ValueType& value,
                                             CRTable* table) {
   CHECK_NOTNULL(table);
   if (LocalTransaction::notifyAbortedOrInactive()) {
@@ -47,10 +46,9 @@ int LocalTransaction::find(int key, const ValueType& value, CRTable* table,
   return dest->size();
 }
 
-template<typename ValueType>
+template <typename ValueType>
 LocalTransaction::SharedRevisionPointer LocalTransaction::findUnique(
-    const std::string& key, const ValueType& value, CRTable* table)
-const {
+    int key, const ValueType& value, CRTable* table) const {
   if (LocalTransaction::notifyAbortedOrInactive()) {
     return NULL;
   }
@@ -100,11 +98,10 @@ int LocalTransaction::findInUncommitted(
   return dest->size();
 }
 
-template<typename ValueType>
+template <typename ValueType>
 LocalTransaction::SharedRevisionPointer
-LocalTransaction::findUniqueInUncommitted(
-    const CRTable& table, const std::string& key, const ValueType& value)
-const {
+LocalTransaction::findUniqueInUncommitted(const CRTable& table, int key,
+                                          const ValueType& value) const {
   std::unordered_map<Id, SharedRevisionPointer> results;
   int count = this->findInUncommitted(table, key, value, &results);
   CHECK_LT(count, 2) << "Required unique find in uncommitted queries for " <<
