@@ -12,7 +12,7 @@ SpatialIndex::SpatialIndex(const std::string& table_name,
     CHECK_GT(count, 0);
   }
   for (const Range& bound : bounds) {
-    CHECK_LT(bound.first, bound.second);
+    CHECK_LT(bound.min, bound.max);
   }
 }
 
@@ -260,34 +260,57 @@ inline void SpatialIndex::getCellIndices(const BoundingBox& bounding_box,
                                          std::vector<size_t>* indices) const {
   CHECK_NOTNULL(indices);
   indices->clear();
-  indices->push_back(0);
   CHECK_EQ(bounds_.size(), bounding_box.size());
-  size_t unit = 1;
+  // The following loop iterates over the dimensions to obtain the
+  // multi-dimensional set of indices corresponding to the bounding box.
+  // Each iteration can be considered an extrusion of the lower-dimensional
+  // result.
+  // For instance, to obtain:
+  // ...
+  // ...
+  // .##
+  // .##
+  // which corresponds to {7, 8, 10, 11}, we would first obtain the indices in
+  // one dimension, for instance
+  // .##
+  // or {1, 2}
+  // In the next iteration, we detect the bounding box in the other dimension,
+  // ..## or {2, 3}. To obtain the result for both dimensions jointly,
+  // we add to each lower dimensional index a higher dimensional index times
+  // the total size of the lower dimension, in this case:
+  // {1, 2} + 3 * {2, 3} = {1 + 3 * 2, 2 + 3 * 2, 1 + 3 * 3, 2 + 3 * 3} =
+  // {7, 8, 10, 11}
+  // This can then be continued for higher dimensions.
+  size_t lower_dimensions_size = 1;
+  indices->push_back(0);
   for (size_t dimension = 0; dimension < bounds_.size(); ++dimension) {
-    CHECK_GE(bounding_box[dimension].first, bounds_[dimension].first);
-    CHECK_LT(bounding_box[dimension].first, bounding_box[dimension].second);
-    CHECK_LT(bounding_box[dimension].second, bounds_[dimension].second);
+    CHECK_GE(bounding_box[dimension].min, bounds_[dimension].min);
+    CHECK_LT(bounding_box[dimension].min, bounding_box[dimension].max);
+    CHECK_LT(bounding_box[dimension].max, bounds_[dimension].max);
+    // indices in this dimension
     std::vector<size_t> this_dimension_indices;
-    std::vector<size_t> product;
-    for (size_t i = coefficientOf(dimension, bounding_box[dimension].first);
-         i <= coefficientOf(dimension, bounding_box[dimension].second); ++i) {
+    for (size_t i = coefficientOf(dimension, bounding_box[dimension].min);
+         i <= coefficientOf(dimension, bounding_box[dimension].max); ++i) {
       this_dimension_indices.push_back(i);
     }
+    // extrusion
+    std::vector<size_t> extrusion_step;
     for (size_t this_dimension_index : this_dimension_indices) {
       for (size_t previous_index : *indices) {
-        product.push_back(previous_index + this_dimension_index * unit);
+        extrusion_step.push_back(previous_index +
+        		this_dimension_index * lower_dimensions_size);
       }
     }
-    indices->swap(product);
-    unit *= subdivision_[dimension];
+    indices->swap(extrusion_step);
+    lower_dimensions_size *= subdivision_[dimension];
   }
 }
 
 inline size_t SpatialIndex::coefficientOf(size_t dimension,
                                           double value) const {
-  value -= bounds_[dimension].first;
+  value -= bounds_[dimension].min;
   value *= subdivision_[dimension];
-  value /= (bounds_[dimension].second - bounds_[dimension].first);
+  value /= (bounds_[dimension].max - bounds_[dimension].min);
   return static_cast<size_t>(value);
 }
 

@@ -16,7 +16,9 @@ namespace map_api {
 class SpatialIndex : public ChordIndex {
  public:
   // TODO(tcies) template class on type and dimensions
-  typedef std::pair<double, double> Range;
+  struct Range {
+	  double min, max;
+  };
   typedef std::vector<Range> BoundingBox;
 
   virtual ~SpatialIndex();
@@ -51,9 +53,9 @@ class SpatialIndex : public ChordIndex {
   /**
    * Life cycle managed by NetTable!
    */
-  explicit SpatialIndex(const std::string& table_name,
-                        const BoundingBox& bounds,
-                        const std::vector<size_t>& subdivision);
+  SpatialIndex(const std::string& table_name,
+		  const BoundingBox& bounds,
+		  const std::vector<size_t>& subdivision);
   SpatialIndex(const SpatialIndex&) = delete;
   SpatialIndex& operator=(const SpatialIndex&) = delete;
   friend class NetTable;
