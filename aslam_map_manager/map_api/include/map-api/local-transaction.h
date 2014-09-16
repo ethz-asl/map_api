@@ -85,9 +85,9 @@ class LocalTransaction {
   /**
    * Same as find(), but ensuring that there is only one result
    */
-  template<typename ValueType>
-  SharedRevisionPointer findUnique(
-      const std::string& key, const ValueType& value, CRTable* table) const;
+  template <typename ValueType>
+  SharedRevisionPointer findUnique(int key, const ValueType& value,
+                                   CRTable* table) const;
   /**
    * Define own fields for database tables, such as for locks.
    */
@@ -104,10 +104,9 @@ class LocalTransaction {
   int findInUncommitted(
       const CRTable& table, int key, const ValueType& value,
       std::unordered_map<Id, SharedRevisionPointer>* dest) const;
-  template<typename ValueType>
-  SharedRevisionPointer findUniqueInUncommitted(
-      const CRTable& table, const std::string& key, const ValueType& value)
-  const;
+  template <typename ValueType>
+  SharedRevisionPointer findUniqueInUncommitted(const CRTable& table, int key,
+                                                const ValueType& value) const;
 
   class InsertMap : public std::map<ItemId, const SharedRevisionPointer> {};
   class UpdateMap : public std::map<ItemId, const SharedRevisionPointer> {};
