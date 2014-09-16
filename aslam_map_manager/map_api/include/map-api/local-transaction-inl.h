@@ -6,9 +6,8 @@
 
 namespace map_api {
 
-template<typename ValueType>
-bool LocalTransaction::addConflictCondition(const std::string& key,
-                                            const ValueType& value,
+template <typename ValueType>
+bool LocalTransaction::addConflictCondition(int key, const ValueType& value,
                                             CRTable* table) {
   CHECK_NOTNULL(table);
   if (LocalTransaction::notifyAbortedOrInactive()) {

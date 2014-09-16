@@ -55,9 +55,8 @@ class LocalTransaction {
    * insertion of data that would cause a conflict (e.g.
    * MapApiCore::syncTableDefinition)
    */
-  template<typename ValueType>
-  bool addConflictCondition(const std::string& key, const ValueType& value,
-                            CRTable* table);
+  template <typename ValueType>
+  bool addConflictCondition(int key, const ValueType& value, CRTable* table);
 
   /**
    * Returns latest revision prior to transaction begin time
