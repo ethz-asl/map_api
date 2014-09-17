@@ -22,9 +22,7 @@ const std::string CRTable::kInsertTimeField = "insert_time";
 std::pair<CRTable::RevisionMap::iterator, bool> CRTable::RevisionMap::insert(
     const std::shared_ptr<Revision>& revision) {
   CHECK_NOTNULL(revision.get());
-  Id id;
-  revision->get(kIdField, &id);
-  return insert(std::make_pair(id, revision));
+  return insert(std::make_pair(revision->getId<Id>(), revision));
 }
 
 CRTable::~CRTable() {}
@@ -33,8 +31,6 @@ bool CRTable::init(std::unique_ptr<TableDescriptor>* descriptor) {
   CHECK_NOTNULL(descriptor);
   CHECK((*descriptor)->has_name());
   descriptor_ = std::move(*descriptor);
-  descriptor_->addField<Id>(kIdField);
-  descriptor_->addField<LogicalTime>(kInsertTimeField);
   CHECK(initCRDerived());
   initialized_ = true;
   return true;
@@ -48,29 +44,26 @@ const std::string& CRTable::name() const {
 
 std::shared_ptr<Revision> CRTable::getTemplate() const {
   CHECK(isInitialized()) << "Can't get template of non-initialized table";
+  std::shared_ptr<proto::Revision> proto(new proto::Revision);
   std::shared_ptr<Revision> ret =
-      std::shared_ptr<Revision>(
-          new Revision);
-  // add own name
-  ret->set_table(descriptor_->name());
+      std::shared_ptr<Revision>(new Revision(proto));
   // add editable fields
   for (int i = 0; i < descriptor_->fields_size(); ++i) {
-    ret->addField(descriptor_->fields(i));
+    ret->addField(i, descriptor_->fields(i));
   }
   return ret;
 }
 
-bool CRTable::insert(Revision* query) {
+bool CRTable::insert(const LogicalTime& time, Revision* query) {
   CHECK_NOTNULL(query);
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(reference->structureMatch(*query)) <<
       "Bad structure of insert revision";
-  Id id;
-  query->get(kIdField, &id);
-  CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
-  query->set(kInsertTimeField, LogicalTime::sample());
-  return insertCRDerived(query);
+  CHECK(query->getId<Id>().isValid())
+      << "Attempted to insert element with invalid ID";
+  query->setInsertTime(time);
+  return insertCRDerived(time, query);
 }
 
 bool CRTable::bulkInsert(const RevisionMap& query) {
@@ -86,10 +79,10 @@ bool CRTable::bulkInsert(const RevisionMap& query,
     CHECK_NOTNULL(id_revision.second.get());
     CHECK(reference->structureMatch(*id_revision.second)) <<
         "Bad structure of insert revision";
-    id_revision.second->get(kIdField, &id);
+    id = id_revision.second->getId<Id>();
     CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
     CHECK(id == id_revision.first) << "ID in RevisionMap doesn't match";
-    id_revision.second->set(kInsertTimeField, time);
+    id_revision.second->setInsertTime(time);
   }
   return bulkInsertCRDerived(query, time);
 }
@@ -98,15 +91,22 @@ bool CRTable::patch(const Revision& query) {
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(reference->structureMatch(query)) << "Bad structure of patch revision";
-  Id id;
-  query.get(kIdField, &id);
-  CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
+  CHECK(query.getId<Id>().isValid())
+      << "Attempted to insert element with invalid ID";
   return patchCRDerived(query);
 }
 
-int CRTable::findByRevision(
-    const std::string& key, const Revision& valueHolder,
-    const LogicalTime& time, RevisionMap* dest) {
+void CRTable::dumpChunk(const Id& chunk_id, const LogicalTime& time,
+                        RevisionMap* dest) {
+  CHECK(isInitialized());
+  CHECK_NOTNULL(dest);
+  dest->clear();
+  CHECK_LE(time, LogicalTime::sample());
+  return dumpChunkCRDerived(chunk_id, time, dest);
+}
+
+int CRTable::findByRevision(int key, const Revision& valueHolder,
+                            const LogicalTime& time, RevisionMap* dest) {
   CHECK(isInitialized()) << "Attempted to find in non-initialized table";
   // whether valueHolder contains key is implicitly checked whenever using
   // Revision::insertPlaceHolder - for now it's a pretty safe bet that the
@@ -118,8 +118,7 @@ int CRTable::findByRevision(
   return findByRevisionCRDerived(key, valueHolder, time, dest);
 }
 
-int CRTable::countByRevision(const std::string& key,
-                             const Revision& valueHolder,
+int CRTable::countByRevision(int key, const Revision& valueHolder,
                              const LogicalTime& time) {
   CHECK(isInitialized()) << "Attempted to count items in non-initialized table";
   // Whether valueHolder contains key is implicitly checked whenever using
@@ -136,7 +135,13 @@ void CRTable::dump(const LogicalTime& time, RevisionMap* dest) {
   CHECK_NOTNULL(dest);
   std::shared_ptr<Revision> valueHolder = getTemplate();
   CHECK(valueHolder != nullptr);
-  findByRevision("", *valueHolder, time, dest);
+  findByRevision(-1, *valueHolder, time, dest);
+}
+
+int CRTable::countByChunk(const Id& id, const LogicalTime& time) {
+  CHECK(isInitialized());
+  CHECK(time < LogicalTime::sample());
+  return countByChunkCRDerived(id, time);
 }
 
 CRTable::Type CRTable::type() const {

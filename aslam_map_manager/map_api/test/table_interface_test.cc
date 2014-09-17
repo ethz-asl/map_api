@@ -24,32 +24,6 @@
 namespace map_api {
 
 template <typename TableType>
-class ExpectedFieldCount {
- public:
-  static int get();
-};
-
-template <>
-int ExpectedFieldCount<CRTableRamSqlite>::get() {
-  return 2;
-}
-
-template <>
-int ExpectedFieldCount<CRTableRamMap>::get() {
-  return 2;
-}
-
-template <>
-int ExpectedFieldCount<CRUTableRamSqlite>::get() {
-  return 4;
-}
-
-template <>
-int ExpectedFieldCount<CRUTableRamMap>::get() {
-  return 4;
-}
-
-template <typename TableType>
 class TableInterfaceTest : public ::testing::Test {
  public:
   virtual void SetUp() final override {
@@ -59,11 +33,11 @@ class TableInterfaceTest : public ::testing::Test {
   virtual void TearDown() final override { Core::instance()->kill(); }
 };
 
-// TODO(tcies) implement remove in CRU sqlite and re-enable tests
-typedef ::testing::Types<CRTableRamSqlite,
+// TODO(tcies) implement CR(U) sqlite and re-enable tests
+typedef ::testing::Types<
+    //    CRTableRamSqlite,
     //    CRUTableRamSqlite,
-    CRTableRamMap,
-    CRUTableRamMap> TableTypes;
+    CRTableRamMap, CRUTableRamMap> TableTypes;
 TYPED_TEST_CASE(TableInterfaceTest, TableTypes);
 
 TYPED_TEST(TableInterfaceTest, initEmpty) {
@@ -71,8 +45,7 @@ TYPED_TEST(TableInterfaceTest, initEmpty) {
   std::shared_ptr<Revision> structure =
       TestTable<TypeParam>::instance().getTemplate();
   ASSERT_TRUE(static_cast<bool>(structure));
-  EXPECT_EQ(ExpectedFieldCount<TypeParam>::get(),
-            structure->fieldqueries_size());
+  EXPECT_EQ(0, structure->customFieldCount());
 }
 
 /**
@@ -91,7 +64,9 @@ class TableDataTypes {
 template <typename TableDataType>
 class FieldTestTable : public TestTable<typename TableDataType::TableType> {
  public:
-  static const std::string kTestField;
+  enum Fields {
+    kTestField
+  };
   static typename TableDataType::TableType* forge() {
     typename TableDataType::TableType* table =
         new typename TableDataType::TableType;
@@ -103,9 +78,6 @@ class FieldTestTable : public TestTable<typename TableDataType::TableType> {
     return table;
   }
 };
-
-template <typename TableDataType>
-const std::string FieldTestTable<TableDataType>::kTestField = "test_field";
 
 /**
  **************************************
@@ -171,20 +143,14 @@ class FieldTest<testBlob> : public ::testing::Test {
  protected:
   testBlob sample_data_1() {
     testBlob field;
-    *field.mutable_nametype() = map_api::proto::TableFieldDescriptor();
-    field.mutable_nametype()->set_name("A name");
-    field.mutable_nametype()->set_type(
-        map_api::proto::TableFieldDescriptor_Type_DOUBLE);
-    field.set_doublevalue(3);
+    field.set_type(map_api::proto::Type::DOUBLE);
+    field.set_double_value(3);
     return field;
   }
   testBlob sample_data_2() {
     testBlob field;
-    *field.mutable_nametype() = map_api::proto::TableFieldDescriptor();
-    field.mutable_nametype()->set_name("Another name");
-    field.mutable_nametype()->set_type(
-        map_api::proto::TableFieldDescriptor_Type_INT32);
-    field.set_doublevalue(42);
+    field.set_type(map_api::proto::Type::INT32);
+    field.set_int_value(42);
     return field;
   }
 };
@@ -206,6 +172,9 @@ class FieldTestWithoutInit
 
  protected:
   typedef FieldTestTable<TableDataType> FieldTestTableType;
+  inline const typename FieldTestTableType::Fields fieldName() {
+    return FieldTestTableType::kTestField;
+  }
   std::shared_ptr<Revision> getTemplate() {
     query_ = this->table_->getTemplate();
     return query_;
@@ -215,7 +184,7 @@ class FieldTestWithoutInit
     getTemplate();
     Id inserted;
     generateId(&inserted);
-    query_->set(CRTable::kIdField, inserted);
+    query_->setId(inserted);
     // to_insert_->set("owner", Id::random()); TODO(tcies) later, from core
     query_->set(FieldTestTableType::kTestField, value);
     return inserted;
@@ -223,7 +192,9 @@ class FieldTestWithoutInit
 
   Id fillRevision() { return fillRevision(this->sample_data_1()); }
 
-  bool insertRevision() { return this->table_->insert(query_.get()); }
+  bool insertRevision() {
+    return this->table_->insert(LogicalTime::sample(), query_.get());
+  }
 
   void getRevision(const Id& id) {
     query_ = this->table_->getById(id, LogicalTime::sample());
@@ -253,7 +224,7 @@ class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
   bool updateRevision() { return this->table_->update(this->query_.get()); }
 
   void fillRevisionWithOtherData() {
-    this->query_->set("test_field", this->sample_data_2());
+    this->query_->set(this->fieldName(), this->sample_data_2());
   }
 };
 
@@ -282,7 +253,8 @@ class CruMapIntTestWithInit
       TableDataTypes<table_type, map_api::LogicalTime>
 
 // TODO(tcies) implement remove in CRU sqlite and re-enable tests
-typedef ::testing::Types<ALL_DATA_TYPES(CRTableRamSqlite),
+typedef ::testing::Types<
+    //                         ALL_DATA_TYPES(CRTableRamSqlite),
     ALL_DATA_TYPES(CRTableRamMap),
     //                         ALL_DATA_TYPES(CRUTableRamSqlite),
     ALL_DATA_TYPES(CRUTableRamMap)> CrAndCruTypes;
@@ -297,8 +269,7 @@ TYPED_TEST_CASE(UpdateFieldTestWithInit, CruTypes);
 TYPED_TEST_CASE(IntTestWithInit, TableTypes);
 
 TYPED_TEST(FieldTestWithInit, Init) {
-  EXPECT_EQ(ExpectedFieldCount<typename TypeParam::TableType>::get() + 1,
-            this->getTemplate()->fieldqueries_size());
+  EXPECT_EQ(1, this->getTemplate()->customFieldCount());
 }
 
 TYPED_TEST(FieldTestWithoutInit, CreateBeforeInit) {
@@ -347,8 +318,8 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
   ::testing::FLAGS_gtest_death_test_style = "fast";
-  EXPECT_DEATH(rowFromTable->get("some_other_field", &dataFromTable),
-               "Trying to get inexistent field");
+  EXPECT_DEATH(rowFromTable->get(13, &dataFromTable),
+               "Index out of custom field bounds");
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 }
 
@@ -360,14 +331,14 @@ TYPED_TEST(UpdateFieldTestWithInit, UpdateRead) {
       this->table_->getById(inserted, LogicalTime::sample());
   ASSERT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
-  rowFromTable->get("test_field", &dataFromTable);
+  rowFromTable->get(this->fieldName(), &dataFromTable);
   EXPECT_EQ(this->sample_data_1(), dataFromTable);
 
   this->fillRevisionWithOtherData();
   this->updateRevision();
   rowFromTable = this->table_->getById(inserted, LogicalTime::sample());
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
-  rowFromTable->get("test_field", &dataFromTable);
+  rowFromTable->get(this->fieldName(), &dataFromTable);
   EXPECT_EQ(this->sample_data_2(), dataFromTable);
 }
 
@@ -412,17 +383,12 @@ TEST_F(CruMapIntTestWithInit, HistoryAtTime) {
   query_->set(FieldTestTableType::kTestField, kThird);
   ASSERT_TRUE(updateRevision());
 
-  CRUTable::HistoryMap old_history_map;
-  table_->findHistory(CRTable::kIdField, id, before_third, &old_history_map);
-  EXPECT_EQ(1, old_history_map.size());
-  const CRUTable::History& old_history = old_history_map.begin()->second;
+  CRUTable::History old_history;
+  table_->itemHistory(id, before_third, &old_history);
   EXPECT_EQ(2, old_history.size());
 
-  CRUTable::HistoryMap new_history_map;
-  table_->findHistory(CRTable::kIdField, id, LogicalTime::sample(),
-                      &new_history_map);
-  EXPECT_EQ(1, new_history_map.size());
-  const CRUTable::History& new_history = new_history_map.begin()->second;
+  CRUTable::History new_history;
+  table_->itemHistory(id, LogicalTime::sample(), &new_history);
   EXPECT_EQ(3, new_history.size());
 }
 
@@ -431,20 +397,20 @@ TEST_F(CruMapIntTestWithInit, Remove) {
   fillRevision(kValue);
   insertRevision();
 
-  EXPECT_EQ(1, table_->count("", 0, LogicalTime::sample()));
+  EXPECT_EQ(1, table_->count(-1, 0, LogicalTime::sample()));
   std::unordered_set<Id> ids;
   table_->getAvailableIds(LogicalTime::sample(), &ids);
   EXPECT_EQ(1, ids.size());
   CRTable::RevisionMap result;
-  table_->find("", 0, LogicalTime::sample(), &result);
+  table_->find(-1, 0, LogicalTime::sample(), &result);
   EXPECT_EQ(1, result.size());
 
   table_->remove(LogicalTime::sample(), result.begin()->second.get());
 
-  EXPECT_EQ(0, table_->count("", 0, LogicalTime::sample()));
+  EXPECT_EQ(0, table_->count(-1, 0, LogicalTime::sample()));
   table_->getAvailableIds(LogicalTime::sample(), &ids);
   EXPECT_EQ(0, ids.size());
-  table_->find("", 0, LogicalTime::sample(), &result);
+  table_->find(-1, 0, LogicalTime::sample(), &result);
   EXPECT_EQ(0, result.size());
 }
 

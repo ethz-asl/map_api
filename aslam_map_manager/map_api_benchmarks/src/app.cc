@@ -9,7 +9,7 @@
 #include <multiagent_mapping_common/eigen-matrix-proto.h>
 
 namespace map_api {
-REVISION_PROTOBUF(common::EigenMatrixProto);
+MAP_API_REVISION_PROTOBUF(common::EigenMatrixProto);
 } // namespace map_api
 
 namespace map_api {
@@ -17,13 +17,10 @@ namespace benchmarks {
 namespace app {
 const std::string kAssociationTableName =
     "map_api_benchmarks_association_table";
-const std::string kAssociationTableCenterIdField = "center_id";
 
 const std::string kDataPointTableName = "map_api_benchmarks_data_point_table";
-const std::string kDataPointTableDataField = "data";
 
 const std::string kCenterTableName = "map_api_benchmarks_center_table";
-const std::string kCenterTableDataField = "data";
 
 map_api::NetTable* data_point_table = nullptr;
 map_api::NetTable* center_table = nullptr;
@@ -79,16 +76,15 @@ void centerFromRevision(const map_api::Revision& revision,
 }
 void membershipFromRevision(const map_api::Revision& revision,
                             Id* descriptor_id, Id* center_id) {
-  CHECK_NOTNULL(descriptor_id);
+  *CHECK_NOTNULL(descriptor_id) = revision.getId<Id>();
   CHECK_NOTNULL(center_id);
-  revision.get(CRTable::kIdField, descriptor_id);
   revision.get(kAssociationTableCenterIdField, center_id);
 }
 
 void descriptorToRevision(const DescriptorType& descriptor, const Id& id,
                           map_api::Revision* revision) {
   CHECK_NOTNULL(revision);
-  revision->set(CRTable::kIdField, id);
+  revision->setId(id);
   common::EigenMatrixProto emp;
   emp.serialize(descriptor);
   revision->set(kDataPointTableDataField, emp);
@@ -96,7 +92,7 @@ void descriptorToRevision(const DescriptorType& descriptor, const Id& id,
 void centerToRevision(const DescriptorType& center, const Id& id,
                       map_api::Revision* revision) {
   CHECK_NOTNULL(revision);
-  revision->set(CRTable::kIdField, id);
+  revision->setId(id);
   common::EigenMatrixProto emp;
   emp.serialize(center);
   revision->set(kCenterTableDataField, emp);
@@ -104,7 +100,7 @@ void centerToRevision(const DescriptorType& center, const Id& id,
 void membershipToRevision(const Id& descriptor_id, const Id& center_id,
                           map_api::Revision* revision){
   CHECK_NOTNULL(revision);
-  revision->set(CRTable::kIdField, descriptor_id);
+  revision->setId(descriptor_id);
   revision->set(kAssociationTableCenterIdField, center_id);
 }
 

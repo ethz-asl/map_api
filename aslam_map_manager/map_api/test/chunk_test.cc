@@ -391,7 +391,7 @@ TEST_P(NetTableTest, Triggers) {
       } else {
         Id insert_id;
         generateId(&insert_id);
-        item->set(CRTable::kIdField, insert_id);
+        item->setId(insert_id);
         transaction.insert(table_, chunk_, item);
       }
       CHECK(transaction.commit());
@@ -403,7 +403,7 @@ TEST_P(NetTableTest, Triggers) {
     std::shared_ptr<Revision> item = table_->getTemplate();
     Id insert_id;
     generateId(&insert_id);
-    item->set(CRTable::kIdField, insert_id);
+    item->setId(insert_id);
     item->set(kFieldName, 0);
     transaction.insert(table_, chunk_, item);
     CHECK(transaction.commit());

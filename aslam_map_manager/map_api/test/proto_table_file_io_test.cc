@@ -26,10 +26,10 @@ TEST_P(NetTableTest, SaveAndRestoreFromFile) {
   {
     Transaction transaction;
     std::shared_ptr<Revision> to_insert_1 = table_->getTemplate();
-    to_insert_1->set(CRTable::kIdField, item_1_id);
+    to_insert_1->setId(item_1_id);
     to_insert_1->set(kFieldName, 42);
     std::shared_ptr<Revision> to_insert_2 = table_->getTemplate();
-    to_insert_2->set(CRTable::kIdField, item_2_id);
+    to_insert_2->setId(item_2_id);
     to_insert_2->set(kFieldName, 21);
     transaction.insert(table_, chunk, to_insert_1);
     transaction.insert(table_, chunk, to_insert_2);
@@ -42,11 +42,11 @@ TEST_P(NetTableTest, SaveAndRestoreFromFile) {
     ASSERT_FALSE(it == retrieved.end());
     LogicalTime time_1, time_2;
     int item_1, item_2;
-    it->second->get(CRTable::kInsertTimeField, &time_1);
+    time_1 = it->second->getInsertTime();
     it->second->get(kFieldName, &item_1);
     it = retrieved.find(item_2_id);
     ASSERT_FALSE(it == retrieved.end());
-    it->second->get(CRTable::kInsertTimeField, &time_2);
+    time_2 = it->second->getInsertTime();
     it->second->get(kFieldName, &item_2);
     EXPECT_EQ(time_1.serialize(), time_2.serialize());
     EXPECT_EQ(item_1, 42);
@@ -84,13 +84,13 @@ TEST_P(NetTableTest, SaveAndRestoreFromFile) {
     ASSERT_EQ(2, retrieved.size());
     CRTable::RevisionMap::iterator it = retrieved.find(item_1_id);
     ASSERT_FALSE(it == retrieved.end());
-    it->second->get(CRTable::kInsertTimeField, &time_1);
+    time_1 = it->second->getInsertTime();
     it->second->get(kFieldName, &item_1);
     EXPECT_EQ(item_1, 42);
 
     it = retrieved.find(item_2_id);
     ASSERT_FALSE(it == retrieved.end());
-    it->second->get(CRTable::kInsertTimeField, &time_2);
+    time_2 = it->second->getInsertTime();
     it->second->get(kFieldName, &item_2);
     EXPECT_EQ(item_2, 21);
 

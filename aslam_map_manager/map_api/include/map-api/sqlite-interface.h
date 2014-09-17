@@ -21,7 +21,8 @@ namespace map_api {
 class SqliteInterface {
  public:
   virtual ~SqliteInterface();
-  void init(std::weak_ptr<Poco::Data::Session> session);
+  void init(const std::string& table_name,
+            std::weak_ptr<Poco::Data::Session> session);
   /**
    * Checks whether table name and field names are fit for SQL.
    */
@@ -72,18 +73,19 @@ class SqliteInterface {
     /**
      * Maps where the data is store intermediately
      */
-    std::map<std::string, std::vector<double> > doubles_;
-    std::map<std::string, std::vector<Poco::Int32> > ints_;
-    std::map<std::string, std::vector<Poco::Int64> > longs_;
-    std::map<std::string, std::vector<Poco::UInt64> > ulongs_;
-    std::map<std::string, std::vector<Poco::Data::BLOB> > blobs_;
-    std::map<std::string, std::vector<std::string> > strings_;
-    std::map<std::string, std::vector<std::string> > hashes_;
+    std::map<int, std::vector<double> > doubles_;
+    std::map<int, std::vector<Poco::Int32> > ints_;
+    std::map<int, std::vector<Poco::Int64> > longs_;
+    std::map<int, std::vector<Poco::UInt64> > ulongs_;
+    std::map<int, std::vector<Poco::Data::BLOB> > blobs_;
+    std::map<int, std::vector<std::string> > strings_;
+    std::map<int, std::vector<std::string> > hashes_;
   };
 
  private:
   bool isSqlSafe(const std::string& string) const;
   std::weak_ptr<Poco::Data::Session> session_;
+  std::string table_name_;
 };
 
 }  // namespace map_api

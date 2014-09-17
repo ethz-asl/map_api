@@ -12,6 +12,10 @@ namespace map_api {
 class NetTableTest : public MultiprocessTest,
                      public ::testing::WithParamInterface<bool> {
  public:
+  enum Fields {
+    kFieldName
+  };
+
   virtual void SetUp() {
     MultiprocessTest::SetUp();
     std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
@@ -60,9 +64,9 @@ class NetTableTest : public MultiprocessTest,
     Id insert_id;
     generateId(&insert_id);
     std::shared_ptr<Revision> to_insert = table_->getTemplate();
-    to_insert->set(CRTable::kIdField, insert_id);
+    to_insert->setId(insert_id);
     to_insert->set(kFieldName, n);
-    EXPECT_TRUE(table_->insert(chunk, to_insert.get()));
+    EXPECT_TRUE(table_->insert(LogicalTime::sample(), chunk, to_insert.get()));
     return insert_id;
   }
 
@@ -70,7 +74,7 @@ class NetTableTest : public MultiprocessTest,
     Id insert_id;
     generateId(&insert_id);
     std::shared_ptr<Revision> to_insert = table_->getTemplate();
-    to_insert->set(CRTable::kIdField, insert_id);
+    to_insert->setId(insert_id);
     to_insert->set(kFieldName, n);
     transaction->insert(to_insert);
     return insert_id;
@@ -81,7 +85,7 @@ class NetTableTest : public MultiprocessTest,
     CHECK_NOTNULL(transaction);
     generateId(id);
     std::shared_ptr<Revision> to_insert = table_->getTemplate();
-    to_insert->set(CRTable::kIdField, *id);
+    to_insert->setId(*id);
     to_insert->set(kFieldName, n);
     transaction->insert(table_, chunk_, to_insert);
   }
@@ -95,14 +99,12 @@ class NetTableTest : public MultiprocessTest,
   }
 
   static const std::string kTableName;
-  static const std::string kFieldName;
   NetTable* table_;
   Chunk* chunk_;           // generic chunk pointer for custom use
   Id chunk_id_, item_id_;  // equally generic
 };
 
 const std::string NetTableTest::kTableName = "chunk_test_table";
-const std::string NetTableTest::kFieldName = "chunk_test_field";
 
 // Parameter true / false tests CRU / CR tables.
 INSTANTIATE_TEST_CASE_P(Default, NetTableTest, ::testing::Values(false, true));

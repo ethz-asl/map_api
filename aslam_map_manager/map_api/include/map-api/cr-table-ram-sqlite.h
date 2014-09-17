@@ -14,18 +14,24 @@ class CRTableRamSqlite final : public CRTable {
 
  private:
   virtual bool initCRDerived() final override;
-  virtual bool insertCRDerived(Revision* query) final override;
+  virtual bool insertCRDerived(const LogicalTime& time,
+                               Revision* query) final override;
   virtual bool bulkInsertCRDerived(const RevisionMap& query,
                                    const LogicalTime& time) final override;
   virtual bool patchCRDerived(const Revision& query) final override;
+  virtual void dumpChunkCRDerived(const Id& chunk_id, const LogicalTime& time,
+                                  RevisionMap* dest) final override;
   virtual int findByRevisionCRDerived(
-      const std::string& key, const Revision& valueHolder,
-      const LogicalTime& time, CRTable::RevisionMap* dest) final override;
+      int key, const Revision& valueHolder, const LogicalTime& time,
+      CRTable::RevisionMap* dest) final override;
+  virtual std::shared_ptr<Revision> getByIdCRDerived(
+      const Id& id, const LogicalTime& time) const final override;
   virtual void getAvailableIdsCRDerived(
       const LogicalTime& time, std::unordered_set<Id>* ids) final override;
-  virtual int countByRevisionCRDerived(const std::string& key,
-                                       const Revision& valueHolder,
+  virtual int countByRevisionCRDerived(int key, const Revision& valueHolder,
                                        const LogicalTime& time) final override;
+  virtual int countByChunkCRDerived(const Id& chunk_id,
+                                    const LogicalTime& time) final override;
 
   SqliteInterface sqlite_interface_;
 };

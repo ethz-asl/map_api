@@ -6,9 +6,8 @@
 
 namespace map_api {
 
-template<typename ValueType>
-bool LocalTransaction::addConflictCondition(const std::string& key,
-                                            const ValueType& value,
+template <typename ValueType>
+bool LocalTransaction::addConflictCondition(int key, const ValueType& value,
                                             CRTable* table) {
   CHECK_NOTNULL(table);
   if (LocalTransaction::notifyAbortedOrInactive()) {
@@ -22,8 +21,8 @@ bool LocalTransaction::addConflictCondition(const std::string& key,
 }
 
 template <typename ValueType>
-int LocalTransaction::find(const std::string& key, const ValueType& value,
-                           CRTable* table, CRTable::RevisionMap* dest) const {
+int LocalTransaction::find(int key, const ValueType& value, CRTable* table,
+                           CRTable::RevisionMap* dest) const {
   CHECK_NOTNULL(dest);
   if (LocalTransaction::notifyAbortedOrInactive()) {
     return false;
@@ -47,10 +46,9 @@ int LocalTransaction::find(const std::string& key, const ValueType& value,
   return dest->size();
 }
 
-template<typename ValueType>
+template <typename ValueType>
 LocalTransaction::SharedRevisionPointer LocalTransaction::findUnique(
-    const std::string& key, const ValueType& value, CRTable* table)
-const {
+    int key, const ValueType& value, CRTable* table) const {
   if (LocalTransaction::notifyAbortedOrInactive()) {
     return NULL;
   }
@@ -66,16 +64,16 @@ const {
   return table->findUnique(key, value, this->beginTime_);
 }
 
-template<typename ValueType>
+template <typename ValueType>
 int LocalTransaction::findInUncommitted(
-    const CRTable& table, const std::string& key, const ValueType& value,
+    const CRTable& table, int key, const ValueType& value,
     std::unordered_map<Id, SharedRevisionPointer>* dest) const {
   CHECK_NOTNULL(dest);
   dest->clear();
   for (const std::pair<ItemId, SharedRevisionPointer> &insertion :
       insertions_) {
     if (insertion.first.table->name() == table.name()) {
-      if (key != "") {
+      if (key >= 0) {
         if (insertion.second->verifyEqual(key, value)) {
           (*dest)[insertion.first.id] = insertion.second;
         }
@@ -88,7 +86,7 @@ int LocalTransaction::findInUncommitted(
   // (template this function or dynamic cast)
   for (const std::pair<ItemId, SharedRevisionPointer>& update : updates_) {
     if (update.first.table->name() == table.name()) {
-      if (key != "") {
+      if (key >= 0) {
         if (update.second->verifyEqual(key, value)) {
           (*dest)[update.first.id] = update.second;
         }
@@ -100,11 +98,10 @@ int LocalTransaction::findInUncommitted(
   return dest->size();
 }
 
-template<typename ValueType>
+template <typename ValueType>
 LocalTransaction::SharedRevisionPointer
-LocalTransaction::findUniqueInUncommitted(
-    const CRTable& table, const std::string& key, const ValueType& value)
-const {
+LocalTransaction::findUniqueInUncommitted(const CRTable& table, int key,
+                                          const ValueType& value) const {
   std::unordered_map<Id, SharedRevisionPointer> results;
   int count = this->findInUncommitted(table, key, value, &results);
   CHECK_LT(count, 2) << "Required unique find in uncommitted queries for " <<

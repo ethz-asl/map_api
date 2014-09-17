@@ -34,6 +34,7 @@ class LogicalTime {
   inline bool operator >(const LogicalTime& other) const;
   inline bool operator >=(const LogicalTime& other) const;
   inline bool operator ==(const LogicalTime& other) const;
+  inline bool operator !=(const LogicalTime& other) const;
 
  private:
   uint64_t value_;

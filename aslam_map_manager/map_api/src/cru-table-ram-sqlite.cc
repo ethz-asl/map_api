@@ -6,8 +6,8 @@ namespace map_api {
 
 CRUTableRamSqlite::~CRUTableRamSqlite() {}
 
-bool CRUTableRamSqlite::initCRUDerived() {
-  sqlite_interface_.init(Core::getSession());
+bool CRUTableRamSqlite::initCRDerived() {
+  sqlite_interface_.init(name(), Core::getSession());
   CHECK(sqlite_interface_.isSqlSafe(*descriptor_));
   CHECK(sqlite_interface_.create(*descriptor_));
   return true;
@@ -25,12 +25,22 @@ bool CRUTableRamSqlite::patchCRDerived(const Revision& query) {
   return sqlite_interface_.insert(query);
 }
 
-int CRUTableRamSqlite::findByRevisionCRUDerived(const std::string& key,
-                                                const Revision& value_holder,
-                                                const LogicalTime& time,
-                                                RevisionMap* dest) {
-  // TODO(tcies) adapt to "removed" flag
-  CHECK(false) << "Not adapted to \"removed\" flag!";
+std::shared_ptr<Revision> CRUTableRamSqlite::getByIdCRDerived(
+    const Id& /*id*/, const LogicalTime& /*time*/) const {
+  LOG(FATAL) << "Not implemented";  // TODO(tcies) implement
+}
+
+void __attribute__((deprecated)) CRUTableRamSqlite::dumpChunkCRDerived(
+    const Id& /*chunk_id*/, const LogicalTime& /*time*/,
+    RevisionMap* /*dest*/) {
+  LOG(FATAL) << "Not implemented";  // TODO(tcies) implement
+}
+
+int __attribute__((deprecated)) CRUTableRamSqlite::findByRevisionCRDerived(
+    int key, const Revision& value_holder, const LogicalTime& time,
+    RevisionMap* dest) {
+  // TODO(tcies) adapt to "removed" flag and int key
+  CHECK(false) << "Not adapted to \"removed\" flag and int key!";
   // TODO(tcies) apart from the more sophisticated time query, this is very
   // similar to its CR equivalent. Maybe refactor at some time?
   SqliteInterface::PocoToProto poco_to_proto(getTemplate());
@@ -46,7 +56,7 @@ int CRUTableRamSqlite::findByRevisionCRUDerived(const std::string& key,
   poco_to_proto.into(&statement);
   statement << " FROM " << name() << " WHERE " << kUpdateTimeField << " <  ? ",
       Poco::Data::use(serialized_time);
-  if (key != "") {
+  if (key >= 0) {
     statement << " AND " << key << " LIKE ";
     data_holder.push_back(value_holder.insertPlaceHolder(key, &statement));
   }
@@ -60,12 +70,10 @@ int CRUTableRamSqlite::findByRevisionCRUDerived(const std::string& key,
   std::vector<std::shared_ptr<Revision> > from_poco;
   poco_to_proto.toProto(&from_poco);
   for (const std::shared_ptr<Revision>& item : from_poco) {
-    Id id;
-    item->get(kIdField, &id);
+    Id id = item->getId<Id>();
     CHECK(id.isValid());
     std::unordered_map<Id, LogicalTime> latest;
-    LogicalTime item_time;
-    item->get(kUpdateTimeField, &item_time);
+    LogicalTime item_time = item->getUpdateTime();
     if (item_time > latest[id]) {
       (*dest)[id] = item;
       latest[id] = item_time;
@@ -79,11 +87,10 @@ void __attribute__((deprecated)) CRUTableRamSqlite::getAvailableIdsCRDerived(
   LOG(FATAL) << "Needs implementation";
 }
 
-int CRUTableRamSqlite::countByRevisionCRUDerived(const std::string& key,
-                                                 const Revision& value_holder,
-                                                 const LogicalTime& time) {
-  // TODO(tcies) adapt to "removed" flag
-  CHECK(false) << "Not adapted to \"removed\" flag!";
+int __attribute__((deprecated)) CRUTableRamSqlite::countByRevisionCRDerived(
+    int key, const Revision& value_holder, const LogicalTime& time) {
+  // TODO(tcies) adapt to "removed" flag and int key
+  CHECK(false) << "Not adapted to \"removed\" flag and int key!";
   // TODO(tcies) apart from the more sophisticated time query, this is very
   // similar to its CR equivalent. Maybe refactor at some time?
   SqliteInterface::PocoToProto poco_to_proto(getTemplate());
@@ -99,7 +106,7 @@ int CRUTableRamSqlite::countByRevisionCRUDerived(const std::string& key,
       Poco::Data::into(count);
   statement << " FROM " << name() << " WHERE " << kUpdateTimeField << " <  ? ",
       Poco::Data::use(serialized_time);
-  if (key != "") {
+  if (key >= 0) {
     statement << " AND " << key << " LIKE ";
     data_holder.push_back(value_holder.insertPlaceHolder(key, &statement));
   }
@@ -113,14 +120,33 @@ int CRUTableRamSqlite::countByRevisionCRUDerived(const std::string& key,
   return count;
 }
 
+int __attribute__((deprecated)) CRUTableRamSqlite::countByChunkCRDerived(
+    const Id& /*chunk_id*/, const LogicalTime& /*time*/) {
+  // TODO(tcies) implement
+  CHECK(false) << "Not implemented";
+}
+
 bool CRUTableRamSqlite::insertUpdatedCRUDerived(const Revision& query) {
   sqlite_interface_.insert(query);
   return true;
 }
 
-void CRUTableRamSqlite::findHistoryByRevisionCRUDerived(
-    const std::string& /*key*/, const Revision& /*valueHolder*/,
-    const LogicalTime& /*time*/, HistoryMap* /*dest*/) {
+void __attribute__((deprecated))
+    CRUTableRamSqlite::findHistoryByRevisionCRUDerived(
+        int /*key*/, const Revision& /*valueHolder*/,
+        const LogicalTime& /*time*/, HistoryMap* /*dest*/) {
+  // TODO(tcies) implement
+  CHECK(false) << "Remains to be implemented";
+}
+
+void __attribute__((deprecated)) CRUTableRamSqlite::chunkHistory(
+    const Id& /*chunk_id*/, const LogicalTime& /*time*/, HistoryMap* /*dest*/) {
+  // TODO(tcies) implement
+  CHECK(false) << "Remains to be implemented";
+}
+
+void __attribute__((deprecated)) CRUTableRamSqlite::itemHistoryCRUDerived(
+    const Id& /*id*/, const LogicalTime& /*time*/, History* /*dest*/) {
   // TODO(tcies) implement
   CHECK(false) << "Remains to be implemented";
 }

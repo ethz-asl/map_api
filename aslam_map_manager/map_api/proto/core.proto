@@ -1,40 +1,45 @@
 package map_api.proto;
 
-message TableFieldDescriptor {
-  enum Type { INT32 = 1; INT64 = 2; UINT64 = 3; DOUBLE = 4; STRING = 5; 
+enum Type { INT32 = 1; INT64 = 2; UINT64 = 3; DOUBLE = 4; STRING = 5; 
     BLOB = 6; HASH128 = 7; UINT32 = 8;}
-	required string name = 1;
-	required Type type = 2;
-}
 
 message TableDescriptor {
-	required string name = 1;
-	repeated TableFieldDescriptor fields = 2;
+	optional string name = 1;
+	repeated Type fields = 2;
 }
 
 message TableField {
-	required TableFieldDescriptor nameType = 1;
-	optional bytes blobValue = 2;
-	optional double doubleValue = 3;
-	optional int32 intValue = 4;
-	optional int64 longValue = 5;
-	optional uint64 uLongValue = 6;
-	optional string stringValue = 7;
-	optional uint32 uIntValue = 8;
+	optional Type type = 1;
+	optional bytes blob_value = 2;
+	optional double double_value = 3;
+	optional int32 int_value = 4;
+	optional int64 long_value = 5;
+	optional uint64 unsigned_long_value = 6;
+	optional string string_value = 7;
+	optional uint32 unsigned_int_value = 8;
+}
+
+message Id {
+  required string hash = 1;  // TODO(tcies) replace with below
+  // repeated double value = 1;  // needs to be repeated for contiguousness	
 }
 
 message Revision {
-  required string table = 1;
-  repeated TableField fieldQueries = 2;
+  optional Id id = 1;
+  optional uint64 insert_time = 2;
+  optional uint64 update_time = 3;
+  optional bool removed = 4;
+  optional Id chunk_id = 5;
+  repeated TableField custom_field_values = 6;
 }
 
 message History {
-  repeated bytes serialized_revisions = 1; // TODO(tcies) no serialize
+  repeated Revision revisions = 1;
 }
 
 message HubMessage {
-  required string type = 1;
-  required bytes serialized = 2;
+  optional string type = 1;
+  optional bytes serialized = 2;
   optional string sender = 3;
   optional uint64 logical_time = 4;
 }
