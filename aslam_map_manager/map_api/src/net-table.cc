@@ -261,6 +261,14 @@ void NetTable::kill() {
     index_.reset();
   }
   index_lock_.unlock();
+  index_lock_.readLock();
+  if (spatial_index_.get() != nullptr) {
+    spatial_index_->leave();
+    index_lock_.unlock();
+    index_lock_.writeLock();
+    spatial_index_.reset();
+  }
+  index_lock_.unlock();
 }
 
 void NetTable::shareAllChunks() {
@@ -424,11 +432,19 @@ void NetTable::handleUpdateRequest(
   }
 }
 
-void NetTable::handleRoutedChordRequests(
-    const Message& request, Message* response) {
+void NetTable::handleRoutedNetTableChordRequests(const Message& request,
+                                                 Message* response) {
   index_lock_.readLock();
   CHECK_NOTNULL(index_.get());
   index_->handleRoutedRequest(request, response);
+  index_lock_.unlock();
+}
+
+void NetTable::handleRoutedSpatialChordRequests(const Message& request,
+                                                Message* response) {
+  index_lock_.readLock();
+  CHECK_NOTNULL(spatial_index_.get());
+  spatial_index_->handleRoutedRequest(request, response);
   index_lock_.unlock();
 }
 

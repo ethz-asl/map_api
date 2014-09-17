@@ -76,6 +76,10 @@ void IPC::push(const LogicalTime& message) {
   oss << message.serialize();
   push(oss.str());
 }
+template <>
+void IPC::push(const PeerId& peer_id) {
+  push(peer_id.ipPort());
+}
 
 void IPC::pushHandler(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
@@ -119,6 +123,17 @@ bool IPC::pop(LogicalTime* destination) {
   uint64_t serialized;
   iss >> serialized;
   *destination = LogicalTime(serialized);
+  return true;
+}
+template <>
+bool IPC::pop(PeerId* destination) {
+  CHECK_NOTNULL(destination);
+  std::string address;
+  if (!pop(&address)) {
+    return false;
+  }
+  CHECK(PeerId::isValid(address));
+  *destination = PeerId(address);
   return true;
 }
 

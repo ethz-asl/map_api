@@ -130,7 +130,10 @@ class NetTable {
       const Id& chunk_id, const Revision& item, const PeerId& sender,
       Message* response);
 
-  void handleRoutedChordRequests(const Message& request, Message* response);
+  void handleRoutedNetTableChordRequests(const Message& request,
+                                         Message* response);
+  void handleRoutedSpatialChordRequests(const Message& request,
+                                        Message* response);
 
  private:
   NetTable();
