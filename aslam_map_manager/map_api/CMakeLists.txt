@@ -101,6 +101,9 @@ target_link_libraries(test_core_test ${PROJECT_NAME}_test)
 catkin_add_gtest(test_net_table_test test/net_table_test.cc)
 target_link_libraries(test_net_table_test ${PROJECT_NAME}_test)
 
+catkin_add_gtest(test_spatial_index_test test/spatial_index_test.cc)
+target_link_libraries(test_spatial_index_test ${PROJECT_NAME}_test)
+
 catkin_add_gtest(test_transaction_test test/transaction-test.cc)
 target_link_libraries(test_transaction_test ${PROJECT_NAME}_test)
 
