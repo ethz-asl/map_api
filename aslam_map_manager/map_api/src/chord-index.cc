@@ -11,6 +11,7 @@ const std::string kStabilizeJoin("stabilize");
 DEFINE_string(join_mode, kCleanJoin,
               ("Can be " + kCleanJoin + " or " + kStabilizeJoin).c_str());
 DEFINE_uint64(stabilize_us, 1000, "Interval of stabilization in microseconds");
+DECLARE_int32(simulated_lag);
 
 namespace map_api {
 
@@ -106,23 +107,23 @@ bool ChordIndex::handleReplace(const PeerId& old_peer, const PeerId& new_peer) {
   peer_lock_.readLock();
   bool successor = old_peer == successor_->id;
   bool predecessor = old_peer == predecessor_->id;
-  if (!successor && !predecessor) { // could be both
+  if (!successor && !predecessor) {  // could be both
     return false;
   }
   std::lock_guard<std::mutex> lock(node_lock_);
   if (successor) {
-    if(!node_locked_ || node_lock_holder_ != old_peer) {
+    if (!node_locked_ || node_lock_holder_ != old_peer) {
       peer_lock_.unlock();
       return false;
     }
   }
   if (predecessor) {
-    if(!node_locked_ || node_lock_holder_ != old_peer) {
+    if (!node_locked_ || node_lock_holder_ != old_peer) {
       peer_lock_.unlock();
       return false;
     }
   }
-  peer_lock_.unlock(); // registerPeer does writeLock
+  peer_lock_.unlock();  // registerPeer does writeLock
   if (successor) {
     registerPeer(new_peer, &successor_);
   }
@@ -185,7 +186,7 @@ bool ChordIndex::handlePushResponsibilities(const DataMap& responsibilities) {
   }
   data_lock_.writeLock();
   for (const DataMap::value_type& item : responsibilities) {
-    data_[item.first] = item.second; // overwrite intended
+    data_[item.first] = item.second;  // overwrite intended
   }
   data_lock_.unlock();
   return true;
@@ -384,7 +385,8 @@ void ChordIndex::leave() {
   stabilizer_.join();
   CHECK_EQ(kCleanJoin, FLAGS_join_mode) << "Stabilize leave deprecated";
   leaveClean();
-  usleep(50000);// TODO(tcies) unhack! "Ensures" that pending requests resolve
+  // TODO(tcies) unhack! "Ensures" that pending requests resolve
+  usleep(FLAGS_simulated_lag * 50000);
   initialized_ = false;
   initialized_cv_.notify_all();
   integrated_ = false;
@@ -403,29 +405,29 @@ void ChordIndex::leaveClean() {
       if (hash(successor) < hash(predecessor)) {
         CHECK_NE(PeerId::self(), successor);
         CHECK_NE(PeerId::self(), predecessor);
-        if (own_key_ > hash(successor)) { // su ... pr, self
+        if (own_key_ > hash(successor)) {  // su ... pr, self
           CHECK(lock(successor));
           CHECK(lock(predecessor));
           CHECK(lock());
-        } else { // self, su ... pr
+        } else {  // self, su ... pr
           CHECK(lock());
           CHECK(lock(successor));
           CHECK(lock(predecessor));
         }
       } else {
         CHECK_EQ(successor, predecessor);
-        if (own_key_ < hash(successor)) { // self, su = pr
+        if (own_key_ < hash(successor)) {  // self, su = pr
           CHECK(lock());
           CHECK(lock(successor));
-        } else if (hash(successor) < own_key_) { // su = pr, self
+        } else if (hash(successor) < own_key_) {  // su = pr, self
           CHECK(lock(successor));
           CHECK(lock());
-        } else { // su = pr = self
+        } else {  // su = pr = self
           CHECK_EQ(PeerId::self(), predecessor);
           CHECK(lock());
         }
       }
-    } else { // general case: ... pr, self, su ...
+    } else {  // general case: ... pr, self, su ...
       CHECK_NE(PeerId::self(), successor);
       CHECK_NE(PeerId::self(), predecessor);
       CHECK(lock(predecessor));
@@ -483,7 +485,7 @@ PeerId ChordIndex::closestPrecedingFinger(
     const Key& key) {
   peer_lock_.readLock();
   PeerId result;
-  if(isIn(key, own_key_, successor_->key)) {
+  if (isIn(key, own_key_, successor_->key)) {
     result = PeerId::self();
   } else {
     result = successor_->id;
@@ -504,7 +506,8 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
     PeerId successor_predecessor;
     self->peer_lock_.readLock();
     if (self->successor_->id != PeerId::self()) {
-      if (!self->getPredecessorRpc(self->successor_->id, &successor_predecessor)) {
+      if (!self->getPredecessorRpc(self->successor_->id,
+                                   &successor_predecessor)) {
         // Node leaves have not been accounted for yet. However, not crashing
         // the program is necessery for successful (simultaneous) shutdown of a
         // network.
@@ -562,7 +565,7 @@ void ChordIndex::init() {
   self_.reset(new ChordPeer(PeerId::self()));
   //  LOG(INFO) << "Self key is " << self_->key;
   for (size_t i = 0; i < M; ++i) {
-    fingers_[i].base_key = own_key_ + (1 << i); // overflow intended
+    fingers_[i].base_key = own_key_ + (1 << i);  // overflow intended
   }
   terminate_ = false;
   stabilizer_ = std::thread(stabilizeThread, this);
@@ -579,7 +582,7 @@ void ChordIndex::registerPeer(
   peer_lock_.writeLock();
   PeerMap::iterator found = peers_.find(peer);
   std::shared_ptr<ChordPeer> existing;
-  if (found != peers_.end() && (existing = found->second.lock())){
+  if (found != peers_.end() && (existing = found->second.lock())) {
     *target = existing;
   } else {
     target->reset(new ChordPeer(peer));
@@ -596,9 +599,9 @@ bool ChordIndex::isIn(
   if (to_exclusive == from_inclusive) {
     return true;
   }
-  if (from_inclusive <= to_exclusive) { // case doesn't pass 0
+  if (from_inclusive <= to_exclusive) {  // case doesn't pass 0
     return (from_inclusive < key && key < to_exclusive);
-  } else { // case passes 0
+  } else {  // case passes 0
     return (from_inclusive < key || key < to_exclusive);
   }
 }
@@ -646,7 +649,7 @@ bool ChordIndex::handleNotifyClean(const PeerId& peer_id) {
   CHECK(peers_.find(peer_id) == peers_.end());
   std::shared_ptr<ChordPeer> peer(new ChordPeer(peer_id));
   handleNotifyCommon(peer);
-  CHECK(peer.use_count() > 1);
+  CHECK_GT(peer.use_count(), 1);
   peer_lock_.unlock();
   peer_lock_.writeLock();
   peers_[peer_id] = std::weak_ptr<ChordPeer>(peer);
