@@ -51,8 +51,8 @@ void SpatialIndex::seekChunks(const BoundingBox& bounding_box,
     // because of the simultaneous topology change and retrieve - problem,
     // requests can occasionally fail (catching forever-blocks)
     for (int i = 0; !retrieveData(typeHack(cell_index), &chunks_string); ++i) {
-      CHECK_LT(i, 1000) << "Retrieval of cell" << cell_index << " from index "
-                                                                "timed out!";
+      CHECK_LT(i, 1000) << "Retrieval of cell " << cell_index << " from index "
+                                                                 "timed out!";
       // corresponds to one second of topology turmoil
       usleep(1000);
     }
