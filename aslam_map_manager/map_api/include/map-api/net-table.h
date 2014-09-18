@@ -59,6 +59,9 @@ class NetTable {
   Chunk* getChunk(const Id& chunk_id);
   void registerChunkInSpace(const Id& chunk_id,
                             const SpatialIndex::BoundingBox& bounding_box);
+  template <typename IdType>
+  void registerItemInSpace(const IdType& id,
+                           const SpatialIndex::BoundingBox& bounding_box);
   void getChunksInBoundingBox(const SpatialIndex::BoundingBox& bounding_box,
                               std::unordered_set<Chunk*>* chunks);
 

@@ -5,6 +5,17 @@
 
 namespace map_api {
 
+/**
+ * Making this deprecated because I don't really like it...
+ */
+template <typename IdType>
+void __attribute__((deprecated)) NetTable::registerItemInSpace(
+    const IdType& id, const SpatialIndex::BoundingBox& bounding_box) {
+  std::shared_ptr<Revision> item_revision =
+      getByIdInconsistent(id, LogicalTime::sample());
+  registerChunkInSpace(item_revision->getChunkId(), bounding_box);
+}
+
 template <typename ValueType>
 CRTable::RevisionMap NetTable::lockFind(const std::string& key,
                                         const ValueType& value,

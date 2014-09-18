@@ -28,6 +28,11 @@ void SpatialIndex::announceChunk(const Id& chunk_id,
     proto::ChunkList chunks;
     if (retrieveData(typeHack(cell_index), &chunks_string)) {
       CHECK(chunks.ParseFromString(chunks_string));
+      for (int i = 0; i < chunks.chunk_ids_size(); ++i) {
+        if (chunks.chunk_ids(i) == chunk_id.hexString()) {
+          continue;
+        }
+      }
     }
     chunks.add_chunk_ids(chunk_id.hexString());
     CHECK(addData(typeHack(cell_index), chunks.SerializeAsString()));
@@ -286,7 +291,7 @@ inline void SpatialIndex::getCellIndices(const BoundingBox& bounding_box,
   for (size_t dimension = 0; dimension < bounds_.size(); ++dimension) {
     CHECK_GE(bounding_box[dimension].min, bounds_[dimension].min);
     CHECK_LT(bounding_box[dimension].min, bounding_box[dimension].max);
-    CHECK_LT(bounding_box[dimension].max, bounds_[dimension].max);
+    CHECK_LE(bounding_box[dimension].max, bounds_[dimension].max);
     // indices in this dimension
     std::vector<size_t> this_dimension_indices;
     for (size_t i = coefficientOf(dimension, bounding_box[dimension].min);
@@ -298,7 +303,7 @@ inline void SpatialIndex::getCellIndices(const BoundingBox& bounding_box,
     for (size_t this_dimension_index : this_dimension_indices) {
       for (size_t previous_index : *indices) {
         extrusion_step.push_back(previous_index +
-        		this_dimension_index * lower_dimensions_size);
+                                 this_dimension_index * lower_dimensions_size);
       }
     }
     indices->swap(extrusion_step);
@@ -308,6 +313,9 @@ inline void SpatialIndex::getCellIndices(const BoundingBox& bounding_box,
 
 inline size_t SpatialIndex::coefficientOf(size_t dimension,
                                           double value) const {
+  if (value == bounds_[dimension].max) {
+    return subdivision_[dimension] - 1;
+  }
   value -= bounds_[dimension].min;
   value *= subdivision_[dimension];
   value /= (bounds_[dimension].max - bounds_[dimension].min);
