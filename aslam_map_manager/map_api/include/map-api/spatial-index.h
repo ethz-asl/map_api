@@ -35,6 +35,12 @@ class SpatialIndex : public ChordIndex {
   void handleRoutedRequest(const Message& routed_request, Message* response);
 
   /**
+   * Overriding create() to automatically create all cells at index creation
+   * time.
+   */
+  void create();
+
+  /**
    * Without guarantee of consistency - the only thing that is (needed to be)
    * guaranteed is that if at least one peer holds a chunk, at least one peer
    * will be registered in the index.
