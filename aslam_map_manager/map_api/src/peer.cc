@@ -8,9 +8,8 @@
 
 DEFINE_int32(request_timeout, 5000, "Amount of miliseconds after which a "\
              "non-responsive peer is considered disconnected");
-DEFINE_int32(simulated_lag, 0,
-             "Amount of miliseconds "
-             "defining the simulated lag.");
+DEFINE_int32(simulated_lag_ms, 0,
+             "Duration in milliseconds of the simulated lag.");
 
 namespace map_api {
 
@@ -52,7 +51,7 @@ bool Peer::try_request(Message* request, Message* response) {
   try {
     zmq::message_t message(buffer, size, NULL, NULL);
     {
-      usleep(1e3 * FLAGS_simulated_lag);
+      usleep(1e3 * FLAGS_simulated_lag_ms);
       std::lock_guard<std::mutex> lock(socket_mutex_);
       CHECK(socket_.send(message));
       if (!socket_.recv(&message)) {

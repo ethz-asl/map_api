@@ -11,7 +11,7 @@ const std::string kStabilizeJoin("stabilize");
 DEFINE_string(join_mode, kCleanJoin,
               ("Can be " + kCleanJoin + " or " + kStabilizeJoin).c_str());
 DEFINE_uint64(stabilize_us, 1000, "Interval of stabilization in microseconds");
-DECLARE_int32(simulated_lag);
+DECLARE_int32(simulated_lag_ms);
 
 namespace map_api {
 
@@ -386,7 +386,7 @@ void ChordIndex::leave() {
   CHECK_EQ(kCleanJoin, FLAGS_join_mode) << "Stabilize leave deprecated";
   leaveClean();
   // TODO(tcies) unhack! "Ensures" that pending requests resolve
-  usleep(FLAGS_simulated_lag * 50000);
+  usleep(FLAGS_simulated_lag_ms * 50000);
   initialized_ = false;
   initialized_cv_.notify_all();
   integrated_ = false;

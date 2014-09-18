@@ -33,7 +33,7 @@ DEFINE_string(discovery_mode, kFileDiscovery,
 DEFINE_string(discovery_server, "127.0.0.1:5050",
               "Server to be used for "
               "server-discovery");
-DECLARE_int32(simulated_lag);
+DECLARE_int32(simulated_lag_ms);
 
 namespace map_api {
 
@@ -389,7 +389,7 @@ void Hub::listenThread(Hub* self) {
       memcpy(reinterpret_cast<void*>(response_message.data()),
              serialized_response.c_str(), serialized_response.size());
 
-      usleep(1e3 * FLAGS_simulated_lag);
+      usleep(1e3 * FLAGS_simulated_lag_ms);
       server.send(response_message);
     }
     catch (const std::exception& e) {  // NOLINT
