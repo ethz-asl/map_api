@@ -137,4 +137,4 @@ bool IPC::pop(PeerId* destination) {
   return true;
 }
 
-} /* namespace map_api */
+}  // namespace map_api
