@@ -56,6 +56,25 @@ void NetTable::joinIndex(const PeerId& entry_point) {
   index_lock_.unlock();
 }
 
+void NetTable::createSpatialIndex(const SpatialIndex::BoundingBox& bounds,
+                                  const std::vector<size_t>& subdivision) {
+  index_lock_.writeLock();
+  CHECK(spatial_index_.get() == nullptr);
+  spatial_index_.reset(new SpatialIndex(name(), bounds, subdivision));
+  spatial_index_->create();
+  index_lock_.unlock();
+}
+
+void NetTable::joinSpatialIndex(const SpatialIndex::BoundingBox& bounds,
+                                const std::vector<size_t>& subdivision,
+                                const PeerId& entry_point) {
+  index_lock_.writeLock();
+  CHECK(spatial_index_.get() == nullptr);
+  spatial_index_.reset(new SpatialIndex(name(), bounds, subdivision));
+  spatial_index_->join(entry_point);
+  index_lock_.unlock();
+}
+
 const std::string& NetTable::name() const {
   return cache_->name();
 }
@@ -110,6 +129,32 @@ Chunk* NetTable::getChunk(const Id& chunk_id) {
   Chunk* result = found->second.get();
   active_chunks_lock_.unlock();
   return result;
+}
+
+void NetTable::registerChunkInSpace(
+    const Id& chunk_id, const SpatialIndex::BoundingBox& bounding_box) {
+  active_chunks_lock_.readLock();
+  CHECK(active_chunks_.find(chunk_id) != active_chunks_.end());
+  active_chunks_lock_.unlock();
+  index_lock_.readLock();
+  spatial_index_->announceChunk(chunk_id, bounding_box);
+  index_lock_.unlock();
+}
+
+void NetTable::getChunksInBoundingBox(
+    const SpatialIndex::BoundingBox& bounding_box,
+    std::unordered_set<Chunk*>* chunks) {
+  CHECK_NOTNULL(chunks);
+  chunks->clear();
+  std::unordered_set<Id> chunk_ids;
+  index_lock_.readLock();
+  spatial_index_->seekChunks(bounding_box, &chunk_ids);
+  index_lock_.unlock();
+  for (const Id& id : chunk_ids) {
+    Chunk* chunk = getChunk(id);
+    CHECK_NOTNULL(chunk);
+    chunks->insert(chunk);
+  }
 }
 
 bool NetTable::insert(const LogicalTime& time, Chunk* chunk, Revision* query) {
@@ -214,6 +259,14 @@ void NetTable::kill() {
     index_lock_.unlock();
     index_lock_.writeLock();
     index_.reset();
+  }
+  index_lock_.unlock();
+  index_lock_.readLock();
+  if (spatial_index_.get() != nullptr) {
+    spatial_index_->leave();
+    index_lock_.unlock();
+    index_lock_.writeLock();
+    spatial_index_.reset();
   }
   index_lock_.unlock();
 }
@@ -379,11 +432,19 @@ void NetTable::handleUpdateRequest(
   }
 }
 
-void NetTable::handleRoutedChordRequests(
-    const Message& request, Message* response) {
+void NetTable::handleRoutedNetTableChordRequests(const Message& request,
+                                                 Message* response) {
   index_lock_.readLock();
   CHECK_NOTNULL(index_.get());
   index_->handleRoutedRequest(request, response);
+  index_lock_.unlock();
+}
+
+void NetTable::handleRoutedSpatialChordRequests(const Message& request,
+                                                Message* response) {
+  index_lock_.readLock();
+  CHECK_NOTNULL(spatial_index_.get());
+  spatial_index_->handleRoutedRequest(request, response);
   index_lock_.unlock();
 }
 

@@ -4,6 +4,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <gtest/gtest_prod.h>
 #include <Poco/RWLock.h>
@@ -12,6 +13,7 @@
 #include "map-api/cr-table.h"
 #include "map-api/net-table-index.h"
 #include "map-api/revision.h"
+#include "map-api/spatial-index.h"
 
 namespace map_api {
 inline std::string humanReadableBytes(double size) {
@@ -39,6 +41,14 @@ class NetTable {
   bool init(CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor);
   void createIndex();
   void joinIndex(const PeerId& entry_point);
+  /**
+   * TODO(tcies) make part of metatable conf.
+   */
+  void createSpatialIndex(const SpatialIndex::BoundingBox& bounds,
+                          const std::vector<size_t>& subdivision);
+  void joinSpatialIndex(const SpatialIndex::BoundingBox& bounds,
+                        const std::vector<size_t>& subdivision,
+                        const PeerId& entry_point);
 
   const std::string& name() const;
   const CRTable::Type& type() const;
@@ -47,6 +57,13 @@ class NetTable {
   Chunk* newChunk();
   Chunk* newChunk(const Id& chunk_id);
   Chunk* getChunk(const Id& chunk_id);
+  void registerChunkInSpace(const Id& chunk_id,
+                            const SpatialIndex::BoundingBox& bounding_box);
+  template <typename IdType>
+  void registerItemInSpace(const IdType& id,
+                           const SpatialIndex::BoundingBox& bounding_box);
+  void getChunksInBoundingBox(const SpatialIndex::BoundingBox& bounding_box,
+                              std::unordered_set<Chunk*>* chunks);
 
   // RETRIEVAL (locking all chunks)
   template <typename ValueType>
@@ -116,7 +133,10 @@ class NetTable {
       const Id& chunk_id, const Revision& item, const PeerId& sender,
       Message* response);
 
-  void handleRoutedChordRequests(const Message& request, Message* response);
+  void handleRoutedNetTableChordRequests(const Message& request,
+                                         Message* response);
+  void handleRoutedSpatialChordRequests(const Message& request,
+                                        Message* response);
 
  private:
   NetTable();
@@ -155,6 +175,7 @@ class NetTable {
    * DO NOT USE FROM HANDLER THREAD (else TODO(tcies) mutex)
    */
   std::unique_ptr<NetTableIndex> index_;
+  std::unique_ptr<SpatialIndex> spatial_index_;
   Poco::RWLock index_lock_;
 };
 
