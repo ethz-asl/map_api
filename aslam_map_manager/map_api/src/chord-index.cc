@@ -386,7 +386,7 @@ void ChordIndex::leave() {
   CHECK_EQ(kCleanJoin, FLAGS_join_mode) << "Stabilize leave deprecated";
   leaveClean();
   // TODO(tcies) unhack! "Ensures" that pending requests resolve
-  usleep(FLAGS_simulated_lag_ms * 50000);
+  usleep(FLAGS_simulated_lag_ms * 50000 + 50000);
   initialized_ = false;
   initialized_cv_.notify_all();
   integrated_ = false;
