@@ -71,15 +71,22 @@ void Revision::addField(int index, proto::Type type) {
   underlying_revision_->add_custom_field_values()->set_type(type);
 }
 
-bool Revision::structureMatch(const Revision& other) const {
-  if (underlying_revision_->custom_field_values_size() !=
-      other.underlying_revision_->custom_field_values_size()) {
-    LOG(ERROR) << "Field count does not match";
-    return false;
+bool Revision::has(int index) {
+  return index < underlying_revision_->custom_field_values_size();
+}
+
+bool Revision::structureMatch(const Revision& reference) const {
+  int common_field_count =
+      reference.underlying_revision_->custom_field_values_size();
+  if (underlying_revision_->custom_field_values_size() <
+      reference.underlying_revision_->custom_field_values_size()) {
+    LOG(WARNING) << "Revision has less custom fields than reference. "
+                    "Proceed with caution.";
+    common_field_count = underlying_revision_->custom_field_values_size();
   }
-  for (int i = 0; i < underlying_revision_->custom_field_values_size(); ++i) {
+  for (int i = 0; i < common_field_count; ++i) {
     if (underlying_revision_->custom_field_values(i).type() !=
-        other.underlying_revision_->custom_field_values(i).type()) {
+        reference.underlying_revision_->custom_field_values(i).type()) {
       LOG(ERROR) << "Field type mismatch at position " << i;
       return false;
     }
