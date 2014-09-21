@@ -6,9 +6,10 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-// High value for debugging purposes
 DEFINE_int32(request_timeout, 5000, "Amount of miliseconds after which a "\
              "non-responsive peer is considered disconnected");
+DEFINE_int32(simulated_lag_ms, 0,
+             "Duration in milliseconds of the simulated lag.");
 
 namespace map_api {
 
@@ -22,7 +23,7 @@ Peer::Peer(const std::string& address, zmq::context_t& context,
     int timeOutMs = FLAGS_request_timeout;  // TODO(tcies) allow custom
     socket_.setsockopt(ZMQ_RCVTIMEO, &timeOutMs, sizeof(timeOutMs));
   }
-  catch (const std::exception& e) {
+  catch (const std::exception& e) {  // NOLINT
     LOG(FATAL) << "Connection to " << address << " failed";
   }
 }
@@ -50,6 +51,7 @@ bool Peer::try_request(Message* request, Message* response) {
   try {
     zmq::message_t message(buffer, size, NULL, NULL);
     {
+      usleep(1e3 * FLAGS_simulated_lag_ms);
       std::lock_guard<std::mutex> lock(socket_mutex_);
       CHECK(socket_.send(message));
       if (!socket_.recv(&message)) {
@@ -75,7 +77,7 @@ bool Peer::disconnect() {
   try {
     socket_.close();
   }
-  catch (const zmq::error_t& e) {
+  catch (const zmq::error_t& e) {  // NOLINT
     LOG(FATAL) << e.what();
   }
   return true;
