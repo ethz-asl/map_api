@@ -44,7 +44,7 @@ class Revision {
    * Does not check type - type is checked with get/set. Nothing that can be
    * done if type doesn't match anyways.
    */
-  bool has(int index);
+  bool hasField(int index);
 
   template <typename FieldType>
   bool set(int index, const FieldType& value);
