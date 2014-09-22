@@ -224,6 +224,7 @@ TEST_P(NetTableTest, Grind) {
       }
     }
     IPC::barrier(DIE, kProcesses - 1);
+    VLOG(3) << "Finishing...";
   }
 }
 

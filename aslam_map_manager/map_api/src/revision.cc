@@ -71,7 +71,7 @@ void Revision::addField(int index, proto::Type type) {
   underlying_revision_->add_custom_field_values()->set_type(type);
 }
 
-bool Revision::has(int index) {
+bool Revision::hasField(int index) {
   return index < underlying_revision_->custom_field_values_size();
 }
 
@@ -80,8 +80,8 @@ bool Revision::structureMatch(const Revision& reference) const {
       reference.underlying_revision_->custom_field_values_size();
   if (underlying_revision_->custom_field_values_size() <
       reference.underlying_revision_->custom_field_values_size()) {
-    LOG(WARNING) << "Revision has less custom fields than reference. "
-                    "Proceed with caution.";
+    LOG_FIRST_N(WARNING, 10) << "Revision has less custom fields than "
+                                "reference. Proceed with caution.";
     common_field_count = underlying_revision_->custom_field_values_size();
   }
   for (int i = 0; i < common_field_count; ++i) {
