@@ -2,6 +2,7 @@
 #define MAP_API_PEER_H_
 
 #include <mutex>
+#include <string>
 
 #include <zeromq_cpp/zmq.hpp>
 
@@ -19,6 +20,8 @@ class Peer {
    * Unlike request, doesn't terminate if the request times out.
    */
   bool try_request(Message* request, Message* response);
+
+  static void simulateBandwidth(size_t byte_size);
 
  private:
   /**
@@ -40,6 +43,6 @@ class Peer {
   std::mutex socket_mutex_;
 };
 
-} // namespace map_api
+}  // namespace map_api
 
-#endif /* MAP_API_PEER_H_ */
+#endif  // MAP_API_PEER_H_
