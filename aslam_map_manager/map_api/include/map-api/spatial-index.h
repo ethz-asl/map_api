@@ -24,8 +24,10 @@ class SpatialIndex : public ChordIndex {
    public:
     inline std::string debugString() const {
       std::ostringstream ss;
+      bool first = true;
       for (Range range : *this) {
-        ss << range.min << " " << range.max << std::endl;
+        ss << (first ? "" : ",") << range.min << "," << range.max;
+        first = false;
       }
       return ss.str();
     }
@@ -33,6 +35,12 @@ class SpatialIndex : public ChordIndex {
 
   virtual ~SpatialIndex();
   void handleRoutedRequest(const Message& routed_request, Message* response);
+
+  /**
+   * Overriding create() to automatically create all cells at index creation
+   * time.
+   */
+  void create();
 
   /**
    * Without guarantee of consistency - the only thing that is (needed to be)

@@ -18,6 +18,16 @@ SpatialIndex::SpatialIndex(const std::string& table_name,
 
 SpatialIndex::~SpatialIndex() {}
 
+void SpatialIndex::create() {
+  ChordIndex::create();
+  proto::ChunkList empty_chunk_list;
+  std::vector<size_t> all_cell_indices;
+  getCellIndices(bounds_, &all_cell_indices);
+  for (size_t cell_index : all_cell_indices) {
+    CHECK(addData(typeHack(cell_index), empty_chunk_list.SerializeAsString()));
+  }
+}
+
 void SpatialIndex::announceChunk(const Id& chunk_id,
                                  const BoundingBox& bounding_box) {
   std::vector<size_t> affected_cell_indices;
@@ -51,8 +61,8 @@ void SpatialIndex::seekChunks(const BoundingBox& bounding_box,
     // because of the simultaneous topology change and retrieve - problem,
     // requests can occasionally fail (catching forever-blocks)
     for (int i = 0; !retrieveData(typeHack(cell_index), &chunks_string); ++i) {
-      CHECK_LT(i, 1000) << "Retrieval of cell" << cell_index << " from index "
-                                                                "timed out!";
+      CHECK_LT(i, 1000) << "Retrieval of cell " << cell_index << " from index "
+                                                                 "timed out!";
       // corresponds to one second of topology turmoil
       usleep(1000);
     }

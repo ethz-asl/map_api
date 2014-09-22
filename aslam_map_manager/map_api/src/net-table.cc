@@ -142,6 +142,12 @@ void NetTable::registerChunkInSpace(
 }
 
 void NetTable::getChunksInBoundingBox(
+    const SpatialIndex::BoundingBox& bounding_box) {
+  std::unordered_set<Chunk*> dummy;
+  getChunksInBoundingBox(bounding_box, &dummy);
+}
+
+void NetTable::getChunksInBoundingBox(
     const SpatialIndex::BoundingBox& bounding_box,
     std::unordered_set<Chunk*>* chunks) {
   CHECK_NOTNULL(chunks);
