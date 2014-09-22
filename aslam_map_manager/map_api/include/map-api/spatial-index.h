@@ -24,8 +24,10 @@ class SpatialIndex : public ChordIndex {
    public:
     inline std::string debugString() const {
       std::ostringstream ss;
+      bool first = true;
       for (Range range : *this) {
-        ss << range.min << " " << range.max << std::endl;
+        ss << (first ? "" : ",") << range.min << "," << range.max;
+        first = false;
       }
       return ss.str();
     }

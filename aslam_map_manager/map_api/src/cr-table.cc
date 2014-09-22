@@ -58,8 +58,8 @@ bool CRTable::insert(const LogicalTime& time, Revision* query) {
   CHECK_NOTNULL(query);
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
-  CHECK(reference->structureMatch(*query)) <<
-      "Bad structure of insert revision";
+  CHECK(query->structureMatch(*reference))
+      << "Bad structure of insert revision";
   CHECK(query->getId<Id>().isValid())
       << "Attempted to insert element with invalid ID";
   query->setInsertTime(time);
@@ -77,8 +77,8 @@ bool CRTable::bulkInsert(const RevisionMap& query,
   Id id;
   for (const RevisionMap::value_type& id_revision : query) {
     CHECK_NOTNULL(id_revision.second.get());
-    CHECK(reference->structureMatch(*id_revision.second)) <<
-        "Bad structure of insert revision";
+    CHECK(id_revision.second->structureMatch(*reference))
+        << "Bad structure of insert revision";
     id = id_revision.second->getId<Id>();
     CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
     CHECK(id == id_revision.first) << "ID in RevisionMap doesn't match";
@@ -90,7 +90,7 @@ bool CRTable::bulkInsert(const RevisionMap& query,
 bool CRTable::patch(const Revision& query) {
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
-  CHECK(reference->structureMatch(query)) << "Bad structure of patch revision";
+  CHECK(query.structureMatch(*reference)) << "Bad structure of patch revision";
   CHECK(query.getId<Id>().isValid())
       << "Attempted to insert element with invalid ID";
   return patchCRDerived(query);
