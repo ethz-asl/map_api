@@ -26,6 +26,8 @@ class ChunkManagerBase {
 
   inline void getChunkIds(std::unordered_set<Id>* chunk_ids) const {
     CHECK_NOTNULL(chunk_ids);
+    chunk_ids->clear();
+    chunk_ids->rehash(active_chunks_.size());
     for (const std::pair<const Id, Chunk*>& pair : active_chunks_) {
       chunk_ids->emplace(pair.first);
     }
