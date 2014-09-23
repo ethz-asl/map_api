@@ -161,6 +161,7 @@ void NetTable::getChunksInBoundingBox(
     CHECK_NOTNULL(chunk);
     chunks->insert(chunk);
   }
+  VLOG(3) << "Got " << chunk_ids.size() << " chunks";
 }
 
 bool NetTable::insert(const LogicalTime& time, Chunk* chunk, Revision* query) {
