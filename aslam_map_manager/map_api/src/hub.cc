@@ -33,6 +33,7 @@ DEFINE_string(discovery_mode, kFileDiscovery,
 DEFINE_string(discovery_server, "127.0.0.1:5050",
               "Server to be used for "
               "server-discovery");
+DECLARE_int32(simulated_lag_ms);
 
 namespace map_api {
 
@@ -387,6 +388,9 @@ void Hub::listenThread(Hub* self) {
       zmq::message_t response_message(serialized_response.size());
       memcpy(reinterpret_cast<void*>(response_message.data()),
              serialized_response.c_str(), serialized_response.size());
+
+      usleep(1e3 * FLAGS_simulated_lag_ms);
+      Peer::simulateBandwidth(response_message.size());
       server.send(response_message);
     }
     catch (const std::exception& e) {  // NOLINT
