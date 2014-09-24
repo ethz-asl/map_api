@@ -177,10 +177,9 @@ bool Hub::hasPeer(const PeerId& peer) const {
 }
 
 int Hub::peerSize() {
-  int size;
-  std::lock_guard<std::mutex> lock(peer_mutex_);
-  size = peers_.size();
-  return size;
+  std::set<PeerId> peers;
+  getPeers(&peers);
+  return peers.size();
 }
 
 const std::string& Hub::ownAddress() const { return own_address_; }
@@ -236,15 +235,17 @@ bool Hub::try_request(const PeerId& peer, Message* request, Message* response) {
   return found->second->try_request(request, response);
 }
 
-void Hub::broadcast(Message* request,
+void Hub::broadcast(Message* request_message,
                     std::unordered_map<PeerId, Message>* responses) {
-  CHECK_NOTNULL(request);
+  CHECK_NOTNULL(request_message);
   CHECK_NOTNULL(responses);
   responses->clear();
   // TODO(tcies) parallelize using std::future
-  for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer_pair :
-       peers_) {
-    peer_pair.second->request(request, &(*responses)[peer_pair.first]);
+  std::set<PeerId> peers;
+  getPeers(&peers);
+  for (const PeerId& peer : peers) {
+    VLOG(3) << "Requesting " << peer;
+    request(peer, request_message, &(*responses)[peer]);
   }
 }
 
