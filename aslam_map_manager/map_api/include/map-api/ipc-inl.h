@@ -29,9 +29,7 @@ bool IPC::pop(PeerId* destination);
 
 template <typename Type>
 void IPC::push(const Type& message) {
-  std::ostringstream ss;
-  ss << message;
-  push(ss.str());
+  push(std::to_string(message));
 }
 
 template <typename Type>
