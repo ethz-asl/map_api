@@ -2,6 +2,8 @@
 
 #include <glog/logging.h>
 
+#include <statistics/statistics.h>
+
 #include "map-api/core.h"
 #include "map-api/cr-table-ram-map.h"
 #include "map-api/cr-table-ram-sqlite.h"
@@ -161,6 +163,9 @@ void NetTable::getChunksInBoundingBox(
     CHECK_NOTNULL(chunk);
     chunks->insert(chunk);
   }
+  statistics::StatsCollector collector(
+      "map_api::NetTable::getChunksInBoundingBox - chunks");
+  collector.AddSample(chunk_ids.size());
   VLOG(3) << "Got " << chunk_ids.size() << " chunks";
 }
 
