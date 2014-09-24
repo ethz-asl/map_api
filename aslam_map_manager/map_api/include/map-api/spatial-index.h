@@ -22,6 +22,9 @@ class SpatialIndex : public ChordIndex {
   };
   class BoundingBox : public std::vector<Range> {
    public:
+    BoundingBox() : std::vector<Range>() {}
+    explicit BoundingBox(const std::initializer_list<Range>& init_list)
+        : std::vector<Range>(init_list) {}
     inline std::string debugString() const {
       std::ostringstream ss;
       bool first = true;
