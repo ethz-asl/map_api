@@ -3,8 +3,9 @@
 
 #include <condition_variable>
 #include <cstdio>
-#include <thread>
 #include <map>
+#include <string>
+#include <thread>
 
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
@@ -32,10 +33,11 @@ class MultiprocessTest : public ::testing::Test {
   void launchSubprocess(uint64_t id, const std::string& extra_flags);
 
   /**
-   * Gathers results from all subprocesses, forwarding them to stdout and
+   * Gathers results from subprocesses, forwarding them to stdout if verbose and
    * propagating failures.
    */
   void harvest(bool verbose = true);
+  void harvest(uint64_t id, bool verbose);
 
   /**
    * Because in some situations in harvesting it occurs that fgets() hangs
@@ -53,7 +55,8 @@ class MultiprocessTest : public ::testing::Test {
   virtual void TearDownImpl() = 0;
 
  private:
-  std::map<uint64_t, FILE*> subprocesses_; // map to maintain ordering
+  typedef std::map<uint64_t, FILE*> SubprocessMap;
+  SubprocessMap subprocesses_;  // map to maintain ordering
 };
-}  // map_api_test_suite
+}  // namespace map_api_test_suite
 #endif  // MAP_API_TEST_SUITE_MULTIPROCESS_FIXTURE_H_

@@ -67,7 +67,6 @@ void SpatialIndex::seekChunks(const BoundingBox& bounding_box,
       usleep(1000);
     }
     CHECK(proto_chunk_ids.ParseFromString(chunks_string));
-    CHECK_GT(proto_chunk_ids.chunk_ids_size(), 0);
     for (int i = 0; i < proto_chunk_ids.chunk_ids_size(); ++i) {
       Id chunk_id;
       chunk_id.fromHexString(proto_chunk_ids.chunk_ids(i));
