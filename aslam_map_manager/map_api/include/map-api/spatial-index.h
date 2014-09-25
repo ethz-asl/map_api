@@ -19,6 +19,7 @@ class SpatialIndex : public ChordIndex {
   // TODO(tcies) template class on type and dimensions
   struct Range {
     double min, max;
+    inline double span() const { return max - min; }
   };
   class BoundingBox : public std::vector<Range> {
    public:
