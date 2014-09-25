@@ -2,6 +2,8 @@
 #define MAP_API_NET_TABLE_MANAGER_H_
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "map-api/net-table.h"
 #include "map-api/table-descriptor.h"
@@ -27,7 +29,8 @@ class NetTableManager {
 
   void initMetatable(bool create_metatable_chunk);
 
-  void addTable(CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor);
+  void addTable(CRTable::Type type,
+                std::unique_ptr<TableDescriptor>* descriptor);
   /**
    * Can leave dangling reference
    */
@@ -57,8 +60,13 @@ class NetTableManager {
   /**
    * Chord requests
    */
-  static void handleRoutedChordRequests(
-      const Message& request, Message* response);
+  static void handleRoutedNetTableChordRequests(const Message& request,
+                                                Message* response);
+  /**
+   * Chord requests
+   */
+  static void handleRoutedSpatialChordRequests(const Message& request,
+                                               Message* response);
 
  private:
   NetTableManager() = default;
@@ -96,8 +104,8 @@ class NetTableManager {
   Poco::RWLock tables_lock_;
 };
 
-} /* namespace map_api */
+}  // namespace map_api
 
 #include "map-api/net-table-manager-inl.h"
 
-#endif /* MAP_API_NET_TABLE_MANAGER_H_ */
+#endif  // MAP_API_NET_TABLE_MANAGER_H_

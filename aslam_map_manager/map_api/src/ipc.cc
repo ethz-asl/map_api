@@ -39,10 +39,12 @@ void IPC::barrier(int id, int n_peers) {
   barrier_message.impose<kBarrierMessage, std::string>(ss.str());
   CHECK(Hub::instance().undisputableBroadcast(&barrier_message));
   std::unique_lock<std::mutex> lock(barrier_mutex_);
+  VLOG(3) << "Waiting for " << id;
   while (barrier_map_[id] < n_peers) {
     barrier_cv_.wait(lock);
   }
   barrier_map_[id] = 0;
+  VLOG(3) << id << " done";
   lock.unlock();
 }
 
@@ -57,6 +59,7 @@ void IPC::barrierHandler(
     ++barrier_map_[id];
   }
   barrier_cv_.notify_one();
+  VLOG(3) << "Got rpc on " << id << ", map now has " << barrier_map_[id];
   response->ack();
 }
 
@@ -72,9 +75,11 @@ void IPC::push(const Id& message) {
 }
 template <>
 void IPC::push(const LogicalTime& message) {
-  std::ostringstream oss;
-  oss << message.serialize();
-  push(oss.str());
+  push(message.serialize());
+}
+template <>
+void IPC::push(const PeerId& peer_id) {
+  push(peer_id.ipPort());
 }
 
 void IPC::pushHandler(const Message& request, Message* response) {
@@ -121,5 +126,16 @@ bool IPC::pop(LogicalTime* destination) {
   *destination = LogicalTime(serialized);
   return true;
 }
+template <>
+bool IPC::pop(PeerId* destination) {
+  CHECK_NOTNULL(destination);
+  std::string address;
+  if (!pop(&address)) {
+    return false;
+  }
+  CHECK(PeerId::isValid(address));
+  *destination = PeerId(address);
+  return true;
+}
 
-} /* namespace map_api */
+}  // namespace map_api

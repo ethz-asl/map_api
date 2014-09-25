@@ -1,6 +1,7 @@
 #ifndef MAP_API_SPATIAL_INDEX_H_
 #define MAP_API_SPATIAL_INDEX_H_
 
+#include <sstream>  // NOLINT
 #include <string>
 #include <unordered_set>
 #include <utility>
@@ -17,12 +18,32 @@ class SpatialIndex : public ChordIndex {
  public:
   // TODO(tcies) template class on type and dimensions
   struct Range {
-	  double min, max;
+    double min, max;
   };
-  typedef std::vector<Range> BoundingBox;
+  class BoundingBox : public std::vector<Range> {
+   public:
+    BoundingBox() : std::vector<Range>() {}
+    explicit BoundingBox(const std::initializer_list<Range>& init_list)
+        : std::vector<Range>(init_list) {}
+    inline std::string debugString() const {
+      std::ostringstream ss;
+      bool first = true;
+      for (Range range : *this) {
+        ss << (first ? "" : ",") << range.min << "," << range.max;
+        first = false;
+      }
+      return ss.str();
+    }
+  };
 
   virtual ~SpatialIndex();
   void handleRoutedRequest(const Message& routed_request, Message* response);
+
+  /**
+   * Overriding create() to automatically create all cells at index creation
+   * time.
+   */
+  void create();
 
   /**
    * Without guarantee of consistency - the only thing that is (needed to be)
@@ -53,9 +74,8 @@ class SpatialIndex : public ChordIndex {
   /**
    * Life cycle managed by NetTable!
    */
-  SpatialIndex(const std::string& table_name,
-		  const BoundingBox& bounds,
-		  const std::vector<size_t>& subdivision);
+  SpatialIndex(const std::string& table_name, const BoundingBox& bounds,
+               const std::vector<size_t>& subdivision);
   SpatialIndex(const SpatialIndex&) = delete;
   SpatialIndex& operator=(const SpatialIndex&) = delete;
   friend class NetTable;
