@@ -37,7 +37,7 @@ class MultiprocessTest : public ::testing::Test {
    * propagating failures.
    */
   void harvest(bool verbose = true);
-  void harvest(uint64_t id, bool verbose);
+  void harvest(uint64_t subprocess_id, bool verbose);
 
   /**
    * Because in some situations in harvesting it occurs that fgets() hangs
