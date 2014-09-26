@@ -140,7 +140,7 @@ void NetTableManager::addTable(
     temp->init(type, descriptor);
     std::shared_ptr<Revision> left = found->second->getTemplate(),
         right = temp->getTemplate();
-    CHECK(left->structureMatch(*right));
+    CHECK(right->structureMatch(*left));
   } else {
     std::pair<TableMap::iterator, bool> inserted = tables_.insert(
         std::make_pair((*descriptor)->name(), std::unique_ptr<NetTable>()));

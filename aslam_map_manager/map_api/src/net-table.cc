@@ -2,6 +2,9 @@
 
 #include <glog/logging.h>
 
+#include <statistics/statistics.h>
+#include <timing/timer.h>
+
 #include "map-api/core.h"
 #include "map-api/cr-table-ram-map.h"
 #include "map-api/cr-table-ram-sqlite.h"
@@ -109,6 +112,7 @@ Chunk* NetTable::newChunk(const Id& chunk_id) {
 }
 
 Chunk* NetTable::getChunk(const Id& chunk_id) {
+  timing::Timer timer("map_api::NetTable::getChunk");
   active_chunks_lock_.readLock();
   ChunkMap::iterator found = active_chunks_.find(chunk_id);
   if (found == active_chunks_.end()) {
@@ -128,6 +132,7 @@ Chunk* NetTable::getChunk(const Id& chunk_id) {
   }
   Chunk* result = found->second.get();
   active_chunks_lock_.unlock();
+  timer.Stop();
   return result;
 }
 
@@ -142,19 +147,31 @@ void NetTable::registerChunkInSpace(
 }
 
 void NetTable::getChunksInBoundingBox(
+    const SpatialIndex::BoundingBox& bounding_box) {
+  std::unordered_set<Chunk*> dummy;
+  getChunksInBoundingBox(bounding_box, &dummy);
+}
+
+void NetTable::getChunksInBoundingBox(
     const SpatialIndex::BoundingBox& bounding_box,
     std::unordered_set<Chunk*>* chunks) {
   CHECK_NOTNULL(chunks);
   chunks->clear();
   std::unordered_set<Id> chunk_ids;
+  timing::Timer seek_timer("map_api::NetTable::getChunksInBoundingBox - seek");
   index_lock_.readLock();
   spatial_index_->seekChunks(bounding_box, &chunk_ids);
   index_lock_.unlock();
+  seek_timer.Stop();
   for (const Id& id : chunk_ids) {
     Chunk* chunk = getChunk(id);
     CHECK_NOTNULL(chunk);
     chunks->insert(chunk);
   }
+  statistics::StatsCollector collector(
+      "map_api::NetTable::getChunksInBoundingBox - chunks");
+  collector.AddSample(chunk_ids.size());
+  VLOG(3) << "Got " << chunk_ids.size() << " chunks";
 }
 
 bool NetTable::insert(const LogicalTime& time, Chunk* chunk, Revision* query) {
