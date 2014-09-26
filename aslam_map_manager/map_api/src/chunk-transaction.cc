@@ -97,7 +97,7 @@ bool ChunkTransaction::check() {
 
 void ChunkTransaction::checkedCommit(const LogicalTime& time) {
   InsertMap::iterator iter;
-  for (; iter != insertions_.end();) {
+  for (iter = insertions_.begin(); iter != insertions_.end();) {
     if (updates_.count(iter->first) > 0u) {
       insertions_.erase(iter++);
     } else {
