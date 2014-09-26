@@ -19,13 +19,19 @@ class SpatialIndex : public ChordIndex {
   // TODO(tcies) template class on type and dimensions
   struct Range {
     double min, max;
+    inline double span() const { return max - min; }
   };
   class BoundingBox : public std::vector<Range> {
    public:
+    BoundingBox() : std::vector<Range>() {}
+    explicit BoundingBox(const std::initializer_list<Range>& init_list)
+        : std::vector<Range>(init_list) {}
     inline std::string debugString() const {
       std::ostringstream ss;
+      bool first = true;
       for (Range range : *this) {
-        ss << range.min << " " << range.max << std::endl;
+        ss << (first ? "" : ",") << range.min << "," << range.max;
+        first = false;
       }
       return ss.str();
     }
@@ -33,6 +39,12 @@ class SpatialIndex : public ChordIndex {
 
   virtual ~SpatialIndex();
   void handleRoutedRequest(const Message& routed_request, Message* response);
+
+  /**
+   * Overriding create() to automatically create all cells at index creation
+   * time.
+   */
+  void create();
 
   /**
    * Without guarantee of consistency - the only thing that is (needed to be)
