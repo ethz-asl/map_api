@@ -96,9 +96,19 @@ bool ChunkTransaction::check() {
 }
 
 void ChunkTransaction::checkedCommit(const LogicalTime& time) {
+  InsertMap::iterator iter;
+  for (iter = insertions_.begin(); iter != insertions_.end();) {
+    if (removes_.count(iter->first) > 0u) {
+      iter = insertions_.erase(iter);
+    } else {
+      ++iter;
+    }
+  }
   chunk_->bulkInsertLocked(insertions_, time);
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item : updates_) {
-    chunk_->updateLocked(time, item.second.get());
+    if (removes_.count(item.first) == 0u) {
+      chunk_->updateLocked(time, item.second.get());
+    }
   }
   for (const std::pair<const Id, std::shared_ptr<Revision> >& item : removes_) {
     chunk_->removeLocked(time, item.second.get());
