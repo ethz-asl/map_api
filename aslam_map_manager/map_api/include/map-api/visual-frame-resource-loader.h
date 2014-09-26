@@ -10,7 +10,7 @@ class ResourceLoader : public common::ResourceLoaderBase {
   virtual ~ResourceLoader() {}
 
   const cv::Mat loadRawImage() {
-    cv::Mat* full = new cv::Mat(640, 480);
+    cv::Mat* full = new cv::Mat(640, 480, CV_64F, static_cast<double>(0));
     return *full;
   };
 };
