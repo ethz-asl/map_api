@@ -56,7 +56,8 @@ SET(CORE_SOURCE  src/cache-base.cc
                  src/sqlite-interface.cc
                  src/table-descriptor.cc
                  src/transaction.cc
-                 src/unique-id.cc)
+                 src/unique-id.cc
+                 src/visual-frame-resource-loader.cc)
                  
 cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
 # we need to add dependencies of external project packages to fetch headers

@@ -1,18 +1,28 @@
 #ifndef MAP_API_VISUAL_FRAME_RESOURCE_LOADER_H_
 #define MAP_API_VISUAL_FRAME_RESOURCE_LOADER_H_
 
+#include <string>
+
 #include <multiagent_mapping_common/visual-frame-resource-loader-base.h>
+
+#include <opencv2/core/core.hpp>
 
 namespace map_api {
 
 class ResourceLoader : public common::ResourceLoaderBase {
  public:
+  ResourceLoader();
+
   virtual ~ResourceLoader() {}
 
-  const cv::Mat loadRawImage() {
-    cv::Mat* full = new cv::Mat(640, 480, CV_64F, static_cast<double>(0));
-    return *full;
-  };
+  const cv::Mat loadRawImage();
+
+  template <typename ResourceType>
+  bool loadResource(common::VisualFrameBase::Ptr visualFrame,
+                    std::string resourceId);
+
+ private:
+  // TODO(mfehr): add resource tracking
 };
 
 }  // namespace map_api
