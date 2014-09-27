@@ -93,5 +93,6 @@ void FileDiscovery::unlock() {
 
 const std::string FileDiscovery::kFileName = "mapapi-discovery.txt";
 const char FileDiscovery::kLockFileName[] = "mapapi-discovery.txt.lck";
+std::mutex FileDiscovery::mutex_;
 
 } /* namespace map_api */
