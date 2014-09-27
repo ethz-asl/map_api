@@ -10,6 +10,7 @@
 #include "map-api/message.h"
 #include "map-api/unique-id.h"
 #include "./core.pb.h"
+#include "./ipc.pb.h"
 
 namespace map_api {
 
@@ -40,12 +41,18 @@ class IPC {
    */
   template <typename Type>
   static void push(const Type& message);
+  template <typename Type>
+  static void pushFor(const Type& message, int receiver);
   static void pushHandler(const Message& request, Message* response);
   /**
-   * Read the oldest broadcast message (false if empty queue)
+   * Read the oldest broadcast message (false if empty queue). pop() skips all
+   * messages sent to specific peers while popFor() skips all messages sent to
+   * all peers.
    */
   template <typename Type>
   static bool pop(Type* destination);
+  template <typename Type>
+  static bool popFor(Type* destination, int receiver);
 
   /**
    * Message declarations
@@ -59,7 +66,9 @@ class IPC {
   static std::unordered_map<int, int> barrier_map_;
 
   static std::mutex message_mutex_;
-  static std::queue<std::string> messages_;
+  static std::queue<proto::IpcMessage> messages_;
+
+  static constexpr int kEveryone = -1;
 };
 
 }  // namespace map_api
