@@ -1,7 +1,7 @@
 #include "map-api/file-discovery.h"
 
-#include <fstream>
-#include <sstream>
+#include <fstream>  // NOLINT
+#include <sstream>  // NOLINT
 #include <string>
 
 #include <sys/file.h>
@@ -39,6 +39,7 @@ void FileDiscovery::append(const std::string& new_content) const {
 }
 
 void FileDiscovery::getFileContents(std::string* result) const {
+  std::unique_lock<std::mutex> lock(mutex_);
   CHECK_NOTNULL(result);
   std::ifstream in(kFileName, std::ios::in);
   std::string line;
@@ -51,14 +52,23 @@ void FileDiscovery::getFileContents(std::string* result) const {
 }
 
 void FileDiscovery::lock() {
-  while (((lock_file_descriptor_ =
-      open(kLockFileName, O_WRONLY | O_EXCL | O_CREAT, 0)) == -1) &&
-      errno == EEXIST) {
+  while (true) {
+    {
+      std::unique_lock<std::mutex> lock(mutex_);
+      bool status =
+          ((lock_file_descriptor_ =
+                open(kLockFileName, O_WRONLY | O_EXCL | O_CREAT, 0)) == -1) &&
+          errno == EEXIST;
+      if (!status) {
+        break;
+      }
+    }
     usleep(100);
   }
 }
 
 void FileDiscovery::replace(const std::string& new_content) const {
+  std::unique_lock<std::mutex> lock(mutex_);
   std::ofstream out(kFileName, std::ios::out);
   out << new_content << std::endl;
   out.close();
@@ -76,6 +86,7 @@ void FileDiscovery::remove(const PeerId& peer) {
 }
 
 void FileDiscovery::unlock() {
+  std::unique_lock<std::mutex> lock(mutex_);
   CHECK_NE(close(lock_file_descriptor_), -1);
   CHECK_NE(unlink(kLockFileName), -1);
 }
