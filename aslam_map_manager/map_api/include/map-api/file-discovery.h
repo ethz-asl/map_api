@@ -1,6 +1,7 @@
 #ifndef MAP_API_FILE_DISCOVERY_H_
 #define MAP_API_FILE_DISCOVERY_H_
 
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -20,6 +21,7 @@ class FileDiscovery final : public Discovery {
   virtual void lock() final override;
   virtual void remove(const PeerId& peer) final override;
   virtual void unlock() final override;
+
  private:
   void append(const std::string& new_content) const;
   void getFileContents(std::string* result) const;
@@ -27,6 +29,7 @@ class FileDiscovery final : public Discovery {
 
   static const std::string kFileName;
   static const char kLockFileName[];
+  static std::mutex mutex_;
 
   int lock_file_descriptor_ = -1;
   /**
@@ -38,6 +41,6 @@ class FileDiscovery final : public Discovery {
   friend class Hub;
 };
 
-} /* namespace map_api */
+}  // namespace map_api
 
-#endif /* MAP_API_DISCOVERY_H_ */
+#endif  // MAP_API_FILE_DISCOVERY_H_
