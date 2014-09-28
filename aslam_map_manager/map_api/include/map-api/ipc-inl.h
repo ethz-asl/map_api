@@ -8,35 +8,45 @@
 
 namespace map_api {
 
-// Need to declare all custom specializations so that the compiler doesn't
-// generate them from the below.
-template <>
-void IPC::push(const std::string& message);
-template <>
-void IPC::push(const Id& message);
-template <>
-void IPC::push(const LogicalTime& message);
-template <>
-void IPC::push(const PeerId& peer_id);
-template <>
-bool IPC::pop(std::string* destination);
-template <>
-bool IPC::pop(Id* destination);
-template <>
-bool IPC::pop(LogicalTime* destination);
-template <>
-bool IPC::pop(PeerId* destination);
-
 template <typename Type>
 void IPC::push(const Type& message) {
-  push(std::to_string(message));
+  pushFor(message, kEveryone);
 }
 
 template <typename Type>
 bool IPC::pop(Type* destination) {
+  return popFor(destination, kEveryone);
+}
+
+// Need to declare all custom specializations so that the compiler doesn't
+// generate them from the below.
+template <>
+void IPC::pushFor(const std::string& message, int receiver);
+template <>
+void IPC::pushFor(const Id& message, int receiver);
+template <>
+void IPC::pushFor(const LogicalTime& message, int receiver);
+template <>
+void IPC::pushFor(const PeerId& peer_id, int receiver);
+template <>
+bool IPC::popFor(std::string* destination, int receiver);
+template <>
+bool IPC::popFor(Id* destination, int receiver);
+template <>
+bool IPC::popFor(LogicalTime* destination, int receiver);
+template <>
+bool IPC::popFor(PeerId* destination, int receiver);
+
+template <typename Type>
+void IPC::pushFor(const Type& message, int receiver) {
+  pushFor(std::to_string(message), receiver);
+}
+
+template <typename Type>
+bool IPC::popFor(Type* destination, int receiver) {
   CHECK_NOTNULL(destination);
   std::string string;
-  if (!pop(&string)) {
+  if (!popFor(&string, receiver)) {
     return false;
   }
   std::istringstream ss(string);
