@@ -15,6 +15,7 @@ add_definitions(--std=c++11)
 SET(PROTO_DEFNS proto/chord-index.proto 
                 proto/core.proto
                 proto/chunk.proto
+                proto/ipc.proto
                 proto/net-table.proto)
 PROTOBUF_CATKIN_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
