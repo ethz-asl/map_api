@@ -33,6 +33,8 @@ DEFINE_string(discovery_mode, kFileDiscovery,
 DEFINE_string(discovery_server, "127.0.0.1:5050",
               "Server to be used for "
               "server-discovery");
+DEFINE_string(announce_ip, "", "IP to use for discovery announcement");
+DECLARE_int32(simulated_lag_ms);
 
 namespace map_api {
 
@@ -165,7 +167,7 @@ void Hub::getPeers(std::set<PeerId>* destination) const {
   discovery_->getPeers(&discovery_peers);
   discovery_->unlock();
   for (const PeerId& peer : discovery_peers) {
-    destination->insert(peer);
+    if (peer != PeerId::self()) destination->insert(peer);
   }
 }
 
@@ -176,10 +178,9 @@ bool Hub::hasPeer(const PeerId& peer) const {
 }
 
 int Hub::peerSize() {
-  int size;
-  std::lock_guard<std::mutex> lock(peer_mutex_);
-  size = peers_.size();
-  return size;
+  std::set<PeerId> peers;
+  getPeers(&peers);
+  return peers.size();
 }
 
 const std::string& Hub::ownAddress() const { return own_address_; }
@@ -205,9 +206,11 @@ void Hub::request(const PeerId& peer, Message* request, Message* response) {
     std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
         peers_.find(peer);
     if (found == peers_.end()) {
-      found = peers_.insert(std::make_pair(peer, std::unique_ptr<Peer>(new Peer(
-                                                     peer.ipPort(), *context_,
-                                                     ZMQ_REQ)))).first;
+      std::pair<PeerMap::iterator, bool> emplacement = peers_.emplace(
+          peer,
+          std::unique_ptr<Peer>(new Peer(peer.ipPort(), *context_, ZMQ_REQ)));
+      CHECK(emplacement.second);
+      found = emplacement.first;
     }
   }
   found->second->request(request, response);
@@ -235,15 +238,17 @@ bool Hub::try_request(const PeerId& peer, Message* request, Message* response) {
   return found->second->try_request(request, response);
 }
 
-void Hub::broadcast(Message* request,
+void Hub::broadcast(Message* request_message,
                     std::unordered_map<PeerId, Message>* responses) {
-  CHECK_NOTNULL(request);
+  CHECK_NOTNULL(request_message);
   CHECK_NOTNULL(responses);
   responses->clear();
   // TODO(tcies) parallelize using std::future
-  for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer_pair :
-       peers_) {
-    peer_pair.second->request(request, &(*responses)[peer_pair.first]);
+  std::set<PeerId> peers;
+  getPeers(&peers);
+  for (const PeerId& peer : peers) {
+    VLOG(3) << "Requesting " << peer;
+    request(peer, request_message, &(*responses)[peer]);
   }
 }
 
@@ -290,6 +295,10 @@ void Hub::readyHandler(const Message& request, Message* response) {
 }
 
 std::string Hub::ownAddressBeforePort() {
+  if (FLAGS_announce_ip != "") {
+    CHECK(PeerId::isValid(FLAGS_announce_ip + ":42"));
+    return FLAGS_announce_ip;
+  }
   if (FLAGS_discovery_mode == kFileDiscovery) {
     return kLocalhost;
   } else if (FLAGS_discovery_mode == kServerDiscovery) {
@@ -337,10 +346,9 @@ void Hub::listenThread(Hub* self) {
     while (true) {
       unsigned int port = kMinPort + (rng() % (kMaxPort - kMinPort));
       try {
-        std::ostringstream address;
-        address << ownAddressBeforePort() << ":" << port;
-        server.bind(("tcp://" + address.str()).c_str());
-        self->own_address_ = address.str();
+        server.bind(("tcp://0.0.0.0:" + std::to_string(port)).c_str());
+        self->own_address_ =
+            ownAddressBeforePort() + ":" + std::to_string(port);
         break;
       }
       catch (const std::exception& e) {  // NOLINT
@@ -387,6 +395,9 @@ void Hub::listenThread(Hub* self) {
       zmq::message_t response_message(serialized_response.size());
       memcpy(reinterpret_cast<void*>(response_message.data()),
              serialized_response.c_str(), serialized_response.size());
+
+      usleep(1e3 * FLAGS_simulated_lag_ms);
+      Peer::simulateBandwidth(response_message.size());
       server.send(response_message);
     }
     catch (const std::exception& e) {  // NOLINT

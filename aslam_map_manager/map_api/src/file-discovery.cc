@@ -1,7 +1,7 @@
 #include "map-api/file-discovery.h"
 
-#include <fstream>
-#include <sstream>
+#include <fstream>  // NOLINT
+#include <sstream>  // NOLINT
 #include <string>
 
 #include <sys/file.h>
@@ -51,9 +51,17 @@ void FileDiscovery::getFileContents(std::string* result) const {
 }
 
 void FileDiscovery::lock() {
-  while (((lock_file_descriptor_ =
-      open(kLockFileName, O_WRONLY | O_EXCL | O_CREAT, 0)) == -1) &&
-      errno == EEXIST) {
+  mutex_.lock();
+  while (true) {
+    {
+      bool status =
+          ((lock_file_descriptor_ =
+                open(kLockFileName, O_WRONLY | O_EXCL | O_CREAT, 0)) == -1) &&
+          errno == EEXIST;
+      if (!status) {
+        break;
+      }
+    }
     usleep(100);
   }
 }
@@ -76,11 +84,13 @@ void FileDiscovery::remove(const PeerId& peer) {
 }
 
 void FileDiscovery::unlock() {
-  CHECK_NE(close(lock_file_descriptor_), -1);
+  CHECK_NE(close(lock_file_descriptor_), -1) << errno;
   CHECK_NE(unlink(kLockFileName), -1);
+  mutex_.unlock();
 }
 
 const std::string FileDiscovery::kFileName = "mapapi-discovery.txt";
 const char FileDiscovery::kLockFileName[] = "mapapi-discovery.txt.lck";
+std::mutex FileDiscovery::mutex_;
 
 } /* namespace map_api */

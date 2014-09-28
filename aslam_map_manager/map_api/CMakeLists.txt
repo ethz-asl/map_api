@@ -15,6 +15,7 @@ add_definitions(--std=c++11)
 SET(PROTO_DEFNS proto/chord-index.proto 
                 proto/core.proto
                 proto/chunk.proto
+                proto/ipc.proto
                 proto/net-table.proto)
 PROTOBUF_CATKIN_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
@@ -52,6 +53,7 @@ SET(CORE_SOURCE  src/cache-base.cc
                  src/proto-table-file-io.cc
                  src/revision.cc
                  src/server-discovery.cc
+                 src/spatial-index.cc
                  src/sqlite-interface.cc
                  src/table-descriptor.cc
                  src/transaction.cc
@@ -99,6 +101,9 @@ target_link_libraries(test_core_test ${PROJECT_NAME}_test)
 
 catkin_add_gtest(test_net_table_test test/net_table_test.cc)
 target_link_libraries(test_net_table_test ${PROJECT_NAME}_test)
+
+catkin_add_gtest(test_spatial_index_test test/spatial_index_test.cc)
+target_link_libraries(test_spatial_index_test ${PROJECT_NAME}_test)
 
 catkin_add_gtest(test_transaction_test test/transaction-test.cc)
 target_link_libraries(test_transaction_test ${PROJECT_NAME}_test)

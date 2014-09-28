@@ -8,3 +8,7 @@ message RoutedChordRequest {
 message PeerList {
   repeated string peers = 1;
 }
+
+message ChunkList {
+  repeated string chunk_ids = 1;  // TODO(tcies) evt. use Id Message type
+}

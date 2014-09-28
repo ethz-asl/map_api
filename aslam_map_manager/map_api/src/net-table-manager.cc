@@ -51,7 +51,10 @@ void NetTableManager::registerHandlers() {
 
   // chord requests
   Hub::instance().registerHandler(NetTableIndex::kRoutedChordRequest,
-                                  handleRoutedChordRequests);
+                                  handleRoutedNetTableChordRequests);
+  // spatial index requests
+  Hub::instance().registerHandler(SpatialIndex::kRoutedChordRequest,
+                                  handleRoutedSpatialChordRequests);
 }
 
 NetTableManager& NetTableManager::instance() {
@@ -137,7 +140,7 @@ void NetTableManager::addTable(
     temp->init(type, descriptor);
     std::shared_ptr<Revision> left = found->second->getTemplate(),
         right = temp->getTemplate();
-    CHECK(left->structureMatch(*right));
+    CHECK(right->structureMatch(*left));
   } else {
     std::pair<TableMap::iterator, bool> inserted = tables_.insert(
         std::make_pair((*descriptor)->name(), std::unique_ptr<NetTable>()));
@@ -306,15 +309,26 @@ void NetTableManager::handleUpdateRequest(
   }
 }
 
-void NetTableManager::handleRoutedChordRequests(
-    const Message& request, Message* response) {
+void NetTableManager::handleRoutedNetTableChordRequests(const Message& request,
+                                                        Message* response) {
   CHECK_NOTNULL(response);
   proto::RoutedChordRequest routed_request;
   request.extract<NetTableIndex::kRoutedChordRequest>(&routed_request);
   CHECK(routed_request.has_table_name());
   TableMap::iterator table;
   CHECK(findTable(routed_request.table_name(), &table));
-  table->second->handleRoutedChordRequests(request, response);
+  table->second->handleRoutedNetTableChordRequests(request, response);
+}
+
+void NetTableManager::handleRoutedSpatialChordRequests(const Message& request,
+                                                       Message* response) {
+  CHECK_NOTNULL(response);
+  proto::RoutedChordRequest routed_request;
+  request.extract<SpatialIndex::kRoutedChordRequest>(&routed_request);
+  CHECK(routed_request.has_table_name());
+  TableMap::iterator table;
+  CHECK(findTable(routed_request.table_name(), &table));
+  table->second->handleRoutedSpatialChordRequests(request, response);
 }
 
 bool NetTableManager::syncTableDefinition(
