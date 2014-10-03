@@ -146,6 +146,20 @@ void NetTable::registerChunkInSpace(
   index_lock_.unlock();
 }
 
+void NetTable::getChunkReferencesInBoundingBox(
+    const SpatialIndex::BoundingBox& bounding_box,
+    std::unordered_set<Id>* chunk_ids) {
+  CHECK_NOTNULL(chunk_ids);
+  timing::Timer seek_timer("map_api::NetTable::getChunksInBoundingBox - seek");
+  index_lock_.readLock();
+  spatial_index_->seekChunks(bounding_box, chunk_ids);
+  index_lock_.unlock();
+  seek_timer.Stop();
+  statistics::StatsCollector collector(
+      "map_api::NetTable::getChunksInBoundingBox - chunks");
+  collector.AddSample(chunk_ids->size());
+}
+
 void NetTable::getChunksInBoundingBox(
     const SpatialIndex::BoundingBox& bounding_box) {
   std::unordered_set<Chunk*> dummy;
@@ -158,19 +172,12 @@ void NetTable::getChunksInBoundingBox(
   CHECK_NOTNULL(chunks);
   chunks->clear();
   std::unordered_set<Id> chunk_ids;
-  timing::Timer seek_timer("map_api::NetTable::getChunksInBoundingBox - seek");
-  index_lock_.readLock();
-  spatial_index_->seekChunks(bounding_box, &chunk_ids);
-  index_lock_.unlock();
-  seek_timer.Stop();
+  getChunkReferencesInBoundingBox(bounding_box, &chunk_ids);
   for (const Id& id : chunk_ids) {
     Chunk* chunk = getChunk(id);
     CHECK_NOTNULL(chunk);
     chunks->insert(chunk);
   }
-  statistics::StatsCollector collector(
-      "map_api::NetTable::getChunksInBoundingBox - chunks");
-  collector.AddSample(chunk_ids.size());
   VLOG(3) << "Got " << chunk_ids.size() << " chunks";
 }
 
