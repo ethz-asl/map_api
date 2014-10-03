@@ -3,20 +3,19 @@
 namespace map_api {
 
 ResourceLoader::ResourceLoader() {
-  // TODO(mfehr): implement
+  // TODO(mfehr): setup database connection
 }
 
 bool ResourceLoader::loadResource(
     std::shared_ptr<common::VisualFrameBase> visualFrame,
     const std::string visualFrameIdHexString, const std::string resourceId,
     VisualFrameResourceType type) {
-
   bool success = true;
-  // TODO(mfehr): check if id is empty, if it is, load first resource
+
   // TODO(mfehr): look up URI for resource id
   // TODO(mfehr): load resource from file system
-  // TODO(mfehr): store resource =>
-  visualFrame->storeResource(resourceId, cv::Mat());
+
+  success &= visualFrame->storeResource(resourceId, cv::Mat());
   increaseResourceCounter(type, resourceId, visualFrame);
   releaseResourcesIfNecessary();
   return success;
@@ -28,7 +27,7 @@ void ResourceLoader::getResourceIds(const std::string visualFrameIdHexString,
   // TODO(mfehr): look up Ids for visual frame and a resource type
   // TODO(mfehr): put in a list and return
 
-  // TODO(mfehr): REMOVE, DEBUG ONLY
+  // TODO(mfehr): REMOVE, MAKES UNIT TESTS RUN THROUGH
   idList = std::list<std::string>();
   idList.push_back("00000000000000000000000000000007");
   idList.push_back("00000000000000000000000000000008");

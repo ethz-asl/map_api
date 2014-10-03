@@ -7,9 +7,9 @@
 namespace map_api {
 
 class VisualFrameDummy : public common::VisualFrameBase {
-  bool releaseResource(std::string resourceId) { return true; }
+  bool releaseResource(std::string) { return true; }
 
-  bool storeResource(std::string resourceId, cv::Mat resource) { return true; }
+  bool storeResource(std::string, cv::Mat) { return true; }
 };
 
 class ResourceLoaderTest : public MultiprocessTest {
