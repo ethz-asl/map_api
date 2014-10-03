@@ -42,7 +42,7 @@ namespace map_api {
  *
  * A consequence of 2) and 4) is that each chunk holder will be automatically
  * notified about changes in the chunk data. This allows an easy implementation
- * of triggers, as specified by Stephane, through the chunks.
+ * of triggers, through the chunks.
  *
  * Chunk ownership may be relinquished at any time, automatically relinquishing
  * access to the latest data in the chunk and the right to modify it.
