@@ -9,7 +9,14 @@ namespace map_api {
 class VisualFrameDummy : public common::VisualFrameBase {
   bool releaseResource(std::string) { return true; }
 
-  bool storeResource(std::string, cv::Mat) { return true; }
+  bool storeResource(std::string resourceId, cv::Mat resource) {
+    // TODO(mfehr): REMOVE THIS
+    std::cout << "stored resource in visual frame" << std::endl;
+    cv::namedWindow(resourceId, cv::WINDOW_AUTOSIZE);
+    cv::imshow(resourceId, resource);
+    cv::waitKey(5000);
+    return true;
+  }
 };
 
 class ResourceLoaderTest : public MultiprocessTest {
@@ -49,9 +56,7 @@ class ResourceLoaderTest : public MultiprocessTest {
     Id insert_id_1;
     insert_id_1.fromHexString(kResourceIdA);
     to_insert_1->setId(insert_id_1);
-    to_insert_1->set<std::string>(0,
-                                  "http://khalil-shreateh.com/khalil.shtml/"
-                                  "images/articles/facebook/trolling.jpg");
+    to_insert_1->set<std::string>(0, "test-data/problem.jpg");
     to_insert_1->set<int>(
         1, common::ResourceLoaderBase::kVisualFrameResourceRawImageType);
     to_insert_1->set<Id>(2, visual_frame_id);
@@ -63,7 +68,7 @@ class ResourceLoaderTest : public MultiprocessTest {
     Id insert_id_2;
     insert_id_2.fromHexString(kResourceIdB);
     to_insert_2->setId(insert_id_2);
-    to_insert_2->set<std::string>(0, "/home/marius/ASL/images/no.png");
+    to_insert_2->set<std::string>(0, "test-data/no.png");
     to_insert_2->set<int>(
         1, common::ResourceLoaderBase::kVisualFrameResourceRawImageType);
     to_insert_2->set<Id>(2, visual_frame_id);

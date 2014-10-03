@@ -7,6 +7,7 @@
 #include <utility>
 
 #include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 #include <multiagent_mapping_common/visual-frame-resource-loader-base.h>
 
@@ -45,6 +46,7 @@ class ResourceLoader : public common::ResourceLoaderBase {
   int getNumberOfLoadedResources(VisualFrameResourceType type);
   int releaseNumberOfLoadedResources(VisualFrameResourceType type,
                                      int numberToRelease);
+  cv::Mat loadResourceFromUri(std::string uri, VisualFrameResourceType type);
 
   typedef std::unordered_map<
       int, std::list<std::pair<std::shared_ptr<common::VisualFrameBase>,

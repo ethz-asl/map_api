@@ -22,14 +22,28 @@ bool ResourceLoader::loadResource(
   std::string uri;
   // TODO(mfehr): replace "0" with proper enum
   success &= revision->get<std::string>(0, &uri);
-
-  // TODO(mfehr): LOAD RESOURCE FROM FILE SYSTEM / NETWORK
-
-  success &= visualFrame->storeResource(resourceId, cv::Mat());
+  success &=
+      visualFrame->storeResource(resourceId, loadResourceFromUri(uri, type));
   increaseResourceCounter(type, resourceId, visualFrame);
   releaseResourcesIfNecessary();
   return success;
 };
+
+cv::Mat ResourceLoader::loadResourceFromUri(std::string uri,
+                                            VisualFrameResourceType type) {
+  cv::Mat image;
+  switch (type) {
+    case kVisualFrameResourceDisparityImageType:
+    case kVisualFrameResourceRawImageType:
+      std::cout << "load image from URI = " << uri << std::endl;
+      image = cv::imread(uri);
+      break;
+    default:
+      CHECK(false) << "unknown resource type";
+  }
+  CHECK(image.data && !image.empty());
+  return image;
+}
 
 void ResourceLoader::getResourceIds(const std::string visualFrameIdHexString,
                                     VisualFrameResourceType type,
