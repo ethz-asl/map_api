@@ -3,17 +3,27 @@
 namespace map_api {
 
 ResourceLoader::ResourceLoader() {
-  // TODO(mfehr): setup database connection
+  // TODO(mfehr): table name and field names are defined in app.h, move to some
+  // place we can reach from here
+  resourceTable_ = &NetTableManager::instance().getTable(
+                        "visual_inertial_mapping_visual_frame_table");
 }
 
 bool ResourceLoader::loadResource(
     std::shared_ptr<common::VisualFrameBase> visualFrame,
-    const std::string visualFrameIdHexString, const std::string resourceId,
-    VisualFrameResourceType type) {
+    const std::string resourceId, VisualFrameResourceType type) {
   bool success = true;
 
-  // TODO(mfehr): look up URI for resource id
-  // TODO(mfehr): load resource from file system
+  Transaction transaction;
+  Id resource_id;
+  resource_id.fromHexString(resourceId);
+  std::shared_ptr<Revision> revision =
+      transaction.getById<Id>(resource_id, resourceTable_);
+  std::string uri;
+  // TODO(mfehr): replace "0" with proper enum
+  success &= revision->get<std::string>(0, &uri);
+
+  // TODO(mfehr): LOAD RESOURCE FROM FILE SYSTEM / NETWORK
 
   success &= visualFrame->storeResource(resourceId, cv::Mat());
   increaseResourceCounter(type, resourceId, visualFrame);
@@ -24,13 +34,23 @@ bool ResourceLoader::loadResource(
 void ResourceLoader::getResourceIds(const std::string visualFrameIdHexString,
                                     VisualFrameResourceType type,
                                     std::list<std::string> &idList) {
-  // TODO(mfehr): look up Ids for visual frame and a resource type
-  // TODO(mfehr): put in a list and return
-
-  // TODO(mfehr): REMOVE, MAKES UNIT TESTS RUN THROUGH
   idList = std::list<std::string>();
-  idList.push_back("00000000000000000000000000000007");
-  idList.push_back("00000000000000000000000000000008");
+  Transaction transaction;
+  Id visualFrameId;
+  visualFrameId.fromHexString(visualFrameIdHexString);
+  // TODO(mfehr): replace "2" with proper enum
+  CRTable::RevisionMap revision_map =
+      transaction.find<Id>(2, visualFrameId, resourceTable_);
+  if (revision_map.size() > 0) {
+    int resource_type;
+    for (auto revision : revision_map) {
+      // TODO(mfehr): replace "1" with proper enum
+      revision.second->get<int>(1, &resource_type);
+      if (resource_type == type) {
+        idList.push_back(revision.first.hexString());
+      }
+    }
+  }
 };
 
 int ResourceLoader::increaseResourceCounter(
@@ -63,7 +83,6 @@ int ResourceLoader::getNumberOfLoadedResources(VisualFrameResourceType type) {
 int ResourceLoader::releaseNumberOfLoadedResources(VisualFrameResourceType type,
                                                    int numberToRelease) {
   int released = 0;
-  bool success = true;
   ResourceList loaded_resources = loadedResources_.at(type);
 
   ResourceList::iterator i = loaded_resources.begin();

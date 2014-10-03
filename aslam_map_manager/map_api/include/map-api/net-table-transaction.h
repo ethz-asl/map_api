@@ -33,7 +33,7 @@ class NetTableTransaction {
   CRTable::RevisionMap dumpChunk(Chunk* chunk);
   CRTable::RevisionMap dumpActiveChunks();
   template <typename ValueType>
-  CRTable::RevisionMap find(const std::string& key, const ValueType& value);
+  CRTable::RevisionMap find(int key, const ValueType& value);
   template <typename IdType>
   void getAvailableIds(std::unordered_set<IdType>* ids);
 

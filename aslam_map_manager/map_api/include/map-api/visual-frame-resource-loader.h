@@ -31,7 +31,6 @@ class ResourceLoader : public common::ResourceLoaderBase {
   virtual ~ResourceLoader() {}
 
   bool loadResource(std::shared_ptr<common::VisualFrameBase> visualFrame,
-                    const std::string visualFrameIdHexString,
                     const std::string resourceId, VisualFrameResourceType type);
 
   void getResourceIds(const std::string visualFrameIdHexString,
@@ -56,6 +55,7 @@ class ResourceLoader : public common::ResourceLoaderBase {
       ResourceRecord;
 
   ResourceMap loadedResources_;
+  NetTable* resourceTable_;
 
   static const int MAX_NUMBER_RESOURCES_PER_TYPE = 20;
 };

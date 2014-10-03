@@ -68,7 +68,7 @@ class NetTable {
 
   // RETRIEVAL (locking all chunks)
   template <typename ValueType>
-  CRTable::RevisionMap lockFind(const std::string& key, const ValueType& value,
+  CRTable::RevisionMap lockFind(int key, const ValueType& value,
                                 const LogicalTime& time);
 
   void dumpActiveChunks(const LogicalTime& time,

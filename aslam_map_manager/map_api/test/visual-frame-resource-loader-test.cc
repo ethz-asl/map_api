@@ -14,22 +14,18 @@ class VisualFrameDummy : public common::VisualFrameBase {
 
 class ResourceLoaderTest : public MultiprocessTest {
  public:
-  enum VisualFrameTableFields {
-    kVisualFrameTableUri,
-    kVisualFrameTableType,
-    kVisualFrameTableVisualFrameId
-  };
-
   virtual void SetUp() override {
     MultiprocessTest::SetUp();
     std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
-    descriptor->setName(kVisualFrameResourceTableName);
-    descriptor->addField<std::string>(kVisualFrameTableUri);
-    descriptor->addField<int>(kVisualFrameTableType);
-    descriptor->addField<map_api::Id>(kVisualFrameTableVisualFrameId);
+    // TODO(mfehr): table name and field names are defined in app.h, move to
+    // some place we can reach from here
+    descriptor->setName("visual_inertial_mapping_visual_frame_table");
+    descriptor->addField<std::string>(0);
+    descriptor->addField<int>(1);
+    descriptor->addField<map_api::Id>(2);
     NetTableManager::instance().addTable(CRTable::Type::CRU, &descriptor);
-    table_ =
-        &NetTableManager::instance().getTable(kVisualFrameResourceTableName);
+    table_ = &NetTableManager::instance().getTable(
+                  "visual_inertial_mapping_visual_frame_table");
 
     Id chunk_id;
     chunk_id.fromHexString(kChunkId);
@@ -77,7 +73,6 @@ class ResourceLoaderTest : public MultiprocessTest {
 
   virtual void TearDown() override { MultiprocessTest::TearDown(); }
 
-  static const std::string kVisualFrameResourceTableName;
   static const std::string kChunkId;
   static const std::string kVisualFrameId;
   static const std::string kResourceIdA;
@@ -87,8 +82,6 @@ class ResourceLoaderTest : public MultiprocessTest {
   NetTable* table_;
 };
 
-const std::string ResourceLoaderTest::kVisualFrameResourceTableName =
-    "visualFrameTableName";
 const std::string ResourceLoaderTest::kChunkId =
     "00000000000000000000000000000042";
 const std::string ResourceLoaderTest::kVisualFrameId =
@@ -107,12 +100,16 @@ TEST_F(ResourceLoaderTest, ShouldFindResourceIds) {
       ResourceLoaderTest::kVisualFrameId,
       common::ResourceLoaderBase::kVisualFrameResourceRawImageType,
       resource_ids);
+  EXPECT_EQ(resource_ids.size(), 2);
+  int watchdog = 0;
   for (std::list<std::string>::const_iterator iterator = resource_ids.begin(),
                                               end = resource_ids.end();
        iterator != end; ++iterator) {
     bool isFirst = iterator->compare(kResourceIdA) == 0;
     bool isSecond = iterator->compare(kResourceIdB) == 0;
     EXPECT_TRUE(!isFirst != !isSecond);
+    EXPECT_LE(watchdog, 2);
+    ++watchdog;
   }
 }
 
@@ -122,10 +119,10 @@ TEST_F(ResourceLoaderTest, ShouldLoadResources) {
   std::shared_ptr<common::VisualFrameBase> visual_frame_ptr =
       std::shared_ptr<common::VisualFrameBase>(new VisualFrameDummy());
   EXPECT_TRUE(loader.loadResource(
-      visual_frame_ptr, ResourceLoaderTest::kVisualFrameId, kResourceIdA,
+      visual_frame_ptr, kResourceIdA,
       common::ResourceLoaderBase::kVisualFrameResourceRawImageType));
   EXPECT_TRUE(loader.loadResource(
-      visual_frame_ptr, ResourceLoaderTest::kVisualFrameId, kResourceIdB,
+      visual_frame_ptr, kResourceIdB,
       common::ResourceLoaderBase::kVisualFrameResourceRawImageType));
 }
 }  // namespace map_api

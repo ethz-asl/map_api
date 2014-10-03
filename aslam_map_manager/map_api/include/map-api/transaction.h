@@ -48,8 +48,7 @@ class Transaction {
    * fundamentally differing from getById or dumpChunk.
    */
   template <typename ValueType>
-  CRTable::RevisionMap find(const std::string& key, const ValueType& value,
-                            NetTable* table);
+  CRTable::RevisionMap find(int key, const ValueType& value, NetTable* table);
 
   // WRITE
   void insert(
