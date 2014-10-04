@@ -73,12 +73,12 @@ class Id : public sm::HashId {
     CHECK_NOTNULL(id);
     *id = static_cast<const sm::HashId&>(*this);
   }
-	template<typename IdType>
-	inline IdType toIdType() const {
-		IdType value;
-		value.fromHashId(*this);
-		return value;
-	}
+  template<typename IdType>
+  inline IdType toIdType() const {
+    IdType value;
+    value.fromHashId(*this);
+    return value;
+  }
   template <typename GenerateIdType>
   friend void generateId(GenerateIdType* id);
 };
