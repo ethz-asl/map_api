@@ -102,7 +102,7 @@ bool ProtoTableFileIO::storeTableContents(
       google::protobuf::io::CodedOutputStream coded_out(&gzip_out);
 
       coded_out.WriteVarint32(revision.byteSize());
-      revision.underlyingRevision().SerializeToCodedStream(&coded_out);
+      revision.SerializeToCodedStream(&coded_out);
       already_stored_items_.insert(current_item_stamp);
     }
   }

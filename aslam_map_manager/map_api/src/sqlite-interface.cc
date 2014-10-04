@@ -94,8 +94,7 @@ bool __attribute__((deprecated))
 
   statement << "(";
   LOG(FATAL) << "Not implemented";  // TODO(tcies) default fields
-  int custom_field_count =
-      to_insert.underlyingRevision().custom_field_values_size();
+  int custom_field_count = to_insert.customFieldCount();
   for (int i = 0; i < custom_field_count; ++i) {
     if (i > 0) {
       statement << ", ";
@@ -159,14 +158,13 @@ void __attribute__((deprecated))
   LOG(FATAL) << "Not implemented";  // TODO(tcies) default fields
   *statement << " ";
   for (int i = 0;
-       i < reference_->underlyingRevision().custom_field_values_size(); ++i) {
+       i < reference_->customFieldCount(); ++i) {
     if (i > 0) {
       *statement << ", ";
     }
-    const proto::TableField& field =
-        reference_->underlyingRevision().custom_field_values(i);
+    proto::Type type = reference_->getFieldType(i);
     *statement << kCustomPrefix << i;
-    switch (field.type()) {
+    switch (type) {
       case proto::Type::BLOB: {
         *statement, Poco::Data::into(blobs_[i]);
         break;

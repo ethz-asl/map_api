@@ -71,8 +71,12 @@ void Revision::addField(int index, proto::Type type) {
   underlying_revision_->add_custom_field_values()->set_type(type);
 }
 
-bool Revision::hasField(int index) {
+bool Revision::hasField(int index) const {
   return index < underlying_revision_->custom_field_values_size();
+}
+
+proto::Type Revision::getFieldType(int index) const {
+  return underlying_revision_->custom_field_values(index).type();
 }
 
 bool Revision::structureMatch(const Revision& reference) const {
