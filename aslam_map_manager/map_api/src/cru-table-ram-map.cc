@@ -13,7 +13,7 @@ bool CRUTableRamMap::insertCRUDerived(Revision* query) {
   if (found != data_.end()) {
     return false;
   }
-  data_[id].push_front(*query);
+  found->second.push_front(*query);
   return true;
 }
 
@@ -68,8 +68,8 @@ void CRUTableRamMap::dumpChunkCRDerived(const Id& chunk_id,
   CHECK_NOTNULL(dest)->clear();
   forChunkItemsAtTime(
       chunk_id, time,
-      [&dest](const Id& id, const History::const_iterator& item) {
-        CHECK(dest->emplace(id, std::make_shared<Revision>(*item)).second);
+      [&dest](const Id& id, const Revision& item) {
+        CHECK(dest->emplace(id, std::make_shared<Revision>(item)).second);
       });
 }
 
@@ -81,9 +81,9 @@ int CRUTableRamMap::findByRevisionCRDerived(int key,
   dest->clear();
   forEachItemFoundAtTime(
       key, value_holder, time,
-      [&dest](const Id& id, const History::const_iterator& item) {
+      [&dest](const Id& id, const Revision& item) {
     CHECK(dest->find(id) == dest->end());
-    CHECK(dest->emplace(id, std::make_shared<Revision>(*item)).second);
+    CHECK(dest->emplace(id, std::make_shared<Revision>(item)).second);
       });
   return dest->size();  // TODO(tcies) returning the count is silly, abolish
 }
@@ -110,7 +110,7 @@ int CRUTableRamMap::countByRevisionCRDerived(int key,
   forEachItemFoundAtTime(
       key, value_holder, time,
       [&count](const Id& /*id*/,
-               const History::const_iterator& /*item*/) { ++count; });
+               const Revision& /*item*/) { ++count; });
   return count;
 }
 
@@ -120,7 +120,7 @@ int CRUTableRamMap::countByChunkCRDerived(const Id& chunk_id,
   forChunkItemsAtTime(
       chunk_id, time,
       [&count](const Id& /*id*/,
-               const History::const_iterator& /*item*/) { ++count; });
+               const Revision& /*item*/) { ++count; });
   return count;
 }
 
@@ -168,13 +168,13 @@ void CRUTableRamMap::itemHistoryCRUDerived(const Id& id,
 inline void CRUTableRamMap::forEachItemFoundAtTime(
     int key, const Revision& value_holder, const LogicalTime& time,
     const std::function<
-        void(const Id& id, const History::const_iterator& item)>& action) {
+        void(const Id& id, const Revision& item)>& action) {
   for (const HistoryMap::value_type& pair : data_) {
     History::const_iterator latest = pair.second.latestAt(time);
     if (latest != pair.second.cend()) {
       if (key < 0 || value_holder.fieldMatch(*latest, key)) {
         if (!latest->isRemoved()) {
-          action(pair.first, latest);
+          action(pair.first, *latest);
         }
       }
     }
@@ -184,13 +184,13 @@ inline void CRUTableRamMap::forEachItemFoundAtTime(
 inline void CRUTableRamMap::forChunkItemsAtTime(
     const Id& chunk_id, const LogicalTime& time,
     const std::function<
-        void(const Id& id, const History::const_iterator& item)>& action) {
+        void(const Id& id, const Revision& item)>& action) {
   for (const HistoryMap::value_type& pair : data_) {
     if (pair.second.begin()->getChunkId() == chunk_id) {
       History::const_iterator latest = pair.second.latestAt(time);
       if (latest != pair.second.cend()) {
         if (!latest->isRemoved()) {
-          action(pair.first, latest);
+          action(pair.first, *latest);
         }
       }
     }

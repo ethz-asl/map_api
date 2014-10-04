@@ -44,11 +44,11 @@ class CRUTableRamMap : public CRUTable {
   inline void forEachItemFoundAtTime(
       int key, const Revision& value_holder, const LogicalTime& time,
       const std::function<
-          void(const Id& id, const History::const_iterator& item)>& action);
+          void(const Id& id, const Revision& item)>& action);
   inline void forChunkItemsAtTime(
       const Id& chunk_id, const LogicalTime& time,
       const std::function<
-          void(const Id& id, const History::const_iterator& item)>& action);
+          void(const Id& id, const Revision& item)>& action);
   inline void trimToTime(const LogicalTime& time, HistoryMap* subject);
 
   HistoryMap data_;
