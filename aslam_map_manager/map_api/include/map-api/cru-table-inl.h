@@ -31,6 +31,16 @@ void CRUTable::remove(const LogicalTime& time, const IdType& id) {
   remove(time, *latest);
 }
 
+CRUTable::History::const_iterator CRUTable::History::latestAt(
+    const LogicalTime& time) const {
+  for (const_iterator it = cbegin(); it != cend(); ++it) {
+    if (it->getUpdateTime() <= time) {
+      return it;
+    }
+  }
+  return cend();
+}
+
 }  // namespace map_api
 
 #endif  // MAP_API_CRU_TABLE_INL_H_

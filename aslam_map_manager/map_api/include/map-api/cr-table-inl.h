@@ -26,13 +26,10 @@ void CRTable::getAvailableIds(const LogicalTime& time,
   CHECK_NOTNULL(ids);
   ids->clear();
   std::unordered_set<Id> map_api_ids;
-  sm::HashId hash_id;
-  IdType out_id;
   getAvailableIdsCRDerived(time, &map_api_ids);
+  ids->rehash(map_api_ids.size());
   for (const Id& id : map_api_ids) {
-    id.toHashId(&hash_id);
-    out_id.fromHashId(hash_id);
-    ids->emplace(out_id);
+    ids->emplace(id.toIdType<IdType>());
   }
 }
 

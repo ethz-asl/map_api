@@ -4,6 +4,7 @@
 #include <utility>
 
 #include <glog/logging.h>
+#include <timing/timer.h>
 
 namespace map_api {
 
@@ -185,8 +186,9 @@ template <typename IdType, typename Value, typename DerivedValue>
 typename Cache<IdType, Value, DerivedValue>::IdSet&
 Cache<IdType, Value, DerivedValue>::getAvailableIdsLocked() {
   if (!ids_fetched_) {
-    LOG(WARNING) << "Populating caches for table " << underlying_table_->name();
+    timing::Timer timer("getAvailableIds");
     transaction_.get()->getAvailableIds(underlying_table_, &available_ids_);
+    timer.Stop();
     ids_fetched_ = true;
   }
   return available_ids_;
@@ -196,8 +198,9 @@ template <typename IdType, typename Value, typename DerivedValue>
 const typename Cache<IdType, Value, DerivedValue>::IdSet&
 Cache<IdType, Value, DerivedValue>::getAvailableIdsLocked() const {
   if (!ids_fetched_) {
-    LOG(WARNING) << "Populating caches for table " << underlying_table_->name();
+    timing::Timer timer("getAvailableIds");
     transaction_.get()->getAvailableIds(underlying_table_, &available_ids_);
+    timer.Stop();
     ids_fetched_ = true;
   }
   return available_ids_;
