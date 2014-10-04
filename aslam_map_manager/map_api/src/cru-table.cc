@@ -92,14 +92,4 @@ bool CRUTable::bulkInsertCRDerived(const RevisionMap& query,
   return bulkInsertCRUDerived(query);
 }
 
-CRUTable::History::const_iterator CRUTable::History::latestAt(
-    const LogicalTime& time) const {
-  for (const_iterator it = cbegin(); it != cend(); ++it) {
-    if (it->getUpdateTime() <= time) {
-      return it;
-    }
-  }
-  return cend();
-}
-
 }  // namespace map_api
