@@ -173,8 +173,10 @@ TEST_P(NetTableTest, RemoteUpdate) {
     IPC::barrier(A_JOINED, 1);
     table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(1, results.size());
-    results.begin()->second->set(kFieldName, 21);
-    EXPECT_TRUE(table_->update(results.begin()->second.get()));
+    std::shared_ptr<Revision> revision = std::make_shared<Revision>(
+        *results.begin()->second);
+    revision->set(kFieldName, 21);
+    EXPECT_TRUE(table_->update(revision.get()));
 
     IPC::barrier(A_UPDATED, 1);
     IPC::barrier(DIE, 1);

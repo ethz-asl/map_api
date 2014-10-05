@@ -29,7 +29,7 @@ CRTable::RevisionMap NetTable::lockFind(const std::string& key,
 
 template <typename IdType>
 std::shared_ptr<const Revision> NetTable::getByIdInconsistent(
-    const UniqueId<IdType>& id, const LogicalTime& time) {
+    const IdType& id, const LogicalTime& time) {
   return cache_->getById(id, time);
 }
 

@@ -60,7 +60,7 @@ void NetTableTransaction::remove(const UniqueId<IdType>& id) {
 
 template <typename IdType>
 Chunk* NetTableTransaction::chunkOf(
-    const UniqueId<IdType>& id,
+    const IdType& id,
     std::shared_ptr<const Revision>* inconsistent) const {
   CHECK_NOTNULL(inconsistent);
   // TODO(tcies) uncommitted

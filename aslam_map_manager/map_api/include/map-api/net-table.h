@@ -160,7 +160,7 @@ class NetTable {
    */
   template <typename IdType>
   std::shared_ptr<const Revision> getByIdInconsistent(
-      const UniqueId<IdType>& id, const LogicalTime& time);
+      const IdType& id, const LogicalTime& time);
 
   void readLockActiveChunks();
   void unlockActiveChunks();
