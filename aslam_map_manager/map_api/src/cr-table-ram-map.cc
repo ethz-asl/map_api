@@ -67,9 +67,7 @@ std::shared_ptr<const Revision> CRTableRamMap::getByIdCRDerived(
   if (found == data_.end() || found->second.getInsertTime() > time) {
     return std::shared_ptr<Revision>();
   }
-  std::shared_ptr<proto::Revision> proto_revision(
-      found->second.underlying_revision_);
-  return std::shared_ptr<Revision>(new Revision(proto_revision));
+  return std::shared_ptr<Revision>(new Revision(found->second));
 }
 
 void CRTableRamMap::getAvailableIdsCRDerived(const LogicalTime& time,
