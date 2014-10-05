@@ -21,7 +21,7 @@ class CRTableRamSqlite final : public CRTable {
   virtual bool patchCRDerived(const Revision& query) final override;
   virtual void dumpChunkCRDerived(const Id& chunk_id, const LogicalTime& time,
                                   RevisionMap* dest) final override;
-  virtual int findByRevisionCRDerived(
+  virtual void findByRevisionCRDerived(
       int key, const Revision& valueHolder, const LogicalTime& time,
       CRTable::RevisionMap* dest) final override;
   virtual std::shared_ptr<Revision> getByIdCRDerived(

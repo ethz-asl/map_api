@@ -87,8 +87,9 @@ bool ChunkTransaction::check() {
   }
   for (const ChunkTransaction::ConflictCondition& item : conflict_conditions_) {
     CRTable::RevisionMap dummy;
-    if (chunk_->underlying_table_->findByRevision(
-            item.key, *item.value_holder, LogicalTime::sample(), &dummy) > 0) {
+    chunk_->underlying_table_->findByRevision(
+                item.key, *item.value_holder, LogicalTime::sample(), &dummy);
+    if (!dummy.empty()) {
       return false;
     }
   }

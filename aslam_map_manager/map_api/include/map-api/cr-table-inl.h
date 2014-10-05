@@ -64,13 +64,13 @@ std::pair<CRTable::RevisionMap::iterator, bool> CRTable::RevisionMap::insert(
 }
 
 template <typename ValueType>
-int CRTable::find(int key, const ValueType& value, const LogicalTime& time,
+void CRTable::find(int key, const ValueType& value, const LogicalTime& time,
                   RevisionMap* dest) {
   std::shared_ptr<Revision> valueHolder = this->getTemplate();
   if (key >= 0) {
     valueHolder->set(key, value);
   }
-  return this->findByRevision(key, *valueHolder, time, dest);
+  this->findByRevision(key, *valueHolder, time, dest);
 }
 
 template <typename ValueType>
@@ -87,7 +87,8 @@ template <typename ValueType>
 std::shared_ptr<Revision> CRTable::findUnique(int key, const ValueType& value,
                                               const LogicalTime& time) {
   RevisionMap results;
-  int count = find(key, value, time, &results);
+  find(key, value, time, &results);
+  int count = results.size();
   if (count > 1) {
     std::stringstream report;
     report << "There seems to be more than one (" << count <<
@@ -98,8 +99,7 @@ std::shared_ptr<Revision> CRTable::findUnique(int key, const ValueType& value,
       report << result.second->dumpToString() << std::endl;
     }
     LOG(FATAL) << report.str();
-  }
-  if (count == 0) {
+  } else if (count == 0) {
     return std::shared_ptr<Revision>();
   } else {
     return results.begin()->second;

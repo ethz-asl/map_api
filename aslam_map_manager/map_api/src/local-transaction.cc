@@ -78,10 +78,7 @@ bool LocalTransaction::commit() {
       const SharedRevisionPointer &revision = update.second;
       CHECK_EQ(id, revision->getId<Id>())
           << "Identifier ID does not match revision ID";
-      if (!table->update(revision.get())) {
-        LOG(ERROR) << debugInfo << "Update failed, aborting commit.";
-        return false;
-      }
+      table->update(revision.get());
     }
   }
   active_ = false;
@@ -178,8 +175,9 @@ template <>
 bool LocalTransaction::hasItemConflict(
     LocalTransaction::ConflictCondition* item) {
   CRTable::RevisionMap results;
-  return item->table->findByRevision(item->key, *item->valueHolder,
-                                     LogicalTime::sample(), &results);
+  item->table->findByRevision(item->key, *item->valueHolder,
+                              LogicalTime::sample(), &results);
+  return !results.empty();
 }
 
 template <>

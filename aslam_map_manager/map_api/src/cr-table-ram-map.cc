@@ -43,9 +43,9 @@ void CRTableRamMap::dumpChunkCRDerived(const Id& chunk_id,
   }
 }
 
-int CRTableRamMap::findByRevisionCRDerived(int key, const Revision& valueHolder,
-                                           const LogicalTime& time,
-                                           RevisionMap* dest) {
+void CRTableRamMap::findByRevisionCRDerived(int key, const Revision& valueHolder,
+                                            const LogicalTime& time,
+                                            RevisionMap* dest) {
   CHECK_NOTNULL(dest);
   dest->clear();
   // TODO(tcies) allow optimization by index specification
@@ -59,7 +59,6 @@ int CRTableRamMap::findByRevisionCRDerived(int key, const Revision& valueHolder,
       }
     }
   }
-  return dest->size();  // TODO(tcies) returning the count is silly, abolish
 }
 
 std::shared_ptr<Revision> CRTableRamMap::getByIdCRDerived(

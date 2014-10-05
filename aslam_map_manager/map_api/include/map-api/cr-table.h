@@ -119,8 +119,8 @@ class CRTable {
    * If "key" is -1, no filter will be applied
    */
   template <typename ValueType>
-  int find(int key, const ValueType& value, const LogicalTime& time,
-           RevisionMap* dest);
+  void find(int key, const ValueType& value, const LogicalTime& time,
+            RevisionMap* dest);
   void dumpChunk(const Id& chunk_id, const LogicalTime& time,
                  RevisionMap* dest);
 
@@ -128,8 +128,8 @@ class CRTable {
    * Same as find() but not typed. Value is looked up in the corresponding field
    * of valueHolder.
    */
-  virtual int findByRevision(int key, const Revision& valueHolder,
-                             const LogicalTime& time, RevisionMap* dest) final;
+  virtual void findByRevision(int key, const Revision& valueHolder,
+                              const LogicalTime& time, RevisionMap* dest) final;
   /**
    * Same as find() but makes the assumption that there is only one result.
    */
@@ -192,9 +192,9 @@ class CRTable {
   /**
    * If key is -1, this should return all the data in the table.
    */
-  virtual int findByRevisionCRDerived(int key, const Revision& valueHolder,
-                                      const LogicalTime& time,
-                                      RevisionMap* dest) = 0;
+  virtual void findByRevisionCRDerived(int key, const Revision& valueHolder,
+                                       const LogicalTime& time,
+                                       RevisionMap* dest) = 0;
   virtual void getAvailableIdsCRDerived(const LogicalTime& time,
                                         std::unordered_set<Id>* ids) = 0;
 

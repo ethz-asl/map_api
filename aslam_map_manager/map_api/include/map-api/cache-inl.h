@@ -154,7 +154,7 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
     CRTable::RevisionMap::iterator corresponding_revision =
         revisions_.find(cached_pair.first);
     if (corresponding_revision == revisions_.end()) {
-      // all items that were in the db before must have been gotten through
+      // All items that were in the db before must have been gotten through
       // the revision cache, so an item not present in the revision cache must
       // have been inserted newly.
       std::shared_ptr<Revision> insertion = underlying_table_->getTemplate();
@@ -163,7 +163,7 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
                        insertion.get());
       transaction_.get()->insert(chunk_manager_.get(), insertion);
     } else {
-      // TODO(slynen) determine if the method requires update is specialized.
+      // TODO(slynen) Determine if the method requires update is specialized.
       // If not try to use operator==, otherwise emit useful message.
       if (requiresUpdate(Factory::getReferenceToDerived(cached_pair.second),
                          *corresponding_revision->second)) {
