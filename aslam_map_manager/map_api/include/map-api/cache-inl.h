@@ -147,16 +147,14 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
                        insertion.get());
       transaction_.get()->insert(chunk_manager_.get(), insertion);
     } else {
-      // TODO(slynen) Determine if the method requires update is specialized.
-      // If not try to use operator==, otherwise emit useful message.
-      if (requiresUpdate(Factory::getReferenceToDerived(cached_pair.second),
-                         *corresponding_revision->second)) {
-        std::shared_ptr<map_api::Revision> update_revision =
-            std::make_shared<map_api::Revision>(
-                *corresponding_revision->second);
-        objectToRevision(cached_pair.first,
-                         Factory::getReferenceToDerived(cached_pair.second),
-                         update_revision.get());
+      // Convert the object to the revision and then compare if it has changed.
+      std::shared_ptr<map_api::Revision> update_revision =
+          std::make_shared<map_api::Revision>(
+              *corresponding_revision->second);
+      objectToRevision(cached_pair.first,
+                       Factory::getReferenceToDerived(cached_pair.second),
+                       update_revision.get());
+      if (*update_revision != *corresponding_revision->second) {
         transaction_.get()->update(underlying_table_, update_revision);
       }
     }
