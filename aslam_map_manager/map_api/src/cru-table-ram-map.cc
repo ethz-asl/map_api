@@ -13,7 +13,7 @@ bool CRUTableRamMap::insertCRUDerived(Revision* query) {
   if (found != data_.end()) {
     return false;
   }
-  found->second.push_front(*query);
+  data_[id].push_front(*query);
   return true;
 }
 
