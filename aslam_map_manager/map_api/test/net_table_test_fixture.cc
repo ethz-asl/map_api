@@ -70,7 +70,7 @@ class NetTableTest : public MultiprocessTest,
     std::shared_ptr<Revision> to_insert = table_->getTemplate();
     to_insert->setId(insert_id);
     to_insert->set(kFieldName, n);
-    EXPECT_TRUE(table_->insert(LogicalTime::sample(), chunk, to_insert.get()));
+    EXPECT_TRUE(table_->insert(LogicalTime::sample(), chunk, to_insert));
     return insert_id;
   }
 

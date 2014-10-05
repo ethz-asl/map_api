@@ -25,7 +25,7 @@ class CRUTable : public CRTable {
 
  public:
   // Latest at front
-  class History : public std::list<Revision> {
+  class History : public std::list<std::shared_ptr<const Revision> > {
    public:
     inline const_iterator latestAt(const LogicalTime& time) const;
   };
@@ -40,11 +40,13 @@ class CRUTable : public CRTable {
    * It is possible to specify update time for singular times of transactions.
    * TODO(tcies) make it the only possible way of setting time
    */
-  void update(Revision* query);
-  void update(Revision* query, const LogicalTime& time);
+  void update(const std::shared_ptr<Revision>& query);
+  void update(const std::shared_ptr<Revision>& query,
+              const LogicalTime& time);
   bool getLatestUpdateTime(const Id& id, LogicalTime* time);
 
-  void remove(const LogicalTime& time, Revision* query);
+  void remove(const LogicalTime& time,
+              const std::shared_ptr<Revision>& query);
   // avoid if possible - this is slower
   template <typename IdType>
   void remove(const LogicalTime& time, const IdType& id);
@@ -68,8 +70,9 @@ class CRUTable : public CRTable {
   static const std::string kRemovedField;
 
  private:
-  virtual bool insertCRDerived(const LogicalTime& time,
-                               Revision* query) final override;
+  virtual bool insertCRDerived(
+      const LogicalTime& time,
+      const std::shared_ptr<Revision>& query) final override;
   virtual bool bulkInsertCRDerived(const NonConstRevisionMap& query,
                                    const LogicalTime& time) final override;
   /**
@@ -78,14 +81,16 @@ class CRUTable : public CRTable {
    * ================================================
    * The CRTable class contains most documentation on these functions.
    */
-  virtual bool insertCRUDerived(Revision* query) = 0;
+  virtual bool insertCRUDerived(const std::shared_ptr<Revision>& query) = 0;
   virtual bool bulkInsertCRUDerived(const NonConstRevisionMap& query) = 0;
-  virtual bool patchCRDerived(const Revision& query) override = 0;
+  virtual bool patchCRDerived(
+      const std::shared_ptr<Revision>& query) override = 0;
 
   /**
    * Implement insertion of the updated revision
    */
-  virtual bool insertUpdatedCRUDerived(const Revision& query) = 0;
+  virtual bool insertUpdatedCRUDerived(
+      const std::shared_ptr<Revision>& query) = 0;
   virtual void findHistoryByRevisionCRUDerived(int key,
                                                const Revision& valueHolder,
                                                const LogicalTime& time,

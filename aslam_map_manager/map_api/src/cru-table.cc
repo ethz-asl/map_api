@@ -17,12 +17,14 @@ namespace map_api {
 
 CRUTable::~CRUTable() {}
 
-void CRUTable::update(Revision* query) {
-  update(CHECK_NOTNULL(query), LogicalTime::sample());
+void CRUTable::update(const std::shared_ptr<Revision>& query) {
+  CHECK(query != nullptr);
+  update(query, LogicalTime::sample());
 }
 
-void CRUTable::update(Revision* query, const LogicalTime& time) {
-  CHECK_NOTNULL(query);
+void CRUTable::update(const std::shared_ptr<Revision>& query,
+                      const LogicalTime& time) {
+  CHECK(query != nullptr);
   CHECK(isInitialized()) << "Attempted to update in non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   // TODO(tcies) const template, cow template?
@@ -32,7 +34,7 @@ void CRUTable::update(Revision* query, const LogicalTime& time) {
       << "Attempted to update element with invalid ID";
   LogicalTime update_time = time;
   query->setUpdateTime(update_time);
-  CHECK(insertUpdatedCRUDerived(*query));
+  CHECK(insertUpdatedCRUDerived(query));
 }
 
 bool CRUTable::getLatestUpdateTime(const Id& id, LogicalTime* time) {
@@ -48,8 +50,9 @@ bool CRUTable::getLatestUpdateTime(const Id& id, LogicalTime* time) {
   return true;
 }
 
-void CRUTable::remove(const LogicalTime& time, Revision* query) {
-  CHECK_NOTNULL(query);
+void CRUTable::remove(const LogicalTime& time,
+                      const std::shared_ptr<Revision>& query) {
+  CHECK(query != nullptr);
   CHECK(isInitialized());
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(query->structureMatch(*reference));
@@ -57,7 +60,7 @@ void CRUTable::remove(const LogicalTime& time, Revision* query) {
   LogicalTime update_time = time;
   query->setUpdateTime(update_time);
   query->setRemoved();
-  CHECK(insertUpdatedCRUDerived(*query));
+  CHECK(insertUpdatedCRUDerived(query));
 }
 
 void CRUTable::findHistoryByRevision(int key, const Revision& valueHolder,
@@ -77,7 +80,8 @@ CRUTable::Type CRUTable::type() const {
 const std::string CRUTable::kUpdateTimeField = "update_time";
 const std::string CRUTable::kRemovedField = "removed";
 
-bool CRUTable::insertCRDerived(const LogicalTime& time, Revision* query) {
+bool CRUTable::insertCRDerived(const LogicalTime& time,
+                               const std::shared_ptr<Revision>& query) {
   query->setUpdateTime(time);
   return insertCRUDerived(query);
 }

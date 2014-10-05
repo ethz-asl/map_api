@@ -106,7 +106,8 @@ class CRTable {
    * for singular transaction commit times.
    * TODO(tcies) make void where possible
    */
-  virtual bool insert(const LogicalTime& time, Revision* query) final;
+  virtual bool insert(const LogicalTime& time,
+                      const std::shared_ptr<Revision>& query) final;
   virtual bool bulkInsert(const NonConstRevisionMap& query) final;
   virtual bool bulkInsert(const NonConstRevisionMap& query,
                           const LogicalTime& time) final;
@@ -114,7 +115,7 @@ class CRTable {
    * Unlike insert, patch does not modify the query, but assumes that all
    * default values are set correctly.
    */
-  virtual bool patch(const Revision& revision) final;
+  virtual bool patch(const std::shared_ptr<Revision>& revision) final;
   /**
    * Returns revision of item that has been current at "time" or an invalid
    * pointer if the item hasn't been inserted at "time"
@@ -194,10 +195,11 @@ class CRTable {
    * Do here whatever is specific to initializing the derived type
    */
   virtual bool initCRDerived() = 0;
-  virtual bool insertCRDerived(const LogicalTime& time, Revision* query) = 0;
+  virtual bool insertCRDerived(const LogicalTime& time,
+                               const std::shared_ptr<Revision>& query) = 0;
   virtual bool bulkInsertCRDerived(const NonConstRevisionMap& query,
                                    const LogicalTime& time) = 0;
-  virtual bool patchCRDerived(const Revision& query) = 0;
+  virtual bool patchCRDerived(const std::shared_ptr<Revision>& query) = 0;
   virtual std::shared_ptr<const Revision> getByIdCRDerived(
       const Id& id, const LogicalTime& time) const = 0;
   virtual void dumpChunkCRDerived(const Id& chunk_id, const LogicalTime& time,
