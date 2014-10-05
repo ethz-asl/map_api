@@ -72,8 +72,18 @@ class Transaction {
   inline LogicalTime getCommitTime() const { return commit_time_; }
   using Conflict = ChunkTransaction::Conflict;
   using Conflicts = ChunkTransaction::Conflicts;
-  typedef std::unordered_map<NetTable*, ChunkTransaction::Conflicts>
-      ConflictMap;
+  class ConflictMap
+      : public std::unordered_map<NetTable*, ChunkTransaction::Conflicts> {
+   public:
+    inline std::string debugString() {
+      std::ostringstream ss;
+      for (const value_type& pair : *this) {
+        ss << pair.first->name() << ": " << pair.second.size() << " conflicts"
+           << std::endl;
+      }
+      return ss.str();
+    }
+  };
   /**
    * Merge_transaction will be filled with all insertions and non-conflicting
    * updates from this transaction, while the conflicting updates will be
