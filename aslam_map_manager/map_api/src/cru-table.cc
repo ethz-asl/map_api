@@ -18,9 +18,8 @@ namespace map_api {
 
 CRUTable::~CRUTable() {}
 
-bool CRUTable::update(Revision* query) {
+void CRUTable::update(Revision* query) {
   update(CHECK_NOTNULL(query), LogicalTime::sample());
-  return true;  // TODO(tcies) void
 }
 
 void CRUTable::update(Revision* query, const LogicalTime& time) {

@@ -105,7 +105,7 @@ void CRTable::dumpChunk(const Id& chunk_id, const LogicalTime& time,
   return dumpChunkCRDerived(chunk_id, time, dest);
 }
 
-int CRTable::findByRevision(int key, const Revision& valueHolder,
+void CRTable::findByRevision(int key, const Revision& valueHolder,
                             const LogicalTime& time, RevisionMap* dest) {
   CHECK(isInitialized()) << "Attempted to find in non-initialized table";
   // whether valueHolder contains key is implicitly checked whenever using
@@ -115,7 +115,7 @@ int CRTable::findByRevision(int key, const Revision& valueHolder,
   dest->clear();
   CHECK(time < LogicalTime::sample()) <<
       "Seeing the future is yet to be implemented ;)";
-  return findByRevisionCRDerived(key, valueHolder, time, dest);
+  findByRevisionCRDerived(key, valueHolder, time, dest);
 }
 
 int CRTable::countByRevision(int key, const Revision& valueHolder,

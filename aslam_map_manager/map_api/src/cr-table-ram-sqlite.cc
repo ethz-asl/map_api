@@ -35,7 +35,7 @@ void __attribute__((deprecated)) CRTableRamSqlite::dumpChunkCRDerived(
   LOG(FATAL) << "Not implemented";  // TODO(tcies) implement
 }
 
-int __attribute__((deprecated)) CRTableRamSqlite::findByRevisionCRDerived(
+void __attribute__((deprecated)) CRTableRamSqlite::findByRevisionCRDerived(
     int key, const Revision& value_holder, const LogicalTime& time,
     RevisionMap* dest) {
   LOG(FATAL) << "Adapt to int keys";  // TODO(tcies) adapt to int keys
@@ -69,7 +69,6 @@ int __attribute__((deprecated)) CRTableRamSqlite::findByRevisionCRDerived(
     CHECK(id.isValid());
     (*dest)[id] = item;
   }
-  return from_poco.size();
 }
 
 std::shared_ptr<Revision> __attribute__((deprecated))

@@ -73,10 +73,10 @@ void CRUTableRamMap::dumpChunkCRDerived(const Id& chunk_id,
       });
 }
 
-int CRUTableRamMap::findByRevisionCRDerived(int key,
-                                            const Revision& value_holder,
-                                            const LogicalTime& time,
-                                            RevisionMap* dest) {
+void CRUTableRamMap::findByRevisionCRDerived(int key,
+                                             const Revision& value_holder,
+                                             const LogicalTime& time,
+                                             RevisionMap* dest) {
   CHECK_NOTNULL(dest);
   dest->clear();
   forEachItemFoundAtTime(
@@ -85,7 +85,6 @@ int CRUTableRamMap::findByRevisionCRDerived(int key,
     CHECK(dest->find(id) == dest->end());
     CHECK(dest->emplace(id, std::make_shared<Revision>(item)).second);
       });
-  return dest->size();  // TODO(tcies) returning the count is silly, abolish
 }
 
 void CRUTableRamMap::getAvailableIdsCRDerived(const LogicalTime& time,

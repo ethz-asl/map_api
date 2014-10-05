@@ -36,7 +36,7 @@ void __attribute__((deprecated)) CRUTableRamSqlite::dumpChunkCRDerived(
   LOG(FATAL) << "Not implemented";  // TODO(tcies) implement
 }
 
-int __attribute__((deprecated)) CRUTableRamSqlite::findByRevisionCRDerived(
+void __attribute__((deprecated)) CRUTableRamSqlite::findByRevisionCRDerived(
     int key, const Revision& value_holder, const LogicalTime& time,
     RevisionMap* dest) {
   // TODO(tcies) adapt to "removed" flag and int key
@@ -79,7 +79,6 @@ int __attribute__((deprecated)) CRUTableRamSqlite::findByRevisionCRDerived(
       latest[id] = item_time;
     }
   }
-  return dest->size();
 }
 
 void __attribute__((deprecated)) CRUTableRamSqlite::getAvailableIdsCRDerived(
