@@ -221,8 +221,10 @@ TEST_P(NetTableTest, Grind) {
       // update
       if (GetParam()) {
         table_->dumpActiveChunksAtCurrentTime(&results);
-        results.begin()->second->set(kFieldName, 21);
-        EXPECT_TRUE(table_->update(results.begin()->second.get()));
+        std::shared_ptr<Revision> revision =
+            std::make_shared<Revision>(*results.begin()->second);
+        revision->set(kFieldName, 21);
+        EXPECT_TRUE(table_->update(revision.get()));
       }
     }
     IPC::barrier(DIE, kProcesses - 1);
@@ -257,7 +259,7 @@ TEST_P(NetTableTest, ChunkTransactions) {
     IPC::barrier(DIE, kProcesses - 1);
     table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(kProcesses, results.size());
-    std::unordered_map<Id, std::shared_ptr<Revision> >::iterator found =
+    std::unordered_map<Id, std::shared_ptr<const Revision> >::iterator found =
         results.find(insert_id);
     if (found != results.end()) {
       int final_value;
@@ -286,11 +288,13 @@ TEST_P(NetTableTest, ChunkTransactions) {
       // update
       if (GetParam()) {
         int transient_value;
-        std::shared_ptr<Revision> to_update = transaction.getById(item_id);
+        std::shared_ptr<const Revision> to_update = transaction.getById(item_id);
         to_update->get(kFieldName, &transient_value);
         ++transient_value;
-        to_update->set(kFieldName, transient_value);
-        transaction.update(to_update);
+        std::shared_ptr<Revision> revision =
+                    std::make_shared<Revision>(*to_update);
+        revision->set(kFieldName, transient_value);
+        transaction.update(revision);
       }
       if (transaction.commit()) {
         break;
@@ -384,7 +388,8 @@ TEST_P(NetTableTest, Triggers) {
   }
   chunk_->attachTrigger([this, &highest_value](const Id& id) {
     Transaction transaction;
-    std::shared_ptr<Revision> item = transaction.getById(id, table_, chunk_);
+    std::shared_ptr<Revision> item =
+        std::make_shared<Revision>(*transaction.getById(id, table_, chunk_));
     item->get(kFieldName, &highest_value);
     if (highest_value < 10) {
       ++highest_value;
@@ -443,14 +448,16 @@ TEST_P(NetTableTest, SendHistory) {
 
     Transaction current_transaction;
     std::shared_ptr<Revision> current_version =
-        current_transaction.getById(item_id_, table_, chunk_);
+        std::make_shared<Revision>(
+            *current_transaction.getById(item_id_, table_, chunk_));
     ASSERT_TRUE(current_version.get() != nullptr);
     EXPECT_TRUE(current_version->verifyEqual(kFieldName,
                                              GetParam() ? kAfter : kBefore));
 
     Transaction time_travel(before_mod);
     std::shared_ptr<Revision> past_version =
-        time_travel.getById(item_id_, table_, chunk_);
+        std::make_shared<Revision>(
+            *time_travel.getById(item_id_, table_, chunk_));
     if (GetParam()) {
       ASSERT_TRUE(past_version.get() != nullptr);
       EXPECT_TRUE(past_version->verifyEqual(kFieldName, kBefore));
@@ -471,8 +478,8 @@ TEST_P(NetTableTest, SendHistory) {
     if (GetParam()) {
       IPC::push(LogicalTime::sample());
       Transaction update_transaction;
-      std::shared_ptr<Revision> to_update =
-          update_transaction.getById(item_id_, table_, chunk_);
+      std::shared_ptr<Revision> to_update = std::make_shared<Revision>(
+          *update_transaction.getById(item_id_, table_, chunk_));
       to_update->set(kFieldName, kAfter);
       update_transaction.update(table_, to_update);
       CHECK(update_transaction.commit());
