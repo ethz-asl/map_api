@@ -44,7 +44,9 @@ class Revision {
    * Does not check type - type is checked with get/set. Nothing that can be
    * done if type doesn't match anyways.
    */
-  bool hasField(int index);
+  bool hasField(int index) const;
+
+  proto::Type getFieldType(int index) const;
 
   template <typename FieldType>
   bool set(int index, const FieldType& value);
@@ -101,11 +103,13 @@ class Revision {
     return underlying_revision_->SerializeAsString();
   }
 
-  inline int byteSize() const { return underlying_revision_->ByteSize(); }
-
-  inline const proto::Revision& underlyingRevision() const {
-    return *underlying_revision_;
+  inline bool SerializeToCodedStream(
+      google::protobuf::io::CodedOutputStream* output) const {
+    CHECK_NOTNULL(output);
+    return underlying_revision_->SerializeToCodedStream(output);
   }
+
+  inline int byteSize() const { return underlying_revision_->ByteSize(); }
 
   inline bool parse(const std::string& origin) {
     return underlying_revision_->ParseFromString(origin);
