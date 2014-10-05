@@ -35,7 +35,7 @@ class SqliteInterface {
    * Inserts data as is from the supplied revision
    */
   bool insert(const Revision& to_insert);
-  bool bulkInsert(const CRTable::InsertRevisionMap& to_insert);
+  bool bulkInsert(const CRTable::NonConstRevisionMap& to_insert);
 
   /**
    * Allows a to also feed custom commands to the database -

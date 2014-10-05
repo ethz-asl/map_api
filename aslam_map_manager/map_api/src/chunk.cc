@@ -277,12 +277,12 @@ void Chunk::attachTrigger(const std::function<void(const Id& id)>& callback) {
   trigger_ = callback;
 }
 
-void Chunk::bulkInsertLocked(const CRTable::InsertRevisionMap& items,
+void Chunk::bulkInsertLocked(const CRTable::NonConstRevisionMap& items,
                              const LogicalTime& time) {
   std::vector<proto::PatchRequest> insert_requests;
   insert_requests.resize(items.size());
   int i = 0;
-  for (const CRTable::InsertRevisionMap::value_type& item : items) {
+  for (const CRTable::NonConstRevisionMap::value_type& item : items) {
     CHECK_NOTNULL(item.second.get());
     item.second->setChunkId(id());
     fillMetadata(&insert_requests[i]);

@@ -132,12 +132,12 @@ void ChunkTransaction::merge(
   std::unordered_map<Id, LogicalTime> stamps;
   prepareCheck(merge_transaction->begin_time_, &stamps);
   // The following check may be left out if too costly
-  for (const typename CRTable::InsertRevisionMap::value_type& item :
+  for (const typename CRTable::NonConstRevisionMap::value_type& item :
        insertions_) {
     CHECK(stamps.find(item.first) == stamps.end()) << "Insert conflict!";
     merge_transaction->insertions_.insert(item);
   }
-  for (const typename CRTable::InsertRevisionMap::value_type& item : updates_) {
+  for (const typename CRTable::NonConstRevisionMap::value_type& item : updates_) {
     if (stamps[item.first] >= begin_time_) {
       conflicts->push_back(
           {merge_transaction->getById(item.first), item.second});
@@ -145,7 +145,7 @@ void ChunkTransaction::merge(
       merge_transaction->updates_.insert(item);
     }
   }
-  for (const typename CRTable::InsertRevisionMap::value_type& item : removes_) {
+  for (const typename CRTable::NonConstRevisionMap::value_type& item : removes_) {
     if (stamps[item.first] >= begin_time_) {
       conflicts->push_back(
           {merge_transaction->getById(item.first), item.second});

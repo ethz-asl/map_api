@@ -75,9 +75,9 @@ class ChunkTransaction {
   /**
    * Strong typing of table operation maps.
    */
-  class InsertMap : public CRTable::InsertRevisionMap {};
-  class UpdateMap : public CRTable::InsertRevisionMap {};
-  class RemoveMap : public CRTable::InsertRevisionMap {};
+  class InsertMap : public CRTable::NonConstRevisionMap {};
+  class UpdateMap : public CRTable::NonConstRevisionMap {};
+  class RemoveMap : public CRTable::NonConstRevisionMap {};
   struct ConflictCondition {
     const int key;
     const std::shared_ptr<Revision> value_holder;

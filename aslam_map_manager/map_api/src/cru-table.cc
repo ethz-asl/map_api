@@ -82,9 +82,9 @@ bool CRUTable::insertCRDerived(const LogicalTime& time, Revision* query) {
   return insertCRUDerived(query);
 }
 
-bool CRUTable::bulkInsertCRDerived(const InsertRevisionMap& query,
+bool CRUTable::bulkInsertCRDerived(const NonConstRevisionMap& query,
                                    const LogicalTime& time) {
-  for (const InsertRevisionMap::value_type& item : query) {
+  for (const NonConstRevisionMap::value_type& item : query) {
     item.second->setUpdateTime(time);
   }
   return bulkInsertCRUDerived(query);

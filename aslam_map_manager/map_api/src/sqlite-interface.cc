@@ -123,7 +123,7 @@ bool __attribute__((deprecated))
 }
 
 bool SqliteInterface::bulkInsert(
-    const CRTable::InsertRevisionMap& to_insert) {
+    const CRTable::NonConstRevisionMap& to_insert) {
   std::shared_ptr<Poco::Data::Session> session = session_.lock();
   CHECK(session) << "Couldn't lock session weak pointer!";
   *session << "BEGIN TRANSACTION", Poco::Data::now;

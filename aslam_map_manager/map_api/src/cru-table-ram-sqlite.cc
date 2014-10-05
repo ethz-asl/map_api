@@ -18,7 +18,7 @@ bool CRUTableRamSqlite::insertCRUDerived(Revision* query) {
 }
 
 bool CRUTableRamSqlite::bulkInsertCRUDerived(
-    const InsertRevisionMap& query) {
+    const NonConstRevisionMap& query) {
   return sqlite_interface_.bulkInsert(query);
 }
 

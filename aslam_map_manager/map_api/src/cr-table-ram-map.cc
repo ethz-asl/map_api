@@ -12,14 +12,14 @@ bool CRTableRamMap::insertCRDerived(const LogicalTime& /*time*/,
   return patchCRDerived(*query);
 }
 
-bool CRTableRamMap::bulkInsertCRDerived(const InsertRevisionMap& query,
+bool CRTableRamMap::bulkInsertCRDerived(const NonConstRevisionMap& query,
                                         const LogicalTime& /*time*/) {
-  for (const InsertRevisionMap::value_type& pair : query) {
+  for (const NonConstRevisionMap::value_type& pair : query) {
     if (data_.find(pair.first) != data_.end()) {
       return false;
     }
   }
-  for (const InsertRevisionMap::value_type& pair : query) {
+  for (const NonConstRevisionMap::value_type& pair : query) {
     CHECK(data_.emplace(pair.first, *pair.second).second);
   }
   return true;

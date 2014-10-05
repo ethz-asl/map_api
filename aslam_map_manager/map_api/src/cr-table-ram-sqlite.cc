@@ -20,7 +20,7 @@ bool CRTableRamSqlite::insertCRDerived(const LogicalTime& /*time*/,
   return sqlite_interface_.insert(*query);
 }
 
-bool CRTableRamSqlite::bulkInsertCRDerived(const InsertRevisionMap& query,
+bool CRTableRamSqlite::bulkInsertCRDerived(const NonConstRevisionMap& query,
                                            const LogicalTime& /*time*/) {
   return sqlite_interface_.bulkInsert(query);
 }

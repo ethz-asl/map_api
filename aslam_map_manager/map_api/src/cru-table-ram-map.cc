@@ -18,7 +18,7 @@ bool CRUTableRamMap::insertCRUDerived(Revision* query) {
 }
 
 bool CRUTableRamMap::bulkInsertCRUDerived(
-    const InsertRevisionMap& query) {
+    const NonConstRevisionMap& query) {
   for (const RevisionMap::value_type& pair : query) {
     if (data_.find(pair.first) != data_.end()) {
       return false;

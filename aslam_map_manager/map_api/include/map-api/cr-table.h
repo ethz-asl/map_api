@@ -53,7 +53,7 @@ class CRTable {
         const std::shared_ptr<RevisionType>& revision);
   };
   typedef RevisionMapBase<const Revision> RevisionMap;
-  typedef RevisionMapBase<Revision> InsertRevisionMap;
+  typedef RevisionMapBase<Revision> NonConstRevisionMap;
 
   /**
    * Default fields
@@ -107,8 +107,8 @@ class CRTable {
    * TODO(tcies) make void where possible
    */
   virtual bool insert(const LogicalTime& time, Revision* query) final;
-  virtual bool bulkInsert(const InsertRevisionMap& query) final;
-  virtual bool bulkInsert(const InsertRevisionMap& query,
+  virtual bool bulkInsert(const NonConstRevisionMap& query) final;
+  virtual bool bulkInsert(const NonConstRevisionMap& query,
                           const LogicalTime& time) final;
   /**
    * Unlike insert, patch does not modify the query, but assumes that all
@@ -195,7 +195,7 @@ class CRTable {
    */
   virtual bool initCRDerived() = 0;
   virtual bool insertCRDerived(const LogicalTime& time, Revision* query) = 0;
-  virtual bool bulkInsertCRDerived(const InsertRevisionMap& query,
+  virtual bool bulkInsertCRDerived(const NonConstRevisionMap& query,
                                    const LogicalTime& time) = 0;
   virtual bool patchCRDerived(const Revision& query) = 0;
   virtual std::shared_ptr<const Revision> getByIdCRDerived(
