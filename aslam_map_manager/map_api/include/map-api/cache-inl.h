@@ -151,8 +151,6 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
       // If not try to use operator==, otherwise emit useful message.
       if (requiresUpdate(Factory::getReferenceToDerived(cached_pair.second),
                          *corresponding_revision->second)) {
-        // TODO(slynen): This is only valid if the underlying proto is deep
-        // copied.
         std::shared_ptr<map_api::Revision> update_revision =
             std::make_shared<map_api::Revision>(
                 *corresponding_revision->second);
@@ -164,7 +162,6 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
     }
   }
   for (const IdType& id : removals_) {
-    // TODO(slynen): Only valid if underlying proto is deep copied.
     std::shared_ptr<Revision> to_remove =
         std::make_shared<Revision>(*getRevisionLocked(id));
     transaction_.get()->remove(underlying_table_, to_remove);
