@@ -447,17 +447,15 @@ TEST_P(NetTableTest, SendHistory) {
     IPC::barrier(DIE, 1);
 
     Transaction current_transaction;
-    std::shared_ptr<Revision> current_version =
-        std::make_shared<Revision>(
-            *current_transaction.getById(item_id_, table_, chunk_));
+    std::shared_ptr<const Revision> current_version =
+            current_transaction.getById(item_id_, table_, chunk_);
     ASSERT_TRUE(current_version.get() != nullptr);
     EXPECT_TRUE(current_version->verifyEqual(kFieldName,
                                              GetParam() ? kAfter : kBefore));
 
     Transaction time_travel(before_mod);
-    std::shared_ptr<Revision> past_version =
-        std::make_shared<Revision>(
-            *time_travel.getById(item_id_, table_, chunk_));
+    std::shared_ptr<const Revision> past_version =
+        time_travel.getById(item_id_, table_, chunk_);
     if (GetParam()) {
       ASSERT_TRUE(past_version.get() != nullptr);
       EXPECT_TRUE(past_version->verifyEqual(kFieldName, kBefore));
