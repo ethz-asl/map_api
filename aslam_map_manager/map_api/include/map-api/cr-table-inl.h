@@ -8,8 +8,8 @@
 namespace map_api {
 
 template <typename IdType>
-std::shared_ptr<Revision> CRTable::getById(const IdType& id,
-                                           const LogicalTime& time) {
+std::shared_ptr<const Revision> CRTable::getById(
+    const IdType& id, const LogicalTime& time) const {
   CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
   CHECK(id.isValid()) << "Supplied invalid ID";
   Id map_api_id;
@@ -33,8 +33,10 @@ void CRTable::getAvailableIds(const LogicalTime& time,
   }
 }
 
+template <typename RevisionType>
 template <typename Derived>
-CRTable::RevisionMap::iterator CRTable::RevisionMap::find(
+typename CRTable::RevisionMapBase<RevisionType>::iterator
+CRTable::RevisionMapBase<RevisionType>::find(
     const UniqueId<Derived>& key) {
   Id id_key;
   sm::HashId hash_id;
@@ -43,8 +45,10 @@ CRTable::RevisionMap::iterator CRTable::RevisionMap::find(
   return find(id_key);
 }
 
+template <typename RevisionType>
 template <typename Derived>
-CRTable::RevisionMap::const_iterator CRTable::RevisionMap::find(
+typename CRTable::RevisionMapBase<RevisionType>::const_iterator
+CRTable::RevisionMapBase<RevisionType>::find(
     const UniqueId<Derived>& key) const {
   Id id_key;
   sm::HashId hash_id;
@@ -53,9 +57,20 @@ CRTable::RevisionMap::const_iterator CRTable::RevisionMap::find(
   return find(id_key);
 }
 
+template <typename RevisionType>
+std::pair<typename CRTable::RevisionMapBase<RevisionType>::iterator, bool>
+CRTable::RevisionMapBase<RevisionType>::insert(
+    const std::shared_ptr<RevisionType>& revision) {
+  CHECK_NOTNULL(revision.get());
+  return insert(std::make_pair(revision->template getId<Id>(), revision));
+}
+
+template <typename RevisionType>
 template <typename Derived>
-std::pair<CRTable::RevisionMap::iterator, bool> CRTable::RevisionMap::insert(
-    const UniqueId<Derived>& key, const std::shared_ptr<Revision>& revision) {
+std::pair<typename CRTable::RevisionMapBase<RevisionType>::iterator, bool>
+CRTable::RevisionMapBase<RevisionType>::insert(
+    const UniqueId<Derived>& key,
+    const std::shared_ptr<RevisionType>& revision) {
   Id id_key;
   sm::HashId hash_id;
   key.toHashId(&hash_id);
@@ -84,8 +99,8 @@ int CRTable::count(int key, const ValueType& value, const LogicalTime& time) {
 }
 
 template <typename ValueType>
-std::shared_ptr<Revision> CRTable::findUnique(int key, const ValueType& value,
-                                              const LogicalTime& time) {
+std::shared_ptr<const Revision> CRTable::findUnique(
+    int key, const ValueType& value, const LogicalTime& time) {
   RevisionMap results;
   find(key, value, time, &results);
   int count = results.size();

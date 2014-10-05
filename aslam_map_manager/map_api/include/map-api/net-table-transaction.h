@@ -27,9 +27,9 @@ class NetTableTransaction {
 
   // READ (see transaction.h)
   template <typename IdType>
-  std::shared_ptr<Revision> getById(const IdType& id);
+  std::shared_ptr<const Revision> getById(const IdType& id) const;
   template <typename IdType>
-  std::shared_ptr<Revision> getById(const IdType& id, Chunk* chunk);
+  std::shared_ptr<const Revision> getById(const IdType& id, Chunk* chunk) const;
   CRTable::RevisionMap dumpChunk(Chunk* chunk);
   CRTable::RevisionMap dumpActiveChunks();
   template <typename ValueType>
@@ -42,7 +42,7 @@ class NetTableTransaction {
   void update(std::shared_ptr<Revision> revision);
   void remove(std::shared_ptr<Revision> revision);
   template <typename IdType>
-  void remove(const IdType& id);
+  void remove(const UniqueId<IdType>& id);
 
   // TRANSACTION OPERATIONS
   /**
@@ -71,9 +71,10 @@ class NetTableTransaction {
   size_t numChangedItems() const;
 
   // INTERNAL
-  ChunkTransaction* transactionOf(Chunk* chunk);
+  ChunkTransaction* transactionOf(Chunk* chunk) const;
   template <typename IdType>
-  Chunk* chunkOf(const IdType& id, std::shared_ptr<Revision>* latest);
+  Chunk* chunkOf(const UniqueId<IdType>& id,
+                 std::shared_ptr<const Revision>* latest) const;
   /**
    * A global ordering of chunks prevents deadlocks (resource hierarchy
    * solution)
@@ -87,7 +88,7 @@ class NetTableTransaction {
   typedef std::map<Chunk*, std::shared_ptr<ChunkTransaction>, ChunkOrdering>
   TransactionMap;
   typedef TransactionMap::value_type TransactionPair;
-  TransactionMap chunk_transactions_;
+  mutable TransactionMap chunk_transactions_;
   LogicalTime begin_time_;
   NetTable* table_;
 };

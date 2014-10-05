@@ -70,7 +70,7 @@ class CRUTable : public CRTable {
  private:
   virtual bool insertCRDerived(const LogicalTime& time,
                                Revision* query) final override;
-  virtual bool bulkInsertCRDerived(const RevisionMap& query,
+  virtual bool bulkInsertCRDerived(const InsertRevisionMap& query,
                                    const LogicalTime& time) final override;
   /**
    * ================================================
@@ -79,7 +79,7 @@ class CRUTable : public CRTable {
    * The CRTable class contains most documentation on these functions.
    */
   virtual bool insertCRUDerived(Revision* query) = 0;
-  virtual bool bulkInsertCRUDerived(const RevisionMap& query) = 0;
+  virtual bool bulkInsertCRUDerived(const InsertRevisionMap& query) = 0;
   virtual bool patchCRDerived(const Revision& query) override = 0;
 
   /**

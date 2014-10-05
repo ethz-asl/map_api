@@ -170,8 +170,7 @@ class Cache : public CacheBase,
   /**
    * Mutex MUST be locked prior to calling the getRevisionLocked functions.
    */
-  std::shared_ptr<Revision> getRevisionLocked(const IdType& id);
-  std::shared_ptr<Revision> getRevisionLocked(const IdType& id) const;
+  std::shared_ptr<const Revision> getRevisionLocked(const IdType& id) const;
   virtual void prepareForCommit() override;
 
   typedef std::unordered_map<IdType, Value> CacheMap;

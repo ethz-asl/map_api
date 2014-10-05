@@ -31,7 +31,7 @@ Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) {
   LockGuard lock(mutex_);
   typename CacheMap::iterator found = this->cache_.find(id);
   if (found == this->cache_.end()) {
-    std::shared_ptr<Revision> revision = getRevisionLocked(id);
+    std::shared_ptr<const Revision> revision = getRevisionLocked(id);
     CHECK(revision);
     std::pair<typename CacheMap::iterator, bool> cache_insertion;
 
@@ -49,7 +49,7 @@ const Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) const {
   LockGuard lock(mutex_);
   typename CacheMap::iterator found = this->cache_.find(id);
   if (found == this->cache_.end()) {
-    std::shared_ptr<Revision> revision = getRevisionLocked(id);
+    std::shared_ptr<const Revision> revision = getRevisionLocked(id);
     CHECK(revision);
     std::pair<typename CacheMap::iterator, bool> cache_insertion;
     cache_insertion = cache_.emplace(id, Factory::getNewInstance());
@@ -113,29 +113,13 @@ bool Cache<IdType, Value, DerivedValue>::empty() const {
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
-std::shared_ptr<Revision> Cache<IdType, Value, DerivedValue>::getRevisionLocked(
-    const IdType& id) {
-  typedef CRTable::RevisionMap::iterator RevisionIterator;
-  RevisionIterator found = revisions_.find(id);
-  if (found == revisions_.end()) {
-    std::shared_ptr<Revision> revision =
-        transaction_.get()->getById(id, underlying_table_);
-    CHECK(revision);
-    std::pair<RevisionIterator, bool> insertion =
-        revisions_.insert(id, revision);
-    CHECK(insertion.second);
-    found = insertion.first;
-  }
-  return found->second;
-}
-
-template <typename IdType, typename Value, typename DerivedValue>
-std::shared_ptr<Revision> Cache<IdType, Value, DerivedValue>::getRevisionLocked(
+std::shared_ptr<const Revision>
+Cache<IdType, Value, DerivedValue>::getRevisionLocked(
     const IdType& id) const {
   typedef CRTable::RevisionMap::iterator RevisionIterator;
   RevisionIterator found = revisions_.find(id);
   if (found == revisions_.end()) {
-    std::shared_ptr<Revision> revision =
+    std::shared_ptr<const Revision> revision =
         transaction_.get()->getById(id, underlying_table_);
     CHECK(revision);
     std::pair<RevisionIterator, bool> insertion =
@@ -167,16 +151,22 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
       // If not try to use operator==, otherwise emit useful message.
       if (requiresUpdate(Factory::getReferenceToDerived(cached_pair.second),
                          *corresponding_revision->second)) {
+        // TODO(slynen): This is only valid if the underlying proto is deep
+        // copied.
+        std::shared_ptr<map_api::Revision> update_revision =
+            std::make_shared<map_api::Revision>(
+                *corresponding_revision->second);
         objectToRevision(cached_pair.first,
                          Factory::getReferenceToDerived(cached_pair.second),
-                         corresponding_revision->second.get());
-        transaction_.get()->update(underlying_table_,
-                                   corresponding_revision->second);
+                         update_revision.get());
+        transaction_.get()->update(underlying_table_, update_revision);
       }
     }
   }
   for (const IdType& id : removals_) {
-    std::shared_ptr<Revision> to_remove = getRevisionLocked(id);
+    // TODO(slynen): Only valid if underlying proto is deep copied.
+    std::shared_ptr<Revision> to_remove =
+        std::make_shared<Revision>(*getRevisionLocked(id));
     transaction_.get()->remove(underlying_table_, to_remove);
   }
   staged_ = true;

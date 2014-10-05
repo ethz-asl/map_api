@@ -117,7 +117,7 @@ class Chunk {
   /**
    * insert and update for transactions.
    */
-  void bulkInsertLocked(const CRTable::RevisionMap& items,
+  void bulkInsertLocked(const CRTable::InsertRevisionMap& items,
                         const LogicalTime& time);
   void updateLocked(const LogicalTime& time, Revision* item);
   void removeLocked(const LogicalTime& time, Revision* item);

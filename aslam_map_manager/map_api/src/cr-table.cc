@@ -11,19 +11,12 @@
 #include <gflags/gflags.h>
 
 #include "map-api/core.h"
-#include "map-api/local-transaction.h"
 #include "./core.pb.h"
 
 namespace map_api {
 
 const std::string CRTable::kIdField = "ID";
 const std::string CRTable::kInsertTimeField = "insert_time";
-
-std::pair<CRTable::RevisionMap::iterator, bool> CRTable::RevisionMap::insert(
-    const std::shared_ptr<Revision>& revision) {
-  CHECK_NOTNULL(revision.get());
-  return insert(std::make_pair(revision->getId<Id>(), revision));
-}
 
 CRTable::~CRTable() {}
 
@@ -66,16 +59,16 @@ bool CRTable::insert(const LogicalTime& time, Revision* query) {
   return insertCRDerived(time, query);
 }
 
-bool CRTable::bulkInsert(const RevisionMap& query) {
+bool CRTable::bulkInsert(const InsertRevisionMap& query) {
   return bulkInsert(query, LogicalTime::sample());
 }
 
-bool CRTable::bulkInsert(const RevisionMap& query,
+bool CRTable::bulkInsert(const InsertRevisionMap& query,
                          const LogicalTime& time) {
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   Id id;
-  for (const RevisionMap::value_type& id_revision : query) {
+  for (const typename InsertRevisionMap::value_type& id_revision : query) {
     CHECK_NOTNULL(id_revision.second.get());
     CHECK(id_revision.second->structureMatch(*reference))
         << "Bad structure of insert revision";

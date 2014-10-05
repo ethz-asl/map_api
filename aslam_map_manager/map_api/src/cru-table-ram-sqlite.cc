@@ -17,7 +17,8 @@ bool CRUTableRamSqlite::insertCRUDerived(Revision* query) {
   return sqlite_interface_.insert(*query);
 }
 
-bool CRUTableRamSqlite::bulkInsertCRUDerived(const RevisionMap& query) {
+bool CRUTableRamSqlite::bulkInsertCRUDerived(
+    const InsertRevisionMap& query) {
   return sqlite_interface_.bulkInsert(query);
 }
 
@@ -25,7 +26,7 @@ bool CRUTableRamSqlite::patchCRDerived(const Revision& query) {
   return sqlite_interface_.insert(query);
 }
 
-std::shared_ptr<Revision> CRUTableRamSqlite::getByIdCRDerived(
+std::shared_ptr<const Revision> CRUTableRamSqlite::getByIdCRDerived(
     const Id& /*id*/, const LogicalTime& /*time*/) const {
   LOG(FATAL) << "Not implemented";  // TODO(tcies) implement
 }

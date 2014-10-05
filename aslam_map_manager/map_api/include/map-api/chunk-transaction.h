@@ -36,11 +36,12 @@ class ChunkTransaction {
 
   // READ
   template <typename IdType>
-  std::shared_ptr<Revision> getById(const IdType& id);
+  std::shared_ptr<const Revision> getById(const IdType& id);
   template <typename IdType>
-  std::shared_ptr<Revision> getByIdFromUncommitted(const IdType& id) const;
+  std::shared_ptr<const Revision> getByIdFromUncommitted(
+      const IdType& id) const;
   template <typename ValueType>
-  std::shared_ptr<Revision> findUnique(int key, const ValueType& value);
+  std::shared_ptr<const Revision> findUnique(int key, const ValueType& value);
   CRTable::RevisionMap dumpChunk();
 
   // WRITE
@@ -74,9 +75,9 @@ class ChunkTransaction {
   /**
    * Strong typing of table operation maps.
    */
-  class InsertMap : public CRTable::RevisionMap {};
-  class UpdateMap : public CRTable::RevisionMap {};
-  class RemoveMap : public CRTable::RevisionMap {};
+  class InsertMap : public CRTable::InsertRevisionMap {};
+  class UpdateMap : public CRTable::InsertRevisionMap {};
+  class RemoveMap : public CRTable::InsertRevisionMap {};
   struct ConflictCondition {
     const int key;
     const std::shared_ptr<Revision> value_holder;

@@ -20,7 +20,7 @@ bool CRTableRamSqlite::insertCRDerived(const LogicalTime& /*time*/,
   return sqlite_interface_.insert(*query);
 }
 
-bool CRTableRamSqlite::bulkInsertCRDerived(const RevisionMap& query,
+bool CRTableRamSqlite::bulkInsertCRDerived(const InsertRevisionMap& query,
                                            const LogicalTime& /*time*/) {
   return sqlite_interface_.bulkInsert(query);
 }
@@ -71,7 +71,7 @@ void __attribute__((deprecated)) CRTableRamSqlite::findByRevisionCRDerived(
   }
 }
 
-std::shared_ptr<Revision> __attribute__((deprecated))
+std::shared_ptr<const Revision> __attribute__((deprecated))
     CRTableRamSqlite::getByIdCRDerived(const Id& /*id*/,
                                        const LogicalTime& /*time*/) const {
   LOG(FATAL) << "Not implemented";  // TODO(tcies) implement
