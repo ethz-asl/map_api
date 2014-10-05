@@ -97,17 +97,6 @@ template <typename ObjectType>
 void objectFromRevision(const map_api::Revision& revision, ObjectType* object);
 template <typename ObjectType>
 void objectToRevision(const ObjectType& object, map_api::Revision* revision);
-/**
- * May be specialized to avoid creating the object from revision, or if ==
- * can't be implemented.
- */
-template <typename ObjectType>
-bool requiresUpdate(const ObjectType& object,
-                    const map_api::Revision& revision) {
-  ObjectType from_revision;
-  objectFromRevision(revision, &from_revision);
-  return (from_revision != object);
-}
 
 template <typename IdType, typename ObjectType>
 void objectToRevision(const IdType id, const ObjectType& object,

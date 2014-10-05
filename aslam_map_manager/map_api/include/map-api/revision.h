@@ -119,6 +119,11 @@ class Revision {
     return underlying_revision_->custom_field_values_size();
   }
 
+  bool operator==(const Revision& other) const;
+  inline bool operator!=(const Revision& other) const {
+    return !operator==(other);
+  }
+
  private:
   inline void setInsertTime(const LogicalTime& time) {
     underlying_revision_->set_insert_time(time.serialize());

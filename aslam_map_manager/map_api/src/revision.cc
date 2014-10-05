@@ -79,6 +79,35 @@ proto::Type Revision::getFieldType(int index) const {
   return underlying_revision_->custom_field_values(index).type();
 }
 
+bool Revision::operator==(const Revision& other) const {
+  if (!structureMatch(other)) {
+    return false;
+  }
+  if (other.getId<Id>() != getId<Id>()) {
+    return false;
+  }
+  if (other.getInsertTime() != getInsertTime()) {
+    return false;
+  }
+  if (other.getUpdateTime() != getUpdateTime()) {
+    return false;
+  }
+  if (other.isRemoved() != isRemoved()) {
+    return false;
+  }
+  if (other.getChunkId() != getChunkId()) {
+    return false;
+  }
+  // Check custom fields.
+  int num_fields = underlying_revision_->custom_field_values_size();
+  for (int i = 0; i < num_fields; ++i) {
+    if (!fieldMatch(other, i)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool Revision::structureMatch(const Revision& reference) const {
   int common_field_count =
       reference.underlying_revision_->custom_field_values_size();
