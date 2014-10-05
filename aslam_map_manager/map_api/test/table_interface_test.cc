@@ -193,7 +193,7 @@ class FieldTestWithoutInit
   Id fillRevision() { return fillRevision(this->sample_data_1()); }
 
   bool insertRevision() {
-    return this->table_->insert(LogicalTime::sample(), query_.get());
+    return this->table_->insert(LogicalTime::sample(), query_);
   }
 
   void getRevision(const Id& id) {
@@ -225,7 +225,7 @@ class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
   bool updateRevision() {
     std::shared_ptr<Revision> revision =
         std::make_shared<Revision>(*this->query_);
-    this->table_->update(revision.get());
+    this->table_->update(revision);
     return true;
   }
 
@@ -413,7 +413,7 @@ TEST_F(CruMapIntTestWithInit, Remove) {
 
   std::shared_ptr<Revision> revision =
       std::make_shared<Revision>(*result.begin()->second);
-  table_->remove(LogicalTime::sample(), revision.get());
+  table_->remove(LogicalTime::sample(), revision);
 
   EXPECT_EQ(0, table_->count(-1, 0, LogicalTime::sample()));
   table_->getAvailableIds(LogicalTime::sample(), &ids);

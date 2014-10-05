@@ -67,7 +67,7 @@ class Chunk {
   void getCommitTimes(const LogicalTime& sample_time,
                       std::set<LogicalTime>* commit_times);
 
-  bool insert(const LogicalTime& time, Revision* item);
+  bool insert(const LogicalTime& time, const std::shared_ptr<Revision>& item);
 
   int peerSize() const;
 
@@ -94,7 +94,7 @@ class Chunk {
    * Update: First locks chunk, then sends update to all peers for patching.
    * Requires underlying table to be CRU (verified).
    */
-  void update(Revision* item);
+  void update(const std::shared_ptr<Revision>& item);
 
   /**
    * Allows attaching a callback to incoming patch requests (insert/update).
@@ -119,8 +119,10 @@ class Chunk {
    */
   void bulkInsertLocked(const CRTable::NonConstRevisionMap& items,
                         const LogicalTime& time);
-  void updateLocked(const LogicalTime& time, Revision* item);
-  void removeLocked(const LogicalTime& time, Revision* item);
+  void updateLocked(const LogicalTime& time,
+                    const std::shared_ptr<Revision>& item);
+  void removeLocked(const LogicalTime& time,
+                    const std::shared_ptr<Revision>& item);
 
   /**
    * Adds a peer to the chunk swarm by sending it an init request. Assumes
@@ -204,14 +206,15 @@ class Chunk {
    */
   void handleConnectRequest(const PeerId& peer, Message* response);
   static void handleConnectRequestThread(Chunk* self, const PeerId& peer);
-  void handleInsertRequest(const Revision& item, Message* response);
+  void handleInsertRequest(const std::shared_ptr<Revision>& item,
+                           Message* response);
   void handleLeaveRequest(const PeerId& leaver, Message* response);
   void handleLockRequest(const PeerId& locker, Message* response);
   void handleNewPeerRequest(const PeerId& peer, const PeerId& sender,
                             Message* response);
   void handleUnlockRequest(const PeerId& locker, Message* response);
-  void handleUpdateRequest(const Revision& item, const PeerId& sender,
-                           Message* response);
+  void handleUpdateRequest(const std::shared_ptr<Revision>& item,
+                           const PeerId& sender, Message* response);
 
   void awaitInitialized() const;
 

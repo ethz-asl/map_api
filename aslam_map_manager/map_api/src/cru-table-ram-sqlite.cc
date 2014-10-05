@@ -13,7 +13,8 @@ bool CRUTableRamSqlite::initCRDerived() {
   return true;
 }
 
-bool CRUTableRamSqlite::insertCRUDerived(Revision* query) {
+bool CRUTableRamSqlite::insertCRUDerived(
+    const std::shared_ptr<Revision>& query) {
   return sqlite_interface_.insert(*query);
 }
 
@@ -22,8 +23,9 @@ bool CRUTableRamSqlite::bulkInsertCRUDerived(
   return sqlite_interface_.bulkInsert(query);
 }
 
-bool CRUTableRamSqlite::patchCRDerived(const Revision& query) {
-  return sqlite_interface_.insert(query);
+bool CRUTableRamSqlite::patchCRDerived(
+    const std::shared_ptr<Revision>& query) {
+  return sqlite_interface_.insert(*query);
 }
 
 std::shared_ptr<const Revision> CRUTableRamSqlite::getByIdCRDerived(
@@ -126,8 +128,9 @@ int __attribute__((deprecated)) CRUTableRamSqlite::countByChunkCRDerived(
   CHECK(false) << "Not implemented";
 }
 
-bool CRUTableRamSqlite::insertUpdatedCRUDerived(const Revision& query) {
-  sqlite_interface_.insert(query);
+bool CRUTableRamSqlite::insertUpdatedCRUDerived(
+    const std::shared_ptr<Revision>& query) {
+  sqlite_interface_.insert(*query);
   return true;
 }
 

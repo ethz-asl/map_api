@@ -111,12 +111,12 @@ void ChunkTransaction::checkedCommit(const LogicalTime& time) {
   for (const std::pair<const Id,
       std::shared_ptr<Revision> >& item : updates_) {
     if (removes_.count(item.first) == 0u) {
-      chunk_->updateLocked(time, item.second.get());
+      chunk_->updateLocked(time, item.second);
     }
   }
   for (const std::pair<const Id,
       std::shared_ptr<Revision> >& item : removes_) {
-    chunk_->removeLocked(time, item.second.get());
+    chunk_->removeLocked(time, item.second);
   }
 }
 

@@ -176,7 +176,7 @@ TEST_P(NetTableTest, RemoteUpdate) {
     std::shared_ptr<Revision> revision = std::make_shared<Revision>(
         *results.begin()->second);
     revision->set(kFieldName, 21);
-    EXPECT_TRUE(table_->update(revision.get()));
+    EXPECT_TRUE(table_->update(revision));
 
     IPC::barrier(A_UPDATED, 1);
     IPC::barrier(DIE, 1);
@@ -224,7 +224,7 @@ TEST_P(NetTableTest, Grind) {
         std::shared_ptr<Revision> revision =
             std::make_shared<Revision>(*results.begin()->second);
         revision->set(kFieldName, 21);
-        EXPECT_TRUE(table_->update(revision.get()));
+        EXPECT_TRUE(table_->update(revision));
       }
     }
     IPC::barrier(DIE, kProcesses - 1);

@@ -7,9 +7,9 @@ CRTableRamMap::~CRTableRamMap() {}
 bool CRTableRamMap::initCRDerived() { return true; }
 
 bool CRTableRamMap::insertCRDerived(const LogicalTime& /*time*/,
-                                    Revision* query) {
-  CHECK_NOTNULL(query);
-  return patchCRDerived(*query);
+                                    const std::shared_ptr<Revision>& query) {
+  CHECK(query != nullptr);
+  return patchCRDerived(query);
 }
 
 bool CRTableRamMap::bulkInsertCRDerived(const NonConstRevisionMap& query,
@@ -19,14 +19,16 @@ bool CRTableRamMap::bulkInsertCRDerived(const NonConstRevisionMap& query,
       return false;
     }
   }
+  // This transitions ownership of the new objects to the db.
   for (const NonConstRevisionMap::value_type& pair : query) {
-    CHECK(data_.emplace(pair.first, *pair.second).second);
+    CHECK(data_.emplace(pair.first, pair.second).second);
   }
   return true;
 }
 
-bool CRTableRamMap::patchCRDerived(const Revision& query) {
-  return data_.emplace(query.getId<Id>(), query).second;
+bool CRTableRamMap::patchCRDerived(const std::shared_ptr<Revision>& query) {
+  CHECK(query != nullptr);
+  return data_.emplace(query->getId<Id>(), query).second;
 }
 
 void CRTableRamMap::dumpChunkCRDerived(const Id& chunk_id,
@@ -34,10 +36,9 @@ void CRTableRamMap::dumpChunkCRDerived(const Id& chunk_id,
                                        RevisionMap* dest) {
   CHECK_NOTNULL(dest)->clear();
   for (const MapType::value_type& pair : data_) {
-    if (pair.second.getChunkId() == chunk_id) {
-      if (pair.second.getInsertTime() <= time) {
-        CHECK(dest->emplace(pair.first,
-                            std::make_shared<Revision>(pair.second)).second);
+    if (pair.second->getChunkId() == chunk_id) {
+      if (pair.second->getInsertTime() <= time) {
+        CHECK(dest->emplace(pair.first, pair.second).second);
       }
     }
   }
@@ -52,10 +53,9 @@ void CRTableRamMap::findByRevisionCRDerived(int key, const Revision& valueHolder
   // global vs local index: local comes in here, global also allows spatial
   // lookup
   for (const MapType::value_type& pair : data_) {
-    if (key < 0 || valueHolder.fieldMatch(pair.second, key)) {
-      if (pair.second.getInsertTime() <= time) {
-        CHECK(dest->emplace(pair.first,
-                            std::make_shared<Revision>(pair.second)).second);
+    if (key < 0 || valueHolder.fieldMatch(*pair.second, key)) {
+      if (pair.second->getInsertTime() <= time) {
+        CHECK(dest->emplace(pair.first, pair.second).second);
       }
     }
   }
@@ -64,10 +64,10 @@ void CRTableRamMap::findByRevisionCRDerived(int key, const Revision& valueHolder
 std::shared_ptr<const Revision> CRTableRamMap::getByIdCRDerived(
     const Id& id, const LogicalTime& time) const {
   MapType::const_iterator found = data_.find(id);
-  if (found == data_.end() || found->second.getInsertTime() > time) {
+  if (found == data_.end() || found->second->getInsertTime() > time) {
     return std::shared_ptr<Revision>();
   }
-  return std::shared_ptr<Revision>(new Revision(found->second));
+  return found->second;
 }
 
 void CRTableRamMap::getAvailableIdsCRDerived(const LogicalTime& time,
@@ -75,7 +75,7 @@ void CRTableRamMap::getAvailableIdsCRDerived(const LogicalTime& time,
   CHECK_NOTNULL(ids);
   ids->rehash(data_.size());
   for (const MapType::value_type& pair : data_) {
-    if (pair.second.getInsertTime() <= time) {
+    if (pair.second->getInsertTime() <= time) {
       ids->insert(pair.first);
     }
   }
@@ -86,8 +86,8 @@ int CRTableRamMap::countByRevisionCRDerived(int key,
                                             const LogicalTime& time) {
   int count = 0;
   for (const MapType::value_type& pair : data_) {
-    if (key < 0 || valueHolder.fieldMatch(pair.second, key)) {
-      if (pair.second.getInsertTime() <= time) {
+    if (key < 0 || valueHolder.fieldMatch(*pair.second, key)) {
+      if (pair.second->getInsertTime() <= time) {
         ++count;
       }
     }
@@ -99,8 +99,8 @@ int CRTableRamMap::countByChunkCRDerived(const Id& chunk_id,
                                          const LogicalTime& time) {
   int count = 0;
   for (const MapType::value_type& pair : data_) {
-    if (pair.second.getChunkId() == chunk_id) {
-      if (pair.second.getInsertTime() <= time) {
+    if (pair.second->getChunkId() == chunk_id) {
+      if (pair.second->getInsertTime() <= time) {
         ++count;
       }
     }

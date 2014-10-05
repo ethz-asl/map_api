@@ -47,8 +47,9 @@ std::shared_ptr<Revision> CRTable::getTemplate() const {
   return ret;
 }
 
-bool CRTable::insert(const LogicalTime& time, Revision* query) {
-  CHECK_NOTNULL(query);
+bool CRTable::insert(const LogicalTime& time,
+                     const std::shared_ptr<Revision>& query) {
+  CHECK(query != nullptr);
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(query->structureMatch(*reference))
@@ -80,11 +81,12 @@ bool CRTable::bulkInsert(const NonConstRevisionMap& query,
   return bulkInsertCRDerived(query, time);
 }
 
-bool CRTable::patch(const Revision& query) {
+bool CRTable::patch(const std::shared_ptr<Revision>& query) {
+  CHECK(query != nullptr);
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
-  CHECK(query.structureMatch(*reference)) << "Bad structure of patch revision";
-  CHECK(query.getId<Id>().isValid())
+  CHECK(query->structureMatch(*reference)) << "Bad structure of patch revision";
+  CHECK(query->getId<Id>().isValid())
       << "Attempted to insert element with invalid ID";
   return patchCRDerived(query);
 }

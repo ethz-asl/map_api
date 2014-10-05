@@ -13,11 +13,13 @@ class CRTableRamMap : public CRTable {
 
  private:
   virtual bool initCRDerived() final override;
-  virtual bool insertCRDerived(const LogicalTime& time,
-                               Revision* query) final override;
+  virtual bool insertCRDerived(
+      const LogicalTime& time,
+      const std::shared_ptr<Revision>& query) final override;
   virtual bool bulkInsertCRDerived(const NonConstRevisionMap& query,
                                    const LogicalTime& time) final override;
-  virtual bool patchCRDerived(const Revision& query) final override;
+  virtual bool patchCRDerived(
+      const std::shared_ptr<Revision>& query) final override;
   virtual void dumpChunkCRDerived(const Id& chunk_id, const LogicalTime& time,
                                   RevisionMap* dest) final override;
   virtual void findByRevisionCRDerived(
@@ -32,7 +34,7 @@ class CRTableRamMap : public CRTable {
   virtual int countByChunkCRDerived(const Id& chunk_id,
                                     const LogicalTime& time) final override;
 
-  typedef std::unordered_map<Id, Revision> MapType;
+  typedef std::unordered_map<Id, std::shared_ptr<const Revision> > MapType;
   MapType data_;
 };
 

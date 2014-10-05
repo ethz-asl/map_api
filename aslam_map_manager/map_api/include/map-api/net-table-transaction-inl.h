@@ -52,7 +52,6 @@ template <typename IdType>
 void NetTableTransaction::remove(const UniqueId<IdType>& id) {
   std::shared_ptr<const Revision> revision;
   Chunk* chunk = chunkOf(id, &revision);
-  // TODO(slynen): Only valid if underlying proto is deep copied.
   std::shared_ptr<Revision> remove_revision =
       std::make_shared<Revision>(*revision);
   transactionOf(CHECK_NOTNULL(chunk))->remove(remove_revision);

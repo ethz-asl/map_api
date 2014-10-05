@@ -27,14 +27,15 @@ void CRUTable::itemHistory(const IdType& id, const LogicalTime& time,
 
 template <typename IdType>
 void CRUTable::remove(const LogicalTime& time, const IdType& id) {
-  std::shared_ptr<Revision> latest = getById(id, time);
-  remove(time, *latest);
+  std::shared_ptr<Revision> latest =
+      std::make_shared<Revision>(*getById(id, time));
+  remove(time, latest);
 }
 
 CRUTable::History::const_iterator CRUTable::History::latestAt(
     const LogicalTime& time) const {
   for (const_iterator it = cbegin(); it != cend(); ++it) {
-    if (it->getUpdateTime() <= time) {
+    if ((*it)->getUpdateTime() <= time) {
       return it;
     }
   }
