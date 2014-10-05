@@ -123,7 +123,7 @@ size_t Chunk::itemsSizeBytes(const LogicalTime& time) {
   underlying_table_->dumpChunk(id(), time, &items);
   distributedUnlock();
   size_t num_bytes = 0;
-  for (const std::pair<Id, std::shared_ptr<Revision> >& item : items) {
+  for (const std::pair<Id, std::shared_ptr<const Revision> >& item : items) {
     CHECK(item.second != nullptr);
     const Revision& revision = *item.second;
     num_bytes += revision.byteSize();
@@ -277,12 +277,12 @@ void Chunk::attachTrigger(const std::function<void(const Id& id)>& callback) {
   trigger_ = callback;
 }
 
-void Chunk::bulkInsertLocked(const CRTable::RevisionMap& items,
+void Chunk::bulkInsertLocked(const CRTable::NonConstRevisionMap& items,
                              const LogicalTime& time) {
   std::vector<proto::PatchRequest> insert_requests;
   insert_requests.resize(items.size());
   int i = 0;
-  for (const CRTable::RevisionMap::value_type& item : items) {
+  for (const CRTable::NonConstRevisionMap::value_type& item : items) {
     CHECK_NOTNULL(item.second.get());
     item.second->setChunkId(id());
     fillMetadata(&insert_requests[i]);

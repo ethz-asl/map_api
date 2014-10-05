@@ -372,7 +372,7 @@ bool NetTableManager::syncTableDefinition(
   while (true) {
     ChunkTransaction try_join(metatable_chunk_);
     // 1. Read previous registration in metatable
-    std::shared_ptr<Revision> previous = try_join.findUnique(
+    std::shared_ptr<const Revision> previous = try_join.findUnique(
         static_cast<int>(kMetaTableNameField), descriptor.name());
     CHECK(previous) << "Can't find table " << descriptor.name() <<
         " even though its presence seemingly caused a conflict";

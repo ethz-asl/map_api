@@ -11,7 +11,6 @@
 #include <gflags/gflags.h>
 
 #include "map-api/core.h"
-#include "map-api/local-transaction.h"
 #include "./core.pb.h"
 
 namespace map_api {
@@ -29,7 +28,7 @@ void CRUTable::update(Revision* query, const LogicalTime& time) {
   // TODO(tcies) const template, cow template?
   CHECK(query->structureMatch(*reference))
       << "Bad structure of update revision";
-  CHECK_NE(query->getId<Id>(), Id())
+  CHECK(query->getId<Id>().isValid())
       << "Attempted to update element with invalid ID";
   LogicalTime update_time = time;
   query->setUpdateTime(update_time);
@@ -39,7 +38,7 @@ void CRUTable::update(Revision* query, const LogicalTime& time) {
 bool CRUTable::getLatestUpdateTime(const Id& id, LogicalTime* time) {
   CHECK_NE(Id(), id);
   CHECK_NOTNULL(time);
-  std::shared_ptr<Revision> row = getById(id, LogicalTime::sample());
+  std::shared_ptr<const Revision> row = getById(id, LogicalTime::sample());
   ItemDebugInfo itemInfo(name(), id);
   if (!row) {
     LOG(ERROR) << itemInfo << "Failed to retrieve row";
@@ -83,9 +82,9 @@ bool CRUTable::insertCRDerived(const LogicalTime& time, Revision* query) {
   return insertCRUDerived(query);
 }
 
-bool CRUTable::bulkInsertCRDerived(const RevisionMap& query,
+bool CRUTable::bulkInsertCRDerived(const NonConstRevisionMap& query,
                                    const LogicalTime& time) {
-  for (const RevisionMap::value_type& item : query) {
+  for (const NonConstRevisionMap::value_type& item : query) {
     item.second->setUpdateTime(time);
   }
   return bulkInsertCRUDerived(query);

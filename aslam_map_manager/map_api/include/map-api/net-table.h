@@ -159,7 +159,7 @@ class NetTable {
    * TODO(tcies) probably requires mutex on a data level
    */
   template <typename IdType>
-  std::shared_ptr<Revision> getByIdInconsistent(
+  std::shared_ptr<const Revision> getByIdInconsistent(
       const IdType& id, const LogicalTime& time);
 
   void readLockActiveChunks();

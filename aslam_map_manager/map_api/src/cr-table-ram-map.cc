@@ -12,14 +12,14 @@ bool CRTableRamMap::insertCRDerived(const LogicalTime& /*time*/,
   return patchCRDerived(*query);
 }
 
-bool CRTableRamMap::bulkInsertCRDerived(const RevisionMap& query,
+bool CRTableRamMap::bulkInsertCRDerived(const NonConstRevisionMap& query,
                                         const LogicalTime& /*time*/) {
-  for (const RevisionMap::value_type& pair : query) {
+  for (const NonConstRevisionMap::value_type& pair : query) {
     if (data_.find(pair.first) != data_.end()) {
       return false;
     }
   }
-  for (const RevisionMap::value_type& pair : query) {
+  for (const NonConstRevisionMap::value_type& pair : query) {
     CHECK(data_.emplace(pair.first, *pair.second).second);
   }
   return true;
@@ -61,7 +61,7 @@ void CRTableRamMap::findByRevisionCRDerived(int key, const Revision& valueHolder
   }
 }
 
-std::shared_ptr<Revision> CRTableRamMap::getByIdCRDerived(
+std::shared_ptr<const Revision> CRTableRamMap::getByIdCRDerived(
     const Id& id, const LogicalTime& time) const {
   MapType::const_iterator found = data_.find(id);
   if (found == data_.end() || found->second.getInsertTime() > time) {

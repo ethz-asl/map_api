@@ -14,15 +14,15 @@ CRTable::RevisionMap Transaction::find(const std::string& key,
 }
 
 template <typename IdType>
-std::shared_ptr<Revision> Transaction::getById(const IdType& id,
-                                               NetTable* table) {
+std::shared_ptr<const Revision> Transaction::getById(const IdType& id,
+                                                     NetTable* table) const {
   CHECK_NOTNULL(table);
   return transactionOf(table)->getById(id);
 }
 
 template <typename IdType>
-std::shared_ptr<Revision> Transaction::getById(const IdType& id,
-                                               NetTable* table, Chunk* chunk) {
+std::shared_ptr<const Revision> Transaction::getById(
+    const IdType& id, NetTable* table, Chunk* chunk) const {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(chunk);
   return transactionOf(table)->getById(id, chunk);
@@ -36,7 +36,7 @@ void Transaction::getAvailableIds(NetTable* table,
 }
 
 template <typename IdType>
-void Transaction::remove(NetTable* table, const IdType& id) {
+void Transaction::remove(NetTable* table, const UniqueId<IdType>& id) {
   return transactionOf(CHECK_NOTNULL(table))->remove(id);
 }
 

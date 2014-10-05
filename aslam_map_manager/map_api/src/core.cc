@@ -10,7 +10,6 @@
 
 #include "map-api/hub.h"
 #include "map-api/ipc.h"
-#include "map-api/local-transaction.h"
 
 namespace map_api {
 

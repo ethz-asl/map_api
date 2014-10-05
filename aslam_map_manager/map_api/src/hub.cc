@@ -81,9 +81,7 @@ bool Hub::init(bool* is_first_peer) {
     // don't attempt to connect if already connected
     if (peers_.find(peer) != peers_.end()) continue;
 
-    PeerMap::iterator inserted =
-        peers_.insert(std::make_pair(
-                          peer, std::unique_ptr<Peer>(new Peer(
+    peers_.insert(std::make_pair(peer, std::unique_ptr<Peer>(new Peer(
                                     peer.ipPort(), *context_, ZMQ_REQ)))).first;
     // connection request is sent outside the peer_mutex_ lock to avoid
     // deadlocks where two peers try to connect to each other:

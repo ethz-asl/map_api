@@ -43,7 +43,8 @@ bool ProtoTableFileIO::storeTableContents(
     const map_api::CRTable::RevisionMap& revisions) {
   CHECK(file_.is_open());
 
-  for (const std::pair<Id, std::shared_ptr<Revision> >& pair : revisions) {
+  for (const std::pair<Id,
+      std::shared_ptr<const Revision> >& pair : revisions) {
     CHECK(pair.second != nullptr);
     const Revision& revision = *pair.second;
 

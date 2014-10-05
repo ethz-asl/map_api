@@ -17,7 +17,8 @@ bool CRUTableRamMap::insertCRUDerived(Revision* query) {
   return true;
 }
 
-bool CRUTableRamMap::bulkInsertCRUDerived(const RevisionMap& query) {
+bool CRUTableRamMap::bulkInsertCRUDerived(
+    const NonConstRevisionMap& query) {
   for (const RevisionMap::value_type& pair : query) {
     if (data_.find(pair.first) != data_.end()) {
       return false;
@@ -49,7 +50,7 @@ bool CRUTableRamMap::patchCRDerived(const Revision& query) {
   return true;
 }
 
-std::shared_ptr<Revision> CRUTableRamMap::getByIdCRDerived(
+std::shared_ptr<const Revision> CRUTableRamMap::getByIdCRDerived(
     const Id& id, const LogicalTime& time) const {
   HistoryMap::const_iterator found = data_.find(id);
   if (found == data_.end()) {

@@ -40,7 +40,6 @@ SET(CORE_SOURCE  src/cache-base.cc
                  src/file-discovery.cc
                  src/hub.cc
                  src/ipc.cc
-                 src/local-transaction.cc
                  src/logical-time.cc
                  src/message.cc
                  src/net-table.cc
