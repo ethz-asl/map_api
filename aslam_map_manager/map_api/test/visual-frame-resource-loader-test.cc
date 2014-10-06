@@ -41,7 +41,8 @@ class ResourceLoaderTest : public MultiprocessTest {
     Id visual_frame_id;
     visual_frame_id.fromHexString(kVisualFrameId);
 
-    // generate two dummy entries for DB
+    // Generate two dummy entries for DB
+
     std::shared_ptr<Revision> to_insert_1 = table_->getTemplate();
     Transaction transaction_1;
     Id insert_id_1;
