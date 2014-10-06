@@ -16,58 +16,52 @@ struct SizeHolder {
 };
 
 template<typename SizeHolder_T>
-class MemoryBlockPoolTest : public ::testing::TestWithParam<int> {
-  enum {
-    kBlockSize = SizeHolder_T::value
-  };
+class ProtoSTLStream : public ::testing::TestWithParam<int> {
  protected:
-  virtual void SetUp() {
-    block_size_ = kBlockSize;
-  }
-  int block_size_;
-  MemoryBlockPool<kBlockSize, std::vector> pool_;
+  virtual void SetUp() {}
+  MemoryBlockPool<SizeHolder_T::value, std::vector> pool_;
 };
 
-TYPED_TEST_CASE_P(MemoryBlockPoolTest);
+TYPED_TEST_CASE_P(ProtoSTLStream);
 
-TYPED_TEST_P(MemoryBlockPoolTest, ReserveWorks) {
+TYPED_TEST_P(ProtoSTLStream, ReserveWorks) {
   this->pool_.Reserve(10);
 }
 
-TYPED_TEST_P(MemoryBlockPoolTest, FullBlockSizeReturnWorks) {
+TYPED_TEST_P(ProtoSTLStream, FullBlockSizeReturnWorks) {
   unsigned char* data = nullptr;
   int size = 0;
   EXPECT_EQ(0, this->pool_.BlockIndex());
-  EXPECT_EQ(this->block_size_, this->pool_.PositionInCurrentBlock());
+  EXPECT_EQ(TypeParam::value, this->pool_.PositionInCurrentBlock());
 
   this->pool_.Next(&data, &size);
 
   EXPECT_NE(data, nullptr);
-  EXPECT_EQ(this->block_size_, size);
+  EXPECT_EQ(TypeParam::value, size);
   EXPECT_EQ(0, this->pool_.BlockIndex());
-  EXPECT_EQ(this->block_size_, this->pool_.PositionInCurrentBlock());
+  EXPECT_EQ(TypeParam::value, this->pool_.PositionInCurrentBlock());
 }
 
-TYPED_TEST_P(MemoryBlockPoolTest, BackupWorks) {
+TYPED_TEST_P(ProtoSTLStream, BackupWorks) {
   unsigned char* data1 = nullptr;
   int size = 0;
   this->pool_.Next(&data1, &size);
 
   EXPECT_NE(data1, nullptr);
-  EXPECT_EQ(this->block_size_, size);
+  EXPECT_EQ(TypeParam::value, size);
 
   this->pool_.BackUp(2);
-  EXPECT_EQ(this->block_size_ - 2, this->pool_.PositionInCurrentBlock());
+  EXPECT_EQ(TypeParam::value - 2, this->pool_.PositionInCurrentBlock());
 
   unsigned char* data2 = nullptr;
   this->pool_.Next(&data2, &size);
 
-  EXPECT_EQ(data1 + this->block_size_ - 2, data2);
+  EXPECT_EQ(data1 + TypeParam::value - 2, data2);
   EXPECT_EQ(2, size);
-  EXPECT_EQ(this->block_size_, this->pool_.PositionInCurrentBlock());
+  EXPECT_EQ(TypeParam::value, this->pool_.PositionInCurrentBlock());
 }
 
-TYPED_TEST_P(MemoryBlockPoolTest, BackupOverBlockBoundsWorks) {
+TYPED_TEST_P(ProtoSTLStream, BackupOverBlockBoundsWorks) {
   // Avoid reallocation, s.t. memory adr can be compared.
   this->pool_.Reserve(2);
   unsigned char* data1 = nullptr;
@@ -78,20 +72,20 @@ TYPED_TEST_P(MemoryBlockPoolTest, BackupOverBlockBoundsWorks) {
   this->pool_.Next(&data2, &size);
   EXPECT_EQ(1, this->pool_.BlockIndex());
 
-  this->pool_.BackUp(this->block_size_ + 2);
-  EXPECT_EQ(this->block_size_ - 2, this->pool_.PositionInCurrentBlock());
+  this->pool_.BackUp(TypeParam::value + 2);
+  EXPECT_EQ(TypeParam::value - 2, this->pool_.PositionInCurrentBlock());
   EXPECT_EQ(0, this->pool_.BlockIndex());
 
   unsigned char* data3 = nullptr;
   this->pool_.Next(&data3, &size);
 
   EXPECT_EQ(0, this->pool_.BlockIndex());
-  EXPECT_EQ(this->block_size_, this->pool_.PositionInCurrentBlock());
-  EXPECT_EQ(data1 + this->block_size_ - 2, data3);
+  EXPECT_EQ(TypeParam::value, this->pool_.PositionInCurrentBlock());
+  EXPECT_EQ(data1 + TypeParam::value - 2, data3);
   EXPECT_EQ(2, size);
 }
 
-TYPED_TEST_P(MemoryBlockPoolTest, RetrieveDataBlockWorks) {
+TYPED_TEST_P(ProtoSTLStream, RetrieveDataBlockWorks) {
   // Avoid reallocation, s.t. memory adr can be compared.
   this->pool_.Reserve(2);
   int size = 0;
@@ -103,23 +97,23 @@ TYPED_TEST_P(MemoryBlockPoolTest, RetrieveDataBlockWorks) {
   const unsigned char* data_get = nullptr;
   int size_get = 0;
   this->pool_.RetrieveDataBlock(0, 0, &data_get, &size_get);
-  EXPECT_EQ(this->block_size_, size_get);
+  EXPECT_EQ(TypeParam::value, size_get);
   EXPECT_EQ(data1, data_get);
 
   this->pool_.RetrieveDataBlock(0, 1, &data_get, &size_get);
-  EXPECT_EQ(this->block_size_ - 1, size_get);
+  EXPECT_EQ(TypeParam::value - 1, size_get);
   EXPECT_EQ(data1 + 1, data_get);
 
   this->pool_.RetrieveDataBlock(1, 0, &data_get, &size_get);
-  EXPECT_EQ(this->block_size_, size_get);
+  EXPECT_EQ(TypeParam::value, size_get);
   EXPECT_EQ(data2, data_get);
 
   this->pool_.RetrieveDataBlock(1, 2, &data_get, &size_get);
-  EXPECT_EQ(this->block_size_ - 2, size_get);
+  EXPECT_EQ(TypeParam::value - 2, size_get);
   EXPECT_EQ(data2 + 2, data_get);
 }
 
-TYPED_TEST_P(MemoryBlockPoolTest, SizeWorks) {
+TYPED_TEST_P(ProtoSTLStream, SizeWorks) {
   EXPECT_EQ(this->pool_.Size(), 0);
   unsigned char* data = nullptr;
   int size = 0;
@@ -129,7 +123,7 @@ TYPED_TEST_P(MemoryBlockPoolTest, SizeWorks) {
   EXPECT_EQ(this->pool_.Size(), 2);
 }
 
-TYPED_TEST_P(MemoryBlockPoolTest, IsIndexInBoundsWorks) {
+TYPED_TEST_P(ProtoSTLStream, IsIndexInBoundsWorks) {
   EXPECT_FALSE(this->pool_.IsIndexInBounds(0, 0));
   EXPECT_FALSE(this->pool_.IsIndexInBounds(1, 0));
   EXPECT_FALSE(this->pool_.IsIndexInBounds(0, 1));
@@ -139,7 +133,7 @@ TYPED_TEST_P(MemoryBlockPoolTest, IsIndexInBoundsWorks) {
   int size = 0;
   this->pool_.Next(&data, &size);
 
-  for (int i = 0; i < this->block_size_; ++i) {
+  for (int i = 0; i < TypeParam::value; ++i) {
     EXPECT_TRUE(this->pool_.IsIndexInBounds(0, i));
   }
   EXPECT_FALSE(this->pool_.IsIndexInBounds(1, 0));
@@ -147,22 +141,217 @@ TYPED_TEST_P(MemoryBlockPoolTest, IsIndexInBoundsWorks) {
 
   this->pool_.Next(&data, &size);
 
-  for (int i = 0; i < this->block_size_; ++i) {
+  for (int i = 0; i < TypeParam::value; ++i) {
     EXPECT_TRUE(this->pool_.IsIndexInBounds(1, i));
   }
   EXPECT_FALSE(this->pool_.IsIndexInBounds(2, 0));
   EXPECT_FALSE(this->pool_.IsIndexInBounds(2, 1));
 }
 
+TYPED_TEST_P(ProtoSTLStream, OutputStreamByteCountWorks) {
+  STLContainerOutputStream<TypeParam::value, std::vector> output_stream(
+      &this->pool_);
+  EXPECT_EQ(0, output_stream.ByteCount());
+  unsigned char* data = nullptr;
+  int size = 0;
+  output_stream.Next(reinterpret_cast<void**>(&data), &size);
 
-REGISTER_TYPED_TEST_CASE_P(MemoryBlockPoolTest, ReserveWorks,
+  EXPECT_EQ(TypeParam::value, output_stream.ByteCount());
+
+  output_stream.BackUp(2);
+
+  EXPECT_EQ(TypeParam::value - 2, output_stream.ByteCount());
+}
+
+TYPED_TEST_P(ProtoSTLStream, OutputStreamNextWorks) {
+  // Avoid reallocation, s.t. memory adr can be compared.
+  this->pool_.Reserve(2);
+  STLContainerOutputStream<TypeParam::value, std::vector> output_stream(
+      &this->pool_);
+  unsigned char* data0 = nullptr;
+  int size0 = 0;
+  output_stream.Next(reinterpret_cast<void**>(&data0), &size0);
+
+  EXPECT_NE(data0, nullptr);
+  EXPECT_EQ(TypeParam::value, size0);
+  EXPECT_EQ(0, this->pool_.BlockIndex());
+  EXPECT_EQ(TypeParam::value, this->pool_.PositionInCurrentBlock());
+
+  unsigned char* data1 = nullptr;
+  int size1 = 0;
+  output_stream.Next(reinterpret_cast<void**>(&data1), &size1);
+
+  EXPECT_EQ(TypeParam::value, size1);
+  EXPECT_EQ(data0 + TypeParam::value, data1);
+}
+
+TYPED_TEST_P(ProtoSTLStream, OutputStreamBackUpWorks) {
+  // Avoid reallocation, s.t. memory adr can be compared.
+  this->pool_.Reserve(2);
+  STLContainerOutputStream<TypeParam::value, std::vector> output_stream(
+      &this->pool_);
+  unsigned char* data0 = nullptr;
+  int size0 = 0;
+  output_stream.Next(reinterpret_cast<void**>(&data0), &size0);
+
+  this->pool_.BackUp(2);
+  EXPECT_EQ(TypeParam::value - 2, this->pool_.PositionInCurrentBlock());
+
+  unsigned char* data1 = nullptr;
+  int size1 = 0;
+  output_stream.Next(reinterpret_cast<void**>(&data1), &size1);
+
+  EXPECT_EQ(data0 + TypeParam::value - 2, data1);
+  EXPECT_EQ(2, size1);
+  EXPECT_EQ(TypeParam::value, this->pool_.PositionInCurrentBlock());
+}
+
+TYPED_TEST_P(ProtoSTLStream, InputStreamByteCountWorks) {
+  STLContainerOutputStream<TypeParam::value, std::vector> output_stream(
+      &this->pool_);
+  unsigned char* data_out = nullptr;
+  int size_out = 0;
+  output_stream.Next(reinterpret_cast<void**>(&data_out), &size_out);
+  output_stream.Next(reinterpret_cast<void**>(&data_out), &size_out);
+
+  STLContainerInputStream<TypeParam::value, std::vector> input_stream(
+      0, 0, &this->pool_);
+
+  EXPECT_EQ(0, input_stream.ByteCount());
+
+  const unsigned char* data_in = nullptr;
+  int size_in = 0;
+  input_stream.Next(reinterpret_cast<const void**>(&data_in), &size_in);
+
+  EXPECT_EQ(TypeParam::value, input_stream.ByteCount());
+
+  input_stream.BackUp(2);
+
+  EXPECT_EQ(TypeParam::value - 2, input_stream.ByteCount());
+}
+
+TYPED_TEST_P(ProtoSTLStream, InputStreamNextWorks) {
+  // Avoid reallocation, s.t. memory adr can be compared.
+  this->pool_.Reserve(2);
+  STLContainerOutputStream<TypeParam::value, std::vector> output_stream(
+      &this->pool_);
+  unsigned char* data_out_0 = nullptr;
+  int size_out_0 = 0;
+  output_stream.Next(reinterpret_cast<void**>(&data_out_0), &size_out_0);
+  unsigned char* data_out_1 = nullptr;
+  int size_out_1 = 0;
+  output_stream.Next(reinterpret_cast<void**>(&data_out_1), &size_out_1);
+
+  // At block beginning.
+  STLContainerInputStream<TypeParam::value, std::vector> input_stream0(
+      0, 0, &this->pool_);
+  const unsigned char* data_in = nullptr;
+  int size_in = 0;
+  input_stream0.Next(reinterpret_cast<const void**>(&data_in), &size_in);
+  EXPECT_EQ(data_out_0, data_in);
+  EXPECT_EQ(TypeParam::value, size_in);
+
+  input_stream0.Next(reinterpret_cast<const void**>(&data_in), &size_in);
+
+  EXPECT_EQ(data_out_1, data_in);
+  EXPECT_EQ(TypeParam::value, size_in);
+
+  // With offset.
+  STLContainerInputStream<TypeParam::value, std::vector> input_stream1(
+      0, 2, &this->pool_);
+  input_stream1.Next(reinterpret_cast<const void**>(&data_in), &size_in);
+  EXPECT_EQ(data_out_0 + 2, data_in);
+  EXPECT_EQ(TypeParam::value - 2, size_in);
+
+  input_stream1.Next(reinterpret_cast<const void**>(&data_in), &size_in);
+
+  EXPECT_EQ(data_out_1, data_in);
+  EXPECT_EQ(TypeParam::value, size_in);
+}
+
+TYPED_TEST_P(ProtoSTLStream, InputStreamBackUpWorks) {
+  // Avoid reallocation, s.t. memory adr can be compared.
+  this->pool_.Reserve(2);
+  STLContainerOutputStream<TypeParam::value, std::vector> output_stream(
+      &this->pool_);
+  unsigned char* data_out_0 = nullptr;
+  int size_out_0 = 0;
+  output_stream.Next(reinterpret_cast<void**>(&data_out_0), &size_out_0);
+  unsigned char* data_out_1 = nullptr;
+  int size_out_1 = 0;
+  output_stream.Next(reinterpret_cast<void**>(&data_out_1), &size_out_1);
+
+  STLContainerInputStream<TypeParam::value, std::vector> input_stream0(
+      0, 0, &this->pool_);
+  const unsigned char* data_in = nullptr;
+  int size_in = 0;
+  input_stream0.Next(reinterpret_cast<const void**>(&data_in), &size_in);
+  input_stream0.BackUp(2);
+  input_stream0.Next(reinterpret_cast<const void**>(&data_in), &size_in);
+  EXPECT_EQ(2, size_in);
+  EXPECT_EQ(data_out_0 + TypeParam::value - 2, data_in);
+
+  // Over block bounds.
+  STLContainerInputStream<TypeParam::value, std::vector> input_stream1(
+      0, 0, &this->pool_);
+  input_stream1.Next(reinterpret_cast<const void**>(&data_in), &size_in);
+  input_stream1.Next(reinterpret_cast<const void**>(&data_in), &size_in);
+  input_stream1.BackUp(TypeParam::value + 2);
+  input_stream1.Next(reinterpret_cast<const void**>(&data_in), &size_in);
+  EXPECT_EQ(2, size_in);
+  EXPECT_EQ(data_out_0 + TypeParam::value - 2, data_in);
+}
+
+TYPED_TEST_P(ProtoSTLStream, InputStreamSkipWorks) {
+  // Avoid reallocation, s.t. memory adr can be compared.
+  this->pool_.Reserve(2);
+  STLContainerOutputStream<TypeParam::value, std::vector> output_stream(
+      &this->pool_);
+  unsigned char* data_out_0 = nullptr;
+  int size_out_0 = 0;
+  output_stream.Next(reinterpret_cast<void**>(&data_out_0), &size_out_0);
+  unsigned char* data_out_1 = nullptr;
+  int size_out_1 = 0;
+  output_stream.Next(reinterpret_cast<void**>(&data_out_1), &size_out_1);
+
+  STLContainerInputStream<TypeParam::value, std::vector> input_stream0(
+      0, 0, &this->pool_);
+  const unsigned char* data_in = nullptr;
+  int size_in = 0;
+  input_stream0.Next(reinterpret_cast<const void**>(&data_in), &size_in);
+  input_stream0.Skip(2);
+  input_stream0.Next(reinterpret_cast<const void**>(&data_in), &size_in);
+  EXPECT_EQ(TypeParam::value - 2, size_in);
+  EXPECT_EQ(data_out_1 + 2, data_in);
+
+  // Over block bounds.
+  STLContainerInputStream<TypeParam::value, std::vector> input_stream1(
+      0, 0, &this->pool_);
+  input_stream1.Skip(TypeParam::value + 2);
+  input_stream1.Next(reinterpret_cast<const void**>(&data_in), &size_in);
+  EXPECT_EQ(TypeParam::value - 2, size_in);
+  EXPECT_EQ(data_out_1 + 2, data_in);
+}
+
+REGISTER_TYPED_TEST_CASE_P(ProtoSTLStream, ReserveWorks,
                            FullBlockSizeReturnWorks, BackupWorks,
                            BackupOverBlockBoundsWorks,
                            RetrieveDataBlockWorks,
-                           SizeWorks, IsIndexInBoundsWorks);
+                           SizeWorks, IsIndexInBoundsWorks,
+                           OutputStreamByteCountWorks,
+                           OutputStreamNextWorks,
+                           OutputStreamBackUpWorks,
+                           InputStreamByteCountWorks,
+                           InputStreamNextWorks,
+                           InputStreamBackUpWorks,
+                           InputStreamSkipWorks);
 
-typedef ::testing::Types<SizeHolder<10> > Sizes;
-INSTANTIATE_TYPED_TEST_CASE_P(Test, MemoryBlockPoolTest, Sizes);
+typedef ::testing::Types<SizeHolder<5>, SizeHolder<10>,
+    SizeHolder<50>, SizeHolder<100>, SizeHolder<1024>, SizeHolder<2048>,
+    SizeHolder<2047>, SizeHolder<2049> > Sizes;
+
+INSTANTIATE_TYPED_TEST_CASE_P(Test, ProtoSTLStream, Sizes);
+
 }  // namespace map_api
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT

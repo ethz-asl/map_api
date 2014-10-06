@@ -121,11 +121,12 @@ class STLContainerInputStream :
 
   virtual ~STLContainerInputStream() {}
 
-  virtual bool Next(void ** data, int * size) {
+  virtual bool Next(const void ** data, int * size) {
     CHECK_NOTNULL(data);
     CHECK_NOTNULL(size);
-    bool status = block_pool_->RetrieveDataBlock(block_index_, byte_offset_,
-                                                 data, size);
+    bool status = block_pool_->RetrieveDataBlock(
+        block_index_, byte_offset_,
+        reinterpret_cast<const unsigned char**>(data), size);
     bytes_read_ += *size;
     block_index_ += 1;
     byte_offset_ = 0;
@@ -133,7 +134,11 @@ class STLContainerInputStream :
   }
 
   virtual void BackUp(int count) {
-    CHECK_LE(count, byte_offset_);
+    while (byte_offset_ - count < 0) {
+      --block_index_;
+      count -= BlockSize;
+      bytes_read_ -= BlockSize;
+    }
     byte_offset_ -= count;
     bytes_read_ -= count;
   }
@@ -174,10 +179,11 @@ class STLContainerOutputStream :
 
   ~STLContainerOutputStream() {}
 
-  virtual bool Next(void ** data, int * size) {
+  virtual bool Next(void** data, int * size) {
     CHECK_NOTNULL(data);
     CHECK_NOTNULL(size);
-    bool status = block_pool_->Next(data, size);
+    bool status = block_pool_->Next(
+        reinterpret_cast<unsigned char**>(data), size);
     bytes_written_ += *size;
     return status;
   }
