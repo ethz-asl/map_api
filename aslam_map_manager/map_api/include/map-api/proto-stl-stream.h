@@ -26,25 +26,38 @@ class MemoryBlockPool {
  public:
   typedef MemoryBlock<BlockSize> Block;
 
-  MemoryBlockPool() : position_in_last_block_(BlockSize) { }
+  MemoryBlockPool() : block_index_(0),
+      position_in_current_block_(BlockSize) { }
 
   bool Next(unsigned char** data, int* size) {
     CHECK_NOTNULL(data);
     CHECK_NOTNULL(size);
-    int num_available_bytes = BlockSize - position_in_last_block_;
+    int num_available_bytes = BlockSize - position_in_current_block_;
     if (num_available_bytes == 0) {
-      pool_.push_back(Block());
-      position_in_last_block_ = 0;
+      if (!pool_.empty()) {
+        ++block_index_;
+        LOG(INFO) << "Block pos now " << block_index_;
+      }
+      while (block_index_ >= static_cast<int>(pool_.size())) {
+        pool_.push_back(Block());
+        LOG(INFO) << "Adding block ";
+      }
+      position_in_current_block_ = 0;
       num_available_bytes = BlockSize;
     }
-    *data = pool_.back().data + position_in_last_block_;
+    LOG(INFO) << "Getting data from block " << block_index_;
+    *data = pool_[block_index_].data + position_in_current_block_;
     *size = num_available_bytes;
+    position_in_current_block_ += num_available_bytes;
     return true;
   }
 
   void BackUp(int count) {
-    CHECK_LE(count, position_in_last_block_);
-    position_in_last_block_ -= count;
+    while (position_in_current_block_ - count < 0) {
+      --block_index_;
+      count -= BlockSize;
+    }
+    position_in_current_block_ -= count;
   }
 
   bool RetrieveDataBlock(unsigned int index,
@@ -54,17 +67,21 @@ class MemoryBlockPool {
     CHECK_NOTNULL(data);
     CHECK_NOTNULL(size);
     CHECK_LT(index, pool_.size());
+    CHECK_LT(static_cast<int>(byte_offset), BlockSize);
     *data = pool_[index].data + byte_offset;
     *size = BlockSize - byte_offset;
     return true;
   }
 
   bool IsIndexInBounds(int block_index, int position_in_block) const {
-    if (block_index < pool_.size() - 1) {
+    if (block_index < 0 || position_in_block < 0) {
+      return false;
+    }
+    if (block_index < static_cast<int>(pool_.size()) - 1) {
       return true;
     }
-    if (block_index == pool_.size() - 1) {
-      return position_in_block < position_in_last_block_;
+    if (block_index == static_cast<int>(pool_.size()) - 1) {
+      return position_in_block < position_in_current_block_;
     }
     return false;
   }
@@ -73,9 +90,22 @@ class MemoryBlockPool {
     pool_.reserve(num_blocks);
   }
 
+  int BlockIndex() const {
+    return block_index_;
+  }
+
+  int PositionInCurrentBlock() const {
+    return position_in_current_block_;
+  }
+
+  int Size() const {
+    return pool_.size();
+  }
+
  private:
   Container<Block, std::allocator<Block> > pool_;
-  int position_in_last_block_;
+  int block_index_;
+  int position_in_current_block_;
 };
 
 template<int BlockSize, template<typename, typename> class Container>
