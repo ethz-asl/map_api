@@ -122,6 +122,14 @@ class UniqueId : private Id {
     return sm::HashId::operator!=(other);
   }
 
+  inline bool operator<(const IdType& other) const {
+    return sm::HashId::operator<(other);
+  }
+
+  inline bool operator<(const Id& other) const {
+    return sm::HashId::operator<(other);
+  }
+
   template <typename GenerateIdType>
   friend void generateId(GenerateIdType* id);
 };
