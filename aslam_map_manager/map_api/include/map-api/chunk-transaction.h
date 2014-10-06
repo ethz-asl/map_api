@@ -30,14 +30,6 @@ class ChunkTransaction {
   FRIEND_TEST(NetTableTest, ChunkTransactions);
   FRIEND_TEST(NetTableTest, ChunkTransactionsConflictConditions);
 
- public:
-  struct Conflict {
-    const std::shared_ptr<const Revision> theirs;
-    const std::shared_ptr<const Revision> ours;
-  };
-  // constant splicing, linear iteration
-  typedef std::list<Conflict> Conflicts;
-
  private:
   explicit ChunkTransaction(Chunk* chunk);
   ChunkTransaction(const LogicalTime& begin_time, Chunk* chunk);
@@ -63,6 +55,12 @@ class ChunkTransaction {
   bool commit();
   bool check();
   void checkedCommit(const LogicalTime& time);
+  struct Conflict {
+    const std::shared_ptr<const Revision> theirs;
+    const std::shared_ptr<const Revision> ours;
+  };
+  // constant splicing, linear iteration
+  typedef std::list<Conflict> Conflicts;
   /**
    * Merging and changeCount are not compatible with conflict conditions.
    */

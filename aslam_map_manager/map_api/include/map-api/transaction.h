@@ -75,7 +75,7 @@ class Transaction {
   class ConflictMap
       : public std::unordered_map<NetTable*, ChunkTransaction::Conflicts> {
    public:
-    inline std::string debugString() {
+    inline std::string debugString() const {
       std::ostringstream ss;
       for (const value_type& pair : *this) {
         ss << pair.first->name() << ": " << pair.second.size() << " conflicts"
@@ -84,6 +84,7 @@ class Transaction {
       return ss.str();
     }
   };
+
   /**
    * Merge_transaction will be filled with all insertions and non-conflicting
    * updates from this transaction, while the conflicting updates will be
