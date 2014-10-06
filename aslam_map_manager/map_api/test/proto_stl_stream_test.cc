@@ -6,6 +6,7 @@
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/gzip_stream.h>
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
+#include <stxxl.h>
 
 #include "map-api/proto-stl-stream.h"
 #include "map-api/revision.h"
@@ -19,11 +20,26 @@ struct SizeHolder {
   };
 };
 
+template<class T, class A> using ContainerType =
+    typename stxxl::VECTOR_GENERATOR<T>::result;
+
 template<typename SizeHolder_T>
 class ProtoSTLStream : public ::testing::TestWithParam<int> {
  protected:
-  virtual void SetUp() {}
-  MemoryBlockPool<SizeHolder_T::value, std::vector> pool_;
+  typedef MemoryBlockPool<SizeHolder_T::value, ContainerType> PoolType;
+
+  virtual void SetUp() {
+    stats_begin_ = stxxl::stats_data(*stxxl::stats::get_instance());
+  }
+
+  virtual void TearDown() {
+    // Print STXXL stats.
+    LOG(INFO) << (stxxl::stats_data(*stxxl::stats::get_instance()) -
+        stats_begin_);
+  }
+
+  PoolType pool_;
+  stxxl::stats_data stats_begin_;
 };
 
 TYPED_TEST_CASE_P(ProtoSTLStream);
@@ -153,7 +169,7 @@ TYPED_TEST_P(ProtoSTLStream, IsIndexInBoundsWorks) {
 }
 
 TYPED_TEST_P(ProtoSTLStream, OutputStreamByteCountWorks) {
-  STLContainerOutputStream<TypeParam::value, std::vector> output_stream(
+  STLContainerOutputStream<TypeParam::value, ContainerType> output_stream(
       &this->pool_);
   EXPECT_EQ(0, output_stream.ByteCount());
   unsigned char* data = nullptr;
@@ -170,7 +186,7 @@ TYPED_TEST_P(ProtoSTLStream, OutputStreamByteCountWorks) {
 TYPED_TEST_P(ProtoSTLStream, OutputStreamNextWorks) {
   // Avoid reallocation, s.t. memory adr can be compared.
   this->pool_.Reserve(2);
-  STLContainerOutputStream<TypeParam::value, std::vector> output_stream(
+  STLContainerOutputStream<TypeParam::value, ContainerType> output_stream(
       &this->pool_);
   unsigned char* data0 = nullptr;
   int size0 = 0;
@@ -192,7 +208,7 @@ TYPED_TEST_P(ProtoSTLStream, OutputStreamNextWorks) {
 TYPED_TEST_P(ProtoSTLStream, OutputStreamBackUpWorks) {
   // Avoid reallocation, s.t. memory adr can be compared.
   this->pool_.Reserve(2);
-  STLContainerOutputStream<TypeParam::value, std::vector> output_stream(
+  STLContainerOutputStream<TypeParam::value, ContainerType> output_stream(
       &this->pool_);
   unsigned char* data0 = nullptr;
   int size0 = 0;
@@ -211,14 +227,14 @@ TYPED_TEST_P(ProtoSTLStream, OutputStreamBackUpWorks) {
 }
 
 TYPED_TEST_P(ProtoSTLStream, InputStreamByteCountWorks) {
-  STLContainerOutputStream<TypeParam::value, std::vector> output_stream(
+  STLContainerOutputStream<TypeParam::value, ContainerType> output_stream(
       &this->pool_);
   unsigned char* data_out = nullptr;
   int size_out = 0;
   output_stream.Next(reinterpret_cast<void**>(&data_out), &size_out);
   output_stream.Next(reinterpret_cast<void**>(&data_out), &size_out);
 
-  STLContainerInputStream<TypeParam::value, std::vector> input_stream(
+  STLContainerInputStream<TypeParam::value, ContainerType> input_stream(
       0, 0, &this->pool_);
 
   EXPECT_EQ(0, input_stream.ByteCount());
@@ -237,7 +253,7 @@ TYPED_TEST_P(ProtoSTLStream, InputStreamByteCountWorks) {
 TYPED_TEST_P(ProtoSTLStream, InputStreamNextWorks) {
   // Avoid reallocation, s.t. memory adr can be compared.
   this->pool_.Reserve(2);
-  STLContainerOutputStream<TypeParam::value, std::vector> output_stream(
+  STLContainerOutputStream<TypeParam::value, ContainerType> output_stream(
       &this->pool_);
   unsigned char* data_out_0 = nullptr;
   int size_out_0 = 0;
@@ -247,7 +263,7 @@ TYPED_TEST_P(ProtoSTLStream, InputStreamNextWorks) {
   output_stream.Next(reinterpret_cast<void**>(&data_out_1), &size_out_1);
 
   // At block beginning.
-  STLContainerInputStream<TypeParam::value, std::vector> input_stream0(
+  STLContainerInputStream<TypeParam::value, ContainerType> input_stream0(
       0, 0, &this->pool_);
   const unsigned char* data_in = nullptr;
   int size_in = 0;
@@ -261,7 +277,7 @@ TYPED_TEST_P(ProtoSTLStream, InputStreamNextWorks) {
   EXPECT_EQ(TypeParam::value, size_in);
 
   // With offset.
-  STLContainerInputStream<TypeParam::value, std::vector> input_stream1(
+  STLContainerInputStream<TypeParam::value, ContainerType> input_stream1(
       0, 2, &this->pool_);
   input_stream1.Next(reinterpret_cast<const void**>(&data_in), &size_in);
   EXPECT_EQ(data_out_0 + 2, data_in);
@@ -276,7 +292,7 @@ TYPED_TEST_P(ProtoSTLStream, InputStreamNextWorks) {
 TYPED_TEST_P(ProtoSTLStream, InputStreamBackUpWorks) {
   // Avoid reallocation, s.t. memory adr can be compared.
   this->pool_.Reserve(2);
-  STLContainerOutputStream<TypeParam::value, std::vector> output_stream(
+  STLContainerOutputStream<TypeParam::value, ContainerType> output_stream(
       &this->pool_);
   unsigned char* data_out_0 = nullptr;
   int size_out_0 = 0;
@@ -285,7 +301,7 @@ TYPED_TEST_P(ProtoSTLStream, InputStreamBackUpWorks) {
   int size_out_1 = 0;
   output_stream.Next(reinterpret_cast<void**>(&data_out_1), &size_out_1);
 
-  STLContainerInputStream<TypeParam::value, std::vector> input_stream0(
+  STLContainerInputStream<TypeParam::value, ContainerType> input_stream0(
       0, 0, &this->pool_);
   const unsigned char* data_in = nullptr;
   int size_in = 0;
@@ -296,7 +312,7 @@ TYPED_TEST_P(ProtoSTLStream, InputStreamBackUpWorks) {
   EXPECT_EQ(data_out_0 + TypeParam::value - 2, data_in);
 
   // Over block bounds.
-  STLContainerInputStream<TypeParam::value, std::vector> input_stream1(
+  STLContainerInputStream<TypeParam::value, ContainerType> input_stream1(
       0, 0, &this->pool_);
   input_stream1.Next(reinterpret_cast<const void**>(&data_in), &size_in);
   input_stream1.Next(reinterpret_cast<const void**>(&data_in), &size_in);
@@ -309,7 +325,7 @@ TYPED_TEST_P(ProtoSTLStream, InputStreamBackUpWorks) {
 TYPED_TEST_P(ProtoSTLStream, InputStreamSkipWorks) {
   // Avoid reallocation, s.t. memory adr can be compared.
   this->pool_.Reserve(2);
-  STLContainerOutputStream<TypeParam::value, std::vector> output_stream(
+  STLContainerOutputStream<TypeParam::value, ContainerType> output_stream(
       &this->pool_);
   unsigned char* data_out_0 = nullptr;
   int size_out_0 = 0;
@@ -318,7 +334,7 @@ TYPED_TEST_P(ProtoSTLStream, InputStreamSkipWorks) {
   int size_out_1 = 0;
   output_stream.Next(reinterpret_cast<void**>(&data_out_1), &size_out_1);
 
-  STLContainerInputStream<TypeParam::value, std::vector> input_stream0(
+  STLContainerInputStream<TypeParam::value, ContainerType> input_stream0(
       0, 0, &this->pool_);
   const unsigned char* data_in = nullptr;
   int size_in = 0;
@@ -329,7 +345,7 @@ TYPED_TEST_P(ProtoSTLStream, InputStreamSkipWorks) {
   EXPECT_EQ(data_out_1 + 2, data_in);
 
   // Over block bounds.
-  STLContainerInputStream<TypeParam::value, std::vector> input_stream1(
+  STLContainerInputStream<TypeParam::value, ContainerType> input_stream1(
       0, 0, &this->pool_);
   input_stream1.Skip(TypeParam::value + 2);
   input_stream1.Next(reinterpret_cast<const void**>(&data_in), &size_in);
@@ -353,7 +369,7 @@ TYPED_TEST_P(ProtoSTLStream, ProtoSerializationWorks) {
   revision_out->set(3, 6.28);
 
   // Write the data to the blocks.
-  STLContainerOutputStream<TypeParam::value, std::vector> output_stream(
+  STLContainerOutputStream<TypeParam::value, ContainerType> output_stream(
       &this->pool_);
 
   int block_index = output_stream.BlockIndex();
@@ -371,7 +387,7 @@ TYPED_TEST_P(ProtoSTLStream, ProtoSerializationWorks) {
             output_stream.PositionInCurrentBlock());
 
   // Read the data back in.
-  STLContainerInputStream<TypeParam::value, std::vector> input_stream(
+  STLContainerInputStream<TypeParam::value, ContainerType> input_stream(
       block_index, position_in_block, &this->pool_);
   google::protobuf::io::CodedInputStream coded_in(&input_stream);
   uint32_t msg_size_in;
