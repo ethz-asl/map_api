@@ -3,9 +3,13 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/io/gzip_stream.h>
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 
 #include "map-api/proto-stl-stream.h"
+#include "map-api/revision.h"
+#include "./core.pb.h"
 
 namespace map_api {
 template<int Size>
@@ -32,7 +36,7 @@ TYPED_TEST_P(ProtoSTLStream, FullBlockSizeReturnWorks) {
   unsigned char* data = nullptr;
   int size = 0;
   EXPECT_EQ(0, this->pool_.BlockIndex());
-  EXPECT_EQ(TypeParam::value, this->pool_.PositionInCurrentBlock());
+  EXPECT_EQ(0, this->pool_.PositionInCurrentBlock());
 
   this->pool_.Next(&data, &size);
 
@@ -333,6 +337,58 @@ TYPED_TEST_P(ProtoSTLStream, InputStreamSkipWorks) {
   EXPECT_EQ(data_out_1 + 2, data_in);
 }
 
+TYPED_TEST_P(ProtoSTLStream, ProtoSerializationWorks) {
+  std::shared_ptr<proto::Revision> proto_out(new proto::Revision);
+  std::shared_ptr<map_api::Revision> revision_out =
+      std::shared_ptr<map_api::Revision>(new map_api::Revision(proto_out));
+
+  revision_out->addField<std::string>(0);
+  revision_out->addField<int>(1);
+  revision_out->addField<double>(2);
+  revision_out->addField<double>(3);
+
+  revision_out->set(0, std::string("test"));
+  revision_out->set(1, 42);
+  revision_out->set(2, 3.14);
+  revision_out->set(3, 6.28);
+
+  // Write the data to the blocks.
+  STLContainerOutputStream<TypeParam::value, std::vector> output_stream(
+      &this->pool_);
+
+  int block_index = output_stream.BlockIndex();
+  int position_in_block = output_stream.PositionInCurrentBlock();
+
+  int msg_size_out = revision_out->byteSize();
+  {
+    google::protobuf::io::CodedOutputStream coded_out(&output_stream);
+    coded_out.WriteVarint32(msg_size_out);
+    revision_out->SerializeToCodedStream(&coded_out);
+  }
+  EXPECT_EQ((msg_size_out + 1), output_stream.ByteCount());
+  EXPECT_EQ((msg_size_out + 1) / TypeParam::value, output_stream.BlockIndex());
+  EXPECT_EQ((msg_size_out + 1) % TypeParam::value,
+            output_stream.PositionInCurrentBlock());
+
+  // Read the data back in.
+  STLContainerInputStream<TypeParam::value, std::vector> input_stream(
+      block_index, position_in_block, &this->pool_);
+  google::protobuf::io::CodedInputStream coded_in(&input_stream);
+  uint32_t msg_size_in;
+  coded_in.SetTotalBytesLimit(msg_size_out + sizeof(msg_size_in),
+                              msg_size_out + sizeof(msg_size_in));
+
+  ASSERT_TRUE(coded_in.ReadVarint32(&msg_size_in));
+  std::string input_string;
+  ASSERT_TRUE(coded_in.ReadString(&input_string, msg_size_in));
+
+  std::shared_ptr<proto::Revision> proto_in(new proto::Revision);
+  std::shared_ptr<Revision> revision_in(new Revision(proto_in));
+  revision_in->parse(input_string);
+
+  EXPECT_TRUE(*revision_in == *revision_out);
+}
+
 REGISTER_TYPED_TEST_CASE_P(ProtoSTLStream, ReserveWorks,
                            FullBlockSizeReturnWorks, BackupWorks,
                            BackupOverBlockBoundsWorks,
@@ -344,11 +400,13 @@ REGISTER_TYPED_TEST_CASE_P(ProtoSTLStream, ReserveWorks,
                            InputStreamByteCountWorks,
                            InputStreamNextWorks,
                            InputStreamBackUpWorks,
-                           InputStreamSkipWorks);
+                           InputStreamSkipWorks,
+                           ProtoSerializationWorks);
 
 typedef ::testing::Types<SizeHolder<5>, SizeHolder<10>,
     SizeHolder<50>, SizeHolder<100>, SizeHolder<1024>, SizeHolder<2048>,
-    SizeHolder<2047>, SizeHolder<2049> > Sizes;
+    SizeHolder<2047>, SizeHolder<2049>
+> Sizes;
 
 INSTANTIATE_TYPED_TEST_CASE_P(Test, ProtoSTLStream, Sizes);
 

@@ -27,25 +27,22 @@ class MemoryBlockPool {
   typedef MemoryBlock<BlockSize> Block;
 
   MemoryBlockPool() : block_index_(0),
-      position_in_current_block_(BlockSize) { }
+      position_in_current_block_(0) { }
 
   bool Next(unsigned char** data, int* size) {
     CHECK_NOTNULL(data);
     CHECK_NOTNULL(size);
     int num_available_bytes = BlockSize - position_in_current_block_;
-    if (num_available_bytes == 0) {
+    if (num_available_bytes == 0 || pool_.empty()) {
       if (!pool_.empty()) {
         ++block_index_;
-        LOG(INFO) << "Block pos now " << block_index_;
       }
       while (block_index_ >= static_cast<int>(pool_.size())) {
         pool_.push_back(Block());
-        LOG(INFO) << "Adding block ";
       }
       position_in_current_block_ = 0;
       num_available_bytes = BlockSize;
     }
-    LOG(INFO) << "Getting data from block " << block_index_;
     *data = pool_[block_index_].data + position_in_current_block_;
     *size = num_available_bytes;
     position_in_current_block_ += num_available_bytes;
@@ -127,6 +124,9 @@ class STLContainerInputStream :
     bool status = block_pool_->RetrieveDataBlock(
         block_index_, byte_offset_,
         reinterpret_cast<const unsigned char**>(data), size);
+    if (status == false) {
+      return status;
+    }
     bytes_read_ += *size;
     block_index_ += 1;
     byte_offset_ = 0;
@@ -195,6 +195,14 @@ class STLContainerOutputStream :
 
   virtual google::int64 ByteCount() const {
     return bytes_written_;
+  }
+
+  int BlockIndex() const {
+    return block_pool_->BlockIndex();
+  }
+
+  int PositionInCurrentBlock() const {
+    return block_pool_->PositionInCurrentBlock();
   }
 
  private:
