@@ -26,3 +26,13 @@
 *.exe
 *.out
 *.app
+
+#Eclipse project
+.cproject
+.project
+.pydevproject
+.settings
+
+#Swap files
+*~
+
