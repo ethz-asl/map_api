@@ -5,14 +5,15 @@
 #include <glog/logging.h>
 #include <google/protobuf/io/zero_copy_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/message.h>
 
 namespace map_api {
 // This class stores the information at which block and index a serialized
 // value starts.
 struct MemoryBlockInformation {
-  MemoryBlockInformation() : index(-1), byte_offset(-1) { }
-  unsigned int index;
-  unsigned int byte_offset;
+  MemoryBlockInformation() : block_index(-1), byte_offset(-1) { }
+  int block_index;
+  int byte_offset;
 };
 
 // This is a block of memory that gets pushed to the container. Basically
@@ -68,13 +69,14 @@ class MemoryBlockPool {
   }
 
   // This is called by protobuf to retrieve a block of memory for reading.
-  bool RetrieveDataBlock(unsigned int index,
-                         unsigned int byte_offset,
+  bool RetrieveDataBlock(int index,
+                         int byte_offset,
                          const unsigned char** data,
                          int* size) const {
     CHECK_NOTNULL(data);
     CHECK_NOTNULL(size);
-    CHECK_LT(index, pool_.size());
+    CHECK_GE(index, 0);
+    CHECK_LT(index, static_cast<int>(pool_.size()));
     CHECK_LT(static_cast<int>(byte_offset), BlockSize);
     *data = pool_[index].data + byte_offset;
     *size = BlockSize - byte_offset;
@@ -130,6 +132,33 @@ class STLContainerInputStream :
                           block_pool_(CHECK_NOTNULL(block_pool)) { }
 
   virtual ~STLContainerInputStream() {}
+
+  // Uses length-prefix framing for protocol buffers.
+  bool ReadMessage(
+      google::protobuf::Message* message) {
+    CHECK_NOTNULL(message);
+
+    // Get the memory where the message size was written to.
+    const unsigned char* data = nullptr;
+    int size = 0;
+    bool status = Next(reinterpret_cast<const void**>(&data), &size);
+    if (status == false) {
+      return status;
+    }
+    CHECK(data != nullptr);
+    // Read the message size.
+    google::int32 message_size = 0;
+    const int kNumBytesForMessageSizeHeader = sizeof(message_size);
+    CHECK(size >= kNumBytesForMessageSizeHeader);
+    memcpy(&message_size, data, kNumBytesForMessageSizeHeader);
+    CHECK_NE(message_size, 0);
+
+    // Give back excess memory to the pool.
+    BackUp(size - kNumBytesForMessageSizeHeader);
+
+    // Now read the message.
+    return message->ParseFromBoundedZeroCopyStream(this, message_size);
+  }
 
   // This method is called by protobuf to get the next memory block to read
   // from.
@@ -197,6 +226,37 @@ class STLContainerOutputStream :
                            block_pool_(CHECK_NOTNULL(block_pool)) { }
 
   ~STLContainerOutputStream() {}
+
+  // Uses length-prefix framing for protocol buffers.
+   bool WriteMessage(
+      const google::protobuf::Message& message,
+      MemoryBlockInformation* block_info) {
+     CHECK_NOTNULL(block_info);
+    google::int32 message_size = message.ByteSize();
+    // Request memory to write the message size to.
+    unsigned char* data = nullptr;
+    int size = 0;
+    // Retrieve block and byte position of the stream. This will be the
+    // position that the message will be written to.
+    block_info->block_index = BlockIndex();
+    block_info->byte_offset = PositionInCurrentBlock();
+    const int kNumBytesForMessageSizeHeader = sizeof(message_size);
+    while (Next(reinterpret_cast<void**>(&data), &size) == false ||
+        size < kNumBytesForMessageSizeHeader) {
+      // Update the positions if the last allocation request failed.
+      block_info->block_index = BlockIndex();
+      block_info->byte_offset = PositionInCurrentBlock();
+    }
+    CHECK(data != nullptr);
+    CHECK(size >= kNumBytesForMessageSizeHeader);
+    // Write the message size.
+    memcpy(data, &message_size, kNumBytesForMessageSizeHeader);
+    // Give back excess memory to the pool.
+    BackUp(size - kNumBytesForMessageSizeHeader);
+
+    // Now write the message.
+    return message.SerializeToZeroCopyStream(this);
+  }
 
   // This method is called by protobuf to get the next memory block to write to.
   virtual bool Next(void** data, int * size) {

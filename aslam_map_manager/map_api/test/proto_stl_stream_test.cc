@@ -353,7 +353,7 @@ TYPED_TEST_P(ProtoSTLStream, InputStreamSkipWorks) {
   EXPECT_EQ(data_out_1 + 2, data_in);
 }
 
-TYPED_TEST_P(ProtoSTLStream, ProtoSerializationWorks) {
+TYPED_TEST_P(ProtoSTLStream, ProtoManualSerializationWorks) {
   std::shared_ptr<proto::Revision> proto_out(new proto::Revision);
   std::shared_ptr<map_api::Revision> revision_out =
       std::shared_ptr<map_api::Revision>(new map_api::Revision(proto_out));
@@ -405,6 +405,47 @@ TYPED_TEST_P(ProtoSTLStream, ProtoSerializationWorks) {
   EXPECT_TRUE(*revision_in == *revision_out);
 }
 
+
+TYPED_TEST_P(ProtoSTLStream, ProtoAutoSerializationWorks) {
+  std::shared_ptr<proto::Revision> proto_out(new proto::Revision);
+  std::shared_ptr<map_api::Revision> revision_out =
+      std::shared_ptr<map_api::Revision>(new map_api::Revision(proto_out));
+
+  revision_out->addField<std::string>(0);
+  revision_out->addField<int>(1);
+  revision_out->addField<double>(2);
+  revision_out->addField<double>(3);
+
+  revision_out->set(0, std::string("test"));
+  revision_out->set(1, 42);
+  revision_out->set(2, 3.14);
+  revision_out->set(3, 6.28);
+
+  // Write the data to the blocks.
+  STLContainerOutputStream<TypeParam::value, ContainerType> output_stream(
+      &this->pool_);
+
+  MemoryBlockInformation block_information;
+  output_stream.WriteMessage(*proto_out, &block_information);
+  EXPECT_EQ(block_information.block_index, 0);
+  EXPECT_EQ(block_information.byte_offset, 0);
+
+  EXPECT_EQ(output_stream.ByteCount(), proto_out->ByteSize() +
+            sizeof(google::int32));
+
+  // Read the data back in.
+  STLContainerInputStream<TypeParam::value, ContainerType> input_stream(
+      block_information.block_index, block_information.byte_offset,
+      &this->pool_);
+  std::shared_ptr<proto::Revision> proto_in(new proto::Revision);
+
+  input_stream.ReadMessage(proto_in.get());
+
+  std::shared_ptr<Revision> revision_in(new Revision(proto_in));
+
+  EXPECT_TRUE(*revision_in == *revision_out);
+}
+
 REGISTER_TYPED_TEST_CASE_P(ProtoSTLStream, ReserveWorks,
                            FullBlockSizeReturnWorks, BackupWorks,
                            BackupOverBlockBoundsWorks,
@@ -417,7 +458,8 @@ REGISTER_TYPED_TEST_CASE_P(ProtoSTLStream, ReserveWorks,
                            InputStreamNextWorks,
                            InputStreamBackUpWorks,
                            InputStreamSkipWorks,
-                           ProtoSerializationWorks);
+                           ProtoManualSerializationWorks,
+                           ProtoAutoSerializationWorks);
 
 typedef ::testing::Types<SizeHolder<5>, SizeHolder<10>,
     SizeHolder<50>, SizeHolder<100>, SizeHolder<1024>, SizeHolder<2048>,
