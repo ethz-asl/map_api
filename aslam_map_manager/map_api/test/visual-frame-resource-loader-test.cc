@@ -116,16 +116,16 @@ TEST_F(ResourceLoaderTest, ShouldFindResourceIds) {
 
 TEST_F(ResourceLoaderTest, ShouldLoadResources) {
   ResourceLoader loader = ResourceLoader(kTableName);
-  std::shared_ptr<common::VisualFrameBase> dummy_visual_frame(
-      new VisualFrameDummy());
+  common::VisualFrameBase* dummy_visual_frame_ptr = new VisualFrameDummy();
   EXPECT_TRUE(loader.loadResource(
       kResourceIdA,
       common::ResourceLoaderBase::kVisualFrameResourceRawImageType,
-      dummy_visual_frame));
+      dummy_visual_frame_ptr));
   EXPECT_TRUE(loader.loadResource(
       kResourceIdB,
       common::ResourceLoaderBase::kVisualFrameResourceRawImageType,
-      dummy_visual_frame));
+      dummy_visual_frame_ptr));
+  delete dummy_visual_frame_ptr;
 }
 }  // namespace map_api
 

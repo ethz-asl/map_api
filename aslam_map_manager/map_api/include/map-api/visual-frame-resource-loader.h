@@ -34,7 +34,7 @@ class ResourceLoader : public common::ResourceLoaderBase {
 
   bool loadResource(const std::string& resource_id_hex_string,
                     VisualFrameResourceType type,
-                    std::shared_ptr<common::VisualFrameBase> visual_frame);
+                    common::VisualFrameBase* visual_frame);
 
   void getResourceIdsOfType(const std::string& visual_frame_id_hex_string,
                             VisualFrameResourceType type,
@@ -42,9 +42,9 @@ class ResourceLoader : public common::ResourceLoaderBase {
 
  private:
   void releaseResourcesIfNecessary();
-  int registerResource(
-      VisualFrameResourceType type, const std::string& resource_id,
-      std::shared_ptr<common::VisualFrameBase> visual_frame_ptr);
+  int registerResource(VisualFrameResourceType type,
+                       const std::string& resource_id,
+                       common::VisualFrameBase* visual_frame_ptr);
   int getNumberOfLoadedResources(VisualFrameResourceType type) const;
   int releaseNumberOfLoadedResources(VisualFrameResourceType type,
                                      int number_to_release);
@@ -52,12 +52,11 @@ class ResourceLoader : public common::ResourceLoaderBase {
                               VisualFrameResourceType type);
 
   typedef std::unordered_map<
-      int, std::list<std::pair<std::shared_ptr<common::VisualFrameBase>,
-                               std::string> > > ResourceMap;
-  typedef std::list<std::pair<std::shared_ptr<common::VisualFrameBase>,
-                              std::string> > ResourceList;
-  typedef std::pair<std::shared_ptr<common::VisualFrameBase>, std::string>
-      ResourceRecord;
+      int, std::list<std::pair<common::VisualFrameBase*, std::string> > >
+      ResourceMap;
+  typedef std::list<std::pair<common::VisualFrameBase*, std::string> >
+      ResourceList;
+  typedef std::pair<common::VisualFrameBase*, std::string> ResourceRecord;
 
   ResourceMap loadedResources_;
   NetTable* resourceTable_;

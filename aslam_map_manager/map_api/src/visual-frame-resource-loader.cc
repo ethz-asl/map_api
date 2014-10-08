@@ -6,9 +6,9 @@ ResourceLoader::ResourceLoader(const std::string& resource_table_name) {
   resourceTable_ = &NetTableManager::instance().getTable(resource_table_name);
 }
 
-bool ResourceLoader::loadResource(
-    const std::string& resource_id_hex_string, VisualFrameResourceType type,
-    std::shared_ptr<common::VisualFrameBase> visual_frame) {
+bool ResourceLoader::loadResource(const std::string& resource_id_hex_string,
+                                  VisualFrameResourceType type,
+                                  common::VisualFrameBase* visual_frame) {
   bool success = true;
 
   Transaction transaction;
@@ -67,7 +67,7 @@ void ResourceLoader::getResourceIdsOfType(
 
 int ResourceLoader::registerResource(
     VisualFrameResourceType type, const std::string& resource_id,
-    std::shared_ptr<common::VisualFrameBase> visual_frame_ptr) {
+    common::VisualFrameBase* visual_frame_ptr) {
   loadedResources_[type]
       .push_back(ResourceRecord(visual_frame_ptr, resource_id));
   return getNumberOfLoadedResources(type);
