@@ -93,12 +93,11 @@ int ResourceLoader::getNumberOfLoadedResources(VisualFrameResourceType type)
 int ResourceLoader::releaseNumberOfLoadedResources(VisualFrameResourceType type,
                                                    int numberToRelease) {
   int released = 0;
-  ResourceList loaded_resources = loadedResources_.at(type);
-
-  ResourceList::iterator i = loaded_resources.begin();
-  while ((i != loaded_resources.end()) && (released < numberToRelease)) {
+  ResourceList::iterator i = loadedResources_.at(type).begin();
+  while ((i != loadedResources_.at(type).end()) &&
+         (released < numberToRelease)) {
     CHECK(i->first->releaseResource(i->second));
-    i = loaded_resources.erase(i);
+    i = loadedResources_.at(type).erase(i);
     ++released;
   }
   return released;

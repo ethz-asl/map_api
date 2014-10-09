@@ -1,122 +1,40 @@
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 
-#include "./map_api_multiprocess_fixture.h"
-
-#include "map-api/visual-frame-resource-loader.h"
+#include "./visual_frame_resource_loader_fixture.h"
 
 namespace map_api {
 
-class VisualFrameDummy : public common::VisualFrameBase {
-  bool releaseResource(const std::string& /*resource_id_hex_string*/) {
-    return true;
-  }
-  bool storeResource(const std::string& /*resource_id_hex_string*/,
-                     const cv::Mat& /*resource*/) {
-    return true;
-  }
-};
-
-class ResourceLoaderTest : public MultiprocessTest {
- public:
-  enum VisualFrameTableFields {
-    kVisualFrameTableUri,
-    kVisualFrameTableType,
-    kVisualFrameTableVisualFrameId
-  };
-
-  virtual void SetUp() override {
-    MultiprocessTest::SetUp();
-    std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
-    descriptor->setName(kTableName);
-    descriptor->addField<std::string>(kVisualFrameTableUri);
-    descriptor->addField<int>(kVisualFrameTableType);
-    descriptor->addField<Id>(kVisualFrameTableVisualFrameId);
-    NetTableManager::instance().addTable(CRTable::Type::CRU, &descriptor);
-    table_ = &NetTableManager::instance().getTable(kTableName);
-
-    Id chunk_id;
-    chunk_id.fromHexString(kChunkId);
-    Chunk* chunk = table_->newChunk(chunk_id);
-
-    Id visual_frame_id;
-    visual_frame_id.fromHexString(kVisualFrameId);
-
-    // Generate two dummy entries for DB
-
-    std::shared_ptr<Revision> to_insert_1 = table_->getTemplate();
-    Transaction transaction_1;
-    Id insert_id_1;
-    insert_id_1.fromHexString(kResourceIdA);
-    to_insert_1->setId(insert_id_1);
-    to_insert_1->set<std::string>(kVisualFrameTableUri,
-                                  "test-data/problem.jpg");
-    to_insert_1->set<int>(
-        kVisualFrameTableType,
-        common::ResourceLoaderBase::kVisualFrameResourceRawImageType);
-    to_insert_1->set<Id>(kVisualFrameTableVisualFrameId, visual_frame_id);
-    transaction_1.insert(table_, chunk, to_insert_1);
-    CHECK(transaction_1.commit());
-
-    std::shared_ptr<Revision> to_insert_2 = table_->getTemplate();
-    Transaction transaction_2;
-    Id insert_id_2;
-    insert_id_2.fromHexString(kResourceIdB);
-    to_insert_2->setId(insert_id_2);
-    to_insert_2->set<std::string>(kVisualFrameTableUri, "test-data/no.png");
-    to_insert_2->set<int>(
-        kVisualFrameTableType,
-        common::ResourceLoaderBase::kVisualFrameResourceRawImageType);
-    to_insert_2->set<Id>(kVisualFrameTableVisualFrameId, visual_frame_id);
-    transaction_2.insert(table_, chunk, to_insert_2);
-    CHECK(transaction_2.commit());
-  }
-
-  virtual void TearDown() override { MultiprocessTest::TearDown(); }
-
-  static const std::string kTableName;
-  static const std::string kChunkId;
-  static const std::string kVisualFrameId;
-  static const std::string kResourceIdA;
-  static const std::string kResourceIdB;
-
- private:
-  NetTable* table_;
-};
-
-const std::string ResourceLoaderTest::kTableName =
-    "visual_frame_resource_test_table";
-
-const std::string ResourceLoaderTest::kChunkId =
-    "00000000000000000000000000000042";
-const std::string ResourceLoaderTest::kVisualFrameId =
-    "00000000000000000000000000000001";
-
-const std::string ResourceLoaderTest::kResourceIdA =
-    "00000000000000000000000000000007";
-const std::string ResourceLoaderTest::kResourceIdB =
-    "00000000000000000000000000000008";
-
 TEST_F(ResourceLoaderTest, ShouldFindResourceIds) {
   ResourceLoader loader = ResourceLoader(kTableName);
-  std::unordered_set<std::string> resource_ids;
+  std::unordered_set<std::string> resource_ids, resource_ids_2;
+
+  // Get all ids for the resources of type RawImage for visual frame 0xA
   loader.getResourceIdsOfType(
-      ResourceLoaderTest::kVisualFrameId,
+      ResourceLoaderTest::kVisualFrameId1,
       common::ResourceLoaderBase::kVisualFrameResourceRawImageType,
       &resource_ids);
+
   EXPECT_EQ(resource_ids.size(), 2);
-  int watchdog = 0;
-  for (const auto& id_element : resource_ids) {
-    bool isFirst = id_element.compare(kResourceIdA) == 0;
-    bool isSecond = id_element.compare(kResourceIdB) == 0;
-    EXPECT_TRUE(!isFirst != !isSecond);
-    EXPECT_LE(watchdog, 2);
-    ++watchdog;
+  EXPECT_NE(resource_ids.find(kResourceIdA), resource_ids.end());
+  EXPECT_NE(resource_ids.find(kResourceIdB), resource_ids.end());
+
+  // Get all ids for the resources of type DisparityImage for visual frame 0xA
+  loader.getResourceIdsOfType(
+      ResourceLoaderTest::kVisualFrameId1,
+      common::ResourceLoaderBase::kVisualFrameResourceDisparityImageType,
+      &resource_ids_2);
+
+  EXPECT_EQ(resource_ids_2.size(), 20);
+  for (auto id : ResourceLoaderTest::kDisparityMapIds1) {
+    EXPECT_NE(resource_ids_2.find(id), resource_ids.end());
   }
 }
 
-TEST_F(ResourceLoaderTest, ShouldLoadResources) {
+TEST_F(ResourceLoaderTest, ShouldLoadAndStoreResources) {
   ResourceLoader loader = ResourceLoader(kTableName);
-  common::VisualFrameBase* dummy_visual_frame_ptr = new VisualFrameDummy();
+  VisualFrameDummy* dummy_visual_frame_ptr = new VisualFrameDummy();
+
+  // Load two resources of type RawImage for visual frame 0xA
   EXPECT_TRUE(loader.loadResource(
       kResourceIdA,
       common::ResourceLoaderBase::kVisualFrameResourceRawImageType,
@@ -125,8 +43,89 @@ TEST_F(ResourceLoaderTest, ShouldLoadResources) {
       kResourceIdB,
       common::ResourceLoaderBase::kVisualFrameResourceRawImageType,
       dummy_visual_frame_ptr));
+
+  // Check if resource loader stored the loaded resource in the visual frame
+  EXPECT_EQ(dummy_visual_frame_ptr->resourcesStored_.size(), 2);
+  EXPECT_NE(dummy_visual_frame_ptr->resourcesStored_.find(kResourceIdA),
+            dummy_visual_frame_ptr->resourcesStored_.end());
+  EXPECT_NE(dummy_visual_frame_ptr->resourcesStored_.find(kResourceIdB),
+            dummy_visual_frame_ptr->resourcesStored_.end());
+
   delete dummy_visual_frame_ptr;
 }
+
+TEST_F(ResourceLoaderTest, ShouldReleaseResourcesCorrectly) {
+  ResourceLoader loader = ResourceLoader(kTableName);
+  VisualFrameDummy* dummy_visual_frame_ptr_1 =
+      new VisualFrameDummy();  // ID=0xA
+  VisualFrameDummy* dummy_visual_frame_ptr_2 =
+      new VisualFrameDummy();  // ID=0xB
+  VisualFrameDummy* dummy_visual_frame_ptr_3 =
+      new VisualFrameDummy();  // ID=0xC
+
+  // Load two resources of type RawImage for visual frame 1
+  EXPECT_TRUE(loader.loadResource(
+      kResourceIdA,
+      common::ResourceLoaderBase::kVisualFrameResourceRawImageType,
+      dummy_visual_frame_ptr_1));
+  EXPECT_TRUE(loader.loadResource(
+      kResourceIdB,
+      common::ResourceLoaderBase::kVisualFrameResourceRawImageType,
+      dummy_visual_frame_ptr_1));
+
+  // Check if resource loader stored the loaded resource in the visual frame
+  EXPECT_EQ(dummy_visual_frame_ptr_1->resourcesStored_.size(), 2);
+  EXPECT_NE(dummy_visual_frame_ptr_1->resourcesStored_.find(kResourceIdA),
+            dummy_visual_frame_ptr_1->resourcesStored_.end());
+  EXPECT_NE(dummy_visual_frame_ptr_1->resourcesStored_.find(kResourceIdB),
+            dummy_visual_frame_ptr_1->resourcesStored_.end());
+
+  std::cout << "load 20 disparity maps for visual frame 0xA" << std::endl;
+  // Load 20 resources of type DisparityMap for visual frame 1
+  for (auto id : ResourceLoaderTest::kDisparityMapIds1) {
+    EXPECT_TRUE(loader.loadResource(
+        id, common::ResourceLoaderBase::kVisualFrameResourceDisparityImageType,
+        dummy_visual_frame_ptr_1));
+    EXPECT_NE(dummy_visual_frame_ptr_1->resourcesStored_.find(id),
+              dummy_visual_frame_ptr_1->resourcesStored_.end());
+  }
+  EXPECT_EQ(dummy_visual_frame_ptr_1->resourcesStored_.size(), 22);
+
+  std::cout << "load 10 disparity maps for visual frame 0xB" << std::endl;
+  // Load 10 resources of type DisparityMap for visual frame 2
+  for (auto id : ResourceLoaderTest::kDisparityMapIds2) {
+    EXPECT_TRUE(loader.loadResource(
+        id, common::ResourceLoaderBase::kVisualFrameResourceDisparityImageType,
+        dummy_visual_frame_ptr_2));
+    EXPECT_NE(dummy_visual_frame_ptr_2->resourcesStored_.find(id),
+              dummy_visual_frame_ptr_2->resourcesStored_.end());
+  }
+
+  // Check if loader released 10 resources to accommodate the 10 new ones
+  EXPECT_EQ(dummy_visual_frame_ptr_2->resourcesStored_.size(), 10);
+  EXPECT_EQ(dummy_visual_frame_ptr_1->resourcesStored_.size(), 12);
+
+  std::cout << "load 15 disparity maps for visual frame 0xC" << std::endl;
+  // Load 15 resources of type DisparityMap for visual frame 3
+  for (auto id : ResourceLoaderTest::kDisparityMapIds3) {
+    EXPECT_TRUE(loader.loadResource(
+        id, common::ResourceLoaderBase::kVisualFrameResourceDisparityImageType,
+        dummy_visual_frame_ptr_3));
+    EXPECT_NE(dummy_visual_frame_ptr_3->resourcesStored_.find(id),
+              dummy_visual_frame_ptr_3->resourcesStored_.end());
+  }
+
+  // Check if loader released 10 resources for visual frame 1 and 5 resources
+  // for visual frame 2 to accommodate the 15 new ones
+  EXPECT_EQ(dummy_visual_frame_ptr_3->resourcesStored_.size(), 15);
+  EXPECT_EQ(dummy_visual_frame_ptr_2->resourcesStored_.size(), 5);
+  EXPECT_EQ(dummy_visual_frame_ptr_1->resourcesStored_.size(), 2);
+
+  delete dummy_visual_frame_ptr_1;
+  delete dummy_visual_frame_ptr_2;
+  delete dummy_visual_frame_ptr_3;
+}
+
 }  // namespace map_api
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
