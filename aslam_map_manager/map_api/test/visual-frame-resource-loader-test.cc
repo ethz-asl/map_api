@@ -14,9 +14,9 @@ TEST_F(ResourceLoaderTest, ShouldFindResourceIds) {
       common::ResourceLoaderBase::kVisualFrameResourceRawImageType,
       &resource_ids);
 
-  EXPECT_EQ(resource_ids.size(), 2);
-  EXPECT_NE(resource_ids.find(kResourceIdA), resource_ids.end());
-  EXPECT_NE(resource_ids.find(kResourceIdB), resource_ids.end());
+  EXPECT_EQ(2u, resource_ids.size());
+  EXPECT_NE(resource_ids.end(), resource_ids.find(kResourceIdA));
+  EXPECT_NE(resource_ids.end(), resource_ids.find(kResourceIdB));
 
   // Get all ids for the resources of type DisparityImage for visual frame 0xA
   loader.getResourceIdsOfType(
@@ -24,106 +24,94 @@ TEST_F(ResourceLoaderTest, ShouldFindResourceIds) {
       common::ResourceLoaderBase::kVisualFrameResourceDisparityImageType,
       &resource_ids_2);
 
-  EXPECT_EQ(resource_ids_2.size(), 20);
+  EXPECT_EQ(20u, resource_ids_2.size());
   for (auto id : ResourceLoaderTest::kDisparityMapIds1) {
-    EXPECT_NE(resource_ids_2.find(id), resource_ids.end());
+    EXPECT_NE(resource_ids.end(), resource_ids_2.find(id));
   }
 }
 
 TEST_F(ResourceLoaderTest, ShouldLoadAndStoreResources) {
   ResourceLoader loader = ResourceLoader(kTableName);
-  VisualFrameDummy* dummy_visual_frame_ptr = new VisualFrameDummy();
+  VisualFrameDummy dummy_visual_frame;
 
   // Load two resources of type RawImage for visual frame 0xA
   EXPECT_TRUE(loader.loadResource(
       kResourceIdA,
       common::ResourceLoaderBase::kVisualFrameResourceRawImageType,
-      dummy_visual_frame_ptr));
+      &dummy_visual_frame));
   EXPECT_TRUE(loader.loadResource(
       kResourceIdB,
       common::ResourceLoaderBase::kVisualFrameResourceRawImageType,
-      dummy_visual_frame_ptr));
+      &dummy_visual_frame));
 
   // Check if resource loader stored the loaded resource in the visual frame
-  EXPECT_EQ(dummy_visual_frame_ptr->resourcesStored_.size(), 2);
-  EXPECT_NE(dummy_visual_frame_ptr->resourcesStored_.find(kResourceIdA),
-            dummy_visual_frame_ptr->resourcesStored_.end());
-  EXPECT_NE(dummy_visual_frame_ptr->resourcesStored_.find(kResourceIdB),
-            dummy_visual_frame_ptr->resourcesStored_.end());
-
-  delete dummy_visual_frame_ptr;
+  EXPECT_EQ(2u, dummy_visual_frame.resourcesStored_.size());
+  EXPECT_NE(dummy_visual_frame.resourcesStored_.end(),
+            dummy_visual_frame.resourcesStored_.find(kResourceIdA));
+  EXPECT_NE(dummy_visual_frame.resourcesStored_.end(),
+            dummy_visual_frame.resourcesStored_.find(kResourceIdB));
 }
 
 TEST_F(ResourceLoaderTest, ShouldReleaseResourcesCorrectly) {
   ResourceLoader loader = ResourceLoader(kTableName);
-  VisualFrameDummy* dummy_visual_frame_ptr_1 =
-      new VisualFrameDummy();  // ID=0xA
-  VisualFrameDummy* dummy_visual_frame_ptr_2 =
-      new VisualFrameDummy();  // ID=0xB
-  VisualFrameDummy* dummy_visual_frame_ptr_3 =
-      new VisualFrameDummy();  // ID=0xC
+  VisualFrameDummy dummy_visual_frame_1;  // ID=0xA
+  VisualFrameDummy dummy_visual_frame_2;  // ID=0xB
+  VisualFrameDummy dummy_visual_frame_3;  // ID=0xC
 
   // Load two resources of type RawImage for visual frame 1
   EXPECT_TRUE(loader.loadResource(
       kResourceIdA,
       common::ResourceLoaderBase::kVisualFrameResourceRawImageType,
-      dummy_visual_frame_ptr_1));
+      &dummy_visual_frame_1));
   EXPECT_TRUE(loader.loadResource(
       kResourceIdB,
       common::ResourceLoaderBase::kVisualFrameResourceRawImageType,
-      dummy_visual_frame_ptr_1));
+      &dummy_visual_frame_1));
 
   // Check if resource loader stored the loaded resource in the visual frame
-  EXPECT_EQ(dummy_visual_frame_ptr_1->resourcesStored_.size(), 2);
-  EXPECT_NE(dummy_visual_frame_ptr_1->resourcesStored_.find(kResourceIdA),
-            dummy_visual_frame_ptr_1->resourcesStored_.end());
-  EXPECT_NE(dummy_visual_frame_ptr_1->resourcesStored_.find(kResourceIdB),
-            dummy_visual_frame_ptr_1->resourcesStored_.end());
+  EXPECT_EQ(2u, dummy_visual_frame_1.resourcesStored_.size());
+  EXPECT_NE(dummy_visual_frame_1.resourcesStored_.end(),
+            dummy_visual_frame_1.resourcesStored_.find(kResourceIdA));
+  EXPECT_NE(dummy_visual_frame_1.resourcesStored_.end(),
+            dummy_visual_frame_1.resourcesStored_.find(kResourceIdB));
 
-  std::cout << "load 20 disparity maps for visual frame 0xA" << std::endl;
   // Load 20 resources of type DisparityMap for visual frame 1
   for (auto id : ResourceLoaderTest::kDisparityMapIds1) {
     EXPECT_TRUE(loader.loadResource(
         id, common::ResourceLoaderBase::kVisualFrameResourceDisparityImageType,
-        dummy_visual_frame_ptr_1));
-    EXPECT_NE(dummy_visual_frame_ptr_1->resourcesStored_.find(id),
-              dummy_visual_frame_ptr_1->resourcesStored_.end());
+        &dummy_visual_frame_1));
+    EXPECT_NE(dummy_visual_frame_1.resourcesStored_.find(id),
+              dummy_visual_frame_1.resourcesStored_.end());
   }
-  EXPECT_EQ(dummy_visual_frame_ptr_1->resourcesStored_.size(), 22);
+  EXPECT_EQ(22u, dummy_visual_frame_1.resourcesStored_.size());
 
-  std::cout << "load 10 disparity maps for visual frame 0xB" << std::endl;
   // Load 10 resources of type DisparityMap for visual frame 2
   for (auto id : ResourceLoaderTest::kDisparityMapIds2) {
     EXPECT_TRUE(loader.loadResource(
         id, common::ResourceLoaderBase::kVisualFrameResourceDisparityImageType,
-        dummy_visual_frame_ptr_2));
-    EXPECT_NE(dummy_visual_frame_ptr_2->resourcesStored_.find(id),
-              dummy_visual_frame_ptr_2->resourcesStored_.end());
+        &dummy_visual_frame_2));
+    EXPECT_NE(dummy_visual_frame_2.resourcesStored_.end(),
+              dummy_visual_frame_2.resourcesStored_.find(id));
   }
 
   // Check if loader released 10 resources to accommodate the 10 new ones
-  EXPECT_EQ(dummy_visual_frame_ptr_2->resourcesStored_.size(), 10);
-  EXPECT_EQ(dummy_visual_frame_ptr_1->resourcesStored_.size(), 12);
+  EXPECT_EQ(10u, dummy_visual_frame_2.resourcesStored_.size());
+  EXPECT_EQ(12u, dummy_visual_frame_1.resourcesStored_.size());
 
-  std::cout << "load 15 disparity maps for visual frame 0xC" << std::endl;
   // Load 15 resources of type DisparityMap for visual frame 3
   for (auto id : ResourceLoaderTest::kDisparityMapIds3) {
     EXPECT_TRUE(loader.loadResource(
         id, common::ResourceLoaderBase::kVisualFrameResourceDisparityImageType,
-        dummy_visual_frame_ptr_3));
-    EXPECT_NE(dummy_visual_frame_ptr_3->resourcesStored_.find(id),
-              dummy_visual_frame_ptr_3->resourcesStored_.end());
+        &dummy_visual_frame_3));
+    EXPECT_NE(dummy_visual_frame_3.resourcesStored_.end(),
+              dummy_visual_frame_3.resourcesStored_.find(id));
   }
 
   // Check if loader released 10 resources for visual frame 1 and 5 resources
   // for visual frame 2 to accommodate the 15 new ones
-  EXPECT_EQ(dummy_visual_frame_ptr_3->resourcesStored_.size(), 15);
-  EXPECT_EQ(dummy_visual_frame_ptr_2->resourcesStored_.size(), 5);
-  EXPECT_EQ(dummy_visual_frame_ptr_1->resourcesStored_.size(), 2);
-
-  delete dummy_visual_frame_ptr_1;
-  delete dummy_visual_frame_ptr_2;
-  delete dummy_visual_frame_ptr_3;
+  EXPECT_EQ(15u, dummy_visual_frame_3.resourcesStored_.size());
+  EXPECT_EQ(5u, dummy_visual_frame_2.resourcesStored_.size());
+  EXPECT_EQ(2u, dummy_visual_frame_1.resourcesStored_.size());
 }
 
 }  // namespace map_api

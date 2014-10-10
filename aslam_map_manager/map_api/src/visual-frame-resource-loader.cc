@@ -53,14 +53,12 @@ void ResourceLoader::getResourceIdsOfType(
   // TODO(mfehr): replace "2" with proper enum
   CRTable::RevisionMap revision_map =
       transaction.find<Id>(2, visual_frame_id, resourceTable_);
-  if (!revision_map.empty()) {
-    int resource_type;
-    for (auto revision : revision_map) {
-      // TODO(mfehr): replace "1" with proper enum
-      revision.second->get<int>(1, &resource_type);
-      if (resource_type == type) {
-        id_set->insert(revision.first.hexString());
-      }
+  int resource_type;
+  for (auto revision : revision_map) {
+    // TODO(mfehr): replace "1" with proper enum
+    revision.second->get<int>(1, &resource_type);
+    if (resource_type == type) {
+      id_set->insert(revision.first.hexString());
     }
   }
 };
@@ -68,19 +66,19 @@ void ResourceLoader::getResourceIdsOfType(
 int ResourceLoader::registerResource(
     VisualFrameResourceType type, const std::string& resource_id,
     common::VisualFrameBase* visual_frame_ptr) {
-  loadedResources_[type]
-      .push_back(ResourceRecord(visual_frame_ptr, resource_id));
+  loadedResources_[type].emplace_back(visual_frame_ptr, resource_id);
   return getNumberOfLoadedResources(type);
 }
 
 void ResourceLoader::releaseResourcesIfNecessary() {
   for (auto resource_list : loadedResources_) {
-    int diff = resource_list.second.size() - kMaxNumberOfResourcesPerType;
-    if (diff > 0) {
-      CHECK_EQ(
-          releaseNumberOfLoadedResources(
-              static_cast<VisualFrameResourceType>(resource_list.first), diff),
-          diff);
+    int expected_number_of_released_ressources =
+        resource_list.second.size() - kMaxNumberOfResourcesPerType;
+    if (expected_number_of_released_ressources > 0) {
+      CHECK_EQ(releaseNumberOfLoadedResources(
+                   static_cast<VisualFrameResourceType>(resource_list.first),
+                   expected_number_of_released_ressources),
+               expected_number_of_released_ressources);
     }
   }
 }
@@ -91,11 +89,11 @@ int ResourceLoader::getNumberOfLoadedResources(VisualFrameResourceType type)
 }
 
 int ResourceLoader::releaseNumberOfLoadedResources(VisualFrameResourceType type,
-                                                   int numberToRelease) {
+                                                   int number_to_release) {
   int released = 0;
   ResourceList::iterator i = loadedResources_.at(type).begin();
   while ((i != loadedResources_.at(type).end()) &&
-         (released < numberToRelease)) {
+         (released < number_to_release)) {
     CHECK(i->first->releaseResource(i->second));
     i = loadedResources_.at(type).erase(i);
     ++released;
