@@ -43,7 +43,8 @@ bool ProtoTableFileIO::storeTableContents(
     const map_api::CRTable::RevisionMap& revisions) {
   CHECK(file_.is_open());
 
-  for (const std::pair<Id, std::shared_ptr<Revision> >& pair : revisions) {
+  for (const std::pair<Id,
+      std::shared_ptr<const Revision> >& pair : revisions) {
     CHECK(pair.second != nullptr);
     const Revision& revision = *pair.second;
 
@@ -102,7 +103,7 @@ bool ProtoTableFileIO::storeTableContents(
       google::protobuf::io::CodedOutputStream coded_out(&gzip_out);
 
       coded_out.WriteVarint32(revision.byteSize());
-      revision.underlyingRevision().SerializeToCodedStream(&coded_out);
+      revision.SerializeToCodedStream(&coded_out);
       already_stored_items_.insert(current_item_stamp);
     }
   }

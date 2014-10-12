@@ -74,9 +74,9 @@ bool Chunk::init(
     if (underlying_table->type() == CRTable::Type::CR) {
       std::shared_ptr<proto::Revision> raw_revision(new proto::Revision);
       CHECK(raw_revision->ParseFromString(init_request.serialized_items(i)));
-      Revision data(raw_revision);
+      std::shared_ptr<Revision> data = std::make_shared<Revision>(raw_revision);
       CHECK(underlying_table->patch(data));
-      syncLatestCommitTime(data);
+      syncLatestCommitTime(*data);
     } else {
       CHECK(underlying_table->type() == CRTable::Type::CRU);
       proto::History history_proto;
@@ -85,11 +85,12 @@ bool Chunk::init(
       while (history_proto.revisions_size() > 0) {
         // using ReleaseLast allows zero-copy ownership transfer to the revision
         // object.
-        Revision data(std::shared_ptr<proto::Revision>(
+        std::shared_ptr<Revision> data = std::make_shared<Revision>(
+            std::shared_ptr<proto::Revision>(
             history_proto.mutable_revisions()->ReleaseLast()));
         CHECK(underlying_table->patch(data));
         // TODO(tcies) guarantee order, then only sync latest time
-        syncLatestCommitTime(data);
+        syncLatestCommitTime(*data);
       }
     }
   }
@@ -123,7 +124,7 @@ size_t Chunk::itemsSizeBytes(const LogicalTime& time) {
   underlying_table_->dumpChunk(id(), time, &items);
   distributedUnlock();
   size_t num_bytes = 0;
-  for (const std::pair<Id, std::shared_ptr<Revision> >& item : items) {
+  for (const std::pair<Id, std::shared_ptr<const Revision> >& item : items) {
     CHECK(item.second != nullptr);
     const Revision& revision = *item.second;
     num_bytes += revision.byteSize();
@@ -158,8 +159,8 @@ void Chunk::getCommitTimes(const LogicalTime& sample_time,
   } else {
     CHECK(underlying_table_->type() == CRTable::Type::CRU);
     for (const CRUTable::HistoryMap::value_type& history : histories) {
-      for (const Revision& revision : history.second) {
-        unordered_commit_times.insert(revision.getUpdateTime());
+      for (const std::shared_ptr<const Revision>& revision : history.second) {
+        unordered_commit_times.insert(revision->getUpdateTime());
       }
     }
   }
@@ -167,8 +168,9 @@ void Chunk::getCommitTimes(const LogicalTime& sample_time,
                        unordered_commit_times.end());
 }
 
-bool Chunk::insert(const LogicalTime& time, Revision* item) {
-  CHECK_NOTNULL(item);
+bool Chunk::insert(const LogicalTime& time,
+                   const std::shared_ptr<Revision>& item) {
+  CHECK(item != nullptr);
   item->setChunkId(id());
   proto::PatchRequest insert_request;
   fillMetadata(&insert_request);
@@ -252,8 +254,8 @@ int Chunk::requestParticipation(const PeerId& peer) {
   return new_participant_count;
 }
 
-void Chunk::update(Revision* item) {
-  CHECK_NOTNULL(item);
+void Chunk::update(const std::shared_ptr<Revision>& item) {
+  CHECK(item != nullptr);
   CHECK(underlying_table_->type() == CRTable::Type::CRU);
   CRUTable* table = static_cast<CRUTable*>(underlying_table_);
   CHECK_EQ(id(), item->getChunkId());
@@ -277,12 +279,12 @@ void Chunk::attachTrigger(const std::function<void(const Id& id)>& callback) {
   trigger_ = callback;
 }
 
-void Chunk::bulkInsertLocked(const CRTable::RevisionMap& items,
+void Chunk::bulkInsertLocked(const CRTable::NonConstRevisionMap& items,
                              const LogicalTime& time) {
   std::vector<proto::PatchRequest> insert_requests;
   insert_requests.resize(items.size());
   int i = 0;
-  for (const CRTable::RevisionMap::value_type& item : items) {
+  for (const CRTable::NonConstRevisionMap::value_type& item : items) {
     CHECK_NOTNULL(item.second.get());
     item.second->setChunkId(id());
     fillMetadata(&insert_requests[i]);
@@ -304,8 +306,9 @@ void Chunk::bulkInsertLocked(const CRTable::RevisionMap& items,
   }
 }
 
-void Chunk::updateLocked(const LogicalTime& time, Revision* item) {
-  CHECK_NOTNULL(item);
+void Chunk::updateLocked(const LogicalTime& time,
+                         const std::shared_ptr<Revision>& item) {
+  CHECK(item != nullptr);
   CHECK(underlying_table_->type() == CRTable::Type::CRU);
   CRUTable* table = static_cast<CRUTable*>(underlying_table_);
   CHECK_EQ(id(), item->getChunkId());
@@ -321,8 +324,9 @@ void Chunk::updateLocked(const LogicalTime& time, Revision* item) {
   CHECK(peers_.undisputableBroadcast(&request));
 }
 
-void Chunk::removeLocked(const LogicalTime& time, Revision* item) {
-  CHECK_NOTNULL(item);
+void Chunk::removeLocked(const LogicalTime& time,
+                         const std::shared_ptr<Revision>& item) {
+  CHECK(item != nullptr);
   CHECK(underlying_table_->type() == CRTable::Type::CRU);
   CRUTable* table = static_cast<CRUTable*>(underlying_table_);
   CHECK_EQ(item->getChunkId(), id());
@@ -646,9 +650,9 @@ void Chunk::initRequestSetData(proto::InitRequest* request) {
     table->chunkHistory(id(), LogicalTime::sample(), &data);
     for (const CRUTable::HistoryMap::value_type& data_pair : data) {
       proto::History history_proto;
-      for (const Revision& revision : data_pair.second) {
+      for (const std::shared_ptr<const Revision>& revision : data_pair.second) {
         history_proto.mutable_revisions()->AddAllocated(
-            new proto::Revision(*revision.underlying_revision_));
+            new proto::Revision(*revision->underlying_revision_));
       }
       request->add_serialized_items(history_proto.SerializeAsString());
     }
@@ -719,7 +723,9 @@ void Chunk::handleConnectRequestThread(Chunk* self, const PeerId& peer) {
   self->leave_lock_.unlock();
 }
 
-void Chunk::handleInsertRequest(const Revision& item, Message* response) {
+void Chunk::handleInsertRequest(const std::shared_ptr<Revision>& item,
+                                Message* response) {
+  CHECK(item != nullptr);
   CHECK_NOTNULL(response);
   awaitInitialized();
   leave_lock_.readLock();
@@ -740,11 +746,11 @@ void Chunk::handleInsertRequest(const Revision& item, Message* response) {
     CHECK(!isWriter(PeerId::self()));
   }
   underlying_table_->patch(item);
-  syncLatestCommitTime(item);
+  syncLatestCommitTime(*item);
   response->ack();
   leave_lock_.unlock();
 
-  Id id = item.getId<Id>();  // TODO(tcies) what if leave during trigger?
+  Id id = item->getId<Id>();  // TODO(tcies) what if leave during trigger?
   std::lock_guard<std::mutex> lock(trigger_mutex_);
   if (trigger_) {
     std::thread trigger_thread(trigger_, id);
@@ -855,8 +861,9 @@ void Chunk::handleUnlockRequest(const PeerId& locker, Message* response) {
   response->impose<Message::kAck>();
 }
 
-void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
-                                Message* response) {
+void Chunk::handleUpdateRequest(const std::shared_ptr<Revision>& item,
+                                const PeerId& sender, Message* response) {
+  CHECK(item != nullptr);
   CHECK_NOTNULL(response);
   awaitInitialized();
   {
@@ -866,10 +873,10 @@ void Chunk::handleUpdateRequest(const Revision& item, const PeerId& sender,
   CHECK(underlying_table_->type() == CRTable::Type::CRU);
   CRUTable* table = static_cast<CRUTable*>(underlying_table_);
   table->patch(item);
-  syncLatestCommitTime(item);
+  syncLatestCommitTime(*item);
   response->ack();
 
-  Id id = item.getId<Id>();  // TODO(tcies) what if leave during trigger?
+  Id id = item->getId<Id>();  // TODO(tcies) what if leave during trigger?
   std::lock_guard<std::mutex> lock(trigger_mutex_);
   if (trigger_) {
     std::thread trigger_thread(trigger_, id);

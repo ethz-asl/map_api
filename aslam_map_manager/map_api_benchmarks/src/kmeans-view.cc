@@ -114,7 +114,8 @@ void KmeansView::updateAll(const DescriptorVector& centers,
     CRTable::RevisionMap::iterator found_revision =
         center_revisions_.find(center_id);
     CHECK(found_revision != center_revisions_.end());
-    std::shared_ptr<Revision> cached_revision = found_revision->second;
+    std::shared_ptr<Revision> cached_revision =
+        std::make_shared<Revision>(*found_revision->second);
     app::centerToRevision(centers[i], center_id, cached_revision.get());
     // TODO(tcies) optimization: update only effective changes
     transaction_.update(app::center_table, cached_revision);
@@ -133,7 +134,8 @@ void KmeansView::updateAll(const DescriptorVector& centers,
     CRTable::RevisionMap::iterator found_revision =
         membership_revisions_.find(descriptor_id);
     CHECK(found_revision != membership_revisions_.end());
-    std::shared_ptr<Revision> cached_revision = found_revision->second;
+    std::shared_ptr<Revision> cached_revision =
+        std::make_shared<Revision>(*found_revision->second);
 
     app::membershipToRevision(descriptor_id, center_id, cached_revision.get());
     transaction_.update(app::association_table, cached_revision);
@@ -155,7 +157,8 @@ bool KmeansView::updateCenterRelated(
   CRTable::RevisionMap::iterator found_revision =
       center_revisions_.find(center_id);
   CHECK(found_revision != center_revisions_.end());
-  std::shared_ptr<Revision> cached_revision = found_revision->second;
+  std::shared_ptr<Revision> cached_revision =
+      std::make_shared<Revision>(*found_revision->second);
   app::centerToRevision(centers[chosen_center], center_id,
                         cached_revision.get());
   transaction_.update(app::center_table, cached_revision);
@@ -174,7 +177,8 @@ bool KmeansView::updateCenterRelated(
     CRTable::RevisionMap::iterator found_revision =
         membership_revisions_.find(descriptor_id);
     CHECK(found_revision != membership_revisions_.end());
-    std::shared_ptr<Revision> cached_revision = found_revision->second;
+    std::shared_ptr<Revision> cached_revision =
+        std::make_shared<Revision>(*found_revision->second);
 
     Id former_center_id;
     cached_revision->get(app::kAssociationTableCenterIdField,
