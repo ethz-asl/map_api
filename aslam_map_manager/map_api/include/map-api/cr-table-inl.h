@@ -8,8 +8,8 @@
 namespace map_api {
 
 template <typename IdType>
-std::shared_ptr<Revision> CRTable::getById(const IdType& id,
-                                           const LogicalTime& time) {
+std::shared_ptr<const Revision> CRTable::getById(
+    const IdType& id, const LogicalTime& time) const {
   CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
   CHECK(id.isValid()) << "Supplied invalid ID";
   Id map_api_id;
@@ -26,18 +26,17 @@ void CRTable::getAvailableIds(const LogicalTime& time,
   CHECK_NOTNULL(ids);
   ids->clear();
   std::unordered_set<Id> map_api_ids;
-  sm::HashId hash_id;
-  IdType out_id;
   getAvailableIdsCRDerived(time, &map_api_ids);
+  ids->rehash(map_api_ids.size());
   for (const Id& id : map_api_ids) {
-    id.toHashId(&hash_id);
-    out_id.fromHashId(hash_id);
-    ids->emplace(out_id);
+    ids->emplace(id.toIdType<IdType>());
   }
 }
 
+template <typename RevisionType>
 template <typename Derived>
-CRTable::RevisionMap::iterator CRTable::RevisionMap::find(
+typename CRTable::RevisionMapBase<RevisionType>::iterator
+CRTable::RevisionMapBase<RevisionType>::find(
     const UniqueId<Derived>& key) {
   Id id_key;
   sm::HashId hash_id;
@@ -46,8 +45,10 @@ CRTable::RevisionMap::iterator CRTable::RevisionMap::find(
   return find(id_key);
 }
 
+template <typename RevisionType>
 template <typename Derived>
-CRTable::RevisionMap::const_iterator CRTable::RevisionMap::find(
+typename CRTable::RevisionMapBase<RevisionType>::const_iterator
+CRTable::RevisionMapBase<RevisionType>::find(
     const UniqueId<Derived>& key) const {
   Id id_key;
   sm::HashId hash_id;
@@ -56,9 +57,20 @@ CRTable::RevisionMap::const_iterator CRTable::RevisionMap::find(
   return find(id_key);
 }
 
+template <typename RevisionType>
+std::pair<typename CRTable::RevisionMapBase<RevisionType>::iterator, bool>
+CRTable::RevisionMapBase<RevisionType>::insert(
+    const std::shared_ptr<RevisionType>& revision) {
+  CHECK_NOTNULL(revision.get());
+  return insert(std::make_pair(revision->template getId<Id>(), revision));
+}
+
+template <typename RevisionType>
 template <typename Derived>
-std::pair<CRTable::RevisionMap::iterator, bool> CRTable::RevisionMap::insert(
-    const UniqueId<Derived>& key, const std::shared_ptr<Revision>& revision) {
+std::pair<typename CRTable::RevisionMapBase<RevisionType>::iterator, bool>
+CRTable::RevisionMapBase<RevisionType>::insert(
+    const UniqueId<Derived>& key,
+    const std::shared_ptr<RevisionType>& revision) {
   Id id_key;
   sm::HashId hash_id;
   key.toHashId(&hash_id);
@@ -67,13 +79,13 @@ std::pair<CRTable::RevisionMap::iterator, bool> CRTable::RevisionMap::insert(
 }
 
 template <typename ValueType>
-int CRTable::find(int key, const ValueType& value, const LogicalTime& time,
+void CRTable::find(int key, const ValueType& value, const LogicalTime& time,
                   RevisionMap* dest) {
   std::shared_ptr<Revision> valueHolder = this->getTemplate();
   if (key >= 0) {
     valueHolder->set(key, value);
   }
-  return this->findByRevision(key, *valueHolder, time, dest);
+  this->findByRevision(key, *valueHolder, time, dest);
 }
 
 template <typename ValueType>
@@ -87,10 +99,11 @@ int CRTable::count(int key, const ValueType& value, const LogicalTime& time) {
 }
 
 template <typename ValueType>
-std::shared_ptr<Revision> CRTable::findUnique(int key, const ValueType& value,
-                                              const LogicalTime& time) {
+std::shared_ptr<const Revision> CRTable::findUnique(
+    int key, const ValueType& value, const LogicalTime& time) {
   RevisionMap results;
-  int count = find(key, value, time, &results);
+  find(key, value, time, &results);
+  int count = results.size();
   if (count > 1) {
     std::stringstream report;
     report << "There seems to be more than one (" << count <<
@@ -101,8 +114,7 @@ std::shared_ptr<Revision> CRTable::findUnique(int key, const ValueType& value,
       report << result.second->dumpToString() << std::endl;
     }
     LOG(FATAL) << report.str();
-  }
-  if (count == 0) {
+  } else if (count == 0) {
     return std::shared_ptr<Revision>();
   } else {
     return results.begin()->second;

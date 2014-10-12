@@ -13,19 +13,22 @@ bool CRUTableRamSqlite::initCRDerived() {
   return true;
 }
 
-bool CRUTableRamSqlite::insertCRUDerived(Revision* query) {
+bool CRUTableRamSqlite::insertCRUDerived(
+    const std::shared_ptr<Revision>& query) {
   return sqlite_interface_.insert(*query);
 }
 
-bool CRUTableRamSqlite::bulkInsertCRUDerived(const RevisionMap& query) {
+bool CRUTableRamSqlite::bulkInsertCRUDerived(
+    const NonConstRevisionMap& query) {
   return sqlite_interface_.bulkInsert(query);
 }
 
-bool CRUTableRamSqlite::patchCRDerived(const Revision& query) {
-  return sqlite_interface_.insert(query);
+bool CRUTableRamSqlite::patchCRDerived(
+    const std::shared_ptr<Revision>& query) {
+  return sqlite_interface_.insert(*query);
 }
 
-std::shared_ptr<Revision> CRUTableRamSqlite::getByIdCRDerived(
+std::shared_ptr<const Revision> CRUTableRamSqlite::getByIdCRDerived(
     const Id& /*id*/, const LogicalTime& /*time*/) const {
   LOG(FATAL) << "Not implemented";  // TODO(tcies) implement
 }
@@ -36,7 +39,7 @@ void __attribute__((deprecated)) CRUTableRamSqlite::dumpChunkCRDerived(
   LOG(FATAL) << "Not implemented";  // TODO(tcies) implement
 }
 
-int __attribute__((deprecated)) CRUTableRamSqlite::findByRevisionCRDerived(
+void __attribute__((deprecated)) CRUTableRamSqlite::findByRevisionCRDerived(
     int key, const Revision& value_holder, const LogicalTime& time,
     RevisionMap* dest) {
   // TODO(tcies) adapt to "removed" flag and int key
@@ -79,7 +82,6 @@ int __attribute__((deprecated)) CRUTableRamSqlite::findByRevisionCRDerived(
       latest[id] = item_time;
     }
   }
-  return dest->size();
 }
 
 void __attribute__((deprecated)) CRUTableRamSqlite::getAvailableIdsCRDerived(
@@ -126,8 +128,9 @@ int __attribute__((deprecated)) CRUTableRamSqlite::countByChunkCRDerived(
   CHECK(false) << "Not implemented";
 }
 
-bool CRUTableRamSqlite::insertUpdatedCRUDerived(const Revision& query) {
-  sqlite_interface_.insert(query);
+bool CRUTableRamSqlite::insertUpdatedCRUDerived(
+    const std::shared_ptr<Revision>& query) {
+  sqlite_interface_.insert(*query);
   return true;
 }
 

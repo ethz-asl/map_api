@@ -242,7 +242,7 @@ void NetTableManager::handleInsertRequest(
     CHECK(chunk_id.fromHexString(patch_request.metadata().chunk_id()));
     std::shared_ptr<proto::Revision> parsed(new proto::Revision);
     CHECK(parsed->ParseFromString(patch_request.serialized_revision()));
-    Revision to_insert(parsed);
+    std::shared_ptr<Revision> to_insert = std::make_shared<Revision>(parsed);
     found->second->handleInsertRequest(chunk_id, to_insert, response);
   }
 }
@@ -303,7 +303,7 @@ void NetTableManager::handleUpdateRequest(
     CHECK(chunk_id.fromHexString(patch_request.metadata().chunk_id()));
     std::shared_ptr<proto::Revision> parsed(new proto::Revision);
     CHECK(parsed->ParseFromString(patch_request.serialized_revision()));
-    Revision to_insert(parsed);
+    std::shared_ptr<Revision> to_insert = std::make_shared<Revision>(parsed);
     PeerId sender(request.sender());
     found->second->handleUpdateRequest(chunk_id, to_insert, sender, response);
   }
@@ -372,7 +372,7 @@ bool NetTableManager::syncTableDefinition(
   while (true) {
     ChunkTransaction try_join(metatable_chunk_);
     // 1. Read previous registration in metatable
-    std::shared_ptr<Revision> previous = try_join.findUnique(
+    std::shared_ptr<const Revision> previous = try_join.findUnique(
         static_cast<int>(kMetaTableNameField), descriptor.name());
     CHECK(previous) << "Can't find table " << descriptor.name() <<
         " even though its presence seemingly caused a conflict";
