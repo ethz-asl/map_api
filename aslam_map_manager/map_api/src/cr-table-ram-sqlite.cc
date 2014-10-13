@@ -16,17 +16,17 @@ bool CRTableRamSqlite::initCRDerived() {
 }
 
 bool CRTableRamSqlite::insertCRDerived(const LogicalTime& /*time*/,
-                                       Revision* query) {
+                                       const std::shared_ptr<Revision>& query) {
   return sqlite_interface_.insert(*query);
 }
 
-bool CRTableRamSqlite::bulkInsertCRDerived(const RevisionMap& query,
+bool CRTableRamSqlite::bulkInsertCRDerived(const NonConstRevisionMap& query,
                                            const LogicalTime& /*time*/) {
   return sqlite_interface_.bulkInsert(query);
 }
 
-bool CRTableRamSqlite::patchCRDerived(const Revision& query) {
-  return sqlite_interface_.insert(query);
+bool CRTableRamSqlite::patchCRDerived(const std::shared_ptr<Revision>& query) {
+  return sqlite_interface_.insert(*query);
 }
 
 void __attribute__((deprecated)) CRTableRamSqlite::dumpChunkCRDerived(
@@ -35,7 +35,7 @@ void __attribute__((deprecated)) CRTableRamSqlite::dumpChunkCRDerived(
   LOG(FATAL) << "Not implemented";  // TODO(tcies) implement
 }
 
-int __attribute__((deprecated)) CRTableRamSqlite::findByRevisionCRDerived(
+void __attribute__((deprecated)) CRTableRamSqlite::findByRevisionCRDerived(
     int key, const Revision& value_holder, const LogicalTime& time,
     RevisionMap* dest) {
   LOG(FATAL) << "Adapt to int keys";  // TODO(tcies) adapt to int keys
@@ -69,10 +69,9 @@ int __attribute__((deprecated)) CRTableRamSqlite::findByRevisionCRDerived(
     CHECK(id.isValid());
     (*dest)[id] = item;
   }
-  return from_poco.size();
 }
 
-std::shared_ptr<Revision> __attribute__((deprecated))
+std::shared_ptr<const Revision> __attribute__((deprecated))
     CRTableRamSqlite::getByIdCRDerived(const Id& /*id*/,
                                        const LogicalTime& /*time*/) const {
   LOG(FATAL) << "Not implemented";  // TODO(tcies) implement

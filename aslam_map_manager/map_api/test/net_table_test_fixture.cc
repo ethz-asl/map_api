@@ -1,5 +1,7 @@
 #include <string>
 
+#include <gtest/gtest.h>
+
 #include "map-api/core.h"
 #include "map-api/net-table.h"
 #include "map-api/net-table-transaction.h"
@@ -37,7 +39,8 @@ class NetTableTest : public MultiprocessTest,
     CHECK_NOTNULL(transaction);
     CRTable::RevisionMap chunk_dump = transaction->dumpChunk(chunk);
     CRTable::RevisionMap::iterator found = chunk_dump.find(id);
-    std::shared_ptr<Revision> to_update = found->second;
+    std::shared_ptr<Revision> to_update = std::make_shared<Revision>(
+        *found->second);
     int transient_value;
     to_update->get(kFieldName, &transient_value);
     ++transient_value;
@@ -52,7 +55,8 @@ class NetTableTest : public MultiprocessTest,
     CHECK_NOTNULL(transaction);
     CRTable::RevisionMap chunk_dump = transaction->dumpChunk(table, chunk);
     CRTable::RevisionMap::iterator found = chunk_dump.find(id);
-    std::shared_ptr<Revision> to_update = found->second;
+    std::shared_ptr<Revision> to_update =
+        std::make_shared<Revision>(*found->second);
     int transient_value;
     to_update->get(kFieldName, &transient_value);
     ++transient_value;
@@ -66,7 +70,7 @@ class NetTableTest : public MultiprocessTest,
     std::shared_ptr<Revision> to_insert = table_->getTemplate();
     to_insert->setId(insert_id);
     to_insert->set(kFieldName, n);
-    EXPECT_TRUE(table_->insert(LogicalTime::sample(), chunk, to_insert.get()));
+    EXPECT_TRUE(table_->insert(LogicalTime::sample(), chunk, to_insert));
     return insert_id;
   }
 
@@ -93,7 +97,7 @@ class NetTableTest : public MultiprocessTest,
   void update(int n, const Id& id, Transaction* transaction) {
     CHECK_NOTNULL(transaction);
     std::shared_ptr<Revision> to_update =
-        transaction->getById(id, table_, chunk_);
+        std::make_shared<Revision>(*transaction->getById(id, table_, chunk_));
     to_update->set(kFieldName, n);
     transaction->update(table_, to_update);
   }

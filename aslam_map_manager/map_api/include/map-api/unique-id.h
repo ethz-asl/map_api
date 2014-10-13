@@ -73,6 +73,12 @@ class Id : public sm::HashId {
     CHECK_NOTNULL(id);
     *id = static_cast<const sm::HashId&>(*this);
   }
+  template<typename IdType>
+  inline IdType toIdType() const {
+    IdType value;
+    value.fromHashId(*this);
+    return value;
+  }
   template <typename GenerateIdType>
   friend void generateId(GenerateIdType* id);
 };
@@ -114,6 +120,14 @@ class UniqueId : private Id {
 
   inline bool operator!=(const Id& other) const {
     return sm::HashId::operator!=(other);
+  }
+
+  inline bool operator<(const IdType& other) const {
+    return sm::HashId::operator<(other);
+  }
+
+  inline bool operator<(const Id& other) const {
+    return sm::HashId::operator<(other);
   }
 
   template <typename GenerateIdType>
