@@ -39,8 +39,8 @@ class NetTableTest : public MultiprocessTest,
     CHECK_NOTNULL(transaction);
     CRTable::RevisionMap chunk_dump = transaction->dumpChunk(chunk);
     CRTable::RevisionMap::iterator found = chunk_dump.find(id);
-    std::shared_ptr<Revision> to_update = std::make_shared<Revision>(
-        *found->second);
+    std::shared_ptr<Revision> to_update =
+        std::make_shared<Revision>(*found->second);
     int transient_value;
     to_update->get(kFieldName, &transient_value);
     ++transient_value;

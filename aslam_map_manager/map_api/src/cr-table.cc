@@ -101,7 +101,7 @@ void CRTable::dumpChunk(const Id& chunk_id, const LogicalTime& time,
 }
 
 void CRTable::findByRevision(int key, const Revision& valueHolder,
-                            const LogicalTime& time, RevisionMap* dest) {
+                             const LogicalTime& time, RevisionMap* dest) {
   CHECK(isInitialized()) << "Attempted to find in non-initialized table";
   // whether valueHolder contains key is implicitly checked whenever using
   // Revision::insertPlaceHolder - for now it's a pretty safe bet that the

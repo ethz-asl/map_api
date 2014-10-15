@@ -36,8 +36,7 @@ void CRTable::getAvailableIds(const LogicalTime& time,
 template <typename RevisionType>
 template <typename Derived>
 typename CRTable::RevisionMapBase<RevisionType>::iterator
-CRTable::RevisionMapBase<RevisionType>::find(
-    const UniqueId<Derived>& key) {
+CRTable::RevisionMapBase<RevisionType>::find(const UniqueId<Derived>& key) {
   Id id_key;
   sm::HashId hash_id;
   key.toHashId(&hash_id);
@@ -48,8 +47,8 @@ CRTable::RevisionMapBase<RevisionType>::find(
 template <typename RevisionType>
 template <typename Derived>
 typename CRTable::RevisionMapBase<RevisionType>::const_iterator
-CRTable::RevisionMapBase<RevisionType>::find(
-    const UniqueId<Derived>& key) const {
+CRTable::RevisionMapBase<RevisionType>::find(const UniqueId<Derived>& key)
+    const {
   Id id_key;
   sm::HashId hash_id;
   key.toHashId(&hash_id);
@@ -80,7 +79,7 @@ CRTable::RevisionMapBase<RevisionType>::insert(
 
 template <typename ValueType>
 void CRTable::find(int key, const ValueType& value, const LogicalTime& time,
-                  RevisionMap* dest) {
+                   RevisionMap* dest) {
   std::shared_ptr<Revision> valueHolder = this->getTemplate();
   if (key >= 0) {
     valueHolder->set(key, value);
@@ -99,8 +98,9 @@ int CRTable::count(int key, const ValueType& value, const LogicalTime& time) {
 }
 
 template <typename ValueType>
-std::shared_ptr<const Revision> CRTable::findUnique(
-    int key, const ValueType& value, const LogicalTime& time) {
+std::shared_ptr<const Revision> CRTable::findUnique(int key,
+                                                    const ValueType& value,
+                                                    const LogicalTime& time) {
   RevisionMap results;
   find(key, value, time, &results);
   int count = results.size();

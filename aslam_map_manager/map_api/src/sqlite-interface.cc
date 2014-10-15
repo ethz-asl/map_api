@@ -158,8 +158,7 @@ void __attribute__((deprecated))
   CHECK_NOTNULL(statement);
   LOG(FATAL) << "Not implemented";  // TODO(tcies) default fields
   *statement << " ";
-  for (int i = 0;
-       i < reference_->customFieldCount(); ++i) {
+  for (int i = 0; i < reference_->customFieldCount(); ++i) {
     if (i > 0) {
       *statement << ", ";
     }

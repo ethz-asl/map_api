@@ -44,7 +44,8 @@ void CRTableRamMap::dumpChunkCRDerived(const Id& chunk_id,
   }
 }
 
-void CRTableRamMap::findByRevisionCRDerived(int key, const Revision& valueHolder,
+void CRTableRamMap::findByRevisionCRDerived(int key,
+                                            const Revision& valueHolder,
                                             const LogicalTime& time,
                                             RevisionMap* dest) {
   CHECK_NOTNULL(dest);

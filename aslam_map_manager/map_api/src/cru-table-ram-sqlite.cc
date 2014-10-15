@@ -18,13 +18,11 @@ bool CRUTableRamSqlite::insertCRUDerived(
   return sqlite_interface_.insert(*query);
 }
 
-bool CRUTableRamSqlite::bulkInsertCRUDerived(
-    const NonConstRevisionMap& query) {
+bool CRUTableRamSqlite::bulkInsertCRUDerived(const NonConstRevisionMap& query) {
   return sqlite_interface_.bulkInsert(query);
 }
 
-bool CRUTableRamSqlite::patchCRDerived(
-    const std::shared_ptr<Revision>& query) {
+bool CRUTableRamSqlite::patchCRDerived(const std::shared_ptr<Revision>& query) {
   return sqlite_interface_.insert(*query);
 }
 

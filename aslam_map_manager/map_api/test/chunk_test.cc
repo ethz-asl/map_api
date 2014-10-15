@@ -173,8 +173,8 @@ TEST_P(NetTableTest, RemoteUpdate) {
     IPC::barrier(A_JOINED, 1);
     table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(1, results.size());
-    std::shared_ptr<Revision> revision = std::make_shared<Revision>(
-        *results.begin()->second);
+    std::shared_ptr<Revision> revision =
+        std::make_shared<Revision>(*results.begin()->second);
     revision->set(kFieldName, 21);
     EXPECT_TRUE(table_->update(revision));
 
@@ -288,11 +288,12 @@ TEST_P(NetTableTest, ChunkTransactions) {
       // update
       if (GetParam()) {
         int transient_value;
-        std::shared_ptr<const Revision> to_update = transaction.getById(item_id);
+        std::shared_ptr<const Revision> to_update =
+            transaction.getById(item_id);
         to_update->get(kFieldName, &transient_value);
         ++transient_value;
         std::shared_ptr<Revision> revision =
-                    std::make_shared<Revision>(*to_update);
+            std::make_shared<Revision>(*to_update);
         revision->set(kFieldName, transient_value);
         transaction.update(revision);
       }
@@ -448,7 +449,7 @@ TEST_P(NetTableTest, SendHistory) {
 
     Transaction current_transaction;
     std::shared_ptr<const Revision> current_version =
-            current_transaction.getById(item_id_, table_, chunk_);
+        current_transaction.getById(item_id_, table_, chunk_);
     ASSERT_TRUE(current_version.get() != nullptr);
     EXPECT_TRUE(current_version->verifyEqual(kFieldName,
                                              GetParam() ? kAfter : kBefore));

@@ -41,12 +41,10 @@ class CRUTable : public CRTable {
    * TODO(tcies) make it the only possible way of setting time
    */
   void update(const std::shared_ptr<Revision>& query);
-  void update(const std::shared_ptr<Revision>& query,
-              const LogicalTime& time);
+  void update(const std::shared_ptr<Revision>& query, const LogicalTime& time);
   bool getLatestUpdateTime(const Id& id, LogicalTime* time);
 
-  void remove(const LogicalTime& time,
-              const std::shared_ptr<Revision>& query);
+  void remove(const LogicalTime& time, const std::shared_ptr<Revision>& query);
   // avoid if possible - this is slower
   template <typename IdType>
   void remove(const LogicalTime& time, const IdType& id);
@@ -70,9 +68,9 @@ class CRUTable : public CRTable {
   static const std::string kRemovedField;
 
  private:
-  virtual bool insertCRDerived(
-      const LogicalTime& time,
-      const std::shared_ptr<Revision>& query) final override;
+  virtual bool insertCRDerived(const LogicalTime& time,
+                               const std::shared_ptr<Revision>& query)
+      final override;
   virtual bool bulkInsertCRDerived(const NonConstRevisionMap& query,
                                    const LogicalTime& time) final override;
   /**
@@ -83,8 +81,8 @@ class CRUTable : public CRTable {
    */
   virtual bool insertCRUDerived(const std::shared_ptr<Revision>& query) = 0;
   virtual bool bulkInsertCRUDerived(const NonConstRevisionMap& query) = 0;
-  virtual bool patchCRDerived(
-      const std::shared_ptr<Revision>& query) override = 0;
+  virtual bool patchCRDerived(const std::shared_ptr<Revision>& query)
+      override = 0;
 
   /**
    * Implement insertion of the updated revision

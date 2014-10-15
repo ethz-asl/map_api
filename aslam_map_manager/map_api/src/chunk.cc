@@ -85,9 +85,9 @@ bool Chunk::init(
       while (history_proto.revisions_size() > 0) {
         // using ReleaseLast allows zero-copy ownership transfer to the revision
         // object.
-        std::shared_ptr<Revision> data = std::make_shared<Revision>(
-            std::shared_ptr<proto::Revision>(
-            history_proto.mutable_revisions()->ReleaseLast()));
+        std::shared_ptr<Revision> data =
+            std::make_shared<Revision>(std::shared_ptr<proto::Revision>(
+                history_proto.mutable_revisions()->ReleaseLast()));
         CHECK(underlying_table->patch(data));
         // TODO(tcies) guarantee order, then only sync latest time
         syncLatestCommitTime(*data);
