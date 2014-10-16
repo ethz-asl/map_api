@@ -7,12 +7,10 @@
 
 #include "map-api/core.h"
 #include "map-api/cr-table-ram-map.h"
-#include "map-api/cr-table-ram-sqlite.h"
 #include "map-api/cru-table-ram-map.h"
-#include "map-api/cru-table-ram-sqlite.h"
 #include "map-api/net-table-manager.h"
 
-DEFINE_bool(use_sqlite, false, "SQLite VS ram map table caches");
+DEFINE_bool(use_external_memory, false, "External memory vs. RAM tables.");
 
 namespace map_api {
 
@@ -25,15 +23,17 @@ bool NetTable::init(
   type_ = type;
   switch (type) {
     case CRTable::Type::CR:
-      if (FLAGS_use_sqlite) {
-        cache_.reset(new CRTableRamSqlite);
+      if (FLAGS_use_external_memory) {
+//        cache_.reset(new CRTableRamSqlite);
+        CHECK(false) << "Instantiate external memory tables.";
       } else {
         cache_.reset(new CRTableRamMap);
       }
       break;
     case CRTable::Type::CRU:
-      if (FLAGS_use_sqlite) {
-        cache_.reset(new CRUTableRamSqlite);
+      if (FLAGS_use_external_memory) {
+//        cache_.reset(new CRUTableRamSqlite);
+        CHECK(false) << "Instantiate external memory tables.";
       } else {
         cache_.reset(new CRUTableRamMap);
       }
