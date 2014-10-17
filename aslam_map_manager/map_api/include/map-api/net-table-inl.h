@@ -17,8 +17,7 @@ void __attribute__((deprecated)) NetTable::registerItemInSpace(
 }
 
 template <typename ValueType>
-CRTable::RevisionMap NetTable::lockFind(const std::string& key,
-                                        const ValueType& value,
+CRTable::RevisionMap NetTable::lockFind(int key, const ValueType& value,
                                         const LogicalTime& time) {
   CRTable::RevisionMap result;
   readLockActiveChunks();
