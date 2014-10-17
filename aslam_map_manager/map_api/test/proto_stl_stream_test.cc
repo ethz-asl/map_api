@@ -138,9 +138,9 @@ TYPED_TEST_P(ProtoSTLStream, SizeWorks) {
   unsigned char* data = nullptr;
   int size = 0;
   this->pool_.Next(&data, &size);
-  EXPECT_EQ(this->pool_.Size(), 1);
-  this->pool_.Next(&data, &size);
   EXPECT_EQ(this->pool_.Size(), 2);
+  this->pool_.Next(&data, &size);
+  EXPECT_EQ(this->pool_.Size(), 3);
 }
 
 TYPED_TEST_P(ProtoSTLStream, IsIndexInBoundsWorks) {
