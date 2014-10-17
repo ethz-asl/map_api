@@ -3,9 +3,10 @@
 #include <memory>
 #include <mutex>
 
+#include <stxxl.h>
+
 #include <map-api/proto-stl-stream.h>
 #include <map-api/revision.h>
-#include <stxxl.h>
 
 namespace map_api {
 struct RevisionInformation {

@@ -123,4 +123,4 @@ int CRTableSTXXLMap::countByChunkCRDerived(const Id& chunk_id,
   return count;
 }
 
-} /* namespace map_api */
+}  // namespace map_api
