@@ -2,6 +2,7 @@
 #define MAP_API_STXXL_REVISION_STORE_H_
 #include <memory>
 #include <mutex>
+#include <vector>
 
 #include <stxxl.h>
 
@@ -60,8 +61,21 @@ class STXXLRevisionStore {
   }
 
  private:
+  template<typename ValueType, unsigned PageSize = 4, unsigned CachePages = 8,
+      unsigned BlockSizeStxxl = STXXL_DEFAULT_BLOCK_SIZE(ValueType),
+      typename AllocStr = STXXL_DEFAULT_ALLOC_STRATEGY,
+      stxxl::pager_type Pager = stxxl::lru>
+  struct VectorGenerator {
+    typedef typename stxxl::IF<Pager == stxxl::lru,
+        stxxl::lru_pager<CachePages>,
+        stxxl::random_pager<CachePages> >::result PagerType;
+
+    typedef stxxl::vector<ValueType, PageSize, PagerType, BlockSizeStxxl,
+        AllocStr> result;
+  };
+
   template<class T, class A> using ContainerType =
-  typename stxxl::VECTOR_GENERATOR<T>::result;
+  typename VectorGenerator<T>::result;
   mutable MemoryBlockPool<BlockSize, ContainerType> proto_revision_pool_;
   mutable std::mutex mutex_;
 };
