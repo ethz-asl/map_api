@@ -38,7 +38,7 @@ class CRTableSTXXLMap : public CRTable {
 
   typedef std::unordered_map<Id, RevisionInformation> MapType;
   MapType data_;
-  static constexpr int kBlockSize = 64;
+  static constexpr int kBlockSize = kSTXXLDefaultBlockSize;
   STXXLRevisionStore<kBlockSize> revision_store_;
 };
 

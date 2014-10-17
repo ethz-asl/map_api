@@ -70,7 +70,7 @@ class CRUTableSTXXLMap : public CRUTable {
   typedef std::unordered_map<Id, STXXLHistory> STXXLHistoryMap;
   STXXLHistoryMap data_;
 
-  static constexpr int kBlockSize = 64;
+  static constexpr int kBlockSize = kSTXXLDefaultBlockSize;
   STXXLRevisionStore<kBlockSize> revision_store_;
 };
 

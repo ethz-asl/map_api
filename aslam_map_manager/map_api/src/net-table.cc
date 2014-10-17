@@ -7,7 +7,9 @@
 
 #include "map-api/core.h"
 #include "map-api/cr-table-ram-map.h"
+#include "map-api/cr-table-stxxl-map.h"
 #include "map-api/cru-table-ram-map.h"
+#include "map-api/cru-table-stxxl-map.h"
 #include "map-api/net-table-manager.h"
 
 DEFINE_bool(use_external_memory, false, "External memory vs. RAM tables.");
@@ -24,16 +26,14 @@ bool NetTable::init(
   switch (type) {
     case CRTable::Type::CR:
       if (FLAGS_use_external_memory) {
-//        cache_.reset(new CRTableRamSqlite);
-        CHECK(false) << "Instantiate external memory tables.";
+        cache_.reset(new CRTableSTXXLMap);
       } else {
         cache_.reset(new CRTableRamMap);
       }
       break;
     case CRTable::Type::CRU:
       if (FLAGS_use_external_memory) {
-//        cache_.reset(new CRUTableRamSqlite);
-        CHECK(false) << "Instantiate external memory tables.";
+        cache_.reset(new CRUTableSTXXLMap);
       } else {
         cache_.reset(new CRUTableRamMap);
       }

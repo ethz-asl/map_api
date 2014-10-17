@@ -15,6 +15,8 @@ struct RevisionInformation {
   LogicalTime update_time_;
 };
 
+static constexpr int kSTXXLDefaultBlockSize = 2048;
+
 template<int BlockSize>
 class STXXLRevisionStore {
  public:
