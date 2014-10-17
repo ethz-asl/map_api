@@ -41,6 +41,16 @@ class ResourceLoader : public common::ResourceLoaderBase {
                             std::unordered_set<std::string>* id_set);
 
  private:
+  struct ResourceRecord {
+    ResourceRecord(common::VisualFrameBase* ptr, std::string id)
+        : visual_frame_ptr(ptr), resource_id(id) {}
+    common::VisualFrameBase* visual_frame_ptr;
+    std::string resource_id;
+  };
+
+  typedef std::list<ResourceRecord> ResourceList;
+  typedef std::unordered_map<int, ResourceList> ResourceMap;
+
   void releaseResourcesIfNecessary();
   int registerResource(VisualFrameResourceType type,
                        const std::string& resource_id,
@@ -50,13 +60,6 @@ class ResourceLoader : public common::ResourceLoaderBase {
                                      int number_to_release);
   cv::Mat loadResourceFromUri(const std::string& uri,
                               VisualFrameResourceType type);
-
-  typedef std::unordered_map<
-      int, std::list<std::pair<common::VisualFrameBase*, std::string> > >
-      ResourceMap;
-  typedef std::list<std::pair<common::VisualFrameBase*, std::string> >
-      ResourceList;
-  typedef std::pair<common::VisualFrameBase*, std::string> ResourceRecord;
 
   ResourceMap loadedResources_;
   NetTable* resourceTable_;
