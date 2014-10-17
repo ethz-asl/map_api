@@ -36,7 +36,7 @@ std::shared_ptr<const Revision> NetTableTransaction::getById(
 }
 
 template <typename ValueType>
-CRTable::RevisionMap NetTableTransaction::find(const std::string& key,
+CRTable::RevisionMap NetTableTransaction::find(int key,
                                                const ValueType& value) {
   // TODO(tcies) uncommitted
   return table_->lockFind(key, value, begin_time_);
