@@ -75,7 +75,7 @@ std::shared_ptr<const Revision> CRUTableSTXXLMap::getByIdCRDerived(
 
 void CRUTableSTXXLMap::dumpChunkCRDerived(const Id& chunk_id,
                                         const LogicalTime& time,
-                                        RevisionMap* dest) {
+                                        RevisionMap* dest) const {
   CHECK_NOTNULL(dest)->clear();
   forChunkItemsAtTime(
       chunk_id, time,
@@ -87,7 +87,7 @@ void CRUTableSTXXLMap::dumpChunkCRDerived(const Id& chunk_id,
 void CRUTableSTXXLMap::findByRevisionCRDerived(int key,
                                              const Revision& value_holder,
                                              const LogicalTime& time,
-                                             RevisionMap* dest) {
+                                             RevisionMap* dest) const {
   CHECK_NOTNULL(dest);
   dest->clear();
   forEachItemFoundAtTime(
@@ -98,8 +98,8 @@ void CRUTableSTXXLMap::findByRevisionCRDerived(int key,
       });
 }
 
-void CRUTableSTXXLMap::getAvailableIdsCRDerived(const LogicalTime& time,
-                                              std::unordered_set<Id>* ids) {
+void CRUTableSTXXLMap::getAvailableIdsCRDerived(
+    const LogicalTime& time, std::unordered_set<Id>* ids) const {
   CHECK_NOTNULL(ids);
   ids->clear();
   ids->rehash(data_.size());
@@ -117,7 +117,7 @@ void CRUTableSTXXLMap::getAvailableIdsCRDerived(const LogicalTime& time,
 
 int CRUTableSTXXLMap::countByRevisionCRDerived(int key,
                                              const Revision& value_holder,
-                                             const LogicalTime& time) {
+                                             const LogicalTime& time) const {
   int count = 0;
   forEachItemFoundAtTime(
       key, value_holder, time,
@@ -127,7 +127,7 @@ int CRUTableSTXXLMap::countByRevisionCRDerived(int key,
 }
 
 int CRUTableSTXXLMap::countByChunkCRDerived(const Id& chunk_id,
-                                          const LogicalTime& time) {
+                                          const LogicalTime& time) const {
   int count = 0;
   forChunkItemsAtTime(
       chunk_id, time,
@@ -143,7 +143,7 @@ bool CRUTableSTXXLMap::insertUpdatedCRUDerived(
 
 void CRUTableSTXXLMap::findHistoryByRevisionCRUDerived(
     int key, const Revision& valueHolder, const LogicalTime& time,
-    HistoryMap* dest) {
+    HistoryMap* dest) const {
   CHECK_NOTNULL(dest);
   dest->clear();
   for (const STXXLHistoryMap::value_type& pair : data_) {
@@ -165,7 +165,7 @@ void CRUTableSTXXLMap::findHistoryByRevisionCRUDerived(
 }
 
 void CRUTableSTXXLMap::chunkHistory(
-    const Id& chunk_id, const LogicalTime& time, HistoryMap* dest) {
+    const Id& chunk_id, const LogicalTime& time, HistoryMap* dest) const {
   CHECK_NOTNULL(dest)->clear();
   for (const STXXLHistoryMap::value_type& pair : data_) {
     std::shared_ptr<const Revision> revision;
@@ -186,7 +186,7 @@ void CRUTableSTXXLMap::chunkHistory(
 
 void CRUTableSTXXLMap::itemHistoryCRUDerived(const Id& id,
                                            const LogicalTime& time,
-                                           History* dest) {
+                                           History* dest) const {
   CHECK_NOTNULL(dest)->clear();
   STXXLHistoryMap::const_iterator found = data_.find(id);
   CHECK(found != data_.end());
@@ -205,7 +205,7 @@ void CRUTableSTXXLMap::itemHistoryCRUDerived(const Id& id,
 inline void CRUTableSTXXLMap::forEachItemFoundAtTime(
     int key, const Revision& value_holder, const LogicalTime& time,
     const std::function<
-        void(const Id& id, const Revision& item)>& action) {
+        void(const Id& id, const Revision& item)>& action) const {
   for (const STXXLHistoryMap::value_type& pair : data_) {
     STXXLHistory::const_iterator latest = pair.second.latestAt(time);
     if (latest != pair.second.cend()) {
@@ -223,7 +223,7 @@ inline void CRUTableSTXXLMap::forEachItemFoundAtTime(
 inline void CRUTableSTXXLMap::forChunkItemsAtTime(
     const Id& chunk_id, const LogicalTime& time,
     const std::function<
-        void(const Id& id, const Revision& item)>& action) {
+        void(const Id& id, const Revision& item)>& action) const {
   for (const STXXLHistoryMap::value_type& pair : data_) {
     std::shared_ptr<const Revision> revision;
     CHECK(revision_store_.retrieveRevision(*pair.second.begin(), &revision));
@@ -239,7 +239,7 @@ inline void CRUTableSTXXLMap::forChunkItemsAtTime(
 }
 
 inline void CRUTableSTXXLMap::trimToTime(const LogicalTime& time,
-                                       HistoryMap* subject) {
+                                       HistoryMap* subject) const {
   CHECK_NOTNULL(subject);
   for (HistoryMap::value_type& pair : *subject) {
     pair.second.remove_if([&time](const std::shared_ptr<const Revision>& item) {
