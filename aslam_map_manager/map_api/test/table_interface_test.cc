@@ -13,9 +13,7 @@
 
 #include "map-api/core.h"
 #include "map-api/cr-table-ram-map.h"
-#include "map-api/cr-table-ram-sqlite.h"
 #include "map-api/cru-table-ram-map.h"
-#include "map-api/cru-table-ram-sqlite.h"
 #include "map-api/logical-time.h"
 #include "map-api/unique-id.h"
 
@@ -33,7 +31,7 @@ class TableInterfaceTest : public ::testing::Test {
   virtual void TearDown() final override { Core::instance()->kill(); }
 };
 
-// TODO(tcies) implement CR(U) sqlite and re-enable tests
+// TODO(slynen) Add external memory to tests.
 typedef ::testing::Types<
     //    CRTableRamSqlite,
     //    CRUTableRamSqlite,
@@ -239,7 +237,7 @@ class IntTestWithInit
     : public FieldTestWithInit<TableDataTypes<TableType, int64_t>> {
 };  // NOLINT
 
-// TODO(tcies) extend tests to SQLite
+// TODO(slynen) extend tests to external memory.
 class CruMapIntTestWithInit
     : public UpdateFieldTestWithInit<TableDataTypes<CRUTableRamMap, int64_t>> {
 };
@@ -258,7 +256,7 @@ class CruMapIntTestWithInit
       TableDataTypes<table_type, int64_t>,                                     \
       TableDataTypes<table_type, map_api::LogicalTime>
 
-// TODO(tcies) implement remove in CRU sqlite and re-enable tests
+// TODO(slynen) Add external memory tables.
 typedef ::testing::Types<
     //                         ALL_DATA_TYPES(CRTableRamSqlite),
     ALL_DATA_TYPES(CRTableRamMap),
