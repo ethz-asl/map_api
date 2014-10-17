@@ -123,7 +123,6 @@ catkin_add_gtest(test_visual_frame_resource_loader_test test/visual-frame-resour
                  ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
 target_link_libraries(test_visual_frame_resource_loader_test ${PROJECT_NAME}_test)
 
-
 ##########
 # EXPORT #
 ##########
