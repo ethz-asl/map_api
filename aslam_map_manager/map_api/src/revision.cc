@@ -71,8 +71,41 @@ void Revision::addField(int index, proto::Type type) {
   underlying_revision_->add_custom_field_values()->set_type(type);
 }
 
-bool Revision::hasField(int index) {
+bool Revision::hasField(int index) const {
   return index < underlying_revision_->custom_field_values_size();
+}
+
+proto::Type Revision::getFieldType(int index) const {
+  return underlying_revision_->custom_field_values(index).type();
+}
+
+bool Revision::operator==(const Revision& other) const {
+  if (!structureMatch(other)) {
+    return false;
+  }
+  if (other.getId<Id>() != getId<Id>()) {
+    return false;
+  }
+  if (other.getInsertTime() != getInsertTime()) {
+    return false;
+  }
+  if (other.getUpdateTime() != getUpdateTime()) {
+    return false;
+  }
+  if (other.isRemoved() != isRemoved()) {
+    return false;
+  }
+  if (other.getChunkId() != getChunkId()) {
+    return false;
+  }
+  // Check custom fields.
+  int num_fields = underlying_revision_->custom_field_values_size();
+  for (int i = 0; i < num_fields; ++i) {
+    if (!fieldMatch(other, i)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 bool Revision::structureMatch(const Revision& reference) const {
@@ -170,55 +203,55 @@ MAP_API_TYPE_ENUM(Poco::Data::BLOB, proto::Type::BLOB);
 /**
  * SET
  */
-MAP_API_REVISION_SET(std::string) {
+MAP_API_REVISION_SET(std::string /*value*/) {
   field->set_string_value(value);
   return true;
 }
-MAP_API_REVISION_SET(double) {  // NOLINT ("All parameters should be named ...")
+MAP_API_REVISION_SET(double /*value*/) {
   field->set_double_value(value);
   return true;
 }
-MAP_API_REVISION_SET(int32_t) {
+MAP_API_REVISION_SET(int32_t /*value*/) {
   field->set_int_value(value);
   return true;
 }
-MAP_API_REVISION_SET(uint32_t) {
+MAP_API_REVISION_SET(uint32_t /*value*/) {
   field->set_unsigned_int_value(value);
   return true;
 }
-MAP_API_REVISION_SET(bool) {  // NOLINT ("All parameters should be named ...")
+MAP_API_REVISION_SET(bool /*value*/) {
   field->set_int_value(value ? 1 : 0);
   return true;
 }
-MAP_API_REVISION_SET(Id) {
+MAP_API_REVISION_SET(Id /*value*/) {
   field->set_string_value(value.hexString());
   return true;
 }
-MAP_API_REVISION_SET(sm::HashId) {
+MAP_API_REVISION_SET(sm::HashId /*value*/) {
   field->set_string_value(value.hexString());
   return true;
 }
-MAP_API_REVISION_SET(int64_t) {
+MAP_API_REVISION_SET(int64_t /*value*/) {
   field->set_long_value(value);
   return true;
 }
-MAP_API_REVISION_SET(uint64_t) {
+MAP_API_REVISION_SET(uint64_t /*value*/) {
   field->set_unsigned_long_value(value);
   return true;
 }
-MAP_API_REVISION_SET(LogicalTime) {
+MAP_API_REVISION_SET(LogicalTime /*value*/) {
   field->set_unsigned_long_value(value.serialize());
   return true;
 }
-MAP_API_REVISION_SET(Revision) {
+MAP_API_REVISION_SET(Revision /*value*/) {
   field->set_blob_value(value.serializeUnderlying());
   return true;
 }
-MAP_API_REVISION_SET(testBlob) {
+MAP_API_REVISION_SET(testBlob /*value*/) {
   field->set_blob_value(value.SerializeAsString());
   return true;
 }
-MAP_API_REVISION_SET(Poco::Data::BLOB) {
+MAP_API_REVISION_SET(Poco::Data::BLOB /*value*/) {
   field->set_blob_value(value.rawContent(), value.size());
   return true;
 }
@@ -226,53 +259,53 @@ MAP_API_REVISION_SET(Poco::Data::BLOB) {
 /**
  * GET
  */
-MAP_API_REVISION_GET(std::string) {
+MAP_API_REVISION_GET(std::string /*value*/) {
   *value = field.string_value();
   return true;
 }
-MAP_API_REVISION_GET(double) {  // NOLINT ("All parameters should be named ...")
+MAP_API_REVISION_GET(double /*value*/) {
   *value = field.double_value();
   return true;
 }
-MAP_API_REVISION_GET(int32_t) {
+MAP_API_REVISION_GET(int32_t /*value*/) {
   *value = field.int_value();
   return true;
 }
-MAP_API_REVISION_GET(uint32_t) {
+MAP_API_REVISION_GET(uint32_t /*value*/) {
   *value = field.unsigned_int_value();
   return true;
 }
-MAP_API_REVISION_GET(Id) {
+MAP_API_REVISION_GET(Id /*value*/) {
   if (!value->fromHexString(field.string_value())) {
     LOG(FATAL) << "Failed to parse Hash id from string \""
                << field.string_value() << "\"";
   }
   return true;
 }
-MAP_API_REVISION_GET(bool) {  // NOLINT ("All parameters should be named ...")
+MAP_API_REVISION_GET(bool /*value*/) {
   *value = field.int_value() != 0;
   return true;
 }
-MAP_API_REVISION_GET(sm::HashId) {
+MAP_API_REVISION_GET(sm::HashId /*value*/) {
   if (!value->fromHexString(field.string_value())) {
     LOG(FATAL) << "Failed to parse Hash id from string \""
                << field.string_value() << "\"";
   }
   return true;
 }
-MAP_API_REVISION_GET(int64_t) {
+MAP_API_REVISION_GET(int64_t /*value*/) {
   *value = field.long_value();
   return true;
 }
-MAP_API_REVISION_GET(uint64_t) {
+MAP_API_REVISION_GET(uint64_t /*value*/) {
   *value = field.unsigned_long_value();
   return true;
 }
-MAP_API_REVISION_GET(LogicalTime) {
+MAP_API_REVISION_GET(LogicalTime /*value*/) {
   *value = LogicalTime(field.unsigned_long_value());
   return true;
 }
-MAP_API_REVISION_GET(Revision) {
+MAP_API_REVISION_GET(Revision /*value*/) {
   bool parsed =
       value->underlying_revision_->ParseFromString(field.blob_value());
   if (!parsed) {
@@ -281,7 +314,7 @@ MAP_API_REVISION_GET(Revision) {
   }
   return true;
 }
-MAP_API_REVISION_GET(testBlob) {
+MAP_API_REVISION_GET(testBlob /*value*/) {
   bool parsed = value->ParseFromString(field.blob_value());
   if (!parsed) {
     LOG(FATAL) << "Failed to parse test blob";
@@ -289,9 +322,9 @@ MAP_API_REVISION_GET(testBlob) {
   }
   return true;
 }
-MAP_API_REVISION_GET(Poco::Data::BLOB) {
+MAP_API_REVISION_GET(Poco::Data::BLOB /*value*/) {
   *value = Poco::Data::BLOB(field.blob_value());
   return true;
 }
 
-} /* namespace map_api */
+}  // namespace map_api

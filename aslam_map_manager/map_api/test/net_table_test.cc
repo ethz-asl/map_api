@@ -54,8 +54,8 @@ TEST_P(NetTableTest, NetTableTransactions) {
     IPC::barrier(SYNC, 2);
     IPC::barrier(DIE, 2);
     NetTableTransaction reader(table_);
-    std::shared_ptr<Revision> ab_item = reader.getById(ab_id);
-    std::shared_ptr<Revision> b_item = reader.getById(b_id);
+    std::shared_ptr<const Revision> ab_item = reader.getById(ab_id);
+    std::shared_ptr<const Revision> b_item = reader.getById(b_id);
     EXPECT_TRUE(ab_item->verifyEqual(kFieldName, 2 * kCycles));
     EXPECT_TRUE(b_item->verifyEqual(kFieldName, kCycles));
     EXPECT_EQ(kCycles + 2, count());
@@ -211,7 +211,8 @@ TEST_P(NetTableTest, Transactions) {
         CRTable::RevisionMap chunk_dump =
             attempt.dumpChunk(second_table, b_chunk);
         CRTable::RevisionMap::iterator found = chunk_dump.find(b_id);
-        std::shared_ptr<Revision> to_update = found->second;
+        std::shared_ptr<Revision> to_update =
+            std::make_shared<Revision>(*found->second);
         int transient_value;
         to_update->get(kSecondTableFieldName, &transient_value);
         ++transient_value;

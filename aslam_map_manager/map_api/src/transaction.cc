@@ -137,10 +137,10 @@ void Transaction::disableDirectAccessForCache() {
   CHECK_EQ(1u, cache_access_override_.erase(std::this_thread::get_id()));
 }
 
-NetTableTransaction* Transaction::transactionOf(NetTable* table) {
+NetTableTransaction* Transaction::transactionOf(NetTable* table) const {
   CHECK_NOTNULL(table);
   ensureAccessIsDirect(table);
-  TransactionMap::iterator net_table_transaction =
+  TransactionMap::const_iterator net_table_transaction =
       net_table_transactions_.find(table);
   if (net_table_transaction == net_table_transactions_.end()) {
     std::shared_ptr<NetTableTransaction> transaction(
@@ -153,7 +153,7 @@ NetTableTransaction* Transaction::transactionOf(NetTable* table) {
   return net_table_transaction->second.get();
 }
 
-void Transaction::ensureAccessIsCache(NetTable* table) {
+void Transaction::ensureAccessIsCache(NetTable* table) const {
   TableAccessModeMap::iterator found = access_mode_.find(table);
   if (found == access_mode_.end()) {
     access_mode_[table] = TableAccessMode::kCache;
@@ -164,7 +164,7 @@ void Transaction::ensureAccessIsCache(NetTable* table) {
   }
 }
 
-void Transaction::ensureAccessIsDirect(NetTable* table) {
+void Transaction::ensureAccessIsDirect(NetTable* table) const {
   TableAccessModeMap::iterator found = access_mode_.find(table);
   if (found == access_mode_.end()) {
     access_mode_[table] = TableAccessMode::kDirect;

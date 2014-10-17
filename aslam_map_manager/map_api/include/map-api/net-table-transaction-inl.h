@@ -6,8 +6,9 @@
 namespace map_api {
 
 template <typename IdType>
-std::shared_ptr<Revision> NetTableTransaction::getById(const IdType& id) {
-  std::shared_ptr<Revision> result;
+std::shared_ptr<const Revision>
+NetTableTransaction::getById(const IdType& id) const {
+  std::shared_ptr<const Revision> result;
   Chunk* chunk = chunkOf(id, &result);
   if (chunk) {
     LogicalTime inconsistent_time = result->getModificationTime();
@@ -28,14 +29,14 @@ std::shared_ptr<Revision> NetTableTransaction::getById(const IdType& id) {
 }
 
 template <typename IdType>
-std::shared_ptr<Revision> NetTableTransaction::getById(const IdType& id,
-                                                       Chunk* chunk) {
+std::shared_ptr<const Revision> NetTableTransaction::getById(
+    const IdType& id, Chunk* chunk) const {
   CHECK_NOTNULL(chunk);
   return transactionOf(chunk)->getById(id);
 }
 
 template <typename ValueType>
-CRTable::RevisionMap NetTableTransaction::find(const std::string& key,
+CRTable::RevisionMap NetTableTransaction::find(int key,
                                                const ValueType& value) {
   // TODO(tcies) uncommitted
   return table_->lockFind(key, value, begin_time_);
@@ -48,15 +49,18 @@ void NetTableTransaction::getAvailableIds(std::unordered_set<IdType>* ids) {
 }
 
 template <typename IdType>
-void NetTableTransaction::remove(const IdType& id) {
-  std::shared_ptr<Revision> revision;
+void NetTableTransaction::remove(const UniqueId<IdType>& id) {
+  std::shared_ptr<const Revision> revision;
   Chunk* chunk = chunkOf(id, &revision);
-  transactionOf(CHECK_NOTNULL(chunk))->remove(revision);
+  std::shared_ptr<Revision> remove_revision =
+      std::make_shared<Revision>(*revision);
+  transactionOf(CHECK_NOTNULL(chunk))->remove(remove_revision);
 }
 
 template <typename IdType>
-Chunk* NetTableTransaction::chunkOf(const IdType& id,
-                                    std::shared_ptr<Revision>* inconsistent) {
+Chunk* NetTableTransaction::chunkOf(
+    const IdType& id,
+    std::shared_ptr<const Revision>* inconsistent) const {
   CHECK_NOTNULL(inconsistent);
   // TODO(tcies) uncommitted
   *inconsistent = table_->getByIdInconsistent(id, begin_time_);

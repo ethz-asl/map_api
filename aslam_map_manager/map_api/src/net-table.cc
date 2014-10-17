@@ -7,12 +7,10 @@
 
 #include "map-api/core.h"
 #include "map-api/cr-table-ram-map.h"
-#include "map-api/cr-table-ram-sqlite.h"
 #include "map-api/cru-table-ram-map.h"
-#include "map-api/cru-table-ram-sqlite.h"
 #include "map-api/net-table-manager.h"
 
-DEFINE_bool(use_sqlite, false, "SQLite VS ram map table caches");
+DEFINE_bool(use_external_memory, false, "External memory vs. RAM tables.");
 
 namespace map_api {
 
@@ -25,15 +23,17 @@ bool NetTable::init(
   type_ = type;
   switch (type) {
     case CRTable::Type::CR:
-      if (FLAGS_use_sqlite) {
-        cache_.reset(new CRTableRamSqlite);
+      if (FLAGS_use_external_memory) {
+//        cache_.reset(new CRTableRamSqlite);
+        CHECK(false) << "Instantiate external memory tables.";
       } else {
         cache_.reset(new CRTableRamMap);
       }
       break;
     case CRTable::Type::CRU:
-      if (FLAGS_use_sqlite) {
-        cache_.reset(new CRUTableRamSqlite);
+      if (FLAGS_use_external_memory) {
+//        cache_.reset(new CRUTableRamSqlite);
+        CHECK(false) << "Instantiate external memory tables.";
       } else {
         cache_.reset(new CRUTableRamMap);
       }
@@ -146,6 +146,20 @@ void NetTable::registerChunkInSpace(
   index_lock_.unlock();
 }
 
+void NetTable::getChunkReferencesInBoundingBox(
+    const SpatialIndex::BoundingBox& bounding_box,
+    std::unordered_set<Id>* chunk_ids) {
+  CHECK_NOTNULL(chunk_ids);
+  timing::Timer seek_timer("map_api::NetTable::getChunksInBoundingBox - seek");
+  index_lock_.readLock();
+  spatial_index_->seekChunks(bounding_box, chunk_ids);
+  index_lock_.unlock();
+  seek_timer.Stop();
+  statistics::StatsCollector collector(
+      "map_api::NetTable::getChunksInBoundingBox - chunks");
+  collector.AddSample(chunk_ids->size());
+}
+
 void NetTable::getChunksInBoundingBox(
     const SpatialIndex::BoundingBox& bounding_box) {
   std::unordered_set<Chunk*> dummy;
@@ -158,31 +172,26 @@ void NetTable::getChunksInBoundingBox(
   CHECK_NOTNULL(chunks);
   chunks->clear();
   std::unordered_set<Id> chunk_ids;
-  timing::Timer seek_timer("map_api::NetTable::getChunksInBoundingBox - seek");
-  index_lock_.readLock();
-  spatial_index_->seekChunks(bounding_box, &chunk_ids);
-  index_lock_.unlock();
-  seek_timer.Stop();
+  getChunkReferencesInBoundingBox(bounding_box, &chunk_ids);
   for (const Id& id : chunk_ids) {
     Chunk* chunk = getChunk(id);
     CHECK_NOTNULL(chunk);
     chunks->insert(chunk);
   }
-  statistics::StatsCollector collector(
-      "map_api::NetTable::getChunksInBoundingBox - chunks");
-  collector.AddSample(chunk_ids.size());
   VLOG(3) << "Got " << chunk_ids.size() << " chunks";
 }
 
-bool NetTable::insert(const LogicalTime& time, Chunk* chunk, Revision* query) {
+bool NetTable::insert(const LogicalTime& time, Chunk* chunk,
+                      const std::shared_ptr<Revision>& query) {
   CHECK_NOTNULL(chunk);
-  CHECK_NOTNULL(query);
+  CHECK(query != nullptr);
   CHECK(chunk->insert(time, query));
   return true;
 }
 
-bool NetTable::update(Revision* query) {
-  CHECK_NOTNULL(query);
+bool NetTable::update(
+    const std::shared_ptr<Revision>& query) {
+  CHECK(query != nullptr);
   CHECK(type_ == CRTable::Type::CRU);
   CHECK_NOTNULL(getChunk(query->getChunkId()))->update(query);
   return true;
@@ -390,7 +399,8 @@ void NetTable::handleInitRequest(
 }
 
 void NetTable::handleInsertRequest(
-    const Id& chunk_id, const Revision& item, Message* response) {
+    const Id& chunk_id, const std::shared_ptr<Revision>& item,
+    Message* response) {
   ChunkMap::iterator found;
   active_chunks_lock_.readLock();
   if (routingBasics(chunk_id, response, &found)) {
@@ -441,8 +451,8 @@ void NetTable::handleUnlockRequest(
 }
 
 void NetTable::handleUpdateRequest(
-    const Id& chunk_id, const Revision& item, const PeerId& sender,
-    Message* response) {
+    const Id& chunk_id, const std::shared_ptr<Revision>& item,
+    const PeerId& sender, Message* response) {
   ChunkMap::iterator found;
   if (routingBasics(chunk_id, response, &found)) {
     found->second->handleUpdateRequest(item, sender, response);

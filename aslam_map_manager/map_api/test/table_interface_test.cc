@@ -13,9 +13,7 @@
 
 #include "map-api/core.h"
 #include "map-api/cr-table-ram-map.h"
-#include "map-api/cr-table-ram-sqlite.h"
 #include "map-api/cru-table-ram-map.h"
-#include "map-api/cru-table-ram-sqlite.h"
 #include "map-api/logical-time.h"
 #include "map-api/unique-id.h"
 
@@ -33,7 +31,7 @@ class TableInterfaceTest : public ::testing::Test {
   virtual void TearDown() final override { Core::instance()->kill(); }
 };
 
-// TODO(tcies) implement CR(U) sqlite and re-enable tests
+// TODO(slynen) Add external memory to tests.
 typedef ::testing::Types<
     //    CRTableRamSqlite,
     //    CRUTableRamSqlite,
@@ -193,11 +191,12 @@ class FieldTestWithoutInit
   Id fillRevision() { return fillRevision(this->sample_data_1()); }
 
   bool insertRevision() {
-    return this->table_->insert(LogicalTime::sample(), query_.get());
+    return this->table_->insert(LogicalTime::sample(), query_);
   }
 
   void getRevision(const Id& id) {
-    query_ = this->table_->getById(id, LogicalTime::sample());
+    query_ = std::make_shared<Revision>(
+        *this->table_->getById(id, LogicalTime::sample()));
   }
 
   std::unique_ptr<typename TableDataType::TableType> table_;
@@ -221,7 +220,12 @@ class FieldTestWithInit : public FieldTestWithoutInit<TableDataType> {
 template <typename TableDataType>
 class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
  protected:
-  bool updateRevision() { return this->table_->update(this->query_.get()); }
+  bool updateRevision() {
+    std::shared_ptr<Revision> revision =
+        std::make_shared<Revision>(*this->query_);
+    this->table_->update(revision);
+    return true;
+  }
 
   void fillRevisionWithOtherData() {
     this->query_->set(this->fieldName(), this->sample_data_2());
@@ -233,7 +237,7 @@ class IntTestWithInit
     : public FieldTestWithInit<TableDataTypes<TableType, int64_t>> {
 };  // NOLINT
 
-// TODO(tcies) extend tests to SQLite
+// TODO(slynen) extend tests to external memory.
 class CruMapIntTestWithInit
     : public UpdateFieldTestWithInit<TableDataTypes<CRUTableRamMap, int64_t>> {
 };
@@ -252,7 +256,7 @@ class CruMapIntTestWithInit
       TableDataTypes<table_type, int64_t>,                                     \
       TableDataTypes<table_type, map_api::LogicalTime>
 
-// TODO(tcies) implement remove in CRU sqlite and re-enable tests
+// TODO(slynen) Add external memory tables.
 typedef ::testing::Types<
     //                         ALL_DATA_TYPES(CRTableRamSqlite),
     ALL_DATA_TYPES(CRTableRamMap),
@@ -292,8 +296,8 @@ TYPED_TEST(FieldTestWithInit, CreateRead) {
   Id inserted = this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
-  std::shared_ptr<Revision> rowFromTable =
-      this->table_->getById(inserted, LogicalTime::sample());
+  std::shared_ptr<Revision> rowFromTable = std::make_shared<Revision>(
+      *this->table_->getById(inserted, LogicalTime::sample()));
   ASSERT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
   rowFromTable->get(FieldTestTable<TypeParam>::kTestField, &dataFromTable);
@@ -313,8 +317,8 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
   Id inserted = this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
-  std::shared_ptr<Revision> rowFromTable =
-      this->table_->getById(inserted, LogicalTime::sample());
+  std::shared_ptr<Revision> rowFromTable = std::make_shared<Revision>(
+      *this->table_->getById(inserted, LogicalTime::sample()));
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
   ::testing::FLAGS_gtest_death_test_style = "fast";
@@ -327,7 +331,7 @@ TYPED_TEST(UpdateFieldTestWithInit, UpdateRead) {
   Id inserted = this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
-  std::shared_ptr<Revision> rowFromTable =
+  std::shared_ptr<const Revision> rowFromTable =
       this->table_->getById(inserted, LogicalTime::sample());
   ASSERT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
@@ -356,7 +360,7 @@ TYPED_TEST(IntTestWithInit, CreateReadThousand) {
                              std::string(::testing::UnitTest::GetInstance()
     ->current_test_info()
     ->test_case_name()));
-    std::shared_ptr<Revision> rowFromTable =
+    std::shared_ptr<const Revision> rowFromTable =
         this->table_->getById(inserted, LogicalTime::sample());
     read_timer.Stop();
     ASSERT_TRUE(static_cast<bool>(rowFromTable));
@@ -405,7 +409,9 @@ TEST_F(CruMapIntTestWithInit, Remove) {
   table_->find(-1, 0, LogicalTime::sample(), &result);
   EXPECT_EQ(1, result.size());
 
-  table_->remove(LogicalTime::sample(), result.begin()->second.get());
+  std::shared_ptr<Revision> revision =
+      std::make_shared<Revision>(*result.begin()->second);
+  table_->remove(LogicalTime::sample(), revision);
 
   EXPECT_EQ(0, table_->count(-1, 0, LogicalTime::sample()));
   table_->getAvailableIds(LogicalTime::sample(), &ids);

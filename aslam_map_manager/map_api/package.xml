@@ -4,8 +4,6 @@
   <version>0.0.0</version>
   <description>The aslam map api package</description>
 
-  <maintainer email="stephane.magnenat@mavt.ethz.ch">Stéphane Magnenat
-  </maintainer>
   <maintainer email="slynen@ethz.ch">Simon Lynen</maintainer>
   <maintainer email="dev@titus-c.ch">Titus Cieslewski</maintainer>
   <license>Apache 2.0</license>
@@ -19,6 +17,7 @@
   <build_depend>glog_catkin</build_depend>
   <build_depend>map_api_test_suite</build_depend>
   <build_depend>multiagent_mapping_common</build_depend>
+  <build_depend>opencv2_catkin</build_depend>
   <build_depend>protobuf_catkin</build_depend>
   <build_depend>statistics</build_depend>
   <build_depend>timing</build_depend>
