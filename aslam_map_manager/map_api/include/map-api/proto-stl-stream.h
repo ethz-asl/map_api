@@ -1,5 +1,6 @@
 #ifndef MAP_API_PROTO_STL_STREAM_H_
 #define MAP_API_PROTO_STL_STREAM_H_
+#include <memory>
 #include <mutex>
 
 #include <glog/logging.h>
@@ -42,20 +43,11 @@ class MemoryBlockPool {
   bool Next(unsigned char** data, int* size) {
     CHECK_NOTNULL(data);
     CHECK_NOTNULL(size);
-    int num_available_bytes = BlockSize - position_in_current_block_;
-    if (num_available_bytes == 0 || pool_.empty()) {
-      if (!pool_.empty()) {
-        ++block_index_;
-      }
-      while (block_index_ >= static_cast<int>(pool_.size())) {
-        pool_.push_back(Block());
-      }
-      position_in_current_block_ = 0;
-      num_available_bytes = BlockSize;
-    }
+    int num_available_bytes = EnsureMemoryIndicesAreValid();
     *data = pool_[block_index_].data + position_in_current_block_;
     *size = num_available_bytes;
     position_in_current_block_ += num_available_bytes;
+    EnsureMemoryIndicesAreValid();
     return true;
   }
 
@@ -114,6 +106,21 @@ class MemoryBlockPool {
   }
 
  private:
+  int EnsureMemoryIndicesAreValid() {
+    int num_available_bytes = BlockSize - position_in_current_block_;
+    if (num_available_bytes == 0 || pool_.empty()) {
+      if (!pool_.empty()) {
+        ++block_index_;
+      }
+      while (block_index_ >= static_cast<int>(pool_.size())) {
+        pool_.push_back(Block());
+      }
+      position_in_current_block_ = 0;
+      num_available_bytes = BlockSize;
+    }
+    return num_available_bytes;
+  }
+
   Container<Block, std::allocator<Block> > pool_;
   int block_index_;
   int position_in_current_block_;
@@ -121,8 +128,8 @@ class MemoryBlockPool {
 
 // This implements a protobuf zero-copy-input stream on top of the memory pool.
 template<int BlockSize, template<typename, typename> class Container>
-class STLContainerInputStream :
-    public google::protobuf::io::ZeroCopyInputStream {
+class STLContainerInputStream : public
+google::protobuf::io::ZeroCopyInputStream {
  public:
   STLContainerInputStream(int block_index, int byte_offset,
                           MemoryBlockPool<BlockSize, Container>* block_pool) :
@@ -217,18 +224,18 @@ class STLContainerInputStream :
 
 // This implements a protobuf zero-copy-output stream on top of the memory pool.
 template<int BlockSize, template<typename, typename> class Container>
-class STLContainerOutputStream :
-    public google::protobuf::io::ZeroCopyOutputStream {
+class STLContainerOutputStream : public
+google::protobuf::io::ZeroCopyOutputStream {
  public:
   typedef MemoryBlockPool<BlockSize, Container> BlockContainer;
-  STLContainerOutputStream(BlockContainer* block_pool) :
+  explicit STLContainerOutputStream(BlockContainer* block_pool) :
                            bytes_written_(0),
                            block_pool_(CHECK_NOTNULL(block_pool)) { }
 
   ~STLContainerOutputStream() {}
 
   // Uses length-prefix framing for protocol buffers.
-   bool WriteMessage(
+  bool WriteMessage(
       const google::protobuf::Message& message,
       MemoryBlockInformation* block_info) {
      CHECK_NOTNULL(block_info);

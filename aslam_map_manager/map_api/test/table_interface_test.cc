@@ -13,6 +13,7 @@
 
 #include "map-api/core.h"
 #include "map-api/cr-table-ram-map.h"
+#include "map-api/cr-table-stxxl-map.h"
 #include "map-api/cru-table-ram-map.h"
 #include "map-api/logical-time.h"
 #include "map-api/unique-id.h"
@@ -33,7 +34,7 @@ class TableInterfaceTest : public ::testing::Test {
 
 // TODO(slynen) Add external memory to tests.
 typedef ::testing::Types<
-    //    CRTableRamSqlite,
+    CRTableSTXXLMap,
     //    CRUTableRamSqlite,
     CRTableRamMap, CRUTableRamMap> TableTypes;
 TYPED_TEST_CASE(TableInterfaceTest, TableTypes);
@@ -258,7 +259,7 @@ class CruMapIntTestWithInit
 
 // TODO(slynen) Add external memory tables.
 typedef ::testing::Types<
-    //                         ALL_DATA_TYPES(CRTableRamSqlite),
+    ALL_DATA_TYPES(CRTableSTXXLMap),
     ALL_DATA_TYPES(CRTableRamMap),
     //                         ALL_DATA_TYPES(CRUTableRamSqlite),
     ALL_DATA_TYPES(CRUTableRamMap)> CrAndCruTypes;
