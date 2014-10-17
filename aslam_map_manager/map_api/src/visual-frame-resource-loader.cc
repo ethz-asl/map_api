@@ -92,9 +92,9 @@ int ResourceLoader::releaseNumberOfLoadedResources(VisualFrameResourceType type,
                                                    int number_to_release) {
   int released = 0;
   ResourceList::iterator i = loadedResources_.at(type).begin();
-  while ((i != loadedResources_.at(type).end()) &&
-         (released < number_to_release)) {
-    CHECK(i->first->releaseResource(i->second));
+  ResourceList::iterator end = loadedResources_.at(type).end();
+  while ((i != end) && (released < number_to_release)) {
+    CHECK(i->visual_frame_ptr->releaseResource(i->resource_id));
     i = loadedResources_.at(type).erase(i);
     ++released;
   }
