@@ -24,6 +24,7 @@ class STXXLRevisionStore {
 
     std::unique_lock<std::mutex> lock(mutex_);
     revision_info->insert_time_ = revision.getInsertTime();
+    revision_info->update_time_ = revision.getModificationTime();
     STLContainerOutputStream<BlockSize, ContainerType> output_stream(
         &proto_revision_pool_);
 
