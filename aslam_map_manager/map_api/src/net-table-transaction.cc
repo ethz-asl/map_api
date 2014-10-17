@@ -117,7 +117,7 @@ size_t NetTableTransaction::numChangedItems() const {
   return result;
 }
 
-ChunkTransaction* NetTableTransaction::transactionOf(Chunk* chunk) {
+ChunkTransaction* NetTableTransaction::transactionOf(Chunk* chunk) const {
   CHECK_NOTNULL(chunk);
   TransactionMap::iterator chunk_transaction = chunk_transactions_.find(chunk);
   if (chunk_transaction == chunk_transactions_.end()) {

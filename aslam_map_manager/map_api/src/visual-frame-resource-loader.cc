@@ -14,7 +14,7 @@ bool ResourceLoader::loadResource(const std::string& resource_id_hex_string,
   Transaction transaction;
   ResourceId resource_id;
   resource_id.fromHexString(resource_id_hex_string);
-  std::shared_ptr<Revision> revision =
+  std::shared_ptr<const Revision> revision =
       transaction.getById<ResourceId>(resource_id, resourceTable_);
   std::string uri;
   // TODO(mfehr): replace "0" with proper enum
