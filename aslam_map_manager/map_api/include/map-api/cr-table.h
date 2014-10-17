@@ -126,7 +126,7 @@ class CRTable {
 
   template <typename IdType>
   void getAvailableIds(const LogicalTime& time,
-                       std::unordered_set<IdType>* ids);
+                       std::unordered_set<IdType>* ids) const;
   /**
    * Puts all items that match key = value at time into dest and returns the
    * amount of items in dest.
@@ -134,22 +134,23 @@ class CRTable {
    */
   template <typename ValueType>
   void find(int key, const ValueType& value, const LogicalTime& time,
-            RevisionMap* dest);
+            RevisionMap* dest) const;
   void dumpChunk(const Id& chunk_id, const LogicalTime& time,
-                 RevisionMap* dest);
+                 RevisionMap* dest) const;
 
   /**
    * Same as find() but not typed. Value is looked up in the corresponding field
    * of valueHolder.
    */
-  virtual void findByRevision(int key, const Revision& valueHolder,
-                              const LogicalTime& time, RevisionMap* dest) final;
+  virtual void findByRevision(
+      int key, const Revision& valueHolder,
+      const LogicalTime& time, RevisionMap* dest) const final;
   /**
    * Same as find() but makes the assumption that there is only one result.
    */
   template <typename ValueType>
-  std::shared_ptr<const Revision> findUnique(int key, const ValueType& value,
-                                             const LogicalTime& time);
+  std::shared_ptr<const Revision> findUnique(
+      int key, const ValueType& value, const LogicalTime& time) const;
 
   /**
    * Same as count() but not typed. Value is looked up in the corresponding
@@ -157,17 +158,17 @@ class CRTable {
    * of valueHolder.
    */
   virtual int countByRevision(int key, const Revision& valueHolder,
-                              const LogicalTime& time) final;
+                              const LogicalTime& time) const final;
 
-  virtual void dump(const LogicalTime& time, RevisionMap* dest) final;
+  virtual void dump(const LogicalTime& time, RevisionMap* dest) const final;
 
   /**
    * Count all items that match key = value at time.
    * If "key" is an empty string, no filter will be applied.
    */
   template <typename ValueType>
-  int count(int key, const ValueType& value, const LogicalTime& time);
-  int countByChunk(const Id& id, const LogicalTime& time);
+  int count(int key, const ValueType& value, const LogicalTime& time) const;
+  int countByChunk(const Id& id, const LogicalTime& time) const;
 
   /**
    * The following struct can be used to automatically supply table name and
@@ -203,23 +204,23 @@ class CRTable {
   virtual std::shared_ptr<const Revision> getByIdCRDerived(
       const Id& id, const LogicalTime& time) const = 0;
   virtual void dumpChunkCRDerived(const Id& chunk_id, const LogicalTime& time,
-                                  RevisionMap* dest) = 0;
+                                  RevisionMap* dest) const = 0;
   /**
    * If key is -1, this should return all the data in the table.
    */
   virtual void findByRevisionCRDerived(int key, const Revision& valueHolder,
                                        const LogicalTime& time,
-                                       RevisionMap* dest) = 0;
+                                       RevisionMap* dest) const = 0;
   virtual void getAvailableIdsCRDerived(const LogicalTime& time,
-                                        std::unordered_set<Id>* ids) = 0;
+                                        std::unordered_set<Id>* ids) const = 0;
 
   /**
    * If key is an empty string, this should return all the data in the table.
    */
   virtual int countByRevisionCRDerived(int key, const Revision& valueHolder,
-                                       const LogicalTime& time) = 0;
+                                       const LogicalTime& time) const = 0;
   virtual int countByChunkCRDerived(const Id& chunk_id,
-                                    const LogicalTime& time) = 0;
+                                    const LogicalTime& time) const = 0;
 
   bool initialized_ = false;
 };
