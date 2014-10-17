@@ -37,7 +37,7 @@ bool CRTableSTXXLMap::patchCRDerived(const std::shared_ptr<Revision>& query) {
 
 void CRTableSTXXLMap::dumpChunkCRDerived(const Id& chunk_id,
                                          const LogicalTime& time,
-                                         RevisionMap* dest) {
+                                         RevisionMap* dest) const {
   CHECK_NOTNULL(dest)->clear();
   for (const MapType::value_type& pair : data_) {
     std::shared_ptr<const Revision> revision;
@@ -53,7 +53,7 @@ void CRTableSTXXLMap::dumpChunkCRDerived(const Id& chunk_id,
 void CRTableSTXXLMap::findByRevisionCRDerived(int key,
                                               const Revision& valueHolder,
                                               const LogicalTime& time,
-                                              RevisionMap* dest) {
+                                              RevisionMap* dest) const {
   CHECK_NOTNULL(dest);
   dest->clear();
 
@@ -79,8 +79,8 @@ std::shared_ptr<const Revision> CRTableSTXXLMap::getByIdCRDerived(
   return revision;
 }
 
-void CRTableSTXXLMap::getAvailableIdsCRDerived(const LogicalTime& time,
-                                               std::unordered_set<Id>* ids) {
+void CRTableSTXXLMap::getAvailableIdsCRDerived(
+    const LogicalTime& time, std::unordered_set<Id>* ids) const {
   CHECK_NOTNULL(ids);
   ids->rehash(data_.size());
   for (const MapType::value_type& pair : data_) {
@@ -92,7 +92,7 @@ void CRTableSTXXLMap::getAvailableIdsCRDerived(const LogicalTime& time,
 
 int CRTableSTXXLMap::countByRevisionCRDerived(int key,
                                               const Revision& valueHolder,
-                                              const LogicalTime& time) {
+                                              const LogicalTime& time) const {
   int count = 0;
   for (const MapType::value_type& pair : data_) {
     // TODO(slynen): Consider caching the data necessary for the checks.
@@ -108,7 +108,7 @@ int CRTableSTXXLMap::countByRevisionCRDerived(int key,
 }
 
 int CRTableSTXXLMap::countByChunkCRDerived(const Id& chunk_id,
-                                           const LogicalTime& time) {
+                                           const LogicalTime& time) const {
   int count = 0;
   for (const MapType::value_type& pair : data_) {
     // TODO(slynen): Consider caching the data necessary for the checks.
