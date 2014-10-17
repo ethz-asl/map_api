@@ -65,7 +65,7 @@ void CRUTable::remove(const LogicalTime& time,
 
 void CRUTable::findHistoryByRevision(int key, const Revision& valueHolder,
                                      const LogicalTime& time,
-                                     HistoryMap* dest) {
+                                     HistoryMap* dest) const {
   CHECK(isInitialized()) << "Attempted to find in non-initialized table";
   CHECK_NOTNULL(dest);
   dest->clear();
