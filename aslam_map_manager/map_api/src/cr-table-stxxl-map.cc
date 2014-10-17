@@ -111,11 +111,8 @@ int CRTableSTXXLMap::countByChunkCRDerived(const Id& chunk_id,
                                            const LogicalTime& time) const {
   int count = 0;
   for (const MapType::value_type& pair : data_) {
-    // TODO(slynen): Consider caching the data necessary for the checks.
-    std::shared_ptr<const Revision> revision;
-    CHECK(revision_store_.retrieveRevision(pair.second, &revision));
-    if (revision->getChunkId() == chunk_id) {
-      if (revision->getInsertTime() <= time) {
+    if (pair.second.chunk_id_ == chunk_id) {
+      if (pair.second.insert_time_ <= time) {
         ++count;
       }
     }

@@ -168,9 +168,7 @@ void CRUTableSTXXLMap::chunkHistory(
     const Id& chunk_id, const LogicalTime& time, HistoryMap* dest) const {
   CHECK_NOTNULL(dest)->clear();
   for (const STXXLHistoryMap::value_type& pair : data_) {
-    std::shared_ptr<const Revision> revision;
-    CHECK(revision_store_.retrieveRevision(*pair.second.begin(), &revision));
-    if (revision->getChunkId() == chunk_id) {
+    if (pair.second.begin()->chunk_id_ == chunk_id) {
       History history;
       for (const RevisionInformation& revision_information : pair.second) {
         std::shared_ptr<const Revision> history_entry;
@@ -225,11 +223,12 @@ inline void CRUTableSTXXLMap::forChunkItemsAtTime(
     const std::function<
         void(const Id& id, const Revision& item)>& action) const {
   for (const STXXLHistoryMap::value_type& pair : data_) {
-    std::shared_ptr<const Revision> revision;
-    CHECK(revision_store_.retrieveRevision(*pair.second.begin(), &revision));
-    if (revision->getChunkId() == chunk_id) {
+    if (pair.second.begin()->chunk_id_ == chunk_id) {
       STXXLHistory::const_iterator latest = pair.second.latestAt(time);
       if (latest != pair.second.cend()) {
+        std::shared_ptr<const Revision> revision;
+        CHECK(revision_store_.retrieveRevision(*pair.second.begin(),
+                                               &revision));
         if (!revision->isRemoved()) {
           action(pair.first, *revision);
         }

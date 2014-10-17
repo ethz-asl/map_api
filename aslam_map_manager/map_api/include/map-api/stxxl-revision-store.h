@@ -11,11 +11,13 @@
 namespace map_api {
 struct RevisionInformation {
   MemoryBlockInformation memory_block_;
+  // Cache information which is frequently accessed.
   LogicalTime insert_time_;
   LogicalTime update_time_;
+  Id chunk_id_;
 };
 
-static constexpr int kSTXXLDefaultBlockSize = 2048;
+static constexpr int kSTXXLDefaultBlockSize = 128;
 
 template<int BlockSize>
 class STXXLRevisionStore {
@@ -27,6 +29,7 @@ class STXXLRevisionStore {
     std::unique_lock<std::mutex> lock(mutex_);
     revision_info->insert_time_ = revision.getInsertTime();
     revision_info->update_time_ = revision.getModificationTime();
+    revision_info->chunk_id_ = revision.getChunkId();
     STLContainerOutputStream<BlockSize, ContainerType> output_stream(
         &proto_revision_pool_);
 
