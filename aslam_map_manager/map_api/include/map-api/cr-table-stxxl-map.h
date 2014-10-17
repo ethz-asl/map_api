@@ -22,18 +22,19 @@ class CRTableSTXXLMap : public CRTable {
   virtual bool patchCRDerived(
       const std::shared_ptr<Revision>& query) final override;
   virtual void dumpChunkCRDerived(const Id& chunk_id, const LogicalTime& time,
-                                  RevisionMap* dest) final override;
+                                  RevisionMap* dest) const final override;
   virtual void findByRevisionCRDerived(
       int key, const Revision& valueHolder, const LogicalTime& time,
-      CRTable::RevisionMap* dest) final override;
+      CRTable::RevisionMap* dest) const final override;
   virtual std::shared_ptr<const Revision> getByIdCRDerived(
       const Id& id, const LogicalTime& time) const final override;
-  virtual void getAvailableIdsCRDerived(
-      const LogicalTime& time, std::unordered_set<Id>* ids) final override;
-  virtual int countByRevisionCRDerived(int key, const Revision& valueHolder,
-                                       const LogicalTime& time) final override;
-  virtual int countByChunkCRDerived(const Id& chunk_id,
-                                    const LogicalTime& time) final override;
+  virtual void getAvailableIdsCRDerived(const LogicalTime& time,
+      std::unordered_set<Id>* ids) const final override;
+  virtual int countByRevisionCRDerived(
+      int key, const Revision& valueHolder,
+      const LogicalTime& time) const final override;
+  virtual int countByChunkCRDerived(
+      const Id& chunk_id, const LogicalTime& time) const final override;
 
   typedef std::unordered_map<Id, RevisionInformation> MapType;
   MapType data_;
