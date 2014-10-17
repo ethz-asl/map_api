@@ -12,6 +12,7 @@ namespace map_api {
 struct RevisionInformation {
   MemoryBlockInformation memory_block_;
   LogicalTime insert_time_;
+  LogicalTime update_time_;
 };
 
 template<int BlockSize>
