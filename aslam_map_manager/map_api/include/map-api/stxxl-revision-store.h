@@ -24,8 +24,8 @@ struct CRURevisionInformation : public CRRevisionInformation {
   // Cache information which is frequently accessed.
   virtual void SetFromRevision(const const Revision& revision) {
     CRRevisionInformation::SetFromRevision(revision);
-    insert_time_ = revision.getInsertTime();
-    chunk_id_ = revision.getChunkId();
+    update_time_ = revision.getModificationTime();
+    is_removed_ = revision.isRemoved();
   }
   LogicalTime update_time_;
   bool is_removed_;
