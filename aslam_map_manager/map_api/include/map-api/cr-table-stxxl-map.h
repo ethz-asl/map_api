@@ -36,7 +36,7 @@ class CRTableSTXXLMap : public CRTable {
   virtual int countByChunkCRDerived(
       const Id& chunk_id, const LogicalTime& time) const final override;
 
-  typedef std::unordered_map<Id, RevisionInformation> MapType;
+  typedef std::unordered_map<Id, CRRevisionInformation> MapType;
   MapType data_;
   static constexpr int kBlockSize = kSTXXLDefaultBlockSize;
   STXXLRevisionStore<kBlockSize> revision_store_;
