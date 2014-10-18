@@ -13,7 +13,7 @@ namespace map_api {
 struct CRRevisionInformation {
   MemoryBlockInformation memory_block_;
   // Cache information which is frequently accessed.
-  virtual void SetFromRevision(const const Revision& revision) {
+  virtual void SetFromRevision(const Revision& revision) {
     insert_time_ = revision.getInsertTime();
     chunk_id_ = revision.getChunkId();
   }
@@ -22,7 +22,7 @@ struct CRRevisionInformation {
 };
 struct CRURevisionInformation : public CRRevisionInformation {
   // Cache information which is frequently accessed.
-  virtual void SetFromRevision(const const Revision& revision) {
+  virtual void SetFromRevision(const Revision& revision) {
     CRRevisionInformation::SetFromRevision(revision);
     update_time_ = revision.getModificationTime();
     is_removed_ = revision.isRemoved();
