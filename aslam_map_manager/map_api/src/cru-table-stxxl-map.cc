@@ -99,17 +99,17 @@ void CRUTableSTXXLMap::findByRevisionCRDerived(int key,
 }
 
 void CRUTableSTXXLMap::getAvailableIdsCRDerived(
-    const LogicalTime& time, std::unordered_set<Id>* ids) const {
+    const LogicalTime& time, std::vector<Id>* ids) const {
   CHECK_NOTNULL(ids);
   ids->clear();
-  ids->rehash(data_.size());
+  ids->reserve(data_.size());
   for (const STXXLHistoryMap::value_type& pair : data_) {
     STXXLHistory::const_iterator latest = pair.second.latestAt(time);
     if (latest != pair.second.cend()) {
       std::shared_ptr<const Revision> revision;
       CHECK(revision_store_.retrieveRevision(*latest, &revision));
       if (!revision->isRemoved()) {
-        ids->insert(pair.first);
+        ids->emplace_back(pair.first);
       }
     }
   }

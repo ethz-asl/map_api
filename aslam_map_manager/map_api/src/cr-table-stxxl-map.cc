@@ -80,13 +80,23 @@ std::shared_ptr<const Revision> CRTableSTXXLMap::getByIdCRDerived(
 }
 
 void CRTableSTXXLMap::getAvailableIdsCRDerived(
-    const LogicalTime& time, std::unordered_set<Id>* ids) const {
+    const LogicalTime& time, std::vector<Id>* ids) const {
   CHECK_NOTNULL(ids);
-  ids->rehash(data_.size());
+  std::vector<std::pair<Id, RevisionInformation> > ids_and_info;
+  ids_and_info.reserve(data_.size());
   for (const MapType::value_type& pair : data_) {
     if (pair.second.insert_time_ <= time) {
-      ids->insert(pair.first);
+      ids_and_info.emplace_back(pair);
     }
+  }
+  std::sort(ids_and_info.begin(), ids_and_info.end(),
+            [] (const std::pair<Id, RevisionInformation>& lhs,
+                 const std::pair<Id, RevisionInformation>& rhs) {
+    return lhs.second.memory_block_ < rhs.second.memory_block_;
+  });
+  ids->reserve(ids_and_info.size());
+  for (const MapType::value_type& pair : ids_and_info) {
+    ids->emplace_back(pair.first);
   }
 }
 

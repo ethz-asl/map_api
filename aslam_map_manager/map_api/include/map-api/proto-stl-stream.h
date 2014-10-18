@@ -13,6 +13,15 @@ namespace map_api {
 // value starts.
 struct MemoryBlockInformation {
   MemoryBlockInformation() : block_index(-1), byte_offset(-1) { }
+  bool operator<(const MemoryBlockInformation& lhs) const {
+    if (block_index < lhs.block_index) {
+      return true;
+    }
+    if (block_index == lhs.block_index) {
+      return byte_offset < lhs.byte_offset;
+    }
+    return false;
+  }
   int block_index;
   int byte_offset;
 };

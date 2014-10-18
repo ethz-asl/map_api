@@ -4,6 +4,7 @@
 #include <string>
 #include <sstream>  // NOLINT
 #include <utility>
+#include <vector>
 
 namespace map_api {
 
@@ -21,15 +22,15 @@ std::shared_ptr<const Revision> CRTable::getById(
 
 template <typename IdType>
 void CRTable::getAvailableIds(const LogicalTime& time,
-                              std::unordered_set<IdType>* ids) const {
+                              std::vector<IdType>* ids) const {
   CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
   CHECK_NOTNULL(ids);
   ids->clear();
-  std::unordered_set<Id> map_api_ids;
+  std::vector<Id> map_api_ids;
   getAvailableIdsCRDerived(time, &map_api_ids);
-  ids->rehash(map_api_ids.size());
+  ids->reserve(map_api_ids.size());
   for (const Id& id : map_api_ids) {
-    ids->emplace(id.toIdType<IdType>());
+    ids->emplace_back(id.toIdType<IdType>());
   }
 }
 

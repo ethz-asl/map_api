@@ -1,7 +1,7 @@
 #ifndef MAP_API_CACHE_H_
 #define MAP_API_CACHE_H_
-
 #include <unordered_set>
+#include <vector>
 
 #include <multiagent_mapping_common/mapped-container-base.h>
 #include <multiagent_mapping_common/traits.h>
@@ -140,14 +140,14 @@ class Cache : public CacheBase,
   void erase(const IdType& id);
 
   /**
-   * Will cache revision of object. TODO(tcies) NetTable::has?
+   * Will cache revision of object.
    */
   bool has(const IdType& id) const;
+
   /**
    * Available with the currently active set of chunks.
-   * For now, revisions will be cached. TODO(tcies) method NetTable::dumpIds?
    */
-  void getAllAvailableIds(std::unordered_set<IdType>* available_ids) const;
+  void getAllAvailableIds(std::vector<IdType>* available_ids) const;
 
   size_t size() const;
   bool empty() const;
@@ -164,14 +164,10 @@ class Cache : public CacheBase,
 
   typedef std::unordered_map<IdType, Value> CacheMap;
   typedef std::unordered_set<IdType> IdSet;
-
-  inline IdSet& getAvailableIdsLocked();
-  inline const IdSet& getAvailableIdsLocked() const;
+  typedef std::vector<IdType> IdVector;
 
   mutable CacheMap cache_;
   mutable CRTable::RevisionMap revisions_;
-  mutable IdSet available_ids_;
-  mutable bool ids_fetched_;
   IdSet removals_;
   NetTable* underlying_table_;
   std::shared_ptr<ChunkManagerBase> chunk_manager_;
@@ -206,6 +202,25 @@ class Cache : public CacheBase,
     std::shared_ptr<Transaction> transaction_;
   };
   TransactionAccessFactory transaction_;
+
+  class AvailableIds {
+   public:
+    AvailableIds(NetTable* underlying_table,
+                 TransactionAccessFactory* transaction);
+    const IdVector& GetAllIds() const;
+    bool hasId(const IdType& id) const;
+    void addId(const IdType& id);
+    void removeId(const IdType& id);
+
+   private:
+    void getAvailableIdsLocked() const;
+    mutable IdVector ordered_available_ids_;
+    mutable IdSet available_ids_;
+    mutable bool ids_fetched_;
+    NetTable* underlying_table_;
+    TransactionAccessFactory* transaction_;
+  };
+  AvailableIds available_ids_;
 
   mutable std::mutex mutex_;
   typedef std::lock_guard<std::mutex> LockGuard;
