@@ -15,6 +15,7 @@ struct RevisionInformation {
   // Cache information which is frequently accessed.
   LogicalTime insert_time_;
   LogicalTime update_time_;
+  bool is_removed_;
   Id chunk_id_;
 };
 
@@ -31,6 +32,7 @@ class STXXLRevisionStore {
     revision_info->insert_time_ = revision.getInsertTime();
     revision_info->update_time_ = revision.getModificationTime();
     revision_info->chunk_id_ = revision.getChunkId();
+    revision_info->is_removed_ = revision.isRemoved();
     STLContainerOutputStream<BlockSize, ContainerType> output_stream(
         &proto_revision_pool_);
 

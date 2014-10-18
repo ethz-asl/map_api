@@ -82,6 +82,7 @@ std::shared_ptr<const Revision> CRTableSTXXLMap::getByIdCRDerived(
 void CRTableSTXXLMap::getAvailableIdsCRDerived(
     const LogicalTime& time, std::vector<Id>* ids) const {
   CHECK_NOTNULL(ids);
+  ids->clear();
   std::vector<std::pair<Id, RevisionInformation> > ids_and_info;
   ids_and_info.reserve(data_.size());
   for (const MapType::value_type& pair : data_) {

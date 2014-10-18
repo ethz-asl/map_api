@@ -174,10 +174,10 @@ getAvailableIdsLocked() const {
     available_ids_.clear();
     available_ids_.insert(ordered_available_ids_.begin(),
                           ordered_available_ids_.end());
-    timer.Stop();
+    double total_seconds = timer.Stop();
     ids_fetched_ = true;
-    LOG(WARNING) << "Got " << available_ids_.size() << " ids for table "
-        << underlying_table_->name();
+    LOG(INFO) << "Got " << available_ids_.size() << " ids for table "
+        << underlying_table_->name() << " in " << total_seconds << "s";
   }
 }
 

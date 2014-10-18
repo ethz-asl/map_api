@@ -102,16 +102,24 @@ void CRUTableSTXXLMap::getAvailableIdsCRDerived(
     const LogicalTime& time, std::vector<Id>* ids) const {
   CHECK_NOTNULL(ids);
   ids->clear();
-  ids->reserve(data_.size());
+  std::vector<std::pair<Id, RevisionInformation> > ids_and_info;
+  ids_and_info.reserve(data_.size());
   for (const STXXLHistoryMap::value_type& pair : data_) {
     STXXLHistory::const_iterator latest = pair.second.latestAt(time);
     if (latest != pair.second.cend()) {
-      std::shared_ptr<const Revision> revision;
-      CHECK(revision_store_.retrieveRevision(*latest, &revision));
-      if (!revision->isRemoved()) {
-        ids->emplace_back(pair.first);
+      if (!latest->is_removed_) {
+        ids_and_info.emplace_back(pair.first, *latest);
       }
     }
+  }
+  std::sort(ids_and_info.begin(), ids_and_info.end(),
+            [] (const std::pair<Id, RevisionInformation>& lhs,
+                 const std::pair<Id, RevisionInformation>& rhs) {
+    return lhs.second.memory_block_ < rhs.second.memory_block_;
+  });
+  ids->reserve(ids_and_info.size());
+  for (const std::pair<Id, RevisionInformation>& pair : ids_and_info) {
+    ids->emplace_back(pair.first);
   }
 }
 
