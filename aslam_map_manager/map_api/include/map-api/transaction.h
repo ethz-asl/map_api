@@ -29,6 +29,7 @@ class Transaction {
   explicit Transaction(const LogicalTime& begin_time);
 
   // READ
+  inline LogicalTime getBeginTime() const { return begin_time_; }
   /**
    * By Id or chunk:
    * Use the overload with chunk specification to increase performance. Use
