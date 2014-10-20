@@ -1,7 +1,7 @@
 #ifndef MAP_API_TRANSACTION_INL_H_
 #define MAP_API_TRANSACTION_INL_H_
-
 #include <string>
+#include <vector>
 
 namespace map_api {
 
@@ -29,7 +29,7 @@ std::shared_ptr<const Revision> Transaction::getById(
 
 template <typename IdType>
 void Transaction::getAvailableIds(NetTable* table,
-                                  std::unordered_set<IdType>* ids) {
+                                  std::vector<IdType>* ids) {
   return transactionOf(CHECK_NOTNULL(table))
       ->getAvailableIds(CHECK_NOTNULL(ids));
 }

@@ -33,8 +33,10 @@ SET(CORE_SOURCE  src/cache-base.cc
                  src/core.cc
                  src/cr-table.cc
                  src/cr-table-ram-map.cc
+                 src/cr-table-stxxl-map.cc
                  src/cru-table.cc
                  src/cru-table-ram-map.cc
+                 src/cru-table-stxxl-map.cc
                  src/file-discovery.cc
                  src/hub.cc
                  src/ipc.cc
@@ -114,6 +116,9 @@ target_link_libraries(test_hub_test ${PROJECT_NAME}_test)
 
 catkin_add_gtest(test_proto_table_file_io_test test/proto_table_file_io_test.cc)
 target_link_libraries(test_proto_table_file_io_test ${PROJECT_NAME}_test)
+
+catkin_add_gtest(test_proto_stl_stream_test test/proto_stl_stream_test.cc)
+target_link_libraries(test_proto_stl_stream_test ${PROJECT_NAME}_test)
 
 catkin_add_gtest(test_visual_frame_resource_loader_test test/visual-frame-resource-loader-test.cc WORKING_DIRECTORY
                  ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
