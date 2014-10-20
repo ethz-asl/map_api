@@ -1,9 +1,9 @@
 #ifndef MAP_API_NET_TABLE_TRANSACTION_H_
 #define MAP_API_NET_TABLE_TRANSACTION_H_
-
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest_prod.h>
 
@@ -35,7 +35,7 @@ class NetTableTransaction {
   template <typename ValueType>
   CRTable::RevisionMap find(int key, const ValueType& value);
   template <typename IdType>
-  void getAvailableIds(std::unordered_set<IdType>* ids);
+  void getAvailableIds(std::vector<IdType>* ids);
 
   // WRITE (see transaction.h)
   void insert(Chunk* chunk, std::shared_ptr<Revision> revision);

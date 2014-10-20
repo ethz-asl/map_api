@@ -44,7 +44,7 @@ DEFINE_ID_HASH_SIZET(TestIdSizeTHash);
 TEST(MultiagentMappingCommon, HashIdHashingLoadDistribution) {
   std::unordered_map<TestIdStringHash, Data> map_string_hashes;
   std::unordered_map<TestIdSizeTHash, Data> map_sizet_hashes;
-  constexpr int kNumTrials = 1000000;
+  constexpr int kNumTrials = 100000;
   Data item;
   for (int i = 0; i < kNumTrials; ++i) {
     TestIdStringHash id;
@@ -80,7 +80,7 @@ TEST(MultiagentMappingCommon, HashIdHashingLoadDistribution) {
 TEST(MultiagentMappingCommon, HashIdHashingSpeed) {
   std::unordered_map<TestIdStringHash, Data> map_string_hashes;
   std::unordered_map<TestIdSizeTHash, Data> map_sizet_hashes;
-  constexpr int kNumTrials = 1000000;
+  constexpr int kNumTrials = 100000;
   Data item;
   size_t avoid_optimization1 = 0;
   timing::Timer timer_string_hash("String hash");

@@ -10,12 +10,25 @@
 #include <map-api/revision.h>
 
 namespace map_api {
-struct RevisionInformation {
+struct CRRevisionInformation {
   MemoryBlockInformation memory_block_;
   // Cache information which is frequently accessed.
+  virtual void SetFromRevision(const Revision& revision) {
+    insert_time_ = revision.getInsertTime();
+    chunk_id_ = revision.getChunkId();
+  }
   LogicalTime insert_time_;
-  LogicalTime update_time_;
   Id chunk_id_;
+};
+struct CRURevisionInformation : public CRRevisionInformation {
+  // Cache information which is frequently accessed.
+  virtual void SetFromRevision(const Revision& revision) {
+    CRRevisionInformation::SetFromRevision(revision);
+    update_time_ = revision.getModificationTime();
+    is_removed_ = revision.isRemoved();
+  }
+  LogicalTime update_time_;
+  bool is_removed_;
 };
 
 static constexpr int kSTXXLDefaultBlockSize = 128;
@@ -24,13 +37,11 @@ template<int BlockSize>
 class STXXLRevisionStore {
  public:
   inline bool storeRevision(const Revision& revision,
-                            RevisionInformation* revision_info) {
+                            CRRevisionInformation* revision_info) {
     CHECK_NOTNULL(revision_info);
 
     std::unique_lock<std::mutex> lock(mutex_);
-    revision_info->insert_time_ = revision.getInsertTime();
-    revision_info->update_time_ = revision.getModificationTime();
-    revision_info->chunk_id_ = revision.getChunkId();
+    revision_info->SetFromRevision(revision);
     STLContainerOutputStream<BlockSize, ContainerType> output_stream(
         &proto_revision_pool_);
 
@@ -41,7 +52,7 @@ class STXXLRevisionStore {
   }
 
   inline bool retrieveRevision(
-      const RevisionInformation& revision_info,
+      const CRRevisionInformation& revision_info,
       std::shared_ptr<const Revision>* revision) const {
     CHECK_NOTNULL(revision);
     std::unique_lock<std::mutex> lock(mutex_);
