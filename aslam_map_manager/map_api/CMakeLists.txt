@@ -15,6 +15,7 @@ add_definitions(--std=c++11)
 SET(PROTO_DEFNS proto/chord-index.proto 
                 proto/core.proto
                 proto/chunk.proto
+                proto/ipc.proto
                 proto/net-table.proto)
 PROTOBUF_CATKIN_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
@@ -32,14 +33,11 @@ SET(CORE_SOURCE  src/cache-base.cc
                  src/core.cc
                  src/cr-table.cc
                  src/cr-table-ram-map.cc
-                 src/cr-table-ram-sqlite.cc
                  src/cru-table.cc
                  src/cru-table-ram-map.cc
-                 src/cru-table-ram-sqlite.cc
                  src/file-discovery.cc
                  src/hub.cc
                  src/ipc.cc
-                 src/local-transaction.cc
                  src/logical-time.cc
                  src/message.cc
                  src/net-table.cc
@@ -56,7 +54,8 @@ SET(CORE_SOURCE  src/cache-base.cc
                  src/sqlite-interface.cc
                  src/table-descriptor.cc
                  src/transaction.cc
-                 src/unique-id.cc)
+                 src/unique-id.cc
+                 src/visual-frame-resource-loader.cc)
                  
 cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
 # we need to add dependencies of external project packages to fetch headers
@@ -76,6 +75,9 @@ target_link_libraries(discovery-server ${PROJECT_NAME})
 ##########
 # GTESTS #
 ##########
+file(COPY test/test-data DESTINATION 
+       ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
+
 cs_add_library(${PROJECT_NAME}_test STATIC test/map_api_multiprocess_fixture.cc)
 target_link_libraries(${PROJECT_NAME}_test ${PROJECT_NAME} gtest pthread)
 
@@ -112,6 +114,10 @@ target_link_libraries(test_hub_test ${PROJECT_NAME}_test)
 
 catkin_add_gtest(test_proto_table_file_io_test test/proto_table_file_io_test.cc)
 target_link_libraries(test_proto_table_file_io_test ${PROJECT_NAME}_test)
+
+catkin_add_gtest(test_visual_frame_resource_loader_test test/visual-frame-resource-loader-test.cc WORKING_DIRECTORY
+                 ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
+target_link_libraries(test_visual_frame_resource_loader_test ${PROJECT_NAME}_test)
 
 ##########
 # EXPORT #

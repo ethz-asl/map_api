@@ -62,13 +62,16 @@ class NetTable {
   template <typename IdType>
   void registerItemInSpace(const IdType& id,
                            const SpatialIndex::BoundingBox& bounding_box);
+  void getChunkReferencesInBoundingBox(
+      const SpatialIndex::BoundingBox& bounding_box,
+      std::unordered_set<Id>* chunk_ids);
   void getChunksInBoundingBox(const SpatialIndex::BoundingBox& bounding_box);
   void getChunksInBoundingBox(const SpatialIndex::BoundingBox& bounding_box,
                               std::unordered_set<Chunk*>* chunks);
 
   // RETRIEVAL (locking all chunks)
   template <typename ValueType>
-  CRTable::RevisionMap lockFind(const std::string& key, const ValueType& value,
+  CRTable::RevisionMap lockFind(int key, const ValueType& value,
                                 const LogicalTime& time);
 
   void dumpActiveChunks(const LogicalTime& time,
@@ -120,7 +123,8 @@ class NetTable {
       const proto::InitRequest& request, const PeerId& sender,
       Message* response);
   void handleInsertRequest(
-      const Id& chunk_id, const Revision& item, Message* response);
+      const Id& chunk_id, const std::shared_ptr<Revision>& item,
+      Message* response);
   void handleLeaveRequest(
       const Id& chunk_id, const PeerId& leaver, Message* response);
   void handleLockRequest(
@@ -131,8 +135,8 @@ class NetTable {
   void handleUnlockRequest(
       const Id& chunk_id, const PeerId& locker, Message* response);
   void handleUpdateRequest(
-      const Id& chunk_id, const Revision& item, const PeerId& sender,
-      Message* response);
+      const Id& chunk_id, const std::shared_ptr<Revision>& item,
+      const PeerId& sender, Message* response);
 
   void handleRoutedNetTableChordRequests(const Message& request,
                                          Message* response);
@@ -145,18 +149,19 @@ class NetTable {
   NetTable& operator =(const NetTable&) = delete;
   friend class NetTableManager;
 
-  bool insert(const LogicalTime& time, Chunk* chunk, Revision* query);
+  bool insert(const LogicalTime& time, Chunk* chunk,
+              const std::shared_ptr<Revision>& query);
   /**
    * Must not change the chunk id. TODO(tcies) immutable fields of Revisions
    * could be nice and simple to implement
    */
-  bool update(Revision* query);
+  bool update(const std::shared_ptr<Revision>& query);
   /**
    * getById even though the corresponding chunk isn't locked
    * TODO(tcies) probably requires mutex on a data level
    */
   template <typename IdType>
-  std::shared_ptr<Revision> getByIdInconsistent(
+  std::shared_ptr<const Revision> getByIdInconsistent(
       const IdType& id, const LogicalTime& time);
 
   void readLockActiveChunks();

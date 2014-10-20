@@ -67,7 +67,7 @@ bool ChunkTransaction::check() {
   std::unordered_map<Id, LogicalTime> stamps;
   prepareCheck(LogicalTime::sample(), &stamps);
   // The following check may be left out if too costly
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
+  for (const std::pair<const Id, std::shared_ptr<const Revision> >& item :
        insertions_) {
     if (stamps.find(item.first) != stamps.end()) {
       LOG(ERROR) << "Table " << chunk_->underlying_table_->name()
@@ -75,20 +75,23 @@ bool ChunkTransaction::check() {
       return false;
     }
   }
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& item : updates_) {
+  for (const std::pair<const Id,
+      std::shared_ptr<const Revision> >& item : updates_) {
     if (stamps[item.first] >= begin_time_) {
       return false;
     }
   }
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& item : removes_) {
+  for (const std::pair<const Id,
+      std::shared_ptr<const Revision> >& item : removes_) {
     if (stamps[item.first] >= begin_time_) {
       return false;
     }
   }
   for (const ChunkTransaction::ConflictCondition& item : conflict_conditions_) {
     CRTable::RevisionMap dummy;
-    if (chunk_->underlying_table_->findByRevision(
-            item.key, *item.value_holder, LogicalTime::sample(), &dummy) > 0) {
+    chunk_->underlying_table_->findByRevision(
+                item.key, *item.value_holder, LogicalTime::sample(), &dummy);
+    if (!dummy.empty()) {
       return false;
     }
   }
@@ -99,19 +102,21 @@ void ChunkTransaction::checkedCommit(const LogicalTime& time) {
   InsertMap::iterator iter;
   for (iter = insertions_.begin(); iter != insertions_.end();) {
     if (removes_.count(iter->first) > 0u) {
-      insertions_.erase(iter++);
+      iter = insertions_.erase(iter);
     } else {
       ++iter;
     }
   }
   chunk_->bulkInsertLocked(insertions_, time);
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& item : updates_) {
+  for (const std::pair<const Id,
+      std::shared_ptr<Revision> >& item : updates_) {
     if (removes_.count(item.first) == 0u) {
-      chunk_->updateLocked(time, item.second.get());
+      chunk_->updateLocked(time, item.second);
     }
   }
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& item : removes_) {
-    chunk_->removeLocked(time, item.second.get());
+  for (const std::pair<const Id,
+      std::shared_ptr<Revision> >& item : removes_) {
+    chunk_->removeLocked(time, item.second);
   }
 }
 
@@ -127,12 +132,12 @@ void ChunkTransaction::merge(
   std::unordered_map<Id, LogicalTime> stamps;
   prepareCheck(merge_transaction->begin_time_, &stamps);
   // The following check may be left out if too costly
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& item :
+  for (const typename CRTable::NonConstRevisionMap::value_type& item :
        insertions_) {
     CHECK(stamps.find(item.first) == stamps.end()) << "Insert conflict!";
     merge_transaction->insertions_.insert(item);
   }
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& item : updates_) {
+  for (const typename CRTable::NonConstRevisionMap::value_type& item : updates_) {
     if (stamps[item.first] >= begin_time_) {
       conflicts->push_back(
           {merge_transaction->getById(item.first), item.second});
@@ -140,7 +145,7 @@ void ChunkTransaction::merge(
       merge_transaction->updates_.insert(item);
     }
   }
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& item : removes_) {
+  for (const typename CRTable::NonConstRevisionMap::value_type& item : removes_) {
     if (stamps[item.first] >= begin_time_) {
       conflicts->push_back(
           {merge_transaction->getById(item.first), item.second});

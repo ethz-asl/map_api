@@ -14,8 +14,8 @@ void ChunkTransaction::addConflictCondition(int key, const ValueType& value) {
 }
 
 template <typename IdType>
-std::shared_ptr<Revision> ChunkTransaction::getById(const IdType& id) {
-  std::shared_ptr<Revision> result = getByIdFromUncommitted(id);
+std::shared_ptr<const Revision> ChunkTransaction::getById(const IdType& id) {
+  std::shared_ptr<const Revision> result = getByIdFromUncommitted(id);
   if (result != nullptr) {
     return result;
   }
@@ -26,7 +26,7 @@ std::shared_ptr<Revision> ChunkTransaction::getById(const IdType& id) {
 }
 
 template <typename IdType>
-std::shared_ptr<Revision> ChunkTransaction::getByIdFromUncommitted(
+std::shared_ptr<const Revision> ChunkTransaction::getByIdFromUncommitted(
     const IdType& id) const {
   UpdateMap::const_iterator updated = updates_.find(id);
   if (updated != updates_.end()) {
@@ -40,12 +40,12 @@ std::shared_ptr<Revision> ChunkTransaction::getByIdFromUncommitted(
 }
 
 template <typename ValueType>
-std::shared_ptr<Revision> ChunkTransaction::findUnique(int key,
-                                                       const ValueType& value) {
+std::shared_ptr<const Revision> ChunkTransaction::findUnique(
+    int key, const ValueType& value) {
   // FIXME(tcies) also search in uncommitted
-  std::shared_ptr<Revision> result;
   chunk_->readLock();
-  result = chunk_->underlying_table_->findUnique(key, value, begin_time_);
+  std::shared_ptr<const Revision> result =
+      chunk_->underlying_table_->findUnique(key, value, begin_time_);
   chunk_->unlock();
   return result;
 }

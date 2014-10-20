@@ -29,20 +29,32 @@ class CRTable {
     CR,
     CRU
   };
-  class RevisionMap
-      : public std::unordered_map<Id, std::shared_ptr<Revision> > {
+
+  template <typename RevisionType>
+  class RevisionMapBase
+      : public std::unordered_map<Id, std::shared_ptr<RevisionType> > {
    public:
-    using std::unordered_map<Id, std::shared_ptr<Revision> >::find;
+    typedef std::unordered_map<Id, std::shared_ptr<RevisionType> > Base;
+    typedef typename Base::iterator iterator;
+    typedef typename Base::const_iterator const_iterator;
+
+    using Base::find;
     template <typename Derived>
     iterator find(const UniqueId<Derived>& key);
     template <typename Derived>
     const_iterator find(const UniqueId<Derived>& key) const;
-    using std::unordered_map<Id, std::shared_ptr<Revision> >::insert;
-    std::pair<iterator, bool> insert(const std::shared_ptr<Revision>& revision);
+
+    using Base::insert;
+    std::pair<iterator, bool> insert(
+        const std::shared_ptr<RevisionType>& revision);
     template <typename Derived>
-    std::pair<iterator, bool> insert(const UniqueId<Derived>& key,
-                                     const std::shared_ptr<Revision>& revision);
+    std::pair<typename Base::iterator, bool> insert(
+        const UniqueId<Derived>& key,
+        const std::shared_ptr<RevisionType>& revision);
   };
+  typedef RevisionMapBase<const Revision> RevisionMap;
+  typedef RevisionMapBase<Revision> NonConstRevisionMap;
+
   /**
    * Default fields
    */
@@ -94,48 +106,51 @@ class CRTable {
    * for singular transaction commit times.
    * TODO(tcies) make void where possible
    */
-  virtual bool insert(const LogicalTime& time, Revision* query) final;
-  virtual bool bulkInsert(const RevisionMap& query) final;
-  virtual bool bulkInsert(const RevisionMap& query,
+  virtual bool insert(const LogicalTime& time,
+                      const std::shared_ptr<Revision>& query) final;
+  virtual bool bulkInsert(const NonConstRevisionMap& query) final;
+  virtual bool bulkInsert(const NonConstRevisionMap& query,
                           const LogicalTime& time) final;
   /**
    * Unlike insert, patch does not modify the query, but assumes that all
    * default values are set correctly.
    */
-  virtual bool patch(const Revision& revision) final;
+  virtual bool patch(const std::shared_ptr<Revision>& revision) final;
   /**
    * Returns revision of item that has been current at "time" or an invalid
    * pointer if the item hasn't been inserted at "time"
    */
   template <typename IdType>
-  std::shared_ptr<Revision> getById(const IdType& id, const LogicalTime& time);
+  std::shared_ptr<const Revision> getById(const IdType& id,
+                                          const LogicalTime& time) const;
 
   template <typename IdType>
   void getAvailableIds(const LogicalTime& time,
-                       std::unordered_set<IdType>* ids);
+                       std::unordered_set<IdType>* ids) const;
   /**
    * Puts all items that match key = value at time into dest and returns the
    * amount of items in dest.
    * If "key" is -1, no filter will be applied
    */
   template <typename ValueType>
-  int find(int key, const ValueType& value, const LogicalTime& time,
-           RevisionMap* dest);
+  void find(int key, const ValueType& value, const LogicalTime& time,
+            RevisionMap* dest) const;
   void dumpChunk(const Id& chunk_id, const LogicalTime& time,
-                 RevisionMap* dest);
+                 RevisionMap* dest) const;
 
   /**
    * Same as find() but not typed. Value is looked up in the corresponding field
    * of valueHolder.
    */
-  virtual int findByRevision(int key, const Revision& valueHolder,
-                             const LogicalTime& time, RevisionMap* dest) final;
+  virtual void findByRevision(
+      int key, const Revision& valueHolder,
+      const LogicalTime& time, RevisionMap* dest) const final;
   /**
    * Same as find() but makes the assumption that there is only one result.
    */
   template <typename ValueType>
-  std::shared_ptr<Revision> findUnique(int key, const ValueType& value,
-                                       const LogicalTime& time);
+  std::shared_ptr<const Revision> findUnique(
+      int key, const ValueType& value, const LogicalTime& time) const;
 
   /**
    * Same as count() but not typed. Value is looked up in the corresponding
@@ -143,17 +158,17 @@ class CRTable {
    * of valueHolder.
    */
   virtual int countByRevision(int key, const Revision& valueHolder,
-                              const LogicalTime& time) final;
+                              const LogicalTime& time) const final;
 
-  virtual void dump(const LogicalTime& time, RevisionMap* dest) final;
+  virtual void dump(const LogicalTime& time, RevisionMap* dest) const final;
 
   /**
    * Count all items that match key = value at time.
    * If "key" is an empty string, no filter will be applied.
    */
   template <typename ValueType>
-  int count(int key, const ValueType& value, const LogicalTime& time);
-  int countByChunk(const Id& id, const LogicalTime& time);
+  int count(int key, const ValueType& value, const LogicalTime& time) const;
+  int countByChunk(const Id& id, const LogicalTime& time) const;
 
   /**
    * The following struct can be used to automatically supply table name and
@@ -181,30 +196,31 @@ class CRTable {
    * Do here whatever is specific to initializing the derived type
    */
   virtual bool initCRDerived() = 0;
-  virtual bool insertCRDerived(const LogicalTime& time, Revision* query) = 0;
-  virtual bool bulkInsertCRDerived(const RevisionMap& query,
+  virtual bool insertCRDerived(const LogicalTime& time,
+                               const std::shared_ptr<Revision>& query) = 0;
+  virtual bool bulkInsertCRDerived(const NonConstRevisionMap& query,
                                    const LogicalTime& time) = 0;
-  virtual bool patchCRDerived(const Revision& query) = 0;
-  virtual std::shared_ptr<Revision> getByIdCRDerived(
+  virtual bool patchCRDerived(const std::shared_ptr<Revision>& query) = 0;
+  virtual std::shared_ptr<const Revision> getByIdCRDerived(
       const Id& id, const LogicalTime& time) const = 0;
   virtual void dumpChunkCRDerived(const Id& chunk_id, const LogicalTime& time,
-                                  RevisionMap* dest) = 0;
+                                  RevisionMap* dest) const = 0;
   /**
    * If key is -1, this should return all the data in the table.
    */
-  virtual int findByRevisionCRDerived(int key, const Revision& valueHolder,
-                                      const LogicalTime& time,
-                                      RevisionMap* dest) = 0;
+  virtual void findByRevisionCRDerived(int key, const Revision& valueHolder,
+                                       const LogicalTime& time,
+                                       RevisionMap* dest) const = 0;
   virtual void getAvailableIdsCRDerived(const LogicalTime& time,
-                                        std::unordered_set<Id>* ids) = 0;
+                                        std::unordered_set<Id>* ids) const = 0;
 
   /**
    * If key is an empty string, this should return all the data in the table.
    */
   virtual int countByRevisionCRDerived(int key, const Revision& valueHolder,
-                                       const LogicalTime& time) = 0;
+                                       const LogicalTime& time) const = 0;
   virtual int countByChunkCRDerived(const Id& chunk_id,
-                                    const LogicalTime& time) = 0;
+                                    const LogicalTime& time) const = 0;
 
   bool initialized_ = false;
 };
