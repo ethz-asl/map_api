@@ -1,13 +1,11 @@
 #ifndef MAP_API_CR_TABLE_H_
 #define MAP_API_CR_TABLE_H_
 
-#include <vector>
 #include <memory>
-#include <map>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include <Poco/Data/Common.h>
 #include <gflags/gflags.h>
@@ -126,7 +124,7 @@ class CRTable {
 
   template <typename IdType>
   void getAvailableIds(const LogicalTime& time,
-                       std::unordered_set<IdType>* ids) const;
+                       std::vector<IdType>* ids) const;
   /**
    * Puts all items that match key = value at time into dest and returns the
    * amount of items in dest.
@@ -212,7 +210,7 @@ class CRTable {
                                        const LogicalTime& time,
                                        RevisionMap* dest) const = 0;
   virtual void getAvailableIdsCRDerived(const LogicalTime& time,
-                                        std::unordered_set<Id>* ids) const = 0;
+                                        std::vector<Id>* ids) const = 0;
 
   /**
    * If key is an empty string, this should return all the data in the table.

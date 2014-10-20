@@ -59,8 +59,8 @@ TYPED_TEST_P(ProtoSTLStream, FullBlockSizeReturnWorks) {
 
   EXPECT_NE(data, nullptr);
   EXPECT_EQ(TypeParam::value, size);
-  EXPECT_EQ(0, this->pool_.BlockIndex());
-  EXPECT_EQ(TypeParam::value, this->pool_.PositionInCurrentBlock());
+  EXPECT_EQ(1, this->pool_.BlockIndex());
+  EXPECT_EQ(0, this->pool_.PositionInCurrentBlock());
 }
 
 TYPED_TEST_P(ProtoSTLStream, BackupWorks) {
@@ -79,7 +79,7 @@ TYPED_TEST_P(ProtoSTLStream, BackupWorks) {
 
   EXPECT_EQ(data1 + TypeParam::value - 2, data2);
   EXPECT_EQ(2, size);
-  EXPECT_EQ(TypeParam::value, this->pool_.PositionInCurrentBlock());
+  EXPECT_EQ(0, this->pool_.PositionInCurrentBlock());
 }
 
 TYPED_TEST_P(ProtoSTLStream, BackupOverBlockBoundsWorks) {
@@ -88,10 +88,10 @@ TYPED_TEST_P(ProtoSTLStream, BackupOverBlockBoundsWorks) {
   unsigned char* data1 = nullptr;
   int size = 0;
   this->pool_.Next(&data1, &size);
-  EXPECT_EQ(0, this->pool_.BlockIndex());
+  EXPECT_EQ(1, this->pool_.BlockIndex());
   unsigned char* data2 = nullptr;
   this->pool_.Next(&data2, &size);
-  EXPECT_EQ(1, this->pool_.BlockIndex());
+  EXPECT_EQ(2, this->pool_.BlockIndex());
 
   this->pool_.BackUp(TypeParam::value + 2);
   EXPECT_EQ(TypeParam::value - 2, this->pool_.PositionInCurrentBlock());
@@ -100,8 +100,8 @@ TYPED_TEST_P(ProtoSTLStream, BackupOverBlockBoundsWorks) {
   unsigned char* data3 = nullptr;
   this->pool_.Next(&data3, &size);
 
-  EXPECT_EQ(0, this->pool_.BlockIndex());
-  EXPECT_EQ(TypeParam::value, this->pool_.PositionInCurrentBlock());
+  EXPECT_EQ(1, this->pool_.BlockIndex());
+  EXPECT_EQ(0, this->pool_.PositionInCurrentBlock());
   EXPECT_EQ(data1 + TypeParam::value - 2, data3);
   EXPECT_EQ(2, size);
 }
@@ -139,9 +139,9 @@ TYPED_TEST_P(ProtoSTLStream, SizeWorks) {
   unsigned char* data = nullptr;
   int size = 0;
   this->pool_.Next(&data, &size);
-  EXPECT_EQ(this->pool_.Size(), 1);
-  this->pool_.Next(&data, &size);
   EXPECT_EQ(this->pool_.Size(), 2);
+  this->pool_.Next(&data, &size);
+  EXPECT_EQ(this->pool_.Size(), 3);
 }
 
 TYPED_TEST_P(ProtoSTLStream, IsIndexInBoundsWorks) {
@@ -195,8 +195,8 @@ TYPED_TEST_P(ProtoSTLStream, OutputStreamNextWorks) {
 
   EXPECT_NE(data0, nullptr);
   EXPECT_EQ(TypeParam::value, size0);
-  EXPECT_EQ(0, this->pool_.BlockIndex());
-  EXPECT_EQ(TypeParam::value, this->pool_.PositionInCurrentBlock());
+  EXPECT_EQ(1, this->pool_.BlockIndex());
+  EXPECT_EQ(0, this->pool_.PositionInCurrentBlock());
 
   unsigned char* data1 = nullptr;
   int size1 = 0;
@@ -224,7 +224,7 @@ TYPED_TEST_P(ProtoSTLStream, OutputStreamBackUpWorks) {
 
   EXPECT_EQ(data0 + TypeParam::value - 2, data1);
   EXPECT_EQ(2, size1);
-  EXPECT_EQ(TypeParam::value, this->pool_.PositionInCurrentBlock());
+  EXPECT_EQ(0, this->pool_.PositionInCurrentBlock());
 }
 
 TYPED_TEST_P(ProtoSTLStream, InputStreamByteCountWorks) {
