@@ -2,6 +2,7 @@
 #define MAP_API_UNIQUE_ID_H_
 #include <atomic>
 #include <string>
+#include <vector>
 
 #include <glog/logging.h>
 #include <map-api/hub.h>
@@ -144,14 +145,14 @@ UNIQUE_ID_DEFINE_ID_HASH(map_api::GlobalResourceId);
 
 namespace std {
 inline ostream& operator<<(ostream& out, const map_api::Id& hash) {
-  out << "Id(" << hash.hexString().substr(0, kDefaultIDPrintLength) << ")";
+  out << hash.hexString().substr(0, kDefaultIDPrintLength);
   return out;
 }
 
 template <typename IdType>
 inline ostream& operator<<(ostream& out,
                            const map_api::UniqueId<IdType>& hash) {
-  out << "Id(" << hash.hexString().substr(0, kDefaultIDPrintLength) << ")";
+  out << hash.hexString().substr(0, kDefaultIDPrintLength);
   return out;
 }
 

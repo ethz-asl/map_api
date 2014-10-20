@@ -79,7 +79,7 @@ class NetTable {
   void dumpActiveChunksAtCurrentTime(CRTable::RevisionMap* destination);
   template <typename IdType>
   void getAvailableIds(const LogicalTime& time,
-                       std::unordered_set<IdType>* ids);
+                       std::vector<IdType>* ids);
 
   /**
    * Connects to the given chunk via the given peer.

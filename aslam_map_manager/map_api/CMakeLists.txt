@@ -33,8 +33,10 @@ SET(CORE_SOURCE  src/cache-base.cc
                  src/core.cc
                  src/cr-table.cc
                  src/cr-table-ram-map.cc
+                 src/cr-table-stxxl-map.cc
                  src/cru-table.cc
                  src/cru-table-ram-map.cc
+                 src/cru-table-stxxl-map.cc
                  src/file-discovery.cc
                  src/hub.cc
                  src/ipc.cc

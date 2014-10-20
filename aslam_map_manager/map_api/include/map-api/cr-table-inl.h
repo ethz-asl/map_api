@@ -1,9 +1,9 @@
 #ifndef MAP_API_CR_TABLE_INL_H_
 #define MAP_API_CR_TABLE_INL_H_
-
-#include <string>
 #include <sstream>  // NOLINT
+#include <string>
 #include <utility>
+#include <vector>
 
 namespace map_api {
 
@@ -21,15 +21,15 @@ std::shared_ptr<const Revision> CRTable::getById(
 
 template <typename IdType>
 void CRTable::getAvailableIds(const LogicalTime& time,
-                              std::unordered_set<IdType>* ids) {
+                              std::vector<IdType>* ids) const {
   CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
   CHECK_NOTNULL(ids);
   ids->clear();
-  std::unordered_set<Id> map_api_ids;
+  std::vector<Id> map_api_ids;
   getAvailableIdsCRDerived(time, &map_api_ids);
-  ids->rehash(map_api_ids.size());
+  ids->reserve(map_api_ids.size());
   for (const Id& id : map_api_ids) {
-    ids->emplace(id.toIdType<IdType>());
+    ids->emplace_back(id.toIdType<IdType>());
   }
 }
 
@@ -80,7 +80,7 @@ CRTable::RevisionMapBase<RevisionType>::insert(
 
 template <typename ValueType>
 void CRTable::find(int key, const ValueType& value, const LogicalTime& time,
-                  RevisionMap* dest) {
+                  RevisionMap* dest) const {
   std::shared_ptr<Revision> valueHolder = this->getTemplate();
   if (key >= 0) {
     valueHolder->set(key, value);
@@ -89,7 +89,8 @@ void CRTable::find(int key, const ValueType& value, const LogicalTime& time,
 }
 
 template <typename ValueType>
-int CRTable::count(int key, const ValueType& value, const LogicalTime& time) {
+int CRTable::count(
+    int key, const ValueType& value, const LogicalTime& time) const {
   std::shared_ptr<Revision> valueHolder = this->getTemplate();
   CHECK(valueHolder != nullptr);
   if (key >= 0) {
@@ -100,7 +101,7 @@ int CRTable::count(int key, const ValueType& value, const LogicalTime& time) {
 
 template <typename ValueType>
 std::shared_ptr<const Revision> CRTable::findUnique(
-    int key, const ValueType& value, const LogicalTime& time) {
+    int key, const ValueType& value, const LogicalTime& time) const {
   RevisionMap results;
   find(key, value, time, &results);
   int count = results.size();
