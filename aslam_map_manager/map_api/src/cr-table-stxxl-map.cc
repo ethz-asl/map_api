@@ -30,7 +30,7 @@ bool CRTableSTXXLMap::bulkInsertCRDerived(const NonConstRevisionMap& query,
 
 bool CRTableSTXXLMap::patchCRDerived(const std::shared_ptr<Revision>& query) {
   CHECK(query != nullptr);
-  RevisionInformation revision_information;
+  CRRevisionInformation revision_information;
   CHECK(revision_store_.storeRevision(*query, &revision_information));
   return data_.emplace(query->getId<Id>(), revision_information).second;
 }
@@ -83,7 +83,7 @@ void CRTableSTXXLMap::getAvailableIdsCRDerived(
     const LogicalTime& time, std::vector<Id>* ids) const {
   CHECK_NOTNULL(ids);
   ids->clear();
-  std::vector<std::pair<Id, RevisionInformation> > ids_and_info;
+  std::vector<std::pair<Id, CRRevisionInformation> > ids_and_info;
   ids_and_info.reserve(data_.size());
   for (const MapType::value_type& pair : data_) {
     if (pair.second.insert_time_ <= time) {
@@ -91,8 +91,8 @@ void CRTableSTXXLMap::getAvailableIdsCRDerived(
     }
   }
   std::sort(ids_and_info.begin(), ids_and_info.end(),
-            [] (const std::pair<Id, RevisionInformation>& lhs,
-                 const std::pair<Id, RevisionInformation>& rhs) {
+            [] (const std::pair<Id, CRRevisionInformation>& lhs,
+                 const std::pair<Id, CRRevisionInformation>& rhs) {
     return lhs.second.memory_block_ < rhs.second.memory_block_;
   });
   ids->reserve(ids_and_info.size());

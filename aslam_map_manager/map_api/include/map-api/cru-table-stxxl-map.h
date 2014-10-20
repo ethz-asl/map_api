@@ -57,7 +57,7 @@ class CRUTableSTXXLMap : public CRUTable {
           void(const Id& id, const Revision& item)>& action) const;
   inline void trimToTime(const LogicalTime& time, HistoryMap* subject) const;
 
-  class STXXLHistory : public std::list<RevisionInformation> {
+  class STXXLHistory : public std::list<CRURevisionInformation> {
    public:
     inline const_iterator latestAt(const LogicalTime& time) const {
       for (const_iterator it = cbegin(); it != cend(); ++it) {
