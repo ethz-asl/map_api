@@ -2,6 +2,7 @@
 #define MAP_API_STXXL_REVISION_STORE_H_
 #include <memory>
 #include <mutex>
+#include <vector>
 
 #include <stxxl.h>
 
@@ -9,20 +10,38 @@
 #include <map-api/revision.h>
 
 namespace map_api {
-struct RevisionInformation {
+struct CRRevisionInformation {
   MemoryBlockInformation memory_block_;
+  // Cache information which is frequently accessed.
+  virtual void SetFromRevision(const Revision& revision) {
+    insert_time_ = revision.getInsertTime();
+    chunk_id_ = revision.getChunkId();
+  }
   LogicalTime insert_time_;
+  Id chunk_id_;
 };
+struct CRURevisionInformation : public CRRevisionInformation {
+  // Cache information which is frequently accessed.
+  virtual void SetFromRevision(const Revision& revision) {
+    CRRevisionInformation::SetFromRevision(revision);
+    update_time_ = revision.getModificationTime();
+    is_removed_ = revision.isRemoved();
+  }
+  LogicalTime update_time_;
+  bool is_removed_;
+};
+
+static constexpr int kSTXXLDefaultBlockSize = 128;
 
 template<int BlockSize>
 class STXXLRevisionStore {
  public:
   inline bool storeRevision(const Revision& revision,
-                            RevisionInformation* revision_info) {
+                            CRRevisionInformation* revision_info) {
     CHECK_NOTNULL(revision_info);
 
     std::unique_lock<std::mutex> lock(mutex_);
-    revision_info->insert_time_ = revision.getInsertTime();
+    revision_info->SetFromRevision(revision);
     STLContainerOutputStream<BlockSize, ContainerType> output_stream(
         &proto_revision_pool_);
 
@@ -33,7 +52,7 @@ class STXXLRevisionStore {
   }
 
   inline bool retrieveRevision(
-      const RevisionInformation& revision_info,
+      const CRRevisionInformation& revision_info,
       std::shared_ptr<const Revision>* revision) const {
     CHECK_NOTNULL(revision);
     std::unique_lock<std::mutex> lock(mutex_);
@@ -53,8 +72,21 @@ class STXXLRevisionStore {
   }
 
  private:
+  template<typename ValueType, unsigned PageSize = 4, unsigned CachePages = 8,
+      unsigned BlockSizeStxxl = STXXL_DEFAULT_BLOCK_SIZE(ValueType),
+      typename AllocStr = STXXL_DEFAULT_ALLOC_STRATEGY,
+      stxxl::pager_type Pager = stxxl::lru>
+  struct VectorGenerator {
+    typedef typename stxxl::IF<Pager == stxxl::lru,
+        stxxl::lru_pager<CachePages>,
+        stxxl::random_pager<CachePages> >::result PagerType;
+
+    typedef stxxl::vector<ValueType, PageSize, PagerType, BlockSizeStxxl,
+        AllocStr> result;
+  };
+
   template<class T, class A> using ContainerType =
-  typename stxxl::VECTOR_GENERATOR<T>::result;
+  typename VectorGenerator<T>::result;
   mutable MemoryBlockPool<BlockSize, ContainerType> proto_revision_pool_;
   mutable std::mutex mutex_;
 };

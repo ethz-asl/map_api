@@ -71,12 +71,12 @@ std::shared_ptr<const Revision> CRTableRamMap::getByIdCRDerived(
 }
 
 void CRTableRamMap::getAvailableIdsCRDerived(
-    const LogicalTime& time, std::unordered_set<Id>* ids) const {
+    const LogicalTime& time, std::vector<Id>* ids) const {
   CHECK_NOTNULL(ids);
-  ids->rehash(data_.size());
+  ids->reserve(data_.size());
   for (const MapType::value_type& pair : data_) {
     if (pair.second->getInsertTime() <= time) {
-      ids->insert(pair.first);
+      ids->emplace_back(pair.first);
     }
   }
 }

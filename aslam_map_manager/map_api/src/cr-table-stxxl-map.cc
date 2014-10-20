@@ -30,7 +30,7 @@ bool CRTableSTXXLMap::bulkInsertCRDerived(const NonConstRevisionMap& query,
 
 bool CRTableSTXXLMap::patchCRDerived(const std::shared_ptr<Revision>& query) {
   CHECK(query != nullptr);
-  RevisionInformation revision_information;
+  CRRevisionInformation revision_information;
   CHECK(revision_store_.storeRevision(*query, &revision_information));
   return data_.emplace(query->getId<Id>(), revision_information).second;
 }
@@ -80,13 +80,24 @@ std::shared_ptr<const Revision> CRTableSTXXLMap::getByIdCRDerived(
 }
 
 void CRTableSTXXLMap::getAvailableIdsCRDerived(
-    const LogicalTime& time, std::unordered_set<Id>* ids) const {
+    const LogicalTime& time, std::vector<Id>* ids) const {
   CHECK_NOTNULL(ids);
-  ids->rehash(data_.size());
+  ids->clear();
+  std::vector<std::pair<Id, CRRevisionInformation> > ids_and_info;
+  ids_and_info.reserve(data_.size());
   for (const MapType::value_type& pair : data_) {
     if (pair.second.insert_time_ <= time) {
-      ids->insert(pair.first);
+      ids_and_info.emplace_back(pair);
     }
+  }
+  std::sort(ids_and_info.begin(), ids_and_info.end(),
+            [] (const std::pair<Id, CRRevisionInformation>& lhs,
+                 const std::pair<Id, CRRevisionInformation>& rhs) {
+    return lhs.second.memory_block_ < rhs.second.memory_block_;
+  });
+  ids->reserve(ids_and_info.size());
+  for (const MapType::value_type& pair : ids_and_info) {
+    ids->emplace_back(pair.first);
   }
 }
 
@@ -111,11 +122,8 @@ int CRTableSTXXLMap::countByChunkCRDerived(const Id& chunk_id,
                                            const LogicalTime& time) const {
   int count = 0;
   for (const MapType::value_type& pair : data_) {
-    // TODO(slynen): Consider caching the data necessary for the checks.
-    std::shared_ptr<const Revision> revision;
-    CHECK(revision_store_.retrieveRevision(pair.second, &revision));
-    if (revision->getChunkId() == chunk_id) {
-      if (revision->getInsertTime() <= time) {
+    if (pair.second.chunk_id_ == chunk_id) {
+      if (pair.second.insert_time_ <= time) {
         ++count;
       }
     }

@@ -15,6 +15,7 @@
 #include "map-api/cr-table-ram-map.h"
 #include "map-api/cr-table-stxxl-map.h"
 #include "map-api/cru-table-ram-map.h"
+#include "map-api/cru-table-stxxl-map.h"
 #include "map-api/logical-time.h"
 #include "map-api/unique-id.h"
 
@@ -32,10 +33,8 @@ class TableInterfaceTest : public ::testing::Test {
   virtual void TearDown() final override { Core::instance()->kill(); }
 };
 
-// TODO(slynen) Add external memory to tests.
 typedef ::testing::Types<
-    CRTableSTXXLMap,
-    //    CRUTableRamSqlite,
+    CRTableSTXXLMap, CRUTableSTXXLMap,
     CRTableRamMap, CRUTableRamMap> TableTypes;
 TYPED_TEST_CASE(TableInterfaceTest, TableTypes);
 
@@ -236,9 +235,9 @@ class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
 template <typename TableType>
 class IntTestWithInit
     : public FieldTestWithInit<TableDataTypes<TableType, int64_t>> {
-};  // NOLINT
+};
 
-// TODO(slynen) extend tests to external memory.
+template <typename TableType>
 class CruMapIntTestWithInit
     : public UpdateFieldTestWithInit<TableDataTypes<CRUTableRamMap, int64_t>> {
 };
@@ -257,21 +256,21 @@ class CruMapIntTestWithInit
       TableDataTypes<table_type, int64_t>,                                     \
       TableDataTypes<table_type, map_api::LogicalTime>
 
-// TODO(slynen) Add external memory tables.
 typedef ::testing::Types<
     ALL_DATA_TYPES(CRTableSTXXLMap),
     ALL_DATA_TYPES(CRTableRamMap),
-    //                         ALL_DATA_TYPES(CRUTableRamSqlite),
+    ALL_DATA_TYPES(CRUTableSTXXLMap),
     ALL_DATA_TYPES(CRUTableRamMap)> CrAndCruTypes;
 
 typedef ::testing::Types<
-    //    ALL_DATA_TYPES(CRUTableRamSqlite),
+    ALL_DATA_TYPES(CRUTableSTXXLMap),
     ALL_DATA_TYPES(CRUTableRamMap)> CruTypes;
 
 TYPED_TEST_CASE(FieldTestWithoutInit, CrAndCruTypes);
 TYPED_TEST_CASE(FieldTestWithInit, CrAndCruTypes);
 TYPED_TEST_CASE(UpdateFieldTestWithInit, CruTypes);
 TYPED_TEST_CASE(IntTestWithInit, TableTypes);
+TYPED_TEST_CASE(CruMapIntTestWithInit, CruTypes);
 
 TYPED_TEST(FieldTestWithInit, Init) {
   EXPECT_EQ(1, this->getTemplate()->customFieldCount());
@@ -374,50 +373,52 @@ TYPED_TEST(IntTestWithInit, CreateReadThousand) {
   LOG(INFO) << timing::Timing::Print();
 }
 
-TEST_F(CruMapIntTestWithInit, HistoryAtTime) {
+TYPED_TEST(CruMapIntTestWithInit, HistoryAtTime) {
+  typedef FieldTestTable<TypeParam> FieldTestTableType;
   constexpr int64_t kFirst = 42, kSecond = 21, kThird = 84;
-  Id id = fillRevision(kFirst);
-  ASSERT_TRUE(insertRevision());
-  getRevision(id);
-  ASSERT_TRUE(query_.get() != nullptr);
-  query_->set(FieldTestTableType::kTestField, kSecond);
-  ASSERT_TRUE(updateRevision());
+  Id id = this->fillRevision(kFirst);
+  ASSERT_TRUE(this->insertRevision());
+  this->getRevision(id);
+  ASSERT_TRUE(this->query_.get() != nullptr);
+  this->query_->set(FieldTestTableType::kTestField, kSecond);
+  ASSERT_TRUE(this->updateRevision());
   LogicalTime before_third = LogicalTime::sample();
-  getRevision(id);
-  ASSERT_TRUE(query_.get() != nullptr);
-  query_->set(FieldTestTableType::kTestField, kThird);
-  ASSERT_TRUE(updateRevision());
+  this->getRevision(id);
+  ASSERT_TRUE(this->query_.get() != nullptr);
+  this->query_->set(FieldTestTableType::kTestField, kThird);
+  ASSERT_TRUE(this->updateRevision());
 
   CRUTable::History old_history;
-  table_->itemHistory(id, before_third, &old_history);
+  this->table_->itemHistory(id, before_third, &old_history);
   EXPECT_EQ(2, old_history.size());
 
   CRUTable::History new_history;
-  table_->itemHistory(id, LogicalTime::sample(), &new_history);
+  this->table_->itemHistory(id, LogicalTime::sample(), &new_history);
   EXPECT_EQ(3, new_history.size());
 }
 
-TEST_F(CruMapIntTestWithInit, Remove) {
+TYPED_TEST(CruMapIntTestWithInit, Remove) {
+  typedef FieldTestTable<TypeParam> FieldTestTableType;
   constexpr int64_t kValue = 42;
-  fillRevision(kValue);
-  insertRevision();
+  this->fillRevision(kValue);
+  this->insertRevision();
 
-  EXPECT_EQ(1, table_->count(-1, 0, LogicalTime::sample()));
-  std::unordered_set<Id> ids;
-  table_->getAvailableIds(LogicalTime::sample(), &ids);
+  EXPECT_EQ(1, this->table_->count(-1, 0, LogicalTime::sample()));
+  std::vector<Id> ids;
+  this->table_->getAvailableIds(LogicalTime::sample(), &ids);
   EXPECT_EQ(1, ids.size());
   CRTable::RevisionMap result;
-  table_->find(-1, 0, LogicalTime::sample(), &result);
+  this->table_->find(-1, 0, LogicalTime::sample(), &result);
   EXPECT_EQ(1, result.size());
 
   std::shared_ptr<Revision> revision =
       std::make_shared<Revision>(*result.begin()->second);
-  table_->remove(LogicalTime::sample(), revision);
+  this->table_->remove(LogicalTime::sample(), revision);
 
-  EXPECT_EQ(0, table_->count(-1, 0, LogicalTime::sample()));
-  table_->getAvailableIds(LogicalTime::sample(), &ids);
+  EXPECT_EQ(0, this->table_->count(-1, 0, LogicalTime::sample()));
+  this->table_->getAvailableIds(LogicalTime::sample(), &ids);
   EXPECT_EQ(0, ids.size());
-  table_->find(-1, 0, LogicalTime::sample(), &result);
+  this->table_->find(-1, 0, LogicalTime::sample(), &result);
   EXPECT_EQ(0, result.size());
 }
 

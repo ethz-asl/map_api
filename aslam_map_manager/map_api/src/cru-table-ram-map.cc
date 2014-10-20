@@ -90,15 +90,15 @@ void CRUTableRamMap::findByRevisionCRDerived(int key,
 }
 
 void CRUTableRamMap::getAvailableIdsCRDerived(
-    const LogicalTime& time, std::unordered_set<Id>* ids) const {
+    const LogicalTime& time, std::vector<Id>* ids) const {
   CHECK_NOTNULL(ids);
   ids->clear();
-  ids->rehash(data_.size());
+  ids->reserve(data_.size());
   for (const HistoryMap::value_type& pair : data_) {
     History::const_iterator latest = pair.second.latestAt(time);
     if (latest != pair.second.cend()) {
       if (!(*latest)->isRemoved()) {
-        ids->insert(pair.first);
+        ids->emplace_back(pair.first);
       }
     }
   }

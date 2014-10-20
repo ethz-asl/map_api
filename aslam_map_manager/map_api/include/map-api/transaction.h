@@ -1,10 +1,10 @@
 #ifndef MAP_API_TRANSACTION_H_
 #define MAP_API_TRANSACTION_H_
-
-#include <memory>
 #include <map>
+#include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <glog/logging.h>
 
@@ -29,6 +29,7 @@ class Transaction {
   explicit Transaction(const LogicalTime& begin_time);
 
   // READ
+  inline LogicalTime getBeginTime() const { return begin_time_; }
   /**
    * By Id or chunk:
    * Use the overload with chunk specification to increase performance. Use
@@ -43,7 +44,7 @@ class Transaction {
   CRTable::RevisionMap dumpChunk(NetTable* table, Chunk* chunk);
   CRTable::RevisionMap dumpActiveChunks(NetTable* table);
   template <typename IdType>
-  void getAvailableIds(NetTable* table, std::unordered_set<IdType>* ids);
+  void getAvailableIds(NetTable* table, std::vector<IdType>* ids);
   /**
    * By some other field: Searches in ALL active chunks of a table, thus
    * fundamentally differing from getById or dumpChunk.

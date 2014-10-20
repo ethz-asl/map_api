@@ -2,6 +2,7 @@
 #define MAP_API_CR_TABLE_RAM_MAP_H_
 
 #include <string>
+#include <vector>
 
 #include "map-api/cr-table.h"
 
@@ -28,7 +29,7 @@ class CRTableRamMap : public CRTable {
   virtual std::shared_ptr<const Revision> getByIdCRDerived(
       const Id& id, const LogicalTime& time) const final override;
   virtual void getAvailableIdsCRDerived(const LogicalTime& time,
-      std::unordered_set<Id>* ids) const final override;
+      std::vector<Id>* ids) const final override;
   virtual int countByRevisionCRDerived(
       int key, const Revision& valueHolder,
       const LogicalTime& time) const final override;
