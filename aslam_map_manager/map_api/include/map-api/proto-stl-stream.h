@@ -36,8 +36,7 @@ class MemoryBlockPool {
  public:
   typedef MemoryBlock<BlockSize> Block;
 
-  MemoryBlockPool() : block_index_(0),
-      position_in_current_block_(0) { }
+  MemoryBlockPool() : block_index_(0), position_in_current_block_(0) { }
 
   // This interface is called by protobuf to get the next buffer to write to.
   bool Next(unsigned char** data, int* size) {
@@ -135,8 +134,7 @@ class STLContainerInputStream :
   virtual ~STLContainerInputStream() {}
 
   // Uses length-prefix framing for protocol buffers.
-  bool ReadMessage(
-      google::protobuf::Message* message) {
+  bool ReadMessage(google::protobuf::Message* message) {
     CHECK_NOTNULL(message);
 
     // Get the memory where the message size was written to.
