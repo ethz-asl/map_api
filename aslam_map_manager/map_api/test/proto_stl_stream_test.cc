@@ -23,8 +23,9 @@ struct SizeHolder {
 template<class T, class A> using ContainerType =
     typename stxxl::VECTOR_GENERATOR<T>::result;
 
+// Using typed tests to be able to infer the integer block size at compile time.
 template<typename SizeHolder_T>
-class ProtoSTLStream : public ::testing::TestWithParam<int> {
+class ProtoSTLStream : public ::testing::Test {
  protected:
   typedef MemoryBlockPool<SizeHolder_T::value, ContainerType> PoolType;
 

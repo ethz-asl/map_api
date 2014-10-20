@@ -1,5 +1,6 @@
 #ifndef MAP_API_PROTO_STL_STREAM_H_
 #define MAP_API_PROTO_STL_STREAM_H_
+#include <memory>
 #include <mutex>
 
 #include <glog/logging.h>
@@ -145,7 +146,7 @@ class STLContainerInputStream :
     if (status == false) {
       return status;
     }
-    CHECK(data != nullptr);
+    CHECK_NOTNULL(data);
     // Read the message size.
     google::int32 message_size = 0;
     const int kNumBytesForMessageSizeHeader = sizeof(message_size);
@@ -172,7 +173,7 @@ class STLContainerInputStream :
       return status;
     }
     bytes_read_ += *size;
-    block_index_ += 1;
+    ++block_index_;
     byte_offset_ = 0;
     return status;
   }
@@ -221,7 +222,7 @@ class STLContainerOutputStream :
     public google::protobuf::io::ZeroCopyOutputStream {
  public:
   typedef MemoryBlockPool<BlockSize, Container> BlockContainer;
-  STLContainerOutputStream(BlockContainer* block_pool) :
+  explicit STLContainerOutputStream(BlockContainer* block_pool) :
                            bytes_written_(0),
                            block_pool_(CHECK_NOTNULL(block_pool)) { }
 
