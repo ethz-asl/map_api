@@ -1,16 +1,17 @@
-#ifndef MAP_API_CORE_HPP
-#define MAP_API_CORE_HPP
+#ifndef MAP_API_CORE_H_
+#define MAP_API_CORE_H_
 
 #include <memory>
+#include <string>
 
 #include <gtest/gtest.h>
 #include <Poco/Data/Common.h>
 
-#include "map-api/cr-table-ram-sqlite.h"
+#include "map-api/cr-table.h"
 #include "map-api/hub.h"
 #include "map-api/net-table-manager.h"
 #include "map-api/unique-id.h"
-#include "core.pb.h"
+#include "./core.pb.h"
 
 namespace map_api {
 
@@ -60,8 +61,6 @@ class Core final {
    * MapApiCore::init()
    */
   static std::weak_ptr<Poco::Data::Session> getSession();
-  friend class CRTableRamSqlite;
-  friend class CRUTableRamSqlite;
   friend class LocalTransaction;
 
   /**
@@ -79,6 +78,6 @@ class Core final {
   bool initialized_ = false;
   std::mutex initialized_mutex_;
 };
-}
+}  // namespace map_api
 
-#endif  // MAP_API_CORE_HPP
+#endif  // MAP_API_CORE_H_

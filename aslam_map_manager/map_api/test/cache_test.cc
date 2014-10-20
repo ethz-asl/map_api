@@ -52,7 +52,7 @@ TEST_P(NetTableTest, Cache) {
     generateIdFromInt(i + 1, &kId[i]);
     kVal[i].reset(new int(i));
   }
-  std::unordered_set<IntId> id_result;
+  std::vector<IntId> id_result;
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
     transaction.reset(new Transaction);

@@ -7,7 +7,7 @@ namespace map_api {
 
 template <typename ValueType>
 void CRUTable::findHistory(int key, const ValueType& value,
-                           const LogicalTime& time, HistoryMap* dest) {
+                           const LogicalTime& time, HistoryMap* dest) const {
   std::shared_ptr<Revision> valueHolder = this->getTemplate();
   if (key >= 0) {
     valueHolder->set(key, value);
@@ -17,7 +17,7 @@ void CRUTable::findHistory(int key, const ValueType& value,
 
 template <typename IdType>
 void CRUTable::itemHistory(const IdType& id, const LogicalTime& time,
-                           History* dest) {
+                           History* dest) const {
   Id map_api_id;
   sm::HashId hash_id;
   id.toHashId(&hash_id);

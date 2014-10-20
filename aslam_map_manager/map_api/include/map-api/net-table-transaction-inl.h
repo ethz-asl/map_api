@@ -1,7 +1,7 @@
 #ifndef MAP_API_NET_TABLE_TRANSACTION_INL_H_
 #define MAP_API_NET_TABLE_TRANSACTION_INL_H_
-
 #include <string>
+#include <vector>
 
 namespace map_api {
 
@@ -36,14 +36,14 @@ std::shared_ptr<const Revision> NetTableTransaction::getById(
 }
 
 template <typename ValueType>
-CRTable::RevisionMap NetTableTransaction::find(const std::string& key,
+CRTable::RevisionMap NetTableTransaction::find(int key,
                                                const ValueType& value) {
   // TODO(tcies) uncommitted
   return table_->lockFind(key, value, begin_time_);
 }
 
 template <typename IdType>
-void NetTableTransaction::getAvailableIds(std::unordered_set<IdType>* ids) {
+void NetTableTransaction::getAvailableIds(std::vector<IdType>* ids) {
   CHECK_NOTNULL(ids);
   table_->getAvailableIds(begin_time_, ids);
 }

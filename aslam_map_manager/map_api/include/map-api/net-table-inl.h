@@ -1,7 +1,7 @@
 #ifndef MAP_API_NET_TABLE_INL_H_
 #define MAP_API_NET_TABLE_INL_H_
-
 #include <string>
+#include <vector>
 
 namespace map_api {
 
@@ -17,8 +17,7 @@ void __attribute__((deprecated)) NetTable::registerItemInSpace(
 }
 
 template <typename ValueType>
-CRTable::RevisionMap NetTable::lockFind(const std::string& key,
-                                        const ValueType& value,
+CRTable::RevisionMap NetTable::lockFind(int key, const ValueType& value,
                                         const LogicalTime& time) {
   CRTable::RevisionMap result;
   readLockActiveChunks();
@@ -35,7 +34,7 @@ std::shared_ptr<const Revision> NetTable::getByIdInconsistent(
 
 template <typename IdType>
 void NetTable::getAvailableIds(const LogicalTime& time,
-                               std::unordered_set<IdType>* ids) {
+                               std::vector<IdType>* ids) {
   CHECK_NOTNULL(ids);
   ids->clear();
   readLockActiveChunks();
