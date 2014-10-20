@@ -3,6 +3,7 @@
 
 #include <list>
 #include <string>
+#include <vector>
 
 #include "map-api/cru-table.h"
 #include "map-api/stxxl-revision-store.h"
@@ -32,7 +33,7 @@ class CRUTableSTXXLMap : public CRUTable {
       int key, const Revision& valueHolder,
       const LogicalTime& time) const final override;
   virtual void getAvailableIdsCRDerived(const LogicalTime& time,
-      std::unordered_set<Id>* ids) const final override;
+      std::vector<Id>* ids) const final override;
   virtual int countByChunkCRDerived(
       const Id& chunk_id, const LogicalTime& time) const final override;
 
@@ -56,7 +57,7 @@ class CRUTableSTXXLMap : public CRUTable {
           void(const Id& id, const Revision& item)>& action) const;
   inline void trimToTime(const LogicalTime& time, HistoryMap* subject) const;
 
-  class STXXLHistory : public std::list<RevisionInformation> {
+  class STXXLHistory : public std::list<CRURevisionInformation> {
    public:
     inline const_iterator latestAt(const LogicalTime& time) const {
       for (const_iterator it = cbegin(); it != cend(); ++it) {
@@ -70,7 +71,7 @@ class CRUTableSTXXLMap : public CRUTable {
   typedef std::unordered_map<Id, STXXLHistory> STXXLHistoryMap;
   STXXLHistoryMap data_;
 
-  static constexpr int kBlockSize = 64;
+  static constexpr int kBlockSize = kSTXXLDefaultBlockSize;
   STXXLRevisionStore<kBlockSize> revision_store_;
 };
 

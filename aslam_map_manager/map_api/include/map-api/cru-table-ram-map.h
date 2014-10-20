@@ -3,6 +3,7 @@
 
 #include <list>
 #include <string>
+#include <vector>
 
 #include "map-api/cru-table.h"
 
@@ -31,7 +32,7 @@ class CRUTableRamMap : public CRUTable {
       int key, const Revision& valueHolder,
       const LogicalTime& time) const final override;
   virtual void getAvailableIdsCRDerived(const LogicalTime& time,
-      std::unordered_set<Id>* ids) const final override;
+      std::vector<Id>* ids) const final override;
   virtual int countByChunkCRDerived(
       const Id& chunk_id, const LogicalTime& time) const final override;
 

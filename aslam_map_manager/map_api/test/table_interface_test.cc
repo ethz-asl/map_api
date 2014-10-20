@@ -404,7 +404,7 @@ TYPED_TEST(CruMapIntTestWithInit, Remove) {
   this->insertRevision();
 
   EXPECT_EQ(1, this->table_->count(-1, 0, LogicalTime::sample()));
-  std::unordered_set<Id> ids;
+  std::vector<Id> ids;
   this->table_->getAvailableIds(LogicalTime::sample(), &ids);
   EXPECT_EQ(1, ids.size());
   CRTable::RevisionMap result;

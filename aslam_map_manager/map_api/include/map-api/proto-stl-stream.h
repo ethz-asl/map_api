@@ -13,6 +13,15 @@ namespace map_api {
 // value starts.
 struct MemoryBlockInformation {
   MemoryBlockInformation() : block_index(-1), byte_offset(-1) { }
+  bool operator<(const MemoryBlockInformation& lhs) const {
+    if (block_index < lhs.block_index) {
+      return true;
+    }
+    if (block_index == lhs.block_index) {
+      return byte_offset < lhs.byte_offset;
+    }
+    return false;
+  }
   int block_index;
   int byte_offset;
 };
@@ -131,12 +140,13 @@ template<int BlockSize, template<typename, typename> class Container>
 class STLContainerInputStream : public
 google::protobuf::io::ZeroCopyInputStream {
  public:
-  STLContainerInputStream(int block_index, int byte_offset,
-                          MemoryBlockPool<BlockSize, Container>* block_pool) :
-                          block_index_(block_index),
-                          byte_offset_(byte_offset),
-                          bytes_read_(0),
-                          block_pool_(CHECK_NOTNULL(block_pool)) { }
+  STLContainerInputStream(
+      int block_index, int byte_offset,
+      const MemoryBlockPool<BlockSize, Container>* block_pool) :
+      block_index_(block_index),
+      byte_offset_(byte_offset),
+      bytes_read_(0),
+      block_pool_(CHECK_NOTNULL(block_pool)) { }
 
   virtual ~STLContainerInputStream() {}
 
@@ -219,7 +229,7 @@ google::protobuf::io::ZeroCopyInputStream {
   int block_index_;
   int byte_offset_;
   google::int64 bytes_read_;
-  MemoryBlockPool<BlockSize, Container>* block_pool_;
+  const MemoryBlockPool<BlockSize, Container>* const block_pool_;
 };
 
 // This implements a protobuf zero-copy-output stream on top of the memory pool.

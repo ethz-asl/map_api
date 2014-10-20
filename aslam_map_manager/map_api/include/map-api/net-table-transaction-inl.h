@@ -1,7 +1,7 @@
 #ifndef MAP_API_NET_TABLE_TRANSACTION_INL_H_
 #define MAP_API_NET_TABLE_TRANSACTION_INL_H_
-
 #include <string>
+#include <vector>
 
 namespace map_api {
 
@@ -43,7 +43,7 @@ CRTable::RevisionMap NetTableTransaction::find(int key,
 }
 
 template <typename IdType>
-void NetTableTransaction::getAvailableIds(std::unordered_set<IdType>* ids) {
+void NetTableTransaction::getAvailableIds(std::vector<IdType>* ids) {
   CHECK_NOTNULL(ids);
   table_->getAvailableIds(begin_time_, ids);
 }
