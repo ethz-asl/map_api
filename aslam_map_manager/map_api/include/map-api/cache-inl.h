@@ -94,19 +94,19 @@ void Cache<IdType, Value, DerivedValue>::getAllAvailableIds(
     std::vector<IdType>* available_ids) const {
   LockGuard lock(mutex_);
   CHECK_NOTNULL(available_ids);
-  *available_ids = available_ids_.GetAllIds();
+  *available_ids = available_ids_.getAllIds();
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
 size_t Cache<IdType, Value, DerivedValue>::size() const {
   LockGuard lock(mutex_);
-  return available_ids_.GetAllIds().size();
+  return available_ids_.getAllIds().size();
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
 bool Cache<IdType, Value, DerivedValue>::empty() const {
   LockGuard lock(mutex_);
-  return available_ids_.GetAllIds().empty();
+  return available_ids_.getAllIds().empty();
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
@@ -189,7 +189,7 @@ Cache<IdType, Value, DerivedValue>::AvailableIds::AvailableIds(
 
 template <typename IdType, typename Value, typename DerivedValue>
 const typename Cache<IdType, Value, DerivedValue>::IdVector&
-Cache<IdType, Value, DerivedValue>::AvailableIds::GetAllIds() const {
+Cache<IdType, Value, DerivedValue>::AvailableIds::getAllIds() const {
   getAvailableIdsLocked();
   return ordered_available_ids_;
 }

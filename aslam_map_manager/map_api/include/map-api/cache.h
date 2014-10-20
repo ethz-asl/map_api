@@ -207,7 +207,7 @@ class Cache : public CacheBase,
    public:
     AvailableIds(NetTable* underlying_table,
                  TransactionAccessFactory* transaction);
-    const IdVector& GetAllIds() const;
+    const IdVector& getAllIds() const;
     bool hasId(const IdType& id) const;
     void addId(const IdType& id);
     void removeId(const IdType& id);

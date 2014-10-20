@@ -1,8 +1,7 @@
 #ifndef MAP_API_CR_TABLE_INL_H_
 #define MAP_API_CR_TABLE_INL_H_
-
-#include <string>
 #include <sstream>  // NOLINT
+#include <string>
 #include <utility>
 #include <vector>
 
