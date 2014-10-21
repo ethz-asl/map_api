@@ -71,7 +71,7 @@ class NetTable {
 
   // RETRIEVAL (locking all chunks)
   template <typename ValueType>
-  CRTable::RevisionMap lockFind(const std::string& key, const ValueType& value,
+  CRTable::RevisionMap lockFind(int key, const ValueType& value,
                                 const LogicalTime& time);
 
   void dumpActiveChunks(const LogicalTime& time,
@@ -79,7 +79,7 @@ class NetTable {
   void dumpActiveChunksAtCurrentTime(CRTable::RevisionMap* destination);
   template <typename IdType>
   void getAvailableIds(const LogicalTime& time,
-                       std::unordered_set<IdType>* ids);
+                       std::vector<IdType>* ids);
 
   /**
    * Connects to the given chunk via the given peer.

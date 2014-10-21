@@ -1,26 +1,26 @@
-#ifndef MAP_API_CR_TABLE_RAM_MAP_H_
-#define MAP_API_CR_TABLE_RAM_MAP_H_
-
+#ifndef MAP_API_CR_TABLE_STXXL_MAP_H_
+#define MAP_API_CR_TABLE_STXXL_MAP_H_
 #include <string>
 #include <vector>
 
 #include "map-api/cr-table.h"
+#include "map-api/stxxl-revision-store.h"
 
 namespace map_api {
 
-class CRTableRamMap : public CRTable {
+class CRTableSTXXLMap : public CRTable {
  public:
-  virtual ~CRTableRamMap();
+  virtual ~CRTableSTXXLMap();
 
  private:
   virtual bool initCRDerived() final override;
-  virtual bool insertCRDerived(const LogicalTime& time,
-                               const std::shared_ptr<Revision>& query)
-      final override;
+  virtual bool insertCRDerived(
+      const LogicalTime& time,
+      const std::shared_ptr<Revision>& query) final override;
   virtual bool bulkInsertCRDerived(const NonConstRevisionMap& query,
                                    const LogicalTime& time) final override;
-  virtual bool patchCRDerived(const std::shared_ptr<Revision>& query)
-      final override;
+  virtual bool patchCRDerived(
+      const std::shared_ptr<Revision>& query) final override;
   virtual void dumpChunkCRDerived(const Id& chunk_id, const LogicalTime& time,
                                   RevisionMap* dest) const final override;
   virtual void findByRevisionCRDerived(
@@ -36,10 +36,12 @@ class CRTableRamMap : public CRTable {
   virtual int countByChunkCRDerived(
       const Id& chunk_id, const LogicalTime& time) const final override;
 
-  typedef std::unordered_map<Id, std::shared_ptr<const Revision> > MapType;
+  typedef std::unordered_map<Id, CRRevisionInformation> MapType;
   MapType data_;
+  static constexpr int kBlockSize = kSTXXLDefaultBlockSize;
+  STXXLRevisionStore<kBlockSize> revision_store_;
 };
 
 }  // namespace map_api
 
-#endif  // MAP_API_CR_TABLE_RAM_MAP_H_
+#endif  // MAP_API_CR_TABLE_STXXL_MAP_H_

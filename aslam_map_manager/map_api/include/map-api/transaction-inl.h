@@ -1,13 +1,12 @@
 #ifndef MAP_API_TRANSACTION_INL_H_
 #define MAP_API_TRANSACTION_INL_H_
-
 #include <string>
+#include <vector>
 
 namespace map_api {
 
 template <typename ValueType>
-CRTable::RevisionMap Transaction::find(const std::string& key,
-                                       const ValueType& value,
+CRTable::RevisionMap Transaction::find(int key, const ValueType& value,
                                        NetTable* table) {
   CHECK_NOTNULL(table);
   return this->transactionOf(table)->find(key, value);
@@ -31,7 +30,7 @@ std::shared_ptr<const Revision> Transaction::getById(const IdType& id,
 
 template <typename IdType>
 void Transaction::getAvailableIds(NetTable* table,
-                                  std::unordered_set<IdType>* ids) {
+                                  std::vector<IdType>* ids) {
   return transactionOf(CHECK_NOTNULL(table))
       ->getAvailableIds(CHECK_NOTNULL(ids));
 }

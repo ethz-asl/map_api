@@ -1,7 +1,7 @@
 #ifndef MAP_API_CACHE_INL_H_
 #define MAP_API_CACHE_INL_H_
-
 #include <utility>
+#include <vector>
 
 #include <glog/logging.h>
 #include <timing/timer.h>
@@ -12,11 +12,11 @@ template <typename IdType, typename Value, typename DerivedValue>
 Cache<IdType, Value, DerivedValue>::Cache(
     const std::shared_ptr<Transaction>& transaction, NetTable* const table,
     const std::shared_ptr<ChunkManagerBase>& chunk_manager)
-    : ids_fetched_(false),
-      underlying_table_(CHECK_NOTNULL(table)),
+    : underlying_table_(CHECK_NOTNULL(table)),
       chunk_manager_(chunk_manager),
       staged_(false),
-      transaction_(transaction) {
+      transaction_(transaction),
+      available_ids_(underlying_table_, &transaction_) {
   CHECK_NOTNULL(transaction.get());
   CHECK_NOTNULL(chunk_manager.get());
 
@@ -65,12 +65,12 @@ template <typename IdType, typename Value, typename DerivedValue>
 bool Cache<IdType, Value, DerivedValue>::insert(const IdType& id,
                                                 const Value& value) {
   LockGuard lock(mutex_);
-  typename IdSet::iterator found = getAvailableIdsLocked().find(id);
-  if (found != getAvailableIdsLocked().end()) {
+  bool has_item_already = available_ids_.hasId(id);
+  if (has_item_already) {
     return false;
   }
   CHECK(cache_.emplace(id, value).second);
-  CHECK(getAvailableIdsLocked().emplace(id).second);
+  available_ids_.addId(id);
   return true;
 }
 
@@ -79,37 +79,34 @@ void Cache<IdType, Value, DerivedValue>::erase(const IdType& id) {
   CHECK(underlying_table_->type() == CRTable::Type::CRU);
   LockGuard lock(mutex_);
   cache_.erase(id);
-  getAvailableIdsLocked().erase(id);
+  available_ids_.removeId(id);
   removals_.emplace(id);
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
 bool Cache<IdType, Value, DerivedValue>::has(const IdType& id) const {
   LockGuard lock(mutex_);
-  typename IdSet::const_iterator found = getAvailableIdsLocked().find(id);
-  return found != getAvailableIdsLocked().end();
+  return available_ids_.hasId(id);
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
 void Cache<IdType, Value, DerivedValue>::getAllAvailableIds(
-    std::unordered_set<IdType>* available_ids) const {
+    std::vector<IdType>* available_ids) const {
   LockGuard lock(mutex_);
   CHECK_NOTNULL(available_ids);
-  available_ids->clear();
-  available_ids->insert(getAvailableIdsLocked().begin(),
-                        getAvailableIdsLocked().end());
+  *available_ids = available_ids_.getAllIds();
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
 size_t Cache<IdType, Value, DerivedValue>::size() const {
   LockGuard lock(mutex_);
-  return getAvailableIdsLocked().size();
+  return available_ids_.getAllIds().size();
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
 bool Cache<IdType, Value, DerivedValue>::empty() const {
   LockGuard lock(mutex_);
-  return getAvailableIdsLocked().empty();
+  return available_ids_.getAllIds().empty();
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
@@ -166,27 +163,59 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
-typename Cache<IdType, Value, DerivedValue>::IdSet&
-Cache<IdType, Value, DerivedValue>::getAvailableIdsLocked() {
+void Cache<IdType, Value, DerivedValue>::AvailableIds::
+getAvailableIdsLocked() const {
   if (!ids_fetched_) {
     timing::Timer timer("getAvailableIds");
-    transaction_.get()->getAvailableIds(underlying_table_, &available_ids_);
-    timer.Stop();
+    transaction_->get()->getAvailableIds(underlying_table_,
+                                         &ordered_available_ids_);
+    available_ids_.clear();
+    available_ids_.insert(ordered_available_ids_.begin(),
+                          ordered_available_ids_.end());
+    double total_seconds = timer.Stop();
     ids_fetched_ = true;
+    LOG(INFO) << "Got " << available_ids_.size() << " ids for table "
+        << underlying_table_->name() << " in " << total_seconds << "s";
   }
-  return available_ids_;
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
-const typename Cache<IdType, Value, DerivedValue>::IdSet&
-Cache<IdType, Value, DerivedValue>::getAvailableIdsLocked() const {
-  if (!ids_fetched_) {
-    timing::Timer timer("getAvailableIds");
-    transaction_.get()->getAvailableIds(underlying_table_, &available_ids_);
-    timer.Stop();
-    ids_fetched_ = true;
+Cache<IdType, Value, DerivedValue>::AvailableIds::AvailableIds(
+    NetTable* underlying_table, TransactionAccessFactory* transaction) :
+    ids_fetched_(false), underlying_table_(underlying_table),
+    transaction_(transaction) {}
+
+template <typename IdType, typename Value, typename DerivedValue>
+const typename Cache<IdType, Value, DerivedValue>::IdVector&
+Cache<IdType, Value, DerivedValue>::AvailableIds::getAllIds() const {
+  getAvailableIdsLocked();
+  return ordered_available_ids_;
+}
+template <typename IdType, typename Value, typename DerivedValue>
+bool Cache<IdType, Value, DerivedValue>::AvailableIds::hasId(
+    const IdType& id) const {
+  getAvailableIdsLocked();
+  return available_ids_.find(id) != available_ids_.end();
+}
+
+template <typename IdType, typename Value, typename DerivedValue>
+void Cache<IdType, Value, DerivedValue>::AvailableIds::addId(const IdType& id) {
+  getAvailableIdsLocked();
+  CHECK(available_ids_.emplace(id).second);
+  ordered_available_ids_.emplace_back(id);
+}
+
+template <typename IdType, typename Value, typename DerivedValue>
+void Cache<IdType, Value, DerivedValue>::AvailableIds::removeId(
+    const IdType& id) {
+  getAvailableIdsLocked();
+  available_ids_.erase(id);
+  typename std::vector<IdType>::iterator it =
+      std::find(ordered_available_ids_.begin(),
+                ordered_available_ids_.end(), id);
+  if (it != ordered_available_ids_.end()) {
+    ordered_available_ids_.erase(it);
   }
-  return available_ids_;
 }
 
 }  // namespace map_api

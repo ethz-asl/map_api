@@ -51,13 +51,14 @@ class CRUTable : public CRTable {
 
   template <typename ValueType>
   void findHistory(int key, const ValueType& value, const LogicalTime& time,
-                   HistoryMap* dest);
+                   HistoryMap* dest) const;
   template <typename IdType>
-  void itemHistory(const IdType& id, const LogicalTime& time, History* dest);
+  void itemHistory(
+      const IdType& id, const LogicalTime& time, History* dest) const;
 
   virtual void findHistoryByRevision(int key, const Revision& valueHolder,
                                      const LogicalTime& time,
-                                     HistoryMap* dest) final;
+                                     HistoryMap* dest) const final;
 
   virtual Type type() const final override;
 
@@ -92,11 +93,11 @@ class CRUTable : public CRTable {
   virtual void findHistoryByRevisionCRUDerived(int key,
                                                const Revision& valueHolder,
                                                const LogicalTime& time,
-                                               HistoryMap* dest) = 0;
+                                               HistoryMap* dest) const = 0;
   virtual void chunkHistory(const Id& chunk_id, const LogicalTime& time,
-                            HistoryMap* dest) = 0;
+                            HistoryMap* dest) const = 0;
   virtual void itemHistoryCRUDerived(const Id& id, const LogicalTime& time,
-                                     History* dest) = 0;
+                                     History* dest) const = 0;
 };
 
 }  // namespace map_api

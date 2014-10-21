@@ -33,7 +33,7 @@ bool CRTableRamMap::patchCRDerived(const std::shared_ptr<Revision>& query) {
 
 void CRTableRamMap::dumpChunkCRDerived(const Id& chunk_id,
                                        const LogicalTime& time,
-                                       RevisionMap* dest) {
+                                       RevisionMap* dest) const {
   CHECK_NOTNULL(dest)->clear();
   for (const MapType::value_type& pair : data_) {
     if (pair.second->getChunkId() == chunk_id) {
@@ -44,10 +44,9 @@ void CRTableRamMap::dumpChunkCRDerived(const Id& chunk_id,
   }
 }
 
-void CRTableRamMap::findByRevisionCRDerived(int key,
-                                            const Revision& valueHolder,
-                                            const LogicalTime& time,
-                                            RevisionMap* dest) {
+void CRTableRamMap::findByRevisionCRDerived(
+    int key, const Revision& valueHolder, const LogicalTime& time,
+    RevisionMap* dest) const {
   CHECK_NOTNULL(dest);
   dest->clear();
   // TODO(tcies) allow optimization by index specification
@@ -71,20 +70,20 @@ std::shared_ptr<const Revision> CRTableRamMap::getByIdCRDerived(
   return found->second;
 }
 
-void CRTableRamMap::getAvailableIdsCRDerived(const LogicalTime& time,
-                                             std::unordered_set<Id>* ids) {
+void CRTableRamMap::getAvailableIdsCRDerived(
+    const LogicalTime& time, std::vector<Id>* ids) const {
   CHECK_NOTNULL(ids);
-  ids->rehash(data_.size());
+  ids->reserve(data_.size());
   for (const MapType::value_type& pair : data_) {
     if (pair.second->getInsertTime() <= time) {
-      ids->insert(pair.first);
+      ids->emplace_back(pair.first);
     }
   }
 }
 
 int CRTableRamMap::countByRevisionCRDerived(int key,
                                             const Revision& valueHolder,
-                                            const LogicalTime& time) {
+                                            const LogicalTime& time) const {
   int count = 0;
   for (const MapType::value_type& pair : data_) {
     if (key < 0 || valueHolder.fieldMatch(*pair.second, key)) {
@@ -97,7 +96,7 @@ int CRTableRamMap::countByRevisionCRDerived(int key,
 }
 
 int CRTableRamMap::countByChunkCRDerived(const Id& chunk_id,
-                                         const LogicalTime& time) {
+                                         const LogicalTime& time) const {
   int count = 0;
   for (const MapType::value_type& pair : data_) {
     if (pair.second->getChunkId() == chunk_id) {
