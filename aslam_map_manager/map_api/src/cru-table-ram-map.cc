@@ -164,12 +164,8 @@ void CRUTableRamMap::itemHistoryCRUDerived(const Id& id,
 
 inline void CRUTableRamMap::forEachItemFoundAtTime(
     int key, const Revision& value_holder, const LogicalTime& time,
-<<<<<<< HEAD
-    const std::function<void(const Id& id, const Revision& item)>& action) {
-=======
     const std::function<
         void(const Id& id, const Revision& item)>& action) const {
->>>>>>> origin/master
   for (const HistoryMap::value_type& pair : data_) {
     History::const_iterator latest = pair.second.latestAt(time);
     if (latest != pair.second.cend()) {
@@ -184,12 +180,8 @@ inline void CRUTableRamMap::forEachItemFoundAtTime(
 
 inline void CRUTableRamMap::forChunkItemsAtTime(
     const Id& chunk_id, const LogicalTime& time,
-<<<<<<< HEAD
-    const std::function<void(const Id& id, const Revision& item)>& action) {
-=======
     const std::function<
         void(const Id& id, const Revision& item)>& action) const {
->>>>>>> origin/master
   for (const HistoryMap::value_type& pair : data_) {
     if ((*pair.second.begin())->getChunkId() == chunk_id) {
       History::const_iterator latest = pair.second.latestAt(time);
