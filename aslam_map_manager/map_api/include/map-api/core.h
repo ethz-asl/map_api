@@ -61,8 +61,6 @@ class Core final {
    * MapApiCore::init()
    */
   static std::weak_ptr<Poco::Data::Session> getSession();
-  friend class CRTableRamSqlite;
-  friend class CRUTableRamSqlite;
   friend class LocalTransaction;
 
   /**

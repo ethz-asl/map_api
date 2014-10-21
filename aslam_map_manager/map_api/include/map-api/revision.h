@@ -21,6 +21,8 @@ class Revision {
   friend class CRTable;
   friend class CRTableRamMap;
   friend class CRUTable;
+  template<int BlockSize>
+  friend class STXXLRevisionStore;
 
  public:
   explicit Revision(const std::shared_ptr<proto::Revision>& revision);
