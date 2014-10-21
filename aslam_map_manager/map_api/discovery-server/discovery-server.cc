@@ -8,9 +8,9 @@
 #include "map-api/message.h"
 #include "map-api/peer-id.h"
 #include "map-api/server-discovery.h"
-#include "core.pb.h"
+#include "./core.pb.h"
 
-using namespace map_api;
+using namespace map_api;  // NOLINT
 
 DEFINE_string(ip_port, "127.0.0.1:5050", "Address to be used");
 
@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
     Message query, response;
     if (!query.ParseFromArray(request.data(), request.size())) {
       LOG(ERROR) << "Received a invalid message, discarding!";
-      server.send(request); // ZMQ_REP socket must reply to every request
+      server.send(request);  // ZMQ_REP socket must reply to every request
       continue;
     }
     LogicalTime::synchronize(LogicalTime(query.logical_time()));
@@ -66,6 +66,7 @@ int main(int argc, char** argv) {
       LOG(INFO) << query.sender() << " removed " << to_remove;
       response.ack();
     } else if (query.isType<ServerDiscovery::kUnlockRequest>()) {
+      CHECK(locked && locker == query.sender());
       locked = false;
       response.ack();
     } else {
@@ -75,8 +76,8 @@ int main(int argc, char** argv) {
     response.set_sender(FLAGS_ip_port);
     std::string serialized_response = response.SerializeAsString();
     zmq::message_t response_message(serialized_response.size());
-    memcpy((void *) response_message.data(), serialized_response.c_str(),
-           serialized_response.size());
+    memcpy(reinterpret_cast<void*>(response_message.data()),
+           serialized_response.c_str(), serialized_response.size());
     server.send(response_message);
   }
   return 0;

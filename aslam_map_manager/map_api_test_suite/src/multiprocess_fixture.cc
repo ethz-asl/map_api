@@ -23,7 +23,7 @@ DEFINE_uint64(subprocess_id, 0, "Identification of subprocess in case of "
 namespace map_api_test_suite {
 // adapted from
 // http://stackoverflow.com/questions/5525668/how-to-implement-readlink-to-find-the-path
-std::string getSelfpath() {
+std::string MultiprocessTest::getSelfpath() {
   char buff[1024];
 #ifdef __APPLE__
   uint32_t len = sizeof(buff) - 1;
