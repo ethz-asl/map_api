@@ -92,7 +92,7 @@ bool CRTable::patch(const std::shared_ptr<Revision>& query) {
 }
 
 void CRTable::dumpChunk(const Id& chunk_id, const LogicalTime& time,
-                        RevisionMap* dest) {
+                        RevisionMap* dest) const {
   CHECK(isInitialized());
   CHECK_NOTNULL(dest);
   dest->clear();
@@ -101,7 +101,7 @@ void CRTable::dumpChunk(const Id& chunk_id, const LogicalTime& time,
 }
 
 void CRTable::findByRevision(int key, const Revision& valueHolder,
-                            const LogicalTime& time, RevisionMap* dest) {
+                            const LogicalTime& time, RevisionMap* dest) const {
   CHECK(isInitialized()) << "Attempted to find in non-initialized table";
   // whether valueHolder contains key is implicitly checked whenever using
   // Revision::insertPlaceHolder - for now it's a pretty safe bet that the
@@ -114,7 +114,7 @@ void CRTable::findByRevision(int key, const Revision& valueHolder,
 }
 
 int CRTable::countByRevision(int key, const Revision& valueHolder,
-                             const LogicalTime& time) {
+                             const LogicalTime& time) const {
   CHECK(isInitialized()) << "Attempted to count items in non-initialized table";
   // Whether valueHolder contains key is implicitly checked whenever using
   // Revision::insertPlaceHolder - for now it's a pretty safe bet that the
@@ -126,14 +126,14 @@ int CRTable::countByRevision(int key, const Revision& valueHolder,
 
 // although this is very similar to rawGetRow(), I don't see how to share the
 // features without loss of performance TODO(discuss)
-void CRTable::dump(const LogicalTime& time, RevisionMap* dest) {
+void CRTable::dump(const LogicalTime& time, RevisionMap* dest) const {
   CHECK_NOTNULL(dest);
   std::shared_ptr<Revision> valueHolder = getTemplate();
   CHECK(valueHolder != nullptr);
   findByRevision(-1, *valueHolder, time, dest);
 }
 
-int CRTable::countByChunk(const Id& id, const LogicalTime& time) {
+int CRTable::countByChunk(const Id& id, const LogicalTime& time) const {
   CHECK(isInitialized());
   CHECK(time < LogicalTime::sample());
   return countByChunkCRDerived(id, time);
