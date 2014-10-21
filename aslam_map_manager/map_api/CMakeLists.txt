@@ -80,7 +80,7 @@ target_link_libraries(discovery-server ${PROJECT_NAME})
 file(COPY test/test-data DESTINATION 
        ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
 
-cs_add_library(${PROJECT_NAME}_test STATIC test/map_api_multiprocess_fixture.cc)
+cs_add_library(${PROJECT_NAME}_test STATIC test/map_api_fixture.cc)
 target_link_libraries(${PROJECT_NAME}_test ${PROJECT_NAME} gtest pthread)
 
 catkin_add_gtest(test_cache_test test/cache_test.cc)

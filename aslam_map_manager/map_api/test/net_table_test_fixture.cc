@@ -7,11 +7,11 @@
 #include "map-api/net-table-transaction.h"
 #include "map-api/transaction.h"
 
-#include "./map_api_multiprocess_fixture.h"
+#include "./map_api_fixture.h"
 
 namespace map_api {
 
-class NetTableTest : public MultiprocessTest,
+class NetTableTest : public MapApiFixture,
                      public ::testing::WithParamInterface<bool> {
  public:
   enum Fields {

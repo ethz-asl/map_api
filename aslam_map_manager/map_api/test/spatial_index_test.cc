@@ -8,7 +8,7 @@
 #include "map-api/net-table-transaction.h"
 #include "map-api/transaction.h"
 
-#include "./map_api_multiprocess_fixture.h"
+#include "./map_api_fixture.h"
 
 namespace map_api {
 
@@ -45,7 +45,7 @@ namespace map_api {
  * (1, 1, 0) has {b}
  * (1, 1, 1) has {b, d}
  */
-class SpatialIndexTest : public MultiprocessTest {
+class SpatialIndexTest : public MapApiFixture {
  protected:
   static const std::string kTableName;
   enum Fields {

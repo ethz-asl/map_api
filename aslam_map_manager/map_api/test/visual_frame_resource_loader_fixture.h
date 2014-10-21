@@ -8,7 +8,7 @@
 
 #include "map-api/visual-frame-resource-loader.h"
 
-#include "./map_api_multiprocess_fixture.h"
+#include "./map_api_fixture.h"
 
 namespace map_api {
 
@@ -29,7 +29,7 @@ class VisualFrameDummy : public common::VisualFrameBase {
 };
 
 // Set up DB and DB entries for tests
-class ResourceLoaderTest : public MultiprocessTest {
+class ResourceLoaderTest : public MapApiFixture {
  public:
   virtual ~ResourceLoaderTest() {}
 
