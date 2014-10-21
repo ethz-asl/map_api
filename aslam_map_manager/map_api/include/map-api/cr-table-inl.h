@@ -115,6 +115,7 @@ std::shared_ptr<const Revision> CRTable::findUnique(
       report << result.second->dumpToString() << std::endl;
     }
     LOG(FATAL) << report.str();
+    return std::shared_ptr<const Revision>();
   } else if (count == 0) {
     return std::shared_ptr<Revision>();
   } else {

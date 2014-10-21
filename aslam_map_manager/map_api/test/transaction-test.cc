@@ -3,11 +3,11 @@
 #include "map-api/ipc.h"
 #include "map-api/transaction.h"
 
-#include "./net_table_test_fixture.cc"
+#include "./net_table_fixture.h"
 
 namespace map_api {
 
-TEST_P(NetTableTest, TransactionMerge) {
+TEST_P(NetTableFixture, TransactionMerge) {
   if (!GetParam()) {
     return;
   }

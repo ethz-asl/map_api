@@ -7,17 +7,17 @@
 
 #include "map-api/ipc.h"
 
-#include "net_table_test_fixture.cc"
+#include "./net_table_fixture.h"
 
 namespace map_api {
 
-TEST_P(NetTableTest, NetInsert) {
+TEST_P(NetTableFixture, NetInsert) {
   Chunk* chunk = table_->newChunk();
   ASSERT_TRUE(chunk);
   insert(42, chunk);
 }
 
-TEST_P(NetTableTest, ParticipationRequest) {
+TEST_P(NetTableFixture, ParticipationRequest) {
   enum SubProcesses {
     ROOT,
     A
@@ -45,7 +45,7 @@ TEST_P(NetTableTest, ParticipationRequest) {
   }
 }
 
-TEST_P(NetTableTest, FullJoinTwice) {
+TEST_P(NetTableFixture, FullJoinTwice) {
   enum SubProcesses {
     ROOT,
     A,
@@ -97,7 +97,7 @@ TEST_P(NetTableTest, FullJoinTwice) {
   }
 }
 
-TEST_P(NetTableTest, RemoteInsert) {
+TEST_P(NetTableFixture, RemoteInsert) {
   enum Subprocesses {
     ROOT,
     A
@@ -134,7 +134,7 @@ TEST_P(NetTableTest, RemoteInsert) {
   }
 }
 
-TEST_P(NetTableTest, RemoteUpdate) {
+TEST_P(NetTableFixture, RemoteUpdate) {
   if (!GetParam()) {  // not updateable - just pass test
     return;
   }
@@ -188,7 +188,7 @@ DEFINE_uint64(grind_processes, 10u,
 DEFINE_uint64(grind_cycles, 10u,
               "Total amount of insert-update cycles in ChunkTest.Grind");
 
-TEST_P(NetTableTest, Grind) {
+TEST_P(NetTableFixture, Grind) {
   const int kInsertUpdateCycles = FLAGS_grind_cycles;
   const uint64_t kProcesses = FLAGS_grind_processes;
   enum Barriers {
@@ -232,7 +232,7 @@ TEST_P(NetTableTest, Grind) {
   }
 }
 
-TEST_P(NetTableTest, ChunkTransactions) {
+TEST_P(NetTableFixture, ChunkTransactions) {
   const uint64_t kProcesses = FLAGS_grind_processes;
   enum Barriers {
     INIT,
@@ -288,7 +288,8 @@ TEST_P(NetTableTest, ChunkTransactions) {
       // update
       if (GetParam()) {
         int transient_value;
-        std::shared_ptr<const Revision> to_update = transaction.getById(item_id);
+        std::shared_ptr<const Revision> to_update =
+            transaction.getById(item_id);
         to_update->get(kFieldName, &transient_value);
         ++transient_value;
         std::shared_ptr<Revision> revision =
@@ -304,7 +305,7 @@ TEST_P(NetTableTest, ChunkTransactions) {
   }
 }
 
-TEST_P(NetTableTest, ChunkTransactionsConflictConditions) {
+TEST_P(NetTableFixture, ChunkTransactionsConflictConditions) {
   if (GetParam()) {
     return;  // No need to test this for updateable tables as well
   }
@@ -360,7 +361,7 @@ TEST_P(NetTableTest, ChunkTransactionsConflictConditions) {
   }
 }
 
-TEST_P(NetTableTest, Triggers) {
+TEST_P(NetTableFixture, Triggers) {
   enum Processes {
     ROOT,
     A
@@ -424,7 +425,7 @@ TEST_P(NetTableTest, Triggers) {
   }
 }
 
-TEST_P(NetTableTest, SendHistory) {
+TEST_P(NetTableFixture, SendHistory) {
   enum Processes {
     ROOT,
     A
@@ -488,7 +489,7 @@ TEST_P(NetTableTest, SendHistory) {
   }
 }
 
-TEST_P(NetTableTest, GetCommitTimes) {
+TEST_P(NetTableFixture, GetCommitTimes) {
   chunk_ = table_->newChunk();
   Transaction first;
   Id id;

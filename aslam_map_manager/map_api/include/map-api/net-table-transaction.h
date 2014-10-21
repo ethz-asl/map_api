@@ -18,8 +18,8 @@ namespace map_api {
 
 class NetTableTransaction {
   friend class Transaction;
-  friend class NetTableTest;
-  FRIEND_TEST(NetTableTest, NetTableTransactions);
+  friend class NetTableFixture;
+  FRIEND_TEST(NetTableFixture, NetTableTransactions);
 
  private:
   explicit NetTableTransaction(NetTable* table);

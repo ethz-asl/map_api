@@ -15,7 +15,7 @@
 #include "map-api/ipc.h"
 
 #include "./test_chord_index.cc"
-#include "./map_api_multiprocess_fixture.h"
+#include "./map_api_fixture.h"
 
 DECLARE_uint64(stabilize_us);
 
@@ -24,7 +24,7 @@ namespace map_api {
 const std::string kRetrieveDataTimerTag = "retrieveData";
 const std::string kRetrieveDataTimeFile = "retrieve_time.txt";
 
-class ChordIndexTest : public MultiprocessTest {
+class ChordIndexTest : public MapApiFixture {
  protected:
   virtual void SetUp() override {
     // not using MultiprocessTest::SetUp intentionally - need to register
