@@ -4,13 +4,13 @@
 
 namespace map_api {
 
-TEST_F(ResourceLoaderTest, ShouldFindResourceIds) {
+TEST_F(ResourceLoaderFixture, ShouldFindResourceIds) {
   ResourceLoader loader = ResourceLoader(kTableName);
   std::unordered_set<std::string> resource_ids, resource_ids_2;
 
   // Get all ids for the resources of type RawImage for visual frame 0xA
   loader.getResourceIdsOfType(
-      ResourceLoaderTest::kVisualFrameId1,
+      kVisualFrameId1,
       common::ResourceLoaderBase::kVisualFrameResourceRawImageType,
       &resource_ids);
 
@@ -20,17 +20,17 @@ TEST_F(ResourceLoaderTest, ShouldFindResourceIds) {
 
   // Get all ids for the resources of type DisparityImage for visual frame 0xA
   loader.getResourceIdsOfType(
-      ResourceLoaderTest::kVisualFrameId1,
+      kVisualFrameId1,
       common::ResourceLoaderBase::kVisualFrameResourceDisparityImageType,
       &resource_ids_2);
 
   EXPECT_EQ(20u, resource_ids_2.size());
-  for (auto id : ResourceLoaderTest::kDisparityMapIds1) {
+  for (auto id : kDisparityMapIds1) {
     EXPECT_NE(resource_ids.end(), resource_ids_2.find(id));
   }
 }
 
-TEST_F(ResourceLoaderTest, ShouldLoadAndStoreResources) {
+TEST_F(ResourceLoaderFixture, ShouldLoadAndStoreResources) {
   ResourceLoader loader = ResourceLoader(kTableName);
   VisualFrameDummy dummy_visual_frame;
 
@@ -52,7 +52,7 @@ TEST_F(ResourceLoaderTest, ShouldLoadAndStoreResources) {
             dummy_visual_frame.resourcesStored_.find(kResourceIdB));
 }
 
-TEST_F(ResourceLoaderTest, ShouldReleaseResourcesCorrectly) {
+TEST_F(ResourceLoaderFixture, ShouldReleaseResourcesCorrectly) {
   ResourceLoader loader = ResourceLoader(kTableName);
   VisualFrameDummy dummy_visual_frame_1;  // ID=0xA
   VisualFrameDummy dummy_visual_frame_2;  // ID=0xB
@@ -76,7 +76,7 @@ TEST_F(ResourceLoaderTest, ShouldReleaseResourcesCorrectly) {
             dummy_visual_frame_1.resourcesStored_.find(kResourceIdB));
 
   // Load 20 resources of type DisparityMap for visual frame 1
-  for (auto id : ResourceLoaderTest::kDisparityMapIds1) {
+  for (auto id : kDisparityMapIds1) {
     EXPECT_TRUE(loader.loadResource(
         id, common::ResourceLoaderBase::kVisualFrameResourceDisparityImageType,
         &dummy_visual_frame_1));
@@ -86,7 +86,7 @@ TEST_F(ResourceLoaderTest, ShouldReleaseResourcesCorrectly) {
   EXPECT_EQ(22u, dummy_visual_frame_1.resourcesStored_.size());
 
   // Load 10 resources of type DisparityMap for visual frame 2
-  for (auto id : ResourceLoaderTest::kDisparityMapIds2) {
+  for (auto id : kDisparityMapIds2) {
     EXPECT_TRUE(loader.loadResource(
         id, common::ResourceLoaderBase::kVisualFrameResourceDisparityImageType,
         &dummy_visual_frame_2));
@@ -99,7 +99,7 @@ TEST_F(ResourceLoaderTest, ShouldReleaseResourcesCorrectly) {
   EXPECT_EQ(12u, dummy_visual_frame_1.resourcesStored_.size());
 
   // Load 15 resources of type DisparityMap for visual frame 3
-  for (auto id : ResourceLoaderTest::kDisparityMapIds3) {
+  for (auto id : kDisparityMapIds3) {
     EXPECT_TRUE(loader.loadResource(
         id, common::ResourceLoaderBase::kVisualFrameResourceDisparityImageType,
         &dummy_visual_frame_3));

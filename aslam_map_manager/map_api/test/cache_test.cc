@@ -9,7 +9,7 @@
 #include "map-api/chunk-manager.h"
 #include "map-api/ipc.h"
 
-#include "net_table_test_fixture.cc"
+#include "./net_table_fixture.h"
 
 namespace map_api {
 
@@ -17,13 +17,13 @@ UNIQUE_ID_DEFINE_ID(IntId);
 MAP_API_REVISION_UNIQUE_ID(IntId);
 
 void objectFromRevision(const Revision& revision, int* object) {
-  revision.get(NetTableTest::kFieldName, CHECK_NOTNULL(object));
+  revision.get(NetTableFixture::kFieldName, CHECK_NOTNULL(object));
 }
 void objectToRevision(const int& object, Revision* revision) {
-  CHECK_NOTNULL(revision)->set(NetTableTest::kFieldName, object);
+  CHECK_NOTNULL(revision)->set(NetTableFixture::kFieldName, object);
 }
 bool requiresUpdate(const int& object, const Revision& revision) {
-  return !revision.verifyEqual(NetTableTest::kFieldName, object);
+  return !revision.verifyEqual(NetTableFixture::kFieldName, object);
 }
 
 }  // namespace map_api
@@ -32,7 +32,7 @@ UNIQUE_ID_DEFINE_ID_HASH(map_api::IntId);
 
 namespace map_api {
 
-TEST_P(NetTableTest, Cache) {
+TEST_P(NetTableFixture, Cache) {
   enum SubProcesses {
     ROOT,
     A

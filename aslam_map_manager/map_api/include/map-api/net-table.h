@@ -29,11 +29,11 @@ inline std::string humanReadableBytes(double size) {
 }
 
 class NetTable {
-  friend class NetTableTest;
+  friend class NetTableFixture;
   friend class NetTableTransaction;
-  FRIEND_TEST(NetTableTest, RemoteUpdate);
-  FRIEND_TEST(NetTableTest, Grind);
-  FRIEND_TEST(NetTableTest, SaveAndRestoreTableFromFile);
+  FRIEND_TEST(NetTableFixture, RemoteUpdate);
+  FRIEND_TEST(NetTableFixture, Grind);
+  FRIEND_TEST(NetTableFixture, SaveAndRestoreTableFromFile);
 
  public:
   static const std::string kChunkIdField;

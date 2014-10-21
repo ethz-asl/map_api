@@ -6,10 +6,11 @@
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 
 #include "map-api/ipc.h"
+#include "map-api/net-table-manager.h"
 #include "map-api/net-table-transaction.h"
 #include "map-api/transaction.h"
 
-#include "net_table_test_fixture.cc"
+#include "./net_table_fixture.h"
 
 namespace map_api {
 
@@ -18,7 +19,7 @@ namespace map_api {
  * sense because A's operations per transaction are less complex, thus
  * faster executed, and A gets to lock first.
  */
-TEST_P(NetTableTest, NetTableTransactions) {
+TEST_P(NetTableFixture, NetTableTransactions) {
   if (!GetParam()) {
     return;
   }
@@ -108,7 +109,7 @@ TEST_P(NetTableTest, NetTableTransactions) {
   LOG(INFO) << PeerId::self() << " done";
 }
 
-TEST_P(NetTableTest, Transactions) {
+TEST_P(NetTableFixture, Transactions) {
   if (!GetParam()) {
     return;
   }
@@ -227,7 +228,7 @@ TEST_P(NetTableTest, Transactions) {
   }
 }
 
-TEST_P(NetTableTest, CommitTime) {
+TEST_P(NetTableFixture, CommitTime) {
   if (!GetParam()) {
     return;
   }
@@ -257,7 +258,7 @@ TEST_P(NetTableTest, CommitTime) {
   // TODO(tcies) also test update times, and times accross multiple chunks
 }
 
-TEST_P(NetTableTest, ChunkLookup) {
+TEST_P(NetTableFixture, ChunkLookup) {
   if (GetParam()) {
     return;  // independent of updateability
   }

@@ -53,7 +53,6 @@ SET(CORE_SOURCE  src/cache-base.cc
                  src/revision.cc
                  src/server-discovery.cc
                  src/spatial-index.cc
-                 src/sqlite-interface.cc
                  src/table-descriptor.cc
                  src/transaction.cc
                  src/unique-id.cc
@@ -80,49 +79,51 @@ target_link_libraries(discovery-server ${PROJECT_NAME})
 file(COPY test/test-data DESTINATION 
        ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
 
-cs_add_library(${PROJECT_NAME}_test STATIC test/map_api_fixture.cc)
-target_link_libraries(${PROJECT_NAME}_test ${PROJECT_NAME} gtest pthread)
+cs_add_library(${PROJECT_NAME}_fixture STATIC test/map_api_fixture.cc)
+target_link_libraries(${PROJECT_NAME}_fixture ${PROJECT_NAME} gtest pthread)
+
+cs_add_library(net_table_fixture STATIC test/net_table_fixture.cc)
+target_link_libraries(net_table_fixture ${PROJECT_NAME}_fixture)
+
 
 catkin_add_gtest(test_cache_test test/cache_test.cc)
-target_link_libraries(test_cache_test ${PROJECT_NAME}_test)
+target_link_libraries(test_cache_test net_table_fixture)
 
 catkin_add_gtest(test_chord_index_test test/chord_index_test.cc)
-target_link_libraries(test_chord_index_test ${PROJECT_NAME}_test)
+target_link_libraries(test_chord_index_test ${PROJECT_NAME}_fixture)
 
 catkin_add_gtest(test_chunk_test test/chunk_test.cc)
-target_link_libraries(test_chunk_test ${PROJECT_NAME}_test)
+target_link_libraries(test_chunk_test net_table_fixture)
 
 catkin_add_gtest(test_table_interface_test test/table_interface_test.cc)
-target_link_libraries(test_table_interface_test ${PROJECT_NAME}_test)
+target_link_libraries(test_table_interface_test ${PROJECT_NAME}_fixture)
 
 catkin_add_gtest(test_core_test test/core_test.cc)
-target_link_libraries(test_core_test ${PROJECT_NAME}_test)
-
-# TODO(tcies) eventually remove after moving tests to transaction
-# catkin_add_gtest(test_local_transaction_test test/local_transaction_test.cc)
-# target_link_libraries(test_local_transaction_test ${PROJECT_NAME}_test)
+target_link_libraries(test_core_test ${PROJECT_NAME}_fixture)
 
 catkin_add_gtest(test_net_table_test test/net_table_test.cc)
-target_link_libraries(test_net_table_test ${PROJECT_NAME}_test)
+target_link_libraries(test_net_table_test net_table_fixture)
 
 catkin_add_gtest(test_spatial_index_test test/spatial_index_test.cc)
-target_link_libraries(test_spatial_index_test ${PROJECT_NAME}_test)
+target_link_libraries(test_spatial_index_test ${PROJECT_NAME}_fixture)
 
 catkin_add_gtest(test_transaction_test test/transaction-test.cc)
-target_link_libraries(test_transaction_test ${PROJECT_NAME}_test)
+target_link_libraries(test_transaction_test net_table_fixture)
 
 catkin_add_gtest(test_hub_test test/hub_test.cc)
-target_link_libraries(test_hub_test ${PROJECT_NAME}_test)
+target_link_libraries(test_hub_test ${PROJECT_NAME}_fixture)
 
 catkin_add_gtest(test_proto_table_file_io_test test/proto_table_file_io_test.cc)
-target_link_libraries(test_proto_table_file_io_test ${PROJECT_NAME}_test)
+target_link_libraries(test_proto_table_file_io_test net_table_fixture)
 
 catkin_add_gtest(test_proto_stl_stream_test test/proto_stl_stream_test.cc)
-target_link_libraries(test_proto_stl_stream_test ${PROJECT_NAME}_test)
+target_link_libraries(test_proto_stl_stream_test ${PROJECT_NAME}_fixture)
 
-catkin_add_gtest(test_visual_frame_resource_loader_test test/visual-frame-resource-loader-test.cc WORKING_DIRECTORY
+catkin_add_gtest(test_visual_frame_resource_loader_test 
+                 test/visual-frame-resource-loader-test.cc
+                 WORKING_DIRECTORY
                  ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
-target_link_libraries(test_visual_frame_resource_loader_test ${PROJECT_NAME}_test)
+target_link_libraries(test_visual_frame_resource_loader_test ${PROJECT_NAME}_fixture)
 
 ##########
 # EXPORT #

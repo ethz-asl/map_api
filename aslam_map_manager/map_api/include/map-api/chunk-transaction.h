@@ -30,7 +30,7 @@ class ChunkTransaction {
   FRIEND_TEST(NetTableTest, ChunkTransactions);
   FRIEND_TEST(NetTableTest, ChunkTransactionsConflictConditions);
 
- private:
+ public:
   explicit ChunkTransaction(Chunk* chunk);
   ChunkTransaction(const LogicalTime& begin_time, Chunk* chunk);
 
