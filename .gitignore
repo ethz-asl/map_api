@@ -39,3 +39,6 @@
 #Swap files
 *~
 
+#Generated documentation
+html/
+
