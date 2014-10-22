@@ -64,9 +64,9 @@ TEST_P(NetTableFixture, NetTableTransactions) {
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 2);
     IPC::barrier(SYNC, 2);
-    IPC::pop(&ab_chunk_id);
-    IPC::pop(&b_chunk_id);
-    IPC::pop(&ab_id);
+    ab_chunk_id = IPC::pop<Id>();
+    b_chunk_id = IPC::pop<Id>();
+    ab_id = IPC::pop<Id>();
     ab_chunk = table_->getChunk(ab_chunk_id);
     for (int i = 0; i < kCycles; ++i) {
       while (true) {
@@ -88,10 +88,10 @@ TEST_P(NetTableFixture, NetTableTransactions) {
   if (getSubprocessId() == B) {
     IPC::barrier(INIT, 2);
     IPC::barrier(SYNC, 2);
-    IPC::pop(&ab_chunk_id);
-    IPC::pop(&b_chunk_id);
-    IPC::pop(&ab_id);
-    IPC::pop(&b_id);
+    ab_chunk_id = IPC::pop<Id>();
+    b_chunk_id = IPC::pop<Id>();
+    ab_id = IPC::pop<Id>();
+    b_id = IPC::pop<Id>();
     ab_chunk = table_->getChunk(ab_chunk_id);
     b_chunk = table_->getChunk(b_chunk_id);
     for (int i = 0; i < kCycles; ++i) {
@@ -174,10 +174,10 @@ TEST_P(NetTableFixture, Transactions) {
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 2);
     IPC::barrier(SYNC, 2);
-    IPC::pop(&ab_chunk_id);
+    ab_chunk_id = IPC::pop<Id>();
     ab_chunk = table_->getChunk(ab_chunk_id);
-    IPC::pop(&b_chunk_id);
-    IPC::pop(&ab_id);
+    b_chunk_id = IPC::pop<Id>();
+    ab_id = IPC::pop<Id>();
     for (int i = 0; i < kCycles; ++i) {
       while (true) {
         Transaction attempt;
@@ -198,10 +198,10 @@ TEST_P(NetTableFixture, Transactions) {
   if (getSubprocessId() == B) {
     IPC::barrier(INIT, 2);
     IPC::barrier(SYNC, 2);
-    IPC::pop(&ab_chunk_id);
-    IPC::pop(&b_chunk_id);
-    IPC::pop(&ab_id);
-    IPC::pop(&b_id);
+    ab_chunk_id = IPC::pop<Id>();
+    b_chunk_id = IPC::pop<Id>();
+    ab_id = IPC::pop<Id>();
+    b_id = IPC::pop<Id>();
     ab_chunk = table_->getChunk(ab_chunk_id);
     b_chunk = second_table->getChunk(b_chunk_id);
     for (int i = 0; i < kCycles; ++i) {
@@ -279,7 +279,7 @@ TEST_P(NetTableFixture, ChunkLookup) {
     table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(0, results.size());
     Id chunk_id;
-    IPC::pop(&chunk_id);
+    chunk_id = IPC::pop<Id>();
     chunk = table_->getChunk(chunk_id);
     EXPECT_TRUE(chunk);
     table_->dumpActiveChunksAtCurrentTime(&results);
@@ -290,7 +290,7 @@ TEST_P(NetTableFixture, ChunkLookup) {
     chunk = table_->newChunk();
     EXPECT_TRUE(chunk);
     insert(0, chunk);
-    IPC::push(chunk->id().hexString());
+    IPC::push(chunk->id());
     IPC::barrier(CHUNK_CREATED, 1);
   }
   IPC::barrier(DIE, 1);
