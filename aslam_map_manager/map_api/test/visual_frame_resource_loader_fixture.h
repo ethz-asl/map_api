@@ -48,8 +48,8 @@ class ResourceLoaderFixture : public MapApiFixture {
     descriptor->addField<std::string>(kVisualFrameTableUri);
     descriptor->addField<int>(kVisualFrameTableType);
     descriptor->addField<Id>(kVisualFrameTableVisualFrameId);
-    NetTableManager::instance().addTable(CRTable::Type::CRU, &descriptor);
-    table_ = &NetTableManager::instance().getTable(kTableName);
+    table_ =
+        NetTableManager::instance().addTable(CRTable::Type::CRU, &descriptor);
 
     // Set up chunk
     Id chunk_id;

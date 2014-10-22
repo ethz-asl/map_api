@@ -132,9 +132,8 @@ TEST_P(NetTableFixture, Transactions) {
   std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
   descriptor->setName(kSecondTableName);
   descriptor->addField<int>(kSecondTableFieldName);
-  NetTableManager::instance().addTable(CRTable::Type::CRU, &descriptor);
   NetTable* second_table =
-      &NetTableManager::instance().getTable(kSecondTableName);
+      NetTableManager::instance().addTable(CRTable::Type::CRU, &descriptor);
   ASSERT_TRUE(second_table);
 
   Id ab_chunk_id, b_chunk_id, ab_id, b_id;

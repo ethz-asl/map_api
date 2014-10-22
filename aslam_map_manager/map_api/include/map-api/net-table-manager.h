@@ -29,8 +29,9 @@ class NetTableManager {
 
   void initMetatable(bool create_metatable_chunk);
 
-  void addTable(CRTable::Type type,
-                std::unique_ptr<TableDescriptor>* descriptor);
+  NetTable* __attribute__((warn_unused_result))
+      addTable(CRTable::Type type,
+               std::unique_ptr<TableDescriptor>* descriptor);
   /**
    * Can leave dangling reference
    */
