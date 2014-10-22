@@ -180,8 +180,7 @@ TEST_F(SpatialIndexTest, RegisterSeek) {
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 1);
     IPC::barrier(PUSH_ADDRESS, 1);
-    PeerId root;
-    IPC::pop(&root);
+    PeerId root = IPC::pop<PeerId>();
     joinSpatialIndex(root);
     createDefaultChunks();
     registerDefaultChunks();

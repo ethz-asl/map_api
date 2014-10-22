@@ -95,54 +95,36 @@ void IPC::pushHandler(const Message& request, Message* response) {
 }
 
 template <>
-bool IPC::popFor(std::string* destination, int receiver) {
-  CHECK_NOTNULL(destination);
+std::string IPC::popFor(int receiver) {
   std::lock_guard<std::mutex> lock(message_mutex_);
   proto::IpcMessage ipc_message;
   do {
-    if (messages_.empty()) {
-      LOG(WARNING) << "IPC pop failed";
-      return false;
-    }
+    CHECK(!messages_.empty()) << "IPC pop failed, empty message queue!";
     ipc_message = messages_.front();
     messages_.pop();
   } while (ipc_message.receiver() != receiver);
-  *destination = ipc_message.message();
-  return true;
+  return ipc_message.message();
 }
 template <>
-bool IPC::popFor(Id* destination, int receiver) {
-  CHECK_NOTNULL(destination);
-  std::string serialized;
-  if (!popFor(&serialized, receiver)) {
-    return false;
-  }
-  CHECK(destination->fromHexString(serialized));
-  return true;
+Id IPC::popFor(int receiver) {
+  Id return_value;
+  std::string serialized = popFor<std::string>(receiver);
+  CHECK(return_value.fromHexString(serialized));
+  return return_value;
 }
 template <>
-bool IPC::popFor(LogicalTime* destination, int receiver) {
-  CHECK_NOTNULL(destination);
-  std::string serialized_stream;
-  if (!popFor(&serialized_stream, receiver)) {
-    return false;
-  }
+LogicalTime IPC::popFor(int receiver) {
+  std::string serialized_stream = popFor<std::string>(receiver);
   std::istringstream iss(serialized_stream);
   uint64_t serialized;
   iss >> serialized;
-  *destination = LogicalTime(serialized);
-  return true;
+  return LogicalTime(serialized);
 }
 template <>
-bool IPC::popFor(PeerId* destination, int receiver) {
-  CHECK_NOTNULL(destination);
-  std::string address;
-  if (!popFor(&address, receiver)) {
-    return false;
-  }
+PeerId IPC::popFor(int receiver) {
+  std::string address = popFor<std::string>(receiver);
   CHECK(PeerId::isValid(address));
-  *destination = PeerId(address);
-  return true;
+  return PeerId(address);
 }
 
 }  // namespace map_api

@@ -51,7 +51,7 @@ TEST_P(NetTableFixture, TransactionMerge) {
     chunk = table_->getChunk(chunk_id);
     Transaction transaction;
     IPC::barrier(CHECKOUT, 1);
-    IPC::pop(&a_id);
+    a_id = IPC::pop<Id>();
     increment(table_, a_id, chunk, &transaction);
     ASSERT_TRUE(transaction.commit());
     IPC::barrier(A_COMMITTED, 1);

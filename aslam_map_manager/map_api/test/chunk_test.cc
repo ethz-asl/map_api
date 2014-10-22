@@ -125,8 +125,7 @@ TEST_P(NetTableFixture, RemoteInsert) {
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 1);
     IPC::barrier(A_JOINED, 1);
-    Id chunk_id;
-    IPC::pop(&chunk_id);
+    Id chunk_id = IPC::pop<Id>();
     insert(42, table_->getChunk(chunk_id));
 
     IPC::barrier(A_ADDED, 1);
@@ -205,15 +204,14 @@ TEST_P(NetTableFixture, Grind) {
     ASSERT_TRUE(chunk);
     IPC::barrier(INIT, kProcesses - 1);
     chunk->requestParticipation();
-    IPC::push(chunk->id().hexString());
+    IPC::push(chunk->id());
     IPC::barrier(ID_SHARED, kProcesses - 1);
     IPC::barrier(DIE, kProcesses - 1);
     EXPECT_EQ(kInsertUpdateCycles * (kProcesses - 1), count());
   } else {
     IPC::barrier(INIT, kProcesses - 1);
     IPC::barrier(ID_SHARED, kProcesses - 1);
-    Id chunk_id;
-    IPC::pop(&chunk_id);
+    Id chunk_id = IPC::pop<Id>();
     Chunk* chunk = table_->getChunk(chunk_id);
     for (int i = 0; i < kInsertUpdateCycles; ++i) {
       // insert
@@ -252,8 +250,8 @@ TEST_P(NetTableFixture, ChunkTransactions) {
     IPC::barrier(INIT, kProcesses - 1);
 
     chunk->requestParticipation();
-    IPC::push(chunk->id().hexString());
-    IPC::push(insert_id.hexString());
+    IPC::push(chunk->id());
+    IPC::push(insert_id);
     IPC::barrier(IDS_SHARED, kProcesses - 1);
 
     IPC::barrier(DIE, kProcesses - 1);
@@ -276,9 +274,7 @@ TEST_P(NetTableFixture, ChunkTransactions) {
   } else {
     IPC::barrier(INIT, kProcesses - 1);
     IPC::barrier(IDS_SHARED, kProcesses - 1);
-    Id chunk_id, item_id;
-    IPC::pop(&chunk_id);
-    IPC::pop(&item_id);
+    Id chunk_id = IPC::pop<Id>(), item_id = IPC::pop<Id>();
     Chunk* chunk = table_->getChunk(chunk_id);
     ASSERT_TRUE(chunk);
     while (true) {
@@ -326,7 +322,7 @@ TEST_P(NetTableFixture, ChunkTransactionsConflictConditions) {
     IPC::barrier(INIT, kProcesses - 1);
 
     chunk->requestParticipation();
-    IPC::push(chunk->id().hexString());
+    IPC::push(chunk->id());
     IPC::barrier(ID_SHARED, kProcesses - 1);
 
     IPC::barrier(DIE, kProcesses - 1);
@@ -347,8 +343,7 @@ TEST_P(NetTableFixture, ChunkTransactionsConflictConditions) {
   } else {
     IPC::barrier(INIT, kProcesses - 1);
     IPC::barrier(ID_SHARED, kProcesses - 1);
-    Id chunk_id;
-    IPC::pop(&chunk_id);
+    Id chunk_id = IPC::pop<Id>();
     Chunk* chunk = table_->getChunk(chunk_id);
     ASSERT_TRUE(chunk);
     for (int i = 0; i < kUniqueItems; ++i) {
@@ -384,7 +379,7 @@ TEST_P(NetTableFixture, Triggers) {
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 1);
     IPC::barrier(ID_SHARED, 1);
-    IPC::pop(&chunk_id_);
+    chunk_id_ = IPC::pop<Id>();
     chunk_ = table_->getChunk(chunk_id_);
   }
   chunk_->attachTrigger([this, &highest_value](const Id& id) {
@@ -441,9 +436,9 @@ TEST_P(NetTableFixture, SendHistory) {
     launchSubprocess(A);
     IPC::barrier(INIT, 1);
     IPC::barrier(A_DONE, 1);
-    IPC::pop(&chunk_id_);
-    IPC::pop(&before_mod);
-    IPC::pop(&item_id_);
+    chunk_id_ = IPC::pop<Id>();
+    before_mod = IPC::pop<LogicalTime>();
+    item_id_ = IPC::pop<Id>();
     chunk_ = table_->getChunk(chunk_id_);
     IPC::barrier(DIE, 1);
 

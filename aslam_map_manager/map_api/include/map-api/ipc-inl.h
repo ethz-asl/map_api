@@ -14,8 +14,8 @@ void IPC::push(const Type& message) {
 }
 
 template <typename Type>
-bool IPC::pop(Type* destination) {
-  return popFor(destination, kEveryone);
+Type IPC::pop() {
+  return popFor<Type>(kEveryone);
 }
 
 // Need to declare all custom specializations so that the compiler doesn't
@@ -29,13 +29,13 @@ void IPC::pushFor(const LogicalTime& message, int receiver);
 template <>
 void IPC::pushFor(const PeerId& peer_id, int receiver);
 template <>
-bool IPC::popFor(std::string* destination, int receiver);
+std::string IPC::popFor(int receiver);
 template <>
-bool IPC::popFor(Id* destination, int receiver);
+Id IPC::popFor(int receiver);
 template <>
-bool IPC::popFor(LogicalTime* destination, int receiver);
+LogicalTime IPC::popFor(int receiver);
 template <>
-bool IPC::popFor(PeerId* destination, int receiver);
+PeerId IPC::popFor(int receiver);
 
 template <typename Type>
 void IPC::pushFor(const Type& message, int receiver) {
@@ -43,15 +43,12 @@ void IPC::pushFor(const Type& message, int receiver) {
 }
 
 template <typename Type>
-bool IPC::popFor(Type* destination, int receiver) {
-  CHECK_NOTNULL(destination);
-  std::string string;
-  if (!popFor(&string, receiver)) {
-    return false;
-  }
+Type IPC::popFor(int receiver) {
+  Type return_value;
+  std::string string = popFor<std::string>(receiver);
   std::istringstream ss(string);
-  ss >> *destination;
-  return true;
+  ss >> return_value;
+  return return_value;
 }
 
 }  // namespace map_api
