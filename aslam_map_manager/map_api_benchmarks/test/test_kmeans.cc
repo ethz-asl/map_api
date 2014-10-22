@@ -114,9 +114,9 @@ class MultiKmeans : public map_api_test_suite::MultiprocessTest {
   }
 
   void popIdsInitWorker() {
-    map_api::Id data_chunk_id = IPC::pop<map_api::Id>(),
-                center_chunk_id = IPC::pop<map_api::Id>(),
-                membership_chunk_id = IPC::pop<map_api::Id>();
+    map_api::Id data_chunk_id = IPC::pop<map_api::Id>();
+    map_api::Id center_chunk_id = IPC::pop<map_api::Id>();
+    map_api::Id membership_chunk_id = IPC::pop<map_api::Id>();
     data_chunk_ = app::data_point_table->getChunk(data_chunk_id);
     center_chunk_ = app::center_table->getChunk(center_chunk_id);
     membership_chunk_ = app::association_table->getChunk(membership_chunk_id);
