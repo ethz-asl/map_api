@@ -114,10 +114,9 @@ class MultiKmeans : public map_api_test_suite::MultiprocessTest {
   }
 
   void popIdsInitWorker() {
-    map_api::Id data_chunk_id, center_chunk_id, membership_chunk_id;
-    CHECK(IPC::pop(&data_chunk_id));
-    CHECK(IPC::pop(&center_chunk_id));
-    CHECK(IPC::pop(&membership_chunk_id));
+    map_api::Id data_chunk_id = IPC::pop<map_api::Id>();
+    map_api::Id center_chunk_id = IPC::pop<map_api::Id>();
+    map_api::Id membership_chunk_id = IPC::pop<map_api::Id>();
     data_chunk_ = app::data_point_table->getChunk(data_chunk_id);
     center_chunk_ = app::center_table->getChunk(center_chunk_id);
     membership_chunk_ = app::association_table->getChunk(membership_chunk_id);
@@ -201,8 +200,7 @@ TEST_F(MultiKmeans, KmeansHoarderWorker) {
     // wait for worker to collect chunks and optimize once
     for (size_t i = 0; i < kIterations; ++i) {
       IPC::barrier(current_barrier++, 1);
-      std::string result_string;
-      IPC::pop(&result_string);
+      std::string result_string = IPC::pop<std::string>();
       std::istringstream ss(result_string);
       ss >> result;
       results.push_back(result);

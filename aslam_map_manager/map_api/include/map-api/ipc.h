@@ -50,9 +50,9 @@ class IPC {
    * all peers.
    */
   template <typename Type>
-  static bool pop(Type* destination);
+  static Type pop();
   template <typename Type>
-  static bool popFor(Type* destination, int receiver);
+  static Type popFor(int receiver);
 
   /**
    * Message declarations

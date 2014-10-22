@@ -26,7 +26,7 @@ cs_add_executable(lock-sequence-reader src/lock-sequence-reader.cc)
 add_dependencies(${PROJECT_NAME} gflags_catkin glog_catkin)
 
 catkin_add_gtest(test_kmeans test/test_kmeans.cc)
-target_link_libraries(test_kmeans ${PROJECT_NAME})
+target_link_libraries(test_kmeans ${PROJECT_NAME} pthread)
 
 cs_install()
 cs_export()
