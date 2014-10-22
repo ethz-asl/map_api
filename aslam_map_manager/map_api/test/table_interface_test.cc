@@ -398,7 +398,6 @@ TYPED_TEST(CruMapIntTestWithInit, HistoryAtTime) {
 }
 
 TYPED_TEST(CruMapIntTestWithInit, Remove) {
-  typedef FieldTestTable<TypeParam> FieldTestTableType;
   constexpr int64_t kValue = 42;
   this->fillRevision(kValue);
   this->insertRevision();

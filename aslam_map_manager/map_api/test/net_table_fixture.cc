@@ -16,9 +16,8 @@ void NetTableFixture::SetUp() {
   std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
   descriptor->setName(kTableName);
   descriptor->addField<int>(kFieldName);
-  NetTableManager::instance().addTable(
+  table_ = NetTableManager::instance().addTable(
       GetParam() ? CRTable::Type::CRU : CRTable::Type::CR, &descriptor);
-  table_ = &NetTableManager::instance().getTable(kTableName);
 }
 
 size_t NetTableFixture::count() {
