@@ -25,7 +25,7 @@ TEST_F(ResourceLoaderFixture, ShouldFindResourceIds) {
       &resource_ids_2);
 
   EXPECT_EQ(20u, resource_ids_2.size());
-  for (auto id : kDepthMapIds1) {
+  for (std::string id : kDepthMapIds1) {
     EXPECT_NE(resource_ids.end(), resource_ids_2.find(id));
   }
 }
@@ -76,7 +76,7 @@ TEST_F(ResourceLoaderFixture, ShouldReleaseResourcesCorrectly) {
             dummy_visual_frame_1.resourcesStored_.find(kResourceIdB));
 
   // Load 20 resources of type DepthMap for visual frame 1
-  for (auto id : kDepthMapIds1) {
+  for (std::string id : kDepthMapIds1) {
     EXPECT_TRUE(loader.loadResource(
         id, common::ResourceLoaderBase::kVisualFrameResourceDepthMapType,
         &dummy_visual_frame_1));
@@ -86,7 +86,7 @@ TEST_F(ResourceLoaderFixture, ShouldReleaseResourcesCorrectly) {
   EXPECT_EQ(22u, dummy_visual_frame_1.resourcesStored_.size());
 
   // Load 10 resources of type DepthMap for visual frame 2
-  for (auto id : kDepthMapIds2) {
+  for (std::string id : kDepthMapIds2) {
     EXPECT_TRUE(loader.loadResource(
         id, common::ResourceLoaderBase::kVisualFrameResourceDepthMapType,
         &dummy_visual_frame_2));
@@ -99,7 +99,7 @@ TEST_F(ResourceLoaderFixture, ShouldReleaseResourcesCorrectly) {
   EXPECT_EQ(12u, dummy_visual_frame_1.resourcesStored_.size());
 
   // Load 15 resources of type DepthMap for visual frame 3
-  for (auto id : kDepthMapIds3) {
+  for (std::string id : kDepthMapIds3) {
     EXPECT_TRUE(loader.loadResource(
         id, common::ResourceLoaderBase::kVisualFrameResourceDepthMapType,
         &dummy_visual_frame_3));

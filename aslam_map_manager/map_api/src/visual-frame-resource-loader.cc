@@ -1,5 +1,7 @@
 #include "map-api/visual-frame-resource-loader.h"
 
+#include <glog/logging.h>
+
 namespace map_api {
 
 ResourceLoader::ResourceLoader(const std::string& resource_table_name) {
@@ -35,9 +37,12 @@ cv::Mat ResourceLoader::loadResourceFromUri(const std::string& uri,
     case kVisualFrameResourceRawDepthMapType:
     // Fall through intended
     case kVisualFrameResourceOptimizedDepthMapType:
-    // Fall through intended
+      image = cv::imread(uri, CV_LOAD_IMAGE_UNCHANGED);
+      CHECK(CV_MAT_TYPE(image.type()) == CV_16U);
+      break;
     case kVisualFrameResourceRawImageType:
-      image = cv::imread(uri);
+      image = cv::imread(uri, CV_LOAD_IMAGE_UNCHANGED);
+      CHECK(CV_MAT_TYPE(image.type()) == CV_8U);
       break;
     default:
       CHECK(false) << "unknown resource type: " << type;
