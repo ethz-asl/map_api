@@ -1,5 +1,6 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+#include <signal.h>
 
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 
