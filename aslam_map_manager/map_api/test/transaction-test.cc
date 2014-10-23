@@ -3,11 +3,11 @@
 #include "map-api/ipc.h"
 #include "map-api/transaction.h"
 
-#include "./net_table_test_fixture.cc"
+#include "./net_table_fixture.h"
 
 namespace map_api {
 
-TEST_P(NetTableTest, TransactionMerge) {
+TEST_P(NetTableFixture, TransactionMerge) {
   if (!GetParam()) {
     return;
   }
@@ -51,7 +51,7 @@ TEST_P(NetTableTest, TransactionMerge) {
     chunk = table_->getChunk(chunk_id);
     Transaction transaction;
     IPC::barrier(CHECKOUT, 1);
-    IPC::pop(&a_id);
+    a_id = IPC::pop<Id>();
     increment(table_, a_id, chunk, &transaction);
     ASSERT_TRUE(transaction.commit());
     IPC::barrier(A_COMMITTED, 1);

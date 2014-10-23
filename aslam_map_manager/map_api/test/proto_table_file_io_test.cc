@@ -11,11 +11,11 @@
 #include "map-api/transaction.h"
 #include "map-api/proto-table-file-io.h"
 
-#include "net_table_test_fixture.cc"
+#include "./net_table_fixture.h"
 
 using namespace map_api;  // NOLINT
 
-TEST_P(NetTableTest, SaveAndRestoreFromFile) {
+TEST_P(NetTableFixture, SaveAndRestoreFromFile) {
   Chunk* chunk = table_->newChunk();
   CHECK_NOTNULL(chunk);
   Id chunk_id = chunk->id();

@@ -6,13 +6,11 @@
 #include "map-api/core.h"
 #include "map-api/ipc.h"
 
-#include "map_api_multiprocess_fixture.h"
+#include "./map_api_fixture.h"
 
-using namespace map_api;
+namespace map_api {
 
-class MultiprocessTest;
-
-TEST_F(MultiprocessTest, LaunchTest) {
+TEST_F(MapApiFixture, LaunchTest) {
   enum Processes {
     ROOT,
     SLAVE
@@ -32,5 +30,7 @@ TEST_F(MultiprocessTest, LaunchTest) {
     IPC::barrier(AFTER_COUNT, 1);
   }
 }
+
+}  // namespace map_api
 
 MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT

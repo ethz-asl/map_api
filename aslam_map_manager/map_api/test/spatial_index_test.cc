@@ -8,7 +8,7 @@
 #include "map-api/net-table-transaction.h"
 #include "map-api/transaction.h"
 
-#include "./map_api_multiprocess_fixture.h"
+#include "./map_api_fixture.h"
 
 namespace map_api {
 
@@ -45,7 +45,7 @@ namespace map_api {
  * (1, 1, 0) has {b}
  * (1, 1, 1) has {b, d}
  */
-class SpatialIndexTest : public MultiprocessTest {
+class SpatialIndexTest : public MapApiFixture {
  protected:
   static const std::string kTableName;
   enum Fields {
@@ -72,8 +72,8 @@ class SpatialIndexTest : public MultiprocessTest {
     std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
     descriptor->setName(kTableName);
     descriptor->addField<int>(kFieldName);
-    NetTableManager::instance().addTable(CRTable::Type::CR, &descriptor);
-    table_ = &NetTableManager::instance().getTable(kTableName);
+    table_ =
+        NetTableManager::instance().addTable(CRTable::Type::CR, &descriptor);
 
     generateIdFromInt(1, &chunk_a_id_);
     generateIdFromInt(2, &chunk_b_id_);
@@ -180,8 +180,7 @@ TEST_F(SpatialIndexTest, RegisterSeek) {
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 1);
     IPC::barrier(PUSH_ADDRESS, 1);
-    PeerId root;
-    IPC::pop(&root);
+    PeerId root = IPC::pop<PeerId>();
     joinSpatialIndex(root);
     createDefaultChunks();
     registerDefaultChunks();

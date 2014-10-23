@@ -127,7 +127,7 @@ void NetTableManager::initMetatable(bool create_metatable_chunk) {
   }
 }
 
-void NetTableManager::addTable(
+NetTable* NetTableManager::addTable(
     CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor) {
   CHECK_NOTNULL(descriptor);
   CHECK(*descriptor);
@@ -154,12 +154,13 @@ void NetTableManager::addTable(
   // Ensure validity of table structure
   CHECK(syncTableDefinition(type, *descriptor_raw, &first, &entry_point));
   // May receive requests at this point TODO(tcies) defer them
-  NetTable& table = getTable(descriptor_raw->name());
+  NetTable* table = &getTable(descriptor_raw->name());
   if (first) {
-    table.createIndex();
+    table->createIndex();
   } else {
-    table.joinIndex(entry_point);
+    table->joinIndex(entry_point);
   }
+  return table;
 }
 
 NetTable& NetTableManager::getTable(const std::string& name) {

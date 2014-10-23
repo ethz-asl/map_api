@@ -12,14 +12,14 @@
 
 DECLARE_uint64(subprocess_id);
 
-// adapted from
-// http://stackoverflow.com/questions/5525668/how-to-implement-readlink-to-find-the-path
-std::string getSelfpath();
-
 namespace map_api_test_suite {
 
 class MultiprocessTest : public ::testing::Test {
  protected:
+  // adapted from
+  // http://stackoverflow.com/questions/5525668/how-to-implement-readlink-to-find-the-path
+  std::string getSelfpath();
+
   /**
    * Return own ID: 0 if master
    */

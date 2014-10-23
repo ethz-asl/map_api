@@ -8,7 +8,7 @@
 
 #include "map-api/visual-frame-resource-loader.h"
 
-#include "./map_api_multiprocess_fixture.h"
+#include "./map_api_fixture.h"
 
 namespace map_api {
 
@@ -29,9 +29,9 @@ class VisualFrameDummy : public common::VisualFrameBase {
 };
 
 // Set up DB and DB entries for tests
-class ResourceLoaderTest : public MultiprocessTest {
+class ResourceLoaderFixture : public MapApiFixture {
  public:
-  virtual ~ResourceLoaderTest() {}
+  virtual ~ResourceLoaderFixture() {}
 
   enum VisualFrameTableFields {
     kVisualFrameTableUri,
@@ -48,8 +48,8 @@ class ResourceLoaderTest : public MultiprocessTest {
     descriptor->addField<std::string>(kVisualFrameTableUri);
     descriptor->addField<int>(kVisualFrameTableType);
     descriptor->addField<Id>(kVisualFrameTableVisualFrameId);
-    NetTableManager::instance().addTable(CRTable::Type::CRU, &descriptor);
-    table_ = &NetTableManager::instance().getTable(kTableName);
+    table_ =
+        NetTableManager::instance().addTable(CRTable::Type::CRU, &descriptor);
 
     // Set up chunk
     Id chunk_id;
@@ -171,27 +171,27 @@ std::unordered_set<std::string> initIdSet(int start, int number) {
   return tmp_disparity_map_ids;
 }
 
-const std::string ResourceLoaderTest::kTableName =
+const std::string ResourceLoaderFixture::kTableName =
     "visual_frame_resource_test_table";
 
-const std::string ResourceLoaderTest::kChunkId =
+const std::string ResourceLoaderFixture::kChunkId =
     "0000000000000000000000000000000F";
-const std::string ResourceLoaderTest::kVisualFrameId1 =
+const std::string ResourceLoaderFixture::kVisualFrameId1 =
     "0000000000000000000000000000000A";
-const std::string ResourceLoaderTest::kVisualFrameId2 =
+const std::string ResourceLoaderFixture::kVisualFrameId2 =
     "0000000000000000000000000000000B";
-const std::string ResourceLoaderTest::kVisualFrameId3 =
+const std::string ResourceLoaderFixture::kVisualFrameId3 =
     "0000000000000000000000000000000C";
 
-const std::string ResourceLoaderTest::kResourceIdA =
+const std::string ResourceLoaderFixture::kResourceIdA =
     "00000000000000000000000000000777";
-const std::string ResourceLoaderTest::kResourceIdB =
+const std::string ResourceLoaderFixture::kResourceIdB =
     "00000000000000000000000000000888";
-std::unordered_set<std::string> ResourceLoaderTest::kDisparityMapIds1(
+std::unordered_set<std::string> ResourceLoaderFixture::kDisparityMapIds1(
     initIdSet(1, 20));
-std::unordered_set<std::string> ResourceLoaderTest::kDisparityMapIds2(
+std::unordered_set<std::string> ResourceLoaderFixture::kDisparityMapIds2(
     initIdSet(31, 10));
-std::unordered_set<std::string> ResourceLoaderTest::kDisparityMapIds3(
+std::unordered_set<std::string> ResourceLoaderFixture::kDisparityMapIds3(
     initIdSet(51, 15));
 
 }  // namespace map_api

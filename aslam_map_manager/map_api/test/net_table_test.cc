@@ -6,10 +6,11 @@
 #include <multiagent_mapping_common/test/testing_entrypoint.h>
 
 #include "map-api/ipc.h"
+#include "map-api/net-table-manager.h"
 #include "map-api/net-table-transaction.h"
 #include "map-api/transaction.h"
 
-#include "net_table_test_fixture.cc"
+#include "./net_table_fixture.h"
 
 namespace map_api {
 
@@ -18,7 +19,7 @@ namespace map_api {
  * sense because A's operations per transaction are less complex, thus
  * faster executed, and A gets to lock first.
  */
-TEST_P(NetTableTest, NetTableTransactions) {
+TEST_P(NetTableFixture, NetTableTransactions) {
   if (!GetParam()) {
     return;
   }
@@ -63,9 +64,9 @@ TEST_P(NetTableTest, NetTableTransactions) {
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 2);
     IPC::barrier(SYNC, 2);
-    IPC::pop(&ab_chunk_id);
-    IPC::pop(&b_chunk_id);
-    IPC::pop(&ab_id);
+    ab_chunk_id = IPC::pop<Id>();
+    b_chunk_id = IPC::pop<Id>();
+    ab_id = IPC::pop<Id>();
     ab_chunk = table_->getChunk(ab_chunk_id);
     for (int i = 0; i < kCycles; ++i) {
       while (true) {
@@ -87,10 +88,10 @@ TEST_P(NetTableTest, NetTableTransactions) {
   if (getSubprocessId() == B) {
     IPC::barrier(INIT, 2);
     IPC::barrier(SYNC, 2);
-    IPC::pop(&ab_chunk_id);
-    IPC::pop(&b_chunk_id);
-    IPC::pop(&ab_id);
-    IPC::pop(&b_id);
+    ab_chunk_id = IPC::pop<Id>();
+    b_chunk_id = IPC::pop<Id>();
+    ab_id = IPC::pop<Id>();
+    b_id = IPC::pop<Id>();
     ab_chunk = table_->getChunk(ab_chunk_id);
     b_chunk = table_->getChunk(b_chunk_id);
     for (int i = 0; i < kCycles; ++i) {
@@ -108,7 +109,7 @@ TEST_P(NetTableTest, NetTableTransactions) {
   LOG(INFO) << PeerId::self() << " done";
 }
 
-TEST_P(NetTableTest, Transactions) {
+TEST_P(NetTableFixture, Transactions) {
   if (!GetParam()) {
     return;
   }
@@ -131,9 +132,8 @@ TEST_P(NetTableTest, Transactions) {
   std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
   descriptor->setName(kSecondTableName);
   descriptor->addField<int>(kSecondTableFieldName);
-  NetTableManager::instance().addTable(CRTable::Type::CRU, &descriptor);
   NetTable* second_table =
-      &NetTableManager::instance().getTable(kSecondTableName);
+      NetTableManager::instance().addTable(CRTable::Type::CRU, &descriptor);
   ASSERT_TRUE(second_table);
 
   Id ab_chunk_id, b_chunk_id, ab_id, b_id;
@@ -174,10 +174,10 @@ TEST_P(NetTableTest, Transactions) {
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 2);
     IPC::barrier(SYNC, 2);
-    IPC::pop(&ab_chunk_id);
+    ab_chunk_id = IPC::pop<Id>();
     ab_chunk = table_->getChunk(ab_chunk_id);
-    IPC::pop(&b_chunk_id);
-    IPC::pop(&ab_id);
+    b_chunk_id = IPC::pop<Id>();
+    ab_id = IPC::pop<Id>();
     for (int i = 0; i < kCycles; ++i) {
       while (true) {
         Transaction attempt;
@@ -198,10 +198,10 @@ TEST_P(NetTableTest, Transactions) {
   if (getSubprocessId() == B) {
     IPC::barrier(INIT, 2);
     IPC::barrier(SYNC, 2);
-    IPC::pop(&ab_chunk_id);
-    IPC::pop(&b_chunk_id);
-    IPC::pop(&ab_id);
-    IPC::pop(&b_id);
+    ab_chunk_id = IPC::pop<Id>();
+    b_chunk_id = IPC::pop<Id>();
+    ab_id = IPC::pop<Id>();
+    b_id = IPC::pop<Id>();
     ab_chunk = table_->getChunk(ab_chunk_id);
     b_chunk = second_table->getChunk(b_chunk_id);
     for (int i = 0; i < kCycles; ++i) {
@@ -227,7 +227,7 @@ TEST_P(NetTableTest, Transactions) {
   }
 }
 
-TEST_P(NetTableTest, CommitTime) {
+TEST_P(NetTableFixture, CommitTime) {
   if (!GetParam()) {
     return;
   }
@@ -257,7 +257,7 @@ TEST_P(NetTableTest, CommitTime) {
   // TODO(tcies) also test update times, and times accross multiple chunks
 }
 
-TEST_P(NetTableTest, ChunkLookup) {
+TEST_P(NetTableFixture, ChunkLookup) {
   if (GetParam()) {
     return;  // independent of updateability
   }
@@ -279,7 +279,7 @@ TEST_P(NetTableTest, ChunkLookup) {
     table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(0, results.size());
     Id chunk_id;
-    IPC::pop(&chunk_id);
+    chunk_id = IPC::pop<Id>();
     chunk = table_->getChunk(chunk_id);
     EXPECT_TRUE(chunk);
     table_->dumpActiveChunksAtCurrentTime(&results);
@@ -290,7 +290,7 @@ TEST_P(NetTableTest, ChunkLookup) {
     chunk = table_->newChunk();
     EXPECT_TRUE(chunk);
     insert(0, chunk);
-    IPC::push(chunk->id().hexString());
+    IPC::push(chunk->id());
     IPC::barrier(CHUNK_CREATED, 1);
   }
   IPC::barrier(DIE, 1);

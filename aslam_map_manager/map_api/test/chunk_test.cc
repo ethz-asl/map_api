@@ -7,17 +7,17 @@
 
 #include "map-api/ipc.h"
 
-#include "net_table_test_fixture.cc"
+#include "./net_table_fixture.h"
 
 namespace map_api {
 
-TEST_P(NetTableTest, NetInsert) {
+TEST_P(NetTableFixture, NetInsert) {
   Chunk* chunk = table_->newChunk();
   ASSERT_TRUE(chunk);
   insert(42, chunk);
 }
 
-TEST_P(NetTableTest, ParticipationRequest) {
+TEST_P(NetTableFixture, ParticipationRequest) {
   enum SubProcesses {
     ROOT,
     A
@@ -45,7 +45,7 @@ TEST_P(NetTableTest, ParticipationRequest) {
   }
 }
 
-TEST_P(NetTableTest, FullJoinTwice) {
+TEST_P(NetTableFixture, FullJoinTwice) {
   enum SubProcesses {
     ROOT,
     A,
@@ -97,7 +97,7 @@ TEST_P(NetTableTest, FullJoinTwice) {
   }
 }
 
-TEST_P(NetTableTest, RemoteInsert) {
+TEST_P(NetTableFixture, RemoteInsert) {
   enum Subprocesses {
     ROOT,
     A
@@ -125,8 +125,7 @@ TEST_P(NetTableTest, RemoteInsert) {
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 1);
     IPC::barrier(A_JOINED, 1);
-    Id chunk_id;
-    IPC::pop(&chunk_id);
+    Id chunk_id = IPC::pop<Id>();
     insert(42, table_->getChunk(chunk_id));
 
     IPC::barrier(A_ADDED, 1);
@@ -134,7 +133,7 @@ TEST_P(NetTableTest, RemoteInsert) {
   }
 }
 
-TEST_P(NetTableTest, RemoteUpdate) {
+TEST_P(NetTableFixture, RemoteUpdate) {
   if (!GetParam()) {  // not updateable - just pass test
     return;
   }
@@ -188,7 +187,7 @@ DEFINE_uint64(grind_processes, 10u,
 DEFINE_uint64(grind_cycles, 10u,
               "Total amount of insert-update cycles in ChunkTest.Grind");
 
-TEST_P(NetTableTest, Grind) {
+TEST_P(NetTableFixture, Grind) {
   const int kInsertUpdateCycles = FLAGS_grind_cycles;
   const uint64_t kProcesses = FLAGS_grind_processes;
   enum Barriers {
@@ -205,15 +204,14 @@ TEST_P(NetTableTest, Grind) {
     ASSERT_TRUE(chunk);
     IPC::barrier(INIT, kProcesses - 1);
     chunk->requestParticipation();
-    IPC::push(chunk->id().hexString());
+    IPC::push(chunk->id());
     IPC::barrier(ID_SHARED, kProcesses - 1);
     IPC::barrier(DIE, kProcesses - 1);
     EXPECT_EQ(kInsertUpdateCycles * (kProcesses - 1), count());
   } else {
     IPC::barrier(INIT, kProcesses - 1);
     IPC::barrier(ID_SHARED, kProcesses - 1);
-    Id chunk_id;
-    IPC::pop(&chunk_id);
+    Id chunk_id = IPC::pop<Id>();
     Chunk* chunk = table_->getChunk(chunk_id);
     for (int i = 0; i < kInsertUpdateCycles; ++i) {
       // insert
@@ -232,7 +230,7 @@ TEST_P(NetTableTest, Grind) {
   }
 }
 
-TEST_P(NetTableTest, ChunkTransactions) {
+TEST_P(NetTableFixture, ChunkTransactions) {
   const uint64_t kProcesses = FLAGS_grind_processes;
   enum Barriers {
     INIT,
@@ -252,8 +250,8 @@ TEST_P(NetTableTest, ChunkTransactions) {
     IPC::barrier(INIT, kProcesses - 1);
 
     chunk->requestParticipation();
-    IPC::push(chunk->id().hexString());
-    IPC::push(insert_id.hexString());
+    IPC::push(chunk->id());
+    IPC::push(insert_id);
     IPC::barrier(IDS_SHARED, kProcesses - 1);
 
     IPC::barrier(DIE, kProcesses - 1);
@@ -276,9 +274,7 @@ TEST_P(NetTableTest, ChunkTransactions) {
   } else {
     IPC::barrier(INIT, kProcesses - 1);
     IPC::barrier(IDS_SHARED, kProcesses - 1);
-    Id chunk_id, item_id;
-    IPC::pop(&chunk_id);
-    IPC::pop(&item_id);
+    Id chunk_id = IPC::pop<Id>(), item_id = IPC::pop<Id>();
     Chunk* chunk = table_->getChunk(chunk_id);
     ASSERT_TRUE(chunk);
     while (true) {
@@ -288,7 +284,8 @@ TEST_P(NetTableTest, ChunkTransactions) {
       // update
       if (GetParam()) {
         int transient_value;
-        std::shared_ptr<const Revision> to_update = transaction.getById(item_id);
+        std::shared_ptr<const Revision> to_update =
+            transaction.getById(item_id);
         to_update->get(kFieldName, &transient_value);
         ++transient_value;
         std::shared_ptr<Revision> revision =
@@ -304,7 +301,7 @@ TEST_P(NetTableTest, ChunkTransactions) {
   }
 }
 
-TEST_P(NetTableTest, ChunkTransactionsConflictConditions) {
+TEST_P(NetTableFixture, ChunkTransactionsConflictConditions) {
   if (GetParam()) {
     return;  // No need to test this for updateable tables as well
   }
@@ -325,7 +322,7 @@ TEST_P(NetTableTest, ChunkTransactionsConflictConditions) {
     IPC::barrier(INIT, kProcesses - 1);
 
     chunk->requestParticipation();
-    IPC::push(chunk->id().hexString());
+    IPC::push(chunk->id());
     IPC::barrier(ID_SHARED, kProcesses - 1);
 
     IPC::barrier(DIE, kProcesses - 1);
@@ -346,8 +343,7 @@ TEST_P(NetTableTest, ChunkTransactionsConflictConditions) {
   } else {
     IPC::barrier(INIT, kProcesses - 1);
     IPC::barrier(ID_SHARED, kProcesses - 1);
-    Id chunk_id;
-    IPC::pop(&chunk_id);
+    Id chunk_id = IPC::pop<Id>();
     Chunk* chunk = table_->getChunk(chunk_id);
     ASSERT_TRUE(chunk);
     for (int i = 0; i < kUniqueItems; ++i) {
@@ -360,7 +356,7 @@ TEST_P(NetTableTest, ChunkTransactionsConflictConditions) {
   }
 }
 
-TEST_P(NetTableTest, Triggers) {
+TEST_P(NetTableFixture, Triggers) {
   enum Processes {
     ROOT,
     A
@@ -383,7 +379,7 @@ TEST_P(NetTableTest, Triggers) {
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 1);
     IPC::barrier(ID_SHARED, 1);
-    IPC::pop(&chunk_id_);
+    chunk_id_ = IPC::pop<Id>();
     chunk_ = table_->getChunk(chunk_id_);
   }
   chunk_->attachTrigger([this, &highest_value](const Id& id) {
@@ -424,7 +420,7 @@ TEST_P(NetTableTest, Triggers) {
   }
 }
 
-TEST_P(NetTableTest, SendHistory) {
+TEST_P(NetTableFixture, SendHistory) {
   enum Processes {
     ROOT,
     A
@@ -440,9 +436,9 @@ TEST_P(NetTableTest, SendHistory) {
     launchSubprocess(A);
     IPC::barrier(INIT, 1);
     IPC::barrier(A_DONE, 1);
-    IPC::pop(&chunk_id_);
-    IPC::pop(&before_mod);
-    IPC::pop(&item_id_);
+    chunk_id_ = IPC::pop<Id>();
+    before_mod = IPC::pop<LogicalTime>();
+    item_id_ = IPC::pop<Id>();
     chunk_ = table_->getChunk(chunk_id_);
     IPC::barrier(DIE, 1);
 
@@ -488,7 +484,7 @@ TEST_P(NetTableTest, SendHistory) {
   }
 }
 
-TEST_P(NetTableTest, GetCommitTimes) {
+TEST_P(NetTableFixture, GetCommitTimes) {
   chunk_ = table_->newChunk();
   Transaction first;
   Id id;
