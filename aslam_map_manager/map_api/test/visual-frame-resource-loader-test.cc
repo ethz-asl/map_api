@@ -18,14 +18,14 @@ TEST_F(ResourceLoaderFixture, ShouldFindResourceIds) {
   EXPECT_NE(resource_ids.end(), resource_ids.find(kResourceIdA));
   EXPECT_NE(resource_ids.end(), resource_ids.find(kResourceIdB));
 
-  // Get all ids for the resources of type DisparityImage for visual frame 0xA
+  // Get all ids for the resources of type DepthImage for visual frame 0xA
   loader.getResourceIdsOfType(
       kVisualFrameId1,
-      common::ResourceLoaderBase::kVisualFrameResourceDisparityImageType,
+      common::ResourceLoaderBase::kVisualFrameResourceDepthMapType,
       &resource_ids_2);
 
   EXPECT_EQ(20u, resource_ids_2.size());
-  for (auto id : kDisparityMapIds1) {
+  for (auto id : kDepthMapIds1) {
     EXPECT_NE(resource_ids.end(), resource_ids_2.find(id));
   }
 }
@@ -75,20 +75,20 @@ TEST_F(ResourceLoaderFixture, ShouldReleaseResourcesCorrectly) {
   EXPECT_NE(dummy_visual_frame_1.resourcesStored_.end(),
             dummy_visual_frame_1.resourcesStored_.find(kResourceIdB));
 
-  // Load 20 resources of type DisparityMap for visual frame 1
-  for (auto id : kDisparityMapIds1) {
+  // Load 20 resources of type DepthMap for visual frame 1
+  for (auto id : kDepthMapIds1) {
     EXPECT_TRUE(loader.loadResource(
-        id, common::ResourceLoaderBase::kVisualFrameResourceDisparityImageType,
+        id, common::ResourceLoaderBase::kVisualFrameResourceDepthMapType,
         &dummy_visual_frame_1));
     EXPECT_NE(dummy_visual_frame_1.resourcesStored_.find(id),
               dummy_visual_frame_1.resourcesStored_.end());
   }
   EXPECT_EQ(22u, dummy_visual_frame_1.resourcesStored_.size());
 
-  // Load 10 resources of type DisparityMap for visual frame 2
-  for (auto id : kDisparityMapIds2) {
+  // Load 10 resources of type DepthMap for visual frame 2
+  for (auto id : kDepthMapIds2) {
     EXPECT_TRUE(loader.loadResource(
-        id, common::ResourceLoaderBase::kVisualFrameResourceDisparityImageType,
+        id, common::ResourceLoaderBase::kVisualFrameResourceDepthMapType,
         &dummy_visual_frame_2));
     EXPECT_NE(dummy_visual_frame_2.resourcesStored_.end(),
               dummy_visual_frame_2.resourcesStored_.find(id));
@@ -98,10 +98,10 @@ TEST_F(ResourceLoaderFixture, ShouldReleaseResourcesCorrectly) {
   EXPECT_EQ(10u, dummy_visual_frame_2.resourcesStored_.size());
   EXPECT_EQ(12u, dummy_visual_frame_1.resourcesStored_.size());
 
-  // Load 15 resources of type DisparityMap for visual frame 3
-  for (auto id : kDisparityMapIds3) {
+  // Load 15 resources of type DepthMap for visual frame 3
+  for (auto id : kDepthMapIds3) {
     EXPECT_TRUE(loader.loadResource(
-        id, common::ResourceLoaderBase::kVisualFrameResourceDisparityImageType,
+        id, common::ResourceLoaderBase::kVisualFrameResourceDepthMapType,
         &dummy_visual_frame_3));
     EXPECT_NE(dummy_visual_frame_3.resourcesStored_.end(),
               dummy_visual_frame_3.resourcesStored_.find(id));

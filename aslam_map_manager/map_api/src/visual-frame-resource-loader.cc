@@ -30,7 +30,11 @@ cv::Mat ResourceLoader::loadResourceFromUri(const std::string& uri,
                                             VisualFrameResourceType type) {
   cv::Mat image;
   switch (type) {
-    case kVisualFrameResourceDisparityImageType:
+    case kVisualFrameResourceDepthMapType:
+    // Fall through intended
+    case kVisualFrameResourceRawDepthMapType:
+    // Fall through intended
+    case kVisualFrameResourceOptimizedDepthMapType:
     // Fall through intended
     case kVisualFrameResourceRawImageType:
       image = cv::imread(uri);
