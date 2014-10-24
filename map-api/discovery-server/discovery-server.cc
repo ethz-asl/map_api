@@ -4,11 +4,11 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "map-api/logical-time.h"
-#include "map-api/message.h"
-#include "map-api/peer-id.h"
-#include "map-api/server-discovery.h"
 #include "./core.pb.h"
+#include <map-api/logical-time.h>
+#include <map-api/message.h>
+#include <map-api/peer-id.h>
+#include <map-api/server-discovery.h>
 
 using namespace map_api;  // NOLINT
 

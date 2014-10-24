@@ -1,5 +1,4 @@
-#include "map-api/core.h"
-
+#include <map-api/core.h>
 #include <iostream>  // NOLINT
 #include <cstring>
 
@@ -8,8 +7,8 @@
 #include <glog/logging.h>
 #include <zeromq_cpp/zmq.hpp>
 
-#include "map-api/hub.h"
-#include "map-api/ipc.h"
+#include <map-api/hub.h>
+#include <map-api/ipc.h>
 
 namespace map_api {
 

@@ -4,7 +4,7 @@
 #include <sstream>  // NOLINT
 #include <string>
 
-#include "map-api/logical-time.h"
+#include <map-api/logical-time.h>
 
 namespace map_api {
 

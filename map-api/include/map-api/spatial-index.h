@@ -7,10 +7,10 @@
 #include <utility>
 #include <vector>
 
-#include "map-api/chord-index.h"
-#include "map-api/peer-handler.h"
-#include "map-api/unique-id.h"
 #include "./chord-index.pb.h"
+#include <map-api/chord-index.h>
+#include <map-api/peer-handler.h>
+#include <map-api/unique-id.h>
 
 namespace map_api {
 

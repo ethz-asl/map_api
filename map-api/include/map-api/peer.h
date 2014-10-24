@@ -6,7 +6,7 @@
 
 #include <zeromq_cpp/zmq.hpp>
 
-#include "map-api/message.h"
+#include <map-api/message.h>
 
 namespace map_api {
 

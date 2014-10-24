@@ -1,5 +1,4 @@
-#include "map-api/server-discovery.h"
-
+#include <map-api/server-discovery.h>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -9,7 +8,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "map-api/hub.h"
+#include <map-api/hub.h>
 #include "core.pb.h"
 
 namespace map_api {

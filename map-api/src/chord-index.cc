@@ -1,5 +1,4 @@
-#include "map-api/chord-index.h"
-
+#include <map-api/chord-index.h>
 #include <type_traits>
 
 #include <glog/logging.h>

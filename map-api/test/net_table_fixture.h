@@ -5,10 +5,9 @@
 
 #include <gtest/gtest.h>
 
-#include "map-api/net-table.h"
-#include "map-api/net-table-transaction.h"
-#include "map-api/transaction.h"
-
+#include <map-api/net-table.h>
+#include <map-api/net-table-transaction.h>
+#include <map-api/transaction.h>
 #include "./map_api_fixture.h"
 
 namespace map_api {
