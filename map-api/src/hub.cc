@@ -1,5 +1,4 @@
-#include "map-api/hub.h"
-
+#include <map-api/hub.h>
 #include <ifaddrs.h>
 #include <iostream>  // NOLINT
 #include <fstream>   // NOLINT
@@ -13,12 +12,12 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "map-api/core.h"
-#include "map-api/file-discovery.h"
-#include "map-api/ipc.h"
-#include "map-api/logical-time.h"
-#include "map-api/server-discovery.h"
 #include "./core.pb.h"
+#include <map-api/core.h>
+#include <map-api/file-discovery.h>
+#include <map-api/ipc.h>
+#include <map-api/logical-time.h>
+#include <map-api/server-discovery.h>
 
 const std::string kFileDiscovery = "file";
 const std::string kServerDiscovery = "server";

@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 
-#include "map-api/net-table.h"
-#include "map-api/table-descriptor.h"
+#include <map-api/net-table.h>
+#include <map-api/table-descriptor.h>
 
 namespace map_api {
 
@@ -107,6 +107,6 @@ class NetTableManager {
 
 }  // namespace map_api
 
-#include "map-api/net-table-manager-inl.h"
+#include "./net-table-manager-inl.h"
 
 #endif  // MAP_API_NET_TABLE_MANAGER_H_

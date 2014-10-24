@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "map-api/cru-table.h"
+#include <map-api/cru-table.h>
 
 namespace map_api {
 

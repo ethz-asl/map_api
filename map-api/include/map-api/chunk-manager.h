@@ -3,9 +3,9 @@
 #include <unordered_map>
 #include <utility>
 
-#include "map-api/chunk.h"
-#include "map-api/net-table.h"
 #include "./net-table.pb.h"
+#include <map-api/chunk.h>
+#include <map-api/net-table.h>
 
 namespace map_api {
 class ChunkManagerBase {

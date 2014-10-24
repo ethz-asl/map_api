@@ -4,13 +4,12 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include <multiagent_mapping_common/test/testing_entrypoint.h>
+#include <multiagent-mapping-common/test/testing-entrypoint.h>
 
-#include "map-api/ipc.h"
-#include "map-api/net-table-transaction.h"
-#include "map-api/transaction.h"
-#include "map-api/proto-table-file-io.h"
-
+#include <map-api/ipc.h>
+#include <map-api/net-table-transaction.h>
+#include <map-api/proto-table-file-io.h>
+#include <map-api/transaction.h>
 #include "./net_table_fixture.h"
 
 using namespace map_api;  // NOLINT

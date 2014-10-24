@@ -1,4 +1,4 @@
-#include <multiagent_mapping_common/test/testing_entrypoint.h>
+#include <multiagent-mapping-common/test/testing-entrypoint.h>
 
 #include "./visual_frame_resource_loader_fixture.h"
 

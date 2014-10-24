@@ -8,10 +8,10 @@
 
 #include <zeromq_cpp/zmq.hpp>
 
-#include "map-api/discovery.h"
-#include "map-api/message.h"
-#include "map-api/peer.h"
-#include "map-api/peer-id.h"
+#include <map-api/discovery.h>
+#include <map-api/message.h>
+#include <map-api/peer.h>
+#include <map-api/peer-id.h>
 
 namespace map_api {
 

@@ -129,6 +129,6 @@ class Message : public proto::HubMessage {
 
 }  // namespace map_api
 
-#include "map-api/message-inl.h"
+#include "./message-inl.h"
 
 #endif  // MAP_API_MESSAGE_H_

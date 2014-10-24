@@ -1,5 +1,4 @@
-#include "map-api/cr-table.h"
-
+#include <map-api/cr-table.h>
 #include <cstdio>
 #include <map>
 
@@ -10,8 +9,8 @@
 #include <glog/logging.h>
 #include <gflags/gflags.h>
 
-#include "map-api/core.h"
 #include "./core.pb.h"
+#include <map-api/core.h>
 
 namespace map_api {
 
