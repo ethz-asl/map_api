@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
-project(map_api_test_suite)
+project(multiprocess_gtest)
 
 find_package(catkin_simple REQUIRED)
 
@@ -10,7 +10,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 #############
 add_definitions(--std=c++11)
 
-cs_add_library(${PROJECT_NAME} STATIC src/multiprocess_fixture.cc)
+cs_add_library(${PROJECT_NAME} STATIC src/multiprocess-fixture.cc)
 
 # we need to add dependencies of external project packages to fetch headers
 # before compilation

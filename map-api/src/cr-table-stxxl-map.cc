@@ -1,4 +1,4 @@
-#include "map-api/cr-table-stxxl-map.h"
+#include <map-api/cr-table-stxxl-map.h>
 
 namespace map_api {
 

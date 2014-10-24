@@ -1,3 +1,5 @@
+#include <map-api/proto-table-file-io.h>
+
 #include <glog/logging.h>
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/gzip_stream.h>
@@ -7,7 +9,6 @@
 #include <map-api/chunk-manager.h>
 #include <map-api/cr-table.h>
 #include <map-api/cru-table.h>
-#include <map-api/proto-table-file-io.h>
 #include <map-api/transaction.h>
 
 namespace map_api {

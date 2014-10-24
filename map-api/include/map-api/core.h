@@ -7,11 +7,11 @@
 #include <gtest/gtest.h>
 #include <Poco/Data/Common.h>
 
-#include "map-api/cr-table.h"
-#include "map-api/hub.h"
-#include "map-api/net-table-manager.h"
-#include "map-api/unique-id.h"
 #include "./core.pb.h"
+#include <map-api/cr-table.h>
+#include <map-api/hub.h>
+#include <map-api/net-table-manager.h>
+#include <map-api/unique-id.h>
 
 namespace map_api {
 

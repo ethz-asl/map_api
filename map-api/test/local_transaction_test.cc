@@ -3,13 +3,13 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include <multiagent_mapping_common/test/testing_entrypoint.h>
+#include <multiagent-mapping-common/test/testing-entrypoint.h>
+#include <map-api/core.h>
+#include <map-api/test/test_table.cc"
 
-#include "map-api/core.h"
-#include "map-api/cru-table-ram-sqlite.h"
-#include "map-api/local-transaction.h"
+#include "map-api/cru-table-ram-sqlite.h>
+#include "map-api/local-transaction.h>
 
-#include "./test_table.cc"
 
 namespace map_api {
 
