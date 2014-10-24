@@ -29,6 +29,6 @@ class TableDescriptor : private proto::TableDescriptor {
 
 }  // namespace map_api
 
-#include "./table-descriptor-inl.h>
+#include "./table-descriptor-inl.h"
 
 #endif  // MAP_API_TABLE_DESCRIPTOR_H_

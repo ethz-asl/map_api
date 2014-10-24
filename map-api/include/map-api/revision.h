@@ -215,6 +215,6 @@ class testBlob : public map_api::proto::TableField {
 
 }  // namespace map_api
 
-#include "./revision-inl.h>
+#include "./revision-inl.h"
 
 #endif  // MAP_API_REVISION_H_

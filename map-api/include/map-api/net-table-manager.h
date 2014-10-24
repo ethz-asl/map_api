@@ -107,6 +107,6 @@ class NetTableManager {
 
 }  // namespace map_api
 
-#include "./net-table-manager-inl.h>
+#include "./net-table-manager-inl.h"
 
 #endif  // MAP_API_NET_TABLE_MANAGER_H_

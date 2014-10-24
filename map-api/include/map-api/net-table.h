@@ -187,6 +187,6 @@ class NetTable {
 
 }  // namespace map_api
 
-#include "./net-table-inl.h>
+#include "./net-table-inl.h"
 
 #endif  // MAP_API_NET_TABLE_H_

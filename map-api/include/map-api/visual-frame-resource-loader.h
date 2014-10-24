@@ -17,7 +17,6 @@
 #include <map-api/net-table.h>
 #include <map-api/net-table-transaction.h>
 #include <map-api/revision.h>
-#include <map-api/revision-inl.h>
 #include <map-api/transaction.h>
 #include <map-api/unique-id.h>
 

@@ -228,6 +228,6 @@ std::ostream& operator<< (std::ostream& stream, const
 
 }  // namespace map_api
 
-#include "./cr-table-inl.h>
+#include "./cr-table-inl.h"
 
 #endif  // MAP_API_CR_TABLE_H_

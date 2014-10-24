@@ -95,6 +95,6 @@ class NetTableTransaction {
 
 }  // namespace map_api
 
-#include "./net-table-transaction-inl.h>
+#include "./net-table-transaction-inl.h"
 
 #endif  // MAP_API_NET_TABLE_TRANSACTION_H_

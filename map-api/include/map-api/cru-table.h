@@ -104,6 +104,6 @@ class CRUTable : public CRTable {
 
 }  // namespace map_api
 
-#include "./cru-table-inl.h>
+#include "./cru-table-inl.h"
 
 #endif  // MAP_API_CRU_TABLE_H_

@@ -253,6 +253,6 @@ class Chunk {
 
 }  // namespace map_api
 
-#include <map-api/chunk-inl.h>
+#include "map-api/chunk-inl.h"
 
 #endif  // MAP_API_CHUNK_H_

@@ -96,6 +96,6 @@ class ChunkTransaction {
 
 }  // namespace map_api
 
-#include "./chunk-transaction-inl.h>
+#include "./chunk-transaction-inl.h"
 
 #endif  // MAP_API_CHUNK_TRANSACTION_H_

@@ -228,6 +228,6 @@ class Cache : public CacheBase,
 
 }  // namespace map_api
 
-#include <map-api/cache-inl.h>
+#include "./map-api/cache-inl.h"
 
 #endif  // MAP_API_CACHE_H_

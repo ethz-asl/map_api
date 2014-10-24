@@ -73,6 +73,6 @@ class IPC {
 
 }  // namespace map_api
 
-#include "./ipc-inl.h>
+#include "./ipc-inl.h"
 
 #endif  // MAP_API_IPC_H_

@@ -235,5 +235,5 @@ class ChordIndex {
 };
 
 }  // namespace map_api
-#include "./chord-index-inl.h>
+#include "./chord-index-inl.h"
 #endif  // MAP_API_CHORD_INDEX_H_

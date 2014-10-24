@@ -142,6 +142,6 @@ class Transaction {
 
 }  // namespace map_api
 
-#include "./transaction-inl.h>
+#include "./transaction-inl.h"
 
 #endif  // MAP_API_TRANSACTION_H_
