@@ -13,10 +13,9 @@
 #include <Poco/RWLock.h>
 
 #include <gtest/gtest.h>
+#include <map-api/message.h>
+#include <map-api/peer-id.h>
 #include <map-api/unique-id.h>
-
-#include "map-api/message.h"
-#include "map-api/peer-id.h"
 
 namespace map_api {
 
@@ -236,5 +235,5 @@ class ChordIndex {
 };
 
 }  // namespace map_api
-#include <map-api/chord-index-inl.h>
+#include "./chord-index-inl.h"
 #endif  // MAP_API_CHORD_INDEX_H_

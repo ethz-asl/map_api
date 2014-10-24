@@ -1,16 +1,15 @@
-#include "map-api/chunk.h"
-
+#include <map-api/chunk.h>
 #include <fstream>  // NOLINT
 #include <unordered_set>
 
-#include <multiagent_mapping_common/conversions.h>
+#include <multiagent-mapping-common/conversions.h>
 #include <timing/timer.h>
 
-#include "map-api/cru-table.h"
-#include "map-api/hub.h"
-#include "map-api/net-table-manager.h"
 #include "./core.pb.h"
 #include "./chunk.pb.h"
+#include <map-api/cru-table.h>
+#include <map-api/hub.h>
+#include <map-api/net-table-manager.h>
 
 enum UnlockStrategy {
   REVERSE,

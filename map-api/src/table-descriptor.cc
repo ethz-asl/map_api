@@ -1,5 +1,4 @@
-#include "map-api/table-descriptor.h"
-
+#include <map-api/table-descriptor.h>
 #include <glog/logging.h>
 
 namespace map_api {

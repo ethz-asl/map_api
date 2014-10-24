@@ -7,9 +7,9 @@
 #include <set>
 #include <string>
 
-#include "map-api/message.h"
-#include "map-api/peer.h"
-#include "map-api/peer-id.h"
+#include <map-api/message.h>
+#include <map-api/peer.h>
+#include <map-api/peer-id.h>
 
 namespace map_api {
 
