@@ -5,7 +5,7 @@
 
 #include <map-api/core.h>
 #include <map-api/ipc.h>
-#include <map-api/test/map_api_fixture.h>
+#include "./map_api_fixture.h"
 
 namespace map_api {
 

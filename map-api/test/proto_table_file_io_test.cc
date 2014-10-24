@@ -10,7 +10,7 @@
 #include <map-api/net-table-transaction.h>
 #include <map-api/proto-table-file-io.h>
 #include <map-api/transaction.h>
-#include <map-api/test/net_table_fixture.h>
+#include "./net_table_fixture.h"
 
 using namespace map_api;  // NOLINT
 

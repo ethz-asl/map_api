@@ -1,6 +1,6 @@
 #include <multiagent-mapping-common/test/testing-entrypoint.h>
 
-#include <map-api/test/visual_frame_resource_loader_fixture.h>
+#include "./visual_frame_resource_loader_fixture.h"
 
 namespace map_api {
 

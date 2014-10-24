@@ -13,8 +13,8 @@
 
 #include <map-api/core.h>
 #include <map-api/ipc.h>
-#include <map-api/test/map_api_fixture.h>
-#include <map-api/test/test_chord_index.cc"
+#include "./map_api_fixture.h"
+#include "./test_chord_index.cc"
 
 DECLARE_uint64(stabilize_us);
 

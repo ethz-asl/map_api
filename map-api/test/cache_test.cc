@@ -9,7 +9,7 @@
 
 #include <map-api/chunk-manager.h>
 #include <map-api/ipc.h>
-#include <map-api/test/net_table_fixture.h>
+#include "./net_table_fixture.h"
 
 namespace map_api {
 

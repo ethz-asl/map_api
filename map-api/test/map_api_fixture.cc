@@ -1,4 +1,4 @@
-#include <map-api/test/map_api_fixture.h>
+#include "./map_api_fixture.h"
 
 #include <gtest/gtest.h>
 

@@ -18,7 +18,7 @@
 #include <map-api/cru-table-stxxl-map.h>
 #include <map-api/logical-time.h>
 #include <map-api/unique-id.h>
-#include <map-api/test/test_table.cc"
+#include "./test_table.cc"
 
 namespace map_api {
 

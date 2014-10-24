@@ -3,7 +3,7 @@
 #include <multiagent-mapping-common/test/testing-entrypoint.h>
 
 #include <map-api/ipc.h>
-#include <map-api/test/net_table_fixture.h>
+#include "./net_table_fixture.h"
 
 namespace map_api {
 
