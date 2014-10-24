@@ -10,10 +10,10 @@
 #include <Poco/Data/Common.h>
 #include <gflags/gflags.h>
 
-#include "map-api/table-descriptor.h"
-#include "map-api/revision.h"
-#include "map-api/unique-id.h"
 #include "./core.pb.h"
+#include <map-api/revision.h>
+#include <map-api/table-descriptor.h>
+#include <map-api/unique-id.h>
 
 namespace map_api {
 
@@ -228,6 +228,6 @@ std::ostream& operator<< (std::ostream& stream, const
 
 }  // namespace map_api
 
-#include "map-api/cr-table-inl.h"
+#include "./cr-table-inl.h"
 
 #endif  // MAP_API_CR_TABLE_H_

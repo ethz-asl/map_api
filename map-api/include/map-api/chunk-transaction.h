@@ -9,11 +9,11 @@
 
 #include <gtest/gtest_prod.h>
 
-#include "map-api/chunk.h"
-#include "map-api/cr-table.h"
-#include "map-api/logical-time.h"
-#include "map-api/revision.h"
-#include "map-api/unique-id.h"
+#include <map-api/chunk.h>
+#include <map-api/cr-table.h>
+#include <map-api/logical-time.h>
+#include <map-api/revision.h>
+#include <map-api/unique-id.h>
 
 namespace map_api {
 
@@ -96,6 +96,6 @@ class ChunkTransaction {
 
 }  // namespace map_api
 
-#include "map-api/chunk-transaction-inl.h"
+#include "./chunk-transaction-inl.h"
 
 #endif  // MAP_API_CHUNK_TRANSACTION_H_

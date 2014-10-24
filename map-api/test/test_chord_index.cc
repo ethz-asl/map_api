@@ -1,6 +1,6 @@
-#include "map-api/chord-index.h"
-#include "map-api/message.h"
-#include "map-api/peer-handler.h"
+#include <map-api/chord-index.h>
+#include <map-api/message.h>
+#include <map-api/peer-handler.h>
 #include "chord-index.pb.h"
 
 namespace map_api {

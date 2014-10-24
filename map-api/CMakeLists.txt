@@ -68,11 +68,6 @@ cs_add_executable(discovery-server discovery-server/discovery-server.cc
                    ${PROTO_SRCS} ${PROTO_HDRS})
 target_link_libraries(discovery-server ${PROJECT_NAME})
 
-# TODO(tcies) reconsider for radix tree hash map benchmarking
-# catkin_add_gtest(test_hash_id_hashing
-#   test/test_hash_id_hashing.cc)
-# target_link_libraries(test_hash_id_hashing ${PROJECT_NAME} pthread)
-
 ##########
 # GTESTS #
 ##########

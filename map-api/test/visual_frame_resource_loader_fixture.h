@@ -4,10 +4,8 @@
 #include <set>
 #include <string>
 
-#include <multiagent_mapping_common/test/testing_predicates.h>
-
-#include "map-api/visual-frame-resource-loader.h"
-
+#include <multiagent-mapping-common/test/testing-predicates.h>
+#include <map-api/visual-frame-resource-loader.h>
 #include "./map_api_fixture.h"
 
 namespace map_api {

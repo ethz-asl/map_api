@@ -1,5 +1,4 @@
-#include "map-api/message.h"
-
+#include <map-api/message.h>
 #include <string>
 
 #include <glog/logging.h>

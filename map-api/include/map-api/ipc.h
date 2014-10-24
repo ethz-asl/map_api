@@ -7,10 +7,10 @@
 #include <string>
 #include <unordered_map>
 
-#include "map-api/message.h"
-#include "map-api/unique-id.h"
 #include "./core.pb.h"
 #include "./ipc.pb.h"
+#include <map-api/message.h>
+#include <map-api/unique-id.h>
 
 namespace map_api {
 
@@ -73,6 +73,6 @@ class IPC {
 
 }  // namespace map_api
 
-#include "map-api/ipc-inl.h"
+#include "./ipc-inl.h"
 
 #endif  // MAP_API_IPC_H_

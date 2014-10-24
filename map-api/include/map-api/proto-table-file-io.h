@@ -6,9 +6,8 @@
 #include <string>
 #include <utility>
 #include <unordered_set>
-#include <map-api/net-table.h>
-
 #include <google/protobuf/io/gzip_stream.h>
+#include <map-api/net-table.h>
 
 namespace map_api {
 class Transaction;

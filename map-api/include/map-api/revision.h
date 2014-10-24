@@ -10,9 +10,9 @@
 #include <Poco/Data/BLOB.h>
 #include <Poco/Data/Statement.h>
 
-#include "map-api/logical-time.h"
-#include "map-api/unique-id.h"
 #include "./core.pb.h"
+#include <map-api/logical-time.h>
+#include <map-api/unique-id.h>
 
 namespace map_api {
 
@@ -215,6 +215,6 @@ class testBlob : public map_api::proto::TableField {
 
 }  // namespace map_api
 
-#include "map-api/revision-inl.h"
+#include "./revision-inl.h"
 
 #endif  // MAP_API_REVISION_H_
