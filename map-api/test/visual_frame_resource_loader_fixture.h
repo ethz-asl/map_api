@@ -68,8 +68,7 @@ class ResourceLoaderFixture : public MapApiFixture {
     Id insert_id_1;
     insert_id_1.fromHexString(kResourceIdA);
     to_insert_1->setId(insert_id_1);
-    to_insert_1->set<std::string>(kVisualFrameTableUri,
-                                  "test-data/problem.jpg");
+    to_insert_1->set<std::string>(kVisualFrameTableUri, kPath8Bit);
     to_insert_1->set<int>(
         kVisualFrameTableType,
         common::ResourceLoaderBase::kVisualFrameResourceRawImageType);
@@ -82,7 +81,7 @@ class ResourceLoaderFixture : public MapApiFixture {
     Id insert_id_2;
     insert_id_2.fromHexString(kResourceIdB);
     to_insert_2->setId(insert_id_2);
-    to_insert_2->set<std::string>(kVisualFrameTableUri, "test-data/no.png");
+    to_insert_2->set<std::string>(kVisualFrameTableUri, kPath8Bit);
     to_insert_2->set<int>(
         kVisualFrameTableType,
         common::ResourceLoaderBase::kVisualFrameResourceRawImageType);
@@ -90,50 +89,49 @@ class ResourceLoaderFixture : public MapApiFixture {
     transaction_2.insert(table_, chunk, to_insert_2);
     EXPECT_TRUE(transaction_2.commit());
 
-    // Create DB entries of type DisparityMap for visual frame 0xA
-    for (auto id : kDisparityMapIds1) {
+    // Create DB entries of type DepthMap for visual frame 0xA
+    for (std::string id : kDepthMapIds1) {
       std::shared_ptr<Revision> to_insert_i = table_->getTemplate();
       Transaction transaction_i;
       Id insert_id_i;
       insert_id_i.fromHexString(id);
       to_insert_i->setId(insert_id_i);
-      to_insert_i->set<std::string>(kVisualFrameTableUri,
-                                    "test-data/problem.jpg");
+      to_insert_i->set<std::string>(kVisualFrameTableUri, kPath16Bit);
       to_insert_i->set<int>(
           kVisualFrameTableType,
-          common::ResourceLoaderBase::kVisualFrameResourceDisparityImageType);
+          common::ResourceLoaderBase::kVisualFrameResourceDepthMapType);
       to_insert_i->set<Id>(kVisualFrameTableVisualFrameId, visual_frame_id_1);
       transaction_i.insert(table_, chunk, to_insert_i);
       EXPECT_TRUE(transaction_i.commit());
     }
 
-    // Create DB entries of type DisparityMap for visual frame 0xB
-    for (auto id : kDisparityMapIds2) {
+    // Create DB entries of type DepthMap for visual frame 0xB
+    for (std::string id : kDepthMapIds2) {
       std::shared_ptr<Revision> to_insert_i = table_->getTemplate();
       Transaction transaction_i;
       Id insert_id_i;
       insert_id_i.fromHexString(id);
       to_insert_i->setId(insert_id_i);
-      to_insert_i->set<std::string>(kVisualFrameTableUri, "test-data/no.png");
+      to_insert_i->set<std::string>(kVisualFrameTableUri, kPath16Bit);
       to_insert_i->set<int>(
           kVisualFrameTableType,
-          common::ResourceLoaderBase::kVisualFrameResourceDisparityImageType);
+          common::ResourceLoaderBase::kVisualFrameResourceDepthMapType);
       to_insert_i->set<Id>(kVisualFrameTableVisualFrameId, visual_frame_id_2);
       transaction_i.insert(table_, chunk, to_insert_i);
       EXPECT_TRUE(transaction_i.commit());
     }
 
-    // Create DB entries of type DisparityMap for visual frame 0xC
-    for (auto id : kDisparityMapIds3) {
+    // Create DB entries of type DepthMap for visual frame 0xC
+    for (std::string id : kDepthMapIds3) {
       std::shared_ptr<Revision> to_insert_i = table_->getTemplate();
       Transaction transaction_i;
       Id insert_id_i;
       insert_id_i.fromHexString(id);
       to_insert_i->setId(insert_id_i);
-      to_insert_i->set<std::string>(kVisualFrameTableUri, "test-data/no.png");
+      to_insert_i->set<std::string>(kVisualFrameTableUri, kPath16Bit);
       to_insert_i->set<int>(
           kVisualFrameTableType,
-          common::ResourceLoaderBase::kVisualFrameResourceDisparityImageType);
+          common::ResourceLoaderBase::kVisualFrameResourceDepthMapType);
       to_insert_i->set<Id>(kVisualFrameTableVisualFrameId, visual_frame_id_3);
       transaction_i.insert(table_, chunk, to_insert_i);
       EXPECT_TRUE(transaction_i.commit());
@@ -149,9 +147,11 @@ class ResourceLoaderFixture : public MapApiFixture {
   static const std::string kVisualFrameId3;
   static const std::string kResourceIdA;
   static const std::string kResourceIdB;
-  static std::unordered_set<std::string> kDisparityMapIds1;
-  static std::unordered_set<std::string> kDisparityMapIds2;
-  static std::unordered_set<std::string> kDisparityMapIds3;
+  static const std::string kPath16Bit;
+  static const std::string kPath8Bit;
+  static std::unordered_set<std::string> kDepthMapIds1;
+  static std::unordered_set<std::string> kDepthMapIds2;
+  static std::unordered_set<std::string> kDepthMapIds3;
 
  private:
   NetTable* table_;
@@ -187,11 +187,15 @@ const std::string ResourceLoaderFixture::kResourceIdA =
     "00000000000000000000000000000777";
 const std::string ResourceLoaderFixture::kResourceIdB =
     "00000000000000000000000000000888";
-std::unordered_set<std::string> ResourceLoaderFixture::kDisparityMapIds1(
+
+const std::string ResourceLoaderFixture::kPath16Bit = "test-data/16bit.pgm";
+const std::string ResourceLoaderFixture::kPath8Bit = "test-data/8bit.pgm";
+
+std::unordered_set<std::string> ResourceLoaderFixture::kDepthMapIds1(
     initIdSet(1, 20));
-std::unordered_set<std::string> ResourceLoaderFixture::kDisparityMapIds2(
+std::unordered_set<std::string> ResourceLoaderFixture::kDepthMapIds2(
     initIdSet(31, 10));
-std::unordered_set<std::string> ResourceLoaderFixture::kDisparityMapIds3(
+std::unordered_set<std::string> ResourceLoaderFixture::kDepthMapIds3(
     initIdSet(51, 15));
 
 }  // namespace map_api
