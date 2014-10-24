@@ -10,10 +10,10 @@
 #include <Poco/Data/Common.h>
 #include <gflags/gflags.h>
 
-#include "map-api/cr-table.h"
-#include "map-api/revision.h"
-#include "map-api/logical-time.h"
 #include "./core.pb.h"
+#include <map-api/cr-table.h>
+#include <map-api/logical-time.h>
+#include <map-api/revision.h>
 
 namespace map_api {
 
@@ -104,6 +104,6 @@ class CRUTable : public CRTable {
 
 }  // namespace map_api
 
-#include "map-api/cru-table-inl.h"
+#include "./cru-table-inl.h"
 
 #endif  // MAP_API_CRU_TABLE_H_

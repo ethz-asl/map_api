@@ -1,9 +1,10 @@
+#include <map-api/core.h>
+
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include <multiagent_mapping_common/test/testing_entrypoint.h>
+#include <multiagent-mapping-common/test/testing-entrypoint.h>
 
-#include "map-api/core.h"
 
 using namespace map_api;
 

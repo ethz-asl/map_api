@@ -1,4 +1,5 @@
-#include "map-api/spatial-index.h"
+#include <map-api/spatial-index.h>
+
 #include "./net-table.pb.h"
 
 namespace map_api {

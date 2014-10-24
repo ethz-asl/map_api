@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 
-#include "map-api/cru-table.h"
-#include "map-api/stxxl-revision-store.h"
+#include <map-api/cru-table.h>
+#include <map-api/stxxl-revision-store.h>
 
 namespace map_api {
 

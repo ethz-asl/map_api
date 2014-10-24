@@ -1,8 +1,9 @@
+#include <map-api/chunk-manager.h>
+
 #include <utility>
 
 #include <glog/logging.h>
 
-#include "map-api/chunk-manager.h"
 
 namespace map_api {
 void ChunkManagerBase::requestParticipationAllChunks() {

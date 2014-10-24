@@ -6,9 +6,9 @@
 #include <string>
 #include <vector>
 
-#include "map-api/cr-table.h"
-#include "map-api/revision.h"
-#include "map-api/table-descriptor.h"
+#include <map-api/cr-table.h>
+#include <map-api/revision.h>
+#include <map-api/table-descriptor.h>
 
 namespace map_api {
 

@@ -3,8 +3,8 @@
 
 #include <glog/logging.h>
 
-#include "map-api/revision.h"
-#include "map-api/logical-time.h"
+#include <map-api/logical-time.h>
+#include <map-api/revision.h>
 
 namespace map_api {
 

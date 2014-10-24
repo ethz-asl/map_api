@@ -1,6 +1,6 @@
 #include <glog/logging.h>
 
-#include "map-api/cru-table.h"
+#include <map-api/cru-table.h>
 
 /**
  * A test table revealing some more internals than a typical table, such as

@@ -13,13 +13,13 @@
 
 #include <zeromq_cpp/zmq.hpp>
 
-#include "map-api/cr-table.h"
-#include "map-api/cru-table.h"
-#include "map-api/peer-handler.h"
-#include "map-api/message.h"
-#include "map-api/revision.h"
-#include "map-api/unique-id.h"
 #include "./chunk.pb.h"
+#include <map-api/cr-table.h>
+#include <map-api/cru-table.h>
+#include <map-api/message.h>
+#include <map-api/peer-handler.h>
+#include <map-api/revision.h>
+#include <map-api/unique-id.h>
 
 namespace map_api {
 /**

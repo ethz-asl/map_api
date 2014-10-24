@@ -1,5 +1,4 @@
-#include "map-api/net-table-index.h"
-
+#include <map-api/net-table-index.h>
 #include "net-table.pb.h"
 
 namespace map_api {

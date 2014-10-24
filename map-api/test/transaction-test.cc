@@ -1,8 +1,8 @@
-#include <multiagent_mapping_common/test/testing_entrypoint.h>
+#include <map-api/transaction.h>
 
-#include "map-api/ipc.h"
-#include "map-api/transaction.h"
+#include <multiagent-mapping-common/test/testing-entrypoint.h>
 
+#include <map-api/ipc.h>
 #include "./net_table_fixture.h"
 
 namespace map_api {

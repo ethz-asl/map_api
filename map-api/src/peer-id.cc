@@ -1,5 +1,4 @@
-#include "map-api/peer-id.h"
-
+#include <map-api/peer-id.h>
 #include <string>
 
 #include <gflags/gflags.h>
@@ -7,7 +6,7 @@
 
 #include <Poco/RegularExpression.h>
 
-#include "map-api/hub.h"
+#include <map-api/hub.h>
 
 namespace map_api {
 PeerId::PeerId() : ip_port_(kInvalidAdress) {}

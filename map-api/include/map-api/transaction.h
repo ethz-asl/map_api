@@ -8,11 +8,11 @@
 
 #include <glog/logging.h>
 
-#include "map-api/cache-base.h"
-#include "map-api/logical-time.h"
-#include "map-api/net-table.h"
-#include "map-api/net-table-transaction.h"
-#include "map-api/unique-id.h"
+#include <map-api/cache-base.h>
+#include <map-api/logical-time.h>
+#include <map-api/net-table.h>
+#include <map-api/net-table-transaction.h>
+#include <map-api/unique-id.h>
 
 namespace map_api {
 class Chunk;
@@ -142,6 +142,6 @@ class Transaction {
 
 }  // namespace map_api
 
-#include "map-api/transaction-inl.h"
+#include "./transaction-inl.h"
 
 #endif  // MAP_API_TRANSACTION_H_
