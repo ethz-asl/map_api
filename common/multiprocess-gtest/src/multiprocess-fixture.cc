@@ -15,7 +15,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "../include/multiprocess-gtest/multiprocess_fixture.h"
+#include <multiprocess-gtest/multiprocess-fixture.h>
 
 DEFINE_uint64(subprocess_id, 0, "Identification of subprocess in case of "
               "multiprocess testing. 0 if master process.");
