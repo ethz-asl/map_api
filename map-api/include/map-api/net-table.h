@@ -9,11 +9,11 @@
 #include <gtest/gtest_prod.h>
 #include <Poco/RWLock.h>
 
-#include "map-api/chunk.h"
-#include "map-api/cr-table.h"
-#include "map-api/net-table-index.h"
-#include "map-api/revision.h"
-#include "map-api/spatial-index.h"
+#include <map-api/chunk.h>
+#include <map-api/cr-table.h>
+#include <map-api/net-table-index.h>
+#include <map-api/revision.h>
+#include <map-api/spatial-index.h>
 
 namespace map_api {
 inline std::string humanReadableBytes(double size) {
@@ -187,6 +187,6 @@ class NetTable {
 
 }  // namespace map_api
 
-#include "map-api/net-table-inl.h"
+#include "./net-table-inl.h>
 
 #endif  // MAP_API_NET_TABLE_H_

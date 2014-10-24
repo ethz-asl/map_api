@@ -1,8 +1,8 @@
+#include <map-api/test/map_api_fixture.h>
+
 #include <gtest/gtest.h>
 
-#include "map-api/core.h"
-
-#include "./map_api_fixture.h"
+#include <map-api/core.h>
 
 void MapApiFixture::SetUpImpl() {
   map_api::Core::initializeInstance();  // Core init.

@@ -3,14 +3,14 @@
 #include <unordered_set>
 #include <vector>
 
-#include <multiagent_mapping_common/mapped-container-base.h>
-#include <multiagent_mapping_common/traits.h>
+#include <multiagent-mapping-common/mapped-container-base.h>
+#include <multiagent-mapping-common/traits.h>
 
-#include "map-api/cache-base.h"
-#include "map-api/cr-table.h"
-#include "map-api/revision.h"
-#include "map-api/transaction.h"
-#include "map-api/unique-id.h"
+#include <map-api/cache-base.h>
+#include <map-api/cr-table.h>
+#include <map-api/revision.h>
+#include <map-api/transaction.h>
+#include <map-api/unique-id.h>
 
 namespace map_api {
 namespace traits {
@@ -228,6 +228,6 @@ class Cache : public CacheBase,
 
 }  // namespace map_api
 
-#include "map-api/cache-inl.h"
+#include <map-api/cache-inl.h>
 
 #endif  // MAP_API_CACHE_H_

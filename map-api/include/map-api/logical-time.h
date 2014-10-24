@@ -58,6 +58,6 @@ struct hash<map_api::LogicalTime> {
 };
 }  // namespace std
 
-#include "map-api/logical-time-inl.h"
+#include "./logical-time-inl.h>
 
 #endif  // MAP_API_LOGICAL_TIME_H_

@@ -7,12 +7,12 @@
 
 #include <gtest/gtest_prod.h>
 
-#include "map-api/chunk.h"
-#include "map-api/chunk-transaction.h"
-#include "map-api/logical-time.h"
-#include "map-api/net-table.h"
-#include "map-api/revision.h"
-#include "map-api/unique-id.h"
+#include <map-api/chunk.h>
+#include <map-api/chunk-transaction.h>
+#include <map-api/logical-time.h>
+#include <map-api/net-table.h>
+#include <map-api/revision.h>
+#include <map-api/unique-id.h>
 
 namespace map_api {
 
@@ -95,6 +95,6 @@ class NetTableTransaction {
 
 }  // namespace map_api
 
-#include "map-api/net-table-transaction-inl.h"
+#include "./net-table-transaction-inl.h>
 
 #endif  // MAP_API_NET_TABLE_TRANSACTION_H_

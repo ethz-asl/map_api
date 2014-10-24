@@ -1,5 +1,4 @@
-#include "map-api/file-discovery.h"
-
+#include <map-api/file-discovery.h>
 #include <fstream>  // NOLINT
 #include <sstream>  // NOLINT
 #include <string>
@@ -9,7 +8,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "map-api/hub.h"
+#include <map-api/hub.h>
 
 namespace map_api {
 

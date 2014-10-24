@@ -10,16 +10,16 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-#include <multiagent_mapping_common/visual-frame-resource-loader-base.h>
+#include <multiagent-mapping-common/visual-frame-resource-loader-base.h>
 
-#include "map-api/core.h"
-#include "map-api/ipc.h"
-#include "map-api/net-table.h"
-#include "map-api/net-table-transaction.h"
-#include "map-api/revision.h"
-#include "map-api/revision-inl.h"
-#include "map-api/transaction.h"
-#include "map-api/unique-id.h"
+#include <map-api/core.h>
+#include <map-api/ipc.h>
+#include <map-api/net-table.h>
+#include <map-api/net-table-transaction.h>
+#include <map-api/revision.h>
+#include <map-api/revision-inl.h>
+#include <map-api/transaction.h>
+#include <map-api/unique-id.h>
 
 namespace map_api {
 

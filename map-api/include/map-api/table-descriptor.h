@@ -3,8 +3,8 @@
 
 #include <string>
 
-#include "map-api/revision.h"
 #include "./core.pb.h"
+#include <map-api/revision.h>
 
 namespace map_api {
 
@@ -29,6 +29,6 @@ class TableDescriptor : private proto::TableDescriptor {
 
 }  // namespace map_api
 
-#include "map-api/table-descriptor-inl.h"
+#include "./table-descriptor-inl.h>
 
 #endif  // MAP_API_TABLE_DESCRIPTOR_H_

@@ -1,14 +1,15 @@
+#include <map-api/discovery.h>
+
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <signal.h>
 
-#include <multiagent_mapping_common/test/testing_entrypoint.h>
+#include <multiagent-mapping-common/test/testing-entrypoint.h>
 
-#include "map-api/hub.h"
-#include "map-api/discovery.h"
-#include "map-api/file-discovery.h"
-#include "map-api/server-discovery.h"
-#include "./map_api_fixture.h"
+#include <map-api/file-discovery.h>
+#include <map-api/hub.h>
+#include <map-api/server-discovery.h>
+#include <map-api/test/map_api_fixture.h>
 
 DECLARE_string(discovery_mode);
 

@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
-project(map_api_test_suite)
+project(multiprocess_gtest)
 
 find_package(catkin_simple REQUIRED)
 

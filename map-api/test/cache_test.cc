@@ -1,15 +1,15 @@
+#include <map-api/cache.h>
+
 #include <set>
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include <multiagent_mapping_common/test/testing_entrypoint.h>
+#include <multiagent-mapping-common/test/testing-entrypoint.h>
 
-#include "map-api/cache.h"
-#include "map-api/chunk-manager.h"
-#include "map-api/ipc.h"
-
-#include "./net_table_fixture.h"
+#include <map-api/chunk-manager.h>
+#include <map-api/ipc.h>
+#include <map-api/test/net_table_fixture.h>
 
 namespace map_api {
 
