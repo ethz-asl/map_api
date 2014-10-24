@@ -1,12 +1,13 @@
+#include "./map_api_fixture.h"
+
 #include <string>
 
 #include <gtest/gtest.h>
 
-#include "map-api/core.h"
-#include "map-api/net-table.h"
-#include "map-api/net-table-transaction.h"
-#include "map-api/transaction.h"
-
+#include <map-api/core.h>
+#include <map-api/net-table.h>
+#include <map-api/net-table-transaction.h>
+#include <map-api/transaction.h>
 #include "./net_table_fixture.h"
 
 namespace map_api {

@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 
-#include "map-api/discovery.h"
-#include "map-api/peer-id.h"
+#include <map-api/discovery.h>
+#include <map-api/peer-id.h>
 
 namespace map_api {
 

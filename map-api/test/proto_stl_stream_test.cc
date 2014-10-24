@@ -5,12 +5,12 @@
 
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/gzip_stream.h>
-#include <multiagent_mapping_common/test/testing_entrypoint.h>
+#include <multiagent-mapping-common/test/testing-entrypoint.h>
 #include <stxxl.h>
 
-#include "map-api/proto-stl-stream.h"
-#include "map-api/revision.h"
 #include "./core.pb.h"
+#include <map-api/proto-stl-stream.h>
+#include <map-api/revision.h>
 
 namespace map_api {
 template<int Size>

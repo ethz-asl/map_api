@@ -1,10 +1,8 @@
-#include "map-api/peer.h"
-
-#include "map-api/peer-id.h"
-#include "map-api/logical-time.h"
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <map-api/logical-time.h>
+#include <map-api/peer.h>
+#include <map-api/peer-id.h>
 
 DEFINE_int32(request_timeout, 5000, "Amount of miliseconds after which a "\
              "non-responsive peer is considered disconnected");
