@@ -99,7 +99,7 @@ Chunk* NetTable::newChunk(const Id& chunk_id) {
   active_chunks_lock_.writeLock();
   std::pair<ChunkMap::iterator, bool> inserted =
       active_chunks_.insert(std::make_pair(chunk_id, std::unique_ptr<Chunk>()));
-  CHECK(inserted.second);
+  CHECK(inserted.second) << "Chunk with id " << chunk_id << " already exists.";
   inserted.first->second = std::move(chunk);
   active_chunks_lock_.unlock();
   // add self to chunk posessors in index
