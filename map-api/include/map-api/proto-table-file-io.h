@@ -6,6 +6,8 @@
 #include <string>
 #include <utility>
 #include <unordered_set>
+#include <vector>
+
 #include <google/protobuf/io/gzip_stream.h>
 #include <map-api/net-table.h>
 
@@ -35,9 +37,11 @@ class ProtoTableFileIO {
   ProtoTableFileIO(const std::string& filename, map_api::NetTable* table);
   ~ProtoTableFileIO();
   bool storeTableContents(const map_api::LogicalTime& time);
-  bool storeTableContents(const map_api::CRTable::RevisionMap& revisions);
+  bool storeTableContents(const map_api::CRTable::RevisionMap& revisions,
+                          const std::vector<map_api::Id>& ids_to_store);
   bool restoreTableContents();
-  bool restoreTableContents(map_api::Transaction* transaction);
+  bool restoreTableContents(map_api::Transaction* transaction,
+                            std::unordered_map<Id, Chunk*>* existing_chunks);
   void truncFile();
 
  private:
