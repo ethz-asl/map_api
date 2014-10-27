@@ -10,8 +10,8 @@
 
 namespace map_api {
 
-// Replaces the VisualFrame class and simulates resource storing and releasing
-class VisualFrameDummy : public common::VisualFrameBase {
+// Replaces the VisualFrame class and simulates resource storing and releasing.
+class VisualFrameDummy : public aslam::VisualFrame {
  public:
   bool releaseResource(const std::string& resource_id_hex_string) {
     EXPECT_EQ(resourcesStored_.erase(resource_id_hex_string), 1);
