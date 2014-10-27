@@ -53,7 +53,15 @@ class UniqueId;
 namespace map_api {
 template <typename IdType>
 void generateId(IdType* id) {
+  CHECK_NOTNULL(id);
   id->fromHexString(internal::generateUniqueHexString());
+}
+
+template <typename IdType>
+IdType createRandomId() {
+  IdType id;
+  generateId(&id);
+  return id;
 }
 
 template <typename IdType>
