@@ -19,14 +19,13 @@ class UniqueId;
 
 #define UNIQUE_ID_DEFINE_ID(TypeName)                   \
   class TypeName : public map_api::UniqueId<TypeName> { \
-   public:                                              \
+   public:  //NOLINT                                     \
     TypeName() = default;                               \
   };                                                    \
   extern void defineId##__FILE__##__LINE__(void)
-
-#define UNIQUE_ID_DEFINE_IMMUTABLE_ID(TypeName, BaseTypeName)         \
-  class TypeName : public map_api::UniqueId<TypeName> {               \
-   public:                                                            \
+#define UNIQUE_ID_DEFINE_IMMUTABLE_ID(TypeName, BaseTypeName) \
+  class TypeName : public map_api::UniqueId<TypeName> {       \
+   public:  //NOLINT                                                   \
     TypeName() = default;                                             \
     inline void from##BaseTypeName(const BaseTypeName& landmark_id) { \
       sm::HashId hash_id;                                             \
@@ -35,7 +34,6 @@ class UniqueId;
     }                                                                 \
   };                                                                  \
   extern void defineId##__FILE__##__LINE__(void)
-
 // this macro needs to be called outside of any namespace
 #define UNIQUE_ID_DEFINE_ID_HASH(TypeName)                      \
   namespace std {                                               \
@@ -53,7 +51,15 @@ class UniqueId;
 namespace map_api {
 template <typename IdType>
 void generateId(IdType* id) {
+  CHECK_NOTNULL(id);
   id->fromHexString(internal::generateUniqueHexString());
+}
+
+template <typename IdType>
+IdType createRandomId() {
+  IdType id;
+  generateId(&id);
+  return id;
 }
 
 template <typename IdType>
