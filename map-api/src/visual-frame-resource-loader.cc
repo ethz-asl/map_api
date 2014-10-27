@@ -3,14 +3,14 @@
 #include <glog/logging.h>
 
 namespace map_api {
-
 ResourceLoader::ResourceLoader(const std::string& resource_table_name) {
   resourceTable_ = &NetTableManager::instance().getTable(resource_table_name);
 }
 
 bool ResourceLoader::loadResource(const std::string& resource_id_hex_string,
-                                  VisualFrameResourceType type,
-                                  common::VisualFrameBase* visual_frame) {
+                                  ResourceType type,
+                                  aslam::VisualFrame* visual_frame) {
+  CHECK_NOTNULL(visual_frame);
   bool success = true;
 
   Transaction transaction;
@@ -21,15 +21,17 @@ bool ResourceLoader::loadResource(const std::string& resource_id_hex_string,
   std::string uri;
   // TODO(mfehr): replace "0" with proper enum
   success &= revision->get<std::string>(0, &uri);
-  success &= visual_frame->storeResource(resource_id_hex_string,
-                                         loadResourceFromUri(uri, type));
+
+  success &= common::storeResourceInFrame(resource_id_hex_string,
+                                          loadResourceFromUri(uri, type),
+                                          visual_frame);
   registerResource(type, resource_id_hex_string, visual_frame);
   releaseResourcesIfNecessary();
   return success;
 };
 
 cv::Mat ResourceLoader::loadResourceFromUri(const std::string& uri,
-                                            VisualFrameResourceType type) {
+                                            ResourceType type) {
   cv::Mat image;
   switch (type) {
     case kVisualFrameResourceDepthMapType:
@@ -52,7 +54,7 @@ cv::Mat ResourceLoader::loadResourceFromUri(const std::string& uri,
 }
 
 void ResourceLoader::getResourceIdsOfType(
-    const std::string& visual_frame_id_hex_string, VisualFrameResourceType type,
+    const std::string& visual_frame_id_hex_string, ResourceType type,
     std::unordered_set<std::string>* id_set) {
   CHECK_NOTNULL(id_set);
   id_set->clear();
@@ -73,8 +75,8 @@ void ResourceLoader::getResourceIdsOfType(
 };
 
 int ResourceLoader::registerResource(
-    VisualFrameResourceType type, const std::string& resource_id,
-    common::VisualFrameBase* visual_frame_ptr) {
+    ResourceType type, const std::string& resource_id,
+    aslam::VisualFrame* visual_frame_ptr) {
   loadedResources_[type].emplace_back(visual_frame_ptr, resource_id);
   return getNumberOfLoadedResources(type);
 }
@@ -85,25 +87,27 @@ void ResourceLoader::releaseResourcesIfNecessary() {
         resource_list.second.size() - kMaxNumberOfResourcesPerType;
     if (expected_number_of_released_ressources > 0) {
       CHECK_EQ(releaseNumberOfLoadedResources(
-                   static_cast<VisualFrameResourceType>(resource_list.first),
+                   static_cast<ResourceType>(resource_list.first),
                    expected_number_of_released_ressources),
                expected_number_of_released_ressources);
     }
   }
 }
 
-int ResourceLoader::getNumberOfLoadedResources(VisualFrameResourceType type)
+int ResourceLoader::getNumberOfLoadedResources(ResourceType type)
     const {
   return loadedResources_.at(type).size();
 }
 
-int ResourceLoader::releaseNumberOfLoadedResources(VisualFrameResourceType type,
+int ResourceLoader::releaseNumberOfLoadedResources(ResourceType type,
                                                    int number_to_release) {
   int released = 0;
   ResourceList::iterator i = loadedResources_.at(type).begin();
   ResourceList::iterator end = loadedResources_.at(type).end();
   while ((i != end) && (released < number_to_release)) {
-    CHECK(i->visual_frame_ptr->releaseResource(i->resource_id));
+    CHECK(common::releaseResourceFromFrame(i->resource_id,
+                                           i->visual_frame_ptr));
+
     i = loadedResources_.at(type).erase(i);
     ++released;
   }

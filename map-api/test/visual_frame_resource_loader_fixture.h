@@ -4,27 +4,13 @@
 #include <set>
 #include <string>
 
+#include <aslam/frames/visual-frame.h>
 #include <multiagent-mapping-common/test/testing-predicates.h>
+#include <multiagent-mapping-common/visual-frame-resource-loader-base.h>
 #include <map-api/visual-frame-resource-loader.h>
 #include "./map_api_fixture.h"
 
 namespace map_api {
-
-// Replaces the VisualFrame class and simulates resource storing and releasing
-class VisualFrameDummy : public common::VisualFrameBase {
- public:
-  bool releaseResource(const std::string& resource_id_hex_string) {
-    EXPECT_EQ(resourcesStored_.erase(resource_id_hex_string), 1);
-    return true;
-  }
-  bool storeResource(const std::string& resource_id_hex_string,
-                     const cv::Mat& resource) {
-    EXPECT_TRUE(resource.data && !resource.empty());
-    resourcesStored_.insert(resource_id_hex_string);
-    return true;
-  }
-  std::unordered_set<std::string> resourcesStored_;
-};
 
 // Set up DB and DB entries for tests
 class ResourceLoaderFixture : public MapApiFixture {
