@@ -21,29 +21,28 @@
 #include <map-api/unique-id.h>
 
 namespace map_api {
-
 class ResourceLoader : public common::ResourceLoaderBase {
  public:
-  typedef common::ResourceLoaderBase::VisualFrameResourceType
-      VisualFrameResourceType;
+  typedef common::ResourceLoaderBase::ResourceType
+      ResourceType;
 
   explicit ResourceLoader(const std::string& resource_table_name);
 
   virtual ~ResourceLoader() {}
 
   bool loadResource(const std::string& resource_id_hex_string,
-                    VisualFrameResourceType type,
-                    common::VisualFrameBase* visual_frame);
+                    ResourceType type,
+                    aslam::VisualFrame* visual_frame);
 
   void getResourceIdsOfType(const std::string& visual_frame_id_hex_string,
-                            VisualFrameResourceType type,
+                            ResourceType type,
                             std::unordered_set<std::string>* id_set);
 
  private:
   struct ResourceRecord {
-    ResourceRecord(common::VisualFrameBase* ptr, std::string id)
+    ResourceRecord(aslam::VisualFrame* ptr, std::string id)
         : visual_frame_ptr(ptr), resource_id(id) {}
-    common::VisualFrameBase* visual_frame_ptr;
+    aslam::VisualFrame* visual_frame_ptr;
     std::string resource_id;
   };
 
@@ -51,14 +50,14 @@ class ResourceLoader : public common::ResourceLoaderBase {
   typedef std::unordered_map<int, ResourceList> ResourceMap;
 
   void releaseResourcesIfNecessary();
-  int registerResource(VisualFrameResourceType type,
+  int registerResource(ResourceType type,
                        const std::string& resource_id,
-                       common::VisualFrameBase* visual_frame_ptr);
-  int getNumberOfLoadedResources(VisualFrameResourceType type) const;
-  int releaseNumberOfLoadedResources(VisualFrameResourceType type,
+                       aslam::VisualFrame* visual_frame_ptr);
+  int getNumberOfLoadedResources(ResourceType type) const;
+  int releaseNumberOfLoadedResources(ResourceType type,
                                      int number_to_release);
   cv::Mat loadResourceFromUri(const std::string& uri,
-                              VisualFrameResourceType type);
+                              ResourceType type);
 
   ResourceMap loadedResources_;
   NetTable* resourceTable_;
