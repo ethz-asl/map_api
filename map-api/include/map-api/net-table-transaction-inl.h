@@ -6,8 +6,8 @@
 namespace map_api {
 
 template <typename IdType>
-std::shared_ptr<const Revision>
-NetTableTransaction::getById(const IdType& id) const {
+std::shared_ptr<const Revision> NetTableTransaction::getById(const IdType& id)
+    const {
   std::shared_ptr<const Revision> result;
   Chunk* chunk = chunkOf(id, &result);
   if (chunk) {
@@ -59,8 +59,7 @@ void NetTableTransaction::remove(const UniqueId<IdType>& id) {
 
 template <typename IdType>
 Chunk* NetTableTransaction::chunkOf(
-    const IdType& id,
-    std::shared_ptr<const Revision>* inconsistent) const {
+    const IdType& id, std::shared_ptr<const Revision>* inconsistent) const {
   CHECK_NOTNULL(inconsistent);
   // TODO(tcies) uncommitted
   *inconsistent = table_->getByIdInconsistent(id, begin_time_);
