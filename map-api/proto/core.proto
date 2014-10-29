@@ -20,7 +20,7 @@ message TableField {
 }
 
 message Id {
-  required string hash = 1;  // TODO(tcies) replace with below
+  optional string hash = 1;  // TODO(tcies) replace with below
   // repeated double value = 1;  // needs to be repeated for contiguousness	
 }
 
