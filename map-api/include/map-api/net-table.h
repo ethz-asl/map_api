@@ -122,9 +122,9 @@ class NetTable {
   void handleInitRequest(
       const proto::InitRequest& request, const PeerId& sender,
       Message* response);
-  void handleInsertRequest(
-      const Id& chunk_id, const std::shared_ptr<Revision>& item,
-      Message* response);
+  void handleInsertRequest(const Id& chunk_id,
+                           const std::shared_ptr<Revision>& item,
+                           Message* response);
   void handleLeaveRequest(
       const Id& chunk_id, const PeerId& leaver, Message* response);
   void handleLockRequest(
@@ -134,9 +134,9 @@ class NetTable {
       Message* response);
   void handleUnlockRequest(
       const Id& chunk_id, const PeerId& locker, Message* response);
-  void handleUpdateRequest(
-      const Id& chunk_id, const std::shared_ptr<Revision>& item,
-      const PeerId& sender, Message* response);
+  void handleUpdateRequest(const Id& chunk_id,
+                           const std::shared_ptr<Revision>& item,
+                           const PeerId& sender, Message* response);
 
   void handleRoutedNetTableChordRequests(const Message& request,
                                          Message* response);
@@ -161,8 +161,8 @@ class NetTable {
    * TODO(tcies) probably requires mutex on a data level
    */
   template <typename IdType>
-  std::shared_ptr<const Revision> getByIdInconsistent(
-      const IdType& id, const LogicalTime& time);
+  std::shared_ptr<const Revision> getByIdInconsistent(const IdType& id,
+                                                      const LogicalTime& time);
 
   void readLockActiveChunks();
   void unlockActiveChunks();
