@@ -188,8 +188,7 @@ bool NetTable::insert(const LogicalTime& time, Chunk* chunk,
   return true;
 }
 
-bool NetTable::update(
-    const std::shared_ptr<Revision>& query) {
+bool NetTable::update(const std::shared_ptr<Revision>& query) {
   CHECK(query != nullptr);
   CHECK(type_ == CRTable::Type::CRU);
   CHECK_NOTNULL(getChunk(query->getChunkId()))->update(query);
@@ -397,9 +396,9 @@ void NetTable::handleInitRequest(
   response->ack();
 }
 
-void NetTable::handleInsertRequest(
-    const Id& chunk_id, const std::shared_ptr<Revision>& item,
-    Message* response) {
+void NetTable::handleInsertRequest(const Id& chunk_id,
+                                   const std::shared_ptr<Revision>& item,
+                                   Message* response) {
   ChunkMap::iterator found;
   active_chunks_lock_.readLock();
   if (routingBasics(chunk_id, response, &found)) {
@@ -449,9 +448,9 @@ void NetTable::handleUnlockRequest(
   active_chunks_lock_.unlock();
 }
 
-void NetTable::handleUpdateRequest(
-    const Id& chunk_id, const std::shared_ptr<Revision>& item,
-    const PeerId& sender, Message* response) {
+void NetTable::handleUpdateRequest(const Id& chunk_id,
+                                   const std::shared_ptr<Revision>& item,
+                                   const PeerId& sender, Message* response) {
   ChunkMap::iterator found;
   if (routingBasics(chunk_id, response, &found)) {
     found->second->handleUpdateRequest(item, sender, response);
