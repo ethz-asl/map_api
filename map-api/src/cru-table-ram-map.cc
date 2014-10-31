@@ -17,8 +17,7 @@ bool CRUTableRamMap::insertCRUDerived(const std::shared_ptr<Revision>& query) {
   return true;
 }
 
-bool CRUTableRamMap::bulkInsertCRUDerived(
-    const NonConstRevisionMap& query) {
+bool CRUTableRamMap::bulkInsertCRUDerived(const NonConstRevisionMap& query) {
   for (const RevisionMap::value_type& pair : query) {
     if (data_.find(pair.first) != data_.end()) {
       return false;
@@ -68,11 +67,10 @@ void CRUTableRamMap::dumpChunkCRDerived(const Id& chunk_id,
                                         const LogicalTime& time,
                                         RevisionMap* dest) const {
   CHECK_NOTNULL(dest)->clear();
-  forChunkItemsAtTime(
-      chunk_id, time,
-      [&dest](const Id& id, const Revision& item) {
-        CHECK(dest->emplace(id, std::make_shared<Revision>(item)).second);
-      });
+  forChunkItemsAtTime(chunk_id, time,
+                      [&dest](const Id& id, const Revision& item) {
+    CHECK(dest->emplace(id, std::make_shared<Revision>(item)).second);
+  });
 }
 
 void CRUTableRamMap::findByRevisionCRDerived(int key,
@@ -81,12 +79,11 @@ void CRUTableRamMap::findByRevisionCRDerived(int key,
                                              RevisionMap* dest) const {
   CHECK_NOTNULL(dest);
   dest->clear();
-  forEachItemFoundAtTime(
-      key, value_holder, time,
-      [&dest](const Id& id, const Revision& item) {
+  forEachItemFoundAtTime(key, value_holder, time,
+                         [&dest](const Id& id, const Revision& item) {
     CHECK(dest->find(id) == dest->end());
     CHECK(dest->emplace(id, std::make_shared<Revision>(item)).second);
-      });
+  });
 }
 
 void CRUTableRamMap::getAvailableIdsCRDerived(
@@ -110,8 +107,7 @@ int CRUTableRamMap::countByRevisionCRDerived(int key,
   int count = 0;
   forEachItemFoundAtTime(
       key, value_holder, time,
-      [&count](const Id& /*id*/,
-               const Revision& /*item*/) { ++count; });
+      [&count](const Id& /*id*/, const Revision& /*item*/) { ++count; });
   return count;
 }
 
@@ -120,8 +116,7 @@ int CRUTableRamMap::countByChunkCRDerived(const Id& chunk_id,
   int count = 0;
   forChunkItemsAtTime(
       chunk_id, time,
-      [&count](const Id& /*id*/,
-               const Revision& /*item*/) { ++count; });
+      [&count](const Id& /*id*/, const Revision& /*item*/) { ++count; });
   return count;
 }
 
