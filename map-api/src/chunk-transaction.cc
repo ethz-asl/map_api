@@ -74,22 +74,22 @@ bool ChunkTransaction::check() {
       return false;
     }
   }
-  for (const std::pair<const Id,
-      std::shared_ptr<const Revision> >& item : updates_) {
+  for (const std::pair<const Id, std::shared_ptr<const Revision> >& item :
+       updates_) {
     if (stamps[item.first] >= begin_time_) {
       return false;
     }
   }
-  for (const std::pair<const Id,
-      std::shared_ptr<const Revision> >& item : removes_) {
+  for (const std::pair<const Id, std::shared_ptr<const Revision> >& item :
+       removes_) {
     if (stamps[item.first] >= begin_time_) {
       return false;
     }
   }
   for (const ChunkTransaction::ConflictCondition& item : conflict_conditions_) {
     CRTable::RevisionMap dummy;
-    chunk_->underlying_table_->findByRevision(
-                item.key, *item.value_holder, LogicalTime::sample(), &dummy);
+    chunk_->underlying_table_->findByRevision(item.key, *item.value_holder,
+                                              LogicalTime::sample(), &dummy);
     if (!dummy.empty()) {
       return false;
     }
@@ -107,14 +107,12 @@ void ChunkTransaction::checkedCommit(const LogicalTime& time) {
     }
   }
   chunk_->bulkInsertLocked(insertions_, time);
-  for (const std::pair<const Id,
-      std::shared_ptr<Revision> >& item : updates_) {
+  for (const std::pair<const Id, std::shared_ptr<Revision> >& item : updates_) {
     if (removes_.count(item.first) == 0u) {
       chunk_->updateLocked(time, item.second);
     }
   }
-  for (const std::pair<const Id,
-      std::shared_ptr<Revision> >& item : removes_) {
+  for (const std::pair<const Id, std::shared_ptr<Revision> >& item : removes_) {
     chunk_->removeLocked(time, item.second);
   }
 }
@@ -136,7 +134,8 @@ void ChunkTransaction::merge(
     CHECK(stamps.find(item.first) == stamps.end()) << "Insert conflict!";
     merge_transaction->insertions_.insert(item);
   }
-  for (const typename CRTable::NonConstRevisionMap::value_type& item : updates_) {
+  for (const typename CRTable::NonConstRevisionMap::value_type& item :
+       updates_) {
     if (stamps[item.first] >= begin_time_) {
       conflicts->push_back(
           {merge_transaction->getById(item.first), item.second});
@@ -144,7 +143,8 @@ void ChunkTransaction::merge(
       merge_transaction->updates_.insert(item);
     }
   }
-  for (const typename CRTable::NonConstRevisionMap::value_type& item : removes_) {
+  for (const typename CRTable::NonConstRevisionMap::value_type& item :
+       removes_) {
     if (stamps[item.first] >= begin_time_) {
       conflicts->push_back(
           {merge_transaction->getById(item.first), item.second});

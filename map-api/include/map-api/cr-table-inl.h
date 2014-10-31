@@ -36,8 +36,7 @@ void CRTable::getAvailableIds(const LogicalTime& time,
 template <typename RevisionType>
 template <typename Derived>
 typename CRTable::RevisionMapBase<RevisionType>::iterator
-CRTable::RevisionMapBase<RevisionType>::find(
-    const UniqueId<Derived>& key) {
+CRTable::RevisionMapBase<RevisionType>::find(const UniqueId<Derived>& key) {
   Id id_key;
   sm::HashId hash_id;
   key.toHashId(&hash_id);
@@ -48,8 +47,8 @@ CRTable::RevisionMapBase<RevisionType>::find(
 template <typename RevisionType>
 template <typename Derived>
 typename CRTable::RevisionMapBase<RevisionType>::const_iterator
-CRTable::RevisionMapBase<RevisionType>::find(
-    const UniqueId<Derived>& key) const {
+CRTable::RevisionMapBase<RevisionType>::find(const UniqueId<Derived>& key)
+    const {
   Id id_key;
   sm::HashId hash_id;
   key.toHashId(&hash_id);
