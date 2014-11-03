@@ -129,7 +129,7 @@ Cache<IdType, Value, DerivedValue>::getRevisionLocked(const IdType& id) const {
 template <typename IdType, typename Value, typename DerivedValue>
 void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
   LockGuard lock(mutex_);
-  CHECK(!staged_);
+  CHECK(!staged_) << "You cannot commit a transaction more than once.";
   for (const typename CacheMap::value_type& cached_pair : cache_) {
     CRTable::RevisionMap::iterator corresponding_revision =
         revisions_.find(cached_pair.first);
