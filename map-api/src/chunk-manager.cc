@@ -7,7 +7,9 @@
 
 namespace map_api {
 void ChunkManagerBase::requestParticipationAllChunks() {
-  // TODO(tcies/slynen): Can we parallelize this?
+  if (active_chunks_.empty()) {
+    return;
+  }
   LOG(INFO) << "Requesting participation for " << active_chunks_.size()
             << " chunks from " << underlying_table_->name();
   for (const std::pair<Id, Chunk*>& item : active_chunks_) {
