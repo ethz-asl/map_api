@@ -1,7 +1,7 @@
 subtree_multiagent_mapping
 ==========================
 
-A superrepo for the multi agent mapping
+Master source repository for multi agent mapping
 
 ### Installation
 https://github.com/ethz-asl/multiagent_mapping/wiki/Install-Map-API-from-scratch
