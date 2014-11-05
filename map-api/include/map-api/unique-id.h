@@ -81,7 +81,7 @@ class Id : public sm::HashId {
     CHECK_NOTNULL(id);
     *id = static_cast<const sm::HashId&>(*this);
   }
-  template<typename IdType>
+  template <typename IdType>
   inline IdType toIdType() const {
     IdType value;
     value.fromHashId(*this);

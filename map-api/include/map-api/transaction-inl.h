@@ -20,8 +20,9 @@ std::shared_ptr<const Revision> Transaction::getById(const IdType& id,
 }
 
 template <typename IdType>
-std::shared_ptr<const Revision> Transaction::getById(
-    const IdType& id, NetTable* table, Chunk* chunk) const {
+std::shared_ptr<const Revision> Transaction::getById(const IdType& id,
+                                                     NetTable* table,
+                                                     Chunk* chunk) const {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(chunk);
   return transactionOf(table)->getById(id, chunk);
