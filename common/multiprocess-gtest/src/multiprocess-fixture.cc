@@ -54,7 +54,7 @@ std::string MultiprocessTest::getSelfpath() {
 /**
  * Return own ID: 0 if master
  */
-uint64_t MultiprocessTest::getSubprocessId() {
+uint64_t MultiprocessTest::getSubprocessId() const {
   return FLAGS_subprocess_id;
 }
 /**

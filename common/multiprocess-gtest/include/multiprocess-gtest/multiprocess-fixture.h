@@ -1,5 +1,5 @@
-#ifndef MAP_API_TEST_SUITE_MULTIPROCESS_FIXTURE_H_
-#define MAP_API_TEST_SUITE_MULTIPROCESS_FIXTURE_H_
+#ifndef MULTIPROCESS_GTEST_MULTIPROCESS_FIXTURE_H_
+#define MULTIPROCESS_GTEST_MULTIPROCESS_FIXTURE_H_
 
 #include <condition_variable>
 #include <cstdio>
@@ -23,7 +23,7 @@ class MultiprocessTest : public ::testing::Test {
   /**
    * Return own ID: 0 if master
    */
-  uint64_t getSubprocessId();
+  uint64_t getSubprocessId() const;
 
   /**
    * Launches a subprocess with given ID. ID can be any positive integer.
@@ -59,4 +59,4 @@ class MultiprocessTest : public ::testing::Test {
   SubprocessMap subprocesses_;  // map to maintain ordering
 };
 }  // namespace map_api_test_suite
-#endif  // MAP_API_TEST_SUITE_MULTIPROCESS_FIXTURE_H_
+#endif  // MULTIPROCESS_GTEST_MULTIPROCESS_FIXTURE_H_
