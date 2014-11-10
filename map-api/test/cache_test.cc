@@ -17,9 +17,9 @@ UNIQUE_ID_DEFINE_ID(IntId);
 MAP_API_REVISION_UNIQUE_ID(IntId);
 
 template<>
-int* objectFromRevision(const Revision& revision) {
-  int* object = new int;
-  revision.get(NetTableFixture::kFieldName, object);
+std::shared_ptr<int> objectFromRevision(const Revision& revision) {
+  std::shared_ptr<int> object(new int);
+  revision.get(NetTableFixture::kFieldName, object.get());
   return object;
 }
 void objectToRevision(const int& object, Revision* revision) {

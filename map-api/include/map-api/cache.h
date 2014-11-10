@@ -38,12 +38,9 @@ struct InstanceFactory {
     CHECK_NOTNULL(ptr);
     return *ptr;
   }
-  static void transferOwnership(ElementType* object,
+  static void transferOwnership(std::shared_ptr<ElementType> object,
                                 DerivedType* destination) {
-    CHECK_NOTNULL(object);
-    CHECK_NOTNULL(destination);
     *destination = *object;
-    delete object;
   }
 };
 template <typename Type, typename DerivedType>
@@ -86,11 +83,9 @@ struct InstanceFactory<true, Type, DerivedType> {
     CHECK_NOTNULL(ptr);
     return *ptr;
   }
-  static void transferOwnership(ElementType* object,
-                                DerivedType* destination) {
-    CHECK_NOTNULL(object);
-    CHECK_NOTNULL(destination);
-    destination->reset(object);
+  static void transferOwnership(std::shared_ptr<ElementType> object,
+                                Type* destination) {
+    *destination = object;
   }
 };
 }  // namespace traits
@@ -102,7 +97,8 @@ class NetTable;
  * Needs to be implemented by applications.
  */
 template <typename ObjectType>
-ObjectType* objectFromRevision(const map_api::Revision& revision);
+std::shared_ptr<ObjectType> objectFromRevision(
+    const map_api::Revision& revision);
 template <typename ObjectType>
 void objectToRevision(const ObjectType& object, map_api::Revision* revision);
 
