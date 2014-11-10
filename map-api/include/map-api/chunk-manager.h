@@ -36,7 +36,7 @@ class ChunkManagerBase {
     CHECK_NOTNULL(chunk_list);
     chunk_list->clear_chunk_ids();
     for (const std::pair<const Id, Chunk*>& pair : active_chunks_) {
-      chunk_list->add_chunk_ids(pair.first.hexString());
+      pair.first.serialize(chunk_list->add_chunk_ids());
     }
   }
 

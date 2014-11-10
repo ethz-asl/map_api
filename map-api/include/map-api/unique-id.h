@@ -1,6 +1,5 @@
 #ifndef MAP_API_UNIQUE_ID_H_
 #define MAP_API_UNIQUE_ID_H_
-#include <map-api/internal/unique-id.h>
 
 #include <atomic>
 #include <string>
@@ -9,45 +8,37 @@
 #include <glog/logging.h>
 #include <sm/hash_id.hpp>
 #include <map-api/hub.h>
+#include "./id.pb.h"
+
+#include "map-api/internal/unique-id.h"
 
 static constexpr int kDefaultIDPrintLength = 10;
-static constexpr int kIdNumElements = 2;
 
 namespace map_api {
 template <typename IdType>
 class UniqueId;
 }  // namespace map_api
 
-#define UNIQUE_ID_DEFINE_ID(TypeName)                                    \
-  class TypeName : public map_api::UniqueId<TypeName> {                  \
-   public:                                                               \
-    TypeName() = default;                                                \
-    inline TypeName(                                                     \
-        const google::protobuf::RepeatedField<uint64_t>& repeated_field) \
-        : map_api::UniqueId<TypeName>(repeated_field) {}                 \
-    inline TypeName(                                                     \
-        const google::protobuf::RepeatedField<uint64_t>& repeated_field, \
-        int index)                                                       \
-        : map_api::UniqueId<TypeName>(repeated_field, index) {}          \
-  };                                                                     \
+#define UNIQUE_ID_DEFINE_ID(TypeName)                           \
+  class TypeName : public map_api::UniqueId<TypeName> {         \
+   public:                                                      \
+    TypeName() = default;                                       \
+    explicit inline TypeName(const common::proto::Id& id_field) \
+        : map_api::UniqueId<TypeName>(id_field) {}              \
+  };                                                            \
   extern void defineId##__FILE__##__LINE__(void)
-#define UNIQUE_ID_DEFINE_IMMUTABLE_ID(TypeName, BaseTypeName)            \
-  class TypeName : public map_api::UniqueId<TypeName> {                  \
-   public:                                                               \
-    TypeName() = default;                                                \
-    inline TypeName(                                                     \
-        const google::protobuf::RepeatedField<uint64_t>& repeated_field) \
-        : map_api::UniqueId<TypeName>(repeated_field) {}                 \
-    inline TypeName(                                                     \
-        const google::protobuf::RepeatedField<uint64_t>& repeated_field, \
-        int index)                                                       \
-        : map_api::UniqueId<TypeName>(repeated_field, index) {}          \
-    inline void from##BaseTypeName(const BaseTypeName& landmark_id) {    \
-      sm::HashId hash_id;                                                \
-      landmark_id.toHashId(&hash_id);                                    \
-      this->fromHashId(hash_id);                                         \
-    }                                                                    \
-  };                                                                     \
+#define UNIQUE_ID_DEFINE_IMMUTABLE_ID(TypeName, BaseTypeName)         \
+  class TypeName : public map_api::UniqueId<TypeName> {               \
+   public:                                                            \
+    TypeName() = default;                                             \
+    explicit inline TypeName(const common::proto::Id& id_field)       \
+        : map_api::UniqueId<TypeName>(id_field) {}                    \
+    inline void from##BaseTypeName(const BaseTypeName& landmark_id) { \
+      sm::HashId hash_id;                                             \
+      landmark_id.toHashId(&hash_id);                                 \
+      this->fromHashId(hash_id);                                      \
+    }                                                                 \
+  };                                                                  \
   extern void defineId##__FILE__##__LINE__(void)
 // this macro needs to be called outside of any namespace
 #define UNIQUE_ID_DEFINE_ID_HASH(TypeName)                      \
@@ -89,43 +80,20 @@ void generateIdFromInt(unsigned int idx, IdType* id) {
 class Id : public sm::HashId {
  public:
   Id() = default;
-  explicit inline Id(
-      const google::protobuf::RepeatedField<uint64_t>& repeated_field) {
-    deserialize(repeated_field);
+  explicit inline Id(const common::proto::Id& id_field) {
+    deserialize(id_field);
   }
-  // For proto fields storing multiple ids.
-  inline Id(const google::protobuf::RepeatedField<uint64_t>& repeated_field,
-            int index) {
-    deserialize(repeated_field, index);
+  inline void deserialize(const common::proto::Id& id_field) {
+    CHECK_EQ(id_field.uint_size(), 2);
+    fromUint64(id_field.uint().data());
   }
-  inline void deserialize(
-      const google::protobuf::RepeatedField<uint64_t>& repeated_field) {
-    CHECK_EQ(kIdNumElements, repeated_field.size());
-    fromUint64(repeated_field.data());
+  inline void serialize(common::proto::Id* id_field) const {
+    CHECK_NOTNULL(id_field)->clear_uint();
+    id_field->mutable_uint()->Add();
+    id_field->mutable_uint()->Add();
+    toUint64(id_field->mutable_uint()->mutable_data());
   }
-  // For proto fields storing multiple ids.
-  inline void deserialize(
-      const google::protobuf::RepeatedField<uint64_t>& repeated_field,
-      int index) {
-    CHECK_EQ(0, index % kIdNumElements);
-    fromUint64(&repeated_field.data()[index]);
-  }
-  inline void serialize(
-      google::protobuf::RepeatedField<uint64_t>* repeated_field) const {
-    CHECK_NOTNULL(repeated_field)->Clear();
-    repeated_field->Add();
-    repeated_field->Add();
-    toUint64(repeated_field->mutable_data());
-  }
-  inline void append(google::protobuf::RepeatedField<uint64_t>* repeated_field)
-      const {
-    CHECK_NOTNULL(repeated_field);
-    int old_size = repeated_field->size();
-    CHECK_EQ(0, old_size % kIdNumElements);
-    repeated_field->Add();
-    repeated_field->Add();
-    toUint64(&repeated_field->mutable_data()[old_size]);
-  }
+
   inline void fromHashId(const sm::HashId& id) {
     static_cast<sm::HashId&>(*this) = id;
   }
@@ -142,6 +110,11 @@ class Id : public sm::HashId {
   template <typename GenerateIdType>
   friend void generateId(GenerateIdType* id);
 
+  bool correspondsTo(const common::proto::Id& proto_id) const {
+    Id corresponding(proto_id);
+    return operator==(corresponding);
+  }
+
  private:
   using sm::HashId::fromUint64;
   using sm::HashId::toUint64;
@@ -152,13 +125,7 @@ template <typename IdType>
 class UniqueId : private Id {
  public:
   UniqueId() = default;
-  inline UniqueId(
-      const google::protobuf::RepeatedField<uint64_t>& repeated_field)
-      : Id(repeated_field) {}
-  inline UniqueId(
-      const google::protobuf::RepeatedField<uint64_t>& repeated_field,
-      int index)
-      : Id(repeated_field, index) {}
+  explicit inline UniqueId(const common::proto::Id& id_field) : Id(id_field) {}
 
   using sm::HashId::hexString;
   using sm::HashId::fromHexString;
@@ -168,7 +135,6 @@ class UniqueId : private Id {
 
   using Id::deserialize;
   using Id::serialize;
-  using Id::append;
 
   std::ostream& operator<<(std::ostream& os) const {
     return os << hexString().substr(0, kDefaultIDPrintLength);
