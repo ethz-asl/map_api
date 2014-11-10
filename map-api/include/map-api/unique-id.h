@@ -11,6 +11,7 @@
 #include <map-api/hub.h>
 
 static constexpr int kDefaultIDPrintLength = 10;
+static constexpr int kIdNumElements = 2;
 
 namespace map_api {
 template <typename IdType>
@@ -99,14 +100,14 @@ class Id : public sm::HashId {
   }
   inline void deserialize(
       const google::protobuf::RepeatedField<uint64_t>& repeated_field) {
-    CHECK_EQ(2, repeated_field.size());
+    CHECK_EQ(kIdNumElements, repeated_field.size());
     fromUint64(repeated_field.data());
   }
   // For proto fields storing multiple ids.
   inline void deserialize(
       const google::protobuf::RepeatedField<uint64_t>& repeated_field,
       int index) {
-    CHECK_EQ(0, index % 2);
+    CHECK_EQ(0, index % kIdNumElements);
     fromUint64(&repeated_field.data()[index]);
   }
   inline void serialize(
@@ -120,7 +121,7 @@ class Id : public sm::HashId {
       const {
     CHECK_NOTNULL(repeated_field);
     int old_size = repeated_field->size();
-    CHECK_EQ(0, old_size % 2);
+    CHECK_EQ(0, old_size % kIdNumElements);
     repeated_field->Add();
     repeated_field->Add();
     toUint64(&repeated_field->mutable_data()[old_size]);
