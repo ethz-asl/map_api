@@ -69,7 +69,11 @@ class Revision {
   inline Id getChunkId() const { return Id(underlying_revision_->chunk_id()); }
   template <typename IdType>
   inline IdType getId() const {
-    return IdType(underlying_revision_->id());
+    if (underlying_revision_->id().size() != 0) {
+      return IdType(underlying_revision_->id());
+    } else {
+      return IdType();
+    }
   }
   template <typename IdType>
   inline void setId(const IdType& id) {
