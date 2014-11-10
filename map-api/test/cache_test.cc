@@ -16,8 +16,11 @@ namespace map_api {
 UNIQUE_ID_DEFINE_ID(IntId);
 MAP_API_REVISION_UNIQUE_ID(IntId);
 
-void objectFromRevision(const Revision& revision, int* object) {
-  revision.get(NetTableFixture::kFieldName, CHECK_NOTNULL(object));
+template<>
+int* objectFromRevision(const Revision& revision) {
+  int* object = new int;
+  revision.get(NetTableFixture::kFieldName, object);
+  return object;
 }
 void objectToRevision(const int& object, Revision* revision) {
   CHECK_NOTNULL(revision)->set(NetTableFixture::kFieldName, object);
