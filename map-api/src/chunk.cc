@@ -49,7 +49,7 @@ void Chunk::fillMetadata<proto::ChunkRequestMetadata>(
     proto::ChunkRequestMetadata* destination) {
   CHECK_NOTNULL(destination);
   destination->set_table(underlying_table_->name());
-  destination->set_chunk_id(id().hexString());
+  id().serialize(destination->mutable_chunk_id());
 }
 
 bool Chunk::init(const Id& id, CRTable* underlying_table, bool initialize) {

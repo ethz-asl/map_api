@@ -7,7 +7,7 @@ template <typename RequestType>
 void Chunk::fillMetadata(RequestType* destination) {
   CHECK_NOTNULL(destination);
   destination->mutable_metadata()->set_table(this->underlying_table_->name());
-  destination->mutable_metadata()->set_chunk_id(id().hexString());
+  id().serialize(destination->mutable_metadata()->mutable_chunk_id());
 }
 
 inline Id Chunk::id() const { return id_; }

@@ -19,17 +19,12 @@ message TableField {
 	optional uint32 unsigned_int_value = 8;
 }
 
-message Id {
-  optional string hash = 1;  // TODO(tcies) replace with below
-  // repeated double value = 1;  // needs to be repeated for contiguousness	
-}
-
 message Revision {
-  optional Id id = 1;
+  repeated uint64 id = 1;
   optional uint64 insert_time = 2;
   optional uint64 update_time = 3;
   optional bool removed = 4;
-  optional Id chunk_id = 5;
+  repeated uint64 chunk_id = 5;
   repeated TableField custom_field_values = 6;
 }
 

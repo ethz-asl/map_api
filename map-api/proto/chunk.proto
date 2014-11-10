@@ -2,7 +2,7 @@ package map_api.proto;
 
 message ChunkRequestMetadata {
   optional string table = 1;
-  optional string chunk_id = 2; // TODO(tcies) chunk identification as message
+  repeated uint64 chunk_id = 2;
 }
 
 message PatchRequest {
