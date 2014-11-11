@@ -7,7 +7,7 @@
 #include <aslam/frames/visual-frame.h>
 #include <multiagent-mapping-common/test/testing-predicates.h>
 #include <multiagent-mapping-common/visual-frame-resource-loader-base.h>
-#include <map-api/visual-frame-resource-loader.h>
+#include "map-api/visual-frame-resource-loader.h"
 #include "./map_api_fixture.h"
 
 namespace map_api {

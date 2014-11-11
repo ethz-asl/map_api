@@ -64,6 +64,9 @@ cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
 add_dependencies(${PROJECT_NAME} zeromq_catkin gflags_catkin glog_catkin)
 target_link_libraries(${PROJECT_NAME} ${POCO_LIBRARIES})
 
+# must be static because linked against multiprocess_gtest, which is static
+cs_add_library(${PROJECT_NAME}_testing STATIC src/test/testing-entrypoint.cc)
+
 cs_add_executable(discovery-server discovery-server/discovery-server.cc
                    ${PROTO_SRCS} ${PROTO_HDRS})
 target_link_libraries(discovery-server ${PROJECT_NAME})
@@ -75,7 +78,8 @@ file(COPY test/test-data DESTINATION
        ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
 
 cs_add_library(${PROJECT_NAME}_fixture STATIC test/map_api_fixture.cc)
-target_link_libraries(${PROJECT_NAME}_fixture ${PROJECT_NAME} gtest pthread)
+target_link_libraries(${PROJECT_NAME}_fixture ${PROJECT_NAME} gtest pthread
+	${PROJECT_NAME}_testing)
 
 cs_add_library(net_table_fixture STATIC test/net_table_fixture.cc)
 target_link_libraries(net_table_fixture ${PROJECT_NAME}_fixture)

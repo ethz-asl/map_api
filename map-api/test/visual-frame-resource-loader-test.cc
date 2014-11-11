@@ -1,4 +1,4 @@
-#include <multiagent-mapping-common/test/testing-entrypoint.h>
+#include <map-api/test/testing-entrypoint.h>
 
 #include "./visual_frame_resource_loader_fixture.h"
 
@@ -208,4 +208,4 @@ TEST_F(ResourceLoaderFixture, ShouldReleaseResourcesCorrectly) {
 
 }  // namespace map_api
 
-MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
+MAP_API_UNITTEST_ENTRYPOINT
