@@ -1,4 +1,5 @@
 package map_api.proto;
+import "id.proto";
 
 enum Type { INT32 = 1; INT64 = 2; UINT64 = 3; DOUBLE = 4; STRING = 5; 
     BLOB = 6; HASH128 = 7; UINT32 = 8;}
@@ -20,11 +21,11 @@ message TableField {
 }
 
 message Revision {
-  repeated uint64 id = 1;
+  optional common.proto.Id id = 1;
   optional uint64 insert_time = 2;
   optional uint64 update_time = 3;
   optional bool removed = 4;
-  repeated uint64 chunk_id = 5;
+  optional common.proto.Id chunk_id = 5;
   repeated TableField custom_field_values = 6;
 }
 

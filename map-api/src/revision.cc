@@ -157,7 +157,7 @@ std::string Revision::dumpToString() const {
   dump_ss << "{" << std::endl;
   dump_ss << "\tid:" << getId<Id>() << std::endl;
   dump_ss << "\tinsert_time:" << getInsertTime() << std::endl;
-  if (underlying_revision_->chunk_id_size() > 0) {
+  if (underlying_revision_->has_chunk_id()) {
     dump_ss << "\tchunk_id:" << getChunkId() << std::endl;
   }
   if (underlying_revision_->has_update_time()) {
