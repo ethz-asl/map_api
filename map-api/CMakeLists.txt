@@ -66,6 +66,7 @@ target_link_libraries(${PROJECT_NAME} ${POCO_LIBRARIES})
 
 # must be static because linked against multiprocess_gtest, which is static
 cs_add_library(${PROJECT_NAME}_testing STATIC src/test/testing-entrypoint.cc)
+target_link_libraries(${PROJECT_NAME}_testing ${PROJECT_NAME})
 
 cs_add_executable(discovery-server discovery-server/discovery-server.cc
                    ${PROTO_SRCS} ${PROTO_HDRS})
