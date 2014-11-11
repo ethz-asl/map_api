@@ -66,7 +66,13 @@ class Revision {
     return (underlying_revision_->has_update_time()) ? getUpdateTime()
                                                      : getInsertTime();
   }
-  inline Id getChunkId() const { return Id(underlying_revision_->chunk_id()); }
+  inline Id getChunkId() const {
+    if (underlying_revision_->has_chunk_id()) {
+      return Id(underlying_revision_->chunk_id());
+    } else {
+      return Id();
+    }
+  }
   template <typename IdType>
   inline IdType getId() const {
     if (underlying_revision_->has_id()) {
