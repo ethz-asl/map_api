@@ -55,8 +55,8 @@ SET(CORE_SOURCE  src/cache-base.cc
                  src/spatial-index.cc
                  src/table-descriptor.cc
                  src/transaction.cc
-                 src/unique-id.cc
-                 src/visual-frame-resource-loader.cc)
+                 src/unique-id.cc)
+                 #src/visual-frame-resource-loader.cc)
                  
 cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
 # we need to add dependencies of external project packages to fetch headers
@@ -64,8 +64,7 @@ cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
 add_dependencies(${PROJECT_NAME} zeromq_catkin gflags_catkin glog_catkin)
 target_link_libraries(${PROJECT_NAME} ${POCO_LIBRARIES})
 
-# must be static because linked against multiprocess_gtest, which is static
-cs_add_library(${PROJECT_NAME}_testing STATIC src/test/testing-entrypoint.cc)
+cs_add_library(${PROJECT_NAME}_testing src/test/testing-entrypoint.cc)
 target_link_libraries(${PROJECT_NAME}_testing ${PROJECT_NAME})
 
 cs_add_executable(discovery-server discovery-server/discovery-server.cc
@@ -122,11 +121,11 @@ target_link_libraries(test_proto_table_file_io_test net_table_fixture)
 catkin_add_gtest(test_proto_stl_stream_test test/proto_stl_stream_test.cc)
 target_link_libraries(test_proto_stl_stream_test ${PROJECT_NAME}_fixture)
 
-catkin_add_gtest(test_visual_frame_resource_loader_test 
-                 test/visual-frame-resource-loader-test.cc
-                 WORKING_DIRECTORY
-                 ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
-target_link_libraries(test_visual_frame_resource_loader_test ${PROJECT_NAME}_fixture)
+#catkin_add_gtest(test_visual_frame_resource_loader_test 
+#                 test/visual-frame-resource-loader-test.cc
+#                 WORKING_DIRECTORY
+#                 ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
+#target_link_libraries(test_visual_frame_resource_loader_test ${PROJECT_NAME}_fixture)
 
 ##########
 # EXPORT #
