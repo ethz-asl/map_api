@@ -2,10 +2,11 @@
 #include <memory>
 #include <unordered_map>
 
-#include <map-api/unique-id.h>
-#include <multiagent_mapping_common/test/testing_entrypoint.h>
 #include <sm/hash_id.hpp>
 #include <timing/timer.h>
+
+#include "map-api/unique-id.h"
+#include "map-api/test/testing_entrypoint.h"
 
 #define DEFINE_ID_HASH_SIZET(TypeName)                          \
   namespace std {                                               \
@@ -106,4 +107,4 @@ TEST(MultiagentMappingCommon, HashIdHashingSpeed) {
   timing::Timing::Print(std::cout);
 }
 
-MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
+MAP_API_UNITTEST_ENTRYPOINT

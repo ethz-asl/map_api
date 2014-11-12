@@ -1,10 +1,9 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include <multiagent-mapping-common/test/testing-entrypoint.h>
-
-#include <map-api/core.h>
-#include <map-api/ipc.h>
+#include "map-api/core.h"
+#include "map-api/ipc.h"
+#include "map-api/test/testing-entrypoint.h"
 #include "./map_api_fixture.h"
 
 namespace map_api {
@@ -32,4 +31,4 @@ TEST_F(MapApiFixture, LaunchTest) {
 
 }  // namespace map_api
 
-MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
+MAP_API_UNITTEST_ENTRYPOINT
