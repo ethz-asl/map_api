@@ -15,6 +15,8 @@ namespace map_api {
  */
 class FileDiscovery final : public Discovery {
  public:
+  static const std::string kFileName;
+
   virtual ~FileDiscovery();
   virtual void announce() final override;
   virtual int getPeers(std::vector<PeerId>* peers) final override;
@@ -27,7 +29,6 @@ class FileDiscovery final : public Discovery {
   void getFileContents(std::string* result) const;
   void replace(const std::string& new_content) const;
 
-  static const std::string kFileName;
   static const char kLockFileName[];
   static std::mutex mutex_;
 
