@@ -1,5 +1,5 @@
-#ifndef MAP_API_TEST_SUITE_MULTIPROCESS_FIXTURE_H_
-#define MAP_API_TEST_SUITE_MULTIPROCESS_FIXTURE_H_
+#ifndef MULTIPROCESS_GTEST_MULTIPROCESS_FIXTURE_H_
+#define MULTIPROCESS_GTEST_MULTIPROCESS_FIXTURE_H_
 
 #include <condition_variable>
 #include <cstdio>
@@ -59,4 +59,5 @@ class MultiprocessTest : public ::testing::Test {
   SubprocessMap subprocesses_;  // map to maintain ordering
 };
 }  // namespace map_api_test_suite
-#endif  // MAP_API_TEST_SUITE_MULTIPROCESS_FIXTURE_H_
+#include "./multiprocess-fixture-inl.h"
+#endif  // MULTIPROCESS_GTEST_MULTIPROCESS_FIXTURE_H_
