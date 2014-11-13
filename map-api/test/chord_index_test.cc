@@ -25,7 +25,7 @@ const std::string kRetrieveDataTimeFile = "retrieve_time.txt";
 class ChordIndexTest : public MapApiFixture {
  protected:
   virtual void SetUp() override {
-    // not using MultiprocessTest::SetUp intentionally - need to register
+    // not using MultiprocessFixture::SetUp intentionally - need to register
     // handlers first
     TestChordIndex::staticInit();
     Core::initializeInstance();
