@@ -11,6 +11,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 add_definitions(--std=c++11)
 
 cs_add_library(${PROJECT_NAME} src/multiprocess-fixture.cc)
+target_link_libraries(${PROJECT_NAME} gtest)
 
 cs_install()
 cs_export(INCLUDE_DIRS include)

@@ -80,7 +80,6 @@ target_link_libraries(${PROJECT_NAME}_fixture ${PROJECT_NAME} gtest pthread
 cs_add_library(net_table_fixture STATIC test/net_table_fixture.cc)
 target_link_libraries(net_table_fixture ${PROJECT_NAME}_fixture)
 
-
 catkin_add_gtest(test_cache_test test/cache_test.cc)
 target_link_libraries(test_cache_test net_table_fixture)
 
