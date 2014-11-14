@@ -73,13 +73,13 @@ target_link_libraries(discovery-server ${PROJECT_NAME})
 ##########
 # GTESTS #
 ##########
-cs_add_library(${PROJECT_NAME}_fixture STATIC test/map_api_fixture.cc)
+# Don't use cs_ to not export this lib to other packages.
+add_library(${PROJECT_NAME}_fixture STATIC test/map_api_fixture.cc)
 target_link_libraries(${PROJECT_NAME}_fixture ${PROJECT_NAME} gtest pthread
 	${PROJECT_NAME}_testing)
 
-cs_add_library(net_table_fixture STATIC test/net_table_fixture.cc)
+add_library(net_table_fixture STATIC test/net_table_fixture.cc)
 target_link_libraries(net_table_fixture ${PROJECT_NAME}_fixture)
-
 
 catkin_add_gtest(test_cache_test test/cache_test.cc)
 target_link_libraries(test_cache_test net_table_fixture)
