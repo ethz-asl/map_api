@@ -6,6 +6,8 @@
 #include <string>
 #include <thread>
 #include <unistd.h>
+#include <utility>
+#include <vector>
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
@@ -14,16 +16,15 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
-
 #include <multiprocess-gtest/multiprocess-fixture.h>
 
 DEFINE_uint64(subprocess_id, 0, "Identification of subprocess in case of "
               "multiprocess testing. 0 if master process.");
 
-namespace map_api_test_suite {
+namespace common {
 // adapted from
 // http://stackoverflow.com/questions/5525668/how-to-implement-readlink-to-find-the-path
-std::string MultiprocessTest::getSelfpath() {
+std::string MultiprocessFixture::getSelfpath() {
   char buff[1024];
 #ifdef __APPLE__
   uint32_t len = sizeof(buff) - 1;
@@ -54,17 +55,17 @@ std::string MultiprocessTest::getSelfpath() {
 /**
  * Return own ID: 0 if master
  */
-uint64_t MultiprocessTest::getSubprocessId() {
+uint64_t MultiprocessFixture::getSubprocessId() {
   return FLAGS_subprocess_id;
 }
 /**
  * Launches a subprocess with given ID. ID can be any positive integer.
  * Dies if ID already used
  */
-void MultiprocessTest::launchSubprocess(uint64_t id) {
+void MultiprocessFixture::launchSubprocess(uint64_t id) {
   launchSubprocess(id, "");
 }
-void MultiprocessTest::launchSubprocess(uint64_t id,
+void MultiprocessFixture::launchSubprocess(uint64_t id,
                                         const std::string& extra_flags) {
   CHECK_NE(0u, id)<< "ID 0 reserved for root process";
   CHECK(subprocesses_.find(id) == subprocesses_.end());
@@ -93,13 +94,13 @@ void MultiprocessTest::launchSubprocess(uint64_t id,
  * Gathers results from all subprocesses, forwarding them to stdout and
  * propagating failures.
  */
-void MultiprocessTest::harvest(bool verbose) {
+void MultiprocessFixture::harvest(bool verbose) {
   for (const std::pair<uint64_t, FILE*>& id_pipe : subprocesses_) {
     harvest(id_pipe.first, verbose);
   }
 }
 
-void MultiprocessTest::harvest(uint64_t subprocess_id, bool verbose) {
+void MultiprocessFixture::harvest(uint64_t subprocess_id, bool verbose) {
   SubprocessMap::iterator found = subprocesses_.find(subprocess_id);
   CHECK(found != subprocesses_.end());
   FILE* pipe = found->second;
@@ -117,7 +118,7 @@ void MultiprocessTest::harvest(uint64_t subprocess_id, bool verbose) {
  * even if the subprocess is already dead, this is added to ensure the
  * continuation of the test.
  */
-char* MultiprocessTest::timedFGetS(char* out_buffer, int size, FILE* stream) {
+char* MultiprocessFixture::timedFGetS(char* out_buffer, int size, FILE* stream) {
   char* result;
   std::mutex mutex;
   std::condition_variable cv;
@@ -135,7 +136,7 @@ char* MultiprocessTest::timedFGetS(char* out_buffer, int size, FILE* stream) {
   }
 }
 
-void MultiprocessTest::fGetSThread(char* out_buffer, int size, FILE* stream,
+void MultiprocessFixture::fGetSThread(char* out_buffer, int size, FILE* stream,
                                    std::mutex* mutex,
                                    std::condition_variable* cv, char** result) {
   CHECK_NOTNULL(stream);
@@ -148,14 +149,14 @@ void MultiprocessTest::fGetSThread(char* out_buffer, int size, FILE* stream,
   cv->notify_all();
 }
 
-void MultiprocessTest::SetUp() {
+void MultiprocessFixture::SetUp() {
   SetUpImpl();
 }
 
-void MultiprocessTest::TearDown() {
+void MultiprocessFixture::TearDown() {
   TearDownImpl();
   if (getSubprocessId() == 0) {
     harvest(false);
   }
 }
-}  // namespace map_api_test_suite
+}  // namespace common
