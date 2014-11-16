@@ -11,16 +11,13 @@
   <buildtool_depend>catkin</buildtool_depend>
   <buildtool_depend>catkin_simple</buildtool_depend>
 
-  <build_depend>sm_common</build_depend>
-  
-  <build_depend>aslam_cv</build_depend>
   <build_depend>gflags_catkin</build_depend>
   <build_depend>glog_catkin</build_depend>
   <build_depend>stxxl_catkin</build_depend>
   <build_depend>multiprocess_gtest</build_depend>
   <build_depend>multiagent_mapping_common</build_depend>
-  <build_depend>opencv2_catkin</build_depend>
   <build_depend>protobuf_catkin</build_depend>
+  <build_depend>sm_common</build_depend>
   <build_depend>statistics</build_depend>
   <build_depend>timing</build_depend>
   <build_depend>zeromq_catkin</build_depend>

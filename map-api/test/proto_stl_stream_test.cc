@@ -1,16 +1,15 @@
 #include <vector>
 
 #include <glog/logging.h>
-#include <gtest/gtest.h>
-
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/gzip_stream.h>
-#include <multiagent-mapping-common/test/testing-entrypoint.h>
+#include <gtest/gtest.h>
 #include <stxxl.h>
 
+#include "map-api/proto-stl-stream.h"
+#include "map-api/revision.h"
+#include "map-api/test/testing-entrypoint.h"
 #include "./core.pb.h"
-#include <map-api/proto-stl-stream.h>
-#include <map-api/revision.h>
 
 namespace map_api {
 template<int Size>
@@ -471,4 +470,4 @@ INSTANTIATE_TYPED_TEST_CASE_P(Test, ProtoSTLStream, Sizes);
 
 }  // namespace map_api
 
-MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
+MAP_API_UNITTEST_ENTRYPOINT

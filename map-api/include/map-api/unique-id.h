@@ -177,13 +177,7 @@ class UniqueId : private Id {
   friend void generateId(GenerateIdType* id);
 };
 
-UNIQUE_ID_DEFINE_ID(ResourceId);
-UNIQUE_ID_DEFINE_IMMUTABLE_ID(GlobalResourceId, ResourceId);
-
 }  // namespace map_api
-
-UNIQUE_ID_DEFINE_ID_HASH(map_api::ResourceId);
-UNIQUE_ID_DEFINE_ID_HASH(map_api::GlobalResourceId);
 
 namespace std {
 inline ostream& operator<<(ostream& out, const map_api::Id& hash) {
