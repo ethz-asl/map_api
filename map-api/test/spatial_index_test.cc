@@ -66,7 +66,7 @@ class SpatialIndexTest : public MapApiFixture {
   }
 
   virtual void SetUp() {
-    MultiprocessTest::SetUp();
+    MultiprocessFixture::SetUp();
     std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
     descriptor->setName(kTableName);
     descriptor->addField<int>(kFieldName);
