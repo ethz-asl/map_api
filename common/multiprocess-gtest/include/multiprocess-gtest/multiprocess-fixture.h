@@ -59,5 +59,4 @@ class MultiprocessFixture : public ::testing::Test {
   SubprocessMap subprocesses_;  // map to maintain ordering
 };
 }  // namespace common
-#include "./multiprocess-fixture-inl.h"
 #endif  // MULTIPROCESS_GTEST_MULTIPROCESS_FIXTURE_H_
