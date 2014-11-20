@@ -35,10 +35,11 @@ Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) {
     CHECK(revision);
     std::pair<typename CacheMap::iterator, bool> cache_insertion;
 
-    cache_insertion = cache_.emplace(id, Factory::getNewInstance());
+    cache_insertion = cache_.emplace(id, Value());
     CHECK(cache_insertion.second);
-    objectFromRevision(
-        *revision, Factory::getPointerToDerived(cache_insertion.first->second));
+    std::shared_ptr<typename Factory::ElementType> object =
+        objectFromRevision<typename Factory::ElementType>(*revision);
+    Factory::transferOwnership(object, &cache_insertion.first->second);
     found = cache_insertion.first;
   }
   return found->second;
@@ -52,10 +53,11 @@ const Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) const {
     std::shared_ptr<const Revision> revision = getRevisionLocked(id);
     CHECK(revision);
     std::pair<typename CacheMap::iterator, bool> cache_insertion;
-    cache_insertion = cache_.emplace(id, Factory::getNewInstance());
+    cache_insertion = cache_.emplace(id, Value());
     CHECK(cache_insertion.second);
-    objectFromRevision(
-        *revision, Factory::getPointerToDerived(cache_insertion.first->second));
+    std::shared_ptr<typename Factory::ElementType> object =
+        objectFromRevision<typename Factory::ElementType>(*revision);
+    Factory::transferOwnership(object, &cache_insertion.first->second);
     found = cache_insertion.first;
   }
   return found->second;
@@ -155,6 +157,10 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
     }
   }
   for (const IdType& id : removals_) {
+    // Check if the removed object has ever been part of the database.
+    if (revisions_.find(id) == revisions_.end()) {
+      continue;
+    }
     std::shared_ptr<Revision> to_remove =
         std::make_shared<Revision>(*getRevisionLocked(id));
     transaction_.get()->remove(underlying_table_, to_remove);

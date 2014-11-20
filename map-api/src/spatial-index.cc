@@ -40,12 +40,12 @@ void SpatialIndex::announceChunk(const Id& chunk_id,
     if (retrieveData(typeHack(cell_index), &chunks_string)) {
       CHECK(chunks.ParseFromString(chunks_string));
       for (int i = 0; i < chunks.chunk_ids_size(); ++i) {
-        if (chunks.chunk_ids(i) == chunk_id.hexString()) {
+        if (chunk_id.correspondsTo(chunks.chunk_ids(i))) {
           continue;
         }
       }
     }
-    chunks.add_chunk_ids(chunk_id.hexString());
+    chunk_id.serialize(chunks.add_chunk_ids());
     CHECK(addData(typeHack(cell_index), chunks.SerializeAsString()));
   }
 }
@@ -69,9 +69,7 @@ void SpatialIndex::seekChunks(const BoundingBox& bounding_box,
     }
     CHECK(proto_chunk_ids.ParseFromString(chunks_string));
     for (int i = 0; i < proto_chunk_ids.chunk_ids_size(); ++i) {
-      Id chunk_id;
-      chunk_id.fromHexString(proto_chunk_ids.chunk_ids(i));
-      chunk_ids->insert(chunk_id);
+      chunk_ids->emplace(Id(proto_chunk_ids.chunk_ids(i)));
     }
   }
 }
