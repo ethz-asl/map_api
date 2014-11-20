@@ -1,12 +1,11 @@
 #include <string>
 
-#include <multiagent-mapping-common/test/testing-entrypoint.h>
-
-#include <map-api/core.h>
-#include <map-api/ipc.h>
-#include <map-api/net-table.h>
-#include <map-api/net-table-transaction.h>
-#include <map-api/transaction.h>
+#include "map-api/core.h"
+#include "map-api/ipc.h"
+#include "map-api/net-table.h"
+#include "map-api/net-table-transaction.h"
+#include "map-api/test/testing-entrypoint.h"
+#include "map-api/transaction.h"
 #include "./map_api_fixture.h"
 
 namespace map_api {
@@ -67,7 +66,7 @@ class SpatialIndexTest : public MapApiFixture {
   }
 
   virtual void SetUp() {
-    MultiprocessTest::SetUp();
+    MultiprocessFixture::SetUp();
     std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
     descriptor->setName(kTableName);
     descriptor->addField<int>(kFieldName);
@@ -190,4 +189,4 @@ TEST_F(SpatialIndexTest, RegisterSeek) {
 
 }  // namespace map_api
 
-MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
+MAP_API_UNITTEST_ENTRYPOINT

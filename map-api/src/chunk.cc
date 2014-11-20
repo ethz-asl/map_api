@@ -49,7 +49,7 @@ void Chunk::fillMetadata<proto::ChunkRequestMetadata>(
     proto::ChunkRequestMetadata* destination) {
   CHECK_NOTNULL(destination);
   destination->set_table(underlying_table_->name());
-  destination->set_chunk_id(id().hexString());
+  id().serialize(destination->mutable_chunk_id());
 }
 
 bool Chunk::init(const Id& id, CRTable* underlying_table, bool initialize) {
@@ -84,9 +84,9 @@ bool Chunk::init(
       while (history_proto.revisions_size() > 0) {
         // using ReleaseLast allows zero-copy ownership transfer to the revision
         // object.
-        std::shared_ptr<Revision> data = std::make_shared<Revision>(
-            std::shared_ptr<proto::Revision>(
-            history_proto.mutable_revisions()->ReleaseLast()));
+        std::shared_ptr<Revision> data =
+            std::make_shared<Revision>(std::shared_ptr<proto::Revision>(
+                history_proto.mutable_revisions()->ReleaseLast()));
         CHECK(underlying_table->patch(data));
         // TODO(tcies) guarantee order, then only sync latest time
         syncLatestCommitTime(*data);

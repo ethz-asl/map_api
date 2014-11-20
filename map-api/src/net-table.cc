@@ -188,8 +188,7 @@ bool NetTable::insert(const LogicalTime& time, Chunk* chunk,
   return true;
 }
 
-bool NetTable::update(
-    const std::shared_ptr<Revision>& query) {
+bool NetTable::update(const std::shared_ptr<Revision>& query) {
   CHECK(query != nullptr);
   CHECK(type_ == CRTable::Type::CRU);
   CHECK_NOTNULL(getChunk(query->getChunkId()))->update(query);
@@ -223,7 +222,7 @@ Chunk* NetTable::connectTo(const Id& chunk_id,
   // sends request of chunk info to peer
   proto::ChunkRequestMetadata metadata;
   metadata.set_table(cache_->name());
-  metadata.set_chunk_id(chunk_id.hexString());
+  chunk_id.serialize(metadata.mutable_chunk_id());
   request.impose<Chunk::kConnectRequest>(metadata);
   // TODO(tcies) add to local peer subset as well?
   Hub::instance().request(peer, &request, &response);
@@ -384,8 +383,7 @@ void NetTable::handleInitRequest(
     const proto::InitRequest& request, const PeerId& sender,
     Message* response) {
   CHECK_NOTNULL(response);
-  Id chunk_id;
-  CHECK(chunk_id.fromHexString(request.metadata().chunk_id()));
+  Id chunk_id(request.metadata().chunk_id());
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
   CHECK(chunk->init(chunk_id, request, sender, cache_.get()));
   active_chunks_lock_.writeLock();
@@ -397,9 +395,9 @@ void NetTable::handleInitRequest(
   response->ack();
 }
 
-void NetTable::handleInsertRequest(
-    const Id& chunk_id, const std::shared_ptr<Revision>& item,
-    Message* response) {
+void NetTable::handleInsertRequest(const Id& chunk_id,
+                                   const std::shared_ptr<Revision>& item,
+                                   Message* response) {
   ChunkMap::iterator found;
   active_chunks_lock_.readLock();
   if (routingBasics(chunk_id, response, &found)) {
@@ -449,9 +447,9 @@ void NetTable::handleUnlockRequest(
   active_chunks_lock_.unlock();
 }
 
-void NetTable::handleUpdateRequest(
-    const Id& chunk_id, const std::shared_ptr<Revision>& item,
-    const PeerId& sender, Message* response) {
+void NetTable::handleUpdateRequest(const Id& chunk_id,
+                                   const std::shared_ptr<Revision>& item,
+                                   const PeerId& sender, Message* response) {
   ChunkMap::iterator found;
   if (routingBasics(chunk_id, response, &found)) {
     found->second->handleUpdateRequest(item, sender, response);

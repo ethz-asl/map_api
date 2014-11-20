@@ -8,16 +8,16 @@
 #include <Poco/Data/BLOB.h>
 #include <Poco/Data/Statement.h>
 
-#include <multiagent-mapping-common/test/testing-entrypoint.h>
 #include <timing/timer.h>
 
-#include <map-api/core.h>
-#include <map-api/cr-table-ram-map.h>
-#include <map-api/cr-table-stxxl-map.h>
-#include <map-api/cru-table-ram-map.h>
-#include <map-api/cru-table-stxxl-map.h>
-#include <map-api/logical-time.h>
-#include <map-api/unique-id.h>
+#include "map-api/core.h"
+#include "map-api/cr-table-ram-map.h"
+#include "map-api/cr-table-stxxl-map.h"
+#include "map-api/cru-table-ram-map.h"
+#include "map-api/cru-table-stxxl-map.h"
+#include "map-api/logical-time.h"
+#include "map-api/test/testing-entrypoint.h"
+#include "map-api/unique-id.h"
 #include "./test_table.cc"
 
 namespace map_api {
@@ -422,4 +422,4 @@ TYPED_TEST(CruMapIntTestWithInit, Remove) {
 
 }  // namespace map_api
 
-MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
+MAP_API_UNITTEST_ENTRYPOINT

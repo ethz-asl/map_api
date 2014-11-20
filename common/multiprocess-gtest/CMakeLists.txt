@@ -10,12 +10,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 #############
 add_definitions(--std=c++11)
 
-cs_add_library(${PROJECT_NAME} STATIC src/multiprocess-fixture.cc)
-
-# we need to add dependencies of external project packages to fetch headers
-# before compilation
-add_dependencies(${PROJECT_NAME} gflags_catkin glog_catkin)
-
+cs_add_library(${PROJECT_NAME} src/multiprocess-fixture.cc)
 target_link_libraries(${PROJECT_NAME} gtest)
 
 cs_install()

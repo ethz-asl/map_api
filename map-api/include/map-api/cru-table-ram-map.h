@@ -15,12 +15,12 @@ class CRUTableRamMap : public CRUTable {
 
  private:
   virtual bool initCRDerived() final override;
-  virtual bool insertCRUDerived(
-      const std::shared_ptr<Revision>& query) final override;
-  virtual bool bulkInsertCRUDerived(
-      const NonConstRevisionMap& query) final override;
-  virtual bool patchCRDerived(
-      const std::shared_ptr<Revision>& query) final override;
+  virtual bool insertCRUDerived(const std::shared_ptr<Revision>& query)
+      final override;
+  virtual bool bulkInsertCRUDerived(const NonConstRevisionMap& query)
+      final override;
+  virtual bool patchCRDerived(const std::shared_ptr<Revision>& query)
+      final override;
   virtual std::shared_ptr<const Revision> getByIdCRDerived(
       const Id& id, const LogicalTime& time) const final override;
   virtual void dumpChunkCRDerived(const Id& chunk_id, const LogicalTime& time,

@@ -35,10 +35,11 @@ Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) {
     CHECK(revision);
     std::pair<typename CacheMap::iterator, bool> cache_insertion;
 
-    cache_insertion = cache_.emplace(id, Factory::getNewInstance());
+    cache_insertion = cache_.emplace(id, Value());
     CHECK(cache_insertion.second);
-    objectFromRevision(
-        *revision, Factory::getPointerToDerived(cache_insertion.first->second));
+    std::shared_ptr<typename Factory::ElementType> object =
+        objectFromRevision<typename Factory::ElementType>(*revision);
+    Factory::transferOwnership(object, &cache_insertion.first->second);
     found = cache_insertion.first;
   }
   return found->second;
@@ -52,10 +53,11 @@ const Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) const {
     std::shared_ptr<const Revision> revision = getRevisionLocked(id);
     CHECK(revision);
     std::pair<typename CacheMap::iterator, bool> cache_insertion;
-    cache_insertion = cache_.emplace(id, Factory::getNewInstance());
+    cache_insertion = cache_.emplace(id, Value());
     CHECK(cache_insertion.second);
-    objectFromRevision(
-        *revision, Factory::getPointerToDerived(cache_insertion.first->second));
+    std::shared_ptr<typename Factory::ElementType> object =
+        objectFromRevision<typename Factory::ElementType>(*revision);
+    Factory::transferOwnership(object, &cache_insertion.first->second);
     found = cache_insertion.first;
   }
   return found->second;
@@ -111,8 +113,7 @@ bool Cache<IdType, Value, DerivedValue>::empty() const {
 
 template <typename IdType, typename Value, typename DerivedValue>
 std::shared_ptr<const Revision>
-Cache<IdType, Value, DerivedValue>::getRevisionLocked(
-    const IdType& id) const {
+Cache<IdType, Value, DerivedValue>::getRevisionLocked(const IdType& id) const {
   typedef CRTable::RevisionMap::iterator RevisionIterator;
   RevisionIterator found = revisions_.find(id);
   if (found == revisions_.end()) {
@@ -130,7 +131,7 @@ Cache<IdType, Value, DerivedValue>::getRevisionLocked(
 template <typename IdType, typename Value, typename DerivedValue>
 void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
   LockGuard lock(mutex_);
-  CHECK(!staged_);
+  CHECK(!staged_) << "You cannot commit a transaction more than once.";
   for (const typename CacheMap::value_type& cached_pair : cache_) {
     CRTable::RevisionMap::iterator corresponding_revision =
         revisions_.find(cached_pair.first);
@@ -146,8 +147,7 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
     } else {
       // Convert the object to the revision and then compare if it has changed.
       std::shared_ptr<map_api::Revision> update_revision =
-          std::make_shared<map_api::Revision>(
-              *corresponding_revision->second);
+          std::make_shared<map_api::Revision>(*corresponding_revision->second);
       objectToRevision(cached_pair.first,
                        Factory::getReferenceToDerived(cached_pair.second),
                        update_revision.get());
@@ -157,6 +157,10 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
     }
   }
   for (const IdType& id : removals_) {
+    // Check if the removed object has ever been part of the database.
+    if (revisions_.find(id) == revisions_.end()) {
+      continue;
+    }
     std::shared_ptr<Revision> to_remove =
         std::make_shared<Revision>(*getRevisionLocked(id));
     transaction_.get()->remove(underlying_table_, to_remove);

@@ -1,12 +1,10 @@
-#include <map-api/core.h>
-
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include <multiagent-mapping-common/test/testing-entrypoint.h>
+#include "map-api/core.h"
+#include "map-api/test/testing-entrypoint.h"
 
-
-using namespace map_api;
+namespace map_api {
 
 TEST(Core, validInit) {
   Core* instance = Core::instance();
@@ -19,4 +17,6 @@ TEST(Core, validInit) {
   EXPECT_EQ(nullptr, Core::instance());
 }
 
-MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
+}  // namespace map_api
+
+MAP_API_UNITTEST_ENTRYPOINT

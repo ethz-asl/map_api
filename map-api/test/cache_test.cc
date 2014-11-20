@@ -5,10 +5,9 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include <multiagent-mapping-common/test/testing-entrypoint.h>
-
-#include <map-api/chunk-manager.h>
-#include <map-api/ipc.h>
+#include "map-api/chunk-manager.h"
+#include "map-api/ipc.h"
+#include "map-api/test/testing-entrypoint.h"
 #include "./net_table_fixture.h"
 
 namespace map_api {
@@ -16,8 +15,11 @@ namespace map_api {
 UNIQUE_ID_DEFINE_ID(IntId);
 MAP_API_REVISION_UNIQUE_ID(IntId);
 
-void objectFromRevision(const Revision& revision, int* object) {
-  revision.get(NetTableFixture::kFieldName, CHECK_NOTNULL(object));
+template<>
+std::shared_ptr<int> objectFromRevision(const Revision& revision) {
+  std::shared_ptr<int> object(new int);
+  revision.get(NetTableFixture::kFieldName, object.get());
+  return object;
 }
 void objectToRevision(const int& object, Revision* revision) {
   CHECK_NOTNULL(revision)->set(NetTableFixture::kFieldName, object);
@@ -103,4 +105,4 @@ TEST_P(NetTableFixture, Cache) {
 
 }  // namespace map_api
 
-MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
+MAP_API_UNITTEST_ENTRYPOINT

@@ -67,19 +67,23 @@ class Revision {
                                                      : getInsertTime();
   }
   inline Id getChunkId() const {
-    Id id;
-    id.fromHexString(underlying_revision_->chunk_id().hash());
-    return id;
+    if (underlying_revision_->has_chunk_id()) {
+      return Id(underlying_revision_->chunk_id());
+    } else {
+      return Id();
+    }
   }
   template <typename IdType>
   inline IdType getId() const {
-    IdType id;
-    id.fromHexString(underlying_revision_->id().hash());
-    return id;
+    if (underlying_revision_->has_id()) {
+      return IdType(underlying_revision_->id());
+    } else {
+      return IdType();
+    }
   }
   template <typename IdType>
   inline void setId(const IdType& id) {
-    underlying_revision_->mutable_id()->set_hash(id.hexString());
+    id.serialize(underlying_revision_->mutable_id());
   }
   inline bool isRemoved() const {
     return
@@ -133,8 +137,8 @@ class Revision {
   inline void setUpdateTime(const LogicalTime& time) {
     underlying_revision_->set_update_time(time.serialize());
   }
-  inline void setChunkId(const Id& id) {  // TODO(tcies) mutable, zerocopy
-    underlying_revision_->mutable_chunk_id()->set_hash(id.hexString());
+  inline void setChunkId(const Id& id) {
+    id.serialize(underlying_revision_->mutable_chunk_id());
   }
   inline void setRemoved() { underlying_revision_->set_removed(true); }
 

@@ -1,23 +1,24 @@
 package map_api.proto;
+import "id.proto";
 
 message ChunkRequestMetadata {
-  required string table = 1;
-  required string chunk_id = 2; // TODO(tcies) chunk identification as message
+  optional string table = 1;
+  optional common.proto.Id chunk_id = 2;
 }
 
 message PatchRequest {
-  required ChunkRequestMetadata metadata = 1;
-  required bytes serialized_revision = 2;
+  optional ChunkRequestMetadata metadata = 1;
+  optional bytes serialized_revision = 2;
 }
 
 message InitRequest {
-  required ChunkRequestMetadata metadata = 1;
+  optional ChunkRequestMetadata metadata = 1;
   repeated string peer_address = 2; // List of peers participating in chunk
   repeated bytes serialized_items = 3; // All revisions / histories in chunk
   // TODO(tcies) avoid multi-serialization by having revisions/history here
 }
 
 message NewPeerRequest {
-  required ChunkRequestMetadata metadata = 1;
+  optional ChunkRequestMetadata metadata = 1;
   optional string new_peer = 2;
 }

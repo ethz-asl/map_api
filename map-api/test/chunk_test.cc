@@ -3,9 +3,8 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include <multiagent-mapping-common/test/testing-entrypoint.h>
-
-#include <map-api/ipc.h>
+#include "map-api/ipc.h"
+#include "map-api/test/testing-entrypoint.h"
 #include "./net_table_fixture.h"
 
 namespace map_api {
@@ -171,8 +170,8 @@ TEST_P(NetTableFixture, RemoteUpdate) {
     IPC::barrier(A_JOINED, 1);
     table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(1, results.size());
-    std::shared_ptr<Revision> revision = std::make_shared<Revision>(
-        *results.begin()->second);
+    std::shared_ptr<Revision> revision =
+        std::make_shared<Revision>(*results.begin()->second);
     revision->set(kFieldName, 21);
     EXPECT_TRUE(table_->update(revision));
 
@@ -288,7 +287,7 @@ TEST_P(NetTableFixture, ChunkTransactions) {
         to_update->get(kFieldName, &transient_value);
         ++transient_value;
         std::shared_ptr<Revision> revision =
-                    std::make_shared<Revision>(*to_update);
+            std::make_shared<Revision>(*to_update);
         revision->set(kFieldName, transient_value);
         transaction.update(revision);
       }
@@ -443,7 +442,7 @@ TEST_P(NetTableFixture, SendHistory) {
 
     Transaction current_transaction;
     std::shared_ptr<const Revision> current_version =
-            current_transaction.getById(item_id_, table_, chunk_);
+        current_transaction.getById(item_id_, table_, chunk_);
     ASSERT_TRUE(current_version.get() != nullptr);
     EXPECT_TRUE(current_version->verifyEqual(kFieldName,
                                              GetParam() ? kAfter : kBefore));
@@ -504,4 +503,4 @@ TEST_P(NetTableFixture, GetCommitTimes) {
 
 }  // namespace map_api
 
-MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
+MAP_API_UNITTEST_ENTRYPOINT
