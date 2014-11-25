@@ -42,4 +42,6 @@ class NetTableFixture : public MapApiFixture,
 
 }  // namespace map_api
 
+#include "./net_table_fixture_inl.h"
+
 #endif  // MAP_API_NET_TABLE_FIXTURE_H_
