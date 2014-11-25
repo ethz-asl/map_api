@@ -1,4 +1,5 @@
-#include "./map_api_fixture.h"
+#ifndef MAP_API_NET_TABLE_FIXTURE_INL_H_
+#define MAP_API_NET_TABLE_FIXTURE_INL_H_
 
 #include <string>
 
@@ -103,3 +104,5 @@ INSTANTIATE_TEST_CASE_P(Default, NetTableFixture,
                         ::testing::Values(false, true));
 
 }  // namespace map_api
+
+#endif  // MAP_API_NET_TABLE_FIXTURE_INL_H_

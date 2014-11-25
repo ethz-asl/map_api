@@ -61,10 +61,7 @@ cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
 # we need to add dependencies of external project packages to fetch headers
 # before compilation
 add_dependencies(${PROJECT_NAME} zeromq_catkin gflags_catkin glog_catkin)
-target_link_libraries(${PROJECT_NAME} ${POCO_LIBRARIES})
-
-cs_add_library(${PROJECT_NAME}_testing src/test/testing-entrypoint.cc)
-target_link_libraries(${PROJECT_NAME}_testing ${PROJECT_NAME})
+target_link_libraries(${PROJECT_NAME} ${POCO_LIBRARIES} pthread)
 
 cs_add_executable(discovery-server discovery-server/discovery-server.cc
                    ${PROTO_SRCS} ${PROTO_HDRS})
@@ -73,50 +70,43 @@ target_link_libraries(discovery-server ${PROJECT_NAME})
 ##########
 # GTESTS #
 ##########
-cs_add_library(${PROJECT_NAME}_fixture STATIC test/map_api_fixture.cc)
-target_link_libraries(${PROJECT_NAME}_fixture ${PROJECT_NAME} gtest pthread
-	${PROJECT_NAME}_testing)
-
-cs_add_library(net_table_fixture STATIC test/net_table_fixture.cc)
-target_link_libraries(net_table_fixture ${PROJECT_NAME}_fixture)
-
 catkin_add_gtest(test_cache_test test/cache_test.cc)
-target_link_libraries(test_cache_test net_table_fixture)
+target_link_libraries(test_cache_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_chord_index_test test/chord_index_test.cc)
-target_link_libraries(test_chord_index_test ${PROJECT_NAME}_fixture)
+target_link_libraries(test_chord_index_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_chunk_test test/chunk_test.cc)
-target_link_libraries(test_chunk_test net_table_fixture)
+target_link_libraries(test_chunk_test ${PROJECT_NAME})
 
 if(!APPLE)
   catkin_add_gtest(test_discovery test/discovery_test.cc)
-  target_link_libraries(test_discovery ${PROJECT_NAME}_fixture)
+  target_link_libraries(test_discovery ${PROJECT_NAME})
 endif()
 
 catkin_add_gtest(test_table_interface_test test/table_interface_test.cc)
-target_link_libraries(test_table_interface_test ${PROJECT_NAME}_fixture)
+target_link_libraries(test_table_interface_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_core_test test/core_test.cc)
-target_link_libraries(test_core_test ${PROJECT_NAME}_fixture)
+target_link_libraries(test_core_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_net_table_test test/net_table_test.cc)
-target_link_libraries(test_net_table_test net_table_fixture)
+target_link_libraries(test_net_table_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_spatial_index_test test/spatial_index_test.cc)
-target_link_libraries(test_spatial_index_test ${PROJECT_NAME}_fixture)
+target_link_libraries(test_spatial_index_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_transaction_test test/transaction-test.cc)
-target_link_libraries(test_transaction_test net_table_fixture)
+target_link_libraries(test_transaction_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_hub_test test/hub_test.cc)
-target_link_libraries(test_hub_test ${PROJECT_NAME}_fixture)
+target_link_libraries(test_hub_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_proto_table_file_io_test test/proto_table_file_io_test.cc)
-target_link_libraries(test_proto_table_file_io_test net_table_fixture)
+target_link_libraries(test_proto_table_file_io_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_proto_stl_stream_test test/proto_stl_stream_test.cc)
-target_link_libraries(test_proto_stl_stream_test ${PROJECT_NAME}_fixture)
+target_link_libraries(test_proto_stl_stream_test ${PROJECT_NAME})
 
 ##########
 # EXPORT #
