@@ -108,4 +108,6 @@ int CRTableRamMap::countByChunkCRDerived(const Id& chunk_id,
   return count;
 }
 
+void CRTableRamMap::clearCRDerived() { data_.clear(); }
+
 } /* namespace map_api */

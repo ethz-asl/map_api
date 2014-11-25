@@ -327,6 +327,7 @@ void NetTable::leaveAllChunks() {
   active_chunks_lock_.writeLock();
   active_chunks_.clear();
   active_chunks_lock_.unlock();
+  cache_->clear();
 }
 
 std::string NetTable::getStatistics() {
