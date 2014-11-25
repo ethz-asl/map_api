@@ -161,7 +161,7 @@ TEST_P(NetTableFixture, Leave) {
 
     chunk_ = table_->getChunk(chunk_id_);
     EXPECT_EQ(1u, table_->numItems());
-    chunk_->leave();
+    table_->leaveAllChunks();
     EXPECT_EQ(0u, table_->numItems());
     IPC::barrier(A_LEFT, 1);
   }
