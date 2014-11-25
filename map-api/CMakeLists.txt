@@ -89,8 +89,10 @@ target_link_libraries(test_chord_index_test ${PROJECT_NAME}_fixture)
 catkin_add_gtest(test_chunk_test test/chunk_test.cc)
 target_link_libraries(test_chunk_test net_table_fixture)
 
-catkin_add_gtest(test_discovery test/discovery_test.cc)
-target_link_libraries(test_discovery ${PROJECT_NAME}_fixture)
+if(!APPLE)
+  catkin_add_gtest(test_discovery test/discovery_test.cc)
+  target_link_libraries(test_discovery ${PROJECT_NAME}_fixture)
+endif()
 
 catkin_add_gtest(test_table_interface_test test/table_interface_test.cc)
 target_link_libraries(test_table_interface_test ${PROJECT_NAME}_fixture)
