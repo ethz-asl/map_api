@@ -157,6 +157,10 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
     }
   }
   for (const IdType& id : removals_) {
+    // Check if the removed object has ever been part of the database.
+    if (revisions_.find(id) == revisions_.end()) {
+      continue;
+    }
     std::shared_ptr<Revision> to_remove =
         std::make_shared<Revision>(*getRevisionLocked(id));
     transaction_.get()->remove(underlying_table_, to_remove);

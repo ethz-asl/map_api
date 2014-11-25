@@ -1,5 +1,6 @@
 #ifndef MAP_API_CACHE_H_
 #define MAP_API_CACHE_H_
+#include <mutex>
 #include <unordered_set>
 #include <vector>
 
