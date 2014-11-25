@@ -73,8 +73,6 @@ class Chunk {
 
   void enableLockLogging();
 
-  void leave();
-
   void writeLock();
 
   void readLock();
@@ -194,6 +192,8 @@ class Chunk {
   void prepareInitRequest(Message* request);
 
   inline void syncLatestCommitTime(const Revision& item);
+
+  void leave();  // may only be used by NetTable
 
   /**
    * ====================================================================

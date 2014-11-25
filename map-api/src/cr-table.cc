@@ -14,9 +14,6 @@
 
 namespace map_api {
 
-const std::string CRTable::kIdField = "ID";
-const std::string CRTable::kInsertTimeField = "insert_time";
-
 CRTable::~CRTable() {}
 
 bool CRTable::init(std::unique_ptr<TableDescriptor>* descriptor) {
@@ -137,6 +134,8 @@ int CRTable::countByChunk(const Id& id, const LogicalTime& time) const {
   CHECK(time < LogicalTime::sample());
   return countByChunkCRDerived(id, time);
 }
+
+void CRTable::clear() { clearCRDerived(); }
 
 CRTable::Type CRTable::type() const {
   return Type::CR;

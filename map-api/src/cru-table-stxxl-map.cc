@@ -2,6 +2,9 @@
 
 namespace map_api {
 
+CRUTableSTXXLMap::CRUTableSTXXLMap()
+    : revision_store_(new STXXLRevisionStore<kBlockSize>()) {}
+
 CRUTableSTXXLMap::~CRUTableSTXXLMap() {}
 
 bool CRUTableSTXXLMap::initCRDerived() { return true; }
@@ -15,7 +18,7 @@ bool CRUTableSTXXLMap::insertCRUDerived(
     return false;
   }
   CRURevisionInformation revision_information;
-  CHECK(revision_store_.storeRevision(*query, &revision_information));
+  CHECK(revision_store_->storeRevision(*query, &revision_information));
   data_[id].push_front(revision_information);
   return true;
 }
@@ -29,7 +32,7 @@ bool CRUTableSTXXLMap::bulkInsertCRUDerived(
   }
   for (const RevisionMap::value_type& pair : query) {
     CRURevisionInformation revision_information;
-    CHECK(revision_store_.storeRevision(*pair.second, &revision_information));
+    CHECK(revision_store_->storeRevision(*pair.second, &revision_information));
     data_[pair.first].push_front(revision_information);
   }
   return true;
@@ -44,7 +47,7 @@ bool CRUTableSTXXLMap::patchCRDerived(const std::shared_ptr<Revision>& query) {
     found = data_.insert(std::make_pair(id, STXXLHistory())).first;
   }
   CRURevisionInformation revision_information;
-  CHECK(revision_store_.storeRevision(*query, &revision_information));
+  CHECK(revision_store_->storeRevision(*query, &revision_information));
   for (STXXLHistory::iterator it = found->second.begin();
       it != found->second.end(); ++it) {
     if (it->update_time_ <= time) {
@@ -69,7 +72,7 @@ std::shared_ptr<const Revision> CRUTableSTXXLMap::getByIdCRDerived(
     return std::shared_ptr<Revision>();
   }
   std::shared_ptr<const Revision> revision;
-  CHECK(revision_store_.retrieveRevision(*latest, &revision));
+  CHECK(revision_store_->retrieveRevision(*latest, &revision));
   return revision;
 }
 
@@ -157,13 +160,13 @@ void CRUTableSTXXLMap::findHistoryByRevisionCRUDerived(
   for (const STXXLHistoryMap::value_type& pair : data_) {
     // using current state for filter
     std::shared_ptr<const Revision> revision;
-    CHECK(revision_store_.retrieveRevision(*pair.second.begin(), &revision));
+    CHECK(revision_store_->retrieveRevision(*pair.second.begin(), &revision));
     if (key < 0 || valueHolder.fieldMatch(*revision, key)) {
       History history;
       for (const CRURevisionInformation& revision_information : pair.second) {
         std::shared_ptr<const Revision> history_entry;
-        CHECK(revision_store_.retrieveRevision(revision_information,
-                                               &history_entry));
+        CHECK(revision_store_->retrieveRevision(revision_information,
+                                                &history_entry));
         history.emplace_back(history_entry);
       }
       CHECK(dest->emplace(pair.first, history).second);
@@ -180,8 +183,8 @@ void CRUTableSTXXLMap::chunkHistory(
       History history;
       for (const CRURevisionInformation& revision_information : pair.second) {
         std::shared_ptr<const Revision> history_entry;
-        CHECK(revision_store_.retrieveRevision(revision_information,
-                                               &history_entry));
+        CHECK(revision_store_->retrieveRevision(revision_information,
+                                                &history_entry));
         history.emplace_back(history_entry);
       }
       CHECK(dest->emplace(std::make_pair(pair.first, history)).second);
@@ -199,13 +202,18 @@ void CRUTableSTXXLMap::itemHistoryCRUDerived(const Id& id,
   History& history = *dest;
   for (const CRURevisionInformation& revision_information : found->second) {
     std::shared_ptr<const Revision> history_entry;
-    CHECK(revision_store_.retrieveRevision(
-        revision_information, &history_entry));
+    CHECK(revision_store_->retrieveRevision(revision_information,
+                                            &history_entry));
     history.emplace_back(history_entry);
   }
   dest->remove_if([&time](const std::shared_ptr<const Revision>& item) {
     return item->getUpdateTime() > time;
   });
+}
+
+void CRUTableSTXXLMap::clearCRDerived() {
+  data_.clear();
+  revision_store_.reset(new STXXLRevisionStore<kBlockSize>());
 }
 
 inline void CRUTableSTXXLMap::forEachItemFoundAtTime(
@@ -216,7 +224,7 @@ inline void CRUTableSTXXLMap::forEachItemFoundAtTime(
     STXXLHistory::const_iterator latest = pair.second.latestAt(time);
     if (latest != pair.second.cend()) {
       std::shared_ptr<const Revision> revision;
-      CHECK(revision_store_.retrieveRevision(*latest, &revision));
+      CHECK(revision_store_->retrieveRevision(*latest, &revision));
       if (key < 0 || value_holder.fieldMatch(*revision, key)) {
         if (!revision->isRemoved()) {
           action(pair.first, *revision);
@@ -235,8 +243,8 @@ inline void CRUTableSTXXLMap::forChunkItemsAtTime(
       STXXLHistory::const_iterator latest = pair.second.latestAt(time);
       if (latest != pair.second.cend()) {
         std::shared_ptr<const Revision> revision;
-        CHECK(revision_store_.retrieveRevision(*pair.second.begin(),
-                                               &revision));
+        CHECK(
+            revision_store_->retrieveRevision(*pair.second.begin(), &revision));
         if (!revision->isRemoved()) {
           action(pair.first, *revision);
         }
