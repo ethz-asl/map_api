@@ -10,8 +10,6 @@
 #include "map-api/test/testing-entrypoint.h"
 #include "./map_api_fixture.h"
 
-#ifndef __APPLE__  // Apple has strange linker problems here (see #1174).
-
 DECLARE_string(discovery_mode);
 
 namespace map_api {
@@ -77,7 +75,5 @@ INSTANTIATE_TEST_CASE_P(DiscoveryInstances, DiscoveryTest,
                         ::testing::Values("file", "server"));
 
 }  // namespace map_api
-
-#endif  // __APPLE__
 
 MAP_API_UNITTEST_ENTRYPOINT
