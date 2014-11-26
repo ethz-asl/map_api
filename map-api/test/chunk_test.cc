@@ -131,6 +131,42 @@ TEST_P(NetTableFixture, RemoteInsert) {
   }
 }
 
+TEST_P(NetTableFixture, Leave) {
+  enum SubProcesses {
+    ROOT,
+    A
+  };
+  enum Barriers {
+    INIT,
+    CHUNK_SHARED,
+    A_LEFT
+  };
+  map_api::generateIdFromInt(1, &chunk_id_);
+  if (getSubprocessId() == ROOT) {
+    launchSubprocess(A);
+    chunk_ = table_->newChunk(chunk_id_);
+    insert(42, chunk_);
+    IPC::barrier(INIT, 1);
+
+    ASSERT_EQ(1, chunk_->requestParticipation());
+    EXPECT_EQ(1, chunk_->peerSize());
+    IPC::barrier(CHUNK_SHARED, 1);
+
+    IPC::barrier(A_LEFT, 1);
+    EXPECT_EQ(0, chunk_->peerSize());
+  }
+  if (getSubprocessId() == A) {
+    IPC::barrier(INIT, 1);
+    IPC::barrier(CHUNK_SHARED, 1);
+
+    chunk_ = table_->getChunk(chunk_id_);
+    EXPECT_EQ(1u, table_->numItems());
+    table_->leaveAllChunks();
+    EXPECT_EQ(0u, table_->numItems());
+    IPC::barrier(A_LEFT, 1);
+  }
+}
+
 TEST_P(NetTableFixture, RemoteUpdate) {
   if (!GetParam()) {  // not updateable - just pass test
     return;

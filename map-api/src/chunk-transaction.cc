@@ -37,7 +37,16 @@ void ChunkTransaction::update(std::shared_ptr<Revision> revision) {
   CHECK(chunk_->underlying_table_->type() == CRTable::Type::CRU);
   Id id = revision->getId<Id>();
   CHECK(id.isValid());
-  CHECK(updates_.emplace(id, revision).second);
+  InsertMap::iterator uncommitted = insertions_.find(id);
+  if (uncommitted != insertions_.end()) {
+    // If this updates a revision added also in this transaction, the insertion
+    // is replaced with the update, in order to ensure the setting of default
+    // fields such as insert time and chunk id.
+    uncommitted->second = revision;
+  } else {
+    // Assignment, as later updates supersede earlier ones.
+    updates_[id] = revision;
+  }
 }
 
 void ChunkTransaction::remove(std::shared_ptr<Revision> revision) {

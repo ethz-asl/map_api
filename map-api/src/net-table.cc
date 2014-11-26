@@ -262,6 +262,10 @@ size_t NetTable::numActiveChunksItems() {
   return num_elements;
 }
 
+size_t NetTable::numItems() {
+  return cache_->count(-1, 0, LogicalTime::sample());
+}
+
 size_t NetTable::activeChunksItemsSizeBytes() {
   std::set<Id> active_chunk_ids;
   getActiveChunkIds(&active_chunk_ids);
@@ -323,6 +327,7 @@ void NetTable::leaveAllChunks() {
   active_chunks_lock_.writeLock();
   active_chunks_.clear();
   active_chunks_lock_.unlock();
+  cache_->clear();
 }
 
 std::string NetTable::getStatistics() {
