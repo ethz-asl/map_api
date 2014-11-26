@@ -42,10 +42,10 @@ std::shared_ptr<const Revision> NetTableTransaction::getById(
 template <typename IdType>
 std::shared_ptr<const Revision> NetTableTransaction::getByIdFromUncommitted(
     const IdType& id) const {
+  std::shared_ptr<const Revision> result;
   for (const TransactionMap::value_type& chunk_transaction :
        chunk_transactions_) {
-    std::shared_ptr<const Revision> result =
-        chunk_transaction.second->getByIdFromUncommitted(id);
+    result = chunk_transaction.second->getByIdFromUncommitted(id);
     if (result) {
       return result;
     }
