@@ -2,6 +2,9 @@
 
 namespace map_api {
 
+CRTableSTXXLMap::CRTableSTXXLMap()
+    : revision_store_(new STXXLRevisionStore<kBlockSize>()) {}
+
 CRTableSTXXLMap::~CRTableSTXXLMap() { }
 
 bool CRTableSTXXLMap::initCRDerived() {
@@ -31,7 +34,7 @@ bool CRTableSTXXLMap::bulkInsertCRDerived(const NonConstRevisionMap& query,
 bool CRTableSTXXLMap::patchCRDerived(const std::shared_ptr<Revision>& query) {
   CHECK(query != nullptr);
   CRRevisionInformation revision_information;
-  CHECK(revision_store_.storeRevision(*query, &revision_information));
+  CHECK(revision_store_->storeRevision(*query, &revision_information));
   return data_.emplace(query->getId<Id>(), revision_information).second;
 }
 
@@ -41,7 +44,7 @@ void CRTableSTXXLMap::dumpChunkCRDerived(const Id& chunk_id,
   CHECK_NOTNULL(dest)->clear();
   for (const MapType::value_type& pair : data_) {
     std::shared_ptr<const Revision> revision;
-    CHECK(revision_store_.retrieveRevision(pair.second, &revision));
+    CHECK(revision_store_->retrieveRevision(pair.second, &revision));
     if (revision->getChunkId() == chunk_id) {
       if (revision->getInsertTime() <= time) {
         CHECK(dest->emplace(pair.first, revision).second);
@@ -59,7 +62,7 @@ void CRTableSTXXLMap::findByRevisionCRDerived(int key,
 
   for (const MapType::value_type& pair : data_) {
     std::shared_ptr<const Revision> revision;
-    CHECK(revision_store_.retrieveRevision(pair.second, &revision));
+    CHECK(revision_store_->retrieveRevision(pair.second, &revision));
     if (key < 0 || valueHolder.fieldMatch(*revision, key)) {
       if (revision->getInsertTime() <= time) {
         CHECK(dest->emplace(pair.first, revision).second);
@@ -75,7 +78,7 @@ std::shared_ptr<const Revision> CRTableSTXXLMap::getByIdCRDerived(
     return std::shared_ptr<Revision>();
   }
   std::shared_ptr<const Revision> revision;
-  CHECK(revision_store_.retrieveRevision(found->second, &revision));
+  CHECK(revision_store_->retrieveRevision(found->second, &revision));
   return revision;
 }
 
@@ -108,7 +111,7 @@ int CRTableSTXXLMap::countByRevisionCRDerived(int key,
   for (const MapType::value_type& pair : data_) {
     // TODO(slynen): Consider caching the data necessary for the checks.
     std::shared_ptr<const Revision> revision;
-    CHECK(revision_store_.retrieveRevision(pair.second, &revision));
+    CHECK(revision_store_->retrieveRevision(pair.second, &revision));
     if (key < 0 || valueHolder.fieldMatch(*revision, key)) {
       if (revision->getInsertTime() <= time) {
         ++count;
@@ -129,6 +132,11 @@ int CRTableSTXXLMap::countByChunkCRDerived(const Id& chunk_id,
     }
   }
   return count;
+}
+
+void CRTableSTXXLMap::clearCRDerived() {
+  data_.clear();
+  revision_store_.reset(new STXXLRevisionStore<kBlockSize>());
 }
 
 }  // namespace map_api

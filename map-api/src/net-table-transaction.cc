@@ -30,6 +30,19 @@ void NetTableTransaction::insert(Chunk* chunk,
 }
 
 void NetTableTransaction::update(std::shared_ptr<Revision> revision) {
+  Id id = revision->getId<Id>();
+  CHECK(id.isValid());
+  if (!revision->getChunkId().isValid()) {
+    // Can be the case if an uncommitted revision is being updated.
+    for (TransactionMap::value_type& chunk_transaction : chunk_transactions_) {
+      if (chunk_transaction.second->getByIdFromUncommitted(id)) {
+        chunk_transaction.second->update(revision);
+        return;
+      }
+    }
+    LOG(FATAL) << "Chunk id of revision to update invalid, yet revision " << id
+               << " can't be found among uncommitted.";
+  }
   Chunk* chunk = table_->getChunk(revision->getChunkId());
   transactionOf(chunk)->update(revision);
 }

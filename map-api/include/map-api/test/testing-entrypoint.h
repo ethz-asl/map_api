@@ -23,4 +23,6 @@ class MapApiTestEntryPoint : public common::UnitTestEntryPointBase {
     return entry_point.run(argc, argv);        \
   }
 
+#include "./testing-entrypoint-inl.h"
+
 #endif  // MAP_API_TESTING_ENTRYPOINT_H_

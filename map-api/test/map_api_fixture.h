@@ -9,4 +9,6 @@ class MapApiFixture : public common::MultiprocessFixture {
   virtual void TearDownImpl();
 };
 
+#include "./map_api_fixture_inl.h"
+
 #endif  // MAP_API_MAP_API_FIXTURE_H_

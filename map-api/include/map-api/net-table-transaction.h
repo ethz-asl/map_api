@@ -30,6 +30,9 @@ class NetTableTransaction {
   std::shared_ptr<const Revision> getById(const IdType& id) const;
   template <typename IdType>
   std::shared_ptr<const Revision> getById(const IdType& id, Chunk* chunk) const;
+  template <typename IdType>
+  std::shared_ptr<const Revision> getByIdFromUncommitted(const IdType& id)
+      const;
   CRTable::RevisionMap dumpChunk(Chunk* chunk);
   CRTable::RevisionMap dumpActiveChunks();
   template <typename ValueType>

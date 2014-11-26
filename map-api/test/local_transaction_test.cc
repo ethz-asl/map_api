@@ -392,7 +392,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertCommitFindUnique) {
       a_find.findUnique(TransactionTestTable::sampleField(), 9.81, table_);
   EXPECT_TRUE(static_cast<bool>(found));
   Id found_id;
-  found->get(CRTable::kIdField, &found_id);
+  // found->get(CRTable::kIdField, &found_id);
   EXPECT_EQ(expected_find, found_id);
 }
 
@@ -409,7 +409,7 @@ TEST_F(MultiTransactionSingleCRUTest, InsertCommitInsertFindUnique) {
       a_find.findUnique(TransactionTestTable::sampleField(), 9.81, table_);
   EXPECT_TRUE(static_cast<bool>(found));
   Id found_id;
-  found->get(CRTable::kIdField, &found_id);
+  // found->get(CRTable::kIdField, &found_id);
   EXPECT_EQ(expected_find, found_id);
 }
 
