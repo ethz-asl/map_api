@@ -1,12 +1,13 @@
-#include "map-api/test/testing-entrypoint.h"
+#ifndef MAP_API_TESTING_ENTRYPOINT_INL_H_
+#define MAP_API_TESTING_ENTRYPOINT_INL_H_
 
 #include <fstream>  // NOLINT
 
 #include <gflags/gflags.h>
 
-#include "map-api/file-discovery.h"
+#include <multiprocess-gtest/multiprocess-fixture.h>
 
-DECLARE_uint64(subprocess_id);
+#include "map-api/file-discovery.h"
 
 namespace map_api {
 
@@ -20,3 +21,5 @@ void MapApiTestEntryPoint::customInit() {
 }
 
 }  // namespace map_api
+
+#endif  // MAP_API_TESTING_ENTRYPOINT_INL_H_

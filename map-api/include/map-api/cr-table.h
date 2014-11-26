@@ -53,12 +53,6 @@ class CRTable {
   typedef RevisionMapBase<const Revision> RevisionMap;
   typedef RevisionMapBase<Revision> NonConstRevisionMap;
 
-  /**
-   * Default fields
-   */
-  static const std::string kIdField;
-  static const std::string kInsertTimeField;
-
   virtual ~CRTable();
 
   /**
@@ -168,6 +162,8 @@ class CRTable {
   int count(int key, const ValueType& value, const LogicalTime& time) const;
   int countByChunk(const Id& id, const LogicalTime& time) const;
 
+  void clear();
+
   /**
    * The following struct can be used to automatically supply table name and
    * item id to a glog message.
@@ -213,12 +209,14 @@ class CRTable {
                                         std::vector<Id>* ids) const = 0;
 
   /**
-   * If key is an empty string, this should return all the data in the table.
+   * If key is -1, this should return all the data in the table.
    */
   virtual int countByRevisionCRDerived(int key, const Revision& valueHolder,
                                        const LogicalTime& time) const = 0;
   virtual int countByChunkCRDerived(const Id& chunk_id,
                                     const LogicalTime& time) const = 0;
+
+  virtual void clearCRDerived() = 0;
 
   bool initialized_ = false;
 };
