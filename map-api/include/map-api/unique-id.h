@@ -4,6 +4,7 @@
 #include <atomic>
 #include <string>
 #include <vector>
+#include <unordered_set>
 
 #include <glog/logging.h>
 #include <sm/hash_id.hpp>
@@ -119,6 +120,9 @@ class Id : public sm::HashId {
   using sm::HashId::fromUint64;
   using sm::HashId::toUint64;
 };
+
+typedef std::unordered_set<Id> IdSet;
+typedef std::vector<Id> IdList;
 
 // To be used for general IDs.
 template <typename IdType>
