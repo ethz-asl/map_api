@@ -416,7 +416,22 @@ TEST_P(NetTableFixture, Triggers) {
     chunk_id_ = IPC::pop<Id>();
     chunk_ = table_->getChunk(chunk_id_);
   }
-  chunk_->attachTrigger([this, &highest_value](const Id& id) {
+  chunk_->attachTrigger([this, &highest_value](
+      const std::unordered_set<Id>& insertions,
+      const std::unordered_set<Id>& updates) {
+    Id id;
+    if (insertions.empty()) {
+      if (updates.empty()) {
+        return;
+      } else {
+        CHECK_EQ(updates.size(), 1u);
+        id = *updates.begin();
+      }
+    } else {
+      CHECK_EQ(insertions.size(), 1u);
+      CHECK(updates.empty());
+      id = *insertions.begin();
+    }
     Transaction transaction;
     std::shared_ptr<Revision> item =
         std::make_shared<Revision>(*transaction.getById(id, table_, chunk_));
