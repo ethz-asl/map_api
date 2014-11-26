@@ -112,6 +112,7 @@ void MultiprocessFixture::harvest(uint64_t subprocess_id, bool verbose) {
     if (verbose) {
       std::cout << "Sub " << found->first << ": " << buffer;
     }
+    EXPECT_EQ(nullptr, strstr(buffer, "[  FAILED  ]")) << std::string(buffer);
   }
 }
 /**
