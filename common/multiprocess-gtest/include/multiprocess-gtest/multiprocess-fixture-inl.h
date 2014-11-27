@@ -1,3 +1,6 @@
+#ifndef MULTIPROCESS_GTEST_MULTIPROCESS_FIXTURE_INL_H_
+#define MULTIPROCESS_GTEST_MULTIPROCESS_FIXTURE_INL_H_
+
 #include <cstdio>
 #include <fstream>   // NOLINT
 #include <iostream>  // NOLINT
@@ -16,9 +19,9 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
-#include <multiprocess-gtest/multiprocess-fixture.h>
 
-DEFINE_uint64(subprocess_id, 0, "Identification of subprocess in case of "
+DEFINE_uint64(subprocess_id, 0,
+              "Identification of subprocess in case of "
               "multiprocess testing. 0 if master process.");
 
 namespace common {
@@ -55,9 +58,7 @@ std::string MultiprocessFixture::getSelfpath() {
 /**
  * Return own ID: 0 if master
  */
-uint64_t MultiprocessFixture::getSubprocessId() {
-  return FLAGS_subprocess_id;
-}
+uint64_t MultiprocessFixture::getSubprocessId() { return FLAGS_subprocess_id; }
 /**
  * Launches a subprocess with given ID. ID can be any positive integer.
  * Dies if ID already used
@@ -66,8 +67,8 @@ void MultiprocessFixture::launchSubprocess(uint64_t id) {
   launchSubprocess(id, "");
 }
 void MultiprocessFixture::launchSubprocess(uint64_t id,
-                                        const std::string& extra_flags) {
-  CHECK_NE(0u, id)<< "ID 0 reserved for root process";
+                                           const std::string& extra_flags) {
+  CHECK_NE(0u, id) << "ID 0 reserved for root process";
   CHECK(subprocesses_.find(id) == subprocesses_.end());
   std::ostringstream command_ss;
   command_ss << getSelfpath() << " ";
@@ -111,6 +112,7 @@ void MultiprocessFixture::harvest(uint64_t subprocess_id, bool verbose) {
     if (verbose) {
       std::cout << "Sub " << found->first << ": " << buffer;
     }
+    EXPECT_EQ(nullptr, strstr(buffer, "[  FAILED  ]")) << std::string(buffer);
   }
 }
 /**
@@ -118,11 +120,12 @@ void MultiprocessFixture::harvest(uint64_t subprocess_id, bool verbose) {
  * even if the subprocess is already dead, this is added to ensure the
  * continuation of the test.
  */
-char* MultiprocessFixture::timedFGetS(char* out_buffer, int size, FILE* stream) {
+char* MultiprocessFixture::timedFGetS(char* out_buffer, int size,
+                                      FILE* stream) {
   char* result;
   std::mutex mutex;
   std::condition_variable cv;
-  std::unique_lock < std::mutex > lock(mutex);
+  std::unique_lock<std::mutex> lock(mutex);
   std::thread thread(fGetSThread, out_buffer, size, stream, &mutex, &cv,
                      &result);
   thread.detach();
@@ -137,21 +140,20 @@ char* MultiprocessFixture::timedFGetS(char* out_buffer, int size, FILE* stream) 
 }
 
 void MultiprocessFixture::fGetSThread(char* out_buffer, int size, FILE* stream,
-                                   std::mutex* mutex,
-                                   std::condition_variable* cv, char** result) {
+                                      std::mutex* mutex,
+                                      std::condition_variable* cv,
+                                      char** result) {
   CHECK_NOTNULL(stream);
   CHECK_NOTNULL(mutex);
   CHECK_NOTNULL(cv);
   CHECK_NOTNULL(result);
-  std::unique_lock < std::mutex > lock(*mutex);
+  std::unique_lock<std::mutex> lock(*mutex);
   *result = fgets(out_buffer, size, stream);
   lock.unlock();
   cv->notify_all();
 }
 
-void MultiprocessFixture::SetUp() {
-  SetUpImpl();
-}
+void MultiprocessFixture::SetUp() { SetUpImpl(); }
 
 void MultiprocessFixture::TearDown() {
   TearDownImpl();
@@ -160,3 +162,5 @@ void MultiprocessFixture::TearDown() {
   }
 }
 }  // namespace common
+
+#endif  // MULTIPROCESS_GTEST_MULTIPROCESS_FIXTURE_INL_H_

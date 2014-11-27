@@ -45,6 +45,7 @@ class CRUTableRamMap : public CRUTable {
                             HistoryMap* dest) const final override;
   virtual void itemHistoryCRUDerived(const Id& id, const LogicalTime& time,
                                      History* dest) const final override;
+  virtual void clearCRDerived() final override;
 
   inline void forEachItemFoundAtTime(
       int key, const Revision& value_holder, const LogicalTime& time,

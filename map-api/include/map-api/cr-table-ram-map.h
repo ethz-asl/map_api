@@ -35,6 +35,7 @@ class CRTableRamMap : public CRTable {
       const LogicalTime& time) const final override;
   virtual int countByChunkCRDerived(
       const Id& chunk_id, const LogicalTime& time) const final override;
+  virtual void clearCRDerived() final override;
 
   typedef std::unordered_map<Id, std::shared_ptr<const Revision> > MapType;
   MapType data_;
