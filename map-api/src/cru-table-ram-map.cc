@@ -162,6 +162,8 @@ void CRUTableRamMap::itemHistoryCRUDerived(const Id& id,
   });
 }
 
+void CRUTableRamMap::clearCRDerived() { data_.clear(); }
+
 inline void CRUTableRamMap::forEachItemFoundAtTime(
     int key, const Revision& value_holder, const LogicalTime& time,
     const std::function<
