@@ -138,7 +138,9 @@ class Transaction {
    * is in cache access mode. This on a per-thread basis.
    */
   std::unordered_set<std::thread::id> cache_access_override_;
-  mutable std::mutex access_mutex_;
+  mutable std::mutex access_type_mutex_;
+  mutable std::mutex access_mode_mutex_;
+  mutable std::mutex net_table_transactions_mutex_;
 };
 
 }  // namespace map_api
