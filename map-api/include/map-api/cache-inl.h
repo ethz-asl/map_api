@@ -35,14 +35,15 @@ Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) {
     CHECK(revision);
     std::pair<typename CacheMap::iterator, bool> cache_insertion;
 
-    cache_insertion = cache_.emplace(id, Value());
+    cache_insertion = cache_.emplace(id, ValueHolder(Value(), false));
     CHECK(cache_insertion.second);
     std::shared_ptr<typename Factory::ElementType> object =
         objectFromRevision<typename Factory::ElementType>(*revision);
-    Factory::transferOwnership(object, &cache_insertion.first->second);
+    Factory::transferOwnership(object, &cache_insertion.first->second.value);
     found = cache_insertion.first;
   }
-  return found->second;
+  found->second.dirty = true;
+  return found->second.value;
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
@@ -53,14 +54,15 @@ const Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) const {
     std::shared_ptr<const Revision> revision = getRevisionLocked(id);
     CHECK(revision);
     std::pair<typename CacheMap::iterator, bool> cache_insertion;
-    cache_insertion = cache_.emplace(id, Value());
+    cache_insertion = cache_.emplace(id, ValueHolder(Value(), false));
     CHECK(cache_insertion.second);
     std::shared_ptr<typename Factory::ElementType> object =
         objectFromRevision<typename Factory::ElementType>(*revision);
-    Factory::transferOwnership(object, &cache_insertion.first->second);
+    Factory::transferOwnership(object, &cache_insertion.first->second.value);
+    cache_insertion.first->second.dirty = false;
     found = cache_insertion.first;
   }
-  return found->second;
+  return found->second.value;
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
@@ -71,7 +73,7 @@ bool Cache<IdType, Value, DerivedValue>::insert(const IdType& id,
   if (has_item_already) {
     return false;
   }
-  CHECK(cache_.emplace(id, value).second);
+  CHECK(cache_.emplace(id, ValueHolder(value, false)).second);
   available_ids_.addId(id);
   return true;
 }
@@ -141,18 +143,23 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
       // have been inserted newly.
       std::shared_ptr<Revision> insertion = underlying_table_->getTemplate();
       objectToRevision(cached_pair.first,
-                       Factory::getReferenceToDerived(cached_pair.second),
+                       Factory::getReferenceToDerived(cached_pair.second.value),
                        insertion.get());
       transaction_.get()->insert(chunk_manager_.get(), insertion);
     } else {
-      // Convert the object to the revision and then compare if it has changed.
-      std::shared_ptr<map_api::Revision> update_revision =
-          std::make_shared<map_api::Revision>(*corresponding_revision->second);
-      objectToRevision(cached_pair.first,
-                       Factory::getReferenceToDerived(cached_pair.second),
-                       update_revision.get());
-      if (*update_revision != *corresponding_revision->second) {
-        transaction_.get()->update(underlying_table_, update_revision);
+      // Only verify objects that have been accessed in a read-write way.
+      if (cached_pair.second.dirty) {
+        // Convert the object to the revision and then compare if it has changed.
+        std::shared_ptr<map_api::Revision> update_revision =
+            std::make_shared<map_api::Revision>(
+                *corresponding_revision->second);
+        objectToRevision(cached_pair.first,
+                         Factory::getReferenceToDerived(
+                             cached_pair.second.value),
+                         update_revision.get());
+        if (*update_revision != *corresponding_revision->second) {
+          transaction_.get()->update(underlying_table_, update_revision);
+        }
       }
     }
   }
