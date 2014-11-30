@@ -168,10 +168,14 @@ class Cache : public CacheBase,
   virtual void prepareForCommit() override;
 
   struct ValueHolder {
-    ValueHolder(const Value& _value, bool _dirty) :
+    enum class DirtyState : bool {
+      kDirty = true,
+      kClean = false
+    };
+    ValueHolder(const Value& _value, DirtyState _dirty) :
       value(_value), dirty(_dirty) { }
     Value value;
-    bool dirty;
+    DirtyState dirty;
   };
 
   typedef std::unordered_map<IdType, ValueHolder> CacheMap;

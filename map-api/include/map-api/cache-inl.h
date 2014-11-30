@@ -35,14 +35,15 @@ Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) {
     CHECK(revision);
     std::pair<typename CacheMap::iterator, bool> cache_insertion;
 
-    cache_insertion = cache_.emplace(id, ValueHolder(Value(), false));
+    cache_insertion = cache_.emplace(id, ValueHolder(Value(),
+        ValueHolder::DirtyState::kClean));
     CHECK(cache_insertion.second);
     std::shared_ptr<typename Factory::ElementType> object =
         objectFromRevision<typename Factory::ElementType>(*revision);
     Factory::transferOwnership(object, &cache_insertion.first->second.value);
     found = cache_insertion.first;
   }
-  found->second.dirty = true;
+  found->second.dirty = ValueHolder::DirtyState::kDirty;
   return found->second.value;
 }
 
@@ -54,12 +55,14 @@ const Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) const {
     std::shared_ptr<const Revision> revision = getRevisionLocked(id);
     CHECK(revision);
     std::pair<typename CacheMap::iterator, bool> cache_insertion;
-    cache_insertion = cache_.emplace(id, ValueHolder(Value(), false));
+    cache_insertion = cache_.emplace(id, ValueHolder(Value(),
+        ValueHolder::DirtyState::kClean));
     CHECK(cache_insertion.second);
     std::shared_ptr<typename Factory::ElementType> object =
         objectFromRevision<typename Factory::ElementType>(*revision);
     Factory::transferOwnership(object, &cache_insertion.first->second.value);
-    cache_insertion.first->second.dirty = false;
+    cache_insertion.first->second.dirty =
+        ValueHolder::DirtyState::kClean;
     found = cache_insertion.first;
   }
   return found->second.value;
@@ -73,7 +76,8 @@ bool Cache<IdType, Value, DerivedValue>::insert(const IdType& id,
   if (has_item_already) {
     return false;
   }
-  CHECK(cache_.emplace(id, ValueHolder(value, false)).second);
+  CHECK(cache_.emplace(
+      id, ValueHolder(value, ValueHolder::DirtyState::kClean)).second);
   available_ids_.addId(id);
   return true;
 }
@@ -148,7 +152,7 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
       transaction_.get()->insert(chunk_manager_.get(), insertion);
     } else {
       // Only verify objects that have been accessed in a read-write way.
-      if (cached_pair.second.dirty) {
+      if (cached_pair.second.dirty == ValueHolder::DirtyState::kDirty) {
         // Convert the object to the revision and then compare if it has changed.
         std::shared_ptr<map_api::Revision> update_revision =
             std::make_shared<map_api::Revision>(
