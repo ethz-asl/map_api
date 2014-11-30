@@ -61,8 +61,6 @@ const Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) const {
     std::shared_ptr<typename Factory::ElementType> object =
         objectFromRevision<typename Factory::ElementType>(*revision);
     Factory::transferOwnership(object, &cache_insertion.first->second.value);
-    cache_insertion.first->second.dirty =
-        ValueHolder::DirtyState::kClean;
     found = cache_insertion.first;
   }
   return found->second.value;
