@@ -136,6 +136,9 @@ template <typename IdType, typename Value, typename DerivedValue>
 void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
   LockGuard lock(mutex_);
   CHECK(!staged_) << "You cannot commit a transaction more than once.";
+  int num_dirty_items = 0;
+  int num_checked_items = 0;
+  int num_cached_items = 0;
   for (const typename CacheMap::value_type& cached_pair : cache_) {
     CRTable::RevisionMap::iterator corresponding_revision =
         revisions_.find(cached_pair.first);
@@ -150,6 +153,7 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
       transaction_.get()->insert(chunk_manager_.get(), insertion);
     } else {
       // Only verify objects that have been accessed in a read-write way.
+      ++num_cached_items;
       if (cached_pair.second.dirty == ValueHolder::DirtyState::kDirty) {
         // Convert the object to the revision and then compare if it has changed.
         std::shared_ptr<map_api::Revision> update_revision =
@@ -159,12 +163,17 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
                          Factory::getReferenceToDerived(
                              cached_pair.second.value),
                          update_revision.get());
+        ++num_checked_items;
         if (*update_revision != *corresponding_revision->second) {
           transaction_.get()->update(underlying_table_, update_revision);
+          ++num_dirty_items;
         }
       }
     }
   }
+  LOG(INFO) << "Cache commit: " << underlying_table_->name() <<
+      " (ca:" << num_cached_items << " ck:" << num_checked_items << " d:" <<
+      num_dirty_items << ")";
   for (const IdType& id : removals_) {
     // Check if the removed object has ever been part of the database.
     if (revisions_.find(id) == revisions_.end()) {
