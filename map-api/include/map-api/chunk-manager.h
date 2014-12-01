@@ -1,5 +1,7 @@
 #ifndef MAP_API_CHUNK_MANAGER_H_
 #define MAP_API_CHUNK_MANAGER_H_
+
+#include <set>
 #include <unordered_map>
 #include <utility>
 
@@ -24,6 +26,13 @@ class ChunkManagerBase {
 
   inline size_t numChunks() const { return active_chunks_.size(); }
 
+  inline void getChunkIds(std::set<Id>* chunk_ids) const {
+    CHECK_NOTNULL(chunk_ids);
+    chunk_ids->clear();
+    for (const std::pair<const Id, Chunk*>& pair : active_chunks_) {
+      chunk_ids->emplace(pair.first);
+    }
+  }
   inline void getChunkIds(std::unordered_set<Id>* chunk_ids) const {
     CHECK_NOTNULL(chunk_ids);
     chunk_ids->clear();
