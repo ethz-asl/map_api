@@ -2,17 +2,14 @@
 #define MAP_API_REVISION_H_
 
 #include <memory>
-#include <unordered_map>
 #include <set>
 #include <string>
 
 #include <glog/logging.h>
-#include <Poco/Data/BLOB.h>
-#include <Poco/Data/Statement.h>
 
 #include "./core.pb.h"
-#include <map-api/logical-time.h>
-#include <map-api/unique-id.h>
+#include "map-api/logical-time.h"
+#include "map-api/unique-id.h"
 
 namespace map_api {
 
@@ -28,12 +25,6 @@ class Revision {
   explicit Revision(const std::shared_ptr<proto::Revision>& revision);
   explicit Revision(const Revision& other);
   Revision& operator=(const Revision& other) = delete;
-  /**
-   * Insert placeholder in SQLite insert statements. Returns blob shared pointer
-   * for dynamically created blob objects
-   */
-  std::shared_ptr<Poco::Data::BLOB> insertPlaceHolder(
-      int index, Poco::Data::Statement* stat) const;
 
   template <typename FieldType>
   static proto::Type getProtobufTypeEnum();

@@ -4,12 +4,13 @@
 #include <statistics/statistics.h>
 #include <timing/timer.h>
 
-#include <map-api/core.h>
-#include <map-api/cr-table-ram-map.h>
-#include <map-api/cr-table-stxxl-map.h>
-#include <map-api/cru-table-ram-map.h>
-#include <map-api/cru-table-stxxl-map.h>
-#include <map-api/net-table-manager.h>
+#include "map-api/core.h"
+#include "map-api/cr-table-ram-map.h"
+#include "map-api/cr-table-stxxl-map.h"
+#include "map-api/cru-table-ram-map.h"
+#include "map-api/cru-table-stxxl-map.h"
+#include "map-api/hub.h"
+#include "map-api/net-table-manager.h"
 
 DEFINE_bool(use_external_memory, false, "External memory vs. RAM tables.");
 

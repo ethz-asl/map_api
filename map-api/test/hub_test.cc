@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 #include "map-api/core.h"
+#include "map-api/hub.h"
 #include "map-api/ipc.h"
 #include "map-api/test/testing-entrypoint.h"
 #include "./map_api_fixture.h"

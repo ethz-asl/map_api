@@ -1,6 +1,11 @@
 #ifndef MAP_API_CHORD_INDEX_INL_H_
 #define MAP_API_CHORD_INDEX_INL_H_
+
+#include <cstring>
 #include <vector>
+
+#include <Poco/MD5Engine.h>
+#include <Poco/DigestStream.h>
 
 namespace map_api {
 template <typename DataType>
