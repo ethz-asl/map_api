@@ -7,13 +7,12 @@
 #include <utility>
 #include <vector>
 
-#include <Poco/Data/Common.h>
 #include <gflags/gflags.h>
 
+#include "map-api/revision.h"
+#include "map-api/table-descriptor.h"
+#include "map-api/unique-id.h"
 #include "./core.pb.h"
-#include <map-api/revision.h>
-#include <map-api/table-descriptor.h>
-#include <map-api/unique-id.h>
 
 namespace map_api {
 

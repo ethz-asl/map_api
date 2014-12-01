@@ -8,7 +8,7 @@
 #include <multiagent-mapping-common/traits.h>
 
 #include <map-api/cache-base.h>
-#include <map-api/cr-table.h>
+#include <map-api/cr-table.h>  // CRTable::RevisionMap
 #include <map-api/revision.h>
 #include <map-api/transaction.h>
 #include <map-api/unique-id.h>
