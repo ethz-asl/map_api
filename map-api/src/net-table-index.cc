@@ -1,5 +1,6 @@
 #include "map-api/net-table-index.h"
 
+#include "map-api/message.h"
 #include "map-api/unique-id.h"
 #include "./chord-index.pb.h"
 #include "./net-table.pb.h"

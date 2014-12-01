@@ -1,13 +1,14 @@
 #ifndef MAP_API_STXXL_REVISION_STORE_H_
 #define MAP_API_STXXL_REVISION_STORE_H_
+
 #include <memory>
 #include <mutex>
 #include <vector>
 
 #include <stxxl.h>
 
-#include <map-api/proto-stl-stream.h>
-#include <map-api/revision.h>
+#include "map-api/proto-stl-stream.h"
+#include "map-api/revision.h"
 
 namespace map_api {
 struct CRRevisionInformation {

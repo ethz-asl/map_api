@@ -1,5 +1,6 @@
 #ifndef MAP_API_TRANSACTION_H_
 #define MAP_API_TRANSACTION_H_
+
 #include <map>
 #include <memory>
 #include <string>
@@ -8,15 +9,14 @@
 
 #include <glog/logging.h>
 
-#include <map-api/cache-base.h>
-#include <map-api/logical-time.h>
-#include <map-api/net-table.h>
-#include <map-api/net-table-transaction.h>
-#include <map-api/unique-id.h>
+#include "map-api/logical-time.h"
+#include "map-api/net-table-transaction.h"
 
 namespace map_api {
+class CacheBase;
 class Chunk;
 class ChunkManagerBase;
+class NetTable;
 class Revision;
 
 class Transaction {
