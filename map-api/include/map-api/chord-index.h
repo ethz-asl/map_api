@@ -8,14 +8,10 @@
 #include <thread>
 #include <unordered_map>
 
-#include <Poco/DigestStream.h>
-#include <Poco/MD5Engine.h>
-#include <Poco/RWLock.h>
+#include <Poco/RWLock.h>  // TODO(tcies) use our own
+#include <gtest/gtest_prod.h>
 
-#include <gtest/gtest.h>
-#include <map-api/message.h>
-#include <map-api/peer-id.h>
-#include <map-api/unique-id.h>
+#include "map-api/peer-id.h"
 
 namespace map_api {
 

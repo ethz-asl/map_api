@@ -3,13 +3,17 @@
 
 #include <set>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
+#include "map-api/unique-id.h"
 #include "./net-table.pb.h"
-#include <map-api/chunk.h>
-#include <map-api/net-table.h>
 
 namespace map_api {
+class Chunk;
+class NetTable;
+class Revision;
+
 class ChunkManagerBase {
  public:
   explicit ChunkManagerBase(map_api::NetTable* underlying_table)

@@ -6,7 +6,9 @@
 
 #include <map-api/hub.h>
 #include <map-api/logical-time.h>
+#include "map-api/message.h"
 #include <map-api/peer-id.h>
+#include "map-api/unique-id.h"
 
 namespace map_api {
 

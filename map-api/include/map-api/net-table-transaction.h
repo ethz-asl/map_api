@@ -1,20 +1,20 @@
 #ifndef MAP_API_NET_TABLE_TRANSACTION_H_
 #define MAP_API_NET_TABLE_TRANSACTION_H_
+
 #include <map>
 #include <memory>
-#include <string>
 #include <vector>
 
 #include <gtest/gtest_prod.h>
 
-#include <map-api/chunk.h>
-#include <map-api/chunk-transaction.h>
-#include <map-api/logical-time.h>
-#include <map-api/net-table.h>
-#include <map-api/revision.h>
-#include <map-api/unique-id.h>
+#include "map-api/chunk.h"
+#include "map-api/chunk-transaction.h"
+#include "map-api/logical-time.h"
+#include "map-api/revision.h"
 
 namespace map_api {
+class Chunk;
+class NetTable;
 
 class NetTableTransaction {
   friend class Transaction;
