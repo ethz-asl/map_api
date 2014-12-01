@@ -167,7 +167,18 @@ class Cache : public CacheBase,
   std::shared_ptr<const Revision> getRevisionLocked(const IdType& id) const;
   virtual void prepareForCommit() override;
 
-  typedef std::unordered_map<IdType, Value> CacheMap;
+  struct ValueHolder {
+    enum class DirtyState : bool {
+      kDirty = true,
+      kClean = false
+    };
+    ValueHolder(const Value& _value, DirtyState _dirty) :
+      value(_value), dirty(_dirty) { }
+    Value value;
+    DirtyState dirty;
+  };
+
+  typedef std::unordered_map<IdType, ValueHolder> CacheMap;
   typedef std::unordered_set<IdType> IdSet;
   typedef std::vector<IdType> IdVector;
 
