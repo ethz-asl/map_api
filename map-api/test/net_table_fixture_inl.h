@@ -7,6 +7,7 @@
 
 #include <map-api/core.h>
 #include <map-api/net-table.h>
+#include <map-api/net-table-manager.h>
 #include <map-api/net-table-transaction.h>
 #include <map-api/transaction.h>
 #include "./net_table_fixture.h"

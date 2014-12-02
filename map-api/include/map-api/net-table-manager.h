@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 
-#include <map-api/net-table.h>
-#include <map-api/table-descriptor.h>
+#include "map-api/net-table.h"
+#include "map-api/table-descriptor.h"
 
 namespace map_api {
 

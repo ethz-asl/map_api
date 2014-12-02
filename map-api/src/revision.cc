@@ -15,57 +15,6 @@ Revision::Revision(const std::shared_ptr<proto::Revision>& revision)
 Revision::Revision(const Revision& other)
     : underlying_revision_(new proto::Revision(*other.underlying_revision_)) {}
 
-std::shared_ptr<Poco::Data::BLOB> Revision::insertPlaceHolder(
-    int index, Poco::Data::Statement* stat) const {
-  CHECK_NOTNULL(stat);
-  std::shared_ptr<Poco::Data::BLOB> blobPointer;
-  const proto::TableField& field =
-      underlying_revision_->custom_field_values(index);
-  CHECK(field.has_type()) << "Trying to insert placeholder of undefined type";
-  *stat << " ";
-  switch (field.type()) {
-    case proto::Type::BLOB: {
-      blobPointer = std::make_shared<Poco::Data::BLOB>(
-          Poco::Data::BLOB(field.blob_value()));
-      *stat << "?", Poco::Data::use(*blobPointer);
-      break;
-    }
-    case proto::Type::DOUBLE: {
-      *stat << field.double_value();
-      break;
-    }
-    case proto::Type::HASH128: {
-      *stat << "?", Poco::Data::use(field.string_value());
-      break;
-    }
-    case proto::Type::INT32: {
-      *stat << field.int_value();
-      break;
-    }
-    case(proto::Type::UINT32) : {
-      *stat << field.unsigned_int_value();
-      break;
-    }
-    case proto::Type::INT64: {
-      *stat << field.long_value();
-      break;
-    }
-    case proto::Type::UINT64: {
-      *stat << field.unsigned_long_value();
-      break;
-    }
-    case proto::Type::STRING: {
-      *stat << "?", Poco::Data::use(field.string_value());
-      break;
-    }
-    default:
-      LOG(FATAL) << "Field type not handled";
-      return blobPointer;
-  }
-  *stat << " ";
-  return blobPointer;
-}
-
 void Revision::addField(int index, proto::Type type) {
   CHECK_EQ(underlying_revision_->custom_field_values_size(), index)
       << "Custom fields must be added in-order!";

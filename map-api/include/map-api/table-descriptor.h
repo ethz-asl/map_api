@@ -4,7 +4,6 @@
 #include <string>
 
 #include "./core.pb.h"
-#include <map-api/revision.h>
 
 namespace map_api {
 
