@@ -1,5 +1,6 @@
 #ifndef MAP_API_READER_WRITER_LOCK_H_
 #define MAP_API_READER_WRITER_LOCK_H_
+
 #include <condition_variable>
 #include <mutex>
 

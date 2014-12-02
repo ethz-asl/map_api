@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <iostream>  // NOLINT
 #include <mutex>
+
 namespace map_api {
 class LogicalTime {
  public:

@@ -1,5 +1,6 @@
 #ifndef MAP_API_CACHE_INL_H_
 #define MAP_API_CACHE_INL_H_
+
 #include <utility>
 #include <vector>
 
