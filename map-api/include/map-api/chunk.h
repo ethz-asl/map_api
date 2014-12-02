@@ -195,7 +195,7 @@ class Chunk {
 
   inline void syncLatestCommitTime(const Revision& item);
 
-  void leave();  // may only be used by NetTable
+  void leave();  // May only be used by NetTable.
 
   /**
    * ====================================================================

@@ -99,7 +99,7 @@ class NetTable {
 
   size_t numActiveChunksItems();
 
-  size_t numItems();
+  size_t numItems() const;
 
   size_t activeChunksItemsSizeBytes();
 

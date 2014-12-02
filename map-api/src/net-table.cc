@@ -276,7 +276,7 @@ size_t NetTable::numActiveChunksItems() {
   return num_elements;
 }
 
-size_t NetTable::numItems() {
+size_t NetTable::numItems() const {
   return cache_->count(-1, 0, LogicalTime::sample());
 }
 
