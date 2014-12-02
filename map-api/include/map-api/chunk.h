@@ -6,6 +6,7 @@
 #include <mutex>
 #include <set>
 #include <thread>
+#include <unordered_set>
 
 #include <Poco/RWLock.h>  // TODO(tcies) replace with our own
 
@@ -48,6 +49,9 @@ class Revision;
  */
 class Chunk {
   friend class ChunkTransaction;
+  typedef std::function<void(const std::unordered_set<Id>& insertions,
+                             const std::unordered_set<Id>& updates)>
+      TriggerCallback;
 
  public:
   bool init(const Id& id, CRTable* underlying_table, bool initialize);
@@ -91,10 +95,12 @@ class Chunk {
   void update(const std::shared_ptr<Revision>& item);
 
   /**
-   * Allows attaching a callback to incoming patch requests (insert/update).
-   * The callback is passed the ID of the inserted/modified item.
+   * Starts tracking insertions / updates after a lock request. The callback is
+   * then called at an unlock request. The tracked insertions and updates are
+   * passed. Note: If the sets are empty, the lock has probably been acquired
+   * to modify chunk peers.
    */
-  void attachTrigger(const std::function<void(const Id& id)>& callback);
+  void attachTrigger(const TriggerCallback& callback);
 
   inline LogicalTime getLatestCommitTime();
 
@@ -189,7 +195,7 @@ class Chunk {
 
   inline void syncLatestCommitTime(const Revision& item);
 
-  void leave();  // may only be used by NetTable
+  void leave();  // May only be used by NetTable.
 
   /**
    * ====================================================================
@@ -218,8 +224,10 @@ class Chunk {
   PeerHandler peers_;
   CRTable* underlying_table_;
   DistributedRWLock lock_;
-  std::function<void(const Id& id)> trigger_;
+  std::function<void(const std::unordered_set<Id>& insertions,
+                     const std::unordered_set<Id>& updates)> trigger_;
   std::mutex trigger_mutex_;
+  std::unordered_set<Id> trigger_insertions_, trigger_updates_;
   std::mutex add_peer_mutex_;
   Poco::RWLock leave_lock_;
   volatile bool initialized_ = false;
