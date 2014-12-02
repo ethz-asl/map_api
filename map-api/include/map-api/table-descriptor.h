@@ -24,7 +24,7 @@ class TableDescriptor : private proto::TableDescriptor {
   void setName(const std::string& name);
 
   void setSpatialIndex(const SpatialIndex::BoundingBox& extent,
-                       const std::vector<uint32_t>& subdivision);
+                       const std::vector<size_t>& subdivision);
 };
 
 }  // namespace map_api

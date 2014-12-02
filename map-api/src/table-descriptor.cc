@@ -14,13 +14,12 @@ void TableDescriptor::setName(const std::string& name) {
   set_name(name);
 }
 
-void TableDescriptor::setSpatialIndex(
-    const SpatialIndex::BoundingBox& extent,
-    const std::vector<uint32_t>& subdivision) {
+void TableDescriptor::setSpatialIndex(const SpatialIndex::BoundingBox& extent,
+                                      const std::vector<size_t>& subdivision) {
   CHECK_EQ(subdivision.size(), extent.size());
   extent.serialize(mutable_spatial_extent());
   clear_spatial_subdivision();
-  for (uint32_t dimension_division : subdivision) {
+  for (size_t dimension_division : subdivision) {
     add_spatial_subdivision(dimension_division);
   }
 }
