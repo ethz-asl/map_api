@@ -2,28 +2,29 @@
 #define MAP_API_TABLE_DESCRIPTOR_H_
 
 #include <string>
+#include <vector>
 
+#include "map-api/spatial-index.h"
 #include "./core.pb.h"
 
 namespace map_api {
 
 class TableDescriptor : private proto::TableDescriptor {
+  friend class CRTable;
+  friend class NetTableManager;
+  friend class Revision;
+
  public:
   virtual ~TableDescriptor();
 
   template <typename Type>
   void addField(int index);
   void addField(int index, proto::Type type);
+
   void setName(const std::string& name);
 
-  using proto::TableDescriptor::has_name;
-  using proto::TableDescriptor::name;
-  using proto::TableDescriptor::fields_size;
-  using proto::TableDescriptor::fields;
-
-  using proto::TableDescriptor::DebugString;
-  using proto::TableDescriptor::ParseFromString;
-  using proto::TableDescriptor::SerializeAsString;
+  void setSpatialIndex(const SpatialIndex::BoundingBox& extent,
+                       const std::vector<uint32_t>& subdivision);
 };
 
 }  // namespace map_api

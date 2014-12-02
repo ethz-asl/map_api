@@ -6,6 +6,9 @@
 #include <unordered_set>
 #include <vector>
 
+#include <glog/logging.h>
+#include <google/protobuf/repeated_field.h>
+
 #include <map-api/chord-index.h>
 #include <map-api/peer-handler.h>
 
@@ -18,6 +21,8 @@ class SpatialIndex : public ChordIndex {
   struct Range {
     double min, max;
     inline double span() const { return max - min; }
+    Range() : min(0), max(0) {}
+    Range(double _min, double _max) : min(_min), max(_max) {}  // NOLINT
   };
   class BoundingBox : public std::vector<Range> {
    public:
@@ -32,6 +37,22 @@ class SpatialIndex : public ChordIndex {
         first = false;
       }
       return ss.str();
+    }
+    inline void serialize(google::protobuf::RepeatedField<double>* field)
+        const {
+      field->Clear();
+      for (const Range& range : *this) {
+        field->Add(range.min);
+        field->Add(range.max);
+      }
+    }
+    inline void deserialize(
+        const google::protobuf::RepeatedField<double>& field) {
+      CHECK_EQ(field.size() % 2, 0u);
+      clear();
+      for (int i = 0; i < field.size(); i += 2) {
+        push_back(Range(field.Get(i), field.Get(i + 1)));
+      }
     }
   };
 
