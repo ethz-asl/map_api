@@ -24,19 +24,12 @@ class ChunkManagerBase {
 
   inline size_t numChunks() const { return active_chunks_.size(); }
 
-  inline void getChunkIds(std::unordered_set<Id>* chunk_ids) const {
+  inline void getChunkIds(IdSet* chunk_ids) const {
     CHECK_NOTNULL(chunk_ids);
     chunk_ids->clear();
     chunk_ids->rehash(active_chunks_.size());
     for (const std::pair<const Id, Chunk*>& pair : active_chunks_) {
       chunk_ids->emplace(pair.first);
-    }
-  }
-  inline void getChunkIds(proto::ChunkList* chunk_list) const {
-    CHECK_NOTNULL(chunk_list);
-    chunk_list->clear_chunk_ids();
-    for (const std::pair<const Id, Chunk*>& pair : active_chunks_) {
-      pair.first.serialize(chunk_list->add_chunk_ids());
     }
   }
 
