@@ -1,17 +1,13 @@
 #ifndef MAP_API_PEER_HANDLER_H_
 #define MAP_API_PEER_HANDLER_H_
 
-#include <memory>
-#include <vector>
 #include <unordered_map>
 #include <set>
-#include <string>
 
-#include <map-api/message.h>
-#include <map-api/peer.h>
-#include <map-api/peer-id.h>
+#include "map-api/peer-id.h"
 
 namespace map_api {
+class Message;
 
 /**
  * Allows to hold identifiers of peers and exposes common operations
@@ -54,10 +50,11 @@ class PeerHandler {
   bool undisputableBroadcast(Message* request);
 
   size_t size() const;
+
  private:
-  std::set<PeerId> peers_; // std::set to ensure uniform ordering
+  std::set<PeerId> peers_;  // std::set to ensure uniform ordering
 };
 
 } /* namespace map_api */
 
-#endif /* MAP_API_PEER_HANDLER_H_ */
+#endif  // MAP_API_PEER_HANDLER_H_

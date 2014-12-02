@@ -8,6 +8,7 @@
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 
+#include "map-api/message.h"
 #include "./core.pb.h"
 
 namespace map_api {
