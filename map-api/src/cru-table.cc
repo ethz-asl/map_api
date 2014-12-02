@@ -76,6 +76,9 @@ CRUTable::Type CRUTable::type() const {
   return Type::CRU;
 }
 
+const std::string CRUTable::kUpdateTimeField = "update_time";
+const std::string CRUTable::kRemovedField = "removed";
+
 bool CRUTable::insertCRDerived(const LogicalTime& time,
                                const std::shared_ptr<Revision>& query) {
   query->setUpdateTime(time);

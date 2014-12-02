@@ -3,8 +3,6 @@
 
 #include <string>
 
-#include "map-api/message.h"
-
 namespace map_api {
 
 template<const char* request_type>

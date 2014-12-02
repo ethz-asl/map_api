@@ -3,18 +3,19 @@
 
 #include <list>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
 #include <gtest/gtest_prod.h>
 
-#include "map-api/cr-table.h"
-#include "map-api/logical-time.h"
-#include "map-api/revision.h"
+#include <map-api/chunk.h>
+#include <map-api/cr-table.h>
+#include <map-api/logical-time.h>
+#include <map-api/revision.h>
+#include <map-api/unique-id.h>
 
 namespace map_api {
-class Chunk;
-class Id;
 
 /**
  * This class is somewhat weaker than the first transaction draft

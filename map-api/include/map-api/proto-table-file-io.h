@@ -1,23 +1,18 @@
 #ifndef MAP_API_PROTO_TABLE_FILE_IO_H_
 #define MAP_API_PROTO_TABLE_FILE_IO_H_
-
+#include <functional>
 #include <fstream>  // NOLINT
+#include <memory>
 #include <string>
 #include <utility>
 #include <unordered_set>
 #include <vector>
 
 #include <google/protobuf/io/gzip_stream.h>
-
-#include "map-api/cr-table.h"
-#include "map-api/unique-id.h"
-#include "map-api/logical-time.h"
+#include <map-api/net-table.h>
 
 namespace map_api {
-class Chunk;
-class NetTable;
 class Transaction;
-
 typedef std::pair<Id, map_api::LogicalTime> RevisionStamp;
 }  // namespace map_api
 

@@ -4,13 +4,15 @@
 #include <sstream>  // NOLINT
 #include <string>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
+#include "./chord-index.pb.h"
 #include <map-api/chord-index.h>
 #include <map-api/peer-handler.h>
+#include <map-api/unique-id.h>
 
 namespace map_api {
-class Id;
 
 class SpatialIndex : public ChordIndex {
  public:

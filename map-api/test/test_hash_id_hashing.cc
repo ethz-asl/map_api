@@ -6,7 +6,7 @@
 #include <timing/timer.h>
 
 #include "map-api/unique-id.h"
-#include "map-api/test/testing-entrypoint.h"
+#include "map-api/test/testing_entrypoint.h"
 
 #define DEFINE_ID_HASH_SIZET(TypeName)                          \
   namespace std {                                               \

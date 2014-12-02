@@ -7,10 +7,9 @@
 
 #include "./core.pb.h"
 #include "./chunk.pb.h"
-#include "map-api/cru-table.h"
-#include "map-api/hub.h"
-#include "map-api/message.h"
-#include "map-api/net-table-manager.h"
+#include <map-api/cru-table.h>
+#include <map-api/hub.h>
+#include <map-api/net-table-manager.h>
 
 enum UnlockStrategy {
   REVERSE,
@@ -274,9 +273,7 @@ void Chunk::update(const std::shared_ptr<Revision>& item) {
   distributedUnlock();
 }
 
-void Chunk::attachTrigger(const std::function<
-    void(const std::unordered_set<Id>& insertions,
-         const std::unordered_set<Id>& updates)>& callback) {
+void Chunk::attachTrigger(const std::function<void(const Id& id)>& callback) {
   std::lock_guard<std::mutex> lock(trigger_mutex_);
   trigger_ = callback;
 }
@@ -755,7 +752,8 @@ void Chunk::handleInsertRequest(const std::shared_ptr<Revision>& item,
   Id id = item->getId<Id>();  // TODO(tcies) what if leave during trigger?
   std::lock_guard<std::mutex> lock(trigger_mutex_);
   if (trigger_) {
-    CHECK(trigger_insertions_.emplace(id).second);
+    std::thread trigger_thread(trigger_, id);
+    trigger_thread.detach();
   }
 }
 
@@ -783,6 +781,7 @@ void Chunk::handleLockRequest(const PeerId& locker, Message* response) {
     response->decline();
     return;
   }
+  // should be impossible by design
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   // TODO(tcies) as mentioned before - respond immediately and pulse instead
   while (lock_.state == DistributedRWLock::State::READ_LOCKED) {
@@ -795,8 +794,6 @@ void Chunk::handleLockRequest(const PeerId& locker, Message* response) {
       lock_.preempted_state = DistributedRWLock::State::UNLOCKED;
       lock_.state = DistributedRWLock::State::WRITE_LOCKED;
       lock_.holder = locker;
-      trigger_insertions_.clear();
-      trigger_updates_.clear();
       response->impose<Message::kAck>();
       break;
     case DistributedRWLock::State::READ_LOCKED:
@@ -819,8 +816,6 @@ void Chunk::handleLockRequest(const PeerId& locker, Message* response) {
         lock_.preempted_state = DistributedRWLock::State::ATTEMPTING;
         lock_.state = DistributedRWLock::State::WRITE_LOCKED;
         lock_.holder = locker;
-        trigger_insertions_.clear();
-        trigger_updates_.clear();
         response->impose<Message::kAck>();
       }
       break;
@@ -863,10 +858,6 @@ void Chunk::handleUnlockRequest(const PeerId& locker, Message* response) {
   leave_lock_.unlock();
   lock_.cv.notify_all();
   response->impose<Message::kAck>();
-  if (trigger_) {
-    std::thread trigger_thread(trigger_, trigger_insertions_, trigger_updates_);
-    trigger_thread.detach();
-  }
 }
 
 void Chunk::handleUpdateRequest(const std::shared_ptr<Revision>& item,
@@ -887,7 +878,8 @@ void Chunk::handleUpdateRequest(const std::shared_ptr<Revision>& item,
   Id id = item->getId<Id>();  // TODO(tcies) what if leave during trigger?
   std::lock_guard<std::mutex> lock(trigger_mutex_);
   if (trigger_) {
-    CHECK(trigger_updates_.emplace(id).second);
+    std::thread trigger_thread(trigger_, id);
+    trigger_thread.detach();
   }
 }
 

@@ -1,6 +1,8 @@
 #ifndef MAP_API_CRU_TABLE_RAM_MAP_H_
 #define MAP_API_CRU_TABLE_RAM_MAP_H_
 
+#include <list>
+#include <string>
 #include <vector>
 
 #include <map-api/cru-table.h>

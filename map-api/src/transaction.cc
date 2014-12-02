@@ -125,23 +125,24 @@ void Transaction::attachCache(NetTable* table, CacheBase* cache) {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(cache);
   ensureAccessIsCache(table);
+  std::lock_guard<std::mutex> lock(access_mutex_);
   attached_caches_.emplace(table, cache);
 }
 
 void Transaction::enableDirectAccessForCache() {
-  std::lock_guard<std::mutex> lock(access_type_mutex_);
+  std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(cache_access_override_.insert(std::this_thread::get_id()).second);
 }
 
 void Transaction::disableDirectAccessForCache() {
-  std::lock_guard<std::mutex> lock(access_type_mutex_);
+  std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK_EQ(1u, cache_access_override_.erase(std::this_thread::get_id()));
 }
 
 NetTableTransaction* Transaction::transactionOf(NetTable* table) const {
   CHECK_NOTNULL(table);
   ensureAccessIsDirect(table);
-  std::lock_guard<std::mutex> lock(net_table_transactions_mutex_);
+  std::lock_guard<std::mutex> lock(access_mutex_);
   TransactionMap::const_iterator net_table_transaction =
       net_table_transactions_.find(table);
   if (net_table_transaction == net_table_transactions_.end()) {
@@ -156,7 +157,7 @@ NetTableTransaction* Transaction::transactionOf(NetTable* table) const {
 }
 
 void Transaction::ensureAccessIsCache(NetTable* table) const {
-  std::lock_guard<std::mutex> lock(access_mode_mutex_);
+  std::lock_guard<std::mutex> lock(access_mutex_);
   TableAccessModeMap::iterator found = access_mode_.find(table);
   if (found == access_mode_.end()) {
     access_mode_[table] = TableAccessMode::kCache;
@@ -168,14 +169,12 @@ void Transaction::ensureAccessIsCache(NetTable* table) const {
 }
 
 void Transaction::ensureAccessIsDirect(NetTable* table) const {
-  std::unique_lock<std::mutex> lock(access_mode_mutex_);
+  std::lock_guard<std::mutex> lock(access_mutex_);
   TableAccessModeMap::iterator found = access_mode_.find(table);
   if (found == access_mode_.end()) {
     access_mode_[table] = TableAccessMode::kDirect;
   } else {
     if (found->second != TableAccessMode::kDirect) {
-      lock.unlock();
-      std::lock_guard<std::mutex> lock(access_type_mutex_);
       CHECK(cache_access_override_.find(std::this_thread::get_id()) !=
             cache_access_override_.end())
           << "Access mode for table " << table->name()
@@ -184,4 +183,4 @@ void Transaction::ensureAccessIsDirect(NetTable* table) const {
   }
 }
 
-}  // namespace map_api */
+} /* namespace map_api */

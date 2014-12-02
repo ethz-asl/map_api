@@ -1,6 +1,7 @@
 #ifndef MAP_API_HUB_H_
 #define MAP_API_HUB_H_
 
+#include <cstddef>
 #include <functional>
 #include <string>
 #include <memory>
@@ -10,14 +11,16 @@
 #include <set>
 #include <unordered_map>
 
+#include <Poco/RWLock.h>
 #include <zeromq_cpp/zmq.hpp>
 
+#include "./core.pb.h"
 #include <map-api/discovery.h>
+#include <map-api/message.h>
 #include <map-api/peer.h>
 #include <map-api/peer-id.h>
 
 namespace map_api {
-class Message;
 
 /**
  * Map Api Hub: Manages connections to other participating nodes

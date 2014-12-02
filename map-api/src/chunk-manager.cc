@@ -4,7 +4,6 @@
 
 #include <glog/logging.h>
 
-#include "map-api/net-table.h"
 
 namespace map_api {
 void ChunkManagerBase::requestParticipationAllChunks() {

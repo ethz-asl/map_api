@@ -1,7 +1,7 @@
 #ifndef MAP_API_PROTO_STL_STREAM_H_
 #define MAP_API_PROTO_STL_STREAM_H_
-
 #include <memory>
+#include <mutex>
 
 #include <glog/logging.h>
 #include <google/protobuf/io/zero_copy_stream.h>

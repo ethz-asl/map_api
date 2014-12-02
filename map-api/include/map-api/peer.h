@@ -6,8 +6,9 @@
 
 #include <zeromq_cpp/zmq.hpp>
 
+#include <map-api/message.h>
+
 namespace map_api {
-class Message;
 
 class Peer {
  public:

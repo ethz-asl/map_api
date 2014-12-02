@@ -1,7 +1,6 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <map-api/logical-time.h>
-#include <map-api/message.h>
 #include <map-api/peer.h>
 #include <map-api/peer-id.h>
 

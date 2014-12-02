@@ -4,7 +4,6 @@
 #include <fstream>   // NOLINT
 #include <memory>
 #include <netdb.h>
-#include <random>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <thread>

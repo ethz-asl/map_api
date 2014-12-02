@@ -1,19 +1,13 @@
 #ifndef MAP_API_CHUNK_MANAGER_H_
 #define MAP_API_CHUNK_MANAGER_H_
-
-#include <set>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
 
-#include "map-api/unique-id.h"
 #include "./net-table.pb.h"
+#include <map-api/chunk.h>
+#include <map-api/net-table.h>
 
 namespace map_api {
-class Chunk;
-class NetTable;
-class Revision;
-
 class ChunkManagerBase {
  public:
   explicit ChunkManagerBase(map_api::NetTable* underlying_table)
@@ -30,13 +24,6 @@ class ChunkManagerBase {
 
   inline size_t numChunks() const { return active_chunks_.size(); }
 
-  inline void getChunkIds(std::set<Id>* chunk_ids) const {
-    CHECK_NOTNULL(chunk_ids);
-    chunk_ids->clear();
-    for (const std::pair<const Id, Chunk*>& pair : active_chunks_) {
-      chunk_ids->emplace(pair.first);
-    }
-  }
   inline void getChunkIds(IdSet* chunk_ids) const {
     CHECK_NOTNULL(chunk_ids);
     chunk_ids->clear();

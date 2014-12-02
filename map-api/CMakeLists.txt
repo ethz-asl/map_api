@@ -108,9 +108,6 @@ target_link_libraries(test_proto_table_file_io_test ${PROJECT_NAME})
 catkin_add_gtest(test_proto_stl_stream_test test/proto_stl_stream_test.cc)
 target_link_libraries(test_proto_stl_stream_test ${PROJECT_NAME})
 
-catkin_add_gtest(test_reader_writer_lock_test test/reader_writer_lock_test.cc)
-target_link_libraries(test_reader_writer_lock_test ${PROJECT_NAME})
-
 ##########
 # EXPORT #
 ##########

@@ -1,6 +1,5 @@
 #ifndef MAP_API_CACHE_INL_H_
 #define MAP_API_CACHE_INL_H_
-
 #include <utility>
 #include <vector>
 
@@ -36,16 +35,14 @@ Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) {
     CHECK(revision);
     std::pair<typename CacheMap::iterator, bool> cache_insertion;
 
-    cache_insertion = cache_.emplace(
-        id, ValueHolder(Value(), ValueHolder::DirtyState::kClean));
+    cache_insertion = cache_.emplace(id, Value());
     CHECK(cache_insertion.second);
     std::shared_ptr<typename Factory::ElementType> object =
         objectFromRevision<typename Factory::ElementType>(*revision);
-    Factory::transferOwnership(object, &cache_insertion.first->second.value);
+    Factory::transferOwnership(object, &cache_insertion.first->second);
     found = cache_insertion.first;
   }
-  found->second.dirty = ValueHolder::DirtyState::kDirty;
-  return found->second.value;
+  return found->second;
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
@@ -56,15 +53,14 @@ const Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) const {
     std::shared_ptr<const Revision> revision = getRevisionLocked(id);
     CHECK(revision);
     std::pair<typename CacheMap::iterator, bool> cache_insertion;
-    cache_insertion = cache_.emplace(
-        id, ValueHolder(Value(), ValueHolder::DirtyState::kClean));
+    cache_insertion = cache_.emplace(id, Value());
     CHECK(cache_insertion.second);
     std::shared_ptr<typename Factory::ElementType> object =
         objectFromRevision<typename Factory::ElementType>(*revision);
-    Factory::transferOwnership(object, &cache_insertion.first->second.value);
+    Factory::transferOwnership(object, &cache_insertion.first->second);
     found = cache_insertion.first;
   }
-  return found->second.value;
+  return found->second;
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
@@ -75,8 +71,7 @@ bool Cache<IdType, Value, DerivedValue>::insert(const IdType& id,
   if (has_item_already) {
     return false;
   }
-  CHECK(cache_.emplace(id, ValueHolder(value, ValueHolder::DirtyState::kClean))
-            .second);
+  CHECK(cache_.emplace(id, value).second);
   available_ids_.addId(id);
   return true;
 }
@@ -137,9 +132,6 @@ template <typename IdType, typename Value, typename DerivedValue>
 void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
   LockGuard lock(mutex_);
   CHECK(!staged_) << "You cannot commit a transaction more than once.";
-  int num_dirty_items = 0;
-  int num_checked_items = 0;
-  int num_cached_items = 0;
   for (const typename CacheMap::value_type& cached_pair : cache_) {
     CRTable::RevisionMap::iterator corresponding_revision =
         revisions_.find(cached_pair.first);
@@ -149,32 +141,21 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
       // have been inserted newly.
       std::shared_ptr<Revision> insertion = underlying_table_->getTemplate();
       objectToRevision(cached_pair.first,
-                       Factory::getReferenceToDerived(cached_pair.second.value),
+                       Factory::getReferenceToDerived(cached_pair.second),
                        insertion.get());
       transaction_.get()->insert(chunk_manager_.get(), insertion);
     } else {
-      // Only verify objects that have been accessed in a read-write way.
-      ++num_cached_items;
-      if (cached_pair.second.dirty == ValueHolder::DirtyState::kDirty) {
-        // Convert the object to the revision and then compare if it has
-        // changed.
-        std::shared_ptr<map_api::Revision> update_revision =
-            std::make_shared<map_api::Revision>(
-                *corresponding_revision->second);
-        objectToRevision(cached_pair.first, Factory::getReferenceToDerived(
-                                                cached_pair.second.value),
-                         update_revision.get());
-        ++num_checked_items;
-        if (*update_revision != *corresponding_revision->second) {
-          transaction_.get()->update(underlying_table_, update_revision);
-          ++num_dirty_items;
-        }
+      // Convert the object to the revision and then compare if it has changed.
+      std::shared_ptr<map_api::Revision> update_revision =
+          std::make_shared<map_api::Revision>(*corresponding_revision->second);
+      objectToRevision(cached_pair.first,
+                       Factory::getReferenceToDerived(cached_pair.second),
+                       update_revision.get());
+      if (*update_revision != *corresponding_revision->second) {
+        transaction_.get()->update(underlying_table_, update_revision);
       }
     }
   }
-  LOG(INFO) << "Cache commit: " << underlying_table_->name()
-            << " (ca:" << num_cached_items << " ck:" << num_checked_items
-            << " d:" << num_dirty_items << ")";
   for (const IdType& id : removals_) {
     // Check if the removed object has ever been part of the database.
     if (revisions_.find(id) == revisions_.end()) {

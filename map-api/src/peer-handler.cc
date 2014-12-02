@@ -1,8 +1,7 @@
 #include <map-api/peer-handler.h>
 #include <glog/logging.h>
 
-#include "map-api/hub.h"
-#include "map-api/message.h"
+#include <map-api/hub.h>
 
 namespace map_api {
 
@@ -16,7 +15,7 @@ void PeerHandler::broadcast(
   CHECK_NOTNULL(responses);
   responses->clear();
   // TODO(tcies) parallelize using std::future
-  for (const PeerId& peer : peers_) {
+  for (const PeerId& peer: peers_) {
     Hub::instance().request(peer, request, &(*responses)[peer]);
   }
 }
@@ -74,7 +73,7 @@ bool PeerHandler::undisputableBroadcast(Message* request) {
   std::unordered_map<PeerId, Message> responses;
   broadcast(request, &responses);
   for (const std::pair<PeerId, Message>& response_pair : responses) {
-    if (!response_pair.second.isType<Message::kAck>()) {
+    if (!response_pair.second.isType<Message::kAck>()){
       return false;
     }
   }

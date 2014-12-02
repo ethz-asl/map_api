@@ -4,17 +4,16 @@
 #include <set>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #include <gtest/gtest_prod.h>
-#include <Poco/RWLock.h>  // TODO(tcies) replace with own
+#include <Poco/RWLock.h>
 
-#include "map-api/chunk.h"
-#include "map-api/cr-table.h"
-#include "map-api/net-table-index.h"
-#include "map-api/revision.h"
-#include "map-api/spatial-index.h"
+#include <map-api/chunk.h>
+#include <map-api/cr-table.h>
+#include <map-api/net-table-index.h>
+#include <map-api/revision.h>
+#include <map-api/spatial-index.h>
 
 namespace map_api {
 inline std::string humanReadableBytes(double size) {
@@ -69,12 +68,6 @@ class NetTable {
   void getChunksInBoundingBox(const SpatialIndex::BoundingBox& bounding_box);
   void getChunksInBoundingBox(const SpatialIndex::BoundingBox& bounding_box,
                               std::unordered_set<Chunk*>* chunks);
-  typedef std::function<void(const std::unordered_set<Id>& insertions,
-                             const std::unordered_set<Id>& updates,
-                             Chunk* chunk)> TriggerCallbackWithChunkPointer;
-  // Will bind to Chunk* the pointer of the current chunk.
-  void attachTriggerOnChunkAcquisition(
-      const TriggerCallbackWithChunkPointer& trigger);
 
   // RETRIEVAL (locking all chunks)
   template <typename ValueType>
@@ -99,7 +92,7 @@ class NetTable {
 
   size_t numActiveChunksItems();
 
-  size_t numItems() const;
+  size_t numItems();
 
   size_t activeChunksItemsSizeBytes();
 
@@ -184,13 +177,14 @@ class NetTable {
   std::unique_ptr<CRTable> cache_;
   ChunkMap active_chunks_;
   mutable Poco::RWLock active_chunks_lock_;
+  // TODO(tcies) insert PeerHandler here
 
-  // DO NOT USE FROM HANDLER THREAD (else TODO(tcies) mutex)
+  /**
+   * DO NOT USE FROM HANDLER THREAD (else TODO(tcies) mutex)
+   */
   std::unique_ptr<NetTableIndex> index_;
   std::unique_ptr<SpatialIndex> spatial_index_;
   Poco::RWLock index_lock_;
-
-  TriggerCallbackWithChunkPointer trigger_to_attach_on_chunk_acquisition_;
 };
 
 }  // namespace map_api

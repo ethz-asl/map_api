@@ -4,13 +4,12 @@
 #include <statistics/statistics.h>
 #include <timing/timer.h>
 
-#include "map-api/core.h"
-#include "map-api/cr-table-ram-map.h"
-#include "map-api/cr-table-stxxl-map.h"
-#include "map-api/cru-table-ram-map.h"
-#include "map-api/cru-table-stxxl-map.h"
-#include "map-api/hub.h"
-#include "map-api/net-table-manager.h"
+#include <map-api/core.h>
+#include <map-api/cr-table-ram-map.h>
+#include <map-api/cr-table-stxxl-map.h>
+#include <map-api/cru-table-ram-map.h>
+#include <map-api/cru-table-stxxl-map.h>
+#include <map-api/net-table-manager.h>
 
 DEFINE_bool(use_external_memory, false, "External memory vs. RAM tables.");
 
@@ -97,12 +96,6 @@ Chunk* NetTable::newChunk() {
 Chunk* NetTable::newChunk(const Id& chunk_id) {
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
   CHECK(chunk->init(chunk_id, cache_.get(), true));
-  if (trigger_to_attach_on_chunk_acquisition_) {
-    auto trigger =
-        std::bind(trigger_to_attach_on_chunk_acquisition_,
-                  std::placeholders::_1, std::placeholders::_2, chunk.get());
-    chunk->attachTrigger(trigger);
-  }
   active_chunks_lock_.writeLock();
   std::pair<ChunkMap::iterator, bool> inserted =
       active_chunks_.insert(std::make_pair(chunk_id, std::unique_ptr<Chunk>()));
@@ -187,13 +180,6 @@ void NetTable::getChunksInBoundingBox(
   VLOG(3) << "Got " << chunk_ids.size() << " chunks";
 }
 
-void NetTable::attachTriggerOnChunkAcquisition(
-    const TriggerCallbackWithChunkPointer& callback) {
-  active_chunks_lock_.readLock();
-  trigger_to_attach_on_chunk_acquisition_ = callback;
-  active_chunks_lock_.unlock();
-}
-
 bool NetTable::insert(const LogicalTime& time, Chunk* chunk,
                       const std::shared_ptr<Revision>& query) {
   CHECK_NOTNULL(chunk);
@@ -276,7 +262,7 @@ size_t NetTable::numActiveChunksItems() {
   return num_elements;
 }
 
-size_t NetTable::numItems() const {
+size_t NetTable::numItems() {
   return cache_->count(-1, 0, LogicalTime::sample());
 }
 
@@ -405,12 +391,6 @@ void NetTable::handleInitRequest(
   Id chunk_id(request.metadata().chunk_id());
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
   CHECK(chunk->init(chunk_id, request, sender, cache_.get()));
-  if (trigger_to_attach_on_chunk_acquisition_) {
-    auto trigger =
-        std::bind(trigger_to_attach_on_chunk_acquisition_,
-                  std::placeholders::_1, std::placeholders::_2, chunk.get());
-    chunk->attachTrigger(trigger);
-  }
   active_chunks_lock_.writeLock();
   std::pair<ChunkMap::iterator, bool> inserted =
       active_chunks_.insert(std::make_pair(chunk_id, std::unique_ptr<Chunk>()));

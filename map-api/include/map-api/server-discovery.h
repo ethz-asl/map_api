@@ -8,12 +8,12 @@
 
 #include <zeromq_cpp/zmq.hpp>
 
-#include "map-api/discovery.h"
-#include "map-api/message.h"
-#include "map-api/peer.h"
+#include <map-api/discovery.h>
+#include <map-api/message.h>
+#include <map-api/peer.h>
+#include <map-api/peer-id.h>
 
 namespace map_api {
-class PeerId;
 
 /**
  * Regulates discovery through /tmp/mapapi-discovery.txt .
@@ -33,7 +33,6 @@ class ServerDiscovery final : public Discovery {
   static const char kLockRequest[];
   static const char kRemoveRequest[];
   static const char kUnlockRequest[];
-
  private:
   /**
    * May only be used by the Hub
@@ -63,4 +62,4 @@ class ServerDiscovery final : public Discovery {
 
 } /* namespace map_api */
 
-#endif  // MAP_API_SERVER_DISCOVERY_H_
+#endif /* MAP_API_SERVER_DISCOVERY_H_ */

@@ -1,9 +1,6 @@
 #include <map-api/spatial-index.h>
 
-#include "map-api/unique-id.h"
-#include "map-api/message.h"
 #include "./net-table.pb.h"
-#include "./chord-index.pb.h"
 
 namespace map_api {
 

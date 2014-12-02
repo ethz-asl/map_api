@@ -1,9 +1,10 @@
 #ifndef MAP_API_DISCOVERY_H_
 #define MAP_API_DISCOVERY_H_
 
+#include <string>
 #include <vector>
 
-#include "map-api/peer-id.h"
+#include <map-api/peer-id.h>
 
 namespace map_api {
 
@@ -13,7 +14,7 @@ namespace map_api {
  */
 class Discovery {
  public:
-  virtual ~Discovery() {}  // unique pointer needs destructor
+  virtual ~Discovery() {}; // unique pointer needs destructor
   /**
    * Announces own address to discovery.
    */
@@ -34,8 +35,8 @@ class Discovery {
   virtual void lock() = 0;
   virtual void remove(const PeerId& peer) = 0;
   virtual void unlock() = 0;
-};
+ };
 
 } /* namespace map_api */
 
-#endif  // MAP_API_DISCOVERY_H_
+#endif /* MAP_API_DISCOVERY_H_ */

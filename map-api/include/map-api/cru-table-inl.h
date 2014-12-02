@@ -1,6 +1,8 @@
 #ifndef MAP_API_CRU_TABLE_INL_H_
 #define MAP_API_CRU_TABLE_INL_H_
 
+#include <string>
+
 namespace map_api {
 
 template <typename ValueType>

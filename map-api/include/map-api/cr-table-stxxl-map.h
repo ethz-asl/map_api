@@ -1,6 +1,6 @@
 #ifndef MAP_API_CR_TABLE_STXXL_MAP_H_
 #define MAP_API_CR_TABLE_STXXL_MAP_H_
-
+#include <string>
 #include <vector>
 
 #include <map-api/cr-table.h>

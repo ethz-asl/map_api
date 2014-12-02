@@ -3,8 +3,6 @@
 
 #include <string>
 
-#include "map-api/chunk.h"
-
 namespace map_api {
 
 template <typename ValueType>

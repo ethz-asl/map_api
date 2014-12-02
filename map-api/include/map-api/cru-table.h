@@ -1,16 +1,21 @@
 #ifndef MAP_API_CRU_TABLE_H_
 #define MAP_API_CRU_TABLE_H_
 
+#include <vector>
 #include <list>
 #include <memory>
-#include <unordered_map>
+#include <map>
+#include <string>
 
-#include <map-api/cr-table.h>
-#include <map-api/revision.h>
+#include <Poco/Data/Common.h>
+#include <gflags/gflags.h>
+
 #include "./core.pb.h"
+#include <map-api/cr-table.h>
+#include <map-api/logical-time.h>
+#include <map-api/revision.h>
 
 namespace map_api {
-class LogicalTime;
 
 /**
  * Provides interface to map api tables.
@@ -56,6 +61,12 @@ class CRUTable : public CRTable {
                                      HistoryMap* dest) const final;
 
   virtual Type type() const final override;
+
+  /**
+   * Default fields for internal management,
+   */
+  static const std::string kUpdateTimeField;
+  static const std::string kRemovedField;
 
  private:
   virtual bool insertCRDerived(const LogicalTime& time,
