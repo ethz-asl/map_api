@@ -4,15 +4,12 @@
 #include <condition_variable>
 #include <mutex>
 #include <queue>
-#include <string>
 #include <unordered_map>
 
-#include "./core.pb.h"
 #include "./ipc.pb.h"
-#include <map-api/message.h>
-#include <map-api/unique-id.h>
 
 namespace map_api {
+class Message;
 
 /**
  * Class containing diverse inter-process communication utilities, tailored

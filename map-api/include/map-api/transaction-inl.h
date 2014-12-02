@@ -1,6 +1,6 @@
 #ifndef MAP_API_TRANSACTION_INL_H_
 #define MAP_API_TRANSACTION_INL_H_
-#include <string>
+
 #include <vector>
 
 namespace map_api {
