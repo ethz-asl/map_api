@@ -31,25 +31,15 @@ inline std::string humanReadableBytes(double size) {
 
 class NetTable {
   friend class NetTableFixture;
+  friend class NetTableManager;
   friend class NetTableTransaction;
+  friend class SpatialIndexTest;
   FRIEND_TEST(NetTableFixture, RemoteUpdate);
   FRIEND_TEST(NetTableFixture, Grind);
   FRIEND_TEST(NetTableFixture, SaveAndRestoreTableFromFile);
 
  public:
   static const std::string kChunkIdField;
-
-  bool init(CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor);
-  void createIndex();
-  void joinIndex(const PeerId& entry_point);
-  /**
-   * TODO(tcies) make part of metatable conf.
-   */
-  void createSpatialIndex(const SpatialIndex::BoundingBox& bounds,
-                          const std::vector<size_t>& subdivision);
-  void joinSpatialIndex(const SpatialIndex::BoundingBox& bounds,
-                        const std::vector<size_t>& subdivision,
-                        const PeerId& entry_point);
 
   const std::string& name() const;
   const CRTable::Type& type() const;
@@ -156,7 +146,16 @@ class NetTable {
   NetTable();
   NetTable(const NetTable&) = delete;
   NetTable& operator =(const NetTable&) = delete;
-  friend class NetTableManager;
+
+  bool init(CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor);
+
+  void createIndex();
+  void joinIndex(const PeerId& entry_point);
+  void createSpatialIndex(const SpatialIndex::BoundingBox& bounds,
+                          const std::vector<size_t>& subdivision);
+  void joinSpatialIndex(const SpatialIndex::BoundingBox& bounds,
+                        const std::vector<size_t>& subdivision,
+                        const PeerId& entry_point);
 
   bool insert(const LogicalTime& time, Chunk* chunk,
               const std::shared_ptr<Revision>& query);
