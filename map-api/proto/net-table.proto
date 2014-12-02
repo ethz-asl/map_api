@@ -10,6 +10,6 @@ message PeerList {
   repeated string peers = 1;
 }
 
-message ChunkList {
+message ChunkIdList {
   repeated common.proto.Id chunk_ids = 1;
 }

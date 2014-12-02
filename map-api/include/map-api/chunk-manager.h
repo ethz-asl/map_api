@@ -32,6 +32,13 @@ class ChunkManagerBase {
       chunk_ids->emplace(pair.first);
     }
   }
+  inline void getChunkIds(proto::ChunkIdList* chunk_id_list) const {
+    CHECK_NOTNULL(chunk_id_list);
+    chunk_id_list->clear_chunk_ids();
+    for (const std::pair<const Id, Chunk*>& pair : active_chunks_) {
+      pair.first.serialize(chunk_id_list->add_chunk_ids());
+    }
+  }
 
   void requestParticipationAllChunks();
 
