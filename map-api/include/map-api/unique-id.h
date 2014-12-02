@@ -1,13 +1,10 @@
 #ifndef MAP_API_UNIQUE_ID_H_
 #define MAP_API_UNIQUE_ID_H_
 
-#include <atomic>
 #include <string>
-#include <vector>
 
 #include <glog/logging.h>
 #include <sm/hash_id.hpp>
-#include <map-api/hub.h>
 #include "./id.pb.h"
 
 #include "map-api/internal/unique-id.h"

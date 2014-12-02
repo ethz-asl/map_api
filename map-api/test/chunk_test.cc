@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include "map-api/hub.h"
 #include "map-api/ipc.h"
 #include "map-api/test/testing-entrypoint.h"
 #include "./net_table_fixture.h"

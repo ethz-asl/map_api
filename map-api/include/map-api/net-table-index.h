@@ -1,14 +1,14 @@
 #ifndef MAP_API_NET_TABLE_INDEX_H_
 #define MAP_API_NET_TABLE_INDEX_H_
 
+#include <string>
 #include <unordered_set>
 
-#include <map-api/chord-index.h>
-#include <map-api/peer-handler.h>
-#include <map-api/unique-id.h>
-#include "chord-index.pb.h"
+#include "map-api/chord-index.h"
+#include "map-api/peer-handler.h"
 
 namespace map_api {
+class Id;
 
 class NetTableIndex : public ChordIndex {
  public:
@@ -81,4 +81,4 @@ class NetTableIndex : public ChordIndex {
 
 } /* namespace map_api */
 
-#endif /* MAP_API_NET_TABLE_INDEX_H_ */
+#endif  // MAP_API_NET_TABLE_INDEX_H_
