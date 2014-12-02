@@ -5,10 +5,10 @@
 #include <string>
 #include <vector>
 
-#include <map-api/discovery.h>
-#include <map-api/peer-id.h>
+#include "map-api/discovery.h"
 
 namespace map_api {
+class PeerId;
 
 /**
  * Regulates discovery through /tmp/mapapi-discovery.txt .

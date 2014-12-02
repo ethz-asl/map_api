@@ -1,13 +1,11 @@
-#include <map-api/unique-id.h>
+#include "map-api/internal/unique-id.h"
 #include <atomic>
 #include <chrono>
-
-#include <glog/logging.h>
 
 #include <Poco/DigestStream.h>
 #include <Poco/MD5Engine.h>
 
-#include <map-api/hub.h>
+#include "map-api/hub.h"
 
 namespace map_api {
 namespace internal {
@@ -24,5 +22,5 @@ std::string generateUniqueHexString() {
   const Poco::DigestEngine::Digest& digest = md5.digest();
   return Poco::DigestEngine::digestToHex(digest);
 }
-}  // namespace
+}  // namespace internal
 }  // namespace map_api
