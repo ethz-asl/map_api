@@ -27,6 +27,7 @@ class SpatialIndex : public ChordIndex {
   class BoundingBox : public std::vector<Range> {
    public:
     BoundingBox() : std::vector<Range>() {}
+    explicit BoundingBox(int size) : std::vector<Range>(size) {}
     explicit BoundingBox(const std::initializer_list<Range>& init_list)
         : std::vector<Range>(init_list) {}
     inline std::string debugString() const {
@@ -48,7 +49,7 @@ class SpatialIndex : public ChordIndex {
     }
     inline void deserialize(
         const google::protobuf::RepeatedField<double>& field) {
-      CHECK_EQ(field.size() % 2, 0u);
+      CHECK_EQ(field.size() % 2u, 0u);
       clear();
       for (int i = 0; i < field.size(); i += 2) {
         push_back(Range(field.Get(i), field.Get(i + 1)));
