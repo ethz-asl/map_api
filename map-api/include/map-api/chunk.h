@@ -5,24 +5,20 @@
 #include <memory>
 #include <mutex>
 #include <set>
-#include <string>
 #include <thread>
-#include <unordered_map>
 #include <unordered_set>
 
-#include <Poco/RWLock.h>
-
-#include <zeromq_cpp/zmq.hpp>
+#include <Poco/RWLock.h>  // TODO(tcies) replace with our own
 
 #include "./chunk.pb.h"
-#include <map-api/cr-table.h>
-#include <map-api/cru-table.h>
-#include <map-api/message.h>
-#include <map-api/peer-handler.h>
-#include <map-api/revision.h>
-#include <map-api/unique-id.h>
+#include "map-api/cr-table.h"
+#include "map-api/peer-handler.h"
+#include "map-api/unique-id.h"
 
 namespace map_api {
+class Message;
+class Revision;
+
 /**
  * A chunk is the smallest unit of data sharing among the map_api peers. Each
  * item in a table belongs to some chunk, and each chunk contains data from only

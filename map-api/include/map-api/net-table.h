@@ -4,16 +4,17 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <gtest/gtest_prod.h>
-#include <Poco/RWLock.h>
+#include <Poco/RWLock.h>  // TODO(tcies) replace with own
 
-#include <map-api/chunk.h>
-#include <map-api/cr-table.h>
-#include <map-api/net-table-index.h>
-#include <map-api/revision.h>
-#include <map-api/spatial-index.h>
+#include "map-api/chunk.h"
+#include "map-api/cr-table.h"
+#include "map-api/net-table-index.h"
+#include "map-api/revision.h"
+#include "map-api/spatial-index.h"
 
 namespace map_api {
 inline std::string humanReadableBytes(double size) {

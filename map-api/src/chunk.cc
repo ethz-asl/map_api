@@ -7,9 +7,10 @@
 
 #include "./core.pb.h"
 #include "./chunk.pb.h"
-#include <map-api/cru-table.h>
-#include <map-api/hub.h>
-#include <map-api/net-table-manager.h>
+#include "map-api/cru-table.h"
+#include "map-api/hub.h"
+#include "map-api/message.h"
+#include "map-api/net-table-manager.h"
 
 enum UnlockStrategy {
   REVERSE,
