@@ -7,6 +7,8 @@ enum Type { INT32 = 1; INT64 = 2; UINT64 = 3; DOUBLE = 4; STRING = 5;
 message TableDescriptor {
 	optional string name = 1;
 	repeated Type fields = 2;
+	repeated double spatial_extent = 3;
+	repeated uint32 spatial_subdivision = 4;
 }
 
 message TableField {
