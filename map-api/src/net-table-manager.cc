@@ -158,6 +158,21 @@ NetTable* NetTableManager::addTable(
   } else {
     table->joinIndex(entry_point);
   }
+  if (descriptor_raw->spatial_extent_size() > 0) {
+    CHECK_EQ(descriptor_raw->spatial_subdivision_size() * 2,
+             descriptor_raw->spatial_extent_size());
+    SpatialIndex::BoundingBox box;
+    box.deserialize(descriptor_raw->spatial_extent());
+    std::vector<size_t> subdivision(descriptor_raw->spatial_subdivision_size());
+    for (int i = 0; i < descriptor_raw->spatial_subdivision_size(); ++i) {
+      subdivision[i] = descriptor_raw->spatial_subdivision(i);
+    }
+    if (first) {
+      table->createSpatialIndex(box, subdivision);
+    } else {
+      table->joinSpatialIndex(box, subdivision, entry_point);
+    }
+  }
   return table;
 }
 

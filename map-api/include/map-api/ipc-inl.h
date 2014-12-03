@@ -4,9 +4,10 @@
 #include <sstream>  // NOLINT
 #include <string>
 
-#include <map-api/logical-time.h>
-
 namespace map_api {
+class Id;
+class LogicalTime;
+class PeerId;
 
 template <typename Type>
 void IPC::push(const Type& message) {
