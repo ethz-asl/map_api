@@ -23,7 +23,7 @@ class MultiprocessFixture : public ::testing::Test {
   /**
    * Return own ID: 0 if master
    */
-  uint64_t getSubprocessId();
+  uint64_t getSubprocessId() const;
 
   /**
    * Launches a subprocess with given ID. ID can be any positive integer.
@@ -61,4 +61,5 @@ class MultiprocessFixture : public ::testing::Test {
 }  // namespace common
 
 #include "./multiprocess-fixture-inl.h"
+
 #endif  // MULTIPROCESS_GTEST_MULTIPROCESS_FIXTURE_H_

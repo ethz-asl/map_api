@@ -58,7 +58,10 @@ std::string MultiprocessFixture::getSelfpath() {
 /**
  * Return own ID: 0 if master
  */
-uint64_t MultiprocessFixture::getSubprocessId() { return FLAGS_subprocess_id; }
+uint64_t MultiprocessFixture::getSubprocessId() const {
+  return FLAGS_subprocess_id;
+}
+
 /**
  * Launches a subprocess with given ID. ID can be any positive integer.
  * Dies if ID already used
