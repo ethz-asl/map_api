@@ -2,7 +2,6 @@
 #define MAP_API_CRU_TABLE_STXXL_MAP_H_
 
 #include <list>
-#include <string>
 #include <vector>
 
 #include <map-api/cru-table.h>
@@ -12,6 +11,7 @@ namespace map_api {
 
 class CRUTableSTXXLMap : public CRUTable {
  public:
+  CRUTableSTXXLMap();
   virtual ~CRUTableSTXXLMap();
 
  private:
@@ -46,6 +46,7 @@ class CRUTableSTXXLMap : public CRUTable {
                             HistoryMap* dest) const final override;
   virtual void itemHistoryCRUDerived(const Id& id, const LogicalTime& time,
                                      History* dest) const final override;
+  virtual void clearCRDerived() final override;
 
   inline void forEachItemFoundAtTime(
       int key, const Revision& value_holder, const LogicalTime& time,
@@ -72,7 +73,7 @@ class CRUTableSTXXLMap : public CRUTable {
   STXXLHistoryMap data_;
 
   static constexpr int kBlockSize = kSTXXLDefaultBlockSize;
-  STXXLRevisionStore<kBlockSize> revision_store_;
+  std::unique_ptr<STXXLRevisionStore<kBlockSize>> revision_store_;
 };
 
 } /* namespace map_api */

@@ -3,9 +3,9 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include <multiagent-mapping-common/test/testing-entrypoint.h>
-
-#include <map-api/ipc.h>
+#include "map-api/hub.h"
+#include "map-api/ipc.h"
+#include "map-api/test/testing-entrypoint.h"
 #include "./net_table_fixture.h"
 
 namespace map_api {
@@ -129,6 +129,42 @@ TEST_P(NetTableFixture, RemoteInsert) {
 
     IPC::barrier(A_ADDED, 1);
     IPC::barrier(DIE, 1);
+  }
+}
+
+TEST_P(NetTableFixture, Leave) {
+  enum SubProcesses {
+    ROOT,
+    A
+  };
+  enum Barriers {
+    INIT,
+    CHUNK_SHARED,
+    A_LEFT
+  };
+  map_api::generateIdFromInt(1, &chunk_id_);
+  if (getSubprocessId() == ROOT) {
+    launchSubprocess(A);
+    chunk_ = table_->newChunk(chunk_id_);
+    insert(42, chunk_);
+    IPC::barrier(INIT, 1);
+
+    ASSERT_EQ(1, chunk_->requestParticipation());
+    EXPECT_EQ(1, chunk_->peerSize());
+    IPC::barrier(CHUNK_SHARED, 1);
+
+    IPC::barrier(A_LEFT, 1);
+    EXPECT_EQ(0, chunk_->peerSize());
+  }
+  if (getSubprocessId() == A) {
+    IPC::barrier(INIT, 1);
+    IPC::barrier(CHUNK_SHARED, 1);
+
+    chunk_ = table_->getChunk(chunk_id_);
+    EXPECT_EQ(1u, table_->numItems());
+    table_->leaveAllChunks();
+    EXPECT_EQ(0u, table_->numItems());
+    IPC::barrier(A_LEFT, 1);
   }
 }
 
@@ -381,7 +417,22 @@ TEST_P(NetTableFixture, Triggers) {
     chunk_id_ = IPC::pop<Id>();
     chunk_ = table_->getChunk(chunk_id_);
   }
-  chunk_->attachTrigger([this, &highest_value](const Id& id) {
+  chunk_->attachTrigger([this, &highest_value](
+      const std::unordered_set<Id>& insertions,
+      const std::unordered_set<Id>& updates) {
+    Id id;
+    if (insertions.empty()) {
+      if (updates.empty()) {
+        return;
+      } else {
+        CHECK_EQ(updates.size(), 1u);
+        id = *updates.begin();
+      }
+    } else {
+      CHECK_EQ(insertions.size(), 1u);
+      CHECK(updates.empty());
+      id = *insertions.begin();
+    }
     Transaction transaction;
     std::shared_ptr<Revision> item =
         std::make_shared<Revision>(*transaction.getById(id, table_, chunk_));
@@ -504,4 +555,4 @@ TEST_P(NetTableFixture, GetCommitTimes) {
 
 }  // namespace map_api
 
-MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
+MAP_API_UNITTEST_ENTRYPOINT

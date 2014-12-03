@@ -4,12 +4,13 @@
 #include <statistics/statistics.h>
 #include <timing/timer.h>
 
-#include <map-api/core.h>
-#include <map-api/cr-table-ram-map.h>
-#include <map-api/cr-table-stxxl-map.h>
-#include <map-api/cru-table-ram-map.h>
-#include <map-api/cru-table-stxxl-map.h>
-#include <map-api/net-table-manager.h>
+#include "map-api/core.h"
+#include "map-api/cr-table-ram-map.h"
+#include "map-api/cr-table-stxxl-map.h"
+#include "map-api/cru-table-ram-map.h"
+#include "map-api/cru-table-stxxl-map.h"
+#include "map-api/hub.h"
+#include "map-api/net-table-manager.h"
 
 DEFINE_bool(use_external_memory, false, "External memory vs. RAM tables.");
 
@@ -96,6 +97,12 @@ Chunk* NetTable::newChunk() {
 Chunk* NetTable::newChunk(const Id& chunk_id) {
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
   CHECK(chunk->init(chunk_id, cache_.get(), true));
+  if (trigger_to_attach_on_chunk_acquisition_) {
+    auto trigger =
+        std::bind(trigger_to_attach_on_chunk_acquisition_,
+                  std::placeholders::_1, std::placeholders::_2, chunk.get());
+    chunk->attachTrigger(trigger);
+  }
   active_chunks_lock_.writeLock();
   std::pair<ChunkMap::iterator, bool> inserted =
       active_chunks_.insert(std::make_pair(chunk_id, std::unique_ptr<Chunk>()));
@@ -180,6 +187,13 @@ void NetTable::getChunksInBoundingBox(
   VLOG(3) << "Got " << chunk_ids.size() << " chunks";
 }
 
+void NetTable::attachTriggerOnChunkAcquisition(
+    const TriggerCallbackWithChunkPointer& callback) {
+  active_chunks_lock_.readLock();
+  trigger_to_attach_on_chunk_acquisition_ = callback;
+  active_chunks_lock_.unlock();
+}
+
 bool NetTable::insert(const LogicalTime& time, Chunk* chunk,
                       const std::shared_ptr<Revision>& query) {
   CHECK_NOTNULL(chunk);
@@ -222,7 +236,7 @@ Chunk* NetTable::connectTo(const Id& chunk_id,
   // sends request of chunk info to peer
   proto::ChunkRequestMetadata metadata;
   metadata.set_table(cache_->name());
-  metadata.set_chunk_id(chunk_id.hexString());
+  chunk_id.serialize(metadata.mutable_chunk_id());
   request.impose<Chunk::kConnectRequest>(metadata);
   // TODO(tcies) add to local peer subset as well?
   Hub::instance().request(peer, &request, &response);
@@ -260,6 +274,10 @@ size_t NetTable::numActiveChunksItems() {
     num_elements += chunk->numItems(now);
   }
   return num_elements;
+}
+
+size_t NetTable::numItems() const {
+  return cache_->count(-1, 0, LogicalTime::sample());
 }
 
 size_t NetTable::activeChunksItemsSizeBytes() {
@@ -323,6 +341,7 @@ void NetTable::leaveAllChunks() {
   active_chunks_lock_.writeLock();
   active_chunks_.clear();
   active_chunks_lock_.unlock();
+  cache_->clear();
 }
 
 std::string NetTable::getStatistics() {
@@ -383,10 +402,15 @@ void NetTable::handleInitRequest(
     const proto::InitRequest& request, const PeerId& sender,
     Message* response) {
   CHECK_NOTNULL(response);
-  Id chunk_id;
-  CHECK(chunk_id.fromHexString(request.metadata().chunk_id()));
+  Id chunk_id(request.metadata().chunk_id());
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
   CHECK(chunk->init(chunk_id, request, sender, cache_.get()));
+  if (trigger_to_attach_on_chunk_acquisition_) {
+    auto trigger =
+        std::bind(trigger_to_attach_on_chunk_acquisition_,
+                  std::placeholders::_1, std::placeholders::_2, chunk.get());
+    chunk->attachTrigger(trigger);
+  }
   active_chunks_lock_.writeLock();
   std::pair<ChunkMap::iterator, bool> inserted =
       active_chunks_.insert(std::make_pair(chunk_id, std::unique_ptr<Chunk>()));

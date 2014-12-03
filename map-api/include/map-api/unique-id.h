@@ -1,14 +1,13 @@
 #ifndef MAP_API_UNIQUE_ID_H_
 #define MAP_API_UNIQUE_ID_H_
-#include <map-api/internal/unique-id.h>
 
-#include <atomic>
 #include <string>
-#include <vector>
 
 #include <glog/logging.h>
 #include <sm/hash_id.hpp>
-#include <map-api/hub.h>
+#include "./id.pb.h"
+
+#include "map-api/internal/unique-id.h"
 
 static constexpr int kDefaultIDPrintLength = 10;
 
@@ -17,16 +16,20 @@ template <typename IdType>
 class UniqueId;
 }  // namespace map_api
 
-#define UNIQUE_ID_DEFINE_ID(TypeName)                   \
-  class TypeName : public map_api::UniqueId<TypeName> { \
-   public:                                              \
-    TypeName() = default;                               \
-  };                                                    \
+#define UNIQUE_ID_DEFINE_ID(TypeName)                           \
+  class TypeName : public map_api::UniqueId<TypeName> {         \
+   public:                                                      \
+    TypeName() = default;                                       \
+    explicit inline TypeName(const common::proto::Id& id_field) \
+        : map_api::UniqueId<TypeName>(id_field) {}              \
+  };                                                            \
   extern void defineId##__FILE__##__LINE__(void)
 #define UNIQUE_ID_DEFINE_IMMUTABLE_ID(TypeName, BaseTypeName)         \
   class TypeName : public map_api::UniqueId<TypeName> {               \
    public:                                                            \
     TypeName() = default;                                             \
+    explicit inline TypeName(const common::proto::Id& id_field)       \
+        : map_api::UniqueId<TypeName>(id_field) {}                    \
     inline void from##BaseTypeName(const BaseTypeName& landmark_id) { \
       sm::HashId hash_id;                                             \
       landmark_id.toHashId(&hash_id);                                 \
@@ -74,6 +77,20 @@ void generateIdFromInt(unsigned int idx, IdType* id) {
 class Id : public sm::HashId {
  public:
   Id() = default;
+  explicit inline Id(const common::proto::Id& id_field) {
+    deserialize(id_field);
+  }
+  inline void deserialize(const common::proto::Id& id_field) {
+    CHECK_EQ(id_field.uint_size(), 2);
+    fromUint64(id_field.uint().data());
+  }
+  inline void serialize(common::proto::Id* id_field) const {
+    CHECK_NOTNULL(id_field)->clear_uint();
+    id_field->mutable_uint()->Add();
+    id_field->mutable_uint()->Add();
+    toUint64(id_field->mutable_uint()->mutable_data());
+  }
+
   inline void fromHashId(const sm::HashId& id) {
     static_cast<sm::HashId&>(*this) = id;
   }
@@ -89,17 +106,32 @@ class Id : public sm::HashId {
   }
   template <typename GenerateIdType>
   friend void generateId(GenerateIdType* id);
+
+  bool correspondsTo(const common::proto::Id& proto_id) const {
+    Id corresponding(proto_id);
+    return operator==(corresponding);
+  }
+
+ private:
+  using sm::HashId::fromUint64;
+  using sm::HashId::toUint64;
 };
 
 // To be used for general IDs.
 template <typename IdType>
 class UniqueId : private Id {
  public:
+  UniqueId() = default;
+  explicit inline UniqueId(const common::proto::Id& id_field) : Id(id_field) {}
+
   using sm::HashId::hexString;
   using sm::HashId::fromHexString;
   using sm::HashId::hashToSizeT;
   using sm::HashId::isValid;
   using sm::HashId::setInvalid;
+
+  using Id::deserialize;
+  using Id::serialize;
 
   std::ostream& operator<<(std::ostream& os) const {
     return os << hexString().substr(0, kDefaultIDPrintLength);
@@ -142,13 +174,7 @@ class UniqueId : private Id {
   friend void generateId(GenerateIdType* id);
 };
 
-UNIQUE_ID_DEFINE_ID(ResourceId);
-UNIQUE_ID_DEFINE_IMMUTABLE_ID(GlobalResourceId, ResourceId);
-
 }  // namespace map_api
-
-UNIQUE_ID_DEFINE_ID_HASH(map_api::ResourceId);
-UNIQUE_ID_DEFINE_ID_HASH(map_api::GlobalResourceId);
 
 namespace std {
 inline ostream& operator<<(ostream& out, const map_api::Id& hash) {

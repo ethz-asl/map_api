@@ -12,9 +12,9 @@
 
 DECLARE_uint64(subprocess_id);
 
-namespace map_api_test_suite {
+namespace common {
 
-class MultiprocessTest : public ::testing::Test {
+class MultiprocessFixture : public ::testing::Test {
  protected:
   // adapted from
   // http://stackoverflow.com/questions/5525668/how-to-implement-readlink-to-find-the-path
@@ -58,5 +58,8 @@ class MultiprocessTest : public ::testing::Test {
   typedef std::map<uint64_t, FILE*> SubprocessMap;
   SubprocessMap subprocesses_;  // map to maintain ordering
 };
-}  // namespace map_api_test_suite
+}  // namespace common
+
+#include "./multiprocess-fixture-inl.h"
+
 #endif  // MULTIPROCESS_GTEST_MULTIPROCESS_FIXTURE_H_

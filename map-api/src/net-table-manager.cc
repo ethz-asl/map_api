@@ -1,10 +1,9 @@
-#include <map-api/net-table-manager.h>
-#include <map-api/chunk-transaction.h>
+#include "map-api/net-table-manager.h"
+#include "map-api/chunk-transaction.h"
+#include "map-api/core.h"
+#include "map-api/hub.h"
+#include "map-api/revision.h"
 #include "./net-table.pb.h"
-#include <map-api/chunk-transaction.h>
-#include <map-api/core.h>
-#include <map-api/hub.h>
-#include <map-api/revision.h>
 
 namespace map_api {
 
@@ -29,8 +28,7 @@ bool NetTableManager::routeChunkRequestOperations<proto::ChunkRequestMetadata>(
   CHECK_NOTNULL(response);
   CHECK_NOTNULL(found);
   const std::string& table = request.table();
-  Id chunk_id;
-  CHECK(chunk_id.fromHexString(request.chunk_id()));
+  Id chunk_id(request.chunk_id());
   if (!findTable(table, found)) {
     response->impose<Message::kDecline>();
     return false;
@@ -160,6 +158,21 @@ NetTable* NetTableManager::addTable(
   } else {
     table->joinIndex(entry_point);
   }
+  if (descriptor_raw->spatial_extent_size() > 0) {
+    CHECK_EQ(descriptor_raw->spatial_subdivision_size() * 2,
+             descriptor_raw->spatial_extent_size());
+    SpatialIndex::BoundingBox box;
+    box.deserialize(descriptor_raw->spatial_extent());
+    std::vector<size_t> subdivision(descriptor_raw->spatial_subdivision_size());
+    for (int i = 0; i < descriptor_raw->spatial_subdivision_size(); ++i) {
+      subdivision[i] = descriptor_raw->spatial_subdivision(i);
+    }
+    if (first) {
+      table->createSpatialIndex(box, subdivision);
+    } else {
+      table->joinSpatialIndex(box, subdivision, entry_point);
+    }
+  }
   return table;
 }
 
@@ -206,8 +219,7 @@ void NetTableManager::handleConnectRequest(const Message& request,
   proto::ChunkRequestMetadata metadata;
   request.extract<Chunk::kConnectRequest>(&metadata);
   const std::string& table = metadata.table();
-  Id chunk_id;
-  CHECK(chunk_id.fromHexString(metadata.chunk_id()));
+  Id chunk_id(metadata.chunk_id());
   CHECK_NOTNULL(Core::instance());
   instance().tables_lock_.readLock();
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
@@ -239,8 +251,7 @@ void NetTableManager::handleInsertRequest(
   request.extract<Chunk::kInsertRequest>(&patch_request);
   TableMap::iterator found;
   if (routeChunkRequestOperations(patch_request, response, &found)) {
-    Id chunk_id;
-    CHECK(chunk_id.fromHexString(patch_request.metadata().chunk_id()));
+    Id chunk_id(patch_request.metadata().chunk_id());
     std::shared_ptr<proto::Revision> parsed(new proto::Revision);
     CHECK(parsed->ParseFromString(patch_request.serialized_revision()));
     std::shared_ptr<Revision> to_insert = std::make_shared<Revision>(parsed);
@@ -276,8 +287,7 @@ void NetTableManager::handleNewPeerRequest(
   request.extract<Chunk::kNewPeerRequest>(&new_peer_request);
   TableMap::iterator found;
   if (routeChunkRequestOperations(new_peer_request, response, &found)) {
-    Id chunk_id;
-    CHECK(chunk_id.fromHexString(new_peer_request.metadata().chunk_id()));
+    Id chunk_id(new_peer_request.metadata().chunk_id());
     PeerId new_peer(new_peer_request.new_peer()), sender(request.sender());
     found->second->handleNewPeerRequest(chunk_id, new_peer, sender, response);
   }
@@ -300,8 +310,7 @@ void NetTableManager::handleUpdateRequest(
   request.extract<Chunk::kUpdateRequest>(&patch_request);
   TableMap::iterator found;
   if (routeChunkRequestOperations(patch_request, response, &found)) {
-    Id chunk_id;
-    CHECK(chunk_id.fromHexString(patch_request.metadata().chunk_id()));
+    Id chunk_id(patch_request.metadata().chunk_id());
     std::shared_ptr<proto::Revision> parsed(new proto::Revision);
     CHECK(parsed->ParseFromString(patch_request.serialized_revision()));
     std::shared_ptr<Revision> to_insert = std::make_shared<Revision>(parsed);

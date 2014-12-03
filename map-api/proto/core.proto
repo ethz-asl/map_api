@@ -1,4 +1,5 @@
 package map_api.proto;
+import "id.proto";
 
 enum Type { INT32 = 1; INT64 = 2; UINT64 = 3; DOUBLE = 4; STRING = 5; 
     BLOB = 6; HASH128 = 7; UINT32 = 8;}
@@ -6,6 +7,8 @@ enum Type { INT32 = 1; INT64 = 2; UINT64 = 3; DOUBLE = 4; STRING = 5;
 message TableDescriptor {
 	optional string name = 1;
 	repeated Type fields = 2;
+	repeated double spatial_extent = 3;
+	repeated uint32 spatial_subdivision = 4;
 }
 
 message TableField {
@@ -19,17 +22,12 @@ message TableField {
 	optional uint32 unsigned_int_value = 8;
 }
 
-message Id {
-  optional string hash = 1;  // TODO(tcies) replace with below
-  // repeated double value = 1;  // needs to be repeated for contiguousness	
-}
-
 message Revision {
-  optional Id id = 1;
+  optional common.proto.Id id = 1;
   optional uint64 insert_time = 2;
   optional uint64 update_time = 3;
   optional bool removed = 4;
-  optional Id chunk_id = 5;
+  optional common.proto.Id chunk_id = 5;
   repeated TableField custom_field_values = 6;
 }
 

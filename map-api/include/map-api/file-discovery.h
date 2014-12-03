@@ -5,16 +5,18 @@
 #include <string>
 #include <vector>
 
-#include <map-api/discovery.h>
-#include <map-api/peer-id.h>
+#include "map-api/discovery.h"
 
 namespace map_api {
+class PeerId;
 
 /**
  * Regulates discovery through /tmp/mapapi-discovery.txt .
  */
 class FileDiscovery final : public Discovery {
  public:
+  static const std::string kFileName;
+
   virtual ~FileDiscovery();
   virtual void announce() final override;
   virtual int getPeers(std::vector<PeerId>* peers) final override;
@@ -27,7 +29,6 @@ class FileDiscovery final : public Discovery {
   void getFileContents(std::string* result) const;
   void replace(const std::string& new_content) const;
 
-  static const std::string kFileName;
   static const char kLockFileName[];
   static std::mutex mutex_;
 

@@ -6,8 +6,8 @@ message ReplaceRequest {
 }
 
 message AddDataRequest {
-  optional string key = 1;
-  optional string value = 2;
+  optional bytes key = 1;
+  optional bytes value = 2;
 }
 
 message FetchResponsibilitiesResponse {

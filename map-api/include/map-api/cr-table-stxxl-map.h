@@ -1,6 +1,6 @@
 #ifndef MAP_API_CR_TABLE_STXXL_MAP_H_
 #define MAP_API_CR_TABLE_STXXL_MAP_H_
-#include <string>
+
 #include <vector>
 
 #include <map-api/cr-table.h>
@@ -10,6 +10,7 @@ namespace map_api {
 
 class CRTableSTXXLMap : public CRTable {
  public:
+  CRTableSTXXLMap();
   virtual ~CRTableSTXXLMap();
 
  private:
@@ -35,11 +36,12 @@ class CRTableSTXXLMap : public CRTable {
       const LogicalTime& time) const final override;
   virtual int countByChunkCRDerived(
       const Id& chunk_id, const LogicalTime& time) const final override;
+  virtual void clearCRDerived() final override;
 
   typedef std::unordered_map<Id, CRRevisionInformation> MapType;
   MapType data_;
   static constexpr int kBlockSize = kSTXXLDefaultBlockSize;
-  STXXLRevisionStore<kBlockSize> revision_store_;
+  std::unique_ptr<STXXLRevisionStore<kBlockSize>> revision_store_;
 };
 
 }  // namespace map_api

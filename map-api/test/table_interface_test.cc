@@ -8,16 +8,16 @@
 #include <Poco/Data/BLOB.h>
 #include <Poco/Data/Statement.h>
 
-#include <multiagent-mapping-common/test/testing-entrypoint.h>
 #include <timing/timer.h>
 
-#include <map-api/core.h>
-#include <map-api/cr-table-ram-map.h>
-#include <map-api/cr-table-stxxl-map.h>
-#include <map-api/cru-table-ram-map.h>
-#include <map-api/cru-table-stxxl-map.h>
-#include <map-api/logical-time.h>
-#include <map-api/unique-id.h>
+#include "map-api/core.h"
+#include "map-api/cr-table-ram-map.h"
+#include "map-api/cr-table-stxxl-map.h"
+#include "map-api/cru-table-ram-map.h"
+#include "map-api/cru-table-stxxl-map.h"
+#include "map-api/logical-time.h"
+#include "map-api/test/testing-entrypoint.h"
+#include "map-api/unique-id.h"
 #include "./test_table.cc"
 
 namespace map_api {
@@ -32,9 +32,7 @@ class TableInterfaceTest : public ::testing::Test {
   virtual void TearDown() final override { Core::instance()->kill(); }
 };
 
-typedef ::testing::Types<
-    CRTableSTXXLMap, CRUTableSTXXLMap,
-    CRTableRamMap, CRUTableRamMap> TableTypes;
+typedef ::testing::Types<CRTableSTXXLMap, CRUTableSTXXLMap> TableTypes;
 TYPED_TEST_CASE(TableInterfaceTest, TableTypes);
 
 TYPED_TEST(TableInterfaceTest, initEmpty) {
@@ -255,15 +253,10 @@ class CruMapIntTestWithInit
       TableDataTypes<table_type, int64_t>,                                     \
       TableDataTypes<table_type, map_api::LogicalTime>
 
-typedef ::testing::Types<
-    ALL_DATA_TYPES(CRTableSTXXLMap),
-    ALL_DATA_TYPES(CRTableRamMap),
-    ALL_DATA_TYPES(CRUTableSTXXLMap),
-    ALL_DATA_TYPES(CRUTableRamMap)> CrAndCruTypes;
+typedef ::testing::Types<ALL_DATA_TYPES(CRTableSTXXLMap),
+                         ALL_DATA_TYPES(CRUTableSTXXLMap)> CrAndCruTypes;
 
-typedef ::testing::Types<
-    ALL_DATA_TYPES(CRUTableSTXXLMap),
-    ALL_DATA_TYPES(CRUTableRamMap)> CruTypes;
+typedef ::testing::Types<ALL_DATA_TYPES(CRUTableSTXXLMap)> CruTypes;
 
 TYPED_TEST_CASE(FieldTestWithoutInit, CrAndCruTypes);
 TYPED_TEST_CASE(FieldTestWithInit, CrAndCruTypes);
@@ -422,4 +415,4 @@ TYPED_TEST(CruMapIntTestWithInit, Remove) {
 
 }  // namespace map_api
 
-MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
+MAP_API_UNITTEST_ENTRYPOINT

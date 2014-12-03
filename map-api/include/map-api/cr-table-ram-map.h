@@ -1,7 +1,6 @@
 #ifndef MAP_API_CR_TABLE_RAM_MAP_H_
 #define MAP_API_CR_TABLE_RAM_MAP_H_
 
-#include <string>
 #include <vector>
 
 #include <map-api/cr-table.h>
@@ -35,6 +34,7 @@ class CRTableRamMap : public CRTable {
       const LogicalTime& time) const final override;
   virtual int countByChunkCRDerived(
       const Id& chunk_id, const LogicalTime& time) const final override;
+  virtual void clearCRDerived() final override;
 
   typedef std::unordered_map<Id, std::shared_ptr<const Revision> > MapType;
   MapType data_;

@@ -2,17 +2,14 @@
 #define MAP_API_REVISION_H_
 
 #include <memory>
-#include <unordered_map>
 #include <set>
 #include <string>
 
 #include <glog/logging.h>
-#include <Poco/Data/BLOB.h>
-#include <Poco/Data/Statement.h>
 
 #include "./core.pb.h"
-#include <map-api/logical-time.h>
-#include <map-api/unique-id.h>
+#include "map-api/logical-time.h"
+#include "map-api/unique-id.h"
 
 namespace map_api {
 
@@ -28,12 +25,6 @@ class Revision {
   explicit Revision(const std::shared_ptr<proto::Revision>& revision);
   explicit Revision(const Revision& other);
   Revision& operator=(const Revision& other) = delete;
-  /**
-   * Insert placeholder in SQLite insert statements. Returns blob shared pointer
-   * for dynamically created blob objects
-   */
-  std::shared_ptr<Poco::Data::BLOB> insertPlaceHolder(
-      int index, Poco::Data::Statement* stat) const;
 
   template <typename FieldType>
   static proto::Type getProtobufTypeEnum();
@@ -67,19 +58,23 @@ class Revision {
                                                      : getInsertTime();
   }
   inline Id getChunkId() const {
-    Id id;
-    id.fromHexString(underlying_revision_->chunk_id().hash());
-    return id;
+    if (underlying_revision_->has_chunk_id()) {
+      return Id(underlying_revision_->chunk_id());
+    } else {
+      return Id();
+    }
   }
   template <typename IdType>
   inline IdType getId() const {
-    IdType id;
-    id.fromHexString(underlying_revision_->id().hash());
-    return id;
+    if (underlying_revision_->has_id()) {
+      return IdType(underlying_revision_->id());
+    } else {
+      return IdType();
+    }
   }
   template <typename IdType>
   inline void setId(const IdType& id) {
-    underlying_revision_->mutable_id()->set_hash(id.hexString());
+    id.serialize(underlying_revision_->mutable_id());
   }
   inline bool isRemoved() const {
     return
@@ -133,8 +128,8 @@ class Revision {
   inline void setUpdateTime(const LogicalTime& time) {
     underlying_revision_->set_update_time(time.serialize());
   }
-  inline void setChunkId(const Id& id) {  // TODO(tcies) mutable, zerocopy
-    underlying_revision_->mutable_chunk_id()->set_hash(id.hexString());
+  inline void setChunkId(const Id& id) {
+    id.serialize(underlying_revision_->mutable_chunk_id());
   }
   inline void setRemoved() { underlying_revision_->set_removed(true); }
 

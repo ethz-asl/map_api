@@ -1,8 +1,9 @@
 package map_api.proto;
+import "id.proto";
 
 message ChunkRequestMetadata {
   optional string table = 1;
-  optional string chunk_id = 2; // TODO(tcies) chunk identification as message
+  optional common.proto.Id chunk_id = 2;
 }
 
 message PatchRequest {

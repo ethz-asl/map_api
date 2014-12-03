@@ -1,5 +1,6 @@
 #ifndef MAP_API_CACHE_H_
 #define MAP_API_CACHE_H_
+#include <mutex>
 #include <unordered_set>
 #include <vector>
 
@@ -7,7 +8,7 @@
 #include <multiagent-mapping-common/traits.h>
 
 #include <map-api/cache-base.h>
-#include <map-api/cr-table.h>
+#include <map-api/cr-table.h>  // CRTable::RevisionMap
 #include <map-api/revision.h>
 #include <map-api/transaction.h>
 #include <map-api/unique-id.h>
@@ -16,7 +17,7 @@ namespace map_api {
 namespace traits {
 template <bool IsSharedPointer, typename Type, typename DerivedType>
 struct InstanceFactory {
-  static Type getNewInstance() { return DerivedType(); }
+  typedef DerivedType ElementType;
   static DerivedType* getPointerTo(Type& value) { return &value; }   // NOLINT
   static DerivedType& getReferenceTo(Type& value) { return value; }  // NOLINT
   static const DerivedType& getReferenceTo(const Type& value) {      // NOLINT
@@ -38,15 +39,14 @@ struct InstanceFactory {
     CHECK_NOTNULL(ptr);
     return *ptr;
   }
+  static void transferOwnership(std::shared_ptr<ElementType> object,
+                                DerivedType* destination) {
+    *destination = *object;
+  }
 };
 template <typename Type, typename DerivedType>
 struct InstanceFactory<true, Type, DerivedType> {
-  static Type getNewInstance() {
-    // If you get a compiler error here, then you have to set the DerivedValue
-    // template parameter of the cache to the type of the derived class you want
-    // to store in the cache.
-    return Type(new typename DerivedType::element_type);
-  }
+  typedef typename DerivedType::element_type ElementType;
   static typename Type::element_type* getPointerTo(Type& value) {  // NOLINT
     CHECK(value != nullptr);
     return value.get();
@@ -84,6 +84,10 @@ struct InstanceFactory<true, Type, DerivedType> {
     CHECK_NOTNULL(ptr);
     return *ptr;
   }
+  static void transferOwnership(std::shared_ptr<ElementType> object,
+                                Type* destination) {
+    *destination = object;
+  }
 };
 }  // namespace traits
 
@@ -94,7 +98,8 @@ class NetTable;
  * Needs to be implemented by applications.
  */
 template <typename ObjectType>
-void objectFromRevision(const map_api::Revision& revision, ObjectType* object);
+std::shared_ptr<ObjectType> objectFromRevision(
+    const map_api::Revision& revision);
 template <typename ObjectType>
 void objectToRevision(const ObjectType& object, map_api::Revision* revision);
 
@@ -162,7 +167,18 @@ class Cache : public CacheBase,
   std::shared_ptr<const Revision> getRevisionLocked(const IdType& id) const;
   virtual void prepareForCommit() override;
 
-  typedef std::unordered_map<IdType, Value> CacheMap;
+  struct ValueHolder {
+    enum class DirtyState : bool {
+      kDirty = true,
+      kClean = false
+    };
+    ValueHolder(const Value& _value, DirtyState _dirty) :
+      value(_value), dirty(_dirty) { }
+    Value value;
+    DirtyState dirty;
+  };
+
+  typedef std::unordered_map<IdType, ValueHolder> CacheMap;
   typedef std::unordered_set<IdType> IdSet;
   typedef std::vector<IdType> IdVector;
 

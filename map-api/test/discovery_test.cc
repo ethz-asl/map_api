@@ -4,11 +4,10 @@
 #include <gtest/gtest.h>
 #include <signal.h>
 
-#include <multiagent-mapping-common/test/testing-entrypoint.h>
-
-#include <map-api/file-discovery.h>
-#include <map-api/hub.h>
-#include <map-api/server-discovery.h>
+#include "map-api/file-discovery.h"
+#include "map-api/hub.h"
+#include "map-api/server-discovery.h"
+#include "map-api/test/testing-entrypoint.h"
 #include "./map_api_fixture.h"
 
 DECLARE_string(discovery_mode);
@@ -77,4 +76,4 @@ INSTANTIATE_TEST_CASE_P(DiscoveryInstances, DiscoveryTest,
 
 }  // namespace map_api
 
-MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
+MAP_API_UNITTEST_ENTRYPOINT

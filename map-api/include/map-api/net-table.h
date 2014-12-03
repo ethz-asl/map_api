@@ -4,16 +4,17 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <gtest/gtest_prod.h>
-#include <Poco/RWLock.h>
+#include <Poco/RWLock.h>  // TODO(tcies) replace with own
 
-#include <map-api/chunk.h>
-#include <map-api/cr-table.h>
-#include <map-api/net-table-index.h>
-#include <map-api/revision.h>
-#include <map-api/spatial-index.h>
+#include "map-api/chunk.h"
+#include "map-api/cr-table.h"
+#include "map-api/net-table-index.h"
+#include "map-api/revision.h"
+#include "map-api/spatial-index.h"
 
 namespace map_api {
 inline std::string humanReadableBytes(double size) {
@@ -30,25 +31,15 @@ inline std::string humanReadableBytes(double size) {
 
 class NetTable {
   friend class NetTableFixture;
+  friend class NetTableManager;
   friend class NetTableTransaction;
+  friend class SpatialIndexTest;
   FRIEND_TEST(NetTableFixture, RemoteUpdate);
   FRIEND_TEST(NetTableFixture, Grind);
   FRIEND_TEST(NetTableFixture, SaveAndRestoreTableFromFile);
 
  public:
   static const std::string kChunkIdField;
-
-  bool init(CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor);
-  void createIndex();
-  void joinIndex(const PeerId& entry_point);
-  /**
-   * TODO(tcies) make part of metatable conf.
-   */
-  void createSpatialIndex(const SpatialIndex::BoundingBox& bounds,
-                          const std::vector<size_t>& subdivision);
-  void joinSpatialIndex(const SpatialIndex::BoundingBox& bounds,
-                        const std::vector<size_t>& subdivision,
-                        const PeerId& entry_point);
 
   const std::string& name() const;
   const CRTable::Type& type() const;
@@ -68,6 +59,12 @@ class NetTable {
   void getChunksInBoundingBox(const SpatialIndex::BoundingBox& bounding_box);
   void getChunksInBoundingBox(const SpatialIndex::BoundingBox& bounding_box,
                               std::unordered_set<Chunk*>* chunks);
+  typedef std::function<void(const std::unordered_set<Id>& insertions,
+                             const std::unordered_set<Id>& updates,
+                             Chunk* chunk)> TriggerCallbackWithChunkPointer;
+  // Will bind to Chunk* the pointer of the current chunk.
+  void attachTriggerOnChunkAcquisition(
+      const TriggerCallbackWithChunkPointer& trigger);
 
   // RETRIEVAL (locking all chunks)
   template <typename ValueType>
@@ -91,6 +88,8 @@ class NetTable {
   size_t numActiveChunks() const;
 
   size_t numActiveChunksItems();
+
+  size_t numItems() const;
 
   size_t activeChunksItemsSizeBytes();
 
@@ -147,7 +146,16 @@ class NetTable {
   NetTable();
   NetTable(const NetTable&) = delete;
   NetTable& operator =(const NetTable&) = delete;
-  friend class NetTableManager;
+
+  bool init(CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor);
+
+  void createIndex();
+  void joinIndex(const PeerId& entry_point);
+  void createSpatialIndex(const SpatialIndex::BoundingBox& bounds,
+                          const std::vector<size_t>& subdivision);
+  void joinSpatialIndex(const SpatialIndex::BoundingBox& bounds,
+                        const std::vector<size_t>& subdivision,
+                        const PeerId& entry_point);
 
   bool insert(const LogicalTime& time, Chunk* chunk,
               const std::shared_ptr<Revision>& query);
@@ -175,14 +183,13 @@ class NetTable {
   std::unique_ptr<CRTable> cache_;
   ChunkMap active_chunks_;
   mutable Poco::RWLock active_chunks_lock_;
-  // TODO(tcies) insert PeerHandler here
 
-  /**
-   * DO NOT USE FROM HANDLER THREAD (else TODO(tcies) mutex)
-   */
+  // DO NOT USE FROM HANDLER THREAD (else TODO(tcies) mutex)
   std::unique_ptr<NetTableIndex> index_;
   std::unique_ptr<SpatialIndex> spatial_index_;
   Poco::RWLock index_lock_;
+
+  TriggerCallbackWithChunkPointer trigger_to_attach_on_chunk_acquisition_;
 };
 
 }  // namespace map_api

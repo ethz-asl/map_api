@@ -1,5 +1,6 @@
 #ifndef MAP_API_TRANSACTION_H_
 #define MAP_API_TRANSACTION_H_
+
 #include <map>
 #include <memory>
 #include <string>
@@ -8,15 +9,14 @@
 
 #include <glog/logging.h>
 
-#include <map-api/cache-base.h>
-#include <map-api/logical-time.h>
-#include <map-api/net-table.h>
-#include <map-api/net-table-transaction.h>
-#include <map-api/unique-id.h>
+#include "map-api/logical-time.h"
+#include "map-api/net-table-transaction.h"
 
 namespace map_api {
+class CacheBase;
 class Chunk;
 class ChunkManagerBase;
+class NetTable;
 class Revision;
 
 class Transaction {
@@ -138,6 +138,9 @@ class Transaction {
    * is in cache access mode. This on a per-thread basis.
    */
   std::unordered_set<std::thread::id> cache_access_override_;
+  mutable std::mutex access_type_mutex_;
+  mutable std::mutex access_mode_mutex_;
+  mutable std::mutex net_table_transactions_mutex_;
 };
 
 }  // namespace map_api

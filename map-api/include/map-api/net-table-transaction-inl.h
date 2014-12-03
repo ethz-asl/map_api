@@ -1,13 +1,20 @@
 #ifndef MAP_API_NET_TABLE_TRANSACTION_INL_H_
 #define MAP_API_NET_TABLE_TRANSACTION_INL_H_
+
 #include <string>
 #include <vector>
+
+#include "map-api/net-table.h"
 
 namespace map_api {
 
 template <typename IdType>
 std::shared_ptr<const Revision> NetTableTransaction::getById(const IdType& id)
     const {
+  std::shared_ptr<const Revision> uncommitted = getByIdFromUncommitted(id);
+  if (uncommitted) {
+    return uncommitted;
+  }
   std::shared_ptr<const Revision> result;
   Chunk* chunk = chunkOf(id, &result);
   if (chunk) {
@@ -33,6 +40,20 @@ std::shared_ptr<const Revision> NetTableTransaction::getById(
     const IdType& id, Chunk* chunk) const {
   CHECK_NOTNULL(chunk);
   return transactionOf(chunk)->getById(id);
+}
+
+template <typename IdType>
+std::shared_ptr<const Revision> NetTableTransaction::getByIdFromUncommitted(
+    const IdType& id) const {
+  std::shared_ptr<const Revision> result;
+  for (const TransactionMap::value_type& chunk_transaction :
+       chunk_transactions_) {
+    result = chunk_transaction.second->getByIdFromUncommitted(id);
+    if (result) {
+      return result;
+    }
+  }
+  return std::shared_ptr<const Revision>();
 }
 
 template <typename ValueType>
