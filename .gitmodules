@@ -4,3 +4,6 @@
 [submodule "aslam_cv2"]
 	path = aslam_cv2
 	url = git@github.com:ethz-asl/aslam_cv2.git
+[submodule "gtsam_devel"]
+	path = gtsam_devel
+	url = git@github.com:ethz-asl/gtsam_devel.git
