@@ -24,7 +24,7 @@ SpatialIndex::~SpatialIndex() {}
 
 void SpatialIndex::create() {
   ChordIndex::create();
-  proto::ChunkList empty_chunk_list;
+  proto::ChunkIdList empty_chunk_list;
   std::vector<size_t> all_cell_indices;
   getCellIndices(bounds_, &all_cell_indices);
   for (size_t cell_index : all_cell_indices) {
@@ -39,7 +39,7 @@ void SpatialIndex::announceChunk(const Id& chunk_id,
 
   for (size_t cell_index : affected_cell_indices) {
     std::string chunks_string;
-    proto::ChunkList chunks;
+    proto::ChunkIdList chunks;
     if (retrieveData(typeHack(cell_index), &chunks_string)) {
       CHECK(chunks.ParseFromString(chunks_string));
       for (int i = 0; i < chunks.chunk_ids_size(); ++i) {
@@ -61,7 +61,7 @@ void SpatialIndex::seekChunks(const BoundingBox& bounding_box,
 
   for (size_t cell_index : affected_cell_indices) {
     std::string chunks_string;
-    proto::ChunkList proto_chunk_ids;
+    proto::ChunkIdList proto_chunk_ids;
     // because of the simultaneous topology change and retrieve - problem,
     // requests can occasionally fail (catching forever-blocks)
     for (int i = 0; !retrieveData(typeHack(cell_index), &chunks_string); ++i) {
