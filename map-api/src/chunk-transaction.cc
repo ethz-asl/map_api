@@ -209,4 +209,4 @@ void ChunkTransaction::getTrackers(TableToIdMultiMap* trackers) const {
   }
 }
 
-} /* namespace map_api */
+}  // namespace map_api
