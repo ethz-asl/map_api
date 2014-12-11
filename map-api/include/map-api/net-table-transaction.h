@@ -78,6 +78,11 @@ class NetTableTransaction {
   template <typename IdType>
   Chunk* chunkOf(const IdType& id,
                  std::shared_ptr<const Revision>* latest) const;
+
+  typedef std::unordered_map<Id, ChunkTransaction::TableToIdMultiMap>
+      TrackedChunkToTrackersMap;
+  void getChunkTrackers(TrackedChunkToTrackersMap* chunk_trackers) const;
+
   /**
    * A global ordering of chunks prevents deadlocks (resource hierarchy
    * solution)

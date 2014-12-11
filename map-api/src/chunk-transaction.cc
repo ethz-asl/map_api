@@ -1,16 +1,19 @@
 #include <map-api/chunk-transaction.h>
 #include <unordered_set>
 
-#include <map-api/cru-table.h>
-#include <map-api/net-table.h>
+#include "map-api/cru-table.h"
+#include "map-api/net-table.h"
 
 namespace map_api {
 
-ChunkTransaction::ChunkTransaction(Chunk* chunk)
-    : ChunkTransaction(LogicalTime::sample(), chunk) {}
+ChunkTransaction::ChunkTransaction(Chunk* chunk, NetTable* table)
+    : ChunkTransaction(LogicalTime::sample(), chunk, table) {}
 
-ChunkTransaction::ChunkTransaction(const LogicalTime& begin_time, Chunk* chunk)
-    : begin_time_(begin_time), chunk_(CHECK_NOTNULL(chunk)) {
+ChunkTransaction::ChunkTransaction(const LogicalTime& begin_time, Chunk* chunk,
+                                   NetTable* table)
+    : begin_time_(begin_time),
+      chunk_(CHECK_NOTNULL(chunk)),
+      table_(CHECK_NOTNULL(table)) {
   CHECK(begin_time < LogicalTime::sample());
   insertions_.clear();
   updates_.clear();
@@ -189,6 +192,19 @@ void ChunkTransaction::prepareCheck(
   } else {
     for (const CRTable::RevisionMap::value_type& item : contents) {
       chunk_stamp->insert(std::make_pair(item.first, time));
+    }
+  }
+}
+
+void ChunkTransaction::getTrackers(TableToIdMultiMap* trackers) const {
+  CHECK_NOTNULL(trackers);
+  for (const typename NetTable::NewChunkTrackerMap::value_type&
+           table_tracker_getter : table_->new_chunk_trackers()) {
+    for (const InsertMap::value_type& insertion : insertions_) {
+      const std::function<Id(const Revision&)>& tracker_id_extractor =
+          table_tracker_getter.second;
+      trackers->emplace(table_tracker_getter.first,
+                        tracker_id_extractor(*insertion.second));
     }
   }
 }
