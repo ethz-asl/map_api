@@ -347,8 +347,8 @@ bool NetTableManager::syncTableDefinition(
   CHECK_NOTNULL(first);
   CHECK_NOTNULL(entry_point);
   CHECK_NOTNULL(metatable_chunk_);
-  ChunkTransaction try_insert(metatable_chunk_);
   NetTable& metatable = getTable(kMetaTableName);
+  ChunkTransaction try_insert(metatable_chunk_, &metatable);
   std::shared_ptr<Revision> attempt = metatable.getTemplate();
   Id metatable_id;
   map_api::generateId(&metatable_id);
@@ -380,7 +380,7 @@ bool NetTableManager::syncTableDefinition(
 
   // Case Table definition already in metatable
   while (true) {
-    ChunkTransaction try_join(metatable_chunk_);
+    ChunkTransaction try_join(metatable_chunk_, &metatable);
     // 1. Read previous registration in metatable
     std::shared_ptr<const Revision> previous = try_join.findUnique(
         static_cast<int>(kMetaTableNameField), descriptor.name());
