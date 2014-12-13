@@ -106,7 +106,7 @@ void NetTableTransaction::merge(
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
     std::shared_ptr<ChunkTransaction> merge_chunk_transaction(
         new ChunkTransaction(merge_transaction->begin_time_,
-                             chunk_transaction.first));
+                             chunk_transaction.first, table_));
     ChunkTransaction::Conflicts sub_conflicts;
     chunk_transaction.second->merge(merge_chunk_transaction, &sub_conflicts);
     CHECK_EQ(chunk_transaction.second->numChangedItems(),
@@ -134,13 +134,23 @@ ChunkTransaction* NetTableTransaction::transactionOf(Chunk* chunk) const {
   TransactionMap::iterator chunk_transaction = chunk_transactions_.find(chunk);
   if (chunk_transaction == chunk_transactions_.end()) {
     std::shared_ptr<ChunkTransaction> transaction(
-        new ChunkTransaction(begin_time_, chunk));
+        new ChunkTransaction(begin_time_, chunk, table_));
     std::pair<TransactionMap::iterator, bool> inserted =
         chunk_transactions_.insert(std::make_pair(chunk, transaction));
     CHECK(inserted.second);
     chunk_transaction = inserted.first;
   }
   return chunk_transaction->second.get();
+}
+
+void NetTableTransaction::getChunkTrackers(
+    TrackedChunkToTrackersMap* chunk_trackers) const {
+  CHECK_NOTNULL(chunk_trackers);
+  for (const TransactionMap::value_type& chunk_transaction :
+       chunk_transactions_) {
+    chunk_transaction.second->getTrackers(
+        &(*chunk_trackers)[chunk_transaction.first->id()]);
+  }
 }
 
 } /* namespace map_api */
