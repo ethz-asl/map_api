@@ -15,6 +15,7 @@
 namespace map_api {
 class Chunk;
 class Id;
+class NetTable;
 
 /**
  * This class is somewhat weaker than the first transaction draft
@@ -30,8 +31,9 @@ class ChunkTransaction {
   FRIEND_TEST(NetTableFixture, ChunkTransactionsConflictConditions);
 
  private:
-  explicit ChunkTransaction(Chunk* chunk);
-  ChunkTransaction(const LogicalTime& begin_time, Chunk* chunk);
+  ChunkTransaction(Chunk* chunk, NetTable* table);
+  ChunkTransaction(const LogicalTime& begin_time, Chunk* chunk,
+                   NetTable* table);
 
   // READ
   template <typename IdType>
@@ -70,6 +72,8 @@ class ChunkTransaction {
   // INTERNAL
   void prepareCheck(const LogicalTime& check_time,
                     std::unordered_map<Id, LogicalTime>* chunk_stamp);
+  typedef std::unordered_multimap<NetTable*, Id> TableToIdMultiMap;
+  void getTrackers(TableToIdMultiMap* trackers) const;
 
   /**
    * Strong typing of table operation maps.
@@ -90,6 +94,7 @@ class ChunkTransaction {
   ConflictVector conflict_conditions_;
   LogicalTime begin_time_;
   Chunk* chunk_;
+  NetTable* table_;
   std::shared_ptr<const Revision> structure_reference_;
 };
 
