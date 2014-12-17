@@ -20,6 +20,7 @@ class Revision {
   friend class CRUTable;
   template<int BlockSize>
   friend class STXXLRevisionStore;
+  friend class Transaction;
 
  public:
   explicit Revision(const std::shared_ptr<proto::Revision>& revision);

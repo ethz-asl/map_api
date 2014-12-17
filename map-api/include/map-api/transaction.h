@@ -19,6 +19,10 @@ class ChunkManagerBase;
 class NetTable;
 class Revision;
 
+namespace proto {
+class Revision;
+}  // namespace proto
+
 class Transaction {
   friend class CacheBase;
   template <typename IdType, typename Value, typename DerivedValue>
@@ -103,6 +107,14 @@ class Transaction {
 
   void ensureAccessIsCache(NetTable* table) const;
   void ensureAccessIsDirect(NetTable* table) const;
+
+  class TrackeeMultimap : public std::unordered_multimap<NetTable*, Id> {
+   public:
+    void deserialize(const proto::Revision& proto);
+    void serialize(proto::Revision* proto) const;
+  };
+
+  void pushNewChunkIdsToTrackers();
 
   /**
    * A global ordering of tables prevents deadlocks (resource hierarchy

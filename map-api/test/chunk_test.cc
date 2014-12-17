@@ -313,7 +313,7 @@ TEST_P(NetTableFixture, ChunkTransactions) {
     Chunk* chunk = table_->getChunk(chunk_id);
     ASSERT_TRUE(chunk);
     while (true) {
-      ChunkTransaction transaction(chunk);
+      ChunkTransaction transaction(chunk, table_);
       // insert
       insert(42, &transaction);
       // update
@@ -382,7 +382,7 @@ TEST_P(NetTableFixture, ChunkTransactionsConflictConditions) {
     Chunk* chunk = table_->getChunk(chunk_id);
     ASSERT_TRUE(chunk);
     for (int i = 0; i < kUniqueItems; ++i) {
-      ChunkTransaction transaction(chunk);
+      ChunkTransaction transaction(chunk, table_);
       insert(i, &transaction);
       transaction.addConflictCondition(kFieldName, i);
       transaction.commit();
