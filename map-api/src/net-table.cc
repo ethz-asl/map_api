@@ -146,8 +146,9 @@ void NetTable::pushNewChunkIdsToTrackingItem(
     NetTable* table_of_tracking_item,
     const std::function<Id(const Revision&)>& how_to_determine_tracking_item) {
   CHECK_NOTNULL(table_of_tracking_item);
-  CHECK(new_chunk_trackers_.emplace(table_of_tracking_item,
-                                    how_to_determine_tracking_item).second);
+  CHECK(new_chunk_trackers_.insert(std::make_pair(
+                                       table_of_tracking_item,
+                                       how_to_determine_tracking_item)).second);
 }
 
 void NetTable::registerChunkInSpace(
