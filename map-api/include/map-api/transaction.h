@@ -108,12 +108,6 @@ class Transaction {
   void ensureAccessIsCache(NetTable* table) const;
   void ensureAccessIsDirect(NetTable* table) const;
 
-  class TrackeeMultimap : public std::unordered_multimap<NetTable*, Id> {
-   public:
-    void deserialize(const proto::Revision& proto);
-    void serialize(proto::Revision* proto) const;
-  };
-
   void pushNewChunkIdsToTrackers();
 
   /**

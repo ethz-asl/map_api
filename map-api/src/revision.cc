@@ -4,7 +4,9 @@
 #include <Poco/Data/Common.h>
 #include <Poco/Data/BLOB.h>
 
+#include <map-api/internal/trackee-multimap.h>
 #include <map-api/logical-time.h>
+#include <map-api/net-table-manager.h>
 #include <map-api/unique-id.h>
 
 namespace map_api {
@@ -130,6 +132,14 @@ std::string Revision::dumpToString() const {
   }
   dump_ss << "}" << std::endl;
   return dump_ss.str();
+}
+
+void Revision::fetchTrackedChunks() const {
+  TrackeeMultimap trackee_multimap;
+  trackee_multimap.deserialize(*underlying_revision_);
+  for (const TrackeeMultimap::value_type& table_chunk : trackee_multimap) {
+    table_chunk.first->getChunk(table_chunk.second);
+  }
 }
 
 /**
