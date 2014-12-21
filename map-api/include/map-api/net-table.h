@@ -191,8 +191,8 @@ class NetTable {
   bool routingBasics(
       const Id& chunk_id, Message* response, ChunkMap::iterator* found);
 
-  typedef std::unordered_map<
-      NetTable*, const std::function<Id(const Revision&)>&> NewChunkTrackerMap;
+  typedef std::unordered_map<NetTable*, std::function<Id(const Revision&)>>
+      NewChunkTrackerMap;
   inline const NewChunkTrackerMap& new_chunk_trackers() {
     return new_chunk_trackers_;
   }
