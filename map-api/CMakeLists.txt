@@ -25,7 +25,8 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 #############
 
 # Core Library available to all applications
-SET(CORE_SOURCE  src/cache-base.cc
+SET(CORE_SOURCE  src/internal/trackee-multimap.cc
+                 src/cache-base.cc
                  src/chord-index.cc
                  src/chunk.cc
                  src/chunk-manager.cc
