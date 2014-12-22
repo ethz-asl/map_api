@@ -10,6 +10,8 @@
 
 #include <map-api/hub.h>
 
+DEFINE_double(discovery_timeout_seconds, 0.5, "Timeout for file discovery.");
+
 namespace map_api {
 
 FileDiscovery::~FileDiscovery() {}
@@ -51,6 +53,12 @@ void FileDiscovery::getFileContents(std::string* result) const {
 
 void FileDiscovery::lock() {
   mutex_.lock();
+#if GCC_VERSION >= 407 || defined(__clang__)
+using std::chrono::steady_clock;
+#else
+typedef std::chrono::monotonic_clock steady_clock;
+#endif
+  steady_clock::time_point start = steady_clock::now();
   while (true) {
     {
       bool status =
@@ -62,6 +70,15 @@ void FileDiscovery::lock() {
       }
     }
     usleep(100);
+    steady_clock::time_point end = steady_clock::now();
+    using std::chrono::duration_cast;
+    double time_ms =
+        duration_cast<std::chrono::milliseconds>(end - start).count();
+    if (time_ms > FLAGS_discovery_timeout_seconds * 1e3) {
+      LOG(ERROR) << "File discovery timed out!";
+      replace("");
+      unlock();
+    }
   }
 }
 
