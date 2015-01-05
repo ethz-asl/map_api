@@ -20,6 +20,7 @@ class Revision {
   friend class CRUTable;
   template<int BlockSize>
   friend class STXXLRevisionStore;
+  friend class Transaction;
 
  public:
   explicit Revision(const std::shared_ptr<proto::Revision>& revision);
@@ -120,6 +121,8 @@ class Revision {
   inline bool operator!=(const Revision& other) const {
     return !operator==(other);
   }
+
+  void fetchTrackedChunks() const;
 
  private:
   inline void setInsertTime(const LogicalTime& time) {

@@ -30,6 +30,7 @@ inline std::string humanReadableBytes(double size) {
 }
 
 class NetTable {
+  friend class ChunkTransaction;
   friend class NetTableFixture;
   friend class NetTableManager;
   friend class NetTableTransaction;
@@ -41,13 +42,22 @@ class NetTable {
  public:
   static const std::string kChunkIdField;
 
+  // BASICS
   const std::string& name() const;
   const CRTable::Type& type() const;
-
   std::shared_ptr<Revision> getTemplate() const;
+
+  // BASIC CHUNK MANAGEMENT
   Chunk* newChunk();
   Chunk* newChunk(const Id& chunk_id);
   Chunk* getChunk(const Id& chunk_id);
+
+  // HIERARCHICAL CHUNK MANAGEMENT
+  void pushNewChunkIdsToTrackingItem(
+      NetTable* table_of_tracking_item,
+      const std::function<Id(const Revision&)>& how_to_determine_tracking_item);
+
+  // SPATIAL INDEX CHUNK MANAGEMENT
   void registerChunkInSpace(const Id& chunk_id,
                             const SpatialIndex::BoundingBox& bounding_box);
   template <typename IdType>
@@ -62,15 +72,17 @@ class NetTable {
   typedef std::function<void(const std::unordered_set<Id>& insertions,
                              const std::unordered_set<Id>& updates,
                              Chunk* chunk)> TriggerCallbackWithChunkPointer;
+
+  // TRIGGER RELATED
   // Will bind to Chunk* the pointer of the current chunk.
   void attachTriggerOnChunkAcquisition(
       const TriggerCallbackWithChunkPointer& trigger);
 
-  // RETRIEVAL (locking all chunks)
+  // ITEM RETRIEVAL
+  // (locking all chunks)
   template <typename ValueType>
   CRTable::RevisionMap lockFind(int key, const ValueType& value,
                                 const LogicalTime& time);
-
   void dumpActiveChunks(const LogicalTime& time,
                         CRTable::RevisionMap* destination);
   void dumpActiveChunksAtCurrentTime(CRTable::RevisionMap* destination);
@@ -179,6 +191,12 @@ class NetTable {
   bool routingBasics(
       const Id& chunk_id, Message* response, ChunkMap::iterator* found);
 
+  typedef std::unordered_map<NetTable*, std::function<Id(const Revision&)>>
+      NewChunkTrackerMap;
+  inline const NewChunkTrackerMap& new_chunk_trackers() {
+    return new_chunk_trackers_;
+  }
+
   CRTable::Type type_;
   std::unique_ptr<CRTable> cache_;
   ChunkMap active_chunks_;
@@ -190,6 +208,8 @@ class NetTable {
   Poco::RWLock index_lock_;
 
   TriggerCallbackWithChunkPointer trigger_to_attach_on_chunk_acquisition_;
+
+  NewChunkTrackerMap new_chunk_trackers_;
 };
 
 }  // namespace map_api
