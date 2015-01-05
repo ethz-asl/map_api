@@ -203,8 +203,8 @@ void ChunkTransaction::getTrackers(TableToIdMultiMap* trackers) const {
     for (const InsertMap::value_type& insertion : insertions_) {
       const std::function<Id(const Revision&)>& tracker_id_extractor =
           table_tracker_getter.second;
-      trackers->emplace(table_tracker_getter.first,
-                        tracker_id_extractor(*insertion.second));
+      Id id = tracker_id_extractor(*insertion.second);
+      trackers->emplace(table_tracker_getter.first, id);
     }
   }
 }

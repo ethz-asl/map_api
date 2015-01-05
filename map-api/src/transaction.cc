@@ -4,6 +4,7 @@
 
 #include <timing/timer.h>
 
+#include "map-api/internal/trackee-multimap.h"
 #include "map-api/cache-base.h"
 #include "map-api/chunk.h"
 #include "map-api/chunk-manager.h"
@@ -187,33 +188,6 @@ void Transaction::ensureAccessIsDirect(NetTable* table) const {
           << "Access mode for table " << table->name()
           << " is already by cache, may not access directly.";
     }
-  }
-}
-
-void Transaction::TrackeeMultimap::deserialize(const proto::Revision& proto) {
-  for (int i = 0; i < proto.chunk_tracking_size(); ++i) {
-    const proto::TableChunkTracking& table_trackees = proto.chunk_tracking(i);
-    NetTable* table =
-        &NetTableManager::instance().getTable(table_trackees.table_name());
-    for (int j = 0; j < table_trackees.chunk_ids_size(); ++j) {
-      Id chunk_id;
-      chunk_id.deserialize(table_trackees.chunk_ids(j));
-      emplace(table, chunk_id);
-    }
-  }
-}
-
-void Transaction::TrackeeMultimap::serialize(proto::Revision* proto) const {
-  proto->mutable_chunk_tracking()->Clear();
-  proto::TableChunkTracking* proto_table_trackee = nullptr;
-  for (const value_type& trackee : *this) {
-    if (proto_table_trackee == nullptr ||
-        proto_table_trackee->table_name() != trackee.first->name()) {
-      proto::TableChunkTracking* proto_table_trackee =
-          proto->add_chunk_tracking();
-      proto_table_trackee->set_table_name(trackee.first->name());
-    }
-    trackee.second.serialize(proto_table_trackee->add_chunk_ids());
   }
 }
 

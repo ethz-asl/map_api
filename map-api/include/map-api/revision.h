@@ -122,6 +122,8 @@ class Revision {
     return !operator==(other);
   }
 
+  void fetchTrackedChunks() const;
+
  private:
   inline void setInsertTime(const LogicalTime& time) {
     underlying_revision_->set_insert_time(time.serialize());
