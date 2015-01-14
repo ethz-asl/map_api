@@ -19,6 +19,7 @@ class Peer {
    * Unlike request, doesn't terminate if the request times out.
    */
   bool try_request(Message* request, Message* response);
+  bool try_request_for(int timeout_ms, Message* request, Message* response);
 
   static void simulateBandwidth(size_t byte_size);
 
@@ -31,10 +32,6 @@ class Peer {
   friend class ServerDiscovery;
   explicit Peer(const std::string& address, zmq::context_t& context,
                 int socket_type);
-  /**
-   * Closes the peer socket.
-   */
-  bool disconnect();
 
   // ZMQ sockets are not inherently thread-safe
   std::string address_;
