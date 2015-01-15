@@ -7,6 +7,9 @@
 
 DEFINE_int32(request_timeout, 5000, "Amount of miliseconds after which a "\
              "non-responsive peer is considered disconnected");
+DEFINE_int32(socket_linger_ms, 0,
+             "Amount of miliseconds for which a socket "
+             "waits for outgoing messages to process before closing.");
 DEFINE_int32(simulated_lag_ms, 0,
              "Duration in milliseconds of the simulated lag.");
 DEFINE_int32(simulated_bandwidth_kbps, 0,
@@ -17,12 +20,11 @@ namespace map_api {
 Peer::Peer(const std::string& address, zmq::context_t& context,
            int socket_type)
 : address_(address), socket_(context, socket_type) {
-  // TODO(tcies) init instead of aborting constructor
   std::lock_guard<std::mutex> lock(socket_mutex_);
   try {
+    const int linger_ms = FLAGS_socket_linger_ms;
+    socket_.setsockopt(ZMQ_LINGER, &linger_ms, sizeof(linger_ms));
     socket_.connect(("tcp://" + address).c_str());
-    int timeOutMs = FLAGS_request_timeout;  // TODO(tcies) allow custom
-    socket_.setsockopt(ZMQ_RCVTIMEO, &timeOutMs, sizeof(timeOutMs));
   }
   catch (const std::exception& e) {  // NOLINT
     LOG(FATAL) << "Connection to " << address << " failed";
@@ -41,6 +43,11 @@ void Peer::request(Message* request, Message* response) {
 }
 
 bool Peer::try_request(Message* request, Message* response) {
+  return try_request_for(FLAGS_request_timeout, request, response);
+}
+
+bool Peer::try_request_for(int timeout_ms, Message* request,
+                           Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
   request->set_sender(PeerId::self().ipPort());
@@ -52,9 +59,10 @@ bool Peer::try_request(Message* request, Message* response) {
   try {
     zmq::message_t message(buffer, size, NULL, NULL);
     {
+      std::lock_guard<std::mutex> lock(socket_mutex_);
       usleep(1e3 * FLAGS_simulated_lag_ms);
       simulateBandwidth(message.size());
-      std::lock_guard<std::mutex> lock(socket_mutex_);
+      socket_.setsockopt(ZMQ_RCVTIMEO, &timeout_ms, sizeof(timeout_ms));
       CHECK(socket_.send(message));
       if (!socket_.recv(&message)) {
         LOG(WARNING) << "Try-request of type " << request->type() <<
@@ -79,17 +87,6 @@ void Peer::simulateBandwidth(size_t byte_size) {
     return;
   }
   usleep(1000 * byte_size / FLAGS_simulated_bandwidth_kbps);
-}
-
-bool Peer::disconnect() {
-  std::lock_guard<std::mutex> lock(socket_mutex_);
-  try {
-    socket_.close();
-  }
-  catch (const zmq::error_t& e) {  // NOLINT
-    LOG(FATAL) << e.what();
-  }
-  return true;
 }
 
 }  // namespace map_api
