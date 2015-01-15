@@ -22,7 +22,7 @@ Peer::Peer(const std::string& address, zmq::context_t& context,
 : address_(address), socket_(context, socket_type) {
   std::lock_guard<std::mutex> lock(socket_mutex_);
   try {
-    int linger_ms = FLAGS_socket_linger_ms;
+    const int linger_ms = FLAGS_socket_linger_ms;
     socket_.setsockopt(ZMQ_LINGER, &linger_ms, sizeof(linger_ms));
     socket_.connect(("tcp://" + address).c_str());
   }
