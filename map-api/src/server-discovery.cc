@@ -1,15 +1,15 @@
 #include <map-api/server-discovery.h>
-#include <fstream>
-#include <sstream>
+#include <fstream>  // NOLINT
+#include <sstream>  // NOLINT
 #include <string>
 
-#include <sys/file.h> // linux-specific
+#include <sys/file.h>  // linux-specific
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include <map-api/hub.h>
-#include "core.pb.h"
+#include "map-api/hub.h"
+#include "./core.pb.h"
 
 namespace map_api {
 
@@ -29,9 +29,7 @@ MAP_API_STRING_MESSAGE(ServerDiscovery::kRemoveRequest);
 const char ServerDiscovery::kUnlockRequest[] =
     "map_api_server_discovery_unlock_request";
 
-ServerDiscovery::~ServerDiscovery() {
-  server_.disconnect();
-}
+ServerDiscovery::~ServerDiscovery() {}
 
 void ServerDiscovery::announce() {
   CHECK(requestAck<kAnnounceRequest>());
@@ -51,7 +49,7 @@ int ServerDiscovery::getPeers(std::vector<PeerId>* peers) {
 }
 
 void ServerDiscovery::lock() {
-  while(!requestAck<kLockRequest>()) {
+  while (!requestAck<kLockRequest>()) {
     usleep(1000);
   }
 }
