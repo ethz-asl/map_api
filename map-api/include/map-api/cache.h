@@ -7,6 +7,7 @@
 #include <multiagent-mapping-common/mapped-container-base.h>
 #include <multiagent-mapping-common/traits.h>
 
+#include <map-api/app-templates.h>
 #include <map-api/cache-base.h>
 #include <map-api/cr-table.h>  // CRTable::RevisionMap
 #include <map-api/revision.h>
@@ -93,15 +94,6 @@ struct InstanceFactory<true, Type, DerivedType> {
 
 class ChunkManagerBase;
 class NetTable;
-
-/**
- * Needs to be implemented by applications.
- */
-template <typename ObjectType>
-std::shared_ptr<ObjectType> objectFromRevision(
-    const map_api::Revision& revision);
-template <typename ObjectType>
-void objectToRevision(const ObjectType& object, map_api::Revision* revision);
 
 template <typename IdType, typename ObjectType>
 void objectToRevision(const IdType id, const ObjectType& object,
