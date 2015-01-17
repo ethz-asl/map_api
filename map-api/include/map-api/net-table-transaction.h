@@ -10,11 +10,11 @@
 #include "map-api/chunk.h"
 #include "map-api/chunk-transaction.h"
 #include "map-api/logical-time.h"
+#include "map-api/net-table.h"
 #include "map-api/revision.h"
 
 namespace map_api {
 class Chunk;
-class NetTable;
 
 class NetTableTransaction {
   friend class Transaction;
@@ -83,6 +83,10 @@ class NetTableTransaction {
       TrackedChunkToTrackersMap;
   void getChunkTrackers(TrackedChunkToTrackersMap* chunk_trackers) const;
 
+  void overridePushNewChunkIdsToTracker(
+      NetTable* tracker_table,
+      const std::function<Id(const Revision&)>& how_to_determine_tracker);
+
   /**
    * A global ordering of chunks prevents deadlocks (resource hierarchy
    * solution)
@@ -99,6 +103,8 @@ class NetTableTransaction {
   mutable TransactionMap chunk_transactions_;
   LogicalTime begin_time_;
   NetTable* table_;
+
+  NetTable::NewChunkTrackerMap push_new_chunk_ids_to_tracker_overrides_;
 };
 
 }  // namespace map_api

@@ -10,12 +10,12 @@
 
 #include "map-api/cr-table.h"
 #include "map-api/logical-time.h"
+#include "map-api/net-table.h"
 #include "map-api/revision.h"
 
 namespace map_api {
 class Chunk;
 class Id;
-class NetTable;
 
 /**
  * This class is somewhat weaker than the first transaction draft
@@ -73,7 +73,8 @@ class ChunkTransaction {
   void prepareCheck(const LogicalTime& check_time,
                     std::unordered_map<Id, LogicalTime>* chunk_stamp);
   typedef std::unordered_multimap<NetTable*, Id> TableToIdMultiMap;
-  void getTrackers(TableToIdMultiMap* trackers) const;
+  void getTrackers(TableToIdMultiMap* trackers,
+                   const NetTable::NewChunkTrackerMap& overrides) const;
 
   /**
    * Strong typing of table operation maps.

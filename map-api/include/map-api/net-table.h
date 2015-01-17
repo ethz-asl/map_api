@@ -54,13 +54,18 @@ class NetTable {
   Chunk* getChunk(const Id& chunk_id);
 
   // HIERARCHICAL CHUNK MANAGEMENT
-  void pushNewChunkIdsToTrackingItem(
+  void pushNewChunkIdsToTracker(
       NetTable* table_of_tracking_item,
       const std::function<Id(const Revision&)>& how_to_determine_tracking_item);
   // In order to use this, an application should specialize determineTracker()
   // and tableForType() found in app-templates.h .
   template <typename TrackeeType, typename TrackerType>
-  void pushNewChunkIdsToTrackingItem();
+  void pushNewChunkIdsToTracker();
+  // If the view state is required for determining the id of the tracker, the
+  // transaction class can override the callback saved with
+  // pushNewChunkIdsToTracker. The following function enforces that override.
+  void enforcePushNewChunkIdsToTrackerOverride(
+      NetTable* table_of_tracking_item);
 
   // SPATIAL INDEX CHUNK MANAGEMENT
   void registerChunkInSpace(const Id& chunk_id,

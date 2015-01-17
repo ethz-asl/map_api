@@ -52,9 +52,9 @@ const std::function<Id(const Revision&)>& NetTable::trackerDeterminerFactory() {
 }
 
 template <typename TrackeeType, typename TrackerType>
-void NetTable::pushNewChunkIdsToTrackingItem() {
+void NetTable::pushNewChunkIdsToTracker() {
   NetTable* tracker_table = tableForType<TrackerType>();
-  this->pushNewChunkIdsToTrackingItem(
+  this->pushNewChunkIdsToTracker(
       tracker_table, trackerDeterminerFactory<TrackeeType, TrackerType>());
 }
 

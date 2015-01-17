@@ -149,8 +149,22 @@ void NetTableTransaction::getChunkTrackers(
   for (const TransactionMap::value_type& chunk_transaction :
        chunk_transactions_) {
     chunk_transaction.second->getTrackers(
-        &(*chunk_trackers)[chunk_transaction.first->id()]);
+        &(*chunk_trackers)[chunk_transaction.first->id()],
+        push_new_chunk_ids_to_tracker_overrides_);
   }
+}
+
+void NetTableTransaction::overridePushNewChunkIdsToTracker(
+    NetTable* tracker_table,
+    const std::function<Id(const Revision&)>& how_to_determine_tracker) {
+  CHECK_NOTNULL(tracker_table);
+  CHECK_GT(table_->new_chunk_trackers().count(tracker_table), 0)
+      << "We currently don't support overrides that are not enforced or "
+         "override "
+         "a given callback.";
+  CHECK(push_new_chunk_ids_to_tracker_overrides_
+            .insert(std::make_pair(tracker_table, how_to_determine_tracker))
+            .second);
 }
 
 } /* namespace map_api */
