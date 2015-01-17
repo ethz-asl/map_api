@@ -10,6 +10,7 @@
 #include <gtest/gtest_prod.h>
 #include <Poco/RWLock.h>  // TODO(tcies) replace with own
 
+#include "map-api/app-templates.h"
 #include "map-api/chunk.h"
 #include "map-api/cr-table.h"
 #include "map-api/net-table-index.h"
@@ -56,6 +57,10 @@ class NetTable {
   void pushNewChunkIdsToTrackingItem(
       NetTable* table_of_tracking_item,
       const std::function<Id(const Revision&)>& how_to_determine_tracking_item);
+  // In order to use this, an application should specialize determineTracker()
+  // and tableForType() found in app-templates.h .
+  template <typename TrackeeType, typename TrackerType>
+  void pushNewChunkIdsToTrackingItem();
 
   // SPATIAL INDEX CHUNK MANAGEMENT
   void registerChunkInSpace(const Id& chunk_id,
@@ -196,6 +201,9 @@ class NetTable {
   inline const NewChunkTrackerMap& new_chunk_trackers() {
     return new_chunk_trackers_;
   }
+
+  template <typename TrackeeType, typename TrackerType>
+  const std::function<Id(const Revision&)>& trackerDeterminerFactory();
 
   CRTable::Type type_;
   std::unique_ptr<CRTable> cache_;
