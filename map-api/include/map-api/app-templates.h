@@ -14,6 +14,11 @@ class Revision;
 
 template <typename ObjectType>
 NetTable* tableForType();
+#define MAP_API_TABLE_FOR_TYPE(Type, TableCPtr) \
+  template <>                                   \
+  NetTable* tableForType<Type>() {              \
+    return TableCPtr;                           \
+  }
 
 template <typename ObjectType>
 std::shared_ptr<ObjectType> objectFromRevision(

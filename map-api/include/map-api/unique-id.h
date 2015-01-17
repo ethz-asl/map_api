@@ -177,6 +177,13 @@ class UniqueId : private Id {
 
   template <typename GenerateIdType>
   friend void generateId(GenerateIdType* id);
+
+ private:
+  // From app-templates.h
+  template <typename TrackeeType, typename TrackerType>
+  friend Id determineTracker(const TrackeeType& trackee);
+
+  inline const Id& asMapApiId() const { return static_cast<const Id&>(*this); }
 };
 
 }  // namespace map_api
