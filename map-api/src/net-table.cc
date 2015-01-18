@@ -151,13 +151,16 @@ void NetTable::pushNewChunkIdsToTracker(
                                        how_to_determine_tracking_item)).second);
 }
 
-void NetTable::pushNewChunkIdsToTracker(NetTable* table_of_tracking_item) {
-  CHECK_NOTNULL(table_of_tracking_item);
-  auto identification_method_placeholder = [](const Revision&) {
-    LOG(FATAL) << "Override of tracker identification method required!";
+void NetTable::pushNewChunkIdsToTracker(NetTable* tracker_table) {
+  CHECK_NOTNULL(tracker_table);
+  auto identification_method_placeholder = [this, tracker_table](
+      const Revision&) {
+    LOG(FATAL) << "Override of tracker identification method (trackee = "
+               << this->name() << ", tracker = " << tracker_table->name()
+               << ") required!";
     return Id();
   };
-  CHECK(new_chunk_trackers_.emplace(table_of_tracking_item,
+  CHECK(new_chunk_trackers_.emplace(tracker_table,
                                     identification_method_placeholder).second);
 }
 

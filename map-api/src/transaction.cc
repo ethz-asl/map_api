@@ -18,7 +18,7 @@ namespace map_api {
 
 Transaction::Transaction() : Transaction(LogicalTime::sample()) {}
 Transaction::Transaction(const LogicalTime& begin_time)
-    : begin_time_(begin_time) {
+    : begin_time_(begin_time), chunk_tracking_disabled_(false) {
   CHECK(begin_time < LogicalTime::sample());
 }
 
@@ -67,7 +67,9 @@ bool Transaction::commit() {
   for (const CacheMap::value_type& cache_pair : attached_caches_) {
     cache_pair.second->prepareForCommit();
   }
+  enableDirectAccess();
   pushNewChunkIdsToTrackers();
+  disableDirectAccess();
   timing::Timer timer("map_api::Transaction::commit - lock");
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->lock();
@@ -134,8 +136,10 @@ void Transaction::overrideTrackerIdentificationMethod(
   CHECK_NOTNULL(trackee_table);
   CHECK_NOTNULL(tracker_table);
   CHECK(how_to_determine_tracker);
+  enableDirectAccess();
   transactionOf(trackee_table)->overrideTrackerIdentificationMethod(
       tracker_table, how_to_determine_tracker);
+  disableDirectAccess();
 }
 
 void Transaction::attachCache(NetTable* table, CacheBase* cache) {
@@ -145,12 +149,12 @@ void Transaction::attachCache(NetTable* table, CacheBase* cache) {
   attached_caches_.emplace(table, cache);
 }
 
-void Transaction::enableDirectAccessForCache() {
+void Transaction::enableDirectAccess() {
   std::lock_guard<std::mutex> lock(access_type_mutex_);
   CHECK(cache_access_override_.insert(std::this_thread::get_id()).second);
 }
 
-void Transaction::disableDirectAccessForCache() {
+void Transaction::disableDirectAccess() {
   std::lock_guard<std::mutex> lock(access_type_mutex_);
   CHECK_EQ(1u, cache_access_override_.erase(std::this_thread::get_id()));
 }
@@ -202,6 +206,9 @@ void Transaction::ensureAccessIsDirect(NetTable* table) const {
 }
 
 void Transaction::pushNewChunkIdsToTrackers() {
+  if (chunk_tracking_disabled_) {
+    return;
+  }
   // tracked table -> tracked chunks -> tracking table -> tracking item
   typedef std::unordered_map<NetTable*,
                              NetTableTransaction::TrackedChunkToTrackersMap>

@@ -208,7 +208,7 @@ class NetTable {
   }
 
   template <typename TrackeeType, typename TrackerType>
-  const std::function<Id(const Revision&)>& trackerDeterminerFactory();
+  std::function<Id(const Revision&)> trackerDeterminerFactory();
 
   CRTable::Type type_;
   std::unique_ptr<CRTable> cache_;

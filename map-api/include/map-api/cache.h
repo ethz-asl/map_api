@@ -188,14 +188,12 @@ class Cache : public CacheBase,
 
      public:
       inline Transaction* operator->() const { return transaction_; }
-      inline ~TransactionAccess() {
-        transaction_->disableDirectAccessForCache();
-      }
+      inline ~TransactionAccess() { transaction_->disableDirectAccess(); }
 
      private:
       explicit inline TransactionAccess(Transaction* transaction)
           : transaction_(transaction) {
-        transaction_->enableDirectAccessForCache();
+        transaction_->enableDirectAccess();
       }
       Transaction* transaction_;
     };

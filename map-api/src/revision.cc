@@ -134,17 +134,16 @@ std::string Revision::dumpToString() const {
   return dump_ss.str();
 }
 
-size_t Revision::fetchTrackedChunks() const {
-  size_t total_num_fetched_chunks = 0u;
+bool Revision::fetchTrackedChunks() const {
+  bool success = true;
   TrackeeMultimap trackee_multimap;
   trackee_multimap.deserialize(*underlying_revision_);
   for (const TrackeeMultimap::value_type& table_chunk : trackee_multimap) {
-    ++total_num_fetched_chunks;
-    table_chunk.first->getChunk(table_chunk.second);
-    VLOG(3) << "Fetching chunk " << table_chunk.second << " for table "
-            << table_chunk.first->name();
+    if (table_chunk.first->getChunk(table_chunk.second) == nullptr) {
+      success = false;
+    }
   }
-  return total_num_fetched_chunks;
+  return success;
 }
 
 /**

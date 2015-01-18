@@ -43,7 +43,7 @@ void NetTable::getAvailableIds(const LogicalTime& time,
 }
 
 template <typename TrackeeType, typename TrackerType>
-const std::function<Id(const Revision&)>& NetTable::trackerDeterminerFactory() {
+std::function<Id(const Revision&)> NetTable::trackerDeterminerFactory() {
   return [](const Revision& trackee_revision) {  // NOLINT
     std::shared_ptr<TrackeeType> trackee =
         objectFromRevision<TrackeeType>(trackee_revision);

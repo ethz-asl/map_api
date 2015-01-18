@@ -106,8 +106,8 @@ class Transaction {
 
  private:
   void attachCache(NetTable* table, CacheBase* cache);
-  void enableDirectAccessForCache();
-  void disableDirectAccessForCache();
+  void enableDirectAccess();
+  void disableDirectAccess();
 
   NetTableTransaction* transactionOf(NetTable* table) const;
 
@@ -115,6 +115,8 @@ class Transaction {
   void ensureAccessIsDirect(NetTable* table) const;
 
   void pushNewChunkIdsToTrackers();
+  friend class ProtoTableFileIO;
+  inline void disableChunkTracking() { chunk_tracking_disabled_ = true; }
 
   /**
    * A global ordering of tables prevents deadlocks (resource hierarchy
@@ -153,6 +155,8 @@ class Transaction {
   mutable std::mutex access_type_mutex_;
   mutable std::mutex access_mode_mutex_;
   mutable std::mutex net_table_transactions_mutex_;
+
+  bool chunk_tracking_disabled_;
 };
 
 }  // namespace map_api
