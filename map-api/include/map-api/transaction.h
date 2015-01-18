@@ -88,7 +88,6 @@ class Transaction {
       return ss.str();
     }
   };
-
   /**
    * Merge_transaction will be filled with all insertions and non-conflicting
    * updates from this transaction, while the conflicting updates will be
@@ -96,7 +95,14 @@ class Transaction {
    */
   void merge(const std::shared_ptr<Transaction>& merge_transaction,
              ConflictMap* conflicts);
+
+  // STATISTICS
   size_t numChangedItems() const;
+
+  // MISCELLANEOUS
+  void overrideTrackerIdentificationMethod(
+      NetTable* trackee_table, NetTable* tracker_table,
+      const std::function<Id(const Revision&)>& how_to_determine_tracker);
 
  private:
   void attachCache(NetTable* table, CacheBase* cache);

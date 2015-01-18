@@ -128,6 +128,16 @@ size_t Transaction::numChangedItems() const {
   return count;
 }
 
+void Transaction::overrideTrackerIdentificationMethod(
+    NetTable* trackee_table, NetTable* tracker_table,
+    const std::function<Id(const Revision&)>& how_to_determine_tracker) {
+  CHECK_NOTNULL(trackee_table);
+  CHECK_NOTNULL(tracker_table);
+  CHECK(how_to_determine_tracker);
+  transactionOf(trackee_table)->overrideTrackerIdentificationMethod(
+      tracker_table, how_to_determine_tracker);
+}
+
 void Transaction::attachCache(NetTable* table, CacheBase* cache) {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(cache);
