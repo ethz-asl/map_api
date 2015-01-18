@@ -83,7 +83,7 @@ class NetTableTransaction {
       TrackedChunkToTrackersMap;
   void getChunkTrackers(TrackedChunkToTrackersMap* chunk_trackers) const;
 
-  void overridePushNewChunkIdsToTracker(
+  void overrideTrackerIdentificationMethod(
       NetTable* tracker_table,
       const std::function<Id(const Revision&)>& how_to_determine_tracker);
 

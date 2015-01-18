@@ -197,8 +197,8 @@ void ChunkTransaction::prepareCheck(
 }
 
 void ChunkTransaction::getTrackers(
-    TableToIdMultiMap* trackers,
-    const NetTable::NewChunkTrackerMap& overrides) const {
+    const NetTable::NewChunkTrackerMap& overrides,
+    TableToIdMultiMap* trackers) const {
   CHECK_NOTNULL(trackers);
   for (const typename NetTable::NewChunkTrackerMap::value_type&
            table_tracker_getter : table_->new_chunk_trackers()) {

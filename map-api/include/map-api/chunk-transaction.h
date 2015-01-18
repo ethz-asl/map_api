@@ -72,9 +72,9 @@ class ChunkTransaction {
   // INTERNAL
   void prepareCheck(const LogicalTime& check_time,
                     std::unordered_map<Id, LogicalTime>* chunk_stamp);
-  typedef std::unordered_multimap<NetTable*, Id> TableToIdMultiMap;
-  void getTrackers(TableToIdMultiMap* trackers,
-                   const NetTable::NewChunkTrackerMap& overrides) const;
+  typedef std::unordered_multimap<const NetTable* const, Id> TableToIdMultiMap;
+  void getTrackers(const NetTable::NewChunkTrackerMap& overrides,
+                   TableToIdMultiMap* trackers) const;
 
   /**
    * Strong typing of table operation maps.

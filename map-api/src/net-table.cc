@@ -151,17 +151,14 @@ void NetTable::pushNewChunkIdsToTracker(
                                        how_to_determine_tracking_item)).second);
 }
 
-void NetTable::enforcePushNewChunkIdsToTrackerOverride(
-    NetTable* table_of_tracking_item) {
+void NetTable::pushNewChunkIdsToTracker(NetTable* table_of_tracking_item) {
   CHECK_NOTNULL(table_of_tracking_item);
-  CHECK(new_chunk_trackers_
-            .insert(std::make_pair(table_of_tracking_item, [](const Revision&) {
-               LOG(FATAL) << "Enforcing override of pushNewChunkIdsToTracker() "
-                             "requested,"
-                             " but pushNewChunkIdsToTracker() not overridden.";
-               return Id();
-             }))
-            .second);
+  auto identification_method_placeholder = [](const Revision&) {
+    LOG(FATAL) << "Override of tracker identification method required!";
+    return Id();
+  };
+  CHECK(new_chunk_trackers_.emplace(table_of_tracking_item,
+                                    identification_method_placeholder).second);
 }
 
 void NetTable::registerChunkInSpace(
