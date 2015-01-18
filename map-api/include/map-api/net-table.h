@@ -63,8 +63,8 @@ class NetTable {
   void pushNewChunkIdsToTracker();
   // If the transaction state is required for determining the id of the tracker,
   // (e.g. if tracker determination depends on other items), use this method,
-  // then use Transaction::overrideTrackerIdentificationMethod() to specify the
-  // tracker identification method.
+  // then use Transaction::overrideTrackerIdentificationMethod() to set the
+  // method to obtain the tracker for a given item.
   void pushNewChunkIdsToTracker(NetTable* table_of_tracking_item);
 
   // SPATIAL INDEX CHUNK MANAGEMENT
