@@ -83,9 +83,11 @@ class NetTableTransaction {
       TrackedChunkToTrackersMap;
   void getChunkTrackers(TrackedChunkToTrackersMap* chunk_trackers) const;
 
+  template <typename TrackerIdType>
   void overrideTrackerIdentificationMethod(
       NetTable* tracker_table,
-      const std::function<Id(const Revision&)>& how_to_determine_tracker);
+      const std::function<TrackerIdType(const Revision&)>&
+          how_to_determine_tracker);
 
   /**
    * A global ordering of chunks prevents deadlocks (resource hierarchy

@@ -27,8 +27,8 @@ std::shared_ptr<ObjectType> objectFromRevision(
 template <typename ObjectType>
 void objectToRevision(const ObjectType& object, map_api::Revision* revision);
 
-template <typename TrackeeType, typename TrackerType>
-Id determineTracker(const TrackeeType& trackee);
+template <typename TrackeeType, typename TrackerType, typename TrackerIdType>
+TrackerIdType determineTracker(const TrackeeType& trackee);
 
 }  // namespace map_api
 

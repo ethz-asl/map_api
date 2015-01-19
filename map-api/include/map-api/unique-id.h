@@ -178,7 +178,9 @@ class UniqueId : private Id {
   template <typename GenerateIdType>
   friend void generateId(GenerateIdType* id);
 
-  inline const Id& asMapApiId() const { return static_cast<const Id&>(*this); }
+  // Making base type accessible to select Map API classes.
+  friend class NetTable;
+  friend class NetTableTransaction;
 };
 
 }  // namespace map_api
