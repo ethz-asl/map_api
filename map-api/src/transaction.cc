@@ -4,7 +4,6 @@
 
 #include <timing/timer.h>
 
-#include "map-api/internal/trackee-multimap.h"
 #include "map-api/cache-base.h"
 #include "map-api/chunk.h"
 #include "map-api/chunk-manager.h"
@@ -12,6 +11,7 @@
 #include "map-api/net-table-manager.h"
 #include "map-api/net-table-transaction.h"
 #include "map-api/revision.h"
+#include "map-api/trackee-multimap.h"
 #include "./core.pb.h"
 
 namespace map_api {
@@ -219,7 +219,8 @@ void Transaction::pushNewChunkIdsToTrackers() {
       for (const ChunkTransaction::TableToIdMultiMap::value_type& tracker :
            chunk_trackers.second) {
         table_item_chunks_to_push[tracker.first][tracker.second]
-            .emplace(net_table_trackers.first, chunk_trackers.first);
+                                 [net_table_trackers.first]
+                                     .emplace(chunk_trackers.first);
       }
     }
   }
