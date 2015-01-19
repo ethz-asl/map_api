@@ -122,7 +122,7 @@ class Revision {
     return !operator==(other);
   }
 
-  void fetchTrackedChunks() const;
+  size_t fetchTrackedChunks() const;
 
  private:
   inline void setInsertTime(const LogicalTime& time) {
