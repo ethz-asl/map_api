@@ -4,7 +4,6 @@
 
 #include <timing/timer.h>
 
-#include "map-api/internal/trackee-multimap.h"
 #include "map-api/cache-base.h"
 #include "map-api/chunk.h"
 #include "map-api/chunk-manager.h"
@@ -12,13 +11,14 @@
 #include "map-api/net-table-manager.h"
 #include "map-api/net-table-transaction.h"
 #include "map-api/revision.h"
+#include "map-api/trackee-multimap.h"
 #include "./core.pb.h"
 
 namespace map_api {
 
 Transaction::Transaction() : Transaction(LogicalTime::sample()) {}
 Transaction::Transaction(const LogicalTime& begin_time)
-    : begin_time_(begin_time) {
+    : begin_time_(begin_time), chunk_tracking_disabled_(false) {
   CHECK(begin_time < LogicalTime::sample());
 }
 
@@ -67,7 +67,9 @@ bool Transaction::commit() {
   for (const CacheMap::value_type& cache_pair : attached_caches_) {
     cache_pair.second->prepareForCommit();
   }
+  enableDirectAccess();
   pushNewChunkIdsToTrackers();
+  disableDirectAccess();
   timing::Timer timer("map_api::Transaction::commit - lock");
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->lock();
@@ -128,16 +130,6 @@ size_t Transaction::numChangedItems() const {
   return count;
 }
 
-void Transaction::overrideTrackerIdentificationMethod(
-    NetTable* trackee_table, NetTable* tracker_table,
-    const std::function<Id(const Revision&)>& how_to_determine_tracker) {
-  CHECK_NOTNULL(trackee_table);
-  CHECK_NOTNULL(tracker_table);
-  CHECK(how_to_determine_tracker);
-  transactionOf(trackee_table)->overrideTrackerIdentificationMethod(
-      tracker_table, how_to_determine_tracker);
-}
-
 void Transaction::attachCache(NetTable* table, CacheBase* cache) {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(cache);
@@ -145,12 +137,12 @@ void Transaction::attachCache(NetTable* table, CacheBase* cache) {
   attached_caches_.emplace(table, cache);
 }
 
-void Transaction::enableDirectAccessForCache() {
+void Transaction::enableDirectAccess() {
   std::lock_guard<std::mutex> lock(access_type_mutex_);
   CHECK(cache_access_override_.insert(std::this_thread::get_id()).second);
 }
 
-void Transaction::disableDirectAccessForCache() {
+void Transaction::disableDirectAccess() {
   std::lock_guard<std::mutex> lock(access_type_mutex_);
   CHECK_EQ(1u, cache_access_override_.erase(std::this_thread::get_id()));
 }
@@ -202,6 +194,9 @@ void Transaction::ensureAccessIsDirect(NetTable* table) const {
 }
 
 void Transaction::pushNewChunkIdsToTrackers() {
+  if (chunk_tracking_disabled_) {
+    return;
+  }
   // tracked table -> tracked chunks -> tracking table -> tracking item
   typedef std::unordered_map<NetTable*,
                              NetTableTransaction::TrackedChunkToTrackersMap>
@@ -224,7 +219,8 @@ void Transaction::pushNewChunkIdsToTrackers() {
       for (const ChunkTransaction::TableToIdMultiMap::value_type& tracker :
            chunk_trackers.second) {
         table_item_chunks_to_push[tracker.first][tracker.second]
-            .emplace(net_table_trackers.first, chunk_trackers.first);
+                                 [net_table_trackers.first]
+                                     .emplace(chunk_trackers.first);
       }
     }
   }
@@ -241,8 +237,7 @@ void Transaction::pushNewChunkIdsToTrackers() {
           new Revision(*original_tracker));
       TrackeeMultimap trackee_multimap;
       trackee_multimap.deserialize(*original_tracker->underlying_revision_);
-      trackee_multimap.insert(item_chunks_to_push.second.begin(),
-                              item_chunks_to_push.second.end());
+      trackee_multimap.merge(item_chunks_to_push.second);
       trackee_multimap.serialize(updated_tracker->underlying_revision_.get());
       update(table_chunks_to_push.first, updated_tracker);
     }
