@@ -42,6 +42,22 @@ void NetTable::getAvailableIds(const LogicalTime& time,
   unlockActiveChunks();
 }
 
+template <typename TrackeeType, typename TrackerType>
+const std::function<Id(const Revision&)>& NetTable::trackerDeterminerFactory() {
+  return [](const Revision& trackee_revision) {  // NOLINT
+    std::shared_ptr<TrackeeType> trackee =
+        objectFromRevision<TrackeeType>(trackee_revision);
+    return determineTracker<TrackeeType, TrackerType>(*trackee);
+  };
+}
+
+template <typename TrackeeType, typename TrackerType>
+void NetTable::pushNewChunkIdsToTrackingItem() {
+  NetTable* tracker_table = tableForType<TrackerType>();
+  this->pushNewChunkIdsToTrackingItem(
+      tracker_table, trackerDeterminerFactory<TrackeeType, TrackerType>());
+}
+
 }  // namespace map_api
 
 #endif  // MAP_API_NET_TABLE_INL_H_
