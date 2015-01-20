@@ -125,6 +125,7 @@ class Cache : public CacheBase,
   virtual ~Cache();
   Value& get(const IdType& id);
   const Value& get(const IdType& id) const;
+  std::shared_ptr<const Revision> getRevision(const IdType& id) const;
   /**
    * Inserted objects will live in cache_, but not in revisions_.
    * @return false if some item with same id already exists (in current chunks)
