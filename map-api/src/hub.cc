@@ -34,6 +34,7 @@ DEFINE_string(discovery_server, "127.0.0.1:5050",
               "Server to be used for "
               "server-discovery");
 DEFINE_string(announce_ip, "", "IP to use for discovery announcement");
+DEFINE_int32(discovery_timeout_ms, 100, "Timeout specific for first contact.");
 DECLARE_int32(simulated_lag_ms);
 
 namespace map_api {
@@ -102,7 +103,9 @@ bool Hub::init(bool* is_first_peer) {
   announce_self.impose<kDiscovery>();
   std::unordered_set<PeerId> unreachable;
   for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer : peers_) {
-    if (!peer.second->try_request(&announce_self, &response)) {
+    if (!peer.second->try_request_for(FLAGS_discovery_timeout_ms,
+                                      &announce_self, &response)) {
+      LOG(WARNING) << "Discovery timeout for " << peer.first << "!";
       discovery_->remove(peer.first);
       unreachable.insert(peer.first);
     }
@@ -113,7 +116,6 @@ bool Hub::init(bool* is_first_peer) {
     for (const PeerId& peer : unreachable) {
       PeerMap::iterator found = peers_.find(peer);
       CHECK(found != peers_.end());
-      found->second->disconnect();
       peers_.erase(found);
     }
   }
@@ -139,9 +141,6 @@ void Hub::kill() {
   listener_.join();
   // disconnect from peers (no need to lock as listener should be only other
   // thread)
-  for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer : peers_) {
-    peer.second->disconnect();
-  }
   peers_.clear();
   // destroy context
   discovery_->lock();
