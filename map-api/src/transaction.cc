@@ -237,8 +237,7 @@ void Transaction::pushNewChunkIdsToTrackers() {
           new Revision(*original_tracker));
       TrackeeMultimap trackee_multimap;
       trackee_multimap.deserialize(*original_tracker->underlying_revision_);
-      trackee_multimap.insert(item_chunks_to_push.second.begin(),
-                              item_chunks_to_push.second.end());
+      trackee_multimap.merge(item_chunks_to_push.second);
       trackee_multimap.serialize(updated_tracker->underlying_revision_.get());
       update(table_chunks_to_push.first, updated_tracker);
     }

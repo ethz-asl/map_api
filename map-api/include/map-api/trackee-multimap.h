@@ -18,6 +18,8 @@ class TrackeeMultimap
   void deserialize(const proto::Revision& proto);
   void serialize(proto::Revision* proto) const;
 
+  void merge(const TrackeeMultimap& other);
+
   bool hasOverlap(const TrackeeMultimap& other) const;
 
   bool isSameVerbose(const TrackeeMultimap& other) const;

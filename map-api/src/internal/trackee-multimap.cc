@@ -34,8 +34,20 @@ void TrackeeMultimap::serialize(proto::Revision* proto) const {
   }
 }
 
+void TrackeeMultimap::merge(const TrackeeMultimap& other) {
+  for (const value_type& table_trackees : other) {
+    iterator found = find(table_trackees.first);
+    if (found == end()) {
+      emplace(table_trackees);
+    } else {
+      for (const Id& trackee : table_trackees.second) {
+        found->second.emplace(trackee);
+      }
+    }
+  }
+}
+
 bool TrackeeMultimap::hasOverlap(const TrackeeMultimap& other) const {
-  std::pair<const_iterator, const_iterator> key_range;
   for (const value_type& table_trackees : *this) {
     const_iterator found = other.find(table_trackees.first);
     if (found == other.end()) {
