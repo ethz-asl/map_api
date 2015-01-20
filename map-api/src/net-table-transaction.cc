@@ -149,19 +149,19 @@ void NetTableTransaction::getChunkTrackers(
   for (const TransactionMap::value_type& chunk_transaction :
        chunk_transactions_) {
     chunk_transaction.second->getTrackers(
-        &(*chunk_trackers)[chunk_transaction.first->id()],
-        push_new_chunk_ids_to_tracker_overrides_);
+        push_new_chunk_ids_to_tracker_overrides_,
+        &(*chunk_trackers)[chunk_transaction.first->id()]);
   }
 }
 
-void NetTableTransaction::overridePushNewChunkIdsToTracker(
+void NetTableTransaction::overrideTrackerIdentificationMethod(
     NetTable* tracker_table,
     const std::function<Id(const Revision&)>& how_to_determine_tracker) {
   CHECK_NOTNULL(tracker_table);
+  CHECK(how_to_determine_tracker);
   CHECK_GT(table_->new_chunk_trackers().count(tracker_table), 0)
-      << "We currently don't support overrides that are not enforced or "
-         "override "
-         "a given callback.";
+      << "Attempted to override a tracker identification method which is "
+      << "however not used for pushing new chunk ids.";
   CHECK(push_new_chunk_ids_to_tracker_overrides_
             .insert(std::make_pair(tracker_table, how_to_determine_tracker))
             .second);

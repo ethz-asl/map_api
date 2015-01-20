@@ -99,8 +99,8 @@ class Transaction {
   // STATISTICS
   size_t numChangedItems() const;
 
-  // FANCY STUFF
-  void overridePushNewChunkIdsToTracker(
+  // MISCELLANEOUS
+  void overrideTrackerIdentificationMethod(
       NetTable* trackee_table, NetTable* tracker_table,
       const std::function<Id(const Revision&)>& how_to_determine_tracker);
 
