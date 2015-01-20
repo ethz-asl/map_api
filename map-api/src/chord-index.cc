@@ -633,7 +633,6 @@ bool ChordIndex::retrieveDataLocally(
   DataMap::iterator found = data_.find(key);
   if (found == data_.end()) {
     data_lock_.unlock();
-    VLOG(3) << "Data with given key " << key << " does not exist";
     return false;
   }
   *value = found->second;
