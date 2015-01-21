@@ -4,9 +4,9 @@
 #include <Poco/Data/Common.h>
 #include <Poco/Data/BLOB.h>
 
-#include <map-api/internal/trackee-multimap.h>
 #include <map-api/logical-time.h>
 #include <map-api/net-table-manager.h>
+#include <map-api/trackee-multimap.h>
 #include <map-api/unique-id.h>
 
 namespace map_api {
@@ -134,17 +134,22 @@ std::string Revision::dumpToString() const {
   return dump_ss.str();
 }
 
-size_t Revision::fetchTrackedChunks() const {
-  size_t total_num_fetched_chunks = 0u;
+void Revision::getTrackedChunks(TrackeeMultimap* result) const {
+  CHECK_NOTNULL(result)->deserialize(*underlying_revision_);
+}
+
+bool Revision::fetchTrackedChunks() const {
+  bool success = true;
   TrackeeMultimap trackee_multimap;
-  trackee_multimap.deserialize(*underlying_revision_);
-  for (const TrackeeMultimap::value_type& table_chunk : trackee_multimap) {
-    ++total_num_fetched_chunks;
-    table_chunk.first->getChunk(table_chunk.second);
-    VLOG(3) << "Fetching chunk " << table_chunk.second << " for table "
-            << table_chunk.first->name();
+  getTrackedChunks(&trackee_multimap);
+  for (const TrackeeMultimap::value_type& table_trackees : trackee_multimap) {
+    for (const Id& chunk_id : table_trackees.second) {
+      if (table_trackees.first->getChunk(chunk_id) == nullptr) {
+        success = false;
+      }
+    }
   }
-  return total_num_fetched_chunks;
+  return success;
 }
 
 /**
