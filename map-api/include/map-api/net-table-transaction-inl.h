@@ -90,6 +90,25 @@ Chunk* NetTableTransaction::chunkOf(
   return table_->getChunk((*inconsistent)->getChunkId());
 }
 
+template <typename TrackerIdType>
+void NetTableTransaction::overrideTrackerIdentificationMethod(
+    NetTable* tracker_table,
+    const std::function<TrackerIdType(const Revision&)>&
+        how_to_determine_tracker) {
+  CHECK_NOTNULL(tracker_table);
+  CHECK(how_to_determine_tracker);
+  CHECK_GT(table_->new_chunk_trackers().count(tracker_table), 0)
+      << "Attempted to override a tracker identification method which is "
+      << "however not used for pushing new chunk ids.";
+  auto determine_map_api_tracker_id = [how_to_determine_tracker](
+      const Revision& trackee) {
+    return static_cast<Id>(how_to_determine_tracker(trackee));
+  };
+  CHECK(push_new_chunk_ids_to_tracker_overrides_
+            .insert(std::make_pair(tracker_table, determine_map_api_tracker_id))
+            .second);
+}
+
 }  // namespace map_api
 
 #endif  // MAP_API_NET_TABLE_TRANSACTION_INL_H_
