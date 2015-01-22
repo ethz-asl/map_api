@@ -12,6 +12,7 @@
 #include "map-api/unique-id.h"
 
 namespace map_api {
+class TrackeeMultimap;
 
 class Revision {
   friend class Chunk;
@@ -122,7 +123,8 @@ class Revision {
     return !operator==(other);
   }
 
-  void fetchTrackedChunks() const;
+  void getTrackedChunks(TrackeeMultimap* result) const;
+  bool fetchTrackedChunks() const;
 
  private:
   inline void setInsertTime(const LogicalTime& time) {

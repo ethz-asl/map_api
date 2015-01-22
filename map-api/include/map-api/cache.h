@@ -7,6 +7,7 @@
 #include <multiagent-mapping-common/mapped-container-base.h>
 #include <multiagent-mapping-common/traits.h>
 
+#include <map-api/app-templates.h>
 #include <map-api/cache-base.h>
 #include <map-api/cr-table.h>  // CRTable::RevisionMap
 #include <map-api/revision.h>
@@ -94,15 +95,6 @@ struct InstanceFactory<true, Type, DerivedType> {
 class ChunkManagerBase;
 class NetTable;
 
-/**
- * Needs to be implemented by applications.
- */
-template <typename ObjectType>
-std::shared_ptr<ObjectType> objectFromRevision(
-    const map_api::Revision& revision);
-template <typename ObjectType>
-void objectToRevision(const ObjectType& object, map_api::Revision* revision);
-
 template <typename IdType, typename ObjectType>
 void objectToRevision(const IdType id, const ObjectType& object,
                       map_api::Revision* revision) {
@@ -133,6 +125,7 @@ class Cache : public CacheBase,
   virtual ~Cache();
   Value& get(const IdType& id);
   const Value& get(const IdType& id) const;
+  std::shared_ptr<const Revision> getRevision(const IdType& id) const;
   /**
    * Inserted objects will live in cache_, but not in revisions_.
    * @return false if some item with same id already exists (in current chunks)
@@ -196,14 +189,12 @@ class Cache : public CacheBase,
 
      public:
       inline Transaction* operator->() const { return transaction_; }
-      inline ~TransactionAccess() {
-        transaction_->disableDirectAccessForCache();
-      }
+      inline ~TransactionAccess() { transaction_->disableDirectAccess(); }
 
      private:
       explicit inline TransactionAccess(Transaction* transaction)
           : transaction_(transaction) {
-        transaction_->enableDirectAccessForCache();
+        transaction_->enableDirectAccess();
       }
       Transaction* transaction_;
     };

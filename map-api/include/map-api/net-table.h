@@ -10,6 +10,7 @@
 #include <gtest/gtest_prod.h>
 #include <Poco/RWLock.h>  // TODO(tcies) replace with own
 
+#include "map-api/app-templates.h"
 #include "map-api/chunk.h"
 #include "map-api/cr-table.h"
 #include "map-api/net-table-index.h"
@@ -53,9 +54,18 @@ class NetTable {
   Chunk* getChunk(const Id& chunk_id);
 
   // HIERARCHICAL CHUNK MANAGEMENT
-  void pushNewChunkIdsToTrackingItem(
+  void pushNewChunkIdsToTracker(
       NetTable* table_of_tracking_item,
       const std::function<Id(const Revision&)>& how_to_determine_tracking_item);
+  // In order to use this, an application should specialize determineTracker()
+  // and tableForType() found in app-templates.h .
+  template <typename TrackeeType, typename TrackerType, typename TrackerIdType>
+  void pushNewChunkIdsToTracker();
+  // If the transaction state is required for determining the id of the tracker,
+  // (e.g. if tracker determination depends on other items), use this method,
+  // then use Transaction::overrideTrackerIdentificationMethod() to set the
+  // method to obtain the tracker for a given item.
+  void pushNewChunkIdsToTracker(NetTable* table_of_tracking_item);
 
   // SPATIAL INDEX CHUNK MANAGEMENT
   void registerChunkInSpace(const Id& chunk_id,
@@ -196,6 +206,9 @@ class NetTable {
   inline const NewChunkTrackerMap& new_chunk_trackers() {
     return new_chunk_trackers_;
   }
+
+  template <typename TrackeeType, typename TrackerType, typename TrackerIdType>
+  std::function<Id(const Revision&)> trackerDeterminerFactory();
 
   CRTable::Type type_;
   std::unique_ptr<CRTable> cache_;
