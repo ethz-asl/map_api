@@ -14,6 +14,11 @@ class Revision;
 
 template <typename ObjectType>
 NetTable* tableForType();
+#define MAP_API_TABLE_FOR_TYPE(Type, TableCPtr) \
+  template <>                                   \
+  NetTable* tableForType<Type>() {              \
+    return TableCPtr;                           \
+  }
 
 template <typename ObjectType>
 std::shared_ptr<ObjectType> objectFromRevision(
@@ -22,8 +27,8 @@ std::shared_ptr<ObjectType> objectFromRevision(
 template <typename ObjectType>
 void objectToRevision(const ObjectType& object, map_api::Revision* revision);
 
-template <typename TrackeeType, typename TrackerType>
-Id determineTracker(const TrackeeType& trackee);
+template <typename TrackeeType, typename TrackerType, typename TrackerIdType>
+TrackerIdType determineTracker(const TrackeeType& trackee);
 
 }  // namespace map_api
 
