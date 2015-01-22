@@ -1,4 +1,8 @@
-#include "map-api/internal/trackee-multimap.h"
+#include "map-api/trackee-multimap.h"
+
+#include <iterator>
+
+#include <glog/logging.h>
 
 #include "map-api/net-table-manager.h"
 #include "./core.pb.h"
@@ -13,22 +17,72 @@ void TrackeeMultimap::deserialize(const proto::Revision& proto) {
     for (int j = 0; j < table_trackees.chunk_ids_size(); ++j) {
       Id chunk_id;
       chunk_id.deserialize(table_trackees.chunk_ids(j));
-      emplace(table, chunk_id);
+      operator[](table).emplace(chunk_id);
     }
   }
 }
 
 void TrackeeMultimap::serialize(proto::Revision* proto) const {
   proto->mutable_chunk_tracking()->Clear();
-  proto::TableChunkTracking* proto_table_trackee = nullptr;
-  for (const value_type& trackee : *this) {
-    if (proto_table_trackee == nullptr ||
-        proto_table_trackee->table_name() != trackee.first->name()) {
-      proto_table_trackee = proto->add_chunk_tracking();
-      proto_table_trackee->set_table_name(trackee.first->name());
+  for (const value_type& table_trackees : *this) {
+    proto::TableChunkTracking* proto_table_trackee =
+        proto->add_chunk_tracking();
+    proto_table_trackee->set_table_name(table_trackees.first->name());
+    for (const Id& trackee : table_trackees.second) {
+      trackee.serialize(proto_table_trackee->add_chunk_ids());
     }
-    trackee.second.serialize(proto_table_trackee->add_chunk_ids());
   }
+}
+
+void TrackeeMultimap::merge(const TrackeeMultimap& other) {
+  for (const value_type& table_trackees : other) {
+    iterator found = find(table_trackees.first);
+    if (found == end()) {
+      emplace(table_trackees);
+    } else {
+      for (const Id& trackee : table_trackees.second) {
+        found->second.emplace(trackee);
+      }
+    }
+  }
+}
+
+bool TrackeeMultimap::hasOverlap(const TrackeeMultimap& other) const {
+  for (const value_type& table_trackees : *this) {
+    const_iterator found = other.find(table_trackees.first);
+    if (found == other.end()) {
+      continue;
+    }
+    for (const Id& trackee : table_trackees.second) {
+      if (found->second.find(trackee) == found->second.end()) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool TrackeeMultimap::isSameVerbose(const TrackeeMultimap& other) const {
+  if (size() != other.size()) {
+    LOG(WARNING) << "Table counts mismatch!";
+    return false;
+  }
+
+  for (const value_type& table_trackees : *this) {
+    const_iterator found = other.find(table_trackees.first);
+    if (found == other.end()) {
+      LOG(WARNING) << "Table " << table_trackees.first->name()
+                   << " not represented in other!";
+      return false;
+    }
+
+    if (table_trackees.second != found->second) {
+      LOG(WARNING) << "Trackees for table " << table_trackees.first->name()
+                   << " mismatch!";
+      return false;
+    }
+  }
+  return true;
 }
 
 }  // namespace map_api
