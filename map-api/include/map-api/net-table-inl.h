@@ -42,20 +42,23 @@ void NetTable::getAvailableIds(const LogicalTime& time,
   unlockActiveChunks();
 }
 
-template <typename TrackeeType, typename TrackerType>
-const std::function<Id(const Revision&)>& NetTable::trackerDeterminerFactory() {
+template <typename TrackeeType, typename TrackerType, typename TrackerIdType>
+std::function<Id(const Revision&)> NetTable::trackerDeterminerFactory() {
   return [](const Revision& trackee_revision) {  // NOLINT
     std::shared_ptr<TrackeeType> trackee =
         objectFromRevision<TrackeeType>(trackee_revision);
-    return determineTracker<TrackeeType, TrackerType>(*trackee);
+    TrackerIdType typed_tracker_id =
+        determineTracker<TrackeeType, TrackerType, TrackerIdType>(*trackee);
+    return static_cast<Id>(typed_tracker_id);
   };
 }
 
-template <typename TrackeeType, typename TrackerType>
-void NetTable::pushNewChunkIdsToTrackingItem() {
+template <typename TrackeeType, typename TrackerType, typename TrackerIdType>
+void NetTable::pushNewChunkIdsToTracker() {
   NetTable* tracker_table = tableForType<TrackerType>();
-  this->pushNewChunkIdsToTrackingItem(
-      tracker_table, trackerDeterminerFactory<TrackeeType, TrackerType>());
+  this->pushNewChunkIdsToTracker(
+      tracker_table,
+      trackerDeterminerFactory<TrackeeType, TrackerType, TrackerIdType>());
 }
 
 }  // namespace map_api

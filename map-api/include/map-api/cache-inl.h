@@ -68,6 +68,13 @@ const Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) const {
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
+std::shared_ptr<const Revision> Cache<IdType, Value, DerivedValue>::getRevision(
+    const IdType& id) const {
+  LockGuard lock(mutex_);
+  return getRevisionLocked(id);
+}
+
+template <typename IdType, typename Value, typename DerivedValue>
 bool Cache<IdType, Value, DerivedValue>::insert(const IdType& id,
                                                 const Value& value) {
   LockGuard lock(mutex_);
