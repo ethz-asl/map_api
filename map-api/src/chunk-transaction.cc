@@ -196,13 +196,18 @@ void ChunkTransaction::prepareCheck(
   }
 }
 
-void ChunkTransaction::getTrackers(TableToIdMultiMap* trackers) const {
+void ChunkTransaction::getTrackers(
+    const NetTable::NewChunkTrackerMap& overrides,
+    TableToIdMultiMap* trackers) const {
   CHECK_NOTNULL(trackers);
   for (const typename NetTable::NewChunkTrackerMap::value_type&
            table_tracker_getter : table_->new_chunk_trackers()) {
+    NetTable::NewChunkTrackerMap::const_iterator override_it =
+        overrides.find(table_tracker_getter.first);
+    const std::function<Id(const Revision&)>& tracker_id_extractor =
+        ((override_it != overrides.end()) ? (override_it->second)
+                                          : (table_tracker_getter.second));
     for (const InsertMap::value_type& insertion : insertions_) {
-      const std::function<Id(const Revision&)>& tracker_id_extractor =
-          table_tracker_getter.second;
       Id id = tracker_id_extractor(*insertion.second);
       trackers->emplace(table_tracker_getter.first, id);
     }
