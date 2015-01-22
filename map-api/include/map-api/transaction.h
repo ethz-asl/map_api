@@ -88,7 +88,6 @@ class Transaction {
       return ss.str();
     }
   };
-
   /**
    * Merge_transaction will be filled with all insertions and non-conflicting
    * updates from this transaction, while the conflicting updates will be
@@ -96,12 +95,21 @@ class Transaction {
    */
   void merge(const std::shared_ptr<Transaction>& merge_transaction,
              ConflictMap* conflicts);
+
+  // STATISTICS
   size_t numChangedItems() const;
+
+  // MISCELLANEOUS
+  template <typename TrackerIdType>
+  void overrideTrackerIdentificationMethod(
+      NetTable* trackee_table, NetTable* tracker_table,
+      const std::function<TrackerIdType(const Revision&)>&
+          how_to_determine_tracker);
 
  private:
   void attachCache(NetTable* table, CacheBase* cache);
-  void enableDirectAccessForCache();
-  void disableDirectAccessForCache();
+  void enableDirectAccess();
+  void disableDirectAccess();
 
   NetTableTransaction* transactionOf(NetTable* table) const;
 
@@ -109,6 +117,8 @@ class Transaction {
   void ensureAccessIsDirect(NetTable* table) const;
 
   void pushNewChunkIdsToTrackers();
+  friend class ProtoTableFileIO;
+  inline void disableChunkTracking() { chunk_tracking_disabled_ = true; }
 
   /**
    * A global ordering of tables prevents deadlocks (resource hierarchy
@@ -147,6 +157,8 @@ class Transaction {
   mutable std::mutex access_type_mutex_;
   mutable std::mutex access_mode_mutex_;
   mutable std::mutex net_table_transactions_mutex_;
+
+  bool chunk_tracking_disabled_;
 };
 
 }  // namespace map_api
