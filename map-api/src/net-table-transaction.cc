@@ -149,6 +149,7 @@ void NetTableTransaction::getChunkTrackers(
   for (const TransactionMap::value_type& chunk_transaction :
        chunk_transactions_) {
     chunk_transaction.second->getTrackers(
+        push_new_chunk_ids_to_tracker_overrides_,
         &(*chunk_trackers)[chunk_transaction.first->id()]);
   }
 }

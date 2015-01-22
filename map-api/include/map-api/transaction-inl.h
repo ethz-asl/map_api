@@ -40,6 +40,20 @@ void Transaction::remove(NetTable* table, const UniqueId<IdType>& id) {
   return transactionOf(CHECK_NOTNULL(table))->remove(id);
 }
 
+template <typename TrackerIdType>
+void Transaction::overrideTrackerIdentificationMethod(
+    NetTable* trackee_table, NetTable* tracker_table,
+    const std::function<TrackerIdType(const Revision&)>&
+        how_to_determine_tracker) {
+  CHECK_NOTNULL(trackee_table);
+  CHECK_NOTNULL(tracker_table);
+  CHECK(how_to_determine_tracker);
+  enableDirectAccess();
+  transactionOf(trackee_table)->overrideTrackerIdentificationMethod(
+      tracker_table, how_to_determine_tracker);
+  disableDirectAccess();
+}
+
 }  // namespace map_api
 
 #endif  // MAP_API_TRANSACTION_INL_H_
