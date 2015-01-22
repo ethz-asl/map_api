@@ -320,7 +320,7 @@ class NetTableChunkTrackingTest : public NetTableFixture {
     descriptor->addField<Id>(kParent);
     trackee_table_ =
         NetTableManager::instance().addTable(CRTable::Type::CR, &descriptor);
-    trackee_table_->pushNewChunkIdsToTrackingItem(table_, get_tracker);
+    trackee_table_->pushNewChunkIdsToTracker(table_, get_tracker);
     generateIdFromInt(1, &master_chunk_id_);
     generateIdFromInt(1, &master_item_id_);
   }
