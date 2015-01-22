@@ -210,6 +210,7 @@ bool ProtoTableFileIO::restoreTableContents(
     CHECK_NOTNULL(chunk);
 
     transaction->insert(table_, chunk, revision);
+    transaction->disableChunkTracking();
   }
   return true;
 }
