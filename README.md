@@ -1,4 +1,4 @@
-Master source repository for multi agent mapping
+Master repository for multi agent mapping
 ==========================
 
 ### Installation
