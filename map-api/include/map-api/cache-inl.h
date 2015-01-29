@@ -68,6 +68,13 @@ const Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) const {
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
+std::shared_ptr<const Revision> Cache<IdType, Value, DerivedValue>::getRevision(
+    const IdType& id) const {
+  LockGuard lock(mutex_);
+  return getRevisionLocked(id);
+}
+
+template <typename IdType, typename Value, typename DerivedValue>
 bool Cache<IdType, Value, DerivedValue>::insert(const IdType& id,
                                                 const Value& value) {
   LockGuard lock(mutex_);
@@ -172,9 +179,9 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
       }
     }
   }
-  LOG(INFO) << "Cache commit: " << underlying_table_->name() <<
-      " (ca:" << num_cached_items << " ck:" << num_checked_items << " d:" <<
-      num_dirty_items << ")";
+  VLOG(3) << "Cache commit: " << underlying_table_->name()
+          << " (ca:" << num_cached_items << " ck:" << num_checked_items
+          << " d:" << num_dirty_items << ")";
   for (const IdType& id : removals_) {
     // Check if the removed object has ever been part of the database.
     if (revisions_.find(id) == revisions_.end()) {
@@ -199,8 +206,8 @@ getAvailableIdsLocked() const {
                           ordered_available_ids_.end());
     double total_seconds = timer.Stop();
     ids_fetched_ = true;
-    LOG(INFO) << "Got " << available_ids_.size() << " ids for table "
-        << underlying_table_->name() << " in " << total_seconds << "s";
+    VLOG(3) << "Got " << available_ids_.size() << " ids for table "
+            << underlying_table_->name() << " in " << total_seconds << "s";
   }
 }
 
