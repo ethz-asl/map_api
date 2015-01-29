@@ -6,7 +6,7 @@
 
   <maintainer email="slynen@ethz.ch">Simon Lynen</maintainer>
   <maintainer email="dev@titus-c.ch">Titus Cieslewski</maintainer>
-  
+  <license>closed</license>
 
   <buildtool_depend>catkin</buildtool_depend>
   <buildtool_depend>catkin_simple</buildtool_depend>
