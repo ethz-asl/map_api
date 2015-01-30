@@ -13,7 +13,7 @@ SpatialIndex::SpatialIndex(const std::string& table_name,
     : table_name_(table_name), bounds_(bounds), subdivision_(subdivision) {
   CHECK_EQ(bounds.size(), subdivision.size());
   for (size_t count : subdivision) {
-    CHECK_GT(count, 0);
+    CHECK_GT(count, 0u);
   }
   for (const Range& bound : bounds) {
     CHECK_LT(bound.min, bound.max);
