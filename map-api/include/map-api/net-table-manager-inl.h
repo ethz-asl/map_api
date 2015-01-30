@@ -27,7 +27,6 @@ bool NetTableManager::routeChunkRequestOperations(
   CHECK_NOTNULL(response);
   CHECK_NOTNULL(found);
   const std::string& table = request.metadata().table();
-  Id chunk_id(request.metadata().chunk_id());
   if (!findTable(table, found)) {
     response->impose<Message::kDecline>();
     return false;
