@@ -84,14 +84,14 @@ TEST_P(NetTableFixture, FullJoinTwice) {
   if (getSubprocessId() == A) {
     IPC::barrier(ROOT_A_INIT, 1);
     IPC::barrier(A_JOINED_B_INIT, 2);
-    EXPECT_EQ(1, count());
+    EXPECT_EQ(1u, count());
     IPC::barrier(B_JOINED, 2);
     IPC::barrier(DIE, 2);
   }
   if (getSubprocessId() == B) {
     IPC::barrier(A_JOINED_B_INIT, 2);
     IPC::barrier(B_JOINED, 2);
-    EXPECT_EQ(1, count());
+    EXPECT_EQ(1u, count());
     IPC::barrier(DIE, 2);
   }
 }
@@ -118,7 +118,7 @@ TEST_P(NetTableFixture, RemoteInsert) {
     IPC::barrier(A_JOINED, 1);
     IPC::barrier(A_ADDED, 1);
 
-    EXPECT_EQ(1, count());
+    EXPECT_EQ(1u, count());
     IPC::barrier(DIE, 1);
   }
   if (getSubprocessId() == A) {
@@ -189,7 +189,7 @@ TEST_P(NetTableFixture, RemoteUpdate) {
     ASSERT_TRUE(chunk);
     insert(42, chunk);
     table_->dumpActiveChunksAtCurrentTime(&results);
-    EXPECT_EQ(1, results.size());
+    EXPECT_EQ(1u, results.size());
     EXPECT_TRUE(results.begin()->second->verifyEqual(kFieldName, 42));
     IPC::barrier(INIT, 1);
 
@@ -197,7 +197,7 @@ TEST_P(NetTableFixture, RemoteUpdate) {
     IPC::barrier(A_JOINED, 1);
     IPC::barrier(A_UPDATED, 1);
     table_->dumpActiveChunksAtCurrentTime(&results);
-    EXPECT_EQ(1, results.size());
+    EXPECT_EQ(1u, results.size());
     EXPECT_TRUE(results.begin()->second->verifyEqual(kFieldName, 21));
 
     IPC::barrier(DIE, 1);
@@ -206,7 +206,7 @@ TEST_P(NetTableFixture, RemoteUpdate) {
     IPC::barrier(INIT, 1);
     IPC::barrier(A_JOINED, 1);
     table_->dumpActiveChunksAtCurrentTime(&results);
-    EXPECT_EQ(1, results.size());
+    EXPECT_EQ(1u, results.size());
     std::shared_ptr<Revision> revision =
         std::make_shared<Revision>(*results.begin()->second);
     revision->set(kFieldName, 21);
@@ -298,7 +298,7 @@ TEST_P(NetTableFixture, ChunkTransactions) {
       int final_value;
       found->second->get(kFieldName, &final_value);
       if (GetParam()) {
-        EXPECT_EQ(kProcesses, final_value);
+        EXPECT_EQ(static_cast<int>(kProcesses), final_value);
       } else {
         EXPECT_EQ(1, final_value);
       }
@@ -362,14 +362,14 @@ TEST_P(NetTableFixture, ChunkTransactionsConflictConditions) {
 
     IPC::barrier(DIE, kProcesses - 1);
     table_->dumpActiveChunksAtCurrentTime(&results);
-    EXPECT_EQ(kUniqueItems, results.size());
+    EXPECT_EQ(kUniqueItems, static_cast<int>(results.size()));
     std::set<int> unique_results;
     for (const CRTable::RevisionMap::value_type& item : results) {
       int result;
       item.second->get(kFieldName, &result);
       unique_results.insert(result);
     }
-    EXPECT_EQ(kUniqueItems, unique_results.size());
+    EXPECT_EQ(kUniqueItems, static_cast<int>(unique_results.size()));
     int i = 0;
     for (int unique_result : unique_results) {
       EXPECT_EQ(i, unique_result);
@@ -548,7 +548,7 @@ TEST_P(NetTableFixture, GetCommitTimes) {
   ASSERT_TRUE(second.commit());
   std::set<LogicalTime> commit_times;
   chunk_->getCommitTimes(LogicalTime::sample(), &commit_times);
-  EXPECT_EQ(2, commit_times.size());
+  EXPECT_EQ(2u, commit_times.size());
   EXPECT_TRUE(commit_times.find(first.getCommitTime()) != commit_times.end());
   EXPECT_TRUE(commit_times.find(second.getCommitTime()) != commit_times.end());
 }

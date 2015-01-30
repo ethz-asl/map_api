@@ -21,10 +21,10 @@ constexpr char kMetaTableChunkHexString[] = "000000000000000000000003E1A1AB7E";
 
 const char NetTableManager::kMetaTableName[] = "map_api_metatable";
 
-template<>
-bool NetTableManager::routeChunkRequestOperations<proto::ChunkRequestMetadata>(
-    const proto::ChunkRequestMetadata& request, Message* response,
-    TableMap::iterator* found) {
+template <>
+bool NetTableManager::getTableForRequestWithMetadataOrDecline<
+    proto::ChunkRequestMetadata>(const proto::ChunkRequestMetadata& request,
+                                 Message* response, TableMap::iterator* found) {
   CHECK_NOTNULL(response);
   CHECK_NOTNULL(found);
   const std::string& table = request.table();
@@ -239,7 +239,7 @@ void NetTableManager::handleInitRequest(
   proto::InitRequest init_request;
   request.extract<Chunk::kInitRequest>(&init_request);
   TableMap::iterator found;
-  if (routeChunkRequestOperations(init_request, response, &found)) {
+  if (getTableForRequestWithMetadataOrDecline(init_request, response, &found)) {
     found->second->handleInitRequest(init_request, PeerId(request.sender()),
                                      response);
   }
@@ -250,7 +250,8 @@ void NetTableManager::handleInsertRequest(
   proto::PatchRequest patch_request;
   request.extract<Chunk::kInsertRequest>(&patch_request);
   TableMap::iterator found;
-  if (routeChunkRequestOperations(patch_request, response, &found)) {
+  if (getTableForRequestWithMetadataOrDecline(patch_request, response,
+                                              &found)) {
     Id chunk_id(patch_request.metadata().chunk_id());
     std::shared_ptr<proto::Revision> parsed(new proto::Revision);
     CHECK(parsed->ParseFromString(patch_request.serialized_revision()));
@@ -264,8 +265,8 @@ void NetTableManager::handleLeaveRequest(
   TableMap::iterator found;
   Id chunk_id;
   PeerId peer;
-  if (routeChunkMetadataRequestOperations<Chunk::kLeaveRequest>(
-      request, response, &found, &chunk_id, &peer)) {
+  if (getTableForMetadataRequestOrDecline<Chunk::kLeaveRequest>(
+          request, response, &found, &chunk_id, &peer)) {
     found->second->handleLeaveRequest(chunk_id, peer, response);
   }
 }
@@ -275,8 +276,8 @@ void NetTableManager::handleLockRequest(
   TableMap::iterator found;
   Id chunk_id;
   PeerId peer;
-  if (routeChunkMetadataRequestOperations<Chunk::kLockRequest>(
-      request, response, &found, &chunk_id, &peer)) {
+  if (getTableForMetadataRequestOrDecline<Chunk::kLockRequest>(
+          request, response, &found, &chunk_id, &peer)) {
     found->second->handleLockRequest(chunk_id, peer, response);
   }
 }
@@ -286,7 +287,8 @@ void NetTableManager::handleNewPeerRequest(
   proto::NewPeerRequest new_peer_request;
   request.extract<Chunk::kNewPeerRequest>(&new_peer_request);
   TableMap::iterator found;
-  if (routeChunkRequestOperations(new_peer_request, response, &found)) {
+  if (getTableForRequestWithMetadataOrDecline(new_peer_request, response,
+                                              &found)) {
     Id chunk_id(new_peer_request.metadata().chunk_id());
     PeerId new_peer(new_peer_request.new_peer()), sender(request.sender());
     found->second->handleNewPeerRequest(chunk_id, new_peer, sender, response);
@@ -298,8 +300,8 @@ void NetTableManager::handleUnlockRequest(
   TableMap::iterator found;
   Id chunk_id;
   PeerId peer;
-  if (routeChunkMetadataRequestOperations<Chunk::kUnlockRequest>(
-      request, response, &found, &chunk_id, &peer)) {
+  if (getTableForMetadataRequestOrDecline<Chunk::kUnlockRequest>(
+          request, response, &found, &chunk_id, &peer)) {
     found->second->handleUnlockRequest(chunk_id, peer, response);
   }
 }
@@ -309,7 +311,8 @@ void NetTableManager::handleUpdateRequest(
   proto::PatchRequest patch_request;
   request.extract<Chunk::kUpdateRequest>(&patch_request);
   TableMap::iterator found;
-  if (routeChunkRequestOperations(patch_request, response, &found)) {
+  if (getTableForRequestWithMetadataOrDecline(patch_request, response,
+                                              &found)) {
     Id chunk_id(patch_request.metadata().chunk_id());
     std::shared_ptr<proto::Revision> parsed(new proto::Revision);
     CHECK(parsed->ParseFromString(patch_request.serialized_revision()));
