@@ -3,16 +3,7 @@
 
 #include <string>
 
-#if defined(__clang__) || defined(__GNUC__) || defined(__GNUG__)
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wunused-parameter"
-#endif
-
 #include "./id.pb.h"
-
-#if defined(__clang__) || defined(__GNUC__) || defined(__GNUG__)
-#  pragma GCC diagnostic pop
-#endif
 
 namespace map_api {
 namespace internal {
