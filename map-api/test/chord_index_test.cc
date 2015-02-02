@@ -181,7 +181,7 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddRetrieve) {
     // it should be an upper bound of the amount of required stabilization
     // iterations per process
     IPC::barrier(JOINED_STABILIZED, kNProcesses - 1);
-    EXPECT_GT(kNProcesses, 1);
+    EXPECT_GT(kNProcesses, 1u);
     for (size_t i = 0; i < kNData; ++i) {
       std::string key, value, result;
       addNonLocalData(&key, &value, i);
@@ -235,7 +235,7 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddjoinStabilizeRetrieve) {
     // it should be an upper bound of the amount of required stabilization
     // iterations per process
     IPC::barrier(JOINED_STABILIZED__INIT_2, 2 * kNProcessesHalf);
-    EXPECT_GT(kNProcessesHalf, 0);
+    EXPECT_GT(kNProcessesHalf, 0u);
     TestChordIndex::DataMap data;
     for (size_t i = 0; i < kNData; ++i) {
       std::string key, value;
@@ -292,7 +292,7 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddLeaveStabilizeRetrieve) {
     IPC::barrier(ROOT_SHARED, 2 * kNProcessesHalf);
     usleep(20 * kNProcessesHalf * FLAGS_stabilize_us);
     IPC::barrier(JOINED_STABILIZED, 2 * kNProcessesHalf);
-    EXPECT_GT(kNProcessesHalf, 0);
+    EXPECT_GT(kNProcessesHalf, 0u);
     TestChordIndex::DataMap data;
     for (size_t i = 0; i < kNData; ++i) {
       std::string key, value;
@@ -355,7 +355,7 @@ TEST_F(ChordIndexTestInitialized,
     // it should be an upper bound of the amount of required stabilization
     // iterations per process
     IPC::barrier(JOINED_STABILIZED__INIT_2, 2 * kNProcessesHalf);
-    EXPECT_GT(kNProcessesHalf, 0);
+    EXPECT_GT(kNProcessesHalf, 0u);
     TestChordIndex::DataMap data;
     for (size_t i = 0; i < kNData; ++i) {
       std::string key, value;
