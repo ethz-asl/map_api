@@ -430,8 +430,8 @@ TYPED_TEST_P(ProtoSTLStream, ProtoAutoSerializationWorks) {
   EXPECT_EQ(block_information.block_index, 0);
   EXPECT_EQ(block_information.byte_offset, 0);
 
-  EXPECT_EQ(output_stream.ByteCount(), proto_out->ByteSize() +
-            sizeof(google::int32));
+  EXPECT_EQ(output_stream.ByteCount(),
+            static_cast<int>(proto_out->ByteSize() + sizeof(google::int32)));
 
   // Read the data back in.
   STLContainerInputStream<TypeParam::value, ContainerType> input_stream(
