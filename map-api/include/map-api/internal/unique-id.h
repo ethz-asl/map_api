@@ -3,6 +3,8 @@
 
 #include <string>
 
+#include "./id.pb.h"
+
 namespace map_api {
 namespace internal {
 std::string generateUniqueHexString();
