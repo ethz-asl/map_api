@@ -460,7 +460,7 @@ TEST_P(NetTableFixture, GetAllIdsNoNewChunkRaceConditionThreads) {
     Transaction transaction;
     transaction.getAvailableIds(table_, &all_ids);
     for (const Id& id : all_ids) {
-      EXPECT_TRUE(static_cast<bool>(transaction.getById(id, table_)));
+      ASSERT_TRUE(static_cast<bool>(transaction.getById(id, table_)));
     }
   } while (all_ids.size() < kNumPushers * kItemsToPush);
 

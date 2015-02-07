@@ -142,7 +142,10 @@ int CRTable::countByChunk(const Id& chunk_id, const LogicalTime& time) const {
   return countByChunkCRDerived(chunk_id, time);
 }
 
-void CRTable::clear() { clearCRDerived(); }
+void CRTable::clear() {
+  std::lock_guard<std::mutex> lock(access_mutex_);
+  clearCRDerived();
+}
 
 CRTable::Type CRTable::type() const {
   return Type::CR;
