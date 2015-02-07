@@ -10,6 +10,7 @@ namespace map_api {
 template <typename IdType>
 std::shared_ptr<const Revision> CRTable::getById(
     const IdType& id, const LogicalTime& time) const {
+  std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
   CHECK(id.isValid()) << "Supplied invalid ID";
   Id map_api_id;
@@ -22,6 +23,7 @@ std::shared_ptr<const Revision> CRTable::getById(
 template <typename IdType>
 void CRTable::getAvailableIds(const LogicalTime& time,
                               std::vector<IdType>* ids) const {
+  std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
   CHECK_NOTNULL(ids);
   ids->clear();
