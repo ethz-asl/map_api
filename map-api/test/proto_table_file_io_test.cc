@@ -35,7 +35,7 @@ TEST_P(NetTableFixture, SaveAndRestoreFromFile) {
     CRTable::RevisionMap retrieved;
     LogicalTime dumptime = LogicalTime::sample();
     chunk->dumpItems(dumptime, &retrieved);
-    ASSERT_EQ(2, retrieved.size());
+    ASSERT_EQ(2u, retrieved.size());
     CRTable::RevisionMap::iterator it = retrieved.find(item_1_id);
     ASSERT_FALSE(it == retrieved.end());
     LogicalTime time_1, time_2;
@@ -79,7 +79,7 @@ TEST_P(NetTableFixture, SaveAndRestoreFromFile) {
     int item_1, item_2;
     LogicalTime dumptime = LogicalTime::sample();
     chunk->dumpItems(dumptime, &retrieved);
-    ASSERT_EQ(2, retrieved.size());
+    ASSERT_EQ(2u, retrieved.size());
     CRTable::RevisionMap::iterator it = retrieved.find(item_1_id);
     ASSERT_FALSE(it == retrieved.end());
     time_1 = it->second->getInsertTime();
