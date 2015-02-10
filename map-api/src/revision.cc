@@ -1,8 +1,6 @@
 #include <map-api/revision.h>
 
 #include <glog/logging.h>
-#include <Poco/Data/Common.h>
-#include <Poco/Data/BLOB.h>
 
 #include <map-api/logical-time.h>
 #include <map-api/net-table-manager.h>
@@ -168,7 +166,7 @@ MAP_API_TYPE_ENUM(uint64_t, proto::Type::UINT64);
 MAP_API_TYPE_ENUM(LogicalTime, proto::Type::UINT64);
 MAP_API_TYPE_ENUM(Revision, proto::Type::BLOB);
 MAP_API_TYPE_ENUM(testBlob, proto::Type::BLOB);
-MAP_API_TYPE_ENUM(Poco::Data::BLOB, proto::Type::BLOB);
+MAP_API_TYPE_ENUM(Revision::Blob, proto::Type::BLOB);
 
 /**
  * SET
@@ -221,8 +219,8 @@ MAP_API_REVISION_SET(testBlob /*value*/) {
   field->set_blob_value(value.SerializeAsString());
   return true;
 }
-MAP_API_REVISION_SET(Poco::Data::BLOB /*value*/) {
-  field->set_blob_value(value.rawContent(), value.size());
+MAP_API_REVISION_SET(Revision::Blob /*value*/) {
+  field->set_blob_value(value.data(), value.size());
   return true;
 }
 
@@ -292,8 +290,10 @@ MAP_API_REVISION_GET(testBlob /*value*/) {
   }
   return true;
 }
-MAP_API_REVISION_GET(Poco::Data::BLOB /*value*/) {
-  *value = Poco::Data::BLOB(field.blob_value());
+MAP_API_REVISION_GET(Revision::Blob /*value*/) {
+  value->resize(field.blob_value().length());
+  memcpy(value->data(), field.blob_value().c_str(),
+         field.blob_value().length());
   return true;
 }
 

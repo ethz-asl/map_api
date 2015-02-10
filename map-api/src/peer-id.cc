@@ -4,8 +4,6 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include <Poco/RegularExpression.h>
-
 #include <map-api/hub.h>
 
 namespace map_api {
