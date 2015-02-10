@@ -218,6 +218,8 @@ class CRTable {
   virtual void clearCRDerived() = 0;
 
   bool initialized_ = false;
+
+  mutable std::mutex access_mutex_;
 };
 
 std::ostream& operator<< (std::ostream& stream, const

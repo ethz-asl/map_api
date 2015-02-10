@@ -426,6 +426,49 @@ TEST_P(NetTableChunkTrackingTest, ChunkTrackingDifferentTransaction) {
   IPC::barrier(DIE, 1);
 }
 
+TEST_P(NetTableFixture, GetAllIdsNoNewChunkRaceConditionThreads) {
+  constexpr size_t kNumPushers = 50;
+  constexpr size_t kItemsToPush = 100;
+
+  if (!GetParam()) {
+    // No need for separate CR test.
+    return;
+  }
+
+  auto push_items = [this]() {
+    for (size_t i = 0u; i < kItemsToPush; ++i) {
+      Transaction transaction;
+      Chunk* chunk = table_->newChunk();
+      std::shared_ptr<Revision> to_insert = table_->getTemplate();
+      Id id;
+      generateId(&id);
+      to_insert->setId(id);
+      to_insert->set(kFieldName, 42);
+      transaction.insert(table_, chunk, to_insert);
+      EXPECT_TRUE(transaction.commit());
+    }
+  };
+
+  std::thread pushers[kNumPushers];
+
+  for (size_t i = 0u; i < kNumPushers; ++i) {
+    pushers[i] = std::thread(push_items);
+  }
+
+  std::vector<Id> all_ids;
+  do {
+    Transaction transaction;
+    transaction.getAvailableIds(table_, &all_ids);
+    for (const Id& id : all_ids) {
+      ASSERT_TRUE(static_cast<bool>(transaction.getById(id, table_)));
+    }
+  } while (all_ids.size() < kNumPushers * kItemsToPush);
+
+  for (size_t i = 0u; i < kNumPushers; ++i) {
+    pushers[i].join();
+  }
+}
+
 }  // namespace map_api
 
 MAP_API_UNITTEST_ENTRYPOINT
