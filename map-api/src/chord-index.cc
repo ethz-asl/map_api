@@ -33,9 +33,9 @@ bool ChordIndex::handleGetSuccessor(PeerId* result) {
     // TODO(tcies) re-introduce request_status
     LOG(ERROR) << "Not active any more! Clean solution?";
   }
-  peer_lock_.readLock();
+  peer_lock_.acquireReadLock();
   *result = successor_->id;
-  peer_lock_.unlock();
+  peer_lock_.releaseReadLock();
   return true;
 }
 
@@ -44,9 +44,9 @@ bool ChordIndex::handleGetPredecessor(PeerId* result) {
     // TODO(tcies) re-introduce request_status
     LOG(ERROR) << "Not active any more! Clean solution?";
   }
-  peer_lock_.readLock();
+  peer_lock_.acquireReadLock();
   *result = predecessor_->id;
-  peer_lock_.unlock();
+  peer_lock_.releaseReadLock();
   return true;
 }
 
@@ -103,7 +103,7 @@ bool ChordIndex::handleReplace(const PeerId& old_peer, const PeerId& new_peer) {
   }
   CHECK_EQ(kCleanJoin, FLAGS_join_mode) <<
       "Replace available only in clean join";
-  peer_lock_.readLock();
+  peer_lock_.acquireReadLock();
   bool successor = old_peer == successor_->id;
   bool predecessor = old_peer == predecessor_->id;
   if (!successor && !predecessor) {  // could be both
@@ -112,17 +112,17 @@ bool ChordIndex::handleReplace(const PeerId& old_peer, const PeerId& new_peer) {
   std::lock_guard<std::mutex> lock(node_lock_);
   if (successor) {
     if (!node_locked_ || node_lock_holder_ != old_peer) {
-      peer_lock_.unlock();
+      peer_lock_.releaseReadLock();
       return false;
     }
   }
   if (predecessor) {
     if (!node_locked_ || node_lock_holder_ != old_peer) {
-      peer_lock_.unlock();
+      peer_lock_.releaseReadLock();
       return false;
     }
   }
-  peer_lock_.unlock();  // registerPeer does writeLock
+  peer_lock_.releaseReadLock();  // registerPeer does writeLock
   if (successor) {
     registerPeer(new_peer, &successor_);
   }
@@ -167,13 +167,13 @@ bool ChordIndex::handleFetchResponsibilities(
         "be able to leave!";
   }
   // TODO(tcies) try-again-later if not integrated
-  data_lock_.readLock();
+  data_lock_.acquireReadLock();
   for (const DataMap::value_type& item : data_) {
     if (!isIn(hash(item.first), hash(requester), own_key_)) {
       responsibilities->insert(item);
     }
   }
-  data_lock_.unlock();
+  data_lock_.releaseReadLock();
   return true;
 }
 
@@ -183,11 +183,11 @@ bool ChordIndex::handlePushResponsibilities(const DataMap& responsibilities) {
     LOG(FATAL) << "Should PRRpc only locked peers, locked peers shouldn't "\
         "be able to leave!";
   }
-  data_lock_.writeLock();
+  data_lock_.acquireWriteLock();
   for (const DataMap::value_type& item : responsibilities) {
     data_[item.first] = item.second;  // overwrite intended
   }
-  data_lock_.unlock();
+  data_lock_.releaseWriteLock();
   return true;
 }
 
@@ -217,24 +217,24 @@ bool ChordIndex::retrieveData(const std::string& key, std::string* value) {
 }
 
 PeerId ChordIndex::findSuccessor(const Key& key) {
-  peer_lock_.readLock();
+  peer_lock_.acquireReadLock();
   PeerId result;
   if (isIn(key, own_key_, successor_->key)) {
     result = successor_->id;
-    peer_lock_.unlock();
+    peer_lock_.releaseReadLock();
     return result;
   } else {
-    peer_lock_.unlock();
+    peer_lock_.releaseReadLock();
     CHECK(getSuccessorRpc(findPredecessor(key), &result));
     return result;
   }
 }
 
 PeerId ChordIndex::findPredecessor(const Key& key) {
-  peer_lock_.readLock();
+  peer_lock_.acquireReadLock();
   CHECK(!isIn(key, own_key_, successor_->key)) <<
       "FindPredecessor called while it's the calling peer";
-  peer_lock_.unlock();
+  peer_lock_.releaseReadLock();
   PeerId result = closestPrecedingFinger(key), result_successor;
   CHECK(getSuccessorRpc(result, &result_successor));
   while (!isIn(key, hash(result), hash(result_successor))) {
@@ -246,13 +246,13 @@ PeerId ChordIndex::findPredecessor(const Key& key) {
 
 void ChordIndex::create() {
   init();
-  peer_lock_.writeLock();
+  peer_lock_.acquireWriteLock();
   for (size_t i = 0; i < M; ++i) {
     fingers_[i].peer = self_;
   }
   successor_ = self_;
   predecessor_ = self_;
-  peer_lock_.unlock();
+  peer_lock_.releaseWriteLock();
   std::lock_guard<std::mutex> integrate_lock(integrate_mutex_);
   integrated_ = true;
 
@@ -318,9 +318,9 @@ void ChordIndex::cleanJoin(const PeerId& other) {
   }
   // 2. fetch data
   // TODO(tcies) atomicity: what if any request while locked?
-  data_lock_.writeLock();
+  data_lock_.acquireWriteLock();
   CHECK(fetchResponsibilitiesRpc(successor, &data_));
-  data_lock_.unlock();
+  data_lock_.releaseWriteLock();
   // 3. set pred/succ
   registerPeer(predecessor, &predecessor_);
   registerPeer(successor, &successor_);
@@ -395,10 +395,10 @@ void ChordIndex::leaveClean() {
   PeerId predecessor, successor;
   // 1. acquire locks
   while (true) {
-    peer_lock_.readLock();
+    peer_lock_.acquireReadLock();
     predecessor = predecessor_->id;
     successor = successor_->id;
-    peer_lock_.unlock();
+    peer_lock_.releaseReadLock();
     // in-order locking
     if (hash(successor) <= hash(predecessor)) {
       if (hash(successor) < hash(predecessor)) {
@@ -444,10 +444,10 @@ void ChordIndex::leaveClean() {
       PeerId predecessor_successor, successor_predecessor;
       CHECK(getSuccessorRpc(predecessor, &predecessor_successor));
       predecessor_consistent = predecessor_successor == PeerId::self();
-      peer_lock_.readLock();
+      peer_lock_.acquireReadLock();
       self_consistent = predecessor_->id == predecessor &&
           successor_->id == successor;
-      peer_lock_.unlock();
+      peer_lock_.releaseReadLock();
       CHECK(getPredecessorRpc(successor, &successor_predecessor));
       successor_consistent = successor_predecessor == PeerId::self();
       if (predecessor_consistent && self_consistent && successor_consistent) {
@@ -463,9 +463,9 @@ void ChordIndex::leaveClean() {
   }
   if (successor != PeerId::self()) {
     // 2. push data
-    data_lock_.readLock();
+    data_lock_.acquireReadLock();
     pushResponsibilitiesRpc(successor, data_);
-    data_lock_.unlock();
+    data_lock_.releaseReadLock();
     // 3. reroute & unlock
     CHECK(replaceRpc(successor, PeerId::self(), predecessor));
     if (successor != predecessor) {
@@ -482,14 +482,14 @@ void ChordIndex::leaveClean() {
 
 PeerId ChordIndex::closestPrecedingFinger(
     const Key& key) {
-  peer_lock_.readLock();
+  peer_lock_.acquireReadLock();
   PeerId result;
   if (isIn(key, own_key_, successor_->key)) {
     result = PeerId::self();
   } else {
     result = successor_->id;
   }
-  peer_lock_.unlock();
+  peer_lock_.releaseReadLock();
   return result;
 }
 
@@ -503,35 +503,35 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
   }
   while (!self->terminate_) {
     PeerId successor_predecessor;
-    self->peer_lock_.readLock();
+    self->peer_lock_.acquireReadLock();
     if (self->successor_->id != PeerId::self()) {
       if (!self->getPredecessorRpc(self->successor_->id,
                                    &successor_predecessor)) {
         // Node leaves have not been accounted for yet. However, not crashing
         // the program is necessery for successful (simultaneous) shutdown of a
         // network.
-        self->peer_lock_.unlock();
+        self->peer_lock_.releaseReadLock();
         continue;
       }
       if (successor_predecessor != PeerId::self() &&
           isIn(hash(successor_predecessor), self->own_key_,
                self->successor_->key)) {
-        self->peer_lock_.unlock();
+        self->peer_lock_.releaseReadLock();
         self->registerPeer(successor_predecessor, &self->successor_);
-        self->peer_lock_.readLock();
+        self->peer_lock_.acquireReadLock();
         VLOG(3) << self->own_key_ << " changed successor to " <<
             hash(successor_predecessor) << " through stabilization";
       }
       // because notifyRpc does peer_lock_.writeLock on the remote peer, we need
       // to release the read-lock to avoid potential deadlock.
       PeerId to_notify = self->successor_->id;
-      self->peer_lock_.unlock();
+      self->peer_lock_.releaseReadLock();
       if (!self->notifyRpc(to_notify, PeerId::self())) {
         continue;
       }
-      self->peer_lock_.readLock();
+      self->peer_lock_.acquireReadLock();
     }
-    self->peer_lock_.unlock();
+    self->peer_lock_.releaseReadLock();
     usleep(FLAGS_stabilize_us);
     // TODO(tcies) finger fixing
   }
@@ -552,9 +552,9 @@ void ChordIndex::integrateThread(ChordIndex* self) {
   // time as this peer sends this request. For now, this request should still
   // succeed as data is not being deleted once delegated. TODO(tcies) delete
   // data once delegated?
-  self->data_lock_.writeLock();
+  self->data_lock_.acquireWriteLock();
   CHECK(self->fetchResponsibilitiesRpc(self->successor_->id, &self->data_));
-  self->data_lock_.unlock();
+  self->data_lock_.releaseWriteLock();
   self->integrated_ = true;
 }
 
@@ -568,9 +568,9 @@ void ChordIndex::init() {
   }
   terminate_ = false;
   stabilizer_ = std::thread(stabilizeThread, this);
-  data_lock_.writeLock();
+  data_lock_.acquireWriteLock();
   data_.clear();
-  data_lock_.unlock();
+  data_lock_.releaseWriteLock();
   std::lock_guard<std::mutex> lock(node_lock_);
   node_locked_ = false;
 }
@@ -578,7 +578,7 @@ void ChordIndex::init() {
 void ChordIndex::registerPeer(
     const PeerId& peer, std::shared_ptr<ChordPeer>* target) {
   CHECK_NOTNULL(target);
-  peer_lock_.writeLock();
+  peer_lock_.acquireWriteLock();
   PeerMap::iterator found = peers_.find(peer);
   std::shared_ptr<ChordPeer> existing;
   if (found != peers_.end() && (existing = found->second.lock())) {
@@ -587,7 +587,7 @@ void ChordIndex::registerPeer(
     target->reset(new ChordPeer(peer));
     peers_[peer] = std::weak_ptr<ChordPeer>(*target);
   }
-  peer_lock_.unlock();
+  peer_lock_.releaseWriteLock();
 }
 
 bool ChordIndex::isIn(
@@ -620,43 +620,43 @@ bool ChordIndex::waitUntilInitialized() {
 
 bool ChordIndex::addDataLocally(
     const std::string& key, const std::string& value) {
-  data_lock_.writeLock();
+  data_lock_.acquireWriteLock();
   data_[key] = value;
-  data_lock_.unlock();
+  data_lock_.releaseWriteLock();
   return true;
 }
 
 bool ChordIndex::retrieveDataLocally(
     const std::string& key, std::string* value) {
   CHECK_NOTNULL(value);
-  data_lock_.readLock();
+  data_lock_.acquireReadLock();
   DataMap::iterator found = data_.find(key);
   if (found == data_.end()) {
-    data_lock_.unlock();
+    data_lock_.releaseReadLock();
     return false;
   }
   *value = found->second;
-  data_lock_.unlock();
+  data_lock_.releaseReadLock();
   return true;
 }
 
 bool ChordIndex::handleNotifyClean(const PeerId& peer_id) {
   CHECK(node_locked_);
   CHECK_EQ(peer_id, node_lock_holder_);
-  peer_lock_.readLock();
+  peer_lock_.acquireReadLock();
   CHECK(peers_.find(peer_id) == peers_.end());
   std::shared_ptr<ChordPeer> peer(new ChordPeer(peer_id));
   handleNotifyCommon(peer);
   CHECK_GT(peer.use_count(), 1);
-  peer_lock_.unlock();
-  peer_lock_.writeLock();
+  peer_lock_.releaseReadLock();
+  peer_lock_.acquireWriteLock();
   peers_[peer_id] = std::weak_ptr<ChordPeer>(peer);
-  peer_lock_.unlock();
+  peer_lock_.releaseWriteLock();
   return true;
 }
 
 bool ChordIndex::handleNotifyStabilize(const PeerId& peer_id) {
-  peer_lock_.readLock();
+  peer_lock_.acquireReadLock();
   // if notify came from predecessor, integrate!
   if (isIn(hash(peer_id), predecessor_->key, own_key_)) {
     // at this point we could start receiving data requests
@@ -669,41 +669,41 @@ bool ChordIndex::handleNotifyStabilize(const PeerId& peer_id) {
   }
   if (peers_.find(peer_id) != peers_.end()) {
     // already aware of the node
-    peer_lock_.unlock();
+    peer_lock_.releaseReadLock();
     return true;
   }
   std::shared_ptr<ChordPeer> peer(new ChordPeer(peer_id));
   handleNotifyCommon(peer);
   // save peer to peer map only if information has been useful anywhere
   if (peer.use_count() > 1) {
-    peer_lock_.unlock();
-    peer_lock_.writeLock();
+    peer_lock_.releaseReadLock();
+    peer_lock_.acquireWriteLock();
     peers_[peer_id] = std::weak_ptr<ChordPeer>(peer);
-    peer_lock_.unlock();
-    peer_lock_.readLock();
+    peer_lock_.releaseWriteLock();
     // TODO(tcies) how will it be removed?
+  } else {
+    peer_lock_.releaseReadLock();
   }
-  peer_lock_.unlock();
   return true;
 }
 
 void ChordIndex::handleNotifyCommon(std::shared_ptr<ChordPeer> peer) {
   if (isIn(peer->key, own_key_, successor_->key)) {
-    peer_lock_.unlock();
-    peer_lock_.writeLock();
+    peer_lock_.releaseReadLock();
+    peer_lock_.acquireWriteLock();
     successor_ = peer;
-    peer_lock_.unlock();
-    peer_lock_.readLock();
+    peer_lock_.releaseWriteLock();
+    peer_lock_.acquireReadLock();
     VLOG(3) << own_key_ << " changed successor to " << peer->key <<
         " by notification";
   }
   // fix predecessor
   if (isIn(peer->key, predecessor_->key, own_key_)) {
-    peer_lock_.unlock();
-    peer_lock_.writeLock();
+    peer_lock_.releaseReadLock();
+    peer_lock_.acquireWriteLock();
     predecessor_ = peer;
-    peer_lock_.unlock();
-    peer_lock_.readLock();
+    peer_lock_.releaseWriteLock();
+    peer_lock_.acquireReadLock();
     VLOG(3) << own_key_ << " changed predecessor to " << peer->key <<
         " by notification";
   }
