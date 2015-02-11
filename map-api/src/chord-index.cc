@@ -680,10 +680,10 @@ bool ChordIndex::handleNotifyStabilize(const PeerId& peer_id) {
     peer_lock_.acquireWriteLock();
     peers_[peer_id] = std::weak_ptr<ChordPeer>(peer);
     peer_lock_.releaseWriteLock();
-    peer_lock_.acquireReadLock();
     // TODO(tcies) how will it be removed?
+  } else {
+    peer_lock_.releaseReadLock();
   }
-  peer_lock_.releaseReadLock();
   return true;
 }
 
