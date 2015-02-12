@@ -210,10 +210,10 @@ void Chunk::leave() {
   // leaving must be atomic wrt request handlers to prevent conflicts
   // this must happen after acquring the write lock to avoid deadlocks, should
   // two peers try to leave at the same time.
-  leave_lock_.writeLock();
+  leave_lock_.acquireWriteLock();
   CHECK(peers_.undisputableBroadcast(&request));
   relinquished_ = true;
-  leave_lock_.unlock();
+  leave_lock_.releaseWriteLock();
   distributedUnlock();  // i.e. must be able to handle unlocks from outside
   // the swarm. Should this pose problems in the future, we could tie unlocking
   // to leaving.
@@ -683,9 +683,9 @@ void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
   awaitInitialized();
   VLOG(3) << "Received connect request from " << peer;
   CHECK_NOTNULL(response);
-  leave_lock_.readLock();
+  leave_lock_.acquireReadLock();
   if (relinquished_) {
-    leave_lock_.unlock();
+    leave_lock_.releaseReadLock();
     response->decline();
     return;
   }
@@ -698,14 +698,14 @@ void Chunk::handleConnectRequest(const PeerId& peer, Message* response) {
   std::thread handle_thread(handleConnectRequestThread, this, peer);
   handle_thread.detach();
 
-  leave_lock_.unlock();
+  leave_lock_.releaseReadLock();
   response->ack();
 }
 
 void Chunk::handleConnectRequestThread(Chunk* self, const PeerId& peer) {
   self->awaitInitialized();
   CHECK_NOTNULL(self);
-  self->leave_lock_.readLock();
+  self->leave_lock_.acquireReadLock();
   // the following is a special case which shall not be covered for now:
   CHECK(!self->relinquished_) <<
       "Peer left before it could handle a connect request";
@@ -722,7 +722,7 @@ void Chunk::handleConnectRequestThread(Chunk* self, const PeerId& peer) {
         "added by some requestParticipation() call.";
   }
   self->distributedUnlock();
-  self->leave_lock_.unlock();
+  self->leave_lock_.releaseReadLock();
 }
 
 void Chunk::handleInsertRequest(const std::shared_ptr<Revision>& item,
@@ -730,9 +730,9 @@ void Chunk::handleInsertRequest(const std::shared_ptr<Revision>& item,
   CHECK(item != nullptr);
   CHECK_NOTNULL(response);
   awaitInitialized();
-  leave_lock_.readLock();
+  leave_lock_.acquireReadLock();
   if (relinquished_) {
-    leave_lock_.unlock();
+    leave_lock_.releaseReadLock();
     response->decline();
     return;
   }
@@ -750,7 +750,7 @@ void Chunk::handleInsertRequest(const std::shared_ptr<Revision>& item,
   underlying_table_->patch(item);
   syncLatestCommitTime(*item);
   response->ack();
-  leave_lock_.unlock();
+  leave_lock_.releaseReadLock();
 
   Id id = item->getId<Id>();  // TODO(tcies) what if leave during trigger?
   std::lock_guard<std::mutex> lock(trigger_mutex_);
@@ -762,24 +762,24 @@ void Chunk::handleInsertRequest(const std::shared_ptr<Revision>& item,
 void Chunk::handleLeaveRequest(const PeerId& leaver, Message* response) {
   CHECK_NOTNULL(response);
   awaitInitialized();
-  leave_lock_.readLock();
+  leave_lock_.acquireReadLock();
   CHECK(!relinquished_);  // sending a leave request to a disconnected peer
   // should be impossible by design
   std::lock_guard<std::mutex> metalock(lock_.mutex);
   CHECK(lock_.state == DistributedRWLock::State::WRITE_LOCKED);
   CHECK_EQ(lock_.holder, leaver);
   peers_.remove(leaver);
-  leave_lock_.unlock();
+  leave_lock_.releaseReadLock();
   response->impose<Message::kAck>();
 }
 
 void Chunk::handleLockRequest(const PeerId& locker, Message* response) {
   CHECK_NOTNULL(response);
   awaitInitialized();
-  leave_lock_.readLock();
+  leave_lock_.acquireReadLock();
   if (relinquished_) {
     // possible if two peer try to lock for leaving at the same time
-    leave_lock_.unlock();
+    leave_lock_.releaseReadLock();
     response->decline();
     return;
   }
@@ -829,28 +829,28 @@ void Chunk::handleLockRequest(const PeerId& locker, Message* response) {
       break;
   }
   metalock.unlock();
-  leave_lock_.unlock();
+  leave_lock_.releaseReadLock();
 }
 
 void Chunk::handleNewPeerRequest(const PeerId& peer, const PeerId& sender,
                                  Message* response) {
   CHECK_NOTNULL(response);
   awaitInitialized();
-  leave_lock_.readLock();
+  leave_lock_.acquireReadLock();
   CHECK(!relinquished_);  // sending a new peer request to a disconnected peer
   // should be impossible by design
   std::lock_guard<std::mutex> metalock(lock_.mutex);
   CHECK(lock_.state == DistributedRWLock::State::WRITE_LOCKED);
   CHECK_EQ(lock_.holder, sender);
   peers_.add(peer);
-  leave_lock_.unlock();
+  leave_lock_.releaseReadLock();
   response->impose<Message::kAck>();
 }
 
 void Chunk::handleUnlockRequest(const PeerId& locker, Message* response) {
   CHECK_NOTNULL(response);
   awaitInitialized();
-  leave_lock_.readLock();
+  leave_lock_.acquireReadLock();
   CHECK(!relinquished_);  // sending a leave request to a disconnected peer
   // should be impossible by design
   std::unique_lock<std::mutex> metalock(lock_.mutex);
@@ -860,7 +860,7 @@ void Chunk::handleUnlockRequest(const PeerId& locker, Message* response) {
         lock_.preempted_state == DistributedRWLock::State::ATTEMPTING);
   lock_.state = lock_.preempted_state;
   metalock.unlock();
-  leave_lock_.unlock();
+  leave_lock_.releaseReadLock();
   lock_.cv.notify_all();
   response->impose<Message::kAck>();
   if (trigger_) {

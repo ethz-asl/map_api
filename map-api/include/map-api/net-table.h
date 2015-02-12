@@ -8,13 +8,13 @@
 #include <vector>
 
 #include <gtest/gtest_prod.h>
-#include <Poco/RWLock.h>  // TODO(tcies) replace with own
 
 #include "map-api/app-templates.h"
 #include "map-api/chunk.h"
 #include "map-api/cr-table.h"
 #include "map-api/net-table-index.h"
 #include "map-api/revision.h"
+#include "map-api/reader-writer-lock.h"
 #include "map-api/spatial-index.h"
 
 namespace map_api {
@@ -213,12 +213,12 @@ class NetTable {
   CRTable::Type type_;
   std::unique_ptr<CRTable> cache_;
   ChunkMap active_chunks_;
-  mutable Poco::RWLock active_chunks_lock_;
+  mutable ReaderWriterMutex active_chunks_lock_;
 
   // DO NOT USE FROM HANDLER THREAD (else TODO(tcies) mutex)
   std::unique_ptr<NetTableIndex> index_;
   std::unique_ptr<SpatialIndex> spatial_index_;
-  Poco::RWLock index_lock_;
+  ReaderWriterMutex index_lock_;
 
   TriggerCallbackWithChunkPointer trigger_to_attach_on_chunk_acquisition_;
 
