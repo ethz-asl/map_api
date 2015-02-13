@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "map-api/net-table.h"
+#include "map-api/reader-writer-lock.h"
 #include "map-api/table-descriptor.h"
 
 namespace map_api {
@@ -103,7 +104,7 @@ class NetTableManager {
   Chunk* metatable_chunk_ = nullptr;
 
   TableMap tables_;
-  Poco::RWLock tables_lock_;
+  ReaderWriterMutex tables_lock_;
 };
 
 }  // namespace map_api

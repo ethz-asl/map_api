@@ -62,7 +62,9 @@ namespace map_api {
 template <typename IdType>
 void generateId(IdType* id) {
   CHECK_NOTNULL(id);
-  id->fromHexString(internal::generateUniqueHexString());
+  uint64_t hash[2];
+  internal::generateUnique128BitHash(hash);
+  id->fromUint64(hash);
 }
 
 template <typename IdType>

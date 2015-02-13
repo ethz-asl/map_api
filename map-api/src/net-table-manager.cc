@@ -61,14 +61,14 @@ NetTableManager& NetTableManager::instance() {
 }
 
 void NetTableManager::init(bool create_metatable_chunk) {
-  tables_lock_.writeLock();
+  tables_lock_.acquireWriteLock();
   tables_.clear();
-  tables_lock_.unlock();
+  tables_lock_.releaseWriteLock();
   initMetatable(create_metatable_chunk);
 }
 
 void NetTableManager::initMetatable(bool create_metatable_chunk) {
-  tables_lock_.writeLock();
+  tables_lock_.acquireWriteLock();
   // 1. ALLOCATION
   // the metatable is created in the tables_ structure in order to allow RPC
   // forwarding in the same way as for other tables
@@ -87,7 +87,7 @@ void NetTableManager::initMetatable(bool create_metatable_chunk) {
   metatable_descriptor->addField<bool>(kMetaTableUpdateableField);
   metatable_descriptor->addField<proto::PeerList>(kMetaTableParticipantsField);
   metatable->init(CRTable::Type::CRU, &metatable_descriptor);
-  tables_lock_.unlock();
+  tables_lock_.releaseWriteLock();
   // 3. INITIALIZATION OF INDEX
   // outside of table lock to avoid deadlock
   if (create_metatable_chunk) {
@@ -130,7 +130,7 @@ NetTable* NetTableManager::addTable(
   CHECK_NOTNULL(descriptor);
   CHECK(*descriptor);
   TableDescriptor* descriptor_raw = descriptor->get();  // needed later
-  tables_lock_.writeLock();
+  tables_lock_.acquireWriteLock();
   TableMap::iterator found = tables_.find((*descriptor)->name());
   if (found != tables_.end()) {
     LOG(WARNING) << "Table already defined! Checking consistency...";
@@ -146,7 +146,7 @@ NetTable* NetTableManager::addTable(
     inserted.first->second.reset(new NetTable);
     CHECK(inserted.first->second->init(type, descriptor));
   }
-  tables_lock_.unlock();
+  tables_lock_.releaseWriteLock();
   bool first;
   PeerId entry_point;
   // Ensure validity of table structure
@@ -177,36 +177,36 @@ NetTable* NetTableManager::addTable(
 }
 
 NetTable& NetTableManager::getTable(const std::string& name) {
-  tables_lock_.readLock();
+  tables_lock_.acquireReadLock();
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = tables_.find(name);
   // TODO(tcies) load table schema from metatable if not active
   CHECK(found != tables_.end()) << "Table not found: " << name;
-  tables_lock_.unlock();
+  tables_lock_.releaseReadLock();
   return *found->second;
 }
 
 void NetTableManager::tableList(std::vector<std::string>* tables) {
   CHECK_NOTNULL(tables);
   tables->clear();
-  tables_lock_.readLock();
+  tables_lock_.acquireReadLock();
   for (const std::pair<const std::string, std::unique_ptr<NetTable> >& pair :
        tables_) {
     tables->push_back(pair.first);
   }
-  tables_lock_.unlock();
+  tables_lock_.releaseReadLock();
 }
 
 void NetTableManager::kill() {
-  tables_lock_.readLock();
+  tables_lock_.acquireReadLock();
   for (const std::pair<const std::string, std::unique_ptr<NetTable> >& table :
        tables_) {
     table.second->kill();
   }
-  tables_lock_.unlock();
-  tables_lock_.writeLock();
+  tables_lock_.releaseReadLock();
+  tables_lock_.acquireWriteLock();
   tables_.clear();
-  tables_lock_.unlock();
+  tables_lock_.releaseWriteLock();
 }
 
 // ========
@@ -221,17 +221,17 @@ void NetTableManager::handleConnectRequest(const Message& request,
   const std::string& table = metadata.table();
   Id chunk_id(metadata.chunk_id());
   CHECK_NOTNULL(Core::instance());
-  instance().tables_lock_.readLock();
+  instance().tables_lock_.acquireReadLock();
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = instance().tables_.find(table);
   if (found == instance().tables_.end()) {
-    instance().tables_lock_.unlock();
+    instance().tables_lock_.releaseReadLock();
     response->impose<Message::kDecline>();
     return;
   }
   found->second->handleConnectRequest(chunk_id, PeerId(request.sender()),
                                       response);
-  instance().tables_lock_.unlock();
+  instance().tables_lock_.releaseReadLock();
 }
 
 void NetTableManager::handleInitRequest(
@@ -422,13 +422,13 @@ bool NetTableManager::syncTableDefinition(
 bool NetTableManager::findTable(const std::string& table_name,
                                 TableMap::iterator* found) {
   CHECK_NOTNULL(found);
-  instance().tables_lock_.readLock();
+  instance().tables_lock_.acquireReadLock();
   *found = instance().tables_.find(table_name);
   if (*found == instance().tables_.end()) {
-    instance().tables_lock_.unlock();
+    instance().tables_lock_.releaseReadLock();
     return false;
   }
-  instance().tables_lock_.unlock();
+  instance().tables_lock_.releaseReadLock();
   return true;
 }
 
