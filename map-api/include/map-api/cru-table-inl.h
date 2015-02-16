@@ -16,7 +16,7 @@ void CRUTable::findHistory(int key, const ValueType& value,
 template <typename IdType>
 void CRUTable::itemHistory(const IdType& id, const LogicalTime& time,
                            History* dest) const {
-  Id map_api_id;
+  common::Id map_api_id;
   sm::HashId hash_id;
   id.toHashId(&hash_id);
   map_api_id.fromHashId(hash_id);

@@ -19,7 +19,7 @@
 #include <map-api/ipc.h>
 #include <map-api/logical-time.h>
 #include <map-api/server-discovery.h>
-#include <map-api/internal/unique-id.h>
+#include <multiagent-mapping-common/internal/unique-id.h>
 
 const std::string kFileDiscovery = "file";
 const std::string kServerDiscovery = "server";
@@ -350,9 +350,9 @@ void Hub::listenThread(Hub* self) {
             ownAddressBeforePort() + ":" + std::to_string(port);
 
         // Use the current address as a hash-seed for unique-ids.
-        using map_api::internal::uniqueIdHashSeed;
-        uniqueIdHashSeed::instance().setSeed(
-            uniqueIdHashSeed::Key(),
+        using common::internal::UniqueIdHashSeed;
+        UniqueIdHashSeed::instance().saltSeed(
+            UniqueIdHashSeed::Key(),
             std::hash<std::string>()(self->own_address_));
         break;
       }
