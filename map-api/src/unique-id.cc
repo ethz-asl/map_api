@@ -2,8 +2,6 @@
 #include <atomic>
 #include <chrono>
 
-#include "map-api/hub.h"
-
 namespace map_api {
 namespace internal {
 void generateUnique128BitHash(uint64_t hash[2]) {
@@ -14,7 +12,7 @@ void generateUnique128BitHash(uint64_t hash[2]) {
   ++counter;
 
   hash[0] =
-      std::hash<std::string>()(Hub::instance().ownAddress()) ^
+      map_api::internal::uniqueIdHashSeed::instance().seed() ^
       std::hash<int>()(
           std::chrono::high_resolution_clock::now().time_since_epoch().count());
   hash[1] = std::hash<int>()(counter);
