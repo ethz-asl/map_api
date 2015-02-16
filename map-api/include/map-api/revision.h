@@ -4,6 +4,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <vector>
 
 #include <glog/logging.h>
 
@@ -24,6 +25,8 @@ class Revision {
   friend class Transaction;
 
  public:
+  typedef std::vector<char> Blob;
+
   explicit Revision(const std::shared_ptr<proto::Revision>& revision);
   explicit Revision(const Revision& other);
   Revision& operator=(const Revision& other) = delete;

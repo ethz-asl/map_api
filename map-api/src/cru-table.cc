@@ -2,10 +2,6 @@
 #include <cstdio>
 #include <map>
 
-#include <Poco/Data/Common.h>
-#include <Poco/Data/Statement.h>
-#include <Poco/Data/SQLite/Connector.h>
-#include <Poco/Data/BLOB.h>
 #include <glog/logging.h>
 #include <gflags/gflags.h>
 

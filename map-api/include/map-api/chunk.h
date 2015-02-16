@@ -8,11 +8,10 @@
 #include <thread>
 #include <unordered_set>
 
-#include <Poco/RWLock.h>  // TODO(tcies) replace with our own
-
 #include "./chunk.pb.h"
 #include "map-api/cr-table.h"
 #include "map-api/peer-handler.h"
+#include "map-api/reader-writer-lock.h"
 #include "map-api/unique-id.h"
 
 namespace map_api {
@@ -229,7 +228,7 @@ class Chunk {
   std::mutex trigger_mutex_;
   std::unordered_set<Id> trigger_insertions_, trigger_updates_;
   std::mutex add_peer_mutex_;
-  Poco::RWLock leave_lock_;
+  ReaderWriterMutex leave_lock_;
   volatile bool initialized_ = false;
   volatile bool relinquished_ = false;
   bool log_locking_ = false;
