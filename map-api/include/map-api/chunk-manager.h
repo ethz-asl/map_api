@@ -6,7 +6,7 @@
 #include <unordered_set>
 #include <utility>
 
-#include "multiagent-mapping-common/unique-id.h"
+#include <multiagent-mapping-common/unique-id.h>
 #include "./net-table.pb.h"
 
 namespace map_api {

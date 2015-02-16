@@ -12,7 +12,7 @@
 #include "map-api/cr-table.h"
 #include "map-api/peer-handler.h"
 #include "map-api/reader-writer-lock.h"
-#include "multiagent-mapping-common/unique-id.h"
+#include <multiagent-mapping-common/unique-id.h>
 
 namespace map_api {
 class Message;

@@ -10,7 +10,7 @@
 
 #include "./core.pb.h"
 #include "map-api/logical-time.h"
-#include "multiagent-mapping-common/unique-id.h"
+#include <multiagent-mapping-common/unique-id.h>
 
 namespace map_api {
 class TrackeeMultimap;

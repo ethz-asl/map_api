@@ -5,7 +5,7 @@
 #include <sm/hash_id.hpp>
 #include <timing/timer.h>
 
-#include "multiagent-mapping-common/unique-id.h"
+#include <multiagent-mapping-common/unique-id.h>
 #include "map-api/test/testing-entrypoint.h"
 
 #define DEFINE_ID_HASH_SIZET(TypeName)                          \

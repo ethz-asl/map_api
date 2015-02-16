@@ -11,7 +11,7 @@
 
 #include "map-api/revision.h"
 #include "map-api/table-descriptor.h"
-#include "multiagent-mapping-common/unique-id.h"
+#include <multiagent-mapping-common/unique-id.h>
 #include "./core.pb.h"
 
 namespace map_api {

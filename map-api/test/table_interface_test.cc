@@ -13,7 +13,7 @@
 #include "map-api/cru-table-stxxl-map.h"
 #include "map-api/logical-time.h"
 #include "map-api/test/testing-entrypoint.h"
-#include "multiagent-mapping-common/unique-id.h"
+#include <multiagent-mapping-common/unique-id.h>
 #include "./test_table.cc"
 
 namespace map_api {

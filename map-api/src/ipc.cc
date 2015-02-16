@@ -8,7 +8,7 @@
 #include <map-api/logical-time.h>
 #include "map-api/message.h"
 #include <map-api/peer-id.h>
-#include "multiagent-mapping-common/unique-id.h"
+#include <multiagent-mapping-common/unique-id.h>
 
 namespace map_api {
 

@@ -10,7 +10,7 @@
 #include <google/protobuf/io/gzip_stream.h>
 
 #include "map-api/cr-table.h"
-#include "multiagent-mapping-common/unique-id.h"
+#include <multiagent-mapping-common/unique-id.h>
 #include "map-api/logical-time.h"
 
 namespace map_api {
