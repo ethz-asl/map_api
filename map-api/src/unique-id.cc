@@ -2,25 +2,22 @@
 #include <atomic>
 #include <chrono>
 
-#include <Poco/DigestStream.h>
-#include <Poco/MD5Engine.h>
-
 #include "map-api/hub.h"
 
 namespace map_api {
 namespace internal {
-std::string generateUniqueHexString() {
+void generateUnique128BitHash(uint64_t hash[2]) {
+  static_assert(sizeof(size_t) == sizeof(uint64_t),
+                "Please adapt the below to your non-64-bit system.");
+
   static std::atomic<int> counter;
   ++counter;
-  Poco::MD5Engine md5;
-  Poco::DigestOutputStream digest_stream(md5);
-  digest_stream << counter;
-  digest_stream
-      << std::chrono::high_resolution_clock::now().time_since_epoch().count();
-  digest_stream << Hub::instance().ownAddress();
-  digest_stream.flush();
-  const Poco::DigestEngine::Digest& digest = md5.digest();
-  return Poco::DigestEngine::digestToHex(digest);
+
+  hash[0] =
+      std::hash<std::string>()(Hub::instance().ownAddress()) ^
+      std::hash<int>()(
+          std::chrono::high_resolution_clock::now().time_since_epoch().count());
+  hash[1] = std::hash<int>()(counter);
 }
 }  // namespace internal
 }  // namespace map_api

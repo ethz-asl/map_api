@@ -8,10 +8,10 @@
 #include <thread>
 #include <unordered_map>
 
-#include <Poco/RWLock.h>  // TODO(tcies) use our own
 #include <gtest/gtest_prod.h>
 
 #include "map-api/peer-id.h"
+#include "map-api/reader-writer-lock.h"
 
 namespace map_api {
 
@@ -200,7 +200,7 @@ class ChordIndex {
   SuccessorListItem successor_;
   std::shared_ptr<ChordPeer> predecessor_;
 
-  Poco::RWLock peer_lock_;
+  ReaderWriterMutex peer_lock_;
 
   FRIEND_TEST(ChordIndexTestInitialized, onePeerJoin);
   friend class ChordIndexTestInitialized;
@@ -223,7 +223,7 @@ class ChordIndex {
 
   // TODO(tcies) data stats: Has it already been requested?
   DataMap data_;
-  Poco::RWLock data_lock_;
+  ReaderWriterMutex data_lock_;
 
   std::mutex node_lock_;
   bool node_locked_ = false;
