@@ -4,10 +4,6 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include <Poco/Data/Common.h>
-#include <Poco/Data/BLOB.h>
-#include <Poco/Data/Statement.h>
-
 #include <timing/timer.h>
 
 #include "map-api/core.h"
