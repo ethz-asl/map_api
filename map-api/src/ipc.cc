@@ -8,7 +8,7 @@
 #include <map-api/logical-time.h>
 #include "map-api/message.h"
 #include <map-api/peer-id.h>
-#include "map-api/unique-id.h"
+#include "multiagent-mapping-common/unique-id.h"
 
 namespace map_api {
 
@@ -74,7 +74,7 @@ void IPC::pushFor(const std::string& message, int receiver) {
   CHECK(Hub::instance().undisputableBroadcast(&request));
 }
 template <>
-void IPC::pushFor(const Id& message, int receiver) {
+void IPC::pushFor(const common::Id& message, int receiver) {
   pushFor(message.hexString(), receiver);
 }
 template <>
@@ -107,8 +107,8 @@ std::string IPC::popFor(int receiver) {
   return ipc_message.message();
 }
 template <>
-Id IPC::popFor(int receiver) {
-  Id return_value;
+common::Id IPC::popFor(int receiver) {
+  common::Id return_value;
   std::string serialized = popFor<std::string>(receiver);
   CHECK(return_value.fromHexString(serialized));
   return return_value;

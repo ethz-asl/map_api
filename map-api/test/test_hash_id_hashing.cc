@@ -5,7 +5,7 @@
 #include <sm/hash_id.hpp>
 #include <timing/timer.h>
 
-#include "map-api/unique-id.h"
+#include "multiagent-mapping-common/unique-id.h"
 #include "map-api/test/testing-entrypoint.h"
 
 #define DEFINE_ID_HASH_SIZET(TypeName)                          \
@@ -49,13 +49,13 @@ TEST(MultiagentMappingCommon, HashIdHashingLoadDistribution) {
   Data item;
   for (int i = 0; i < kNumTrials; ++i) {
     TestIdStringHash id;
-    map_api::generateId(&id);
+    common::generateId(&id);
     map_string_hashes[id] = item;
   }
 
   for (int i = 0; i < kNumTrials; ++i) {
     TestIdSizeTHash id;
-    map_api::generateId(&id);
+    common::generateId(&id);
     map_sizet_hashes[id] = item;
   }
 
@@ -88,7 +88,7 @@ TEST(MultiagentMappingCommon, HashIdHashingSpeed) {
   std::hash<TestIdStringHash> hasher;
   for (int i = 0; i < kNumTrials; ++i) {
     TestIdStringHash id;
-    map_api::generateId(&id);
+    common::generateId(&id);
     avoid_optimization1 ^= hasher(id);
   }
   timer_string_hash.Stop();
@@ -97,7 +97,7 @@ TEST(MultiagentMappingCommon, HashIdHashingSpeed) {
   timing::Timer timer_sizet_hash("SizeT hash");
   for (int i = 0; i < kNumTrials; ++i) {
     TestIdSizeTHash id;
-    map_api::generateId(&id);
+    common::generateId(&id);
     avoid_optimization2 ^= id.hashToSizeT();
   }
   timer_sizet_hash.Stop();

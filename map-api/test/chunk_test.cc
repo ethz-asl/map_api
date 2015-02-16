@@ -142,7 +142,7 @@ TEST_P(NetTableFixture, Leave) {
     CHUNK_SHARED,
     A_LEFT
   };
-  map_api::generateIdFromInt(1, &chunk_id_);
+  common::generateIdFromInt(1, &chunk_id_);
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
     chunk_ = table_->newChunk(chunk_id_);

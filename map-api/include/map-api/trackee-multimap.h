@@ -3,7 +3,7 @@
 
 #include <unordered_map>
 
-#include "map-api/unique-id.h"
+#include "multiagent-mapping-common/unique-id.h"
 
 namespace map_api {
 class NetTable;
@@ -13,7 +13,7 @@ class Revision;
 }  // namespace proto
 
 class TrackeeMultimap
-    : public std::unordered_map<NetTable*, std::unordered_set<Id>> {
+    : public std::unordered_map<NetTable*, std::unordered_set<common::Id>> {
  public:
   void deserialize(const proto::Revision& proto);
   void serialize(proto::Revision* proto) const;

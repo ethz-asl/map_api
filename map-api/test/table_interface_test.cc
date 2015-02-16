@@ -13,7 +13,7 @@
 #include "map-api/cru-table-stxxl-map.h"
 #include "map-api/logical-time.h"
 #include "map-api/test/testing-entrypoint.h"
-#include "map-api/unique-id.h"
+#include "multiagent-mapping-common/unique-id.h"
 #include "./test_table.cc"
 
 namespace map_api {
@@ -104,15 +104,15 @@ class FieldTest<int32_t> : public ::testing::Test {
   int32_t sample_data_2() { return -42; }
 };
 template <>
-class FieldTest<map_api::Id> : public ::testing::Test {
+class FieldTest<common::Id> : public ::testing::Test {
  protected:
-  map_api::Id sample_data_1() {
-    map_api::Id id;
+  common::Id sample_data_1() {
+    common::Id id;
     id.fromHexString("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
     return id;
   }
-  map_api::Id sample_data_2() {
-    map_api::Id id;
+  common::Id sample_data_2() {
+    common::Id id;
     id.fromHexString("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
     return id;
   }
@@ -245,7 +245,7 @@ class CruMapIntTestWithInit
   TableDataTypes<table_type, testBlob>,                                        \
       TableDataTypes<table_type, std::string>,                                 \
       TableDataTypes<table_type, int32_t>, TableDataTypes<table_type, double>, \
-      TableDataTypes<table_type, map_api::Id>,                                 \
+      TableDataTypes<table_type, common::Id>,                                 \
       TableDataTypes<table_type, int64_t>,                                     \
       TableDataTypes<table_type, map_api::LogicalTime>
 
