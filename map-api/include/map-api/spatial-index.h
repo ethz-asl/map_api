@@ -12,9 +12,11 @@
 #include <map-api/chord-index.h>
 #include <map-api/peer-handler.h>
 
-namespace map_api {
+namespace common {
 class Id;
+}  // namespace common
 
+namespace map_api {
 class SpatialIndex : public ChordIndex {
  public:
   // TODO(tcies) template class on type and dimensions
@@ -71,9 +73,10 @@ class SpatialIndex : public ChordIndex {
    * guaranteed is that if at least one peer holds a chunk, at least one peer
    * will be registered in the index.
    */
-  void announceChunk(const Id& chunk_id, const BoundingBox& bounding_box);
+  void announceChunk(const common::Id& chunk_id,
+                     const BoundingBox& bounding_box);
   void seekChunks(const BoundingBox& bounding_box,
-                  std::unordered_set<Id>* chunk_ids);
+                  std::unordered_set<common::Id>* chunk_ids);
 
   static const char kRoutedChordRequest[];
   static const char kPeerResponse[];

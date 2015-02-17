@@ -43,13 +43,14 @@ void NetTable::getAvailableIds(const LogicalTime& time,
 }
 
 template <typename TrackeeType, typename TrackerType, typename TrackerIdType>
-std::function<Id(const Revision&)> NetTable::trackerDeterminerFactory() {
+std::function<common::Id(const Revision&)>
+NetTable::trackerDeterminerFactory() {
   return [](const Revision& trackee_revision) {  // NOLINT
     std::shared_ptr<TrackeeType> trackee =
         objectFromRevision<TrackeeType>(trackee_revision);
     TrackerIdType typed_tracker_id =
         determineTracker<TrackeeType, TrackerType, TrackerIdType>(*trackee);
-    return static_cast<Id>(typed_tracker_id);
+    return static_cast<common::Id>(typed_tracker_id);
   };
 }
 
