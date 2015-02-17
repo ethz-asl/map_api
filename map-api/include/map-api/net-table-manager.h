@@ -87,7 +87,8 @@ class NetTableManager {
   static bool getTableForMetadataRequestOrDecline(const Message& request,
                                                   Message* response,
                                                   TableMap::iterator* found,
-                                                  Id* chunk_id, PeerId* peer);
+                                                  common::Id* chunk_id,
+                                                  PeerId* peer);
 
   template <typename MetadataRequestType>
   static bool getTableForRequestWithMetadataOrDecline(
