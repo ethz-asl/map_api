@@ -29,7 +29,7 @@ CRTable::RevisionMap ChunkTransaction::dumpChunk() {
 void ChunkTransaction::insert(std::shared_ptr<Revision> revision) {
   CHECK_NOTNULL(revision.get());
   CHECK(revision->structureMatch(*structure_reference_));
-  Id id = revision->getId<Id>();
+  common::Id id = revision->getId<common::Id>();
   CHECK(id.isValid());
   CHECK(insertions_.emplace(id, revision).second);
 }
@@ -38,7 +38,7 @@ void ChunkTransaction::update(std::shared_ptr<Revision> revision) {
   CHECK_NOTNULL(revision.get());
   CHECK(revision->structureMatch(*structure_reference_));
   CHECK(chunk_->underlying_table_->type() == CRTable::Type::CRU);
-  Id id = revision->getId<Id>();
+  common::Id id = revision->getId<common::Id>();
   CHECK(id.isValid());
   InsertMap::iterator uncommitted = insertions_.find(id);
   if (uncommitted != insertions_.end()) {
@@ -56,7 +56,7 @@ void ChunkTransaction::remove(std::shared_ptr<Revision> revision) {
   CHECK_NOTNULL(revision.get());
   CHECK(revision->structureMatch(*structure_reference_));
   CHECK(chunk_->underlying_table_->type() == CRTable::Type::CRU);
-  Id id = revision->getId<Id>();
+  common::Id id = revision->getId<common::Id>();
   CHECK(id.isValid());
   CHECK(removes_.emplace(id, revision).second);
   // TODO(tcies) situation uncommitted
@@ -75,25 +75,25 @@ bool ChunkTransaction::commit() {
 
 bool ChunkTransaction::check() {
   CHECK(chunk_->isLocked());
-  std::unordered_map<Id, LogicalTime> stamps;
+  std::unordered_map<common::Id, LogicalTime> stamps;
   prepareCheck(LogicalTime::sample(), &stamps);
   // The following check may be left out if too costly
-  for (const std::pair<const Id, std::shared_ptr<const Revision> >& item :
-       insertions_) {
+  for (const std::pair<const common::Id,
+      std::shared_ptr<const Revision> >& item : insertions_) {
     if (stamps.find(item.first) != stamps.end()) {
       LOG(ERROR) << "Table " << chunk_->underlying_table_->name()
                  << " already contains id " << item.first;
       return false;
     }
   }
-  for (const std::pair<const Id, std::shared_ptr<const Revision> >& item :
-       updates_) {
+  for (const std::pair<const common::Id,
+      std::shared_ptr<const Revision> >& item : updates_) {
     if (stamps[item.first] >= begin_time_) {
       return false;
     }
   }
-  for (const std::pair<const Id, std::shared_ptr<const Revision> >& item :
-       removes_) {
+  for (const std::pair<const common::Id,
+      std::shared_ptr<const Revision> >& item : removes_) {
     if (stamps[item.first] >= begin_time_) {
       return false;
     }
@@ -119,12 +119,14 @@ void ChunkTransaction::checkedCommit(const LogicalTime& time) {
     }
   }
   chunk_->bulkInsertLocked(insertions_, time);
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& item : updates_) {
+  for (const std::pair<const common::Id,
+      std::shared_ptr<Revision> >& item : updates_) {
     if (removes_.count(item.first) == 0u) {
       chunk_->updateLocked(time, item.second);
     }
   }
-  for (const std::pair<const Id, std::shared_ptr<Revision> >& item : removes_) {
+  for (const std::pair<const common::Id,
+      std::shared_ptr<Revision> >& item : removes_) {
     chunk_->removeLocked(time, item.second);
   }
 }
@@ -138,7 +140,7 @@ void ChunkTransaction::merge(
                                          "conditions";
   conflicts->clear();
   chunk_->readLock();
-  std::unordered_map<Id, LogicalTime> stamps;
+  std::unordered_map<common::Id, LogicalTime> stamps;
   prepareCheck(merge_transaction->begin_time_, &stamps);
   // The following check may be left out if too costly
   for (const typename CRTable::NonConstRevisionMap::value_type& item :
@@ -175,7 +177,7 @@ size_t ChunkTransaction::numChangedItems() const {
 
 void ChunkTransaction::prepareCheck(
     const LogicalTime& check_time,
-    std::unordered_map<Id, LogicalTime>* chunk_stamp) {
+    std::unordered_map<common::Id, LogicalTime>* chunk_stamp) {
   CHECK_NOTNULL(chunk_stamp);
   chunk_stamp->clear();
   CRTable::RevisionMap contents;
@@ -204,11 +206,11 @@ void ChunkTransaction::getTrackers(
            table_tracker_getter : table_->new_chunk_trackers()) {
     NetTable::NewChunkTrackerMap::const_iterator override_it =
         overrides.find(table_tracker_getter.first);
-    const std::function<Id(const Revision&)>& tracker_id_extractor =
+    const std::function<common::Id(const Revision&)>& tracker_id_extractor =
         ((override_it != overrides.end()) ? (override_it->second)
                                           : (table_tracker_getter.second));
     for (const InsertMap::value_type& insertion : insertions_) {
-      Id id = tracker_id_extractor(*insertion.second);
+      common::Id id = tracker_id_extractor(*insertion.second);
       trackers->emplace(table_tracker_getter.first, id);
     }
   }

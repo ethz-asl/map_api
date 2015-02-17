@@ -20,23 +20,25 @@ class CRTableRamMap : public CRTable {
                                    const LogicalTime& time) final override;
   virtual bool patchCRDerived(const std::shared_ptr<Revision>& query)
       final override;
-  virtual void dumpChunkCRDerived(const Id& chunk_id, const LogicalTime& time,
+  virtual void dumpChunkCRDerived(const common::Id& chunk_id,
+                                  const LogicalTime& time,
                                   RevisionMap* dest) const final override;
   virtual void findByRevisionCRDerived(
       int key, const Revision& valueHolder, const LogicalTime& time,
       CRTable::RevisionMap* dest) const final override;
   virtual std::shared_ptr<const Revision> getByIdCRDerived(
-      const Id& id, const LogicalTime& time) const final override;
+      const common::Id& id, const LogicalTime& time) const final override;
   virtual void getAvailableIdsCRDerived(const LogicalTime& time,
-      std::vector<Id>* ids) const final override;
+      std::vector<common::Id>* ids) const final override;
   virtual int countByRevisionCRDerived(
       int key, const Revision& valueHolder,
       const LogicalTime& time) const final override;
   virtual int countByChunkCRDerived(
-      const Id& chunk_id, const LogicalTime& time) const final override;
+      const common::Id& chunk_id, const LogicalTime& time) const final override;
   virtual void clearCRDerived() final override;
 
-  typedef std::unordered_map<Id, std::shared_ptr<const Revision> > MapType;
+  typedef std::unordered_map<common::Id,
+      std::shared_ptr<const Revision> > MapType;
   MapType data_;
 };
 
