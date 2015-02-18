@@ -89,12 +89,12 @@ std::shared_ptr<Revision> NetTable::getTemplate() const {
 }
 
 Chunk* NetTable::newChunk() {
-  Id chunk_id;
-  map_api::generateId(&chunk_id);
+  common::Id chunk_id;
+  common::generateId(&chunk_id);
   return newChunk(chunk_id);
 }
 
-Chunk* NetTable::newChunk(const Id& chunk_id) {
+Chunk* NetTable::newChunk(const common::Id& chunk_id) {
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
   CHECK(chunk->init(chunk_id, cache_.get(), true));
   if (trigger_to_attach_on_chunk_acquisition_) {
@@ -117,7 +117,7 @@ Chunk* NetTable::newChunk(const Id& chunk_id) {
   return inserted.first->second.get();
 }
 
-Chunk* NetTable::getChunk(const Id& chunk_id) {
+Chunk* NetTable::getChunk(const common::Id& chunk_id) {
   timing::Timer timer("map_api::NetTable::getChunk");
   active_chunks_lock_.acquireReadLock();
   ChunkMap::iterator found = active_chunks_.find(chunk_id);
@@ -144,7 +144,8 @@ Chunk* NetTable::getChunk(const Id& chunk_id) {
 
 void NetTable::pushNewChunkIdsToTracker(
     NetTable* table_of_tracking_item,
-    const std::function<Id(const Revision&)>& how_to_determine_tracking_item) {
+    const std::function<common::Id(const Revision&)>&
+        how_to_determine_tracking_item) {
   CHECK_NOTNULL(table_of_tracking_item);
   CHECK(new_chunk_trackers_.insert(std::make_pair(
                                        table_of_tracking_item,
@@ -158,14 +159,14 @@ void NetTable::pushNewChunkIdsToTracker(NetTable* tracker_table) {
     LOG(FATAL) << "Override of tracker identification method (trackee = "
                << this->name() << ", tracker = " << tracker_table->name()
                << ") required!";
-    return Id();
+    return common::Id();
   };
   CHECK(new_chunk_trackers_.emplace(tracker_table,
                                     identification_method_placeholder).second);
 }
 
 void NetTable::registerChunkInSpace(
-    const Id& chunk_id, const SpatialIndex::BoundingBox& bounding_box) {
+    const common::Id& chunk_id, const SpatialIndex::BoundingBox& bounding_box) {
   active_chunks_lock_.acquireReadLock();
   CHECK(active_chunks_.find(chunk_id) != active_chunks_.end());
   active_chunks_lock_.releaseReadLock();
@@ -176,7 +177,7 @@ void NetTable::registerChunkInSpace(
 
 void NetTable::getChunkReferencesInBoundingBox(
     const SpatialIndex::BoundingBox& bounding_box,
-    std::unordered_set<Id>* chunk_ids) {
+    std::unordered_set<common::Id>* chunk_ids) {
   CHECK_NOTNULL(chunk_ids);
   timing::Timer seek_timer("map_api::NetTable::getChunksInBoundingBox - seek");
   index_lock_.acquireReadLock();
@@ -199,9 +200,9 @@ void NetTable::getChunksInBoundingBox(
     std::unordered_set<Chunk*>* chunks) {
   CHECK_NOTNULL(chunks);
   chunks->clear();
-  std::unordered_set<Id> chunk_ids;
+  std::unordered_set<common::Id> chunk_ids;
   getChunkReferencesInBoundingBox(bounding_box, &chunk_ids);
-  for (const Id& id : chunk_ids) {
+  for (const common::Id& id : chunk_ids) {
     Chunk* chunk = getChunk(id);
     CHECK_NOTNULL(chunk);
     chunks->insert(chunk);
@@ -235,9 +236,9 @@ void NetTable::dumpActiveChunks(const LogicalTime& time,
                                 CRTable::RevisionMap* destination) {
   CHECK_NOTNULL(destination);
   destination->clear();
-  std::set<map_api::Id> active_chunk_ids;
+  std::set<common::Id> active_chunk_ids;
   getActiveChunkIds(&active_chunk_ids);
-  for (const map_api::Id& chunk_id : active_chunk_ids) {
+  for (const common::Id& chunk_id : active_chunk_ids) {
     map_api::CRTable::RevisionMap chunk_revisions;
     map_api::Chunk* chunk = getChunk(chunk_id);
     CHECK_NOTNULL(chunk);
@@ -252,7 +253,7 @@ void NetTable::dumpActiveChunksAtCurrentTime(
   return dumpActiveChunks(map_api::LogicalTime::sample(), destination);
 }
 
-Chunk* NetTable::connectTo(const Id& chunk_id,
+Chunk* NetTable::connectTo(const common::Id& chunk_id,
                            const PeerId& peer) {
   Message request, response;
   // sends request of chunk info to peer
@@ -286,11 +287,11 @@ size_t NetTable::numActiveChunks() const {
 }
 
 size_t NetTable::numActiveChunksItems() {
-  std::set<Id> active_chunk_ids;
+  std::set<common::Id> active_chunk_ids;
   getActiveChunkIds(&active_chunk_ids);
   size_t num_elements = 0;
   LogicalTime now = LogicalTime::sample();
-  for (const Id& chunk_id : active_chunk_ids) {
+  for (const common::Id& chunk_id : active_chunk_ids) {
     Chunk* chunk = getChunk(chunk_id);
     CHECK_NOTNULL(chunk);
     num_elements += chunk->numItems(now);
@@ -303,11 +304,11 @@ size_t NetTable::numItems() const {
 }
 
 size_t NetTable::activeChunksItemsSizeBytes() {
-  std::set<Id> active_chunk_ids;
+  std::set<common::Id> active_chunk_ids;
   getActiveChunkIds(&active_chunk_ids);
   size_t size_bytes = 0;
   LogicalTime now = LogicalTime::sample();
-  for (const Id& chunk_id : active_chunk_ids) {
+  for (const common::Id& chunk_id : active_chunk_ids) {
     Chunk* chunk = getChunk(chunk_id);
     CHECK_NOTNULL(chunk);
     size_bytes += chunk->itemsSizeBytes(now);
@@ -341,7 +342,7 @@ void NetTable::kill() {
 
 void NetTable::shareAllChunks() {
   active_chunks_lock_.acquireReadLock();
-  for (const std::pair<const Id, std::unique_ptr<Chunk> >& chunk :
+  for (const std::pair<const common::Id, std::unique_ptr<Chunk> >& chunk :
       active_chunks_) {
     chunk.second->requestParticipation();
   }
@@ -350,7 +351,7 @@ void NetTable::shareAllChunks() {
 
 void NetTable::shareAllChunks(const PeerId& peer) {
   active_chunks_lock_.acquireReadLock();
-  for (const std::pair<const Id, std::unique_ptr<Chunk> >& chunk :
+  for (const std::pair<const common::Id, std::unique_ptr<Chunk> >& chunk :
        active_chunks_) {
     chunk.second->requestParticipation(peer);
   }
@@ -359,7 +360,7 @@ void NetTable::shareAllChunks(const PeerId& peer) {
 
 void NetTable::leaveAllChunks() {
   active_chunks_lock_.acquireReadLock();
-  for (const std::pair<const Id, std::unique_ptr<Chunk> >& chunk :
+  for (const std::pair<const common::Id, std::unique_ptr<Chunk> >& chunk :
       active_chunks_) {
     chunk.second->leave();
   }
@@ -378,11 +379,11 @@ std::string NetTable::getStatistics() {
   return ss.str();
 }
 
-void NetTable::getActiveChunkIds(std::set<Id>* chunk_ids) const {
+void NetTable::getActiveChunkIds(std::set<common::Id>* chunk_ids) const {
   CHECK_NOTNULL(chunk_ids);
   chunk_ids->clear();
   active_chunks_lock_.acquireReadLock();
-  for (const std::pair<const Id, std::unique_ptr<Chunk> >& chunk :
+  for (const std::pair<const common::Id, std::unique_ptr<Chunk> >& chunk :
        active_chunks_) {
     chunk_ids->insert(chunk.first);
   }
@@ -393,7 +394,7 @@ void NetTable::getActiveChunks(std::set<Chunk*>* chunks) const {
   CHECK_NOTNULL(chunks);
   chunks->clear();
   active_chunks_lock_.acquireReadLock();
-  for (const std::pair<const Id, std::unique_ptr<Chunk> >& chunk :
+  for (const std::pair<const common::Id, std::unique_ptr<Chunk> >& chunk :
        active_chunks_) {
     chunks->insert(chunk.second.get());
   }
@@ -414,7 +415,8 @@ void NetTable::unlockActiveChunks() {
   active_chunks_lock_.releaseReadLock();
 }
 
-void NetTable::handleConnectRequest(const Id& chunk_id, const PeerId& peer,
+void NetTable::handleConnectRequest(const common::Id& chunk_id,
+                                    const PeerId& peer,
                                     Message* response) {
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
@@ -428,7 +430,7 @@ void NetTable::handleInitRequest(
     const proto::InitRequest& request, const PeerId& sender,
     Message* response) {
   CHECK_NOTNULL(response);
-  Id chunk_id(request.metadata().chunk_id());
+  common::Id chunk_id(request.metadata().chunk_id());
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
   CHECK(chunk->init(chunk_id, request, sender, cache_.get()));
   if (trigger_to_attach_on_chunk_acquisition_) {
@@ -446,7 +448,7 @@ void NetTable::handleInitRequest(
   response->ack();
 }
 
-void NetTable::handleInsertRequest(const Id& chunk_id,
+void NetTable::handleInsertRequest(const common::Id& chunk_id,
                                    const std::shared_ptr<Revision>& item,
                                    Message* response) {
   ChunkMap::iterator found;
@@ -458,7 +460,7 @@ void NetTable::handleInsertRequest(const Id& chunk_id,
 }
 
 void NetTable::handleLeaveRequest(
-    const Id& chunk_id, const PeerId& leaver, Message* response) {
+    const common::Id& chunk_id, const PeerId& leaver, Message* response) {
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
   if (routingBasics(chunk_id, response, &found)) {
@@ -468,7 +470,7 @@ void NetTable::handleLeaveRequest(
 }
 
 void NetTable::handleLockRequest(
-    const Id& chunk_id, const PeerId& locker, Message* response) {
+    const common::Id& chunk_id, const PeerId& locker, Message* response) {
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
   if (routingBasics(chunk_id, response, &found)) {
@@ -478,7 +480,7 @@ void NetTable::handleLockRequest(
 }
 
 void NetTable::handleNewPeerRequest(
-    const Id& chunk_id, const PeerId& peer, const PeerId& sender,
+    const common::Id& chunk_id, const PeerId& peer, const PeerId& sender,
     Message* response) {
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
@@ -489,7 +491,7 @@ void NetTable::handleNewPeerRequest(
 }
 
 void NetTable::handleUnlockRequest(
-    const Id& chunk_id, const PeerId& locker, Message* response) {
+    const common::Id& chunk_id, const PeerId& locker, Message* response) {
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
   if (routingBasics(chunk_id, response, &found)) {
@@ -498,7 +500,7 @@ void NetTable::handleUnlockRequest(
   active_chunks_lock_.releaseReadLock();
 }
 
-void NetTable::handleUpdateRequest(const Id& chunk_id,
+void NetTable::handleUpdateRequest(const common::Id& chunk_id,
                                    const std::shared_ptr<Revision>& item,
                                    const PeerId& sender, Message* response) {
   ChunkMap::iterator found;
@@ -524,7 +526,7 @@ void NetTable::handleRoutedSpatialChordRequests(const Message& request,
 }
 
 bool NetTable::routingBasics(
-    const Id& chunk_id, Message* response, ChunkMap::iterator* found) {
+    const common::Id& chunk_id, Message* response, ChunkMap::iterator* found) {
   CHECK_NOTNULL(response);
   CHECK_NOTNULL(found);
   *found = active_chunks_.find(chunk_id);
