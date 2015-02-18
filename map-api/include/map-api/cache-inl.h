@@ -180,7 +180,8 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
                   *update_revision);
           const typename Factory::ElementType& db_version =
               Factory::getReferenceToDerived(cached_pair.second.value);
-          if (!(db_version == *value)) {
+          const typename Factory::ElementType& current_version = *value;
+          if (!(db_version == current_version)) {
             transaction_.get()->update(underlying_table_, update_revision);
             ++num_dirty_items;
           }
