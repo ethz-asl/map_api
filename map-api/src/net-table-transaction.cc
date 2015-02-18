@@ -30,7 +30,7 @@ void NetTableTransaction::insert(Chunk* chunk,
 }
 
 void NetTableTransaction::update(std::shared_ptr<Revision> revision) {
-  Id id = revision->getId<Id>();
+  common::Id id = revision->getId<common::Id>();
   CHECK(id.isValid());
   if (!revision->getChunkId().isValid()) {
     // Can be the case if an uncommitted revision is being updated.

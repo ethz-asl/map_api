@@ -15,7 +15,6 @@
 
 namespace map_api {
 class Chunk;
-class Id;
 
 /**
  * This class is somewhat weaker than the first transaction draft
@@ -71,8 +70,8 @@ class ChunkTransaction {
 
   // INTERNAL
   void prepareCheck(const LogicalTime& check_time,
-                    std::unordered_map<Id, LogicalTime>* chunk_stamp);
-  typedef std::unordered_multimap<NetTable*, Id> TableToIdMultiMap;
+                    std::unordered_map<common::Id, LogicalTime>* chunk_stamp);
+  typedef std::unordered_multimap<NetTable*, common::Id> TableToIdMultiMap;
   void getTrackers(const NetTable::NewChunkTrackerMap& overrides,
                    TableToIdMultiMap* trackers) const;
 

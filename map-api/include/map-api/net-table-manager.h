@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "map-api/net-table.h"
+#include "map-api/reader-writer-lock.h"
 #include "map-api/table-descriptor.h"
 
 namespace map_api {
@@ -82,14 +83,16 @@ class NetTableManager {
   typedef std::unordered_map<std::string, std::unique_ptr<NetTable> >
   TableMap;
 
-  template<const char* request_type>
-  static bool routeChunkMetadataRequestOperations(
-      const Message& request, Message* response, TableMap::iterator* found,
-      Id* chunk_id, PeerId* peer);
+  template <const char* RequestType>
+  static bool getTableForMetadataRequestOrDecline(const Message& request,
+                                                  Message* response,
+                                                  TableMap::iterator* found,
+                                                  common::Id* chunk_id,
+                                                  PeerId* peer);
 
-  template<typename RequestType>
-  static bool routeChunkRequestOperations(
-      const RequestType& request, Message* response,
+  template <typename MetadataRequestType>
+  static bool getTableForRequestWithMetadataOrDecline(
+      const MetadataRequestType& request, Message* response,
       TableMap::iterator* found);
 
   /**
@@ -102,7 +105,7 @@ class NetTableManager {
   Chunk* metatable_chunk_ = nullptr;
 
   TableMap tables_;
-  Poco::RWLock tables_lock_;
+  ReaderWriterMutex tables_lock_;
 };
 
 }  // namespace map_api

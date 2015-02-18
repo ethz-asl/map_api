@@ -32,7 +32,7 @@ TEST_P(NetTableFixture, NetTableTransactions) {
     DIE
   };
   int kCycles = 10;
-  Id ab_chunk_id, b_chunk_id, ab_id, b_id;
+  common::Id ab_chunk_id, b_chunk_id, ab_id, b_id;
   Chunk* ab_chunk, *b_chunk;
   if (getSubprocessId() == ROOT) {
     ab_chunk = table_->newChunk();
@@ -57,21 +57,21 @@ TEST_P(NetTableFixture, NetTableTransactions) {
     std::shared_ptr<const Revision> b_item = reader.getById(b_id);
     EXPECT_TRUE(ab_item->verifyEqual(kFieldName, 2 * kCycles));
     EXPECT_TRUE(b_item->verifyEqual(kFieldName, kCycles));
-    EXPECT_EQ(kCycles + 2, count());
+    EXPECT_EQ(kCycles + 2, static_cast<int>(count()));
   }
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 2);
     IPC::barrier(SYNC, 2);
-    ab_chunk_id = IPC::pop<Id>();
-    b_chunk_id = IPC::pop<Id>();
-    ab_id = IPC::pop<Id>();
+    ab_chunk_id = IPC::pop<common::Id>();
+    b_chunk_id = IPC::pop<common::Id>();
+    ab_id = IPC::pop<common::Id>();
     ab_chunk = table_->getChunk(ab_chunk_id);
     for (int i = 0; i < kCycles; ++i) {
       while (true) {
         NetTableTransaction attempt(table_);
         increment(ab_id, ab_chunk, &attempt);
         std::shared_ptr<Revision> to_insert = table_->getTemplate();
-        Id insert_id;
+        common::Id insert_id;
         generateId(&insert_id);
         to_insert->setId(insert_id);
         to_insert->set(kFieldName, 42);
@@ -86,10 +86,10 @@ TEST_P(NetTableFixture, NetTableTransactions) {
   if (getSubprocessId() == B) {
     IPC::barrier(INIT, 2);
     IPC::barrier(SYNC, 2);
-    ab_chunk_id = IPC::pop<Id>();
-    b_chunk_id = IPC::pop<Id>();
-    ab_id = IPC::pop<Id>();
-    b_id = IPC::pop<Id>();
+    ab_chunk_id = IPC::pop<common::Id>();
+    b_chunk_id = IPC::pop<common::Id>();
+    ab_id = IPC::pop<common::Id>();
+    b_id = IPC::pop<common::Id>();
     ab_chunk = table_->getChunk(ab_chunk_id);
     b_chunk = table_->getChunk(b_chunk_id);
     for (int i = 0; i < kCycles; ++i) {
@@ -134,7 +134,7 @@ TEST_P(NetTableFixture, Transactions) {
       NetTableManager::instance().addTable(CRTable::Type::CRU, &descriptor);
   ASSERT_TRUE(second_table);
 
-  Id ab_chunk_id, b_chunk_id, ab_id, b_id;
+  common::Id ab_chunk_id, b_chunk_id, ab_id, b_id;
   Chunk* ab_chunk, *b_chunk;
 
   if (getSubprocessId() == ROOT) {
@@ -167,21 +167,21 @@ TEST_P(NetTableFixture, Transactions) {
                     ->verifyEqual(kFieldName, 2 * kCycles));
     EXPECT_TRUE(reader.getById(b_id, second_table, b_chunk)
                     ->verifyEqual(kSecondTableFieldName, kCycles));
-    EXPECT_EQ(kCycles + 1, count());
+    EXPECT_EQ(kCycles + 1, static_cast<int>(count()));
   }
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 2);
     IPC::barrier(SYNC, 2);
-    ab_chunk_id = IPC::pop<Id>();
+    ab_chunk_id = IPC::pop<common::Id>();
     ab_chunk = table_->getChunk(ab_chunk_id);
-    b_chunk_id = IPC::pop<Id>();
-    ab_id = IPC::pop<Id>();
+    b_chunk_id = IPC::pop<common::Id>();
+    ab_id = IPC::pop<common::Id>();
     for (int i = 0; i < kCycles; ++i) {
       while (true) {
         Transaction attempt;
         increment(table_, ab_id, ab_chunk, &attempt);
         std::shared_ptr<Revision> to_insert = table_->getTemplate();
-        Id insert_id;
+        common::Id insert_id;
         generateId(&insert_id);
         to_insert->setId(insert_id);
         to_insert->set(kFieldName, 42);
@@ -196,10 +196,10 @@ TEST_P(NetTableFixture, Transactions) {
   if (getSubprocessId() == B) {
     IPC::barrier(INIT, 2);
     IPC::barrier(SYNC, 2);
-    ab_chunk_id = IPC::pop<Id>();
-    b_chunk_id = IPC::pop<Id>();
-    ab_id = IPC::pop<Id>();
-    b_id = IPC::pop<Id>();
+    ab_chunk_id = IPC::pop<common::Id>();
+    b_chunk_id = IPC::pop<common::Id>();
+    ab_id = IPC::pop<common::Id>();
+    b_id = IPC::pop<common::Id>();
     ab_chunk = table_->getChunk(ab_chunk_id);
     b_chunk = second_table->getChunk(b_chunk_id);
     for (int i = 0; i < kCycles; ++i) {
@@ -233,7 +233,7 @@ TEST_P(NetTableFixture, CommitTime) {
   Transaction transaction;
   // TODO(tcies) factor insertion into a NetTableTest function
   std::shared_ptr<Revision> to_insert_1 = table_->getTemplate();
-  Id insert_id;
+  common::Id insert_id;
   generateId(&insert_id);
   to_insert_1->setId(insert_id);
   to_insert_1->set(kFieldName, 42);
@@ -246,7 +246,7 @@ TEST_P(NetTableFixture, CommitTime) {
   ASSERT_TRUE(transaction.commit());
   CRTable::RevisionMap retrieved;
   chunk->dumpItems(LogicalTime::sample(), &retrieved);
-  ASSERT_EQ(2, retrieved.size());
+  ASSERT_EQ(2u, retrieved.size());
   CRTable::RevisionMap::iterator it = retrieved.begin();
   LogicalTime time_1 = it->second->getInsertTime();
   ++it;
@@ -275,13 +275,13 @@ TEST_P(NetTableFixture, ChunkLookup) {
     IPC::barrier(INIT, 1);
     IPC::barrier(CHUNK_CREATED, 1);
     table_->dumpActiveChunksAtCurrentTime(&results);
-    EXPECT_EQ(0, results.size());
-    Id chunk_id;
-    chunk_id = IPC::pop<Id>();
+    EXPECT_EQ(0u, results.size());
+    common::Id chunk_id;
+    chunk_id = IPC::pop<common::Id>();
     chunk = table_->getChunk(chunk_id);
     EXPECT_TRUE(chunk);
     table_->dumpActiveChunksAtCurrentTime(&results);
-    EXPECT_EQ(1, results.size());
+    EXPECT_EQ(1u, results.size());
   }
   if (getSubprocessId() == SLAVE) {
     IPC::barrier(INIT, 1);
@@ -307,8 +307,8 @@ class NetTableChunkTrackingTest : public NetTableFixture {
   // Static const member because GTEST methods can't handle constexpr.
   static const size_t kNumTrackeeChunks;
 
-  static Id get_tracker(const Revision& item) {
-    Id result;
+  static common::Id get_tracker(const Revision& item) {
+    common::Id result;
     item.get(kParent, &result);
     return result;
   }
@@ -317,7 +317,7 @@ class NetTableChunkTrackingTest : public NetTableFixture {
     NetTableFixture::SetUp();
     std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
     descriptor->setName(kTrackeeTableName);
-    descriptor->addField<Id>(kParent);
+    descriptor->addField<common::Id>(kParent);
     trackee_table_ =
         NetTableManager::instance().addTable(CRTable::Type::CR, &descriptor);
     trackee_table_->pushNewChunkIdsToTracker(table_, get_tracker);
@@ -337,7 +337,7 @@ class NetTableChunkTrackingTest : public NetTableFixture {
     for (size_t i = 0; i < kNumTrackeeChunks; ++i) {
       Chunk* trackee_chunk = trackee_table_->newChunk();
       std::shared_ptr<Revision> to_insert = trackee_table_->getTemplate();
-      Id id;
+      common::Id id;
       generateId(&id);
       to_insert->setId(id);
       to_insert->set(kParent, master_item_id_);
@@ -355,7 +355,7 @@ class NetTableChunkTrackingTest : public NetTableFixture {
   }
 
   NetTable* trackee_table_;
-  Id master_chunk_id_, master_item_id_;
+  common::Id master_chunk_id_, master_item_id_;
 };
 
 const std::string NetTableChunkTrackingTest::kTrackeeTableName =
@@ -405,7 +405,7 @@ TEST_P(NetTableChunkTrackingTest, ChunkTrackingDifferentTransaction) {
     IPC::barrier(TRACKER_DONE, 1);
     Transaction master_transaction_1;
     fetch_trackees(&master_transaction_1);
-    EXPECT_EQ(0, trackee_table_->numActiveChunks());
+    EXPECT_EQ(0u, trackee_table_->numActiveChunks());
     IPC::barrier(TRACKEES_DONE, 1);
     Transaction master_transaction_2;
     fetch_trackees(&master_transaction_2);
@@ -424,6 +424,49 @@ TEST_P(NetTableChunkTrackingTest, ChunkTrackingDifferentTransaction) {
     IPC::barrier(TRACKEES_DONE, 1);
   }
   IPC::barrier(DIE, 1);
+}
+
+TEST_P(NetTableFixture, GetAllIdsNoNewChunkRaceConditionThreads) {
+  constexpr size_t kNumPushers = 50;
+  constexpr size_t kItemsToPush = 100;
+
+  if (!GetParam()) {
+    // No need for separate CR test.
+    return;
+  }
+
+  auto push_items = [this]() {
+    for (size_t i = 0u; i < kItemsToPush; ++i) {
+      Transaction transaction;
+      Chunk* chunk = table_->newChunk();
+      std::shared_ptr<Revision> to_insert = table_->getTemplate();
+      common::Id id;
+      generateId(&id);
+      to_insert->setId(id);
+      to_insert->set(kFieldName, 42);
+      transaction.insert(table_, chunk, to_insert);
+      EXPECT_TRUE(transaction.commit());
+    }
+  };
+
+  std::thread pushers[kNumPushers];
+
+  for (size_t i = 0u; i < kNumPushers; ++i) {
+    pushers[i] = std::thread(push_items);
+  }
+
+  std::vector<common::Id> all_ids;
+  do {
+    Transaction transaction;
+    transaction.getAvailableIds(table_, &all_ids);
+    for (const common::Id& id : all_ids) {
+      ASSERT_TRUE(static_cast<bool>(transaction.getById(id, table_)));
+    }
+  } while (all_ids.size() < kNumPushers * kItemsToPush);
+
+  for (size_t i = 0u; i < kNumPushers; ++i) {
+    pushers[i].join();
+  }
 }
 
 }  // namespace map_api

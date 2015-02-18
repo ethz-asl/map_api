@@ -19,6 +19,7 @@
 #include <map-api/ipc.h>
 #include <map-api/logical-time.h>
 #include <map-api/server-discovery.h>
+#include <multiagent-mapping-common/internal/unique-id.h>
 
 const std::string kFileDiscovery = "file";
 const std::string kServerDiscovery = "server";
@@ -83,8 +84,8 @@ bool Hub::init(bool* is_first_peer) {
     if (peers_.find(peer) != peers_.end()) continue;
 
     peers_.insert(std::make_pair(peer, std::unique_ptr<Peer>(new Peer(
-                                           peer.ipPort(), *context_, ZMQ_REQ))))
-        .first;
+                                           peer.ipPort(), *context_, ZMQ_REQ))));
+
     // connection request is sent outside the peer_mutex_ lock to avoid
     // deadlocks where two peers try to connect to each other:
     // P1                           P2
@@ -347,6 +348,12 @@ void Hub::listenThread(Hub* self) {
         server.bind(("tcp://0.0.0.0:" + std::to_string(port)).c_str());
         self->own_address_ =
             ownAddressBeforePort() + ":" + std::to_string(port);
+
+        // Use the current address as a hash-seed for unique-ids.
+        using common::internal::UniqueIdHashSeed;
+        UniqueIdHashSeed::instance().saltSeed(
+            UniqueIdHashSeed::Key(),
+            std::hash<std::string>()(self->own_address_));
         break;
       }
       catch (const std::exception& e) {  // NOLINT

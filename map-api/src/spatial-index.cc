@@ -1,6 +1,6 @@
 #include <map-api/spatial-index.h>
 
-#include "map-api/unique-id.h"
+#include <multiagent-mapping-common/unique-id.h>
 #include "map-api/message.h"
 #include "./net-table.pb.h"
 #include "./chord-index.pb.h"
@@ -13,7 +13,7 @@ SpatialIndex::SpatialIndex(const std::string& table_name,
     : table_name_(table_name), bounds_(bounds), subdivision_(subdivision) {
   CHECK_EQ(bounds.size(), subdivision.size());
   for (size_t count : subdivision) {
-    CHECK_GT(count, 0);
+    CHECK_GT(count, 0u);
   }
   for (const Range& bound : bounds) {
     CHECK_LT(bound.min, bound.max);
@@ -32,7 +32,7 @@ void SpatialIndex::create() {
   }
 }
 
-void SpatialIndex::announceChunk(const Id& chunk_id,
+void SpatialIndex::announceChunk(const common::Id& chunk_id,
                                  const BoundingBox& bounding_box) {
   std::vector<size_t> affected_cell_indices;
   getCellIndices(bounding_box, &affected_cell_indices);
@@ -54,7 +54,7 @@ void SpatialIndex::announceChunk(const Id& chunk_id,
 }
 
 void SpatialIndex::seekChunks(const BoundingBox& bounding_box,
-                              std::unordered_set<Id>* chunk_ids) {
+                              std::unordered_set<common::Id>* chunk_ids) {
   CHECK_NOTNULL(chunk_ids);
   std::vector<size_t> affected_cell_indices;
   getCellIndices(bounding_box, &affected_cell_indices);
@@ -72,7 +72,7 @@ void SpatialIndex::seekChunks(const BoundingBox& bounding_box,
     }
     CHECK(proto_chunk_ids.ParseFromString(chunks_string));
     for (int i = 0; i < proto_chunk_ids.chunk_ids_size(); ++i) {
-      chunk_ids->emplace(Id(proto_chunk_ids.chunk_ids(i)));
+      chunk_ids->emplace(common::Id(proto_chunk_ids.chunk_ids(i)));
     }
   }
 }

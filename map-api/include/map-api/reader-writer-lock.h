@@ -28,7 +28,7 @@ class ReaderWriterMutex {
   bool current_writer_;
   std::condition_variable m_writerFinished;
 
- private:
+ public:
   void acquireReadLock() {
     std::unique_lock<std::mutex> lock(mutex_);
     while (num_pending_writers_ != 0 || current_writer_) {

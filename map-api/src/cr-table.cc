@@ -2,10 +2,6 @@
 #include <cstdio>
 #include <map>
 
-#include <Poco/Data/Common.h>
-#include <Poco/Data/Statement.h>
-#include <Poco/Data/SQLite/Connector.h>
-#include <Poco/Data/BLOB.h>
 #include <glog/logging.h>
 #include <gflags/gflags.h>
 
@@ -45,12 +41,13 @@ std::shared_ptr<Revision> CRTable::getTemplate() const {
 
 bool CRTable::insert(const LogicalTime& time,
                      const std::shared_ptr<Revision>& query) {
-  CHECK(query != nullptr);
+  std::lock_guard<std::mutex> lock(access_mutex_);
+  CHECK(query.get() != nullptr);
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(query->structureMatch(*reference))
       << "Bad structure of insert revision";
-  CHECK(query->getId<Id>().isValid())
+  CHECK(query->getId<common::Id>().isValid())
       << "Attempted to insert element with invalid ID";
   query->setInsertTime(time);
   return insertCRDerived(time, query);
@@ -62,14 +59,15 @@ bool CRTable::bulkInsert(const NonConstRevisionMap& query) {
 
 bool CRTable::bulkInsert(const NonConstRevisionMap& query,
                          const LogicalTime& time) {
+  std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
-  Id id;
+  common::Id id;
   for (const typename NonConstRevisionMap::value_type& id_revision : query) {
     CHECK_NOTNULL(id_revision.second.get());
     CHECK(id_revision.second->structureMatch(*reference))
         << "Bad structure of insert revision";
-    id = id_revision.second->getId<Id>();
+    id = id_revision.second->getId<common::Id>();
     CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
     CHECK(id == id_revision.first) << "ID in RevisionMap doesn't match";
     id_revision.second->setInsertTime(time);
@@ -78,17 +76,19 @@ bool CRTable::bulkInsert(const NonConstRevisionMap& query,
 }
 
 bool CRTable::patch(const std::shared_ptr<Revision>& query) {
+  std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(query != nullptr);
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(query->structureMatch(*reference)) << "Bad structure of patch revision";
-  CHECK(query->getId<Id>().isValid())
+  CHECK(query->getId<common::Id>().isValid())
       << "Attempted to insert element with invalid ID";
   return patchCRDerived(query);
 }
 
-void CRTable::dumpChunk(const Id& chunk_id, const LogicalTime& time,
+void CRTable::dumpChunk(const common::Id& chunk_id, const LogicalTime& time,
                         RevisionMap* dest) const {
+  std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized());
   CHECK_NOTNULL(dest);
   dest->clear();
@@ -98,6 +98,7 @@ void CRTable::dumpChunk(const Id& chunk_id, const LogicalTime& time,
 
 void CRTable::findByRevision(int key, const Revision& valueHolder,
                             const LogicalTime& time, RevisionMap* dest) const {
+  std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized()) << "Attempted to find in non-initialized table";
   // whether valueHolder contains key is implicitly checked whenever using
   // Revision::insertPlaceHolder - for now it's a pretty safe bet that the
@@ -111,6 +112,7 @@ void CRTable::findByRevision(int key, const Revision& valueHolder,
 
 int CRTable::countByRevision(int key, const Revision& valueHolder,
                              const LogicalTime& time) const {
+  std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized()) << "Attempted to count items in non-initialized table";
   // Whether valueHolder contains key is implicitly checked whenever using
   // Revision::insertPlaceHolder - for now it's a pretty safe bet that the
@@ -129,13 +131,18 @@ void CRTable::dump(const LogicalTime& time, RevisionMap* dest) const {
   findByRevision(-1, *valueHolder, time, dest);
 }
 
-int CRTable::countByChunk(const Id& id, const LogicalTime& time) const {
+int CRTable::countByChunk(const common::Id& chunk_id,
+                          const LogicalTime& time) const {
+  std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized());
   CHECK(time < LogicalTime::sample());
-  return countByChunkCRDerived(id, time);
+  return countByChunkCRDerived(chunk_id, time);
 }
 
-void CRTable::clear() { clearCRDerived(); }
+void CRTable::clear() {
+  std::lock_guard<std::mutex> lock(access_mutex_);
+  clearCRDerived();
+}
 
 CRTable::Type CRTable::type() const {
   return Type::CR;

@@ -24,7 +24,7 @@ class CRUTable : public CRTable {
    public:
     inline const_iterator latestAt(const LogicalTime& time) const;
   };
-  typedef std::unordered_map<Id, History> HistoryMap;
+  typedef std::unordered_map<common::Id, History> HistoryMap;
 
   virtual ~CRUTable();
   /**
@@ -37,7 +37,7 @@ class CRUTable : public CRTable {
    */
   void update(const std::shared_ptr<Revision>& query);
   void update(const std::shared_ptr<Revision>& query, const LogicalTime& time);
-  bool getLatestUpdateTime(const Id& id, LogicalTime* time);
+  bool getLatestUpdateTime(const common::Id& id, LogicalTime* time);
 
   void remove(const LogicalTime& time, const std::shared_ptr<Revision>& query);
   // avoid if possible - this is slower
@@ -83,9 +83,10 @@ class CRUTable : public CRTable {
                                                const Revision& valueHolder,
                                                const LogicalTime& time,
                                                HistoryMap* dest) const = 0;
-  virtual void chunkHistory(const Id& chunk_id, const LogicalTime& time,
+  virtual void chunkHistory(const common::Id& chunk_id, const LogicalTime& time,
                             HistoryMap* dest) const = 0;
-  virtual void itemHistoryCRUDerived(const Id& id, const LogicalTime& time,
+  virtual void itemHistoryCRUDerived(const common::Id& id,
+                                     const LogicalTime& time,
                                      History* dest) const = 0;
 };
 
