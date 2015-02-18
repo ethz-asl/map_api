@@ -1,13 +1,10 @@
 #include <map-api/revision.h>
 
 #include <glog/logging.h>
-#include <Poco/Data/Common.h>
-#include <Poco/Data/BLOB.h>
-
 #include <map-api/logical-time.h>
 #include <map-api/net-table-manager.h>
 #include <map-api/trackee-multimap.h>
-#include <map-api/unique-id.h>
+#include <multiagent-mapping-common/unique-id.h>
 
 namespace map_api {
 
@@ -35,7 +32,7 @@ bool Revision::operator==(const Revision& other) const {
   if (!structureMatch(other)) {
     return false;
   }
-  if (other.getId<Id>() != getId<Id>()) {
+  if (other.getId<common::Id>() != getId<common::Id>()) {
     return false;
   }
   if (other.getInsertTime() != getInsertTime()) {
@@ -106,7 +103,7 @@ bool Revision::fieldMatch(const Revision& other, int key) const {
 std::string Revision::dumpToString() const {
   std::ostringstream dump_ss;
   dump_ss << "{" << std::endl;
-  dump_ss << "\tid:" << getId<Id>() << std::endl;
+  dump_ss << "\tid:" << getId<common::Id>() << std::endl;
   dump_ss << "\tinsert_time:" << getInsertTime() << std::endl;
   if (underlying_revision_->has_chunk_id()) {
     dump_ss << "\tchunk_id:" << getChunkId() << std::endl;
@@ -143,7 +140,7 @@ bool Revision::fetchTrackedChunks() const {
   TrackeeMultimap trackee_multimap;
   getTrackedChunks(&trackee_multimap);
   for (const TrackeeMultimap::value_type& table_trackees : trackee_multimap) {
-    for (const Id& chunk_id : table_trackees.second) {
+    for (const common::Id& chunk_id : table_trackees.second) {
       if (table_trackees.first->getChunk(chunk_id) == nullptr) {
         success = false;
       }
@@ -161,14 +158,14 @@ MAP_API_TYPE_ENUM(double, proto::Type::DOUBLE);
 MAP_API_TYPE_ENUM(int32_t, proto::Type::INT32);
 MAP_API_TYPE_ENUM(uint32_t, proto::Type::UINT32);
 MAP_API_TYPE_ENUM(bool, proto::Type::INT32);
-MAP_API_TYPE_ENUM(Id, proto::Type::HASH128);
+MAP_API_TYPE_ENUM(common::Id, proto::Type::HASH128);
 MAP_API_TYPE_ENUM(sm::HashId, proto::Type::HASH128);
 MAP_API_TYPE_ENUM(int64_t, proto::Type::INT64);
 MAP_API_TYPE_ENUM(uint64_t, proto::Type::UINT64);
 MAP_API_TYPE_ENUM(LogicalTime, proto::Type::UINT64);
 MAP_API_TYPE_ENUM(Revision, proto::Type::BLOB);
 MAP_API_TYPE_ENUM(testBlob, proto::Type::BLOB);
-MAP_API_TYPE_ENUM(Poco::Data::BLOB, proto::Type::BLOB);
+MAP_API_TYPE_ENUM(Revision::Blob, proto::Type::BLOB);
 
 /**
  * SET
@@ -193,7 +190,7 @@ MAP_API_REVISION_SET(bool /*value*/) {
   field->set_int_value(value ? 1 : 0);
   return true;
 }
-MAP_API_REVISION_SET(Id /*value*/) {
+MAP_API_REVISION_SET(common::Id /*value*/) {
   field->set_string_value(value.hexString());
   return true;
 }
@@ -221,8 +218,8 @@ MAP_API_REVISION_SET(testBlob /*value*/) {
   field->set_blob_value(value.SerializeAsString());
   return true;
 }
-MAP_API_REVISION_SET(Poco::Data::BLOB /*value*/) {
-  field->set_blob_value(value.rawContent(), value.size());
+MAP_API_REVISION_SET(Revision::Blob /*value*/) {
+  field->set_blob_value(value.data(), value.size());
   return true;
 }
 
@@ -245,7 +242,7 @@ MAP_API_REVISION_GET(uint32_t /*value*/) {
   *value = field.unsigned_int_value();
   return true;
 }
-MAP_API_REVISION_GET(Id /*value*/) {
+MAP_API_REVISION_GET(common::Id /*value*/) {
   if (!value->fromHexString(field.string_value())) {
     LOG(FATAL) << "Failed to parse Hash id from string \""
                << field.string_value() << "\"";
@@ -292,8 +289,10 @@ MAP_API_REVISION_GET(testBlob /*value*/) {
   }
   return true;
 }
-MAP_API_REVISION_GET(Poco::Data::BLOB /*value*/) {
-  *value = Poco::Data::BLOB(field.blob_value());
+MAP_API_REVISION_GET(Revision::Blob /*value*/) {
+  value->resize(field.blob_value().length());
+  memcpy(value->data(), field.blob_value().c_str(),
+         field.blob_value().length());
   return true;
 }
 

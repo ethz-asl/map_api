@@ -2,10 +2,6 @@
 #include <cstdio>
 #include <map>
 
-#include <Poco/Data/Common.h>
-#include <Poco/Data/Statement.h>
-#include <Poco/Data/SQLite/Connector.h>
-#include <Poco/Data/BLOB.h>
 #include <glog/logging.h>
 #include <gflags/gflags.h>
 
@@ -29,15 +25,15 @@ void CRUTable::update(const std::shared_ptr<Revision>& query,
   // TODO(tcies) const template, cow template?
   CHECK(query->structureMatch(*reference))
       << "Bad structure of update revision";
-  CHECK(query->getId<Id>().isValid())
+  CHECK(query->getId<common::Id>().isValid())
       << "Attempted to update element with invalid ID";
   LogicalTime update_time = time;
   query->setUpdateTime(update_time);
   CHECK(insertUpdatedCRUDerived(query));
 }
 
-bool CRUTable::getLatestUpdateTime(const Id& id, LogicalTime* time) {
-  CHECK_NE(Id(), id);
+bool CRUTable::getLatestUpdateTime(const common::Id& id, LogicalTime* time) {
+  CHECK_NE(common::Id(), id);
   CHECK_NOTNULL(time);
   std::shared_ptr<const Revision> row = getById(id, LogicalTime::sample());
   ItemDebugInfo itemInfo(name(), id);
@@ -55,7 +51,7 @@ void CRUTable::remove(const LogicalTime& time,
   CHECK(isInitialized());
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(query->structureMatch(*reference));
-  CHECK_NE(query->getId<Id>(), Id());
+  CHECK_NE(query->getId<common::Id>(), common::Id());
   LogicalTime update_time = time;
   query->setUpdateTime(update_time);
   query->setRemoved();

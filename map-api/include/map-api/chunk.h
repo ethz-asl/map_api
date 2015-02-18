@@ -8,12 +8,11 @@
 #include <thread>
 #include <unordered_set>
 
-#include <Poco/RWLock.h>  // TODO(tcies) replace with our own
-
 #include "./chunk.pb.h"
 #include "map-api/cr-table.h"
 #include "map-api/peer-handler.h"
-#include "map-api/unique-id.h"
+#include "map-api/reader-writer-lock.h"
+#include <multiagent-mapping-common/unique-id.h>
 
 namespace map_api {
 class Message;
@@ -49,16 +48,16 @@ class Revision;
  */
 class Chunk {
   friend class ChunkTransaction;
-  typedef std::function<void(const std::unordered_set<Id>& insertions,
-                             const std::unordered_set<Id>& updates)>
+  typedef std::function<void(const std::unordered_set<common::Id>& insertions,
+                             const std::unordered_set<common::Id>& updates)>
       TriggerCallback;
 
  public:
-  bool init(const Id& id, CRTable* underlying_table, bool initialize);
-  bool init(const Id& id, const proto::InitRequest& request,
+  bool init(const common::Id& id, CRTable* underlying_table, bool initialize);
+  bool init(const common::Id& id, const proto::InitRequest& request,
             const PeerId& sender, CRTable* underlying_table);
 
-  inline Id id() const;
+  inline common::Id id() const;
 
   void dumpItems(const LogicalTime& time, CRTable::RevisionMap* items);
   size_t numItems(const LogicalTime& time);
@@ -220,16 +219,16 @@ class Chunk {
 
   void awaitInitialized() const;
 
-  Id id_;
+  common::Id id_;
   PeerHandler peers_;
   CRTable* underlying_table_;
   DistributedRWLock lock_;
-  std::function<void(const std::unordered_set<Id>& insertions,
-                     const std::unordered_set<Id>& updates)> trigger_;
+  std::function<void(const std::unordered_set<common::Id>& insertions,
+                     const std::unordered_set<common::Id>& updates)> trigger_;
   std::mutex trigger_mutex_;
-  std::unordered_set<Id> trigger_insertions_, trigger_updates_;
+  std::unordered_set<common::Id> trigger_insertions_, trigger_updates_;
   std::mutex add_peer_mutex_;
-  Poco::RWLock leave_lock_;
+  ReaderWriterMutex leave_lock_;
   volatile bool initialized_ = false;
   volatile bool relinquished_ = false;
   bool log_locking_ = false;
