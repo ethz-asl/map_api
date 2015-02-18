@@ -177,7 +177,7 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
           // in the deserialized state.
           std::shared_ptr<typename Factory::ElementType> value =
               objectFromRevision<typename Factory::ElementType>(
-                  *update_revision);
+                  *corresponding_revision->second);
           const typename Factory::ElementType& db_version =
               Factory::getReferenceToDerived(cached_pair.second.value);
           const typename Factory::ElementType& current_version = *value;
