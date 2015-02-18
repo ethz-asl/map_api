@@ -18,6 +18,12 @@ namespace map_api {
 
 const std::string NetTable::kChunkIdField = "chunk_id";
 
+const char NetTable::kPushNewChunksRequest[] = "map_api_net_table_push_new";
+
+// TODO(tcies) introduce net-table request metadata proto?
+MAP_API_PROTO_MESSAGE(
+    NetTable::kPushNewChunksRequest, proto::ChunkRequestMetadata);
+
 NetTable::NetTable() : type_(CRTable::Type::CR) {}
 
 bool NetTable::init(
@@ -109,11 +115,20 @@ Chunk* NetTable::newChunk(const common::Id& chunk_id) {
   CHECK(inserted.second) << "Chunk with id " << chunk_id << " already exists.";
   inserted.first->second = std::move(chunk);
   active_chunks_lock_.releaseWriteLock();
-  // add self to chunk posessors in index
+  // Add self to chunk posessors in index.
   index_lock_.acquireReadLock();
   CHECK_NOTNULL(index_.get());
   index_->announcePosession(chunk_id);
   index_lock_.releaseReadLock();
+  // Push chunk to listeners.
+  std::lock_guard<std::mutex> l_new_chunk_listeners(m_new_chunk_listeners_);
+  for (const PeerId& peer : new_chunk_listeners_) {
+    if (inserted.first->second->requestParticipation(peer) == 0) {
+      LOG(WARNING) << "Peer " << peer << ", who is listening to new chunks "
+          << " on " << name() << ", didn't receive new chunk!";
+      // TODO(tcies) Find a good policy to remove stale listeners.
+    }
+  }
   return inserted.first->second.get();
 }
 
@@ -145,11 +160,11 @@ Chunk* NetTable::getChunk(const common::Id& chunk_id) {
 void NetTable::pushNewChunkIdsToTracker(
     NetTable* table_of_tracking_item,
     const std::function<common::Id(const Revision&)>&
-        how_to_determine_tracking_item) {
+    how_to_determine_tracking_item) {
   CHECK_NOTNULL(table_of_tracking_item);
   CHECK(new_chunk_trackers_.insert(std::make_pair(
-                                       table_of_tracking_item,
-                                       how_to_determine_tracking_item)).second);
+      table_of_tracking_item,
+      how_to_determine_tracking_item)).second);
 }
 
 void NetTable::pushNewChunkIdsToTracker(NetTable* tracker_table) {
@@ -157,8 +172,8 @@ void NetTable::pushNewChunkIdsToTracker(NetTable* tracker_table) {
   auto identification_method_placeholder = [this, tracker_table](
       const Revision&) {
     LOG(FATAL) << "Override of tracker identification method (trackee = "
-               << this->name() << ", tracker = " << tracker_table->name()
-               << ") required!";
+        << this->name() << ", tracker = " << tracker_table->name()
+        << ") required!";
     return common::Id();
   };
   CHECK(new_chunk_trackers_.emplace(tracker_table,
@@ -216,6 +231,49 @@ void NetTable::attachTriggerOnChunkAcquisition(
   trigger_to_attach_on_chunk_acquisition_ = callback;
   active_chunks_lock_.releaseReadLock();
 }
+
+bool NetTable::listenToChunksFromPeer(const PeerId& peer) const {
+  Message request, response;
+  proto::ChunkRequestMetadata metadata;
+  metadata.set_table(cache_->name());
+  common::Id().serialize(metadata.mutable_chunk_id());
+  request.impose<NetTable::kPushNewChunksRequest>(metadata);
+  if (!Hub::instance().hasPeer(peer)) {
+    LOG(ERROR) << "Peer with address " << peer << " not among peers!";
+    return false;
+  }
+  Hub::instance().request(peer, &request, &response);
+  if (!response.isType<Message::kAck>()) {
+    LOG(ERROR) << "Peer " << peer << " refused to share chunks!";
+    return false;
+  }
+  return true;
+}
+
+void NetTable::handleListenToChunksFromPeer(
+    const PeerId& listener, Message* response) {
+  ScopedReadLock chunk_lock(&active_chunks_lock_);
+  std::set<Chunk*> chunks_to_share_now;
+  // Assumes read lock can be recursive (which it currently can).
+  getActiveChunks(&chunks_to_share_now);
+
+  std::lock_guard<std::mutex> l_new_chunk_listeners(m_new_chunk_listeners_);
+  new_chunk_listeners_.emplace(listener);
+
+  // Never call and RPC in an RPC handler.
+  // Variables must be passed by copy, as they go out of scope.
+  // Danger: Assumes chunks are not released in the meantime.
+  // TODO(tcies) add a lock for removing chunks?
+  std::thread previous_sharer([this, listener, chunks_to_share_now](){
+    for (Chunk* chunk : chunks_to_share_now) {
+      CHECK_EQ(chunk->requestParticipation(listener), 1);
+    }
+  });
+  previous_sharer.detach();
+
+  response->ack();
+}
+
 
 bool NetTable::insert(const LogicalTime& time, Chunk* chunk,
                       const std::shared_ptr<Revision>& query) {
@@ -352,7 +410,7 @@ void NetTable::shareAllChunks() {
 void NetTable::shareAllChunks(const PeerId& peer) {
   active_chunks_lock_.acquireReadLock();
   for (const std::pair<const common::Id, std::unique_ptr<Chunk> >& chunk :
-       active_chunks_) {
+      active_chunks_) {
     chunk.second->requestParticipation(peer);
   }
   active_chunks_lock_.releaseReadLock();
@@ -374,8 +432,8 @@ void NetTable::leaveAllChunks() {
 std::string NetTable::getStatistics() {
   std::stringstream ss;
   ss << name() << ": " << numActiveChunks() << " chunks and "
-     << numActiveChunksItems() << " items. ["
-     << humanReadableBytes(activeChunksItemsSizeBytes()) << "]";
+      << numActiveChunksItems() << " items. ["
+      << humanReadableBytes(activeChunksItemsSizeBytes()) << "]";
   return ss.str();
 }
 
@@ -384,7 +442,7 @@ void NetTable::getActiveChunkIds(std::set<common::Id>* chunk_ids) const {
   chunk_ids->clear();
   active_chunks_lock_.acquireReadLock();
   for (const std::pair<const common::Id, std::unique_ptr<Chunk> >& chunk :
-       active_chunks_) {
+      active_chunks_) {
     chunk_ids->insert(chunk.first);
   }
   active_chunks_lock_.releaseReadLock();
@@ -395,7 +453,7 @@ void NetTable::getActiveChunks(std::set<Chunk*>* chunks) const {
   chunks->clear();
   active_chunks_lock_.acquireReadLock();
   for (const std::pair<const common::Id, std::unique_ptr<Chunk> >& chunk :
-       active_chunks_) {
+      active_chunks_) {
     chunks->insert(chunk.second.get());
   }
   active_chunks_lock_.releaseReadLock();

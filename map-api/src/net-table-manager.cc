@@ -23,8 +23,8 @@ const char NetTableManager::kMetaTableName[] = "map_api_metatable";
 
 template <>
 bool NetTableManager::getTableForRequestWithMetadataOrDecline<
-    proto::ChunkRequestMetadata>(const proto::ChunkRequestMetadata& request,
-                                 Message* response, TableMap::iterator* found) {
+proto::ChunkRequestMetadata>(const proto::ChunkRequestMetadata& request,
+                             Message* response, TableMap::iterator* found) {
   CHECK_NOTNULL(response);
   CHECK_NOTNULL(found);
   const std::string& table = request.table();
@@ -46,6 +46,10 @@ void NetTableManager::registerHandlers() {
   Hub::instance().registerHandler(Chunk::kNewPeerRequest, handleNewPeerRequest);
   Hub::instance().registerHandler(Chunk::kUnlockRequest, handleUnlockRequest);
   Hub::instance().registerHandler(Chunk::kUpdateRequest, handleUpdateRequest);
+
+  // net table requests
+  Hub::instance().registerHandler(
+      NetTable::kPushNewChunksRequest, handlePushNewChunksRequest);
 
   // chord requests
   Hub::instance().registerHandler(NetTableIndex::kRoutedChordRequest,
@@ -191,7 +195,7 @@ void NetTableManager::tableList(std::vector<std::string>* tables) {
   tables->clear();
   tables_lock_.acquireReadLock();
   for (const std::pair<const std::string, std::unique_ptr<NetTable> >& pair :
-       tables_) {
+      tables_) {
     tables->push_back(pair.first);
   }
   tables_lock_.releaseReadLock();
@@ -200,7 +204,7 @@ void NetTableManager::tableList(std::vector<std::string>* tables) {
 void NetTableManager::kill() {
   tables_lock_.acquireReadLock();
   for (const std::pair<const std::string, std::unique_ptr<NetTable> >& table :
-       tables_) {
+      tables_) {
     table.second->kill();
   }
   tables_lock_.releaseReadLock();
@@ -266,7 +270,7 @@ void NetTableManager::handleLeaveRequest(
   common::Id chunk_id;
   PeerId peer;
   if (getTableForMetadataRequestOrDecline<Chunk::kLeaveRequest>(
-          request, response, &found, &chunk_id, &peer)) {
+      request, response, &found, &chunk_id, &peer)) {
     found->second->handleLeaveRequest(chunk_id, peer, response);
   }
 }
@@ -277,7 +281,7 @@ void NetTableManager::handleLockRequest(
   common::Id chunk_id;
   PeerId peer;
   if (getTableForMetadataRequestOrDecline<Chunk::kLockRequest>(
-          request, response, &found, &chunk_id, &peer)) {
+      request, response, &found, &chunk_id, &peer)) {
     found->second->handleLockRequest(chunk_id, peer, response);
   }
 }
@@ -301,7 +305,7 @@ void NetTableManager::handleUnlockRequest(
   common::Id chunk_id;
   PeerId peer;
   if (getTableForMetadataRequestOrDecline<Chunk::kUnlockRequest>(
-          request, response, &found, &chunk_id, &peer)) {
+      request, response, &found, &chunk_id, &peer)) {
     found->second->handleUnlockRequest(chunk_id, peer, response);
   }
 }
@@ -319,6 +323,18 @@ void NetTableManager::handleUpdateRequest(
     std::shared_ptr<Revision> to_insert = std::make_shared<Revision>(parsed);
     PeerId sender(request.sender());
     found->second->handleUpdateRequest(chunk_id, to_insert, sender, response);
+  }
+}
+
+void NetTableManager::handlePushNewChunksRequest(
+    const Message& request, Message* response) {
+  CHECK_NOTNULL(response);
+  TableMap::iterator found;
+  common::Id chunk_id;
+  PeerId peer;
+  if (getTableForMetadataRequestOrDecline<NetTable::kPushNewChunksRequest>(
+      request, response, &found, &chunk_id, &peer)) {
+    found->second->handleListenToChunksFromPeer(peer, response);
   }
 }
 
