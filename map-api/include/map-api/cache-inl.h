@@ -173,8 +173,17 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
                          update_revision.get());
         ++num_checked_items;
         if (*update_revision != *corresponding_revision->second) {
-          transaction_.get()->update(underlying_table_, update_revision);
-          ++num_dirty_items;
+          // To handle addition of fields, we check if the objects also differ
+          // in the deserialized state.
+          std::shared_ptr<typename Factory::ElementType> value =
+              objectFromRevision<typename Factory::ElementType>(
+                  *update_revision);
+          const typename Factory::ElementType& db_version =
+              Factory::getReferenceToDerived(cached_pair.second.value);
+          if (db_version != *value) {
+            transaction_.get()->update(underlying_table_, update_revision);
+            ++num_dirty_items;
+          }
         }
       }
     }
