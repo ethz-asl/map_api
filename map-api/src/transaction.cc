@@ -231,6 +231,8 @@ void Transaction::pushNewChunkIdsToTrackers() {
          table_chunks_to_push.second) {
       // TODO(tcies) keeping track of tracker chunks could optimize this, as
       // the faster getById() overload could be used.
+      CHECK(item_chunks_to_push.first.isValid()) << "Invalid ID for item of "
+          << "table " << table_chunks_to_push.first->name();
       std::shared_ptr<const Revision> original_tracker =
           getById(item_chunks_to_push.first, table_chunks_to_push.first);
       std::shared_ptr<Revision> updated_tracker(
