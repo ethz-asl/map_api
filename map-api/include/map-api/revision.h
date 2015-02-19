@@ -4,12 +4,13 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <vector>
 
 #include <glog/logging.h>
 
 #include "./core.pb.h"
 #include "map-api/logical-time.h"
-#include "map-api/unique-id.h"
+#include <multiagent-mapping-common/unique-id.h>
 
 namespace map_api {
 class TrackeeMultimap;
@@ -24,6 +25,8 @@ class Revision {
   friend class Transaction;
 
  public:
+  typedef std::vector<char> Blob;
+
   explicit Revision(const std::shared_ptr<proto::Revision>& revision);
   explicit Revision(const Revision& other);
   Revision& operator=(const Revision& other) = delete;
@@ -59,11 +62,11 @@ class Revision {
     return (underlying_revision_->has_update_time()) ? getUpdateTime()
                                                      : getInsertTime();
   }
-  inline Id getChunkId() const {
+  inline common::Id getChunkId() const {
     if (underlying_revision_->has_chunk_id()) {
-      return Id(underlying_revision_->chunk_id());
+      return common::Id(underlying_revision_->chunk_id());
     } else {
-      return Id();
+      return common::Id();
     }
   }
   template <typename IdType>
@@ -133,7 +136,7 @@ class Revision {
   inline void setUpdateTime(const LogicalTime& time) {
     underlying_revision_->set_update_time(time.serialize());
   }
-  inline void setChunkId(const Id& id) {
+  inline void setChunkId(const common::Id& id) {
     id.serialize(underlying_revision_->mutable_chunk_id());
   }
   inline void setRemoved() { underlying_revision_->set_removed(true); }
