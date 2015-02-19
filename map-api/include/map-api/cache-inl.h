@@ -182,8 +182,7 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
               std::make_shared < map_api::Revision
                   > (*corresponding_revision->second);
           objectToRevision(cached_pair.first,
-                           Factory::getReferenceToDerived(value),
-                           reserialized_revision.get());
+                           *value, reserialized_revision.get());
 
           if (*update_revision != *reserialized_revision) {
             transaction_.get()->update(underlying_table_, update_revision);
