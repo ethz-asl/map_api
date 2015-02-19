@@ -10,7 +10,7 @@ namespace map_api {
 template <const char* RequestType>
 bool NetTableManager::getTableForMetadataRequestOrDecline(
     const Message& request, Message* response, TableMap::iterator* found,
-    Id* chunk_id, PeerId* peer) {
+    common::Id* chunk_id, PeerId* peer) {
   CHECK_NOTNULL(chunk_id);
   CHECK_NOTNULL(peer);
   proto::ChunkRequestMetadata metadata;

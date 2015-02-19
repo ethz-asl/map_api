@@ -11,7 +11,7 @@
 
 #include "map-api/revision.h"
 #include "map-api/table-descriptor.h"
-#include "map-api/unique-id.h"
+#include <multiagent-mapping-common/unique-id.h>
 #include "./core.pb.h"
 
 namespace map_api {
@@ -29,24 +29,24 @@ class CRTable {
 
   template <typename RevisionType>
   class RevisionMapBase
-      : public std::unordered_map<Id, std::shared_ptr<RevisionType> > {
+      : public std::unordered_map<common::Id, std::shared_ptr<RevisionType> > {
    public:
-    typedef std::unordered_map<Id, std::shared_ptr<RevisionType> > Base;
+    typedef std::unordered_map<common::Id, std::shared_ptr<RevisionType> > Base;
     typedef typename Base::iterator iterator;
     typedef typename Base::const_iterator const_iterator;
 
     using Base::find;
     template <typename Derived>
-    iterator find(const UniqueId<Derived>& key);
+    iterator find(const common::UniqueId<Derived>& key);
     template <typename Derived>
-    const_iterator find(const UniqueId<Derived>& key) const;
+    const_iterator find(const common::UniqueId<Derived>& key) const;
 
     using Base::insert;
     std::pair<iterator, bool> insert(
         const std::shared_ptr<RevisionType>& revision);
     template <typename Derived>
     std::pair<typename Base::iterator, bool> insert(
-        const UniqueId<Derived>& key,
+        const common::UniqueId<Derived>& key,
         const std::shared_ptr<RevisionType>& revision);
   };
   typedef RevisionMapBase<const Revision> RevisionMap;
@@ -126,7 +126,7 @@ class CRTable {
   template <typename ValueType>
   void find(int key, const ValueType& value, const LogicalTime& time,
             RevisionMap* dest) const;
-  void dumpChunk(const Id& chunk_id, const LogicalTime& time,
+  void dumpChunk(const common::Id& chunk_id, const LogicalTime& time,
                  RevisionMap* dest) const;
 
   /**
@@ -159,7 +159,7 @@ class CRTable {
    */
   template <typename ValueType>
   int count(int key, const ValueType& value, const LogicalTime& time) const;
-  int countByChunk(const Id& id, const LogicalTime& time) const;
+  int countByChunk(const common::Id& id, const LogicalTime& time) const;
 
   void clear();
 
@@ -170,7 +170,7 @@ class CRTable {
   typedef struct ItemDebugInfo {
     std::string table;
     std::string id;
-    ItemDebugInfo(const std::string& _table, const Id& _id) :
+    ItemDebugInfo(const std::string& _table, const common::Id& _id) :
       table(_table), id(_id.hexString()) {}
   } ItemDebugInfo;
 
@@ -195,8 +195,9 @@ class CRTable {
                                    const LogicalTime& time) = 0;
   virtual bool patchCRDerived(const std::shared_ptr<Revision>& query) = 0;
   virtual std::shared_ptr<const Revision> getByIdCRDerived(
-      const Id& id, const LogicalTime& time) const = 0;
-  virtual void dumpChunkCRDerived(const Id& chunk_id, const LogicalTime& time,
+      const common::Id& id, const LogicalTime& time) const = 0;
+  virtual void dumpChunkCRDerived(const common::Id& chunk_id,
+                                  const LogicalTime& time,
                                   RevisionMap* dest) const = 0;
   /**
    * If key is -1, this should return all the data in the table.
@@ -205,14 +206,14 @@ class CRTable {
                                        const LogicalTime& time,
                                        RevisionMap* dest) const = 0;
   virtual void getAvailableIdsCRDerived(const LogicalTime& time,
-                                        std::vector<Id>* ids) const = 0;
+                                        std::vector<common::Id>* ids) const = 0;
 
   /**
    * If key is -1, this should return all the data in the table.
    */
   virtual int countByRevisionCRDerived(int key, const Revision& valueHolder,
                                        const LogicalTime& time) const = 0;
-  virtual int countByChunkCRDerived(const Id& chunk_id,
+  virtual int countByChunkCRDerived(const common::Id& chunk_id,
                                     const LogicalTime& time) const = 0;
 
   virtual void clearCRDerived() = 0;

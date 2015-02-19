@@ -1,7 +1,7 @@
 #include "map-api/net-table-index.h"
 
 #include "map-api/message.h"
-#include "map-api/unique-id.h"
+#include <multiagent-mapping-common/unique-id.h>
 #include "./chord-index.pb.h"
 #include "./net-table.pb.h"
 
@@ -12,7 +12,7 @@ NetTableIndex::NetTableIndex(const std::string& table_name)
 
 NetTableIndex::~NetTableIndex() {}
 
-void NetTableIndex::announcePosession(const Id& chunk_id) {
+void NetTableIndex::announcePosession(const common::Id& chunk_id) {
   std::string peers_string;
   proto::PeerList peers;
   if (!retrieveData(chunk_id.hexString(), &peers_string)) {
@@ -25,7 +25,7 @@ void NetTableIndex::announcePosession(const Id& chunk_id) {
 }
 
 void NetTableIndex::seekPeers(
-    const Id& chunk_id, std::unordered_set<PeerId>* peers) {
+    const common::Id& chunk_id, std::unordered_set<PeerId>* peers) {
   CHECK_NOTNULL(peers);
   std::string peers_string;
   proto::PeerList peers_proto;
