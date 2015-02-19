@@ -53,7 +53,7 @@ void Chunk::fillMetadata<proto::ChunkRequestMetadata>(
   id().serialize(destination->mutable_chunk_id());
 }
 
-bool Chunk::init(const Id& id, CRTable* underlying_table, bool initialize) {
+bool Chunk::init(const common::Id& id, CRTable* underlying_table, bool initialize) {
   CHECK_NOTNULL(underlying_table);
   id_ = id;
   underlying_table_ = underlying_table;
@@ -62,8 +62,8 @@ bool Chunk::init(const Id& id, CRTable* underlying_table, bool initialize) {
 }
 
 bool Chunk::init(
-    const Id& id, const proto::InitRequest& init_request, const PeerId& sender,
-    CRTable* underlying_table) {
+    const common::Id& id, const proto::InitRequest& init_request,
+    const PeerId& sender, CRTable* underlying_table) {
   CHECK(init(id, underlying_table, false));
   CHECK_GT(init_request.peer_address_size(), 0);
   for (int i = 0; i < init_request.peer_address_size(); ++i) {
@@ -124,7 +124,8 @@ size_t Chunk::itemsSizeBytes(const LogicalTime& time) {
   underlying_table_->dumpChunk(id(), time, &items);
   distributedUnlock();
   size_t num_bytes = 0;
-  for (const std::pair<Id, std::shared_ptr<const Revision> >& item : items) {
+  for (const std::pair<common::Id,
+      std::shared_ptr<const Revision> >& item : items) {
     CHECK(item.second != nullptr);
     const Revision& revision = *item.second;
     num_bytes += revision.byteSize();
@@ -240,7 +241,9 @@ int Chunk::requestParticipation() {
 }
 
 int Chunk::requestParticipation(const PeerId& peer) {
-  CHECK(Hub::instance().hasPeer(peer));
+  if (!Hub::instance().hasPeer(peer)) {
+    return 0;
+  }
   int new_participant_count = 0;
   distributedWriteLock();
   std::set<PeerId> hub_peers;
@@ -275,8 +278,8 @@ void Chunk::update(const std::shared_ptr<Revision>& item) {
 }
 
 void Chunk::attachTrigger(const std::function<
-    void(const std::unordered_set<Id>& insertions,
-         const std::unordered_set<Id>& updates)>& callback) {
+    void(const std::unordered_set<common::Id>& insertions,
+         const std::unordered_set<common::Id>& updates)>& callback) {
   std::lock_guard<std::mutex> lock(trigger_mutex_);
   trigger_ = callback;
 }
@@ -752,7 +755,8 @@ void Chunk::handleInsertRequest(const std::shared_ptr<Revision>& item,
   response->ack();
   leave_lock_.releaseReadLock();
 
-  Id id = item->getId<Id>();  // TODO(tcies) what if leave during trigger?
+  // TODO(tcies) what if leave during trigger?
+  common::Id id = item->getId<common::Id>();
   std::lock_guard<std::mutex> lock(trigger_mutex_);
   if (trigger_) {
     CHECK(trigger_insertions_.emplace(id).second);
@@ -884,7 +888,8 @@ void Chunk::handleUpdateRequest(const std::shared_ptr<Revision>& item,
   syncLatestCommitTime(*item);
   response->ack();
 
-  Id id = item->getId<Id>();  // TODO(tcies) what if leave during trigger?
+  // TODO(tcies) what if leave during trigger?
+  common::Id id = item->getId<common::Id>();
   std::lock_guard<std::mutex> lock(trigger_mutex_);
   if (trigger_) {
     CHECK(trigger_updates_.emplace(id).second);

@@ -24,20 +24,21 @@ class NetTableFixture : public MapApiFixture,
 
   size_t count();
 
-  void increment(const Id& id, Chunk* chunk, NetTableTransaction* transaction);
-  void increment(NetTable* table, const Id& id, Chunk* chunk,
+  void increment(const common::Id& id, Chunk* chunk,
+                 NetTableTransaction* transaction);
+  void increment(NetTable* table, const common::Id& id, Chunk* chunk,
                  Transaction* transaction);
 
-  Id insert(int n, Chunk* chunk);
-  Id insert(int n, ChunkTransaction* transaction);
-  void insert(int n, Id* id, Transaction* transaction);
+  common::Id insert(int n, Chunk* chunk);
+  common::Id insert(int n, ChunkTransaction* transaction);
+  void insert(int n, common::Id* id, Transaction* transaction);
 
-  void update(int n, const Id& id, Transaction* transaction);
+  void update(int n, const common::Id& id, Transaction* transaction);
 
   static const std::string kTableName;
   NetTable* table_;
   Chunk* chunk_;           // generic chunk pointer for custom use
-  Id chunk_id_, item_id_;  // equally generic
+  common::Id chunk_id_, item_id_;  // equally generic
 };
 
 }  // namespace map_api

@@ -208,7 +208,7 @@ void Transaction::pushNewChunkIdsToTrackers() {
         &net_table_chunk_trackers[table_transaction.first]);
   }
   // tracking item -> tracked table -> tracked chunks
-  typedef std::unordered_map<Id, TrackeeMultimap> ItemToTrackeeMap;
+  typedef std::unordered_map<common::Id, TrackeeMultimap> ItemToTrackeeMap;
   // tracking table -> tracking item -> tracked table -> tracked chunks
   typedef std::unordered_map<NetTable*, ItemToTrackeeMap> TrackerToTrackeeMap;
   TrackerToTrackeeMap table_item_chunks_to_push;

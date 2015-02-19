@@ -70,7 +70,7 @@ void NetTableTransaction::getAvailableIds(std::vector<IdType>* ids) {
 }
 
 template <typename IdType>
-void NetTableTransaction::remove(const UniqueId<IdType>& id) {
+void NetTableTransaction::remove(const common::UniqueId<IdType>& id) {
   std::shared_ptr<const Revision> revision;
   Chunk* chunk = chunkOf(id, &revision);
   std::shared_ptr<Revision> remove_revision =
@@ -102,7 +102,7 @@ void NetTableTransaction::overrideTrackerIdentificationMethod(
       << "however not used for pushing new chunk ids.";
   auto determine_map_api_tracker_id = [how_to_determine_tracker](
       const Revision& trackee) {
-    return static_cast<Id>(how_to_determine_tracker(trackee));
+    return static_cast<common::Id>(how_to_determine_tracker(trackee));
   };
   CHECK(push_new_chunk_ids_to_tracker_overrides_
             .insert(std::make_pair(tracker_table, determine_map_api_tracker_id))

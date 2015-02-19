@@ -10,7 +10,7 @@ void Chunk::fillMetadata(RequestType* destination) {
   id().serialize(destination->mutable_metadata()->mutable_chunk_id());
 }
 
-inline Id Chunk::id() const { return id_; }
+inline common::Id Chunk::id() const { return id_; }
 
 inline void Chunk::syncLatestCommitTime(const Revision& item) {
   LogicalTime commit_time = item.getModificationTime();
