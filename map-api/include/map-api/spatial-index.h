@@ -35,7 +35,7 @@ class SpatialIndex : public ChordIndex {
     explicit BoundingBox(const std::initializer_list<Range>& init_list)
         : std::vector<Range>(init_list) {}
     BoundingBox(const Eigen::Vector3d& min, const Eigen::Vector3d& max)
-    : BoundingBox({{min[0], max[0]}, {min[1], max[1]}, {min[2], max[2]}}) {}
+        : BoundingBox({{min[0], max[0]}, {min[1], max[1]}, {min[2], max[2]}}) {}
     inline std::string debugString() const {
       std::ostringstream ss;
       bool first = true;

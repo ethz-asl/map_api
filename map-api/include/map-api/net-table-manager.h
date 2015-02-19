@@ -62,8 +62,8 @@ class NetTableManager {
   /**
    * Net table requests
    */
-  static void handlePushNewChunksRequest(
-      const Message& request, Message* response);
+  static void handlePushNewChunksRequest(const Message& request,
+                                         Message* response);
   /**
    * Chord requests
    */
