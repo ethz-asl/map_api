@@ -241,7 +241,9 @@ int Chunk::requestParticipation() {
 }
 
 int Chunk::requestParticipation(const PeerId& peer) {
-  CHECK(Hub::instance().hasPeer(peer));
+  if (!Hub::instance().hasPeer(peer)) {
+    return 0;
+  }
   int new_participant_count = 0;
   distributedWriteLock();
   std::set<PeerId> hub_peers;
