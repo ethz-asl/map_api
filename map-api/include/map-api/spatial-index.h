@@ -6,6 +6,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include <Eigen/Dense>
 #include <glog/logging.h>
 #include <google/protobuf/repeated_field.h>
 
@@ -26,12 +27,15 @@ class SpatialIndex : public ChordIndex {
     Range() : min(0), max(0) {}
     Range(double _min, double _max) : min(_min), max(_max) {}  // NOLINT
   };
+  // TODO(tcies) replace with Eigen::AlignedBox
   class BoundingBox : public std::vector<Range> {
    public:
     BoundingBox() : std::vector<Range>() {}
     explicit BoundingBox(int size) : std::vector<Range>(size) {}
     explicit BoundingBox(const std::initializer_list<Range>& init_list)
         : std::vector<Range>(init_list) {}
+    BoundingBox(const Eigen::Vector3d& min, const Eigen::Vector3d& max)
+        : BoundingBox({{min[0], max[0]}, {min[1], max[1]}, {min[2], max[2]}}) {}
     inline std::string debugString() const {
       std::ostringstream ss;
       bool first = true;

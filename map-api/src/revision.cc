@@ -140,6 +140,8 @@ bool Revision::fetchTrackedChunks() const {
   TrackeeMultimap trackee_multimap;
   getTrackedChunks(&trackee_multimap);
   for (const TrackeeMultimap::value_type& table_trackees : trackee_multimap) {
+    VLOG(3) << "Fetching tracked chunks from table "
+            << table_trackees.first->name();
     for (const common::Id& chunk_id : table_trackees.second) {
       if (table_trackees.first->getChunk(chunk_id) == nullptr) {
         success = false;

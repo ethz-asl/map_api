@@ -3,6 +3,8 @@
 
 #include <iostream>  // NOLINT
 #include <string>
+#include <unordered_set>
+#include <vector>
 
 namespace map_api {
 
@@ -41,6 +43,9 @@ class PeerId {
 
   std::string ip_port_;
 };
+
+typedef std::vector<PeerId> PeerIdList;
+typedef std::unordered_set<PeerId> PeerIdSet;
 
 } /* namespace map_api */
 
