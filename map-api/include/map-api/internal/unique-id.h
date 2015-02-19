@@ -3,9 +3,11 @@
 
 #include <string>
 
+#include "./id.pb.h"
+
 namespace map_api {
 namespace internal {
-std::string generateUniqueHexString();
+void generateUnique128BitHash(uint64_t hash[2]);
 }  // namespace internal
 }  // namespace map_api
 

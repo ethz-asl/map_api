@@ -7,7 +7,6 @@
 
 #include <glog/logging.h>
 #include <sm/hash_id.hpp>
-#include "./id.pb.h"
 
 #include "map-api/internal/unique-id.h"
 
@@ -25,7 +24,10 @@ class UniqueId;
     explicit inline TypeName(const common::proto::Id& id_field) \
         : map_api::UniqueId<TypeName>(id_field) {}              \
   };                                                            \
+  typedef std::vector<TypeName> TypeName##List;                 \
+  typedef std::unordered_set<TypeName> TypeName##Set;           \
   extern void defineId##__FILE__##__LINE__(void)
+
 #define UNIQUE_ID_DEFINE_IMMUTABLE_ID(TypeName, BaseTypeName)         \
   class TypeName : public map_api::UniqueId<TypeName> {               \
    public:                                                            \
@@ -38,8 +40,11 @@ class UniqueId;
       this->fromHashId(hash_id);                                      \
     }                                                                 \
   };                                                                  \
+  typedef std::vector<TypeName> TypeName##List;                       \
+  typedef std::unordered_set<TypeName> TypeName##Set;                 \
   extern void defineId##__FILE__##__LINE__(void)
-// this macro needs to be called outside of any namespace
+
+// This macro needs to be called outside of any namespace.
 #define UNIQUE_ID_DEFINE_ID_HASH(TypeName)                      \
   namespace std {                                               \
   template <>                                                   \
@@ -57,7 +62,9 @@ namespace map_api {
 template <typename IdType>
 void generateId(IdType* id) {
   CHECK_NOTNULL(id);
-  id->fromHexString(internal::generateUniqueHexString());
+  uint64_t hash[2];
+  internal::generateUnique128BitHash(hash);
+  id->fromUint64(hash);
 }
 
 template <typename IdType>

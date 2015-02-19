@@ -4,10 +4,6 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include <Poco/Data/Common.h>
-#include <Poco/Data/BLOB.h>
-#include <Poco/Data/Statement.h>
-
 #include <timing/timer.h>
 
 #include "map-api/core.h"
@@ -382,11 +378,11 @@ TYPED_TEST(CruMapIntTestWithInit, HistoryAtTime) {
 
   CRUTable::History old_history;
   this->table_->itemHistory(id, before_third, &old_history);
-  EXPECT_EQ(2, old_history.size());
+  EXPECT_EQ(2u, old_history.size());
 
   CRUTable::History new_history;
   this->table_->itemHistory(id, LogicalTime::sample(), &new_history);
-  EXPECT_EQ(3, new_history.size());
+  EXPECT_EQ(3u, new_history.size());
 }
 
 TYPED_TEST(CruMapIntTestWithInit, Remove) {
@@ -397,10 +393,10 @@ TYPED_TEST(CruMapIntTestWithInit, Remove) {
   EXPECT_EQ(1, this->table_->count(-1, 0, LogicalTime::sample()));
   std::vector<Id> ids;
   this->table_->getAvailableIds(LogicalTime::sample(), &ids);
-  EXPECT_EQ(1, ids.size());
+  EXPECT_EQ(1u, ids.size());
   CRTable::RevisionMap result;
   this->table_->find(-1, 0, LogicalTime::sample(), &result);
-  EXPECT_EQ(1, result.size());
+  EXPECT_EQ(1u, result.size());
 
   std::shared_ptr<Revision> revision =
       std::make_shared<Revision>(*result.begin()->second);
@@ -408,9 +404,9 @@ TYPED_TEST(CruMapIntTestWithInit, Remove) {
 
   EXPECT_EQ(0, this->table_->count(-1, 0, LogicalTime::sample()));
   this->table_->getAvailableIds(LogicalTime::sample(), &ids);
-  EXPECT_EQ(0, ids.size());
+  EXPECT_EQ(0u, ids.size());
   this->table_->find(-1, 0, LogicalTime::sample(), &result);
-  EXPECT_EQ(0, result.size());
+  EXPECT_EQ(0u, result.size());
 }
 
 }  // namespace map_api
