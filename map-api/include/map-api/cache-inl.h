@@ -174,7 +174,7 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
         ++num_checked_items;
         if (*update_revision != *corresponding_revision->second) {
           // To handle addition of fields, we check if the objects also differ
-          // if we would re-serialize plainly the db version.
+          // if we would reserialize the db version.
           std::shared_ptr<typename Factory::ElementType> value =
               objectFromRevision<typename Factory::ElementType>(
                   *corresponding_revision->second);
