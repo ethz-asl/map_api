@@ -37,7 +37,7 @@ bool NetTableManager::getTableForRequestWithMetadataOrDecline<
 }
 
 void NetTableManager::registerHandlers() {
-  // chunk requests
+  // Chunk requests.
   Hub::instance().registerHandler(Chunk::kConnectRequest, handleConnectRequest);
   Hub::instance().registerHandler(Chunk::kInitRequest, handleInitRequest);
   Hub::instance().registerHandler(Chunk::kInsertRequest, handleInsertRequest);
@@ -47,10 +47,14 @@ void NetTableManager::registerHandlers() {
   Hub::instance().registerHandler(Chunk::kUnlockRequest, handleUnlockRequest);
   Hub::instance().registerHandler(Chunk::kUpdateRequest, handleUpdateRequest);
 
-  // chord requests
+  // Net table requests.
+  Hub::instance().registerHandler(NetTable::kPushNewChunksRequest,
+                                  handlePushNewChunksRequest);
+
+  // Chord requests.
   Hub::instance().registerHandler(NetTableIndex::kRoutedChordRequest,
                                   handleRoutedNetTableChordRequests);
-  // spatial index requests
+  // Spatial index requests.
   Hub::instance().registerHandler(SpatialIndex::kRoutedChordRequest,
                                   handleRoutedSpatialChordRequests);
 }
@@ -177,6 +181,7 @@ NetTable* NetTableManager::addTable(
 }
 
 NetTable& NetTableManager::getTable(const std::string& name) {
+  CHECK(Core::instance() != nullptr) << "Map API not initialized!";
   tables_lock_.acquireReadLock();
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = tables_.find(name);
@@ -319,6 +324,18 @@ void NetTableManager::handleUpdateRequest(
     std::shared_ptr<Revision> to_insert = std::make_shared<Revision>(parsed);
     PeerId sender(request.sender());
     found->second->handleUpdateRequest(chunk_id, to_insert, sender, response);
+  }
+}
+
+void NetTableManager::handlePushNewChunksRequest(const Message& request,
+                                                 Message* response) {
+  CHECK_NOTNULL(response);
+  TableMap::iterator found;
+  common::Id chunk_id;
+  PeerId peer;
+  if (getTableForMetadataRequestOrDecline<NetTable::kPushNewChunksRequest>(
+          request, response, &found, &chunk_id, &peer)) {
+    found->second->handleListenToChunksFromPeer(peer, response);
   }
 }
 
