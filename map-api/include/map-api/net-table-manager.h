@@ -60,13 +60,15 @@ class NetTableManager {
   static void handleUnlockRequest(const Message& request, Message* response);
   static void handleUpdateRequest(const Message& request, Message* response);
   /**
+   * Net table requests
+   */
+  static void handlePushNewChunksRequest(const Message& request,
+                                         Message* response);
+  /**
    * Chord requests
    */
   static void handleRoutedNetTableChordRequests(const Message& request,
                                                 Message* response);
-  /**
-   * Chord requests
-   */
   static void handleRoutedSpatialChordRequests(const Message& request,
                                                Message* response);
 
