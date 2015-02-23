@@ -13,7 +13,7 @@ std::shared_ptr<const Revision> CRTable::getById(
   std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
   CHECK(id.isValid()) << "Supplied invalid ID";
-  Id map_api_id;
+  common::Id map_api_id;
   sm::HashId hash_id;
   id.toHashId(&hash_id);
   map_api_id.fromHashId(hash_id);
@@ -27,10 +27,10 @@ void CRTable::getAvailableIds(const LogicalTime& time,
   CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
   CHECK_NOTNULL(ids);
   ids->clear();
-  std::vector<Id> map_api_ids;
+  std::vector<common::Id> map_api_ids;
   getAvailableIdsCRDerived(time, &map_api_ids);
   ids->reserve(map_api_ids.size());
-  for (const Id& id : map_api_ids) {
+  for (const common::Id& id : map_api_ids) {
     ids->emplace_back(id.toIdType<IdType>());
   }
 }
@@ -38,8 +38,9 @@ void CRTable::getAvailableIds(const LogicalTime& time,
 template <typename RevisionType>
 template <typename Derived>
 typename CRTable::RevisionMapBase<RevisionType>::iterator
-CRTable::RevisionMapBase<RevisionType>::find(const UniqueId<Derived>& key) {
-  Id id_key;
+CRTable::RevisionMapBase<RevisionType>::find(
+    const common::UniqueId<Derived>& key) {
+  common::Id id_key;
   sm::HashId hash_id;
   key.toHashId(&hash_id);
   id_key.fromHashId(hash_id);
@@ -49,9 +50,10 @@ CRTable::RevisionMapBase<RevisionType>::find(const UniqueId<Derived>& key) {
 template <typename RevisionType>
 template <typename Derived>
 typename CRTable::RevisionMapBase<RevisionType>::const_iterator
-CRTable::RevisionMapBase<RevisionType>::find(const UniqueId<Derived>& key)
+CRTable::RevisionMapBase<RevisionType>::find(
+    const common::UniqueId<Derived>& key)
     const {
-  Id id_key;
+  common::Id id_key;
   sm::HashId hash_id;
   key.toHashId(&hash_id);
   id_key.fromHashId(hash_id);  // TODO(tcies) avoid conversion? how?
@@ -63,16 +65,17 @@ std::pair<typename CRTable::RevisionMapBase<RevisionType>::iterator, bool>
 CRTable::RevisionMapBase<RevisionType>::insert(
     const std::shared_ptr<RevisionType>& revision) {
   CHECK_NOTNULL(revision.get());
-  return insert(std::make_pair(revision->template getId<Id>(), revision));
+  return insert(std::make_pair(
+      revision->template getId<common::Id>(), revision));
 }
 
 template <typename RevisionType>
 template <typename Derived>
 std::pair<typename CRTable::RevisionMapBase<RevisionType>::iterator, bool>
 CRTable::RevisionMapBase<RevisionType>::insert(
-    const UniqueId<Derived>& key,
+    const common::UniqueId<Derived>& key,
     const std::shared_ptr<RevisionType>& revision) {
-  Id id_key;
+  common::Id id_key;
   sm::HashId hash_id;
   key.toHashId(&hash_id);
   id_key.fromHashId(hash_id);  // TODO(tcies) avoid conversion? how?
