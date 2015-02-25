@@ -405,6 +405,7 @@ TEST_P(NetTableFixture, Triggers) {
     DIE
   };
   int highest_value;
+  size_t trigger_counter = 0u;
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
     IPC::barrier(INIT, 1);
@@ -419,9 +420,9 @@ TEST_P(NetTableFixture, Triggers) {
     chunk_id_ = IPC::pop<common::Id>();
     chunk_ = table_->getChunk(chunk_id_);
   }
-  chunk_->attachTrigger([this, &highest_value](
-      const std::unordered_set<common::Id>& insertions,
-      const std::unordered_set<common::Id>& updates) {
+  EXPECT_EQ(0u, chunk_->attachTrigger([this, &highest_value](
+                    const std::unordered_set<common::Id>& insertions,
+                    const std::unordered_set<common::Id>& updates) {
     common::Id id;
     if (insertions.empty()) {
       if (updates.empty()) {
@@ -452,7 +453,12 @@ TEST_P(NetTableFixture, Triggers) {
       }
       CHECK(transaction.commit());
     }
-  });
+                }));
+  EXPECT_EQ(1u, chunk_->attachTrigger([this, &trigger_counter](
+                    const std::unordered_set<common::Id>& /*insertions*/,
+                    const std::unordered_set<common::Id>& /*updates*/) {
+                  ++trigger_counter;
+                }));
   IPC::barrier(TRIGGER_READY, 1);
   if (getSubprocessId() == ROOT) {
     Transaction transaction;
@@ -466,9 +472,11 @@ TEST_P(NetTableFixture, Triggers) {
     usleep(5e5);  // should suffice for the triggers to do their magic
     IPC::barrier(DIE, 1);
     EXPECT_EQ(10, highest_value);
+    EXPECT_EQ(5u, trigger_counter);
   }
   if (getSubprocessId() == A) {
     IPC::barrier(DIE, 1);
+    EXPECT_EQ(6u, trigger_counter);
   }
 }
 

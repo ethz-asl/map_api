@@ -277,11 +277,12 @@ void Chunk::update(const std::shared_ptr<Revision>& item) {
   distributedUnlock();
 }
 
-void Chunk::attachTrigger(const std::function<
+size_t Chunk::attachTrigger(const std::function<
     void(const std::unordered_set<common::Id>& insertions,
          const std::unordered_set<common::Id>& updates)>& callback) {
   std::lock_guard<std::mutex> lock(trigger_mutex_);
-  trigger_ = callback;
+  triggers_.push_back(callback);
+  return triggers_.size() - 1u;
 }
 
 void Chunk::bulkInsertLocked(const CRTable::NonConstRevisionMap& items,
@@ -757,10 +758,7 @@ void Chunk::handleInsertRequest(const std::shared_ptr<Revision>& item,
 
   // TODO(tcies) what if leave during trigger?
   common::Id id = item->getId<common::Id>();
-  std::lock_guard<std::mutex> lock(trigger_mutex_);
-  if (trigger_) {
-    CHECK(trigger_insertions_.emplace(id).second);
-  }
+  CHECK(trigger_insertions_.emplace(id).second);
 }
 
 void Chunk::handleLeaveRequest(const PeerId& leaver, Message* response) {
@@ -867,8 +865,19 @@ void Chunk::handleUnlockRequest(const PeerId& locker, Message* response) {
   leave_lock_.releaseReadLock();
   lock_.cv.notify_all();
   response->impose<Message::kAck>();
-  if (trigger_) {
-    std::thread trigger_thread(trigger_, trigger_insertions_, trigger_updates_);
+  std::lock_guard<std::mutex> trigger_lock(trigger_mutex_);
+  if (!triggers_.empty()) {
+    // Must copy because of
+    // http://stackoverflow.com/questions/7895879 .
+    std::vector<TriggerCallback> triggers(triggers_);
+    std::unordered_set<common::Id> trigger_insertions(trigger_insertions_),
+        trigger_updates(trigger_updates_);
+    std::thread trigger_thread(
+        [triggers, trigger_insertions, trigger_updates]() {
+          for (const TriggerCallback& trigger : triggers) {
+            trigger(trigger_insertions, trigger_updates);
+          }
+        });
     trigger_thread.detach();
   }
 }
@@ -890,10 +899,7 @@ void Chunk::handleUpdateRequest(const std::shared_ptr<Revision>& item,
 
   // TODO(tcies) what if leave during trigger?
   common::Id id = item->getId<common::Id>();
-  std::lock_guard<std::mutex> lock(trigger_mutex_);
-  if (trigger_) {
-    CHECK(trigger_updates_.emplace(id).second);
-  }
+  CHECK(trigger_updates_.emplace(id).second);
 }
 
 void Chunk::awaitInitialized() const {
