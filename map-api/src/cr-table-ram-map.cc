@@ -28,10 +28,10 @@ bool CRTableRamMap::bulkInsertCRDerived(const NonConstRevisionMap& query,
 
 bool CRTableRamMap::patchCRDerived(const std::shared_ptr<Revision>& query) {
   CHECK(query != nullptr);
-  return data_.emplace(query->getId<Id>(), query).second;
+  return data_.emplace(query->getId<common::Id>(), query).second;
 }
 
-void CRTableRamMap::dumpChunkCRDerived(const Id& chunk_id,
+void CRTableRamMap::dumpChunkCRDerived(const common::Id& chunk_id,
                                        const LogicalTime& time,
                                        RevisionMap* dest) const {
   CHECK_NOTNULL(dest)->clear();
@@ -62,7 +62,7 @@ void CRTableRamMap::findByRevisionCRDerived(
 }
 
 std::shared_ptr<const Revision> CRTableRamMap::getByIdCRDerived(
-    const Id& id, const LogicalTime& time) const {
+    const common::Id& id, const LogicalTime& time) const {
   MapType::const_iterator found = data_.find(id);
   if (found == data_.end() || found->second->getInsertTime() > time) {
     return std::shared_ptr<Revision>();
@@ -71,7 +71,7 @@ std::shared_ptr<const Revision> CRTableRamMap::getByIdCRDerived(
 }
 
 void CRTableRamMap::getAvailableIdsCRDerived(
-    const LogicalTime& time, std::vector<Id>* ids) const {
+    const LogicalTime& time, std::vector<common::Id>* ids) const {
   CHECK_NOTNULL(ids);
   ids->reserve(data_.size());
   for (const MapType::value_type& pair : data_) {
@@ -95,7 +95,7 @@ int CRTableRamMap::countByRevisionCRDerived(int key,
   return count;
 }
 
-int CRTableRamMap::countByChunkCRDerived(const Id& chunk_id,
+int CRTableRamMap::countByChunkCRDerived(const common::Id& chunk_id,
                                          const LogicalTime& time) const {
   int count = 0;
   for (const MapType::value_type& pair : data_) {

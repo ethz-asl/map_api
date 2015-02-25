@@ -13,7 +13,7 @@ void ChunkManagerBase::requestParticipationAllChunks() {
   }
   VLOG(3) << "Requesting participation for " << active_chunks_.size()
           << " chunks from " << underlying_table_->name();
-  for (const std::pair<Id, Chunk*>& item : active_chunks_) {
+  for (const std::pair<common::Id, Chunk*>& item : active_chunks_) {
     CHECK_NOTNULL(item.second);
     item.second->requestParticipation();
   }
