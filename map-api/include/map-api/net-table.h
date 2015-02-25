@@ -88,6 +88,10 @@ class NetTable {
   // Will bind to Chunk* the pointer of the current chunk.
   void attachTriggerOnChunkAcquisition(
       const TriggerCallbackWithChunkPointer& trigger);
+  // Returns false if peer not reachable.
+  bool listenToChunksFromPeer(const PeerId& peer) const;
+  void handleListenToChunksFromPeer(const PeerId& listener, Message* response);
+  static const char kPushNewChunksRequest[];
 
   // ITEM RETRIEVAL
   // (locking all chunks)
@@ -222,6 +226,8 @@ class NetTable {
   ReaderWriterMutex index_lock_;
 
   TriggerCallbackWithChunkPointer trigger_to_attach_on_chunk_acquisition_;
+  std::mutex m_new_chunk_listeners_;
+  PeerIdSet new_chunk_listeners_;
 
   NewChunkTrackerMap new_chunk_trackers_;
 };
