@@ -7,6 +7,7 @@
 #include <set>
 #include <thread>
 #include <unordered_set>
+#include <vector>
 
 #include "./chunk.pb.h"
 #include "map-api/cr-table.h"
@@ -98,8 +99,9 @@ class Chunk {
    * then called at an unlock request. The tracked insertions and updates are
    * passed. Note: If the sets are empty, the lock has probably been acquired
    * to modify chunk peers.
+   * Returns position of attached trigger in trigger vector.
    */
-  void attachTrigger(const TriggerCallback& callback);
+  size_t attachTrigger(const TriggerCallback& callback);
 
   inline LogicalTime getLatestCommitTime();
 
@@ -223,8 +225,9 @@ class Chunk {
   PeerHandler peers_;
   CRTable* underlying_table_;
   DistributedRWLock lock_;
-  std::function<void(const std::unordered_set<common::Id>& insertions,
-                     const std::unordered_set<common::Id>& updates)> trigger_;
+  std::vector<std::function<
+      void(const std::unordered_set<common::Id>& insertions,
+           const std::unordered_set<common::Id>& updates)>> triggers_;
   std::mutex trigger_mutex_;
   std::unordered_set<common::Id> trigger_insertions_, trigger_updates_;
   std::mutex add_peer_mutex_;
