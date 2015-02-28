@@ -1,6 +1,7 @@
 #include "map-api/transaction.h"
 
 #include <algorithm>
+#include <execinfo.h>
 
 #include <timing/timer.h>
 
@@ -13,6 +14,8 @@
 #include "map-api/revision.h"
 #include "map-api/trackee-multimap.h"
 #include "./core.pb.h"
+
+DEFINE_bool(blame_commit, false, "Print stack trace for every commit");
 
 namespace map_api {
 
@@ -64,6 +67,22 @@ void Transaction::remove(NetTable* table, std::shared_ptr<Revision> revision) {
 // net_table_transactions_, and have the locks acquired in that order
 // (resource hierarchy solution)
 bool Transaction::commit() {
+  if (FLAGS_blame_commit) {
+    constexpr size_t kBacktraceLimit = 20;
+    void* array[kBacktraceLimit];
+    size_t size;
+    char** strings;
+
+    size = backtrace(array, kBacktraceLimit);
+    strings = backtrace_symbols(array, size);
+
+    LOG(INFO) << "Commit called from:";
+    for (size_t i = 0u; i < size; i++) {
+      LOG(INFO) << strings[i];
+    }
+
+    free(strings);
+  }
   for (const CacheMap::value_type& cache_pair : attached_caches_) {
     cache_pair.second->prepareForCommit();
   }
@@ -85,6 +104,7 @@ bool Transaction::commit() {
     }
   }
   commit_time_ = LogicalTime::sample();
+  VLOG(3) << "Commit from " << begin_time_ << " to " << commit_time_;
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->checkedCommit(commit_time_);
     net_table_transaction.second->unlock();
