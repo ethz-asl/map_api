@@ -200,6 +200,41 @@ void NetTable::followTrackedChunksOfItem(const common::Id& item_id,
   fetch_callback(common::IdSet(), common::IdSet({item_id}));
 }
 
+void NetTable::autoFollowTrackedChunks() {
+  // First make sure that all new items will be followed.
+  TriggerCallbackWithChunkPointer fetch_all_callback = [this](
+      const common::IdSet& insertions, const common::IdSet& updates,
+      Chunk* chunk) {
+    common::IdSet changes(insertions.begin(), insertions.end());
+    changes.insert(updates.begin(), updates.end());
+    for (const common::Id& item_id : changes) {
+      Transaction transaction;
+      std::shared_ptr<const Revision> revision =
+          transaction.getById(item_id, this, chunk);
+      revision->fetchTrackedChunks();
+    }
+  };
+  attachTriggerOnChunkAcquisition(fetch_all_callback);
+  // Attach the trigger on all existing chunks.
+  ScopedReadLock lock(&active_chunks_lock_);
+  for (const ChunkMap::value_type& id_chunk : active_chunks_) {
+    Chunk* chunk = id_chunk.second.get();
+    chunk->attachTrigger([chunk, fetch_all_callback](
+        const common::IdSet& insertions, const common::IdSet& updates) {
+      fetch_all_callback(insertions, updates, chunk);
+    });
+  }
+  // Fetch all tracked chunks for existing items.
+  for (const ChunkMap::value_type& id_chunk : active_chunks_) {
+    Chunk* chunk = id_chunk.second.get();
+    Transaction transaction;
+    CRTable::RevisionMap all_items = transaction.dumpChunk(this, chunk);
+    for (const CRTable::RevisionMap::value_type& id_revision : all_items) {
+      id_revision.second->fetchTrackedChunks();
+    }
+  }
+}
+
 void NetTable::registerChunkInSpace(
     const common::Id& chunk_id, const SpatialIndex::BoundingBox& bounding_box) {
   active_chunks_lock_.acquireReadLock();

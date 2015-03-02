@@ -71,6 +71,8 @@ class NetTable {
   // TODO(tcies) batch these for all followed items of the chunk?
   template <typename IdType>
   void followTrackedChunksOfItem(const IdType& item, Chunk* tracker_chunk);
+  // Do the above automatically for all created and received items.
+  void autoFollowTrackedChunks();
 
   // SPATIAL INDEX CHUNK MANAGEMENT
   void registerChunkInSpace(const common::Id& chunk_id,
