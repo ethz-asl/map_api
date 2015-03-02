@@ -181,6 +181,7 @@ NetTable* NetTableManager::addTable(
 }
 
 NetTable& NetTableManager::getTable(const std::string& name) {
+  CHECK(Core::instance() != nullptr) << "Map API not initialized!";
   tables_lock_.acquireReadLock();
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = tables_.find(name);
