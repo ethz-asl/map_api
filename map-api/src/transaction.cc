@@ -1,8 +1,8 @@
 #include "map-api/transaction.h"
 
 #include <algorithm>
-#include <execinfo.h>
 
+#include <multiagent-mapping-common/backtrace.h>
 #include <timing/timer.h>
 
 #include "map-api/cache-base.h"
@@ -68,20 +68,7 @@ void Transaction::remove(NetTable* table, std::shared_ptr<Revision> revision) {
 // (resource hierarchy solution)
 bool Transaction::commit() {
   if (FLAGS_blame_commit) {
-    constexpr size_t kBacktraceLimit = 20;
-    void* array[kBacktraceLimit];
-    size_t size;
-    char** strings;
-
-    size = backtrace(array, kBacktraceLimit);
-    strings = backtrace_symbols(array, size);
-
-    LOG(INFO) << "Commit called from:";
-    for (size_t i = 0u; i < size; i++) {
-      LOG(INFO) << strings[i];
-    }
-
-    free(strings);
+    LOG(INFO) << "Transaction committed from:\n" << common::backtrace();
   }
   for (const CacheMap::value_type& cache_pair : attached_caches_) {
     cache_pair.second->prepareForCommit();
