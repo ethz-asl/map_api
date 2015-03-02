@@ -69,6 +69,9 @@ class ReaderWriterMutex {
     while (num_readers_ > num_pending_upgrade_) {
       cv_readers.wait(lock);
     }
+    while (current_writer_) {
+      m_writerFinished.wait(lock);
+    }
     --num_pending_upgrade_;
     --num_readers_;
     current_writer_ = true;
