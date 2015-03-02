@@ -345,13 +345,20 @@ class NetTableChunkTrackingTest : public NetTableFixture {
     }
   }
 
-  void fetch_trackees(Transaction* transaction) {
+  void fetch_trackees() {
+    Transaction transaction;
     chunk_ = table_->getChunk(master_chunk_id_);
     EXPECT_NE(chunk_, nullptr);
     std::shared_ptr<const Revision> master_item =
-        transaction->getById(master_item_id_, table_, chunk_);
+        transaction.getById(master_item_id_, table_, chunk_);
     EXPECT_NE(master_item.get(), nullptr);
     master_item->fetchTrackedChunks();
+  }
+
+  void follow_trackees() {
+    chunk_ = table_->getChunk(master_chunk_id_);
+    ASSERT_NE(chunk_, nullptr);
+    table_->followTrackedChunksOfItem(master_item_id_, chunk_);
   }
 
   NetTable* trackee_table_;
@@ -376,8 +383,7 @@ TEST_P(NetTableChunkTrackingTest, ChunkTrackingSameTransaction) {
     IPC::barrier(INIT, 1);
     IPC::barrier(SLAVE_DONE, 1);
     EXPECT_EQ(0u, trackee_table_->numActiveChunks());
-    Transaction master_transaction;
-    fetch_trackees(&master_transaction);
+    fetch_trackees();
     EXPECT_EQ(kNumTrackeeChunks, trackee_table_->numActiveChunks());
     EXPECT_EQ(kNumTrackeeChunks, trackee_table_->numItems());
   }
@@ -403,12 +409,10 @@ TEST_P(NetTableChunkTrackingTest, ChunkTrackingDifferentTransaction) {
     launchSubprocess(SLAVE);
     IPC::barrier(INIT, 1);
     IPC::barrier(TRACKER_DONE, 1);
-    Transaction master_transaction_1;
-    fetch_trackees(&master_transaction_1);
+    fetch_trackees();
     EXPECT_EQ(0u, trackee_table_->numActiveChunks());
     IPC::barrier(TRACKEES_DONE, 1);
-    Transaction master_transaction_2;
-    fetch_trackees(&master_transaction_2);
+    fetch_trackees();
     EXPECT_EQ(kNumTrackeeChunks, trackee_table_->numActiveChunks());
     EXPECT_EQ(kNumTrackeeChunks, trackee_table_->numItems());
   }
@@ -418,6 +422,41 @@ TEST_P(NetTableChunkTrackingTest, ChunkTrackingDifferentTransaction) {
     insert_master_item(&slave_transaction_1);
     EXPECT_TRUE(slave_transaction_1.commit());
     IPC::barrier(TRACKER_DONE, 1);
+    Transaction slave_transaction_2;
+    insert_trackees(&slave_transaction_2);
+    EXPECT_TRUE(slave_transaction_2.commit());
+    IPC::barrier(TRACKEES_DONE, 1);
+  }
+  IPC::barrier(DIE, 1);
+}
+
+TEST_P(NetTableChunkTrackingTest, FollowTrackedChunks) {
+  enum Barriers {
+    INIT,
+    TRACKER_DONE,
+    TRACKER_READ,
+    TRACKEES_DONE,
+    DIE
+  };
+  if (getSubprocessId() == MASTER) {
+    launchSubprocess(SLAVE);
+    IPC::barrier(INIT, 1);
+    IPC::barrier(TRACKER_DONE, 1);
+    follow_trackees();
+    EXPECT_EQ(0u, trackee_table_->numActiveChunks());
+    IPC::barrier(TRACKER_READ, 1);
+    IPC::barrier(TRACKEES_DONE, 1);
+    chunk_->waitForTriggerCompletion();
+    EXPECT_EQ(kNumTrackeeChunks, trackee_table_->numActiveChunks());
+    EXPECT_EQ(kNumTrackeeChunks, trackee_table_->numItems());
+  }
+  if (getSubprocessId() == SLAVE) {
+    IPC::barrier(INIT, 1);
+    Transaction slave_transaction_1;
+    insert_master_item(&slave_transaction_1);
+    EXPECT_TRUE(slave_transaction_1.commit());
+    IPC::barrier(TRACKER_DONE, 1);
+    IPC::barrier(TRACKER_READ, 1);
     Transaction slave_transaction_2;
     insert_trackees(&slave_transaction_2);
     EXPECT_TRUE(slave_transaction_2.commit());

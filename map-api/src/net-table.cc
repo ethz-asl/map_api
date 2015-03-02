@@ -11,6 +11,7 @@
 #include "map-api/cru-table-stxxl-map.h"
 #include "map-api/hub.h"
 #include "map-api/net-table-manager.h"
+#include "map-api/transaction.h"
 
 DEFINE_bool(use_external_memory, false, "External memory vs. RAM tables.");
 
@@ -178,6 +179,25 @@ void NetTable::pushNewChunkIdsToTracker(NetTable* tracker_table) {
   };
   CHECK(new_chunk_trackers_.emplace(tracker_table,
                                     identification_method_placeholder).second);
+}
+
+template <>
+void NetTable::followTrackedChunksOfItem(const common::Id& item_id,
+                                         Chunk* tracker_chunk) {
+  CHECK_NOTNULL(tracker_chunk);
+  Chunk::TriggerCallback fetch_callback = [item_id, tracker_chunk, this](
+      const common::IdSet& /*insertions*/, const common::IdSet& updates) {
+    common::IdSet::const_iterator found = updates.find(item_id);
+    if (found != updates.end()) {
+      Transaction transaction;
+      std::shared_ptr<const Revision> revision =
+          transaction.getById(item_id, this, tracker_chunk);
+      revision->fetchTrackedChunks();
+    }
+  };
+  tracker_chunk->attachTrigger(fetch_callback);
+  // Fetch tracked chunks now.
+  fetch_callback(common::IdSet(), common::IdSet({item_id}));
 }
 
 void NetTable::registerChunkInSpace(
