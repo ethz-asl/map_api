@@ -15,7 +15,8 @@ class ReaderWriterMutex {
   ReaderWriterMutex()
       : num_readers_(0),
         num_pending_writers_(0),
-        current_writer_(false) { }
+        current_writer_(false),
+        num_pending_upgrade_(0) {}
 
  private:
   ReaderWriterMutex(const ReaderWriterMutex&) = delete;
@@ -27,11 +28,13 @@ class ReaderWriterMutex {
   unsigned int num_pending_writers_;
   bool current_writer_;
   std::condition_variable m_writerFinished;
+  unsigned int num_pending_upgrade_;
 
  public:
   void acquireReadLock() {
     std::unique_lock<std::mutex> lock(mutex_);
-    while (num_pending_writers_ != 0 || current_writer_) {
+    while (num_pending_writers_ != 0 || num_pending_upgrade_ != 0 ||
+           current_writer_) {
       m_writerFinished.wait(lock);
     }
     ++num_readers_;
@@ -39,17 +42,17 @@ class ReaderWriterMutex {
   void releaseReadLock() {
     std::unique_lock<std::mutex> lock(mutex_);
     --num_readers_;
-    if (num_readers_ == 0) {
+    if (num_readers_ == num_pending_upgrade_) {
       cv_readers.notify_all();
     }
   }
   void acquireWriteLock() {
     std::unique_lock<std::mutex> lock(mutex_);
     ++num_pending_writers_;
-    while (num_readers_ > 0) {
+    while (num_readers_ > num_pending_upgrade_) {
       cv_readers.wait(lock);
     }
-    while (current_writer_) {
+    while (current_writer_ || num_pending_upgrade_ != 0) {
       m_writerFinished.wait(lock);
     }
     --num_pending_writers_;
@@ -59,6 +62,16 @@ class ReaderWriterMutex {
     std::unique_lock<std::mutex> lock(mutex_);
     current_writer_ = false;
     m_writerFinished.notify_all();
+  }
+  void upgradeToWriteLock() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    ++num_pending_upgrade_;
+    while (num_readers_ > num_pending_upgrade_) {
+      cv_readers.wait(lock);
+    }
+    --num_pending_upgrade_;
+    --num_readers_;
+    current_writer_ = true;
   }
 };
 
