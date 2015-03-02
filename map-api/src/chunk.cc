@@ -285,6 +285,10 @@ size_t Chunk::attachTrigger(const std::function<
   return triggers_.size() - 1u;
 }
 
+void Chunk::waitForTriggerCompletion() {
+  ScopedWriteLock lock(&triggers_are_active_while_has_readers_);
+}
+
 void Chunk::bulkInsertLocked(const CRTable::NonConstRevisionMap& items,
                              const LogicalTime& time) {
   std::vector<proto::PatchRequest> insert_requests;
@@ -869,11 +873,14 @@ void Chunk::handleUnlockRequest(const PeerId& locker, Message* response) {
   if (!triggers_.empty()) {
     // Must copy because of
     // http://stackoverflow.com/questions/7895879 .
+    // These members are passed by copy because triggers_, trigger_insertions_
+    // and trigger_updates_ are volatile.
     std::vector<TriggerCallback> triggers(triggers_);
     std::unordered_set<common::Id> trigger_insertions(trigger_insertions_),
         trigger_updates(trigger_updates_);
     std::thread trigger_thread(
-        [triggers, trigger_insertions, trigger_updates]() {
+        [this, triggers, trigger_insertions, trigger_updates]() {
+          ScopedReadLock lock(&triggers_are_active_while_has_readers_);
           for (const TriggerCallback& trigger : triggers) {
             trigger(trigger_insertions, trigger_updates);
           }

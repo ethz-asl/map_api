@@ -67,6 +67,10 @@ class NetTable {
   // then use Transaction::overrideTrackerIdentificationMethod() to set the
   // method to obtain the tracker for a given item.
   void pushNewChunkIdsToTracker(NetTable* table_of_tracking_item);
+  // Attaches trigger involving fetchTrackedChunks() to updates of given item.
+  // TODO(tcies) batch these for all followed items of the chunk?
+  template <typename IdType>
+  void followTrackedChunksOfItem(const IdType& item, Chunk* tracker_chunk);
 
   // SPATIAL INDEX CHUNK MANAGEMENT
   void registerChunkInSpace(const common::Id& chunk_id,

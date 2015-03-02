@@ -49,9 +49,8 @@ class Revision;
  */
 class Chunk {
   friend class ChunkTransaction;
-  typedef std::function<void(const std::unordered_set<common::Id>& insertions,
-                             const std::unordered_set<common::Id>& updates)>
-      TriggerCallback;
+  typedef std::function<void(const common::IdSet& insertions,
+                             const common::IdSet& updates)> TriggerCallback;
 
  public:
   bool init(const common::Id& id, CRTable* underlying_table, bool initialize);
@@ -102,6 +101,7 @@ class Chunk {
    * Returns position of attached trigger in trigger vector.
    */
   size_t attachTrigger(const TriggerCallback& callback);
+  void waitForTriggerCompletion();
 
   inline LogicalTime getLatestCommitTime();
 
@@ -229,6 +229,7 @@ class Chunk {
       void(const std::unordered_set<common::Id>& insertions,
            const std::unordered_set<common::Id>& updates)>> triggers_;
   std::mutex trigger_mutex_;
+  ReaderWriterMutex triggers_are_active_while_has_readers_;
   std::unordered_set<common::Id> trigger_insertions_, trigger_updates_;
   std::mutex add_peer_mutex_;
   ReaderWriterMutex leave_lock_;
