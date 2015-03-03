@@ -36,3 +36,4 @@ CATKIN_IGNORE
 
 *.mat
 *.csv
+*.asv
