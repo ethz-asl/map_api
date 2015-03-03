@@ -2,6 +2,7 @@
 #include <fstream>  // NOLINT
 #include <unordered_set>
 
+#include <multiagent-mapping-common/backtrace.h>
 #include <multiagent-mapping-common/conversions.h>
 #include <timing/timer.h>
 
@@ -22,6 +23,7 @@ DEFINE_uint64(unlock_strategy, 2,
               "lock ordering, 2: randomized");
 DEFINE_bool(writelock_persist, true,
             "Enables more persisting write lock strategy");
+DEFINE_bool(blame_trigger, false, "Print backtrace for trigger insertion.");
 
 namespace map_api {
 
@@ -203,6 +205,9 @@ void Chunk::enableLockLogging() {
 }
 
 void Chunk::leave() {
+  std::lock_guard<std::mutex> lock(trigger_mutex_);
+  triggers_.clear();
+  waitForTriggerCompletion();
   Message request;
   proto::ChunkRequestMetadata metadata;
   fillMetadata(&metadata);
@@ -218,6 +223,18 @@ void Chunk::leave() {
   distributedUnlock();  // i.e. must be able to handle unlocks from outside
   // the swarm. Should this pose problems in the future, we could tie unlocking
   // to leaving.
+}
+
+void Chunk::triggerWrapper(const std::unordered_set<common::Id> insertions,
+                           const std::unordered_set<common::Id> updates) {
+  std::lock_guard<std::mutex> trigger_lock(trigger_mutex_);
+  VLOG(3) << triggers_.size() << " triggers called in chunk" << id();
+  ScopedReadLock lock(&triggers_are_active_while_has_readers_);
+  for (const TriggerCallback& trigger : triggers_) {
+    CHECK(trigger);
+    trigger(insertions, updates);
+  }
+  VLOG(3) << "Triggers done.";
 }
 
 void Chunk::writeLock() { distributedWriteLock(); }
@@ -277,10 +294,19 @@ void Chunk::update(const std::shared_ptr<Revision>& item) {
   distributedUnlock();
 }
 
-size_t Chunk::attachTrigger(const std::function<
-    void(const std::unordered_set<common::Id>& insertions,
-         const std::unordered_set<common::Id>& updates)>& callback) {
+size_t Chunk::attachTrigger(const std::function<void(
+    const common::IdSet& insertions, const common::IdSet& updates)>& callback) {
   std::lock_guard<std::mutex> lock(trigger_mutex_);
+  CHECK(callback);
+  if (FLAGS_blame_trigger) {
+    int status;
+    // A yellow line catches the eye better with consecutive attachments.
+    LOG(WARNING) << "Trigger of type "
+                 << abi::__cxa_demangle(callback.target_type().name(), NULL,
+                                        NULL, &status) << " for chunk " << id()
+                 << " attached from:";
+    LOG(INFO) << "\n" << common::backtrace();
+  }
   triggers_.push_back(callback);
   return triggers_.size() - 1u;
 }
@@ -873,18 +899,11 @@ void Chunk::handleUnlockRequest(const PeerId& locker, Message* response) {
   if (!triggers_.empty()) {
     // Must copy because of
     // http://stackoverflow.com/questions/7895879 .
-    // These members are passed by copy because triggers_, trigger_insertions_
-    // and trigger_updates_ are volatile.
-    std::vector<TriggerCallback> triggers(triggers_);
-    std::unordered_set<common::Id> trigger_insertions(trigger_insertions_),
-        trigger_updates(trigger_updates_);
+    // "trigger_insertions_" and "trigger_updates_" are volatile.
     std::thread trigger_thread(
-        [this, triggers, trigger_insertions, trigger_updates]() {
-          ScopedReadLock lock(&triggers_are_active_while_has_readers_);
-          for (const TriggerCallback& trigger : triggers) {
-            trigger(trigger_insertions, trigger_updates);
-          }
-        });
+        &Chunk::triggerWrapper, this,
+        std::move(std::unordered_set<common::Id>(trigger_insertions_)),
+        std::move(std::unordered_set<common::Id>(trigger_updates_)));
     trigger_thread.detach();
   }
 }

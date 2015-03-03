@@ -1,6 +1,7 @@
 #include <map-api/net-table.h>
 #include <glog/logging.h>
 
+#include <multiagent-mapping-common/backtrace.h>
 #include <statistics/statistics.h>
 #include <timing/timer.h>
 
@@ -104,12 +105,7 @@ Chunk* NetTable::newChunk() {
 Chunk* NetTable::newChunk(const common::Id& chunk_id) {
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
   CHECK(chunk->init(chunk_id, cache_.get(), true));
-  if (trigger_to_attach_on_chunk_acquisition_) {
-    auto trigger =
-        std::bind(trigger_to_attach_on_chunk_acquisition_,
-                  std::placeholders::_1, std::placeholders::_2, chunk.get());
-    chunk->attachTrigger(trigger);
-  }
+  attachTriggers(chunk.get());
   active_chunks_lock_.acquireWriteLock();
   std::pair<ChunkMap::iterator, bool> inserted =
       active_chunks_.insert(std::make_pair(chunk_id, std::unique_ptr<Chunk>()));
@@ -201,27 +197,18 @@ void NetTable::followTrackedChunksOfItem(const common::Id& item_id,
 }
 
 void NetTable::autoFollowTrackedChunks() {
+  VLOG(3) << "Auto-following " << name();
   // First make sure that all new items will be followed.
-  TriggerCallbackWithChunkPointer fetch_all_callback = [this](
+  attachTriggerOnChunkAcquisition([this](
       const common::IdSet& insertions, const common::IdSet& updates,
-      Chunk* chunk) {
-    common::IdSet changes(insertions.begin(), insertions.end());
-    changes.insert(updates.begin(), updates.end());
-    for (const common::Id& item_id : changes) {
-      Transaction transaction;
-      std::shared_ptr<const Revision> revision =
-          transaction.getById(item_id, this, chunk);
-      revision->fetchTrackedChunks();
-    }
-  };
-  attachTriggerOnChunkAcquisition(fetch_all_callback);
+      Chunk* chunk) { fetchAllCallback(insertions, updates, chunk); });
   // Attach the trigger on all existing chunks.
   ScopedReadLock lock(&active_chunks_lock_);
   for (const ChunkMap::value_type& id_chunk : active_chunks_) {
     Chunk* chunk = id_chunk.second.get();
-    chunk->attachTrigger([chunk, fetch_all_callback](
-        const common::IdSet& insertions, const common::IdSet& updates) {
-      fetch_all_callback(insertions, updates, chunk);
+    chunk->attachTrigger([chunk, this](const common::IdSet& insertions,
+                                       const common::IdSet& updates) {
+      fetchAllCallback(insertions, updates, chunk);
     });
   }
   // Fetch all tracked chunks for existing items.
@@ -283,7 +270,8 @@ void NetTable::getChunksInBoundingBox(
 void NetTable::attachTriggerOnChunkAcquisition(
     const TriggerCallbackWithChunkPointer& callback) {
   active_chunks_lock_.acquireReadLock();
-  trigger_to_attach_on_chunk_acquisition_ = callback;
+  std::lock_guard<std::mutex> lock(m_triggers_to_attach_);
+  triggers_to_attach_on_chunk_acquisition_.push_back(callback);
   active_chunks_lock_.releaseReadLock();
 }
 
@@ -545,12 +533,7 @@ void NetTable::handleInitRequest(
   common::Id chunk_id(request.metadata().chunk_id());
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
   CHECK(chunk->init(chunk_id, request, sender, cache_.get()));
-  if (trigger_to_attach_on_chunk_acquisition_) {
-    auto trigger =
-        std::bind(trigger_to_attach_on_chunk_acquisition_,
-                  std::placeholders::_1, std::placeholders::_2, chunk.get());
-    chunk->attachTrigger(trigger);
-  }
+  attachTriggers(chunk.get());
   active_chunks_lock_.acquireWriteLock();
   std::pair<ChunkMap::iterator, bool> inserted =
       active_chunks_.insert(std::make_pair(chunk_id, std::unique_ptr<Chunk>()));
@@ -652,6 +635,33 @@ bool NetTable::routingBasics(
     return false;
   }
   return true;
+}
+
+void NetTable::attachTriggers(Chunk* chunk) {
+  CHECK_NOTNULL(chunk);
+  std::lock_guard<std::mutex> lock(m_triggers_to_attach_);
+  if (!triggers_to_attach_on_chunk_acquisition_.empty()) {
+    for (const TriggerCallbackWithChunkPointer& trigger :
+         triggers_to_attach_on_chunk_acquisition_) {
+      chunk->attachTrigger([trigger, chunk](const common::IdSet& insertions,
+                                            const common::IdSet& updates) {
+        trigger(insertions, updates, chunk);
+      });
+    }
+  }
+}
+
+void NetTable::fetchAllCallback(const common::IdSet& insertions,
+                                const common::IdSet& updates, Chunk* chunk) {
+  VLOG(3) << "Fetch callback called!";
+  common::IdSet changes(insertions.begin(), insertions.end());
+  changes.insert(updates.begin(), updates.end());
+  for (const common::Id& item_id : changes) {
+    Transaction transaction;
+    std::shared_ptr<const Revision> revision =
+        transaction.getById(item_id, this, chunk);
+    revision->fetchTrackedChunks();
+  }
 }
 
 }  // namespace map_api

@@ -198,6 +198,9 @@ class Chunk {
 
   void leave();  // May only be used by NetTable.
 
+  void triggerWrapper(const std::unordered_set<common::Id> insertions,
+                      const std::unordered_set<common::Id> updates);
+
   /**
    * ====================================================================
    * Handlers for ChunkManager requests that are addressed at this Chunk.

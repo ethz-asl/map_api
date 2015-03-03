@@ -221,6 +221,12 @@ class NetTable {
   template <typename TrackeeType, typename TrackerType, typename TrackerIdType>
   std::function<common::Id(const Revision&)> trackerDeterminerFactory();
 
+  void attachTriggers(Chunk* chunk);
+
+  // Complements autoFollowTrackedChunks.
+  void fetchAllCallback(const common::IdSet& insertions,
+                        const common::IdSet& updates, Chunk* chunk);
+
   CRTable::Type type_;
   std::unique_ptr<CRTable> cache_;
   ChunkMap active_chunks_;
@@ -231,7 +237,10 @@ class NetTable {
   std::unique_ptr<SpatialIndex> spatial_index_;
   ReaderWriterMutex index_lock_;
 
-  TriggerCallbackWithChunkPointer trigger_to_attach_on_chunk_acquisition_;
+  std::vector<TriggerCallbackWithChunkPointer>
+      triggers_to_attach_on_chunk_acquisition_;
+  std::mutex m_triggers_to_attach_;
+
   std::mutex m_new_chunk_listeners_;
   PeerIdSet new_chunk_listeners_;
 
