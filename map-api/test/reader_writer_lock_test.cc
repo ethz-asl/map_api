@@ -25,6 +25,43 @@ TEST_F(ReaderWriterMutexFixture, ReaderWriterLock) {
   }
   EXPECT_EQ(0, value() % kMagicNumber);
 }
+void delayedReader(int* value, int* num_writes,
+                   map_api::ReaderWriterMutex* value_mutex,
+                   map_api::ReaderWriterMutex* num_writes_mutex) {
+  CHECK_NOTNULL(value);
+  CHECK_NOTNULL(value_mutex);
+  CHECK_NOTNULL(num_writes);
+  CHECK_NOTNULL(num_writes_mutex);
+  for (int i = 0; i < 1000; ++i) {
+    value_mutex->acquireReadLock();
+    usleep(5);
+    num_writes_mutex->acquireReadLock();
+    EXPECT_EQ(*value, (*num_writes) * kMagicNumber);
+    num_writes_mutex->releaseReadLock();
+    value_mutex->releaseReadLock();
+  }
+}
+void readerUpgrade(int* value, int* num_writes,
+                   map_api::ReaderWriterMutex* value_mutex,
+                   map_api::ReaderWriterMutex* num_writes_mutex) {
+  CHECK_NOTNULL(value);
+  CHECK_NOTNULL(value_mutex);
+  CHECK_NOTNULL(num_writes);
+  CHECK_NOTNULL(num_writes_mutex);
+  for (int i = 0; i < 1000; ++i) {
+    value_mutex->acquireReadLock();
+    EXPECT_EQ(0, *value % kMagicNumber);
+    int read_value = *value;
+    usleep(5);
+    if (value_mutex->upgradeToWriteLock()) {
+      *value = read_value + kMagicNumber;
+      num_writes_mutex->acquireWriteLock();
+      ++(*num_writes);
+      num_writes_mutex->releaseWriteLock();
+      value_mutex->releaseWriteLock();
+    }
+  }
+}
 
 TEST_F(ReaderWriterMutexFixture, UpgradeReaderLock) {
   std::vector<std::thread> threads;
