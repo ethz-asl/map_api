@@ -205,9 +205,13 @@ void Chunk::enableLockLogging() {
 }
 
 void Chunk::leave() {
-  std::lock_guard<std::mutex> lock(trigger_mutex_);
+  std::unique_lock<std::mutex> lock(trigger_mutex_);
   triggers_.clear();
   waitForTriggerCompletion();
+  // Need to unlock, otherwise we could get into deadlocks, as
+  // distributedUnlock() below calls triggers on other peers.
+  lock.unlock();
+
   Message request;
   proto::ChunkRequestMetadata metadata;
   fillMetadata(&metadata);
@@ -619,7 +623,7 @@ void Chunk::distributedUnlock() {
               }
               Hub::instance().request(*rit, &request, &response);
               CHECK(response.isType<Message::kAck>());
-              VLOG(3) << PeerId::self() << " released lock from " << *rit;
+              VLOG(4) << PeerId::self() << " released lock from " << *rit;
             }
             break;
           }
@@ -633,7 +637,7 @@ void Chunk::distributedUnlock() {
               }
               Hub::instance().request(peer, &request, &response);
               CHECK(response.isType<Message::kAck>());
-              VLOG(3) << PeerId::self() << " released lock from " << peer;
+              VLOG(4) << PeerId::self() << " released lock from " << peer;
             }
             break;
           }
@@ -646,7 +650,7 @@ void Chunk::distributedUnlock() {
             for (const PeerId& peer : mixed_peers) {
               Hub::instance().request(peer, &request, &response);
               CHECK(response.isType<Message::kAck>());
-              VLOG(3) << PeerId::self() << " released lock from " << peer;
+              VLOG(4) << PeerId::self() << " released lock from " << peer;
             }
             break;
           }
