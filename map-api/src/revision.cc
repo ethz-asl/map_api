@@ -14,6 +14,10 @@ Revision::Revision(const std::shared_ptr<proto::Revision>& revision)
 Revision::Revision(const Revision& other)
     : underlying_revision_(new proto::Revision(*other.underlying_revision_)) {}
 
+std::shared_ptr<Revision> Revision::copyForWrite() const {
+  return std::make_shared<Revision>(*this);
+}
+
 void Revision::addField(int index, proto::Type type) {
   CHECK_EQ(underlying_revision_->custom_field_values_size(), index)
       << "Custom fields must be added in-order!";

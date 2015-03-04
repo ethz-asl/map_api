@@ -261,17 +261,20 @@ int Chunk::requestParticipation(const PeerId& peer) {
   if (!Hub::instance().hasPeer(peer)) {
     return 0;
   }
-  int new_participant_count = 0;
+  int participant_count = 0;
   distributedWriteLock();
   std::set<PeerId> hub_peers;
   Hub::instance().getPeers(&hub_peers);
   if (peers_.peers().find(peer) == peers_.peers().end()) {
     if (addPeer(peer)) {
-      ++new_participant_count;
+      ++participant_count;
     }
+  } else {
+    VLOG(3) << "Peer " << peer << " already in swarm!";
+    ++participant_count;
   }
   distributedUnlock();
-  return new_participant_count;
+  return participant_count;
 }
 
 void Chunk::update(const std::shared_ptr<Revision>& item) {
@@ -392,6 +395,7 @@ bool Chunk::addPeer(const PeerId& peer) {
   prepareInitRequest(&request);
   timing::Timer timer("init_request");
   if (!Hub::instance().ackRequest(peer, &request)) {
+    LOG(WARNING) << peer << " did not accept init request!";
     timer.Stop();
     return false;
   }

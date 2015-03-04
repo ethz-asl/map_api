@@ -175,6 +175,9 @@ class NetTable {
   void handleRoutedSpatialChordRequests(const Message& request,
                                         Message* response);
 
+  void handleAnnounceToListeners(const PeerId& announcer, Message* response);
+  static const char kAnnounceToListeners[];
+
  private:
   NetTable();
   NetTable(const NetTable&) = delete;
@@ -182,6 +185,7 @@ class NetTable {
 
   bool init(CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor);
 
+  // Interface for NetTableManager:
   void createIndex();
   void joinIndex(const PeerId& entry_point);
   void createSpatialIndex(const SpatialIndex::BoundingBox& bounds,
@@ -189,6 +193,7 @@ class NetTable {
   void joinSpatialIndex(const SpatialIndex::BoundingBox& bounds,
                         const std::vector<size_t>& subdivision,
                         const PeerId& entry_point);
+  void announceToListeners(const PeerIdList& listeners);
 
   bool insert(const LogicalTime& time, Chunk* chunk,
               const std::shared_ptr<Revision>& query);

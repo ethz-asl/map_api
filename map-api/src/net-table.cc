@@ -21,10 +21,11 @@ namespace map_api {
 const std::string NetTable::kChunkIdField = "chunk_id";
 
 const char NetTable::kPushNewChunksRequest[] = "map_api_net_table_push_new";
+const char NetTable::kAnnounceToListeners[] =
+    "map_api_net_table_announce_to_listeners";
 
-// TODO(tcies) introduce net-table request metadata proto?
-MAP_API_PROTO_MESSAGE(NetTable::kPushNewChunksRequest,
-                      proto::ChunkRequestMetadata);
+MAP_API_STRING_MESSAGE(NetTable::kPushNewChunksRequest);
+MAP_API_STRING_MESSAGE(NetTable::kAnnounceToListeners);
 
 NetTable::NetTable() : type_(CRTable::Type::CR) {}
 
@@ -84,6 +85,23 @@ void NetTable::joinSpatialIndex(const SpatialIndex::BoundingBox& bounds,
   spatial_index_.reset(new SpatialIndex(name(), bounds, subdivision));
   spatial_index_->join(entry_point);
   index_lock_.releaseWriteLock();
+}
+
+void NetTable::announceToListeners(const PeerIdList& listeners) {
+  for (const PeerId& peer : listeners) {
+    Message request, response;
+    request.impose<kAnnounceToListeners>(cache_->name());
+    if (!Hub::instance().hasPeer(peer)) {
+      LOG(ERROR) << "Host " << peer << " not among peers!";
+      continue;
+    }
+    if (!Hub::instance().try_request(peer, &request, &response)) {
+      // TODO(tcies) weed out unreachable peers.
+      LOG(WARNING) << "Listener " << peer << " not reachable (any more?)!";
+      continue;
+    }
+    CHECK(response.isOk());
+  }
 }
 
 const std::string& NetTable::name() const {
@@ -277,16 +295,13 @@ void NetTable::attachTriggerOnChunkAcquisition(
 
 bool NetTable::listenToChunksFromPeer(const PeerId& peer) const {
   Message request, response;
-  proto::ChunkRequestMetadata metadata;
-  metadata.set_table(cache_->name());
-  common::Id().serialize(metadata.mutable_chunk_id());
-  request.impose<NetTable::kPushNewChunksRequest>(metadata);
+  request.impose<NetTable::kPushNewChunksRequest>(cache_->name());
   if (!Hub::instance().hasPeer(peer)) {
     LOG(ERROR) << "Peer with address " << peer << " not among peers!";
     return false;
   }
   Hub::instance().request(peer, &request, &response);
-  if (!response.isType<Message::kAck>()) {
+  if (!response.isOk()) {
     LOG(ERROR) << "Peer " << peer << " refused to share chunks!";
     return false;
   }
@@ -618,6 +633,13 @@ void NetTable::handleRoutedSpatialChordRequests(const Message& request,
   CHECK_NOTNULL(spatial_index_.get());
   spatial_index_->handleRoutedRequest(request, response);
   index_lock_.releaseReadLock();
+}
+
+void NetTable::handleAnnounceToListeners(const PeerId& announcer,
+                                         Message* response) {
+  // Never call an RPC in an RPC handler.
+  std::thread(&NetTable::listenToChunksFromPeer, this, announcer).detach();
+  response->ack();
 }
 
 bool NetTable::routingBasics(
