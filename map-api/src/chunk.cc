@@ -402,7 +402,6 @@ bool Chunk::addPeer(const PeerId& peer) {
   timing::Timer timer("init_request");
   if (!Hub::instance().ackRequest(peer, &request)) {
     LOG(WARNING) << peer << " did not accept init request!";
-    timer.Stop();
     return false;
   }
   timer.Stop();
