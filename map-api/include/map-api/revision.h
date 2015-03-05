@@ -46,8 +46,10 @@ class Revision {
 
   Revision& operator=(const Revision& other) = delete;
 
-  // TODO(tcies) private-ize above explicit constructors and expose this.
+  // Constructor and assignment replacements.
   std::shared_ptr<Revision> copyForWrite() const;
+  static std::shared_ptr<Revision>&& fromProto(
+      const std::unique_ptr<proto::Revision>&& revision_proto);
 
   template <typename FieldType>
   static proto::Type getProtobufTypeEnum();
@@ -144,7 +146,7 @@ class Revision {
   bool fetchTrackedChunks() const;
 
  private:
-  explicit Revision(const std::shared_ptr<proto::Revision>& revision);
+  Revision() = default;
 
   inline void setInsertTime(const LogicalTime& time) {
     underlying_revision_->set_insert_time(time.serialize());
@@ -165,7 +167,7 @@ class Revision {
   template <typename FieldType>
   bool get(const proto::TableField& field, FieldType* value) const;
 
-  std::shared_ptr<proto::Revision> underlying_revision_;
+  std::unique_ptr<proto::Revision> underlying_revision_;
 };
 
 /**
