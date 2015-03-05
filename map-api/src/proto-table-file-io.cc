@@ -194,8 +194,8 @@ bool ProtoTableFileIO::restoreTableContents(
     }
 
     std::shared_ptr<proto::Revision> proto_revision(new proto::Revision);
+    proto_revision->ParsePartialFromString(input_string);
     std::shared_ptr<Revision> revision(new Revision(proto_revision));
-    revision->parse(input_string);
 
     common::Id chunk_id = revision->getChunkId();
     Chunk* chunk = nullptr;

@@ -15,20 +15,35 @@
 namespace map_api {
 class TrackeeMultimap;
 
+// Friending parametrized templated test cases seems to miss from gtest_prod.h.
+namespace gtest_case_ProtoSTLStream_ {
+template <typename gtest_TypeParam_>
+class ProtoAutoSerializationWorks;
+template <typename gtest_TypeParam_>
+class ProtoManualSerializationWorks;
+}  // gtest_case_ProtoSTLStream_
+
 class Revision {
   friend class Chunk;
   friend class CRTable;
   friend class CRTableRamMap;
   friend class CRUTable;
+  friend class NetTableManager;
+  friend class ProtoTableFileIO;
   template<int BlockSize>
   friend class STXXLRevisionStore;
   friend class Transaction;
 
+  // Friending parametrized templated test cases seems to miss from
+  // gtest_prod.h.
+  template <typename gtest_TypeParam_>
+  friend class gtest_case_ProtoSTLStream_::ProtoAutoSerializationWorks;
+  template <typename gtest_TypeParam_>
+  friend class gtest_case_ProtoSTLStream_::ProtoManualSerializationWorks;
+
  public:
   typedef std::vector<char> Blob;
 
-  explicit Revision(const std::shared_ptr<proto::Revision>& revision);
-  explicit Revision(const Revision& other);
   Revision& operator=(const Revision& other) = delete;
 
   // TODO(tcies) private-ize above explicit constructors and expose this.
@@ -116,10 +131,6 @@ class Revision {
 
   inline int byteSize() const { return underlying_revision_->ByteSize(); }
 
-  inline bool parse(const std::string& origin) {
-    return underlying_revision_->ParseFromString(origin);
-  }
-
   inline int customFieldCount() const {
     return underlying_revision_->custom_field_values_size();
   }
@@ -133,6 +144,8 @@ class Revision {
   bool fetchTrackedChunks() const;
 
  private:
+  explicit Revision(const std::shared_ptr<proto::Revision>& revision);
+
   inline void setInsertTime(const LogicalTime& time) {
     underlying_revision_->set_insert_time(time.serialize());
   }

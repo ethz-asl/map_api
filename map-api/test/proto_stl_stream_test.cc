@@ -399,8 +399,8 @@ TYPED_TEST_P(ProtoSTLStream, ProtoManualSerializationWorks) {
   ASSERT_TRUE(coded_in.ReadString(&input_string, msg_size_in));
 
   std::shared_ptr<proto::Revision> proto_in(new proto::Revision);
+  proto_in->ParseFromString(input_string);
   std::shared_ptr<Revision> revision_in(new Revision(proto_in));
-  revision_in->parse(input_string);
 
   EXPECT_TRUE(*revision_in == *revision_out);
 }
