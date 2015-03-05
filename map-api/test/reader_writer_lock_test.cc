@@ -3,9 +3,6 @@
 
 #include "map-api/reader-writer-lock.h"
 #include "map-api/test/testing-entrypoint.h"
-#include <iostream>
-
-const int logd = 0;
 
 int kMagicNumber = 29845;
 
