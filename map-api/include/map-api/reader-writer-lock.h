@@ -73,7 +73,7 @@ class ReaderWriterMutex {
       return false;
     }
     pending_upgrade_ = true;
-    while (num_readers_ > (pending_upgrade_ ? 1 : 0)) {
+    while (num_readers_ > 1) {
       cv_readers.wait(lock);
     }
     pending_upgrade_ = false;
