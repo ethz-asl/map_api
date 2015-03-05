@@ -31,6 +31,9 @@ class Revision {
   explicit Revision(const Revision& other);
   Revision& operator=(const Revision& other) = delete;
 
+  // TODO(tcies) private-ize above explicit constructors and expose this.
+  std::shared_ptr<Revision> copyForWrite() const;
+
   template <typename FieldType>
   static proto::Type getProtobufTypeEnum();
 

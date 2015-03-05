@@ -23,7 +23,9 @@ DEFINE_uint64(unlock_strategy, 2,
               "lock ordering, 2: randomized");
 DEFINE_bool(writelock_persist, true,
             "Enables more persisting write lock strategy");
-DEFINE_bool(blame_trigger, false, "Print backtrace for trigger insertion.");
+DEFINE_bool(blame_trigger, false,
+            "Print backtrace for trigger insertion and"
+            " invocation.");
 
 namespace map_api {
 
@@ -265,17 +267,20 @@ int Chunk::requestParticipation(const PeerId& peer) {
   if (!Hub::instance().hasPeer(peer)) {
     return 0;
   }
-  int new_participant_count = 0;
+  int participant_count = 0;
   distributedWriteLock();
   std::set<PeerId> hub_peers;
   Hub::instance().getPeers(&hub_peers);
   if (peers_.peers().find(peer) == peers_.peers().end()) {
     if (addPeer(peer)) {
-      ++new_participant_count;
+      ++participant_count;
     }
+  } else {
+    VLOG(3) << "Peer " << peer << " already in swarm!";
+    ++participant_count;
   }
   distributedUnlock();
-  return new_participant_count;
+  return participant_count;
 }
 
 void Chunk::update(const std::shared_ptr<Revision>& item) {
@@ -396,7 +401,7 @@ bool Chunk::addPeer(const PeerId& peer) {
   prepareInitRequest(&request);
   timing::Timer timer("init_request");
   if (!Hub::instance().ackRequest(peer, &request)) {
-    timer.Stop();
+    LOG(WARNING) << peer << " did not accept init request!";
     return false;
   }
   timer.Stop();
@@ -576,10 +581,11 @@ void Chunk::distributedWriteLock() {
 void Chunk::distributedUnlock() {
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   switch (lock_.state) {
-    case DistributedRWLock::State::UNLOCKED:
+    case DistributedRWLock::State::UNLOCKED: {
       LOG(FATAL) << "Attempted to unlock already unlocked lock";
       break;
-    case DistributedRWLock::State::READ_LOCKED:
+    }
+    case DistributedRWLock::State::READ_LOCKED: {
       if (!--lock_.n_readers) {
         lock_.state = DistributedRWLock::State::UNLOCKED;
         metalock.unlock();
@@ -590,10 +596,12 @@ void Chunk::distributedUnlock() {
         return;
       }
       break;
-    case DistributedRWLock::State::ATTEMPTING:
+    }
+    case DistributedRWLock::State::ATTEMPTING: {
       LOG(FATAL) << "Can't abort lock request";
       break;
-    case DistributedRWLock::State::WRITE_LOCKED:
+    }
+    case DistributedRWLock::State::WRITE_LOCKED: {
       CHECK(lock_.holder == PeerId::self());
       CHECK(lock_.thread == std::this_thread::get_id());
       --lock_.write_recursion_depth;
@@ -610,6 +618,10 @@ void Chunk::distributedUnlock() {
       if (peers_.empty()) {
         lock_.state = DistributedRWLock::State::UNLOCKED;
       } else {
+        if (FLAGS_blame_trigger) {
+          LOG(WARNING) << "Unlock from here may cause triggers for " << id();
+          LOG(INFO) << common::backtrace();
+        }
         bool self_unlocked = false;
         // NB peers can only change if someone else has locked the chunk
         const std::set<PeerId>& peers = peers_.peers();
@@ -666,6 +678,7 @@ void Chunk::distributedUnlock() {
         startState(UNLOCKED);
       }
       return;
+    }
   }
   metalock.unlock();
 }
