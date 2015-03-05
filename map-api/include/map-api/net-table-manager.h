@@ -42,6 +42,24 @@ class NetTableManager {
 
   void kill();
 
+  typedef std::unordered_map<std::string, std::unique_ptr<NetTable> > TableMap;
+  // Need custom iterator to skip metatable, which is not supposed to be part of
+  // the iteration.
+  class iterator {
+   public:
+    iterator(const TableMap::iterator& base, const TableMap& map);
+    iterator& operator++();
+    NetTable* operator*();
+    bool operator!=(const iterator& other) const;
+
+   private:
+    TableMap::iterator base_;
+    const TableMap::const_iterator metatable_;
+  };
+  // Not thread-safe, assumes table initialization has happened before.
+  inline iterator begin() { return iterator(tables_.begin(), tables_); }
+  inline iterator end() { return iterator(tables_.end(), tables_); }
+
   /**
    * ==========================
    * REQUEST HANDLERS AND TYPES
@@ -82,9 +100,6 @@ class NetTableManager {
       CRTable::Type type, const TableDescriptor& descriptor, bool* first,
       PeerId* entry_point);
 
-  typedef std::unordered_map<std::string, std::unique_ptr<NetTable> >
-  TableMap;
-
   template <const char* RequestType>
   static bool getTableForMetadataRequestOrDecline(const Message& request,
                                                   Message* response,
@@ -108,6 +123,8 @@ class NetTableManager {
 
   TableMap tables_;
   ReaderWriterMutex tables_lock_;
+
+  NetTable* metatable_;
 };
 
 }  // namespace map_api
