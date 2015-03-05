@@ -19,17 +19,12 @@ class TrackeeMultimap;
 namespace gtest_case_ProtoSTLStream_ {
 template <typename gtest_TypeParam_>
 class ProtoAutoSerializationWorks;
-template <typename gtest_TypeParam_>
-class ProtoManualSerializationWorks;
 }  // gtest_case_ProtoSTLStream_
 
 class Revision {
   friend class Chunk;
   friend class CRTable;
-  friend class CRTableRamMap;
   friend class CRUTable;
-  friend class NetTableManager;
-  friend class ProtoTableFileIO;
   template<int BlockSize>
   friend class STXXLRevisionStore;
   friend class Transaction;
@@ -38,8 +33,6 @@ class Revision {
   // gtest_prod.h.
   template <typename gtest_TypeParam_>
   friend class gtest_case_ProtoSTLStream_::ProtoAutoSerializationWorks;
-  template <typename gtest_TypeParam_>
-  friend class gtest_case_ProtoSTLStream_::ProtoManualSerializationWorks;
 
  public:
   typedef std::vector<char> Blob;
@@ -48,8 +41,11 @@ class Revision {
 
   // Constructor and assignment replacements.
   std::shared_ptr<Revision> copyForWrite() const;
-  static std::shared_ptr<Revision>&& fromProto(
-      const std::unique_ptr<proto::Revision>&& revision_proto);
+  // You need to use std::move() for the unique_ptr of the following.
+  static std::shared_ptr<Revision> fromProto(
+      std::unique_ptr<proto::Revision>&& revision_proto);
+  static std::shared_ptr<Revision> fromProtoString(
+      const std::string& revision_proto_string);
 
   template <typename FieldType>
   static proto::Type getProtobufTypeEnum();

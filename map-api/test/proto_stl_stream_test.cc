@@ -354,9 +354,8 @@ TYPED_TEST_P(ProtoSTLStream, InputStreamSkipWorks) {
 }
 
 TYPED_TEST_P(ProtoSTLStream, ProtoManualSerializationWorks) {
-  std::shared_ptr<proto::Revision> proto_out(new proto::Revision);
-  std::shared_ptr<map_api::Revision> revision_out =
-      std::shared_ptr<map_api::Revision>(new map_api::Revision(proto_out));
+  std::shared_ptr<map_api::Revision> revision_out = Revision::fromProto(
+      std::unique_ptr<proto::Revision>(new proto::Revision));
 
   revision_out->addField<std::string>(0);
   revision_out->addField<int>(1);
@@ -398,18 +397,16 @@ TYPED_TEST_P(ProtoSTLStream, ProtoManualSerializationWorks) {
   std::string input_string;
   ASSERT_TRUE(coded_in.ReadString(&input_string, msg_size_in));
 
-  std::shared_ptr<proto::Revision> proto_in(new proto::Revision);
-  proto_in->ParseFromString(input_string);
-  std::shared_ptr<Revision> revision_in(new Revision(proto_in));
+  std::shared_ptr<Revision> revision_in =
+      Revision::fromProtoString(input_string);
 
   EXPECT_TRUE(*revision_in == *revision_out);
 }
 
 
 TYPED_TEST_P(ProtoSTLStream, ProtoAutoSerializationWorks) {
-  std::shared_ptr<proto::Revision> proto_out(new proto::Revision);
-  std::shared_ptr<map_api::Revision> revision_out =
-      std::shared_ptr<map_api::Revision>(new map_api::Revision(proto_out));
+  std::shared_ptr<map_api::Revision> revision_out = Revision::fromProto(
+      std::unique_ptr<proto::Revision>(new proto::Revision));
 
   revision_out->addField<std::string>(0);
   revision_out->addField<int>(1);
@@ -426,22 +423,24 @@ TYPED_TEST_P(ProtoSTLStream, ProtoAutoSerializationWorks) {
       &this->pool_);
 
   MemoryBlockInformation block_information;
-  output_stream.WriteMessage(*proto_out, &block_information);
+  output_stream.WriteMessage(*revision_out->underlying_revision_,
+                             &block_information);
   EXPECT_EQ(block_information.block_index, 0);
   EXPECT_EQ(block_information.byte_offset, 0);
 
   EXPECT_EQ(output_stream.ByteCount(),
-            static_cast<int>(proto_out->ByteSize() + sizeof(google::int32)));
+            static_cast<int>(revision_out->underlying_revision_->ByteSize() +
+                             sizeof(google::int32)));
 
   // Read the data back in.
   STLContainerInputStream<TypeParam::value, ContainerType> input_stream(
       block_information.block_index, block_information.byte_offset,
       &this->pool_);
-  std::shared_ptr<proto::Revision> proto_in(new proto::Revision);
 
+  std::unique_ptr<proto::Revision> proto_in(new proto::Revision);
   input_stream.ReadMessage(proto_in.get());
-
-  std::shared_ptr<Revision> revision_in(new Revision(proto_in));
+  std::shared_ptr<Revision> revision_in =
+      Revision::fromProto(std::move(proto_in));
 
   EXPECT_TRUE(*revision_in == *revision_out);
 }

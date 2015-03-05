@@ -29,8 +29,8 @@ const std::string& CRTable::name() const {
 
 std::shared_ptr<Revision> CRTable::getTemplate() const {
   CHECK(isInitialized()) << "Can't get template of non-initialized table";
-  std::unique_ptr<proto::Revision> proto(new proto::Revision);
-  std::shared_ptr<Revision> ret = Revision::fromProto(std::move(proto));
+  std::shared_ptr<Revision> ret = Revision::fromProto(
+      std::unique_ptr<proto::Revision>(new proto::Revision));
   // add editable fields
   for (int i = 0; i < descriptor_->fields_size(); ++i) {
     ret->addField(i, descriptor_->fields(i));
@@ -96,7 +96,7 @@ void CRTable::dumpChunk(const common::Id& chunk_id, const LogicalTime& time,
 }
 
 void CRTable::findByRevision(int key, const Revision& valueHolder,
-                            const LogicalTime& time, RevisionMap* dest) const {
+                             const LogicalTime& time, RevisionMap* dest) const {
   std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized()) << "Attempted to find in non-initialized table";
   // whether valueHolder contains key is implicitly checked whenever using

@@ -208,7 +208,7 @@ TEST_P(NetTableFixture, RemoteUpdate) {
     table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(1u, results.size());
     std::shared_ptr<Revision> revision =
-        std::make_shared<Revision>(*results.begin()->second);
+        results.begin()->second->copyForWrite();
     revision->set(kFieldName, 21);
     EXPECT_TRUE(table_->update(revision));
 
@@ -255,7 +255,7 @@ TEST_P(NetTableFixture, Grind) {
       if (GetParam()) {
         table_->dumpActiveChunksAtCurrentTime(&results);
         std::shared_ptr<Revision> revision =
-            std::make_shared<Revision>(*results.begin()->second);
+            results.begin()->second->copyForWrite();
         revision->set(kFieldName, 21);
         EXPECT_TRUE(table_->update(revision));
       }
@@ -324,8 +324,7 @@ TEST_P(NetTableFixture, ChunkTransactions) {
             transaction.getById(item_id);
         to_update->get(kFieldName, &transient_value);
         ++transient_value;
-        std::shared_ptr<Revision> revision =
-            std::make_shared<Revision>(*to_update);
+        std::shared_ptr<Revision> revision = to_update->copyForWrite();
         revision->set(kFieldName, transient_value);
         transaction.update(revision);
       }
@@ -441,7 +440,7 @@ TEST_P(NetTableFixture, Triggers) {
     }
     Transaction transaction;
     std::shared_ptr<Revision> item =
-        std::make_shared<Revision>(*transaction.getById(id, table_, chunk_));
+        transaction.getById(id, table_, chunk_)->copyForWrite();
     item->get(kFieldName, &highest_value);
     if (highest_value < 10) {
       ++highest_value;
@@ -544,8 +543,8 @@ TEST_P(NetTableFixture, SendHistory) {
     if (GetParam()) {
       IPC::push(LogicalTime::sample());
       Transaction update_transaction;
-      std::shared_ptr<Revision> to_update = std::make_shared<Revision>(
-          *update_transaction.getById(item_id_, table_, chunk_));
+      std::shared_ptr<Revision> to_update =
+          update_transaction.getById(item_id_, table_, chunk_)->copyForWrite();
       to_update->set(kFieldName, kAfter);
       update_transaction.update(table_, to_update);
       CHECK(update_transaction.commit());
