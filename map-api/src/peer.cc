@@ -5,10 +5,11 @@
 #include <map-api/peer.h>
 #include <map-api/peer-id.h>
 
-DEFINE_int32(request_timeout, 5000, "Amount of miliseconds after which a "\
+DEFINE_int32(request_timeout, 10000,
+             "Amount of milliseconds after which a "
              "non-responsive peer is considered disconnected");
 DEFINE_int32(socket_linger_ms, 0,
-             "Amount of miliseconds for which a socket "
+             "Amount of milliseconds for which a socket "
              "waits for outgoing messages to process before closing.");
 DEFINE_int32(simulated_lag_ms, 0,
              "Duration in milliseconds of the simulated lag.");
