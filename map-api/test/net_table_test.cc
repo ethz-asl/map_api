@@ -294,6 +294,71 @@ TEST_P(NetTableFixture, ChunkLookup) {
   IPC::barrier(DIE, 1);
 }
 
+TEST_P(NetTableFixture, ListenToChunksFromPeer) {
+  if (GetParam()) {
+    return;  // Independent of whether CR or CRUD.
+  }
+  enum Processes {
+    MASTER,
+    SLAVE
+  };
+  enum Barriers {
+    ADDRESS_SHARED,
+    LISTENING,
+    CHUNKS_CREATED,
+    DIE
+  };
+  if (getSubprocessId() == MASTER) {
+    launchSubprocess(SLAVE);
+    IPC::barrier(ADDRESS_SHARED, 1);
+    PeerId peer = IPC::pop<PeerId>();
+    table_->listenToChunksFromPeer(peer);
+    IPC::barrier(LISTENING, 1);
+    IPC::barrier(CHUNKS_CREATED, 1);
+    usleep(50000);  // Should suffice for auto-fetching.
+    IPC::barrier(DIE, 1);
+    EXPECT_EQ(2u, table_->numActiveChunks());
+  }
+  if (getSubprocessId() == SLAVE) {
+    IPC::push(PeerId::self());
+    IPC::barrier(ADDRESS_SHARED, 1);
+    table_->newChunk();
+    IPC::barrier(LISTENING, 1);
+    table_->newChunk();
+    IPC::barrier(CHUNKS_CREATED, 1);
+    IPC::barrier(DIE, 1);
+  }
+}
+
+TEST_P(NetTableFixture, ListenToNewPeersOfTable) {
+  if (GetParam()) {
+    return;  // Independent of whether CR or CRUD.
+  }
+  enum Processes {
+    MASTER,
+    SLAVE
+  };
+  enum Barriers {
+    CHUNK_CREATED,
+    DIE
+  };
+  if (getSubprocessId() == MASTER) {
+    // Currently, it is only possible to listen to peers joining the table
+    // in the future.
+    NetTableManager::instance().listenToPeersJoiningTable(table_->name());
+    launchSubprocess(SLAVE);
+    IPC::barrier(CHUNK_CREATED, 1);
+    usleep(50000);  // Should suffice for auto-fetching.
+    IPC::barrier(DIE, 1);
+    EXPECT_EQ(1u, table_->numActiveChunks());
+  }
+  if (getSubprocessId() == SLAVE) {
+    table_->newChunk();
+    IPC::barrier(CHUNK_CREATED, 1);
+    IPC::barrier(DIE, 1);
+  }
+}
+
 class NetTableChunkTrackingTest : public NetTableFixture {
  protected:
   enum Processes {

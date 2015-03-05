@@ -175,6 +175,9 @@ class NetTable {
   void handleRoutedSpatialChordRequests(const Message& request,
                                         Message* response);
 
+  void handleAnnounceToListeners(const PeerId& announcer, Message* response);
+  static const char kAnnounceToListeners[];
+
  private:
   NetTable();
   NetTable(const NetTable&) = delete;
@@ -182,6 +185,7 @@ class NetTable {
 
   bool init(CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor);
 
+  // Interface for NetTableManager:
   void createIndex();
   void joinIndex(const PeerId& entry_point);
   void createSpatialIndex(const SpatialIndex::BoundingBox& bounds,
@@ -189,6 +193,7 @@ class NetTable {
   void joinSpatialIndex(const SpatialIndex::BoundingBox& bounds,
                         const std::vector<size_t>& subdivision,
                         const PeerId& entry_point);
+  void announceToListeners(const PeerIdList& listeners);
 
   bool insert(const LogicalTime& time, Chunk* chunk,
               const std::shared_ptr<Revision>& query);
@@ -221,6 +226,12 @@ class NetTable {
   template <typename TrackeeType, typename TrackerType, typename TrackerIdType>
   std::function<common::Id(const Revision&)> trackerDeterminerFactory();
 
+  void attachTriggers(Chunk* chunk);
+
+  // Complements autoFollowTrackedChunks.
+  void fetchAllCallback(const common::IdSet& insertions,
+                        const common::IdSet& updates, Chunk* chunk);
+
   CRTable::Type type_;
   std::unique_ptr<CRTable> cache_;
   ChunkMap active_chunks_;
@@ -231,7 +242,10 @@ class NetTable {
   std::unique_ptr<SpatialIndex> spatial_index_;
   ReaderWriterMutex index_lock_;
 
-  TriggerCallbackWithChunkPointer trigger_to_attach_on_chunk_acquisition_;
+  std::vector<TriggerCallbackWithChunkPointer>
+      triggers_to_attach_on_chunk_acquisition_;
+  std::mutex m_triggers_to_attach_;
+
   std::mutex m_new_chunk_listeners_;
   PeerIdSet new_chunk_listeners_;
 

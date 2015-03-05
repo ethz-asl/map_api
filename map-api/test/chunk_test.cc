@@ -292,9 +292,8 @@ TEST_P(NetTableFixture, ChunkTransactions) {
     IPC::barrier(DIE, kProcesses - 1);
     table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(kProcesses, results.size());
-    std::unordered_map<common::Id,
-        std::shared_ptr<const Revision> >::iterator found =
-        results.find(insert_id);
+    std::unordered_map<common::Id, std::shared_ptr<const Revision> >::iterator
+        found = results.find(insert_id);
     if (found != results.end()) {
       int final_value;
       found->second->get(kFieldName, &final_value);
@@ -394,6 +393,9 @@ TEST_P(NetTableFixture, ChunkTransactionsConflictConditions) {
 }
 
 TEST_P(NetTableFixture, Triggers) {
+  if (GetParam()) {
+    return;  // No need for CRUD.
+  }
   enum Processes {
     ROOT,
     A
@@ -402,6 +404,7 @@ TEST_P(NetTableFixture, Triggers) {
     INIT,
     ID_SHARED,
     TRIGGER_READY,
+    DONE,
     DIE
   };
   int highest_value;
@@ -455,9 +458,12 @@ TEST_P(NetTableFixture, Triggers) {
     }
                 }));
   EXPECT_EQ(1u, chunk_->attachTrigger([this, &trigger_counter](
-                    const std::unordered_set<common::Id>& /*insertions*/,
-                    const std::unordered_set<common::Id>& /*updates*/) {
-                  ++trigger_counter;
+                    const std::unordered_set<common::Id>& insertions,
+                    const std::unordered_set<common::Id>& updates) {
+                  // Ignore chunk management related unlocks.
+                  if (insertions.size() + updates.size() > 0u) {
+                    ++trigger_counter;
+                  }
                 }));
   IPC::barrier(TRIGGER_READY, 1);
   if (getSubprocessId() == ROOT) {
@@ -470,13 +476,19 @@ TEST_P(NetTableFixture, Triggers) {
     transaction.insert(table_, chunk_, item);
     CHECK(transaction.commit());
     usleep(5e5);  // should suffice for the triggers to do their magic
-    IPC::barrier(DIE, 1);
+    IPC::barrier(DONE, 1);
+    // These values must be verified before DIE in order to not catch the
+    // trigger from Chunk::leave() related unlocks.
     EXPECT_EQ(10, highest_value);
     EXPECT_EQ(5u, trigger_counter);
+    IPC::barrier(DIE, 1);
   }
   if (getSubprocessId() == A) {
-    IPC::barrier(DIE, 1);
+    IPC::barrier(DONE, 1);
+    // These values must be verified before DIE in order to not catch the
+    // trigger from Chunk::leave() related unlocks.
     EXPECT_EQ(6u, trigger_counter);
+    IPC::barrier(DIE, 1);
   }
 }
 
