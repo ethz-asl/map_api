@@ -22,6 +22,9 @@ constexpr char kMetaTableChunkHexString[] = "000000000000000000000003E1A1AB7E";
 
 const char NetTableManager::kMetaTableName[] = "map_api_metatable";
 
+NetTableManager::NetTableManager()
+    : metatable_chunk_(nullptr), metatable_(nullptr) {}
+
 template <>
 bool NetTableManager::getTableForRequestWithMetadataOrDecline<std::string>(
     const std::string& request, Message* response, TableMap::iterator* found) {
@@ -481,8 +484,8 @@ bool NetTableManager::syncTableDefinition(CRTable::Type type,
   std::shared_ptr<const Revision> previous = try_join.findUnique(
       static_cast<int>(kMetaTableNameField), descriptor.name());
   CHECK(previous) << "Can't find table " << descriptor.name()
-                  << " even though its presence seemingly caused a conflict";
-  // 2. Verify structure
+                  << " even though its presence seemingly caused a conflict.";
+  // 2. Verify structure.
   TableDescriptor previous_descriptor;
   previous->get(kMetaTableStructureField, &previous_descriptor);
   CHECK_EQ(descriptor.SerializeAsString(),
@@ -502,7 +505,7 @@ bool NetTableManager::syncTableDefinition(CRTable::Type type,
   // 3. Pick entry point peer.
   previous->get(kMetaTableParticipantsField, &peers);
   CHECK_EQ(1, peers.peers_size()) << "Current implementation assumes only "
-                                  << "one entry point peer per table";
+                                  << "one entry point peer per table.";
   *entry_point = PeerId(peers.peers(0));
   // 4. TODO(tcies) Register as peer.
 

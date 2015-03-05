@@ -95,7 +95,7 @@ class NetTableManager {
                                                Message* response);
 
  private:
-  NetTableManager() = default;
+  NetTableManager();
   NetTableManager(const NetTableManager&) = delete;
   NetTableManager& operator =(const NetTableManager&) = delete;
   ~NetTableManager() = default;
@@ -127,12 +127,12 @@ class NetTableManager {
   static bool findTable(const std::string& table_name,
                         TableMap::iterator* found);
 
-  Chunk* metatable_chunk_ = nullptr;
+  Chunk* metatable_chunk_;
 
   TableMap tables_;
   ReaderWriterMutex tables_lock_;
 
-  NetTable* metatable_ = nullptr;
+  NetTable* metatable_;
 };
 
 }  // namespace map_api
