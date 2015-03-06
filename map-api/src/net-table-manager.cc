@@ -323,9 +323,8 @@ void NetTableManager::handleInsertRequest(
   if (getTableForRequestWithMetadataOrDecline(patch_request, response,
                                               &found)) {
     common::Id chunk_id(patch_request.metadata().chunk_id());
-    std::shared_ptr<proto::Revision> parsed(new proto::Revision);
-    CHECK(parsed->ParseFromString(patch_request.serialized_revision()));
-    std::shared_ptr<Revision> to_insert = std::make_shared<Revision>(parsed);
+    std::shared_ptr<Revision> to_insert =
+        Revision::fromProtoString(patch_request.serialized_revision());
     found->second->handleInsertRequest(chunk_id, to_insert, response);
   }
 }
@@ -384,9 +383,8 @@ void NetTableManager::handleUpdateRequest(
   if (getTableForRequestWithMetadataOrDecline(patch_request, response,
                                               &found)) {
     common::Id chunk_id(patch_request.metadata().chunk_id());
-    std::shared_ptr<proto::Revision> parsed(new proto::Revision);
-    CHECK(parsed->ParseFromString(patch_request.serialized_revision()));
-    std::shared_ptr<Revision> to_insert = std::make_shared<Revision>(parsed);
+    std::shared_ptr<Revision> to_insert =
+        Revision::fromProtoString(patch_request.serialized_revision());
     PeerId sender(request.sender());
     found->second->handleUpdateRequest(chunk_id, to_insert, sender, response);
   }

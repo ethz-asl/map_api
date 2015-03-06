@@ -209,8 +209,7 @@ TEST_P(NetTableFixture, Transactions) {
         CRTable::RevisionMap chunk_dump =
             attempt.dumpChunk(second_table, b_chunk);
         CRTable::RevisionMap::iterator found = chunk_dump.find(b_id);
-        std::shared_ptr<Revision> to_update =
-            std::make_shared<Revision>(*found->second);
+        std::shared_ptr<Revision> to_update = found->second->copyForWrite();
         int transient_value;
         to_update->get(kSecondTableFieldName, &transient_value);
         ++transient_value;

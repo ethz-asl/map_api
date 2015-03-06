@@ -8,14 +8,25 @@
 
 namespace map_api {
 
-Revision::Revision(const std::shared_ptr<proto::Revision>& revision)
-    : underlying_revision_(revision) {}
-
-Revision::Revision(const Revision& other)
-    : underlying_revision_(new proto::Revision(*other.underlying_revision_)) {}
-
 std::shared_ptr<Revision> Revision::copyForWrite() const {
-  return std::make_shared<Revision>(*this);
+  std::unique_ptr<proto::Revision> copy(
+      new proto::Revision(*underlying_revision_));
+  return fromProto(std::move(copy));
+}
+
+std::shared_ptr<Revision> Revision::fromProto(
+    std::unique_ptr<proto::Revision>&& revision_proto) {
+  std::shared_ptr<Revision> result(new Revision);
+  result->underlying_revision_ = std::move(revision_proto);
+  return std::move(result);
+}
+
+std::shared_ptr<Revision> Revision::fromProtoString(
+    const std::string& revision_proto_string) {
+  std::shared_ptr<Revision> result(new Revision);
+  result->underlying_revision_.reset(new proto::Revision);
+  CHECK(result->underlying_revision_->ParseFromString(revision_proto_string));
+  return std::move(result);
 }
 
 void Revision::addField(int index, proto::Type type) {

@@ -80,25 +80,25 @@ void CRUTableSTXXLMap::dumpChunkCRDerived(const common::Id& chunk_id,
                                           const LogicalTime& time,
                                           RevisionMap* dest) const {
   CHECK_NOTNULL(dest)->clear();
-  forChunkItemsAtTime(
-      chunk_id, time,
-      [&dest](const common::Id& id, const Revision& item) {
-        CHECK(dest->emplace(id, std::make_shared<Revision>(item)).second);
-      });
+  // TODO(tcies) Zero-copy const RevisionMap instead of copyForWrite?
+  forChunkItemsAtTime(chunk_id, time,
+                      [&dest](const common::Id& id, const Revision& item) {
+    CHECK(dest->emplace(id, item.copyForWrite()).second);
+  });
 }
 
 void CRUTableSTXXLMap::findByRevisionCRDerived(int key,
-                                             const Revision& value_holder,
-                                             const LogicalTime& time,
-                                             RevisionMap* dest) const {
+                                               const Revision& value_holder,
+                                               const LogicalTime& time,
+                                               RevisionMap* dest) const {
   CHECK_NOTNULL(dest);
   dest->clear();
-  forEachItemFoundAtTime(
-      key, value_holder, time,
-      [&dest](const common::Id& id, const Revision& item) {
+  // TODO(tcies) Zero-copy const RevisionMap instead of copyForWrite?
+  forEachItemFoundAtTime(key, value_holder, time,
+                         [&dest](const common::Id& id, const Revision& item) {
     CHECK(dest->find(id) == dest->end());
-    CHECK(dest->emplace(id, std::make_shared<Revision>(item)).second);
-      });
+    CHECK(dest->emplace(id, item.copyForWrite()).second);
+  });
 }
 
 void CRUTableSTXXLMap::getAvailableIdsCRDerived(
@@ -116,8 +116,8 @@ void CRUTableSTXXLMap::getAvailableIdsCRDerived(
     }
   }
   std::sort(ids_and_info.begin(), ids_and_info.end(),
-            [] (const std::pair<common::Id, CRURevisionInformation>& lhs,
-                 const std::pair<common::Id, CRURevisionInformation>& rhs) {
+            [](const std::pair<common::Id, CRURevisionInformation>& lhs,
+               const std::pair<common::Id, CRURevisionInformation>& rhs) {
     return lhs.second.memory_block_ < rhs.second.memory_block_;
   });
   ids->reserve(ids_and_info.size());
@@ -128,23 +128,21 @@ void CRUTableSTXXLMap::getAvailableIdsCRDerived(
 }
 
 int CRUTableSTXXLMap::countByRevisionCRDerived(int key,
-                                             const Revision& value_holder,
-                                             const LogicalTime& time) const {
+                                               const Revision& value_holder,
+                                               const LogicalTime& time) const {
   int count = 0;
-  forEachItemFoundAtTime(
-      key, value_holder, time,
-      [&count](const common::Id& /*id*/,
-               const Revision& /*item*/) { ++count; });
+  forEachItemFoundAtTime(key, value_holder, time,
+                         [&count](const common::Id& /*id*/,
+                                  const Revision& /*item*/) { ++count; });
   return count;
 }
 
 int CRUTableSTXXLMap::countByChunkCRDerived(const common::Id& chunk_id,
                                             const LogicalTime& time) const {
   int count = 0;
-  forChunkItemsAtTime(
-      chunk_id, time,
-      [&count](const common::Id& /*id*/,
-               const Revision& /*item*/) { ++count; });
+  forChunkItemsAtTime(chunk_id, time,
+                      [&count](const common::Id& /*id*/,
+                               const Revision& /*item*/) { ++count; });
   return count;
 }
 
@@ -220,8 +218,8 @@ void CRUTableSTXXLMap::clearCRDerived() {
 
 inline void CRUTableSTXXLMap::forEachItemFoundAtTime(
     int key, const Revision& value_holder, const LogicalTime& time,
-    const std::function<
-        void(const common::Id& id, const Revision& item)>& action) const {
+    const std::function<void(const common::Id& id, const Revision& item)>&
+        action) const {
   for (const STXXLHistoryMap::value_type& pair : data_) {
     STXXLHistory::const_iterator latest = pair.second.latestAt(time);
     if (latest != pair.second.cend()) {
@@ -238,8 +236,8 @@ inline void CRUTableSTXXLMap::forEachItemFoundAtTime(
 
 inline void CRUTableSTXXLMap::forChunkItemsAtTime(
     const common::Id& chunk_id, const LogicalTime& time,
-    const std::function<
-        void(const common::Id& id, const Revision& item)>& action) const {
+    const std::function<void(const common::Id& id, const Revision& item)>&
+        action) const {
   for (const STXXLHistoryMap::value_type& pair : data_) {
     if (pair.second.begin()->chunk_id_ == chunk_id) {
       STXXLHistory::const_iterator latest = pair.second.latestAt(time);
@@ -256,7 +254,7 @@ inline void CRUTableSTXXLMap::forChunkItemsAtTime(
 }
 
 inline void CRUTableSTXXLMap::trimToTime(const LogicalTime& time,
-                                       HistoryMap* subject) const {
+                                         HistoryMap* subject) const {
   CHECK_NOTNULL(subject);
   for (HistoryMap::value_type& pair : *subject) {
     pair.second.remove_if([&time](const std::shared_ptr<const Revision>& item) {

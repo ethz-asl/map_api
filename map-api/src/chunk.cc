@@ -76,9 +76,8 @@ bool Chunk::init(
   // feed data from connect_response into underlying table TODO(tcies) piecewise
   for (int i = 0; i < init_request.serialized_items_size(); ++i) {
     if (underlying_table->type() == CRTable::Type::CR) {
-      std::shared_ptr<proto::Revision> raw_revision(new proto::Revision);
-      CHECK(raw_revision->ParseFromString(init_request.serialized_items(i)));
-      std::shared_ptr<Revision> data = std::make_shared<Revision>(raw_revision);
+      std::shared_ptr<Revision> data =
+          Revision::fromProtoString(init_request.serialized_items(i));
       CHECK(underlying_table->patch(data));
       syncLatestCommitTime(*data);
     } else {
@@ -90,7 +89,7 @@ bool Chunk::init(
         // using ReleaseLast allows zero-copy ownership transfer to the revision
         // object.
         std::shared_ptr<Revision> data =
-            std::make_shared<Revision>(std::shared_ptr<proto::Revision>(
+            Revision::fromProto(std::unique_ptr<proto::Revision>(
                 history_proto.mutable_revisions()->ReleaseLast()));
         CHECK(underlying_table->patch(data));
         // TODO(tcies) guarantee order, then only sync latest time
