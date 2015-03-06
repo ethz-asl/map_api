@@ -1,5 +1,5 @@
-#ifndef READER_WRITER_MUTEX_FIXTURE_H_
-#define READER_WRITER_MUTEX_FIXTURE_H_
+#ifndef MAP_API_READER_WRITER_MUTEX_FIXTURE_H_
+#define MAP_API_READER_WRITER_MUTEX_FIXTURE_H_
 
 #include <string>
 #include <atomic>
@@ -38,4 +38,4 @@ class ReaderWriterMutexFixture : public ::testing::Test {
 
 #include "./reader_writer_mutex_fixture_inl.h"
 
-#endif  // READER_WRITER_MUTEX_FIXTURE_H_
+#endif  // MAP_API_READER_WRITER_MUTEX_FIXTURE_H_
