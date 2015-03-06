@@ -86,11 +86,12 @@ class NetTable {
   void getChunksInBoundingBox(const SpatialIndex::BoundingBox& bounding_box);
   void getChunksInBoundingBox(const SpatialIndex::BoundingBox& bounding_box,
                               std::unordered_set<Chunk*>* chunks);
+  inline SpatialIndex& spatial_index() { return *spatial_index_; }
+
+  // TRIGGER RELATED
   typedef std::function<void(const std::unordered_set<common::Id>& insertions,
                              const std::unordered_set<common::Id>& updates,
                              Chunk* chunk)> TriggerCallbackWithChunkPointer;
-
-  // TRIGGER RELATED
   // Will bind to Chunk* the pointer of the current chunk.
   void attachTriggerOnChunkAcquisition(
       const TriggerCallbackWithChunkPointer& trigger);
