@@ -214,6 +214,29 @@ void NetTableManager::kill() {
   tables_lock_.releaseWriteLock();
 }
 
+NetTableManager::iterator::iterator(const TableMap::iterator& base,
+                                    const TableMap& map)
+    : base_(base), metatable_(map.find(kMetaTableName)) {
+  CHECK(metatable_ != map.end());
+  if (base_ == metatable_) {
+    ++base_;
+  }
+}
+
+NetTableManager::iterator& NetTableManager::iterator::operator++() {
+  ++base_;
+  if (base_ == metatable_) {
+    ++base_;
+  }
+  return *this;
+}
+
+NetTable* NetTableManager::iterator::operator*() { return base_->second.get(); }
+
+bool NetTableManager::iterator::operator!=(const iterator& other) const {
+  return other.base_ != base_;
+}
+
 // ========
 // HANDLERS
 // ========
