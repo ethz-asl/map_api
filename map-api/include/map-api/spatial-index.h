@@ -30,37 +30,13 @@ class SpatialIndex : public ChordIndex {
   // TODO(tcies) replace with Eigen::AlignedBox
   class BoundingBox : public std::vector<Range> {
    public:
-    BoundingBox() : std::vector<Range>() {}
-    explicit BoundingBox(int size) : std::vector<Range>(size) {}
-    explicit BoundingBox(const std::initializer_list<Range>& init_list)
-        : std::vector<Range>(init_list) {}
-    BoundingBox(const Eigen::Vector3d& min, const Eigen::Vector3d& max)
-        : BoundingBox({{min[0], max[0]}, {min[1], max[1]}, {min[2], max[2]}}) {}
-    inline std::string debugString() const {
-      std::ostringstream ss;
-      bool first = true;
-      for (Range range : *this) {
-        ss << (first ? "" : ",") << range.min << "," << range.max;
-        first = false;
-      }
-      return ss.str();
-    }
-    inline void serialize(google::protobuf::RepeatedField<double>* field)
-        const {
-      field->Clear();
-      for (const Range& range : *this) {
-        field->Add(range.min);
-        field->Add(range.max);
-      }
-    }
-    inline void deserialize(
-        const google::protobuf::RepeatedField<double>& field) {
-      CHECK_EQ(field.size() % 2u, 0u);
-      clear();
-      for (int i = 0; i < field.size(); i += 2) {
-        push_back(Range(field.Get(i), field.Get(i + 1)));
-      }
-    }
+    BoundingBox();
+    explicit BoundingBox(int size);
+    explicit BoundingBox(const std::initializer_list<Range>& init_list);
+    BoundingBox(const Eigen::Vector3d& min, const Eigen::Vector3d& max);
+    std::string debugString() const;
+    void serialize(google::protobuf::RepeatedField<double>* field) const;
+    void deserialize(const google::protobuf::RepeatedField<double>& field);
   };
 
   virtual ~SpatialIndex();
@@ -81,6 +57,31 @@ class SpatialIndex : public ChordIndex {
                      const BoundingBox& bounding_box);
   void seekChunks(const BoundingBox& bounding_box,
                   std::unordered_set<common::Id>* chunk_ids);
+
+  typedef std::function<void(const common::Id& id)> TriggerCallback;
+
+  // Also used as iterator for range-based for loops.
+  class Cell {
+   public:
+    void getDimensions(Eigen::AlignedBox3d* result);
+    void attachTrigger(const TriggerCallback& trigger_callback);
+
+    // Iterator interface.
+    Cell(size_t position_1d, SpatialIndex* index);
+    Cell& operator++();
+    // This is a bit strange, but we want to fit into the range-loop interface.
+    inline Cell& operator*() { return *this; }
+    bool operator!=(const Cell& other);
+
+   private:
+    SpatialIndex* index_;
+    // x is most significant, z is least significant.
+    size_t position_1d_;
+  };
+
+  size_t size() const;
+  Cell begin();
+  Cell end();
 
   static const char kRoutedChordRequest[];
   static const char kPeerResponse[];

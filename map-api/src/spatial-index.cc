@@ -7,6 +7,46 @@
 
 namespace map_api {
 
+SpatialIndex::BoundingBox::BoundingBox() : std::vector<Range>() {}
+
+SpatialIndex::BoundingBox::BoundingBox(int size) : std::vector<Range>(size) {}
+
+SpatialIndex::BoundingBox::BoundingBox(
+    const std::initializer_list<Range>& init_list)
+    : std::vector<Range>(init_list) {}
+
+SpatialIndex::BoundingBox::BoundingBox(const Eigen::Vector3d& min,
+                                       const Eigen::Vector3d& max)
+    : BoundingBox({{min[0], max[0]}, {min[1], max[1]}, {min[2], max[2]}}) {}
+
+std::string SpatialIndex::BoundingBox::debugString() const {
+  std::ostringstream ss;
+  bool first = true;
+  for (Range range : *this) {
+    ss << (first ? "" : ",") << range.min << "," << range.max;
+    first = false;
+  }
+  return ss.str();
+}
+
+void SpatialIndex::BoundingBox::serialize(
+    google::protobuf::RepeatedField<double>* field) const {
+  field->Clear();
+  for (const Range& range : *this) {
+    field->Add(range.min);
+    field->Add(range.max);
+  }
+}
+
+void SpatialIndex::BoundingBox::deserialize(
+    const google::protobuf::RepeatedField<double>& field) {
+  CHECK_EQ(field.size() % 2u, 0u);
+  clear();
+  for (int i = 0; i < field.size(); i += 2) {
+    push_back(Range(field.Get(i), field.Get(i + 1)));
+  }
+}
+
 SpatialIndex::SpatialIndex(const std::string& table_name,
                            const BoundingBox& bounds,
                            const std::vector<size_t>& subdivision)
@@ -75,6 +115,67 @@ void SpatialIndex::seekChunks(const BoundingBox& bounding_box,
       chunk_ids->emplace(common::Id(proto_chunk_ids.chunk_ids(i)));
     }
   }
+}
+
+SpatialIndex::Cell::Cell(size_t position_1d, SpatialIndex* index)
+    : position_1d_(position_1d), index_(CHECK_NOTNULL(index)) {}
+
+SpatialIndex::Cell& SpatialIndex::Cell::operator++() {
+  ++position_1d_;
+  return *this;
+}
+
+bool SpatialIndex::Cell::operator!=(const Cell& other) {
+  return position_1d_ != other.position_1d_;
+}
+
+// Meta-information.
+void SpatialIndex::Cell::getDimensions(Eigen::AlignedBox3d* result) {
+  CHECK_NOTNULL(result);
+  Eigen::Vector3d min_corner;
+  CHECK_EQ(index_->subdivision_.size(), 3u)
+      << "Higher dimensions not supported yet!";
+  // "z" is least significant.
+  size_t remainder = position_1d_;
+  Eigen::Vector3i position_3d_;
+  for (int dim = index_->subdivision_.size() - 1; dim >= 0; --dim) {
+    position_3d_[dim] = remainder % index_->subdivision_[dim];
+    remainder /= index_->subdivision_[dim];
+  }
+  CHECK_EQ(remainder, 0u);
+  // TODO(tcies) consolidate with nidegens spatial index functions into common.
+  const Eigen::Vector3d full_extent(
+      index_->bounds_[0].max - index_->bounds_[0].min,
+      index_->bounds_[1].max - index_->bounds_[1].min,
+      index_->bounds_[2].max - index_->bounds_[2].min);
+  const Eigen::Vector3i subdivision(index_->subdivision_[0],
+                                    index_->subdivision_[1],
+                                    index_->subdivision_[2]);
+  Eigen::Vector3d unit_cell_extent =
+      full_extent.cwiseQuotient(subdivision.cast<double>());
+  for (int dim = 0; dim < 3; ++dim) {
+    min_corner[dim] =
+        index_->bounds_[dim].min + position_3d_[dim] * unit_cell_extent[dim];
+  }
+
+  result->min() = min_corner;
+  result->max() = min_corner + unit_cell_extent;
+}
+
+size_t SpatialIndex::size() const {
+  size_t result = 1;
+  for (size_t dimension_size : subdivision_) {
+    CHECK_NE(dimension_size, 0u);
+    result *= dimension_size;
+  }
+  return result;
+}
+
+SpatialIndex::Cell SpatialIndex::begin() { return Cell(0u, this); }
+
+SpatialIndex::Cell SpatialIndex::end() {
+  CHECK_EQ(subdivision_.size(), 3u);
+  return Cell(size(), this);
 }
 
 const char SpatialIndex::kRoutedChordRequest[] =
@@ -297,6 +398,7 @@ inline void SpatialIndex::getCellIndices(const BoundingBox& bounding_box,
   // {1, 2} + 3 * {2, 3} = {1 + 3 * 2, 2 + 3 * 2, 1 + 3 * 3, 2 + 3 * 3} =
   // {7, 8, 10, 11}
   // This can then be continued for higher dimensions.
+  // In particular, x is most significant while z is least significant.
   size_t lower_dimensions_size = 1;
   indices->push_back(0);
   for (size_t dimension = 0; dimension < bounds_.size(); ++dimension) {

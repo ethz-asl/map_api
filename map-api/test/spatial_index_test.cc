@@ -1,5 +1,7 @@
 #include <string>
 
+#include <eigen-checks/gtest.h>
+
 #include "map-api/core.h"
 #include "map-api/ipc.h"
 #include "map-api/net-table.h"
@@ -142,6 +144,30 @@ const double SpatialIndexTest::kBBox[] = {0.75, 1.25, 0.75, 1.25, 0.75, 1.25};
 const double SpatialIndexTest::kCBox[] = {0.25, 0.75, 0.75, 1.25, 0, 0.75};
 const double SpatialIndexTest::kDBox[] = {1.25, 1.75, 0.75, 1.25, 1.25, 1.99};
 const size_t SpatialIndexTest::kSubdiv[] = {2u, 2u, 2u};
+
+TEST_F(SpatialIndexTest, CellDimensions) {
+  createSpatialIndex();
+  const Eigen::AlignedBox3d kExpected[] = {
+      Eigen::AlignedBox3d(Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(1, 1, 1)),
+      Eigen::AlignedBox3d(Eigen::Vector3d(0, 0, 1), Eigen::Vector3d(1, 1, 2)),
+      Eigen::AlignedBox3d(Eigen::Vector3d(0, 1, 0), Eigen::Vector3d(1, 2, 1)),
+      Eigen::AlignedBox3d(Eigen::Vector3d(0, 1, 1), Eigen::Vector3d(1, 2, 2)),
+      Eigen::AlignedBox3d(Eigen::Vector3d(1, 0, 0), Eigen::Vector3d(2, 1, 1)),
+      Eigen::AlignedBox3d(Eigen::Vector3d(1, 0, 1), Eigen::Vector3d(2, 1, 2)),
+      Eigen::AlignedBox3d(Eigen::Vector3d(1, 1, 0), Eigen::Vector3d(2, 2, 1)),
+      Eigen::AlignedBox3d(Eigen::Vector3d(1, 1, 1), Eigen::Vector3d(2, 2, 2))};
+  int pos = 0;
+  EXPECT_EQ(8u, table_->spatial_index().size());
+  for (SpatialIndex::Cell& cell : table_->spatial_index()) {
+    Eigen::AlignedBox3d cell_box;
+    cell.getDimensions(&cell_box);
+    EXPECT_TRUE(
+        EIGEN_MATRIX_EQUAL_DOUBLE(cell_box.min(), kExpected[pos].min()));
+    EXPECT_TRUE(
+        EIGEN_MATRIX_EQUAL_DOUBLE(cell_box.max(), kExpected[pos].max()));
+    ++pos;
+  }
+}
 
 TEST_F(SpatialIndexTest, RegisterSeek) {
   enum Barriers {
