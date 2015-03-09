@@ -230,8 +230,8 @@ void Chunk::leave() {
   // to leaving.
 }
 
-void Chunk::triggerWrapper(const std::unordered_set<common::Id> insertions,
-                           const std::unordered_set<common::Id> updates) {
+void Chunk::triggerWrapper(const std::unordered_set<common::Id>&& insertions,
+                           const std::unordered_set<common::Id>&& updates) {
   std::lock_guard<std::mutex> trigger_lock(trigger_mutex_);
   VLOG(3) << triggers_.size() << " triggers called in chunk" << id();
   ScopedReadLock lock(&triggers_are_active_while_has_readers_);
