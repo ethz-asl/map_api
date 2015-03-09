@@ -242,8 +242,8 @@ void Transaction::pushNewChunkIdsToTrackers() {
           << "table " << table_chunks_to_push.first->name();
       std::shared_ptr<const Revision> original_tracker =
           getById(item_chunks_to_push.first, table_chunks_to_push.first);
-      std::shared_ptr<Revision> updated_tracker(
-          new Revision(*original_tracker));
+      std::shared_ptr<Revision> updated_tracker =
+          original_tracker->copyForWrite();
       TrackeeMultimap trackee_multimap;
       trackee_multimap.deserialize(*original_tracker->underlying_revision_);
       trackee_multimap.merge(item_chunks_to_push.second);
