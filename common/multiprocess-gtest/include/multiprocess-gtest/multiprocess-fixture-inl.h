@@ -24,6 +24,8 @@ DEFINE_uint64(subprocess_id, 0,
               "Identification of subprocess in case of "
               "multiprocess testing. 0 if master process.");
 
+DEFINE_bool(multiprocess_verbose, false, "Print stdout of subprocesses.");
+
 namespace common {
 // adapted from
 // http://stackoverflow.com/questions/5525668/how-to-implement-readlink-to-find-the-path
@@ -98,13 +100,13 @@ void MultiprocessFixture::launchSubprocess(uint64_t id,
  * Gathers results from all subprocesses, forwarding them to stdout and
  * propagating failures.
  */
-void MultiprocessFixture::harvest(bool verbose) {
+void MultiprocessFixture::harvest() {
   for (const std::pair<uint64_t, FILE*>& id_pipe : subprocesses_) {
-    harvest(id_pipe.first, verbose);
+    harvest(id_pipe.first);
   }
 }
 
-void MultiprocessFixture::harvest(uint64_t subprocess_id, bool verbose) {
+void MultiprocessFixture::harvest(uint64_t subprocess_id) {
   SubprocessMap::iterator found = subprocesses_.find(subprocess_id);
   CHECK(found != subprocesses_.end());
   FILE* pipe = found->second;
@@ -112,7 +114,7 @@ void MultiprocessFixture::harvest(uint64_t subprocess_id, bool verbose) {
   constexpr size_t kSize = 1024;
   char buffer[kSize];
   while (timedFGetS(buffer, kSize, pipe) != NULL) {
-    if (verbose) {
+    if (FLAGS_multiprocess_verbose) {
       std::cout << "Sub " << found->first << ": " << buffer;
     }
     EXPECT_EQ(nullptr, strstr(buffer, "[  FAILED  ]")) << std::string(buffer);
@@ -161,7 +163,7 @@ void MultiprocessFixture::SetUp() { SetUpImpl(); }
 void MultiprocessFixture::TearDown() {
   TearDownImpl();
   if (getSubprocessId() == 0) {
-    harvest(false);
+    harvest();
   }
 }
 }  // namespace common

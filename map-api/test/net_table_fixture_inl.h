@@ -35,8 +35,7 @@ void NetTableFixture::increment(const common::Id& id, Chunk* chunk,
   CHECK_NOTNULL(transaction);
   CRTable::RevisionMap chunk_dump = transaction->dumpChunk(chunk);
   CRTable::RevisionMap::iterator found = chunk_dump.find(id);
-  std::shared_ptr<Revision> to_update =
-      std::make_shared<Revision>(*found->second);
+  std::shared_ptr<Revision> to_update = found->second->copyForWrite();
   int transient_value;
   to_update->get(kFieldName, &transient_value);
   ++transient_value;
@@ -51,8 +50,7 @@ void NetTableFixture::increment(NetTable* table, const common::Id& id,
   CHECK_NOTNULL(transaction);
   CRTable::RevisionMap chunk_dump = transaction->dumpChunk(table, chunk);
   CRTable::RevisionMap::iterator found = chunk_dump.find(id);
-  std::shared_ptr<Revision> to_update =
-      std::make_shared<Revision>(*found->second);
+  std::shared_ptr<Revision> to_update = found->second->copyForWrite();
   int transient_value;
   to_update->get(kFieldName, &transient_value);
   ++transient_value;
@@ -94,7 +92,7 @@ void NetTableFixture::update(int n, const common::Id& id,
                              Transaction* transaction) {
   CHECK_NOTNULL(transaction);
   std::shared_ptr<Revision> to_update =
-      std::make_shared<Revision>(*transaction->getById(id, table_, chunk_));
+      transaction->getById(id, table_, chunk_)->copyForWrite();
   to_update->set(kFieldName, n);
   transaction->update(table_, to_update);
 }
