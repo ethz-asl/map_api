@@ -135,7 +135,7 @@ void SpatialIndex::Cell::getDimensions(Eigen::AlignedBox3d* result) {
   Eigen::Vector3d min_corner;
   CHECK_EQ(index_->subdivision_.size(), 3u)
       << "Higher dimensions not supported yet!";
-  // z is least significant
+  // "z" is least significant.
   size_t remainder = position_1d_;
   Eigen::Vector3i position_3d_;
   for (int dim = index_->subdivision_.size() - 1; dim >= 0; --dim) {
@@ -158,12 +158,14 @@ void SpatialIndex::Cell::getDimensions(Eigen::AlignedBox3d* result) {
         index_->bounds_[dim].min + position_3d_[dim] * unit_cell_extent[dim];
   }
 
-  *result = Eigen::AlignedBox3d(min_corner, min_corner + unit_cell_extent);
+  result->min() = min_corner;
+  result->max() = min_corner + unit_cell_extent;
 }
 
 size_t SpatialIndex::size() const {
   size_t result = 1;
   for (size_t dimension_size : subdivision_) {
+    CHECK_NE(dimension_size, 0u);
     result *= dimension_size;
   }
   return result;

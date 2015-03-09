@@ -3,7 +3,6 @@
 
 #include <sstream>  // NOLINT
 #include <string>
-#include <type_traits>
 #include <unordered_set>
 #include <vector>
 
@@ -61,19 +60,18 @@ class SpatialIndex : public ChordIndex {
 
   typedef std::function<void(const common::Id& id)> TriggerCallback;
 
-  // Doubles as iterator.
+  // Also used as iterator for range-based for loops.
   class Cell {
    public:
+    void getDimensions(Eigen::AlignedBox3d* result);
+    void attachTrigger(const TriggerCallback& trigger_callback);
+
     // Iterator interface.
     Cell(size_t position_1d, SpatialIndex* index);
     Cell& operator++();
     // This is a bit strange, but we want to fit into the range-loop interface.
     inline Cell& operator*() { return *this; }
     bool operator!=(const Cell& other);
-
-    // Meta-information.
-    void getDimensions(Eigen::AlignedBox3d* result);
-    void attachTrigger(TriggerCallback trigger_callback);
 
    private:
     SpatialIndex* index_;

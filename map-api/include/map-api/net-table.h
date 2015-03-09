@@ -86,7 +86,9 @@ class NetTable {
   void getChunksInBoundingBox(const SpatialIndex::BoundingBox& bounding_box);
   void getChunksInBoundingBox(const SpatialIndex::BoundingBox& bounding_box,
                               std::unordered_set<Chunk*>* chunks);
-  inline SpatialIndex& spatial_index() { return *spatial_index_; }
+  inline SpatialIndex& spatial_index() {
+    return *CHECK_NOTNULL(spatial_index_.get());
+  }
 
   // TRIGGER RELATED
   typedef std::function<void(const std::unordered_set<common::Id>& insertions,
