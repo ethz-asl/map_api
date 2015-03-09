@@ -7,6 +7,7 @@
 #include <set>
 #include <thread>
 #include <unordered_set>
+#include <vector>
 
 #include "./chunk.pb.h"
 #include "map-api/cr-table.h"
@@ -48,9 +49,8 @@ class Revision;
  */
 class Chunk {
   friend class ChunkTransaction;
-  typedef std::function<void(const std::unordered_set<common::Id>& insertions,
-                             const std::unordered_set<common::Id>& updates)>
-      TriggerCallback;
+  typedef std::function<void(const common::IdSet& insertions,
+                             const common::IdSet& updates)> TriggerCallback;
 
  public:
   bool init(const common::Id& id, CRTable* underlying_table, bool initialize);
@@ -98,8 +98,10 @@ class Chunk {
    * then called at an unlock request. The tracked insertions and updates are
    * passed. Note: If the sets are empty, the lock has probably been acquired
    * to modify chunk peers.
+   * Returns position of attached trigger in trigger vector.
    */
-  void attachTrigger(const TriggerCallback& callback);
+  size_t attachTrigger(const TriggerCallback& callback);
+  void waitForTriggerCompletion();
 
   inline LogicalTime getLatestCommitTime();
 
@@ -196,6 +198,9 @@ class Chunk {
 
   void leave();  // May only be used by NetTable.
 
+  void triggerWrapper(const std::unordered_set<common::Id>&& insertions,
+                      const std::unordered_set<common::Id>&& updates);
+
   /**
    * ====================================================================
    * Handlers for ChunkManager requests that are addressed at this Chunk.
@@ -223,9 +228,11 @@ class Chunk {
   PeerHandler peers_;
   CRTable* underlying_table_;
   DistributedRWLock lock_;
-  std::function<void(const std::unordered_set<common::Id>& insertions,
-                     const std::unordered_set<common::Id>& updates)> trigger_;
+  std::vector<std::function<
+      void(const std::unordered_set<common::Id>& insertions,
+           const std::unordered_set<common::Id>& updates)>> triggers_;
   std::mutex trigger_mutex_;
+  ReaderWriterMutex triggers_are_active_while_has_readers_;
   std::unordered_set<common::Id> trigger_insertions_, trigger_updates_;
   std::mutex add_peer_mutex_;
   ReaderWriterMutex leave_lock_;
