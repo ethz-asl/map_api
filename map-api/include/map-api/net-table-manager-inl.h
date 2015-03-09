@@ -10,7 +10,7 @@ namespace map_api {
 template <const char* RequestType>
 bool NetTableManager::getTableForMetadataRequestOrDecline(
     const Message& request, Message* response, TableMap::iterator* found,
-    Id* chunk_id, PeerId* peer) {
+    common::Id* chunk_id, PeerId* peer) {
   CHECK_NOTNULL(chunk_id);
   CHECK_NOTNULL(peer);
   proto::ChunkRequestMetadata metadata;
@@ -18,6 +18,17 @@ bool NetTableManager::getTableForMetadataRequestOrDecline(
   chunk_id->deserialize(metadata.chunk_id());
   *peer = PeerId(request.sender());
   return getTableForRequestWithMetadataOrDecline(metadata, response, found);
+}
+
+template <const char* RequestType>
+bool NetTableManager::getTableForStringRequestOrDecline(
+    const Message& request, Message* response, TableMap::iterator* found,
+    PeerId* peer) {
+  CHECK_NOTNULL(peer);
+  std::string table_name;
+  request.extract<RequestType>(&table_name);
+  *peer = PeerId(request.sender());
+  return getTableForRequestWithMetadataOrDecline(table_name, response, found);
 }
 
 template <typename RequestType>

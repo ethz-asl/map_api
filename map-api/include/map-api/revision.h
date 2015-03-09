@@ -4,29 +4,48 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <vector>
 
 #include <glog/logging.h>
 
 #include "./core.pb.h"
 #include "map-api/logical-time.h"
-#include "map-api/unique-id.h"
+#include <multiagent-mapping-common/unique-id.h>
 
 namespace map_api {
 class TrackeeMultimap;
 
+// Friending parametrized templated test cases seems to miss from gtest_prod.h.
+namespace gtest_case_ProtoSTLStream_ {
+template <typename gtest_TypeParam_>
+class ProtoAutoSerializationWorks;
+}  // gtest_case_ProtoSTLStream_
+
 class Revision {
   friend class Chunk;
   friend class CRTable;
-  friend class CRTableRamMap;
   friend class CRUTable;
   template<int BlockSize>
   friend class STXXLRevisionStore;
   friend class Transaction;
 
+  // Friending parametrized templated test cases seems to miss from
+  // gtest_prod.h.
+  template <typename gtest_TypeParam_>
+  friend class gtest_case_ProtoSTLStream_::ProtoAutoSerializationWorks;
+
  public:
-  explicit Revision(const std::shared_ptr<proto::Revision>& revision);
-  explicit Revision(const Revision& other);
+  typedef std::vector<char> Blob;
+
   Revision& operator=(const Revision& other) = delete;
+
+  // Constructor and assignment replacements.
+  std::shared_ptr<Revision> copyForWrite() const;
+  // You need to use std::move() for the unique_ptr of the following.
+  static std::shared_ptr<Revision> fromProto(
+      std::unique_ptr<proto::Revision>&& revision_proto);
+  static std::shared_ptr<Revision> fromProtoString(
+      const std::string& revision_proto_string);
 
   template <typename FieldType>
   static proto::Type getProtobufTypeEnum();
@@ -59,11 +78,11 @@ class Revision {
     return (underlying_revision_->has_update_time()) ? getUpdateTime()
                                                      : getInsertTime();
   }
-  inline Id getChunkId() const {
+  inline common::Id getChunkId() const {
     if (underlying_revision_->has_chunk_id()) {
-      return Id(underlying_revision_->chunk_id());
+      return common::Id(underlying_revision_->chunk_id());
     } else {
-      return Id();
+      return common::Id();
     }
   }
   template <typename IdType>
@@ -110,10 +129,6 @@ class Revision {
 
   inline int byteSize() const { return underlying_revision_->ByteSize(); }
 
-  inline bool parse(const std::string& origin) {
-    return underlying_revision_->ParseFromString(origin);
-  }
-
   inline int customFieldCount() const {
     return underlying_revision_->custom_field_values_size();
   }
@@ -127,13 +142,15 @@ class Revision {
   bool fetchTrackedChunks() const;
 
  private:
+  Revision() = default;
+
   inline void setInsertTime(const LogicalTime& time) {
     underlying_revision_->set_insert_time(time.serialize());
   }
   inline void setUpdateTime(const LogicalTime& time) {
     underlying_revision_->set_update_time(time.serialize());
   }
-  inline void setChunkId(const Id& id) {
+  inline void setChunkId(const common::Id& id) {
     id.serialize(underlying_revision_->mutable_chunk_id());
   }
   inline void setRemoved() { underlying_revision_->set_removed(true); }
@@ -146,7 +163,7 @@ class Revision {
   template <typename FieldType>
   bool get(const proto::TableField& field, FieldType* value) const;
 
-  std::shared_ptr<proto::Revision> underlying_revision_;
+  std::unique_ptr<proto::Revision> underlying_revision_;
 };
 
 /**

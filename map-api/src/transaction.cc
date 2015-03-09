@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include <multiagent-mapping-common/backtrace.h>
 #include <timing/timer.h>
 
 #include "map-api/cache-base.h"
@@ -13,6 +14,8 @@
 #include "map-api/revision.h"
 #include "map-api/trackee-multimap.h"
 #include "./core.pb.h"
+
+DEFINE_bool(blame_commit, false, "Print stack trace for every commit");
 
 namespace map_api {
 
@@ -64,6 +67,9 @@ void Transaction::remove(NetTable* table, std::shared_ptr<Revision> revision) {
 // net_table_transactions_, and have the locks acquired in that order
 // (resource hierarchy solution)
 bool Transaction::commit() {
+  if (FLAGS_blame_commit) {
+    LOG(INFO) << "Transaction committed from:\n" << common::backtrace();
+  }
   for (const CacheMap::value_type& cache_pair : attached_caches_) {
     cache_pair.second->prepareForCommit();
   }
@@ -85,6 +91,7 @@ bool Transaction::commit() {
     }
   }
   commit_time_ = LogicalTime::sample();
+  VLOG(3) << "Commit from " << begin_time_ << " to " << commit_time_;
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->checkedCommit(commit_time_);
     net_table_transaction.second->unlock();
@@ -208,7 +215,7 @@ void Transaction::pushNewChunkIdsToTrackers() {
         &net_table_chunk_trackers[table_transaction.first]);
   }
   // tracking item -> tracked table -> tracked chunks
-  typedef std::unordered_map<Id, TrackeeMultimap> ItemToTrackeeMap;
+  typedef std::unordered_map<common::Id, TrackeeMultimap> ItemToTrackeeMap;
   // tracking table -> tracking item -> tracked table -> tracked chunks
   typedef std::unordered_map<NetTable*, ItemToTrackeeMap> TrackerToTrackeeMap;
   TrackerToTrackeeMap table_item_chunks_to_push;
@@ -231,10 +238,12 @@ void Transaction::pushNewChunkIdsToTrackers() {
          table_chunks_to_push.second) {
       // TODO(tcies) keeping track of tracker chunks could optimize this, as
       // the faster getById() overload could be used.
+      CHECK(item_chunks_to_push.first.isValid()) << "Invalid tracker ID for trackee from "
+          << "table " << table_chunks_to_push.first->name();
       std::shared_ptr<const Revision> original_tracker =
           getById(item_chunks_to_push.first, table_chunks_to_push.first);
-      std::shared_ptr<Revision> updated_tracker(
-          new Revision(*original_tracker));
+      std::shared_ptr<Revision> updated_tracker =
+          original_tracker->copyForWrite();
       TrackeeMultimap trackee_multimap;
       trackee_multimap.deserialize(*original_tracker->underlying_revision_);
       trackee_multimap.merge(item_chunks_to_push.second);

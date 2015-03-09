@@ -120,17 +120,19 @@ class SpatialIndexTest : public MapApiFixture {
     table_->registerChunkInSpace(chunk_d_id_, box(kDBox));
   }
 
-  bool checkExpectedActive(const std::unordered_set<Id>& expected_set) const {
-    std::set<Id> active_set;
+  bool checkExpectedActive(
+      const std::unordered_set<common::Id>& expected_set) const {
+    std::set<common::Id> active_set;
     table_->getActiveChunkIds(&active_set);
-    std::unordered_set<Id> active(active_set.begin(), active_set.end());
+    std::unordered_set<common::Id> active(active_set.begin(), active_set.end());
     return expected_set == active;
   }
 
   NetTable* table_;
   Chunk* chunk_a_, *chunk_b_, *chunk_c_, *chunk_d_;
-  Id chunk_a_id_, chunk_b_id_, chunk_c_id_, chunk_d_id_;
-  std::unordered_set<Id> expected_a_, expected_b_, expected_c_, expected_d_;
+  common::Id chunk_a_id_, chunk_b_id_, chunk_c_id_, chunk_d_id_;
+  std::unordered_set<common::Id> expected_a_, expected_b_, expected_c_,
+      expected_d_;
 };
 
 const std::string SpatialIndexTest::kTableName = "table";
