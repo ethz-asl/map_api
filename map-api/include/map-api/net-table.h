@@ -95,7 +95,7 @@ class NetTable {
   void attachTriggerOnChunkAcquisition(
       const TriggerCallbackWithChunkPointer& trigger);
   // Returns false if peer not reachable.
-  bool listenToChunksFromPeer(const PeerId& peer) const;
+  bool listenToChunksFromPeer(const PeerId& peer);
   void handleListenToChunksFromPeer(const PeerId& listener, Message* response);
   static const char kPushNewChunksRequest[];
 
@@ -175,7 +175,8 @@ class NetTable {
   void handleRoutedSpatialChordRequests(const Message& request,
                                         Message* response);
 
-  void handleAnnounceToListeners(const PeerId& announcer, Message* response);
+  void handleAnnounceToListeners(const PeerId& announcer,
+                                 Message* response);
   static const char kAnnounceToListeners[];
 
  private:
