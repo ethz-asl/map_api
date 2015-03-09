@@ -8,11 +8,26 @@
 
 namespace map_api {
 
-Revision::Revision(const std::shared_ptr<proto::Revision>& revision)
-    : underlying_revision_(revision) {}
+std::shared_ptr<Revision> Revision::copyForWrite() const {
+  std::unique_ptr<proto::Revision> copy(
+      new proto::Revision(*underlying_revision_));
+  return fromProto(std::move(copy));
+}
 
-Revision::Revision(const Revision& other)
-    : underlying_revision_(new proto::Revision(*other.underlying_revision_)) {}
+std::shared_ptr<Revision> Revision::fromProto(
+    std::unique_ptr<proto::Revision>&& revision_proto) {
+  std::shared_ptr<Revision> result(new Revision);
+  result->underlying_revision_ = std::move(revision_proto);
+  return std::move(result);
+}
+
+std::shared_ptr<Revision> Revision::fromProtoString(
+    const std::string& revision_proto_string) {
+  std::shared_ptr<Revision> result(new Revision);
+  result->underlying_revision_.reset(new proto::Revision);
+  CHECK(result->underlying_revision_->ParseFromString(revision_proto_string));
+  return std::move(result);
+}
 
 void Revision::addField(int index, proto::Type type) {
   CHECK_EQ(underlying_revision_->custom_field_values_size(), index)
@@ -142,13 +157,14 @@ bool Revision::fetchTrackedChunks() const {
   LOG_IF(WARNING, trackee_multimap.empty())
       << "Fetch tracked chunks called, but no tracked chunks!";
   for (const TrackeeMultimap::value_type& table_trackees : trackee_multimap) {
-    VLOG(3) << "Fetching tracked chunks from table "
-            << table_trackees.first->name();
+    VLOG(3) << "Fetching " << table_trackees.second.size()
+            << " tracked chunks from table " << table_trackees.first->name();
     for (const common::Id& chunk_id : table_trackees.second) {
       if (table_trackees.first->getChunk(chunk_id) == nullptr) {
         success = false;
       }
     }
+    VLOG(3) << "Done.";
   }
   return success;
 }

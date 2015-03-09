@@ -165,8 +165,7 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
       if (cached_pair.second.dirty == ValueHolder::DirtyState::kDirty) {
         // Convert the object to the revision and then compare if it has changed.
         std::shared_ptr<map_api::Revision> update_revision =
-            std::make_shared<map_api::Revision>(
-                *corresponding_revision->second);
+            corresponding_revision->second->copyForWrite();
         objectToRevision(cached_pair.first,
                          Factory::getReferenceToDerived(
                              cached_pair.second.value),
@@ -179,8 +178,7 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
               objectFromRevision<typename Factory::ElementType>(
                   *corresponding_revision->second);
           std::shared_ptr<map_api::Revision> reserialized_revision =
-              std::make_shared < map_api::Revision
-                  > (*corresponding_revision->second);
+              corresponding_revision->second->copyForWrite();
           objectToRevision(cached_pair.first,
                            *value, reserialized_revision.get());
 
@@ -200,8 +198,7 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
     if (revisions_.find(id) == revisions_.end()) {
       continue;
     }
-    std::shared_ptr<Revision> to_remove =
-        std::make_shared<Revision>(*getRevisionLocked(id));
+    std::shared_ptr<Revision> to_remove = getRevisionLocked(id)->copyForWrite();
     transaction_.get()->remove(underlying_table_, to_remove);
   }
   staged_ = true;
