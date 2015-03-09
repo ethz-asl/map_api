@@ -67,9 +67,10 @@ void CRUTableRamMap::dumpChunkCRDerived(const common::Id& chunk_id,
                                         const LogicalTime& time,
                                         RevisionMap* dest) const {
   CHECK_NOTNULL(dest)->clear();
+  // TODO(tcies) Zero-copy const RevisionMap instead of copyForWrite?
   forChunkItemsAtTime(chunk_id, time,
                       [&dest](const common::Id& id, const Revision& item) {
-    CHECK(dest->emplace(id, std::make_shared<Revision>(item)).second);
+    CHECK(dest->emplace(id, item.copyForWrite()).second);
   });
 }
 
@@ -79,10 +80,11 @@ void CRUTableRamMap::findByRevisionCRDerived(int key,
                                              RevisionMap* dest) const {
   CHECK_NOTNULL(dest);
   dest->clear();
+  // TODO(tcies) Zero-copy const RevisionMap instead of copyForWrite?
   forEachItemFoundAtTime(key, value_holder, time,
                          [&dest](const common::Id& id, const Revision& item) {
     CHECK(dest->find(id) == dest->end());
-    CHECK(dest->emplace(id, std::make_shared<Revision>(item)).second);
+    CHECK(dest->emplace(id, item.copyForWrite()).second);
   });
 }
 

@@ -1,7 +1,6 @@
 :Info: A map manager API for 3D mapping, navigation and scene interpretation
-:Authors: - Stéphane Magnenat <stephane at magnenat dot net> (maintainer)
-          - Francis Colas <francis dot colas at mavt dot ethz dot ch> (contributor)
-          - Paul Furgale <paul dot furgale at mavt dot ethz dot ch> (contributor)
+:Authors: - Stéphane Magnenat <stephane@magnenat.net> (author / proposer)
+          - Simon Lynen <simon.lynen@gmail.com> (maintainer)
 :Date: 2014-04-09
 
 =======================================================================
