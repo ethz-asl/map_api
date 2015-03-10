@@ -293,7 +293,7 @@ void NetTable::attachTriggerOnChunkAcquisition(
   active_chunks_lock_.releaseReadLock();
 }
 
-bool NetTable::listenToChunksFromPeer(const PeerId& peer) const {
+bool NetTable::listenToChunksFromPeer(const PeerId& peer) {
   Message request, response;
   request.impose<NetTable::kPushNewChunksRequest>(cache_->name());
   if (!Hub::instance().hasPeer(peer)) {
