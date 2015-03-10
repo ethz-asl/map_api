@@ -13,3 +13,8 @@ message PeerList {
 message ChunkIdList {
   repeated common.proto.Id chunk_ids = 1;
 }
+
+message SpatialIndexCellData {
+  repeated common.proto.Id chunk_ids = 1;
+  repeated string listeners = 2;  
+}
