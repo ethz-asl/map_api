@@ -2,6 +2,7 @@
 #include <fstream>  // NOLINT
 #include <unordered_set>
 
+#include <multiagent-mapping-common/backtrace.h>
 #include <multiagent-mapping-common/conversions.h>
 #include <timing/timer.h>
 
@@ -22,6 +23,9 @@ DEFINE_uint64(unlock_strategy, 2,
               "lock ordering, 2: randomized");
 DEFINE_bool(writelock_persist, true,
             "Enables more persisting write lock strategy");
+DEFINE_bool(blame_trigger, false,
+            "Print backtrace for trigger insertion and"
+            " invocation.");
 
 namespace map_api {
 
@@ -72,9 +76,8 @@ bool Chunk::init(
   // feed data from connect_response into underlying table TODO(tcies) piecewise
   for (int i = 0; i < init_request.serialized_items_size(); ++i) {
     if (underlying_table->type() == CRTable::Type::CR) {
-      std::shared_ptr<proto::Revision> raw_revision(new proto::Revision);
-      CHECK(raw_revision->ParseFromString(init_request.serialized_items(i)));
-      std::shared_ptr<Revision> data = std::make_shared<Revision>(raw_revision);
+      std::shared_ptr<Revision> data =
+          Revision::fromProtoString(init_request.serialized_items(i));
       CHECK(underlying_table->patch(data));
       syncLatestCommitTime(*data);
     } else {
@@ -86,7 +89,7 @@ bool Chunk::init(
         // using ReleaseLast allows zero-copy ownership transfer to the revision
         // object.
         std::shared_ptr<Revision> data =
-            std::make_shared<Revision>(std::shared_ptr<proto::Revision>(
+            Revision::fromProto(std::unique_ptr<proto::Revision>(
                 history_proto.mutable_revisions()->ReleaseLast()));
         CHECK(underlying_table->patch(data));
         // TODO(tcies) guarantee order, then only sync latest time
@@ -203,6 +206,13 @@ void Chunk::enableLockLogging() {
 }
 
 void Chunk::leave() {
+  std::unique_lock<std::mutex> lock(trigger_mutex_);
+  triggers_.clear();
+  waitForTriggerCompletion();
+  // Need to unlock, otherwise we could get into deadlocks, as
+  // distributedUnlock() below calls triggers on other peers.
+  lock.unlock();
+
   Message request;
   proto::ChunkRequestMetadata metadata;
   fillMetadata(&metadata);
@@ -218,6 +228,18 @@ void Chunk::leave() {
   distributedUnlock();  // i.e. must be able to handle unlocks from outside
   // the swarm. Should this pose problems in the future, we could tie unlocking
   // to leaving.
+}
+
+void Chunk::triggerWrapper(const std::unordered_set<common::Id>&& insertions,
+                           const std::unordered_set<common::Id>&& updates) {
+  std::lock_guard<std::mutex> trigger_lock(trigger_mutex_);
+  VLOG(3) << triggers_.size() << " triggers called in chunk" << id();
+  ScopedReadLock lock(&triggers_are_active_while_has_readers_);
+  for (const TriggerCallback& trigger : triggers_) {
+    CHECK(trigger);
+    trigger(insertions, updates);
+  }
+  VLOG(3) << "Triggers done.";
 }
 
 void Chunk::writeLock() { distributedWriteLock(); }
@@ -244,17 +266,20 @@ int Chunk::requestParticipation(const PeerId& peer) {
   if (!Hub::instance().hasPeer(peer)) {
     return 0;
   }
-  int new_participant_count = 0;
+  int participant_count = 0;
   distributedWriteLock();
   std::set<PeerId> hub_peers;
   Hub::instance().getPeers(&hub_peers);
   if (peers_.peers().find(peer) == peers_.peers().end()) {
     if (addPeer(peer)) {
-      ++new_participant_count;
+      ++participant_count;
     }
+  } else {
+    VLOG(3) << "Peer " << peer << " already in swarm!";
+    ++participant_count;
   }
   distributedUnlock();
-  return new_participant_count;
+  return participant_count;
 }
 
 void Chunk::update(const std::shared_ptr<Revision>& item) {
@@ -277,11 +302,25 @@ void Chunk::update(const std::shared_ptr<Revision>& item) {
   distributedUnlock();
 }
 
-void Chunk::attachTrigger(const std::function<
-    void(const std::unordered_set<common::Id>& insertions,
-         const std::unordered_set<common::Id>& updates)>& callback) {
+size_t Chunk::attachTrigger(const std::function<void(
+    const common::IdSet& insertions, const common::IdSet& updates)>& callback) {
   std::lock_guard<std::mutex> lock(trigger_mutex_);
-  trigger_ = callback;
+  CHECK(callback);
+  if (FLAGS_blame_trigger) {
+    int status;
+    // A yellow line catches the eye better with consecutive attachments.
+    LOG(WARNING) << "Trigger of type "
+                 << abi::__cxa_demangle(callback.target_type().name(), NULL,
+                                        NULL, &status) << " for chunk " << id()
+                 << " attached from:";
+    LOG(INFO) << "\n" << common::backtrace();
+  }
+  triggers_.push_back(callback);
+  return triggers_.size() - 1u;
+}
+
+void Chunk::waitForTriggerCompletion() {
+  ScopedWriteLock lock(&triggers_are_active_while_has_readers_);
 }
 
 void Chunk::bulkInsertLocked(const CRTable::NonConstRevisionMap& items,
@@ -361,7 +400,7 @@ bool Chunk::addPeer(const PeerId& peer) {
   prepareInitRequest(&request);
   timing::Timer timer("init_request");
   if (!Hub::instance().ackRequest(peer, &request)) {
-    timer.Stop();
+    LOG(WARNING) << peer << " did not accept init request!";
     return false;
   }
   timer.Stop();
@@ -541,10 +580,11 @@ void Chunk::distributedWriteLock() {
 void Chunk::distributedUnlock() {
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   switch (lock_.state) {
-    case DistributedRWLock::State::UNLOCKED:
+    case DistributedRWLock::State::UNLOCKED: {
       LOG(FATAL) << "Attempted to unlock already unlocked lock";
       break;
-    case DistributedRWLock::State::READ_LOCKED:
+    }
+    case DistributedRWLock::State::READ_LOCKED: {
       if (!--lock_.n_readers) {
         lock_.state = DistributedRWLock::State::UNLOCKED;
         metalock.unlock();
@@ -555,10 +595,12 @@ void Chunk::distributedUnlock() {
         return;
       }
       break;
-    case DistributedRWLock::State::ATTEMPTING:
+    }
+    case DistributedRWLock::State::ATTEMPTING: {
       LOG(FATAL) << "Can't abort lock request";
       break;
-    case DistributedRWLock::State::WRITE_LOCKED:
+    }
+    case DistributedRWLock::State::WRITE_LOCKED: {
       CHECK(lock_.holder == PeerId::self());
       CHECK(lock_.thread == std::this_thread::get_id());
       --lock_.write_recursion_depth;
@@ -575,6 +617,10 @@ void Chunk::distributedUnlock() {
       if (peers_.empty()) {
         lock_.state = DistributedRWLock::State::UNLOCKED;
       } else {
+        if (FLAGS_blame_trigger) {
+          LOG(WARNING) << "Unlock from here may cause triggers for " << id();
+          LOG(INFO) << common::backtrace();
+        }
         bool self_unlocked = false;
         // NB peers can only change if someone else has locked the chunk
         const std::set<PeerId>& peers = peers_.peers();
@@ -588,7 +634,7 @@ void Chunk::distributedUnlock() {
               }
               Hub::instance().request(*rit, &request, &response);
               CHECK(response.isType<Message::kAck>());
-              VLOG(3) << PeerId::self() << " released lock from " << *rit;
+              VLOG(4) << PeerId::self() << " released lock from " << *rit;
             }
             break;
           }
@@ -602,7 +648,7 @@ void Chunk::distributedUnlock() {
               }
               Hub::instance().request(peer, &request, &response);
               CHECK(response.isType<Message::kAck>());
-              VLOG(3) << PeerId::self() << " released lock from " << peer;
+              VLOG(4) << PeerId::self() << " released lock from " << peer;
             }
             break;
           }
@@ -615,7 +661,7 @@ void Chunk::distributedUnlock() {
             for (const PeerId& peer : mixed_peers) {
               Hub::instance().request(peer, &request, &response);
               CHECK(response.isType<Message::kAck>());
-              VLOG(3) << PeerId::self() << " released lock from " << peer;
+              VLOG(4) << PeerId::self() << " released lock from " << peer;
             }
             break;
           }
@@ -631,6 +677,7 @@ void Chunk::distributedUnlock() {
         startState(UNLOCKED);
       }
       return;
+    }
   }
   metalock.unlock();
 }
@@ -757,10 +804,7 @@ void Chunk::handleInsertRequest(const std::shared_ptr<Revision>& item,
 
   // TODO(tcies) what if leave during trigger?
   common::Id id = item->getId<common::Id>();
-  std::lock_guard<std::mutex> lock(trigger_mutex_);
-  if (trigger_) {
-    CHECK(trigger_insertions_.emplace(id).second);
-  }
+  CHECK(trigger_insertions_.emplace(id).second);
 }
 
 void Chunk::handleLeaveRequest(const PeerId& leaver, Message* response) {
@@ -867,8 +911,15 @@ void Chunk::handleUnlockRequest(const PeerId& locker, Message* response) {
   leave_lock_.releaseReadLock();
   lock_.cv.notify_all();
   response->impose<Message::kAck>();
-  if (trigger_) {
-    std::thread trigger_thread(trigger_, trigger_insertions_, trigger_updates_);
+  std::lock_guard<std::mutex> trigger_lock(trigger_mutex_);
+  if (!triggers_.empty()) {
+    // Must copy because of
+    // http://stackoverflow.com/questions/7895879 .
+    // "trigger_insertions_" and "trigger_updates_" are volatile.
+    std::thread trigger_thread(
+        &Chunk::triggerWrapper, this,
+        std::move(std::unordered_set<common::Id>(trigger_insertions_)),
+        std::move(std::unordered_set<common::Id>(trigger_updates_)));
     trigger_thread.detach();
   }
 }
@@ -890,10 +941,7 @@ void Chunk::handleUpdateRequest(const std::shared_ptr<Revision>& item,
 
   // TODO(tcies) what if leave during trigger?
   common::Id id = item->getId<common::Id>();
-  std::lock_guard<std::mutex> lock(trigger_mutex_);
-  if (trigger_) {
-    CHECK(trigger_updates_.emplace(id).second);
-  }
+  CHECK(trigger_updates_.emplace(id).second);
 }
 
 void Chunk::awaitInitialized() const {
