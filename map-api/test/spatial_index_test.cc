@@ -216,6 +216,54 @@ TEST_F(SpatialIndexTest, RegisterSeek) {
   }
 }
 
+TEST_F(SpatialIndexTest, AddListener) {
+  enum Barriers {
+    INIT,
+    PUSH_ADDRESS,
+    SPATIAL_REGISTERED,
+    DIE
+  };
+  enum Processes {
+    ROOT,
+    A
+  };
+  if (getSubprocessId() == ROOT) {
+    createSpatialIndex();
+    for (SpatialIndex::Cell cell : table_->spatial_index()) {
+      PeerIdSet listeners;
+      cell.getListeners(&listeners);
+      EXPECT_TRUE(listeners.empty());
+    }
+
+    launchSubprocess(A);
+    IPC::barrier(INIT, 1);
+    IPC::push(PeerId::self());
+    IPC::barrier(PUSH_ADDRESS, 1);
+    IPC::barrier(SPATIAL_REGISTERED, 1);
+
+    for (SpatialIndex::Cell cell : table_->spatial_index()) {
+      PeerIdSet listeners;
+      cell.getListeners(&listeners);
+      EXPECT_EQ(1u, listeners.size());
+    }
+
+    IPC::barrier(DIE, 1);
+  }
+  if (getSubprocessId() == A) {
+    IPC::barrier(INIT, 1);
+    IPC::barrier(PUSH_ADDRESS, 1);
+    PeerId root = IPC::pop<PeerId>();
+    joinSpatialIndex(root);
+
+    for (SpatialIndex::Cell cell : table_->spatial_index()) {
+      cell.announceAsListener();
+    }
+
+    IPC::barrier(SPATIAL_REGISTERED, 1);
+    IPC::barrier(DIE, 1);
+  }
+}
+
 }  // namespace map_api
 
 MAP_API_UNITTEST_ENTRYPOINT

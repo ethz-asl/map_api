@@ -9,9 +9,11 @@
 #include <Eigen/Dense>
 #include <glog/logging.h>
 #include <google/protobuf/repeated_field.h>
+#include <gtest/gtest_prod.h>
 
-#include <map-api/chord-index.h>
-#include <map-api/peer-handler.h>
+#include "map-api/chord-index.h"
+#include "map-api/peer-handler.h"
+#include "map-api/spatial-index-cell-data.h"
 
 namespace common {
 class Id;
@@ -62,21 +64,47 @@ class SpatialIndex : public ChordIndex {
 
   // Also used as iterator for range-based for loops.
   class Cell {
+    FRIEND_TEST(SpatialIndexTest, AddListener);
+
    public:
+    Cell(size_t position_1d, SpatialIndex* index);
+
     void getDimensions(Eigen::AlignedBox3d* result);
     void attachTrigger(const TriggerCallback& trigger_callback);
+    std::string chordKey();
 
     // Iterator interface.
-    Cell(size_t position_1d, SpatialIndex* index);
     Cell& operator++();
     // This is a bit strange, but we want to fit into the range-loop interface.
     inline Cell& operator*() { return *this; }
     bool operator!=(const Cell& other);
 
    private:
-    SpatialIndex* index_;
+    void announceAsListener();
+    void getListeners(PeerIdSet* result);
+
+    class Accessor {
+     public:
+      explicit Accessor(Cell& cell);  // NOLINT
+      ~Accessor();
+      inline SpatialIndexCellData& get() {
+        dirty_ = true;
+        return data_;
+      }
+      inline const SpatialIndexCellData& get() const { return data_; }
+
+     private:
+      Cell& cell_;
+      SpatialIndexCellData data_;
+      bool dirty_;
+    };
+
+    inline Accessor accessor() { return Accessor(*this); }
+    inline const Accessor constAccessor() { return Accessor(*this); }
+
     // x is most significant, z is least significant.
     size_t position_1d_;
+    SpatialIndex* index_;
   };
 
   size_t size() const;

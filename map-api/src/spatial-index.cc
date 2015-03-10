@@ -1,6 +1,7 @@
-#include <map-api/spatial-index.h>
+#include "map-api/spatial-index.h"
 
 #include <multiagent-mapping-common/unique-id.h>
+
 #include "map-api/message.h"
 #include "./net-table.pb.h"
 #include "./chord-index.pb.h"
@@ -64,11 +65,9 @@ SpatialIndex::~SpatialIndex() {}
 
 void SpatialIndex::create() {
   ChordIndex::create();
-  proto::ChunkIdList empty_chunk_list;
-  std::vector<size_t> all_cell_indices;
-  getCellIndices(bounds_, &all_cell_indices);
-  for (size_t cell_index : all_cell_indices) {
-    CHECK(addData(typeHack(cell_index), empty_chunk_list.SerializeAsString()));
+  SpatialIndexCellData empty_data;
+  for (Cell cell : *this) {
+    CHECK(addData(cell.chordKey(), empty_data.SerializeAsString()));
   }
 }
 
@@ -78,56 +77,40 @@ void SpatialIndex::announceChunk(const common::Id& chunk_id,
   getCellIndices(bounding_box, &affected_cell_indices);
 
   for (size_t cell_index : affected_cell_indices) {
-    std::string chunks_string;
-    proto::ChunkIdList chunks;
-    if (retrieveData(typeHack(cell_index), &chunks_string)) {
-      CHECK(chunks.ParseFromString(chunks_string));
-      for (int i = 0; i < chunks.chunk_ids_size(); ++i) {
-        if (chunk_id.correspondsTo(chunks.chunk_ids(i))) {
-          continue;
-        }
-      }
+    std::string data_string;
+    SpatialIndexCellData data;
+    if (retrieveData(typeHack(cell_index), &data_string)) {
+      CHECK(data.ParseFromString(data_string));
     }
-    chunk_id.serialize(chunks.add_chunk_ids());
-    CHECK(addData(typeHack(cell_index), chunks.SerializeAsString()));
+    data.addChunkIdIfNotPresent(chunk_id);
+    CHECK(addData(typeHack(cell_index), data.SerializeAsString()));
   }
 }
 
 void SpatialIndex::seekChunks(const BoundingBox& bounding_box,
-                              std::unordered_set<common::Id>* chunk_ids) {
+                              common::IdSet* chunk_ids) {
   CHECK_NOTNULL(chunk_ids);
   std::vector<size_t> affected_cell_indices;
   getCellIndices(bounding_box, &affected_cell_indices);
 
   for (size_t cell_index : affected_cell_indices) {
-    std::string chunks_string;
-    proto::ChunkIdList proto_chunk_ids;
+    std::string data_string;
+    SpatialIndexCellData data;
     // because of the simultaneous topology change and retrieve - problem,
     // requests can occasionally fail (catching forever-blocks)
-    for (int i = 0; !retrieveData(typeHack(cell_index), &chunks_string); ++i) {
+    for (int i = 0; !retrieveData(typeHack(cell_index), &data_string); ++i) {
       CHECK_LT(i, 1000) << "Retrieval of cell " << cell_index << " from index "
                                                                  "timed out!";
       // corresponds to one second of topology turmoil
       usleep(1000);
     }
-    CHECK(proto_chunk_ids.ParseFromString(chunks_string));
-    for (int i = 0; i < proto_chunk_ids.chunk_ids_size(); ++i) {
-      chunk_ids->emplace(common::Id(proto_chunk_ids.chunk_ids(i)));
-    }
+    CHECK(data.ParseFromString(data_string));
+    data.addChunkIds(chunk_ids);
   }
 }
 
 SpatialIndex::Cell::Cell(size_t position_1d, SpatialIndex* index)
     : position_1d_(position_1d), index_(CHECK_NOTNULL(index)) {}
-
-SpatialIndex::Cell& SpatialIndex::Cell::operator++() {
-  ++position_1d_;
-  return *this;
-}
-
-bool SpatialIndex::Cell::operator!=(const Cell& other) {
-  return position_1d_ != other.position_1d_;
-}
 
 // Meta-information.
 void SpatialIndex::Cell::getDimensions(Eigen::AlignedBox3d* result) {
@@ -160,6 +143,42 @@ void SpatialIndex::Cell::getDimensions(Eigen::AlignedBox3d* result) {
 
   result->min() = min_corner;
   result->max() = min_corner + unit_cell_extent;
+}
+
+std::string SpatialIndex::Cell::chordKey() { return typeHack(position_1d_); }
+
+SpatialIndex::Cell& SpatialIndex::Cell::operator++() {
+  ++position_1d_;
+  return *this;
+}
+
+bool SpatialIndex::Cell::operator!=(const Cell& other) {
+  return position_1d_ != other.position_1d_;
+}
+
+void SpatialIndex::Cell::announceAsListener() {
+  accessor().get().addListenerIfNotPresent(PeerId::self());
+}
+
+void SpatialIndex::Cell::getListeners(PeerIdSet* result) {
+  CHECK_NOTNULL(result)->clear();
+  constAccessor().get().getListeners(result);
+}
+
+SpatialIndex::Cell::Accessor::Accessor(Cell& cell)  // NOLINT
+    : cell_(cell),
+      data_(),
+      dirty_(false) {
+  std::string data_string;
+  CHECK(cell.index_->retrieveData(typeHack(cell.position_1d_), &data_string));
+  CHECK(data_.ParseFromString(data_string));
+}
+
+SpatialIndex::Cell::Accessor::~Accessor() {
+  if (dirty_) {
+    CHECK(cell_.index_->addData(typeHack(cell_.position_1d_),
+                                data_.SerializeAsString()));
+  }
 }
 
 size_t SpatialIndex::size() const {
