@@ -285,7 +285,7 @@ class SpatialIndexListenToSpaceTest : public SpatialIndexTwoPeerTest {
   }
 
   virtual void afterSlaveTask() {
-    // TODO(tcies) Implment waitForTriggerCompletion() like in Chunk.
+    // TODO(tcies) Implement waitForTriggerCompletion() like in Chunk.
     usleep(10000);  // Leave time for trigger completion.
     EXPECT_TRUE(checkExpectedActive(expected_a_));
   }

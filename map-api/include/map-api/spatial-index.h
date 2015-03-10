@@ -85,8 +85,8 @@ class SpatialIndex : public ChordIndex {
 
     class Accessor {
      public:
-      explicit Accessor(Cell& cell);  // NOLINT
-      Accessor(Cell& cell, size_t timeout_ms);  // NOLINT
+      explicit Accessor(Cell* cell);
+      Accessor(Cell* cell, size_t timeout_ms);
       ~Accessor();
       inline SpatialIndexCellData& get() {
         dirty_ = true;
@@ -100,10 +100,10 @@ class SpatialIndex : public ChordIndex {
       bool dirty_;
     };
 
-    inline Accessor accessor() { return Accessor(*this); }
-    inline const Accessor constAccessor() { return Accessor(*this); }
+    inline Accessor accessor() { return Accessor(this); }
+    inline const Accessor constAccessor() { return Accessor(this); }
     inline const Accessor constPatientAccessor(size_t timeout_ms) {
-      return Accessor(*this, timeout_ms);
+      return Accessor(this, timeout_ms);
     }
 
    private:
@@ -146,11 +146,10 @@ class SpatialIndex : public ChordIndex {
   /**
    * Given a bounding box, identifies the indices of the overlapping cells.
    */
-  void getCells(const BoundingBox& bounding_box, std::vector<Cell>* cells);
+  void getCellsInBoundingBox(const BoundingBox& bounding_box,
+                             std::vector<Cell>* cells);
   inline size_t coefficientOf(size_t dimension, double value) const;
-  /**
-   * TODO(tcies) template ChordIndex on key type?
-   */
+
   static inline std::string positionToKey(size_t cell_index);
   static inline size_t keyToPosition(const std::string& key);
 

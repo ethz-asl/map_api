@@ -417,10 +417,10 @@ void NetTableManager::handleAnnounceToListenersRequest(const Message& request,
 void NetTableManager::handleSpatialTriggerNotification(const Message& request,
                                                        Message* response) {
   CHECK_NOTNULL(response);
-  TableMap::iterator found;
-  PeerId source;
   proto::SpatialIndexTrigger trigger;
   request.extract<SpatialIndex::kTriggerRequest>(&trigger);
+  TableMap::iterator found;
+  PeerId source;
   if (getTableForRequestWithStringOrDecline(trigger, response, &found)) {
     found->second->handleSpatialIndexTrigger(trigger);
     response->ack();

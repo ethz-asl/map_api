@@ -69,7 +69,7 @@ SpatialIndex::~SpatialIndex() {}
 void SpatialIndex::create() {
   ChordIndex::create();
   SpatialIndexCellData empty_data;
-  for (Cell cell : *this) {
+  for (const Cell& cell : *this) {
     CHECK(addData(cell.chordKey(), empty_data.SerializeAsString()));
   }
 }
@@ -77,9 +77,9 @@ void SpatialIndex::create() {
 void SpatialIndex::announceChunk(const common::Id& chunk_id,
                                  const BoundingBox& bounding_box) {
   std::vector<Cell> affected_cells;
-  getCells(bounding_box, &affected_cells);
+  getCellsInBoundingBox(bounding_box, &affected_cells);
 
-  for (Cell cell : affected_cells) {
+  for (Cell& cell : affected_cells) {
     cell.accessor().get().addChunkIdIfNotPresent(chunk_id);
   }
 }
@@ -88,18 +88,18 @@ void SpatialIndex::seekChunks(const BoundingBox& bounding_box,
                               common::IdSet* chunk_ids) {
   CHECK_NOTNULL(chunk_ids);
   std::vector<Cell> affected_cells;
-  getCells(bounding_box, &affected_cells);
+  getCellsInBoundingBox(bounding_box, &affected_cells);
 
-  for (Cell cell : affected_cells) {
+  for (Cell& cell : affected_cells) {
     cell.constPatientAccessor(1000).get().addChunkIds(chunk_ids);
   }
 }
 
 void SpatialIndex::listenToSpace(const BoundingBox& bounding_box) {
   std::vector<Cell> affected_cells;
-  getCells(bounding_box, &affected_cells);
+  getCellsInBoundingBox(bounding_box, &affected_cells);
 
-  for (Cell cell : affected_cells) {
+  for (Cell& cell : affected_cells) {
     cell.announceAsListener();
   }
 }
@@ -162,26 +162,21 @@ void SpatialIndex::Cell::getListeners(PeerIdSet* result) {
   constAccessor().get().getListeners(result);
 }
 
-SpatialIndex::Cell::Accessor::Accessor(Cell& cell)  // NOLINT
-    : cell_(cell),
-      data_(),
-      dirty_(false) {
-  std::string data_string;
-  CHECK(cell.index_->retrieveData(positionToKey(cell.position_1d_),
-                                  &data_string));
-  CHECK(data_.ParseFromString(data_string));
-}
+SpatialIndex::Cell::Accessor::Accessor(Cell* cell) : Accessor(cell, 0u) {}
 
-SpatialIndex::Cell::Accessor::Accessor(Cell& cell, size_t timeout_ms)  // NOLINT
-    : cell_(cell),
-      data_(),
-      dirty_(false) {
+SpatialIndex::Cell::Accessor::Accessor(Cell* cell, size_t timeout_ms)
+    : cell_(*CHECK_NOTNULL(cell)), data_(), dirty_(false) {
   std::string data_string;
-  if (!cell.index_->retrieveData(positionToKey(cell.position_1d_),
-                                 &data_string)) {
-    usleep(timeout_ms * kMillisecondsToMicroseconds);
-    CHECK(cell.index_->retrieveData(positionToKey(cell.position_1d_),
-                                    &data_string));
+  if (timeout_ms != 0u) {
+    if (!cell_.index_->retrieveData(positionToKey(cell_.position_1d_),
+                                    &data_string)) {
+      usleep(timeout_ms * kMillisecondsToMicroseconds);
+      CHECK(cell_.index_->retrieveData(positionToKey(cell_.position_1d_),
+                                       &data_string));
+    }
+  } else {
+    CHECK(cell_.index_->retrieveData(positionToKey(cell_.position_1d_),
+                                     &data_string));
   }
   CHECK(data_.ParseFromString(data_string));
 }
@@ -404,8 +399,8 @@ void SpatialIndex::handleRoutedRequest(const Message& routed_request_message,
              << request.type();
 }
 
-inline void SpatialIndex::getCells(const BoundingBox& bounding_box,
-                                   std::vector<Cell>* cells) {
+inline void SpatialIndex::getCellsInBoundingBox(const BoundingBox& bounding_box,
+                                                std::vector<Cell>* cells) {
   CHECK_NOTNULL(cells)->clear();
   CHECK_EQ(bounds_.size(), bounding_box.size());
   std::vector<size_t> indices;
