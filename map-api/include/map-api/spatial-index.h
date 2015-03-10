@@ -9,15 +9,21 @@
 #include <Eigen/Dense>
 #include <glog/logging.h>
 #include <google/protobuf/repeated_field.h>
+#include <gtest/gtest_prod.h>
 
-#include <map-api/chord-index.h>
-#include <map-api/peer-handler.h>
+#include "map-api/chord-index.h"
+#include "map-api/peer-handler.h"
+#include "map-api/spatial-index-cell-data.h"
 
 namespace common {
 class Id;
 }  // namespace common
 
 namespace map_api {
+namespace proto {
+class SpatialIndexTrigger;
+}  // namespace proto
+
 class SpatialIndex : public ChordIndex {
  public:
   // TODO(tcies) template class on type and dimensions
@@ -55,28 +61,55 @@ class SpatialIndex : public ChordIndex {
    */
   void announceChunk(const common::Id& chunk_id,
                      const BoundingBox& bounding_box);
-  void seekChunks(const BoundingBox& bounding_box,
-                  std::unordered_set<common::Id>* chunk_ids);
+  void seekChunks(const BoundingBox& bounding_box, common::IdSet* chunk_ids);
+  void listenToSpace(const BoundingBox& bounding_box);
 
   typedef std::function<void(const common::Id& id)> TriggerCallback;
 
   // Also used as iterator for range-based for loops.
   class Cell {
    public:
+    Cell(size_t position_1d, SpatialIndex* index);
+
     void getDimensions(Eigen::AlignedBox3d* result);
-    void attachTrigger(const TriggerCallback& trigger_callback);
+    std::string chordKey() const;
+
+    void announceAsListener();
+    void getListeners(PeerIdSet* result);
 
     // Iterator interface.
-    Cell(size_t position_1d, SpatialIndex* index);
     Cell& operator++();
     // This is a bit strange, but we want to fit into the range-loop interface.
     inline Cell& operator*() { return *this; }
     bool operator!=(const Cell& other);
 
+    class Accessor {
+     public:
+      explicit Accessor(Cell* cell);
+      Accessor(Cell* cell, size_t timeout_ms);
+      ~Accessor();
+      inline SpatialIndexCellData& get() {
+        dirty_ = true;
+        return data_;
+      }
+      inline const SpatialIndexCellData& get() const { return data_; }
+
+     private:
+      Cell& cell_;
+      SpatialIndexCellData data_;
+      bool dirty_;
+    };
+
+    inline Accessor accessor() { return Accessor(this); }
+    inline const Accessor constAccessor() { return Accessor(this); }
+    inline const Accessor constPatientAccessor(size_t timeout_ms) {
+      return Accessor(this, timeout_ms);
+    }
+
    private:
-    SpatialIndex* index_;
     // x is most significant, z is least significant.
     size_t position_1d_;
+    SpatialIndex* index_;
   };
 
   size_t size() const;
@@ -98,6 +131,7 @@ class SpatialIndex : public ChordIndex {
   static const char kFetchResponsibilitiesRequest[];
   static const char kFetchResponsibilitiesResponse[];
   static const char kPushResponsibilitiesRequest[];
+  static const char kTriggerRequest[];
 
  private:
   /**
@@ -112,13 +146,12 @@ class SpatialIndex : public ChordIndex {
   /**
    * Given a bounding box, identifies the indices of the overlapping cells.
    */
-  void getCellIndices(const BoundingBox& bounding_box,
-                      std::vector<size_t>* indices) const;
+  void getCellsInBoundingBox(const BoundingBox& bounding_box,
+                             std::vector<Cell>* cells);
   inline size_t coefficientOf(size_t dimension, double value) const;
-  /**
-   * TODO(tcies) template ChordIndex on key type?
-   */
-  static inline std::string typeHack(size_t cell_index);
+
+  static inline std::string positionToKey(size_t cell_index);
+  static inline size_t keyToPosition(const std::string& key);
 
   /**
    * TODO(tcies) the below is basically a copy of NetTableIndex AND
@@ -147,6 +180,13 @@ class SpatialIndex : public ChordIndex {
       const PeerId& to, DataMap* responsibilities) final override;
   virtual bool pushResponsibilitiesRpc(
       const PeerId& to, const DataMap& responsibilities) final override;
+
+  virtual void localUpdateCallback(const std::string& key,
+                                   const std::string& old_value,
+                                   const std::string& new_value);
+
+  void sendTriggerNotification(const PeerId& peer, const size_t position,
+                               const common::IdList& new_chunks);
 
   std::string table_name_;
   BoundingBox bounds_;
