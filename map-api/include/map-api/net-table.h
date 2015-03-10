@@ -182,6 +182,8 @@ class NetTable {
                                  Message* response);
   static const char kAnnounceToListeners[];
 
+  void handleSpatialIndexTrigger(const proto::SpatialIndexTrigger& trigger);
+
  private:
   NetTable();
   NetTable(const NetTable&) = delete;

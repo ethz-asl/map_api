@@ -27,7 +27,14 @@ void SpatialIndexCellData::addListenerIfNotPresent(const PeerId& peer) {
 void SpatialIndexCellData::addChunkIds(common::IdSet* result) const {
   CHECK_NOTNULL(result);
   for (int i = 0; i < chunk_ids_size(); ++i) {
-    result->emplace(common::Id(chunk_ids(i)));
+    result->emplace(chunk_ids(i));
+  }
+}
+
+void SpatialIndexCellData::getChunkIds(common::IdList* result) const {
+  CHECK_NOTNULL(result)->clear();
+  for (int i = 0; i < chunk_ids_size(); ++i) {
+    result->push_back(common::Id(chunk_ids(i)));
   }
 }
 
@@ -37,6 +44,18 @@ void SpatialIndexCellData::getListeners(std::unordered_set<PeerId>* result)
   for (int i = 0; i < listeners_size(); ++i) {
     result->emplace(PeerId(listeners(i)));
   }
+}
+
+bool SpatialIndexCellData::chunkIdSetDiff(const SpatialIndexCellData& other,
+                                          common::IdList* result) const {
+  common::IdList minuend, subtrahend;
+  getChunkIds(&minuend);
+  other.getChunkIds(&subtrahend);
+  std::sort(minuend.begin(), minuend.end());
+  std::sort(subtrahend.begin(), subtrahend.end());
+  std::set_difference(minuend.begin(), minuend.end(), subtrahend.begin(),
+                      subtrahend.end(), std::back_inserter(*result));
+  return !result->empty();
 }
 
 }  // namespace map_api
