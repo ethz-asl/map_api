@@ -80,6 +80,12 @@ void SpatialIndex::announceChunk(const common::Id& chunk_id,
   getCellsInBoundingBox(bounding_box, &affected_cells);
 
   for (Cell& cell : affected_cells) {
+    if (VLOG_IS_ON(3)) {
+      Eigen::AlignedBox3d box;
+      cell.getDimensions(&box);
+      VLOG(3) << "Pushing chunk " << chunk_id << " to " << box.min().transpose()
+              << " :: " << box.max().transpose();
+    }
     cell.accessor().get().addChunkIdIfNotPresent(chunk_id);
   }
 }
