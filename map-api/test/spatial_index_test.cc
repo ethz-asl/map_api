@@ -169,25 +169,65 @@ TEST_F(SpatialIndexTest, CellDimensions) {
   }
 }
 
-TEST_F(SpatialIndexTest, RegisterSeek) {
-  enum Barriers {
-    INIT,
-    PUSH_ADDRESS,
-    SPATIAL_REGISTERED,
-    DIE
-  };
-  enum Processes {
-    ROOT,
-    A
-  };
-  if (getSubprocessId() == ROOT) {
-    createSpatialIndex();
-    launchSubprocess(A);
-    IPC::barrier(INIT, 1);
-    IPC::push(PeerId::self());
-    IPC::barrier(PUSH_ADDRESS, 1);
-    IPC::barrier(SPATIAL_REGISTERED, 1);
+class SpatialIndexTwoPeerTest : public SpatialIndexTest {
+ public:
+  void run() {
+    enum Barriers {
+      INIT,
+      PUSH_ADDRESS,
+      SPATIAL_REGISTERED,
+      DIE
+    };
+    enum Processes {
+      ROOT,
+      A
+    };
+    if (getSubprocessId() == ROOT) {
+      createSpatialIndex();
 
+      beforeSlaveLaunch();
+
+      launchSubprocess(A);
+      IPC::barrier(INIT, 1);
+      IPC::push(PeerId::self());
+      IPC::barrier(PUSH_ADDRESS, 1);
+      IPC::barrier(SPATIAL_REGISTERED, 1);
+
+      afterSlaveTask();
+
+      IPC::barrier(DIE, 1);
+    }
+    if (getSubprocessId() == A) {
+      IPC::barrier(INIT, 1);
+      IPC::barrier(PUSH_ADDRESS, 1);
+      PeerId root = IPC::pop<PeerId>();
+      joinSpatialIndex(root);
+
+      slaveTask();
+
+      IPC::barrier(SPATIAL_REGISTERED, 1);
+      IPC::barrier(DIE, 1);
+    }
+  }
+
+ private:
+  virtual void beforeSlaveLaunch() = 0;
+  virtual void slaveTask() = 0;
+  virtual void afterSlaveTask() = 0;
+};
+
+class SpatialIndexRegisterSeekTest : public SpatialIndexTwoPeerTest {
+ private:
+  virtual void beforeSlaveLaunch() {
+    EXPECT_TRUE(checkExpectedActive(common::IdSet()));
+  }
+
+  virtual void slaveTask() {
+    createDefaultChunks();
+    registerDefaultChunks();
+  }
+
+  virtual void afterSlaveTask() {
     std::unordered_set<Chunk*> result;
     table_->getChunksInBoundingBox(box(kABox), &result);
     EXPECT_TRUE(checkExpectedActive(expected_a_));
@@ -201,68 +241,57 @@ TEST_F(SpatialIndexTest, RegisterSeek) {
     table_->getChunksInBoundingBox(box(kDBox), &result);
     EXPECT_TRUE(checkExpectedActive(expected_d_));
     table_->leaveAllChunks();
-
-    IPC::barrier(DIE, 1);
   }
-  if (getSubprocessId() == A) {
-    IPC::barrier(INIT, 1);
-    IPC::barrier(PUSH_ADDRESS, 1);
-    PeerId root = IPC::pop<PeerId>();
-    joinSpatialIndex(root);
-    createDefaultChunks();
-    registerDefaultChunks();
-    IPC::barrier(SPATIAL_REGISTERED, 1);
-    IPC::barrier(DIE, 1);
-  }
-}
+};
 
-TEST_F(SpatialIndexTest, AddListener) {
-  enum Barriers {
-    INIT,
-    PUSH_ADDRESS,
-    SPATIAL_REGISTERED,
-    DIE
-  };
-  enum Processes {
-    ROOT,
-    A
-  };
-  if (getSubprocessId() == ROOT) {
-    createSpatialIndex();
+TEST_F(SpatialIndexRegisterSeekTest, Run) { run(); }
+
+class SpatialIndexAddListenerTest : public SpatialIndexTwoPeerTest {
+ private:
+  virtual void beforeSlaveLaunch() {
     for (SpatialIndex::Cell cell : table_->spatial_index()) {
       PeerIdSet listeners;
       cell.getListeners(&listeners);
       EXPECT_TRUE(listeners.empty());
     }
+  }
 
-    launchSubprocess(A);
-    IPC::barrier(INIT, 1);
-    IPC::push(PeerId::self());
-    IPC::barrier(PUSH_ADDRESS, 1);
-    IPC::barrier(SPATIAL_REGISTERED, 1);
+  virtual void slaveTask() {
+    for (SpatialIndex::Cell cell : table_->spatial_index()) {
+      cell.announceAsListener();
+    }
+  }
 
+  virtual void afterSlaveTask() {
     for (SpatialIndex::Cell cell : table_->spatial_index()) {
       PeerIdSet listeners;
       cell.getListeners(&listeners);
       EXPECT_EQ(1u, listeners.size());
     }
-
-    IPC::barrier(DIE, 1);
   }
-  if (getSubprocessId() == A) {
-    IPC::barrier(INIT, 1);
-    IPC::barrier(PUSH_ADDRESS, 1);
-    PeerId root = IPC::pop<PeerId>();
-    joinSpatialIndex(root);
+};
 
-    for (SpatialIndex::Cell cell : table_->spatial_index()) {
-      cell.announceAsListener();
-    }
+TEST_F(SpatialIndexAddListenerTest, Run) { run(); }
 
-    IPC::barrier(SPATIAL_REGISTERED, 1);
-    IPC::barrier(DIE, 1);
+class SpatialIndexListenToSpaceTest : public SpatialIndexTwoPeerTest {
+ private:
+  virtual void beforeSlaveLaunch() {
+    table_->spatial_index().listenToSpace(box(kABox));
   }
-}
+
+  virtual void slaveTask() {
+    createDefaultChunks();
+    registerDefaultChunks();
+  }
+
+  virtual void afterSlaveTask() {
+    // TODO(tcies) Implment waitForTriggerCompletion() like in Chunk.
+    usleep(10000);  // Leave time for trigger completion.
+    EXPECT_TRUE(checkExpectedActive(expected_a_));
+  }
+};
+
+TEST_F(SpatialIndexListenToSpaceTest, Run) { run(); }
 
 }  // namespace map_api
 

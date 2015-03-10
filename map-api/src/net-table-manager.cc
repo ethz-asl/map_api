@@ -26,7 +26,7 @@ NetTableManager::NetTableManager()
     : metatable_chunk_(nullptr), metatable_(nullptr) {}
 
 template <>
-bool NetTableManager::getTableForRequestWithMetadataOrDecline<std::string>(
+bool NetTableManager::getTableForRequestWithStringOrDecline<std::string>(
     const std::string& request, Message* response, TableMap::iterator* found) {
   CHECK_NOTNULL(response);
   CHECK_NOTNULL(found);
@@ -41,8 +41,8 @@ template <>
 bool NetTableManager::getTableForRequestWithMetadataOrDecline<
     proto::ChunkRequestMetadata>(const proto::ChunkRequestMetadata& request,
                                  Message* response, TableMap::iterator* found) {
-  return getTableForRequestWithMetadataOrDecline(request.table(), response,
-                                                 found);
+  return getTableForRequestWithStringOrDecline(request.table(), response,
+                                               found);
 }
 
 void NetTableManager::registerHandlers() {
@@ -61,6 +61,8 @@ void NetTableManager::registerHandlers() {
                                   handlePushNewChunksRequest);
   Hub::instance().registerHandler(NetTable::kAnnounceToListeners,
                                   handleAnnounceToListenersRequest);
+  Hub::instance().registerHandler(SpatialIndex::kTriggerRequest,
+                                  handleSpatialTriggerNotification);
 
   // Chord requests.
   Hub::instance().registerHandler(NetTableIndex::kRoutedChordRequest,
@@ -409,6 +411,19 @@ void NetTableManager::handleAnnounceToListenersRequest(const Message& request,
   if (getTableForStringRequestOrDecline<NetTable::kAnnounceToListeners>(
           request, response, &found, &announcer)) {
     found->second->handleAnnounceToListeners(announcer, response);
+  }
+}
+
+void NetTableManager::handleSpatialTriggerNotification(const Message& request,
+                                                       Message* response) {
+  CHECK_NOTNULL(response);
+  TableMap::iterator found;
+  PeerId source;
+  proto::SpatialIndexTrigger trigger;
+  request.extract<SpatialIndex::kTriggerRequest>(&trigger);
+  if (getTableForRequestWithStringOrDecline(trigger, response, &found)) {
+    found->second->handleSpatialIndexTrigger(trigger);
+    response->ack();
   }
 }
 

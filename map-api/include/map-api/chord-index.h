@@ -126,6 +126,13 @@ class ChordIndex {
   virtual bool pushResponsibilitiesRpc(
       const PeerId& to, const DataMap& responsibilities) = 0;
 
+  // =======================
+  // IMPLEMENTATION OPTIONAL
+  // =======================
+  virtual void localUpdateCallback(const std::string& key,
+                                   const std::string& old_value,
+                                   const std::string& new_value);
+
   static void stabilizeThread(ChordIndex* self);
   static void integrateThread(ChordIndex* self);
 

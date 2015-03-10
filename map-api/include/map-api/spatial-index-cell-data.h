@@ -15,7 +15,12 @@ class SpatialIndexCellData : public proto::SpatialIndexCellData {
 
   // Add chunk ids FROM the cell data TO result.
   void addChunkIds(common::IdSet* result) const;
+  void getChunkIds(common::IdList* result) const;
   void getListeners(std::unordered_set<PeerId>* result) const;
+
+  // False if both have the same chunk ids.
+  bool chunkIdSetDiff(const SpatialIndexCellData& other,
+                      common::IdList* result) const;
 };
 
 }  // namespace map_api
