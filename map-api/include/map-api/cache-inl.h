@@ -165,30 +165,40 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
       if (cached_pair.second.dirty == ValueHolder::DirtyState::kDirty) {
         // Convert the object to the revision and then compare if it has changed.
         std::shared_ptr<map_api::Revision> update_revision =
-            std::make_shared<map_api::Revision>(
-                *corresponding_revision->second);
+            corresponding_revision->second->copyForWrite();
         objectToRevision(cached_pair.first,
                          Factory::getReferenceToDerived(
                              cached_pair.second.value),
                          update_revision.get());
         ++num_checked_items;
         if (*update_revision != *corresponding_revision->second) {
-          transaction_.get()->update(underlying_table_, update_revision);
-          ++num_dirty_items;
+          // To handle addition of fields, we check if the objects also differ
+          // if we would reserialize the db version.
+          std::shared_ptr<typename Factory::ElementType> value =
+              objectFromRevision<typename Factory::ElementType>(
+                  *corresponding_revision->second);
+          std::shared_ptr<map_api::Revision> reserialized_revision =
+              corresponding_revision->second->copyForWrite();
+          objectToRevision(cached_pair.first,
+                           *value, reserialized_revision.get());
+
+          if (*update_revision != *reserialized_revision) {
+            transaction_.get()->update(underlying_table_, update_revision);
+            ++num_dirty_items;
+          }
         }
       }
     }
   }
-  LOG(INFO) << "Cache commit: " << underlying_table_->name() <<
-      " (ca:" << num_cached_items << " ck:" << num_checked_items << " d:" <<
-      num_dirty_items << ")";
+  VLOG(3) << "Cache commit: " << underlying_table_->name()
+          << " (ca:" << num_cached_items << " ck:" << num_checked_items
+          << " d:" << num_dirty_items << ")";
   for (const IdType& id : removals_) {
     // Check if the removed object has ever been part of the database.
     if (revisions_.find(id) == revisions_.end()) {
       continue;
     }
-    std::shared_ptr<Revision> to_remove =
-        std::make_shared<Revision>(*getRevisionLocked(id));
+    std::shared_ptr<Revision> to_remove = getRevisionLocked(id)->copyForWrite();
     transaction_.get()->remove(underlying_table_, to_remove);
   }
   staged_ = true;
@@ -206,8 +216,8 @@ getAvailableIdsLocked() const {
                           ordered_available_ids_.end());
     double total_seconds = timer.Stop();
     ids_fetched_ = true;
-    LOG(INFO) << "Got " << available_ids_.size() << " ids for table "
-        << underlying_table_->name() << " in " << total_seconds << "s";
+    VLOG(3) << "Got " << available_ids_.size() << " ids for table "
+            << underlying_table_->name() << " in " << total_seconds << "s";
   }
 }
 

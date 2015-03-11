@@ -38,7 +38,7 @@ bool ProtoTableFileIO::storeTableContents(const map_api::LogicalTime& time) {
   map_api::Transaction transaction(time);
   map_api::CRTable::RevisionMap revisions =
       transaction.dumpActiveChunks(table_);
-  std::vector<map_api::Id> ids_to_store;
+  std::vector<common::Id> ids_to_store;
   ids_to_store.reserve(revisions.size());
   for (const map_api::CRTable::RevisionMap::value_type& value :
       revisions) {
@@ -48,10 +48,10 @@ bool ProtoTableFileIO::storeTableContents(const map_api::LogicalTime& time) {
 }
 bool ProtoTableFileIO::storeTableContents(
     const map_api::CRTable::RevisionMap& revisions,
-    const std::vector<map_api::Id>& ids_to_store) {
+    const std::vector<common::Id>& ids_to_store) {
   CHECK(file_.is_open());
 
-  for (const Id& revision_id : ids_to_store) {
+  for (const common::Id& revision_id : ids_to_store) {
     map_api::CRTable::RevisionMap::const_iterator it =
         revisions.find(revision_id);
     CHECK(it != revisions.end());
@@ -60,7 +60,7 @@ bool ProtoTableFileIO::storeTableContents(
     const Revision& revision = *it->second;
 
     RevisionStamp current_item_stamp;
-    current_item_stamp.first = revision.getId<Id>();
+    current_item_stamp.first = revision.getId<common::Id>();
     CHECK_EQ(current_item_stamp.first, revision_id);
 
     current_item_stamp.second = revision.getModificationTime();
@@ -123,7 +123,7 @@ bool ProtoTableFileIO::storeTableContents(
 
 bool ProtoTableFileIO::restoreTableContents() {
   Transaction transaction(LogicalTime::sample());
-  std::unordered_map<Id, Chunk*> existing_chunks;
+  std::unordered_map<common::Id, Chunk*> existing_chunks;
   restoreTableContents(&transaction, &existing_chunks);
   bool ok = transaction.commit();
   LOG_IF(WARNING, !ok) << "Transaction commit failed to load data";
@@ -132,7 +132,7 @@ bool ProtoTableFileIO::restoreTableContents() {
 
 bool ProtoTableFileIO::restoreTableContents(
     map_api::Transaction* transaction,
-    std::unordered_map<Id, Chunk*>* existing_chunks) {
+    std::unordered_map<common::Id, Chunk*>* existing_chunks) {
   CHECK_NOTNULL(transaction);
   CHECK_NOTNULL(existing_chunks);
   CHECK(file_.is_open());
@@ -193,13 +193,12 @@ bool ProtoTableFileIO::restoreTableContents(
       return false;
     }
 
-    std::shared_ptr<proto::Revision> proto_revision(new proto::Revision);
-    std::shared_ptr<Revision> revision(new Revision(proto_revision));
-    revision->parse(input_string);
+    std::shared_ptr<Revision> revision =
+        Revision::fromProtoString(input_string);
 
-    Id chunk_id = revision->getChunkId();
+    common::Id chunk_id = revision->getChunkId();
     Chunk* chunk = nullptr;
-    std::unordered_map<Id, Chunk*>::iterator it =
+    std::unordered_map<common::Id, Chunk*>::iterator it =
         existing_chunks->find(chunk_id);
     if (it == existing_chunks->end()) {
       chunk = table_->newChunk(chunk_id);

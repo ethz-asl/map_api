@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "map-api/net-table.h"
+#include "map-api/reader-writer-lock.h"
 #include "map-api/table-descriptor.h"
 
 namespace map_api {
@@ -39,7 +40,27 @@ class NetTableManager {
 
   void tableList(std::vector<std::string>* tables);
 
+  void listenToPeersJoiningTable(const std::string& table_name);
+
   void kill();
+
+  typedef std::unordered_map<std::string, std::unique_ptr<NetTable> > TableMap;
+  // Need custom iterator to skip metatable, which is not supposed to be part of
+  // the iteration.
+  class Iterator {
+   public:
+    Iterator(const TableMap::iterator& base, const TableMap& map);
+    Iterator& operator++();
+    NetTable* operator*();
+    bool operator!=(const Iterator& other) const;
+
+   private:
+    TableMap::iterator base_;
+    const TableMap::const_iterator metatable_;
+  };
+  // Not thread-safe, assumes table initialization has happened before.
+  inline Iterator begin() { return Iterator(tables_.begin(), tables_); }
+  inline Iterator end() { return Iterator(tables_.end(), tables_); }
 
   /**
    * ==========================
@@ -59,37 +80,44 @@ class NetTableManager {
   static void handleUnlockRequest(const Message& request, Message* response);
   static void handleUpdateRequest(const Message& request, Message* response);
   /**
+   * Net table requests
+   */
+  static void handlePushNewChunksRequest(const Message& request,
+                                         Message* response);
+  static void handleAnnounceToListenersRequest(const Message& request,
+                                               Message* response);
+  /**
    * Chord requests
    */
   static void handleRoutedNetTableChordRequests(const Message& request,
                                                 Message* response);
-  /**
-   * Chord requests
-   */
   static void handleRoutedSpatialChordRequests(const Message& request,
                                                Message* response);
 
  private:
-  NetTableManager() = default;
+  NetTableManager();
   NetTableManager(const NetTableManager&) = delete;
   NetTableManager& operator =(const NetTableManager&) = delete;
   ~NetTableManager() = default;
 
-  bool syncTableDefinition(
-      CRTable::Type type, const TableDescriptor& descriptor, bool* first,
-      PeerId* entry_point);
+  bool syncTableDefinition(CRTable::Type type,
+                           const TableDescriptor& descriptor, bool* first,
+                           PeerId* entry_point, PeerIdList* listeners);
 
-  typedef std::unordered_map<std::string, std::unique_ptr<NetTable> >
-  TableMap;
-
-  template<const char* request_type>
-  static bool routeChunkMetadataRequestOperations(
-      const Message& request, Message* response, TableMap::iterator* found,
-      Id* chunk_id, PeerId* peer);
-
-  template<typename RequestType>
-  static bool routeChunkRequestOperations(
-      const RequestType& request, Message* response,
+  template <const char* RequestType>
+  static bool getTableForMetadataRequestOrDecline(const Message& request,
+                                                  Message* response,
+                                                  TableMap::iterator* found,
+                                                  common::Id* chunk_id,
+                                                  PeerId* peer);
+  template <const char* RequestType>
+  static bool getTableForStringRequestOrDecline(const Message& request,
+                                                Message* response,
+                                                TableMap::iterator* found,
+                                                PeerId* peer);
+  template <typename MetadataRequestType>
+  static bool getTableForRequestWithMetadataOrDecline(
+      const MetadataRequestType& request, Message* response,
       TableMap::iterator* found);
 
   /**
@@ -99,10 +127,12 @@ class NetTableManager {
   static bool findTable(const std::string& table_name,
                         TableMap::iterator* found);
 
-  Chunk* metatable_chunk_ = nullptr;
+  Chunk* metatable_chunk_;
 
   TableMap tables_;
-  Poco::RWLock tables_lock_;
+  ReaderWriterMutex tables_lock_;
+
+  NetTable* metatable_;
 };
 
 }  // namespace map_api

@@ -45,7 +45,7 @@ class NetTableTransaction {
   void update(std::shared_ptr<Revision> revision);
   void remove(std::shared_ptr<Revision> revision);
   template <typename IdType>
-  void remove(const UniqueId<IdType>& id);
+  void remove(const common::UniqueId<IdType>& id);
 
   // TRANSACTION OPERATIONS
   /**
@@ -79,7 +79,7 @@ class NetTableTransaction {
   Chunk* chunkOf(const IdType& id,
                  std::shared_ptr<const Revision>* latest) const;
 
-  typedef std::unordered_map<Id, ChunkTransaction::TableToIdMultiMap>
+  typedef std::unordered_map<common::Id, ChunkTransaction::TableToIdMultiMap>
       TrackedChunkToTrackersMap;
   void getChunkTrackers(TrackedChunkToTrackersMap* chunk_trackers) const;
 

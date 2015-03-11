@@ -3,9 +3,9 @@
   <name>multiprocess_gtest</name>
   <version>0.0.0</version>
   <description>The aslam map api test package</description>
-  <maintainer email="slynen@ethz.ch">Simon Lynen</maintainer>
-  <maintainer email="dev@titus-c.ch">Titus Cieslewski</maintainer>
-  <license>Apache 2.0</license>
+  <maintainer email="simon.lynen@gmail.com">simonlynen</maintainer>
+  <maintainer email="dev@titus-c.ch">tcies</maintainer>
+  <license>closed</license>
 
   <buildtool_depend>catkin</buildtool_depend>
   <buildtool_depend>catkin_simple</buildtool_depend>

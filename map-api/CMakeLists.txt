@@ -3,7 +3,6 @@ project(map_api)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
 find_package(catkin_simple REQUIRED)
-find_package(Poco REQUIRED)
 
 catkin_simple(ALL_DEPS_REQUIRED)
 
@@ -55,14 +54,13 @@ SET(CORE_SOURCE  src/internal/trackee-multimap.cc
                  src/server-discovery.cc
                  src/spatial-index.cc
                  src/table-descriptor.cc
-                 src/transaction.cc
-                 src/unique-id.cc)
+                 src/transaction.cc)
                  
 cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
 # we need to add dependencies of external project packages to fetch headers
 # before compilation
 add_dependencies(${PROJECT_NAME} zeromq_catkin gflags_catkin glog_catkin)
-target_link_libraries(${PROJECT_NAME} ${POCO_LIBRARIES} pthread)
+target_link_libraries(${PROJECT_NAME} pthread)
 
 cs_add_executable(discovery-server discovery-server/discovery-server.cc
                    ${PROTO_SRCS} ${PROTO_HDRS})

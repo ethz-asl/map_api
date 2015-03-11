@@ -32,3 +32,4 @@ tools/lint/autolintc
 .project
 .cproject
 .settings
+CATKIN_IGNORE

@@ -11,14 +11,14 @@ void ChunkManagerBase::requestParticipationAllChunks() {
   if (active_chunks_.empty()) {
     return;
   }
-  LOG(INFO) << "Requesting participation for " << active_chunks_.size()
-            << " chunks from " << underlying_table_->name();
-  for (const std::pair<Id, Chunk*>& item : active_chunks_) {
+  VLOG(3) << "Requesting participation for " << active_chunks_.size()
+          << " chunks from " << underlying_table_->name();
+  for (const std::pair<common::Id, Chunk*>& item : active_chunks_) {
     CHECK_NOTNULL(item.second);
     item.second->requestParticipation();
   }
-  LOG(INFO) << "Done. " << active_chunks_.size() << " chunks from "
-            << underlying_table_->name() << " sent.";
+  VLOG(3) << "Done. " << active_chunks_.size() << " chunks from "
+          << underlying_table_->name() << " sent.";
 }
 
 Chunk* ChunkManagerChunkSize::getChunkForItem(const Revision& revision) {
@@ -27,8 +27,8 @@ Chunk* ChunkManagerChunkSize::getChunkForItem(const Revision& revision) {
 
   if (total_size > max_chunk_size_bytes_ || current_chunk_ == nullptr) {
     if (current_chunk_ != nullptr) {
-      LOG(INFO) << "New chunk size " << total_size
-                << " larger than limit, creating a new chunk.";
+      VLOG(3) << "New chunk size " << total_size
+              << " larger than limit, creating a new chunk.";
     }
     current_chunk_ = underlying_table_->newChunk();
     active_chunks_.insert(std::make_pair(current_chunk_->id(), current_chunk_));
