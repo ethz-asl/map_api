@@ -62,6 +62,18 @@ void NetTable::pushNewChunkIdsToTracker() {
       trackerDeterminerFactory<TrackeeType, TrackerType, TrackerIdType>());
 }
 
+template <>
+void NetTable::followTrackedChunksOfItem(const common::Id& item_id,
+                                         Chunk* tracker_chunk);
+
+template <typename IdType>
+void NetTable::followTrackedChunksOfItem(const IdType& item_id,
+                                         Chunk* tracker_chunk) {
+  common::Id common_id;
+  common_id.fromHashId(item_id.toHashId());
+  followTrackedChunksOfItem(item_id, tracker_chunk);
+}
+
 }  // namespace map_api
 
 #endif  // MAP_API_NET_TABLE_INL_H_
