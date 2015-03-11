@@ -644,6 +644,8 @@ void NetTable::handleAnnounceToListeners(const PeerId& announcer,
 
 void NetTable::handleSpatialIndexTrigger(
     const proto::SpatialIndexTrigger& trigger) {
+  VLOG(3) << "Received spatial index trigger with " << trigger.new_chunks_size()
+          << " new chunks";
   for (int i = 0; i < trigger.new_chunks_size(); ++i) {
     common::Id chunk_id(trigger.new_chunks(i));
     std::thread([this, chunk_id]() { CHECK_NOTNULL(getChunk(chunk_id)); })
