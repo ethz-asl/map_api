@@ -159,6 +159,8 @@ class Transaction {
   mutable std::mutex net_table_transactions_mutex_;
 
   bool chunk_tracking_disabled_;
+
+  bool already_committed_;
 };
 
 }  // namespace map_api
