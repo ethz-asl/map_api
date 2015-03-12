@@ -21,7 +21,9 @@ namespace map_api {
 
 Transaction::Transaction() : Transaction(LogicalTime::sample()) {}
 Transaction::Transaction(const LogicalTime& begin_time)
-    : begin_time_(begin_time), chunk_tracking_disabled_(false) {
+    : begin_time_(begin_time),
+      chunk_tracking_disabled_(false),
+      already_committed_(false) {
   CHECK(begin_time < LogicalTime::sample());
 }
 
@@ -67,6 +69,8 @@ void Transaction::remove(NetTable* table, std::shared_ptr<Revision> revision) {
 // net_table_transactions_, and have the locks acquired in that order
 // (resource hierarchy solution)
 bool Transaction::commit() {
+  CHECK(!already_committed_);
+  already_committed_ = true;
   if (FLAGS_blame_commit) {
     LOG(INFO) << "Transaction committed from:\n" << common::backtrace();
   }
