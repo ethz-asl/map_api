@@ -205,7 +205,7 @@ class NetTable {
   void announceToListeners(const PeerIdList& listeners);
 
   typedef std::unordered_map<common::Id, std::unique_ptr<Chunk> > ChunkMap;
-  ChunkMap::iterator addInitializedChunk(std::unique_ptr<Chunk>&& chunk);
+  Chunk* addInitializedChunk(std::unique_ptr<Chunk>&& chunk);
 
   bool insert(const LogicalTime& time, Chunk* chunk,
               const std::shared_ptr<Revision>& query);

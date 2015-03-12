@@ -104,8 +104,7 @@ void NetTable::announceToListeners(const PeerIdList& listeners) {
   }
 }
 
-NetTable::ChunkMap::iterator NetTable::addInitializedChunk(
-    std::unique_ptr<Chunk>&& chunk) {
+Chunk* NetTable::addInitializedChunk(std::unique_ptr<Chunk>&& chunk) {
   ScopedWriteLock lock(&active_chunks_lock_);
   std::pair<ChunkMap::iterator, bool> emplaced =
       active_chunks_.emplace(chunk->id(), std::move(chunk));
@@ -122,7 +121,7 @@ NetTable::ChunkMap::iterator NetTable::addInitializedChunk(
                   callback(final_chunk_ptr);
                 }
               }).detach();
-  return emplaced.first;
+  return emplaced.first->second.get();
 }
 
 const std::string& NetTable::name() const {
@@ -144,7 +143,7 @@ Chunk* NetTable::newChunk() {
 Chunk* NetTable::newChunk(const common::Id& chunk_id) {
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
   CHECK(chunk->init(chunk_id, cache_.get(), true));
-  ChunkMap::iterator insertion = addInitializedChunk(std::move(chunk));
+  Chunk* final_chunk_ptr = addInitializedChunk(std::move(chunk));
   // Add self to chunk posessors in index.
   index_lock_.acquireReadLock();
   CHECK_NOTNULL(index_.get());
@@ -153,14 +152,13 @@ Chunk* NetTable::newChunk(const common::Id& chunk_id) {
   // Push chunk to listeners.
   std::lock_guard<std::mutex> l_new_chunk_listeners(m_new_chunk_listeners_);
   for (const PeerId& peer : new_chunk_listeners_) {
-    // TODO(tcies): Race condition: Could "insertion" have become invalid?
-    if (insertion->second->requestParticipation(peer) == 0) {
+    if (final_chunk_ptr->requestParticipation(peer) == 0) {
       LOG(WARNING) << "Peer " << peer << ", who is listening to new chunks "
                    << " on " << name() << ", didn't receive new chunk!";
       // TODO(tcies) Find a good policy to remove stale listeners.
     }
   }
-  return insertion->second.get();
+  return final_chunk_ptr;
 }
 
 Chunk* NetTable::getChunk(const common::Id& chunk_id) {
@@ -319,8 +317,8 @@ void NetTable::attachTriggerToCurrentAndFutureChunks(
   // Attach trigger to all current chunks.
   for (const ChunkMap::value_type& id_chunk : active_chunks_) {
     Chunk* chunk = id_chunk.second.get();
-    chunk->attachTrigger([chunk, this, callback](
-        const common::IdSet& insertions, const common::IdSet& updates) {
+    chunk->attachTrigger([chunk, callback](const common::IdSet& insertions,
+                                           const common::IdSet& updates) {
       callback(insertions, updates, chunk);
     });
   }
