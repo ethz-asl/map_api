@@ -90,7 +90,6 @@ bool Cache<IdType, Value, DerivedValue>::insert(const IdType& id,
 
 template <typename IdType, typename Value, typename DerivedValue>
 void Cache<IdType, Value, DerivedValue>::erase(const IdType& id) {
-  CHECK(underlying_table_->type() == CRTable::Type::CRU);
   LockGuard lock(mutex_);
   cache_.erase(id);
   available_ids_.removeId(id);
