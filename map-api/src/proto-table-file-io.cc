@@ -7,8 +7,7 @@
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
 #include <map-api/chunk-manager.h>
-#include <map-api/cr-table.h>
-#include <map-api/cru-table.h>
+#include <map-api/table-data-container-base.h>
 #include <map-api/transaction.h>
 
 namespace map_api {

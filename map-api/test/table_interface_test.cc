@@ -9,12 +9,12 @@
 #include "map-api/core.h"
 #include "map-api/cr-table-ram-map.h"
 #include "map-api/cr-table-stxxl-map.h"
-#include "map-api/cru-table-ram-map.h"
-#include "map-api/cru-table-stxxl-map.h"
 #include "map-api/logical-time.h"
 #include "map-api/test/testing-entrypoint.h"
 #include <multiagent-mapping-common/unique-id.h>
 #include "./test_table.cc"
+#include "../include/map-api/table-data-ram-container.h"
+#include "../include/map-api/table-data-stxxl-container.h"
 
 namespace map_api {
 

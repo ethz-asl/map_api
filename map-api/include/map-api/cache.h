@@ -4,14 +4,14 @@
 #include <unordered_set>
 #include <vector>
 
-#include <map-api/app-templates.h>
-#include <map-api/cache-base.h>
-#include <map-api/cr-table.h>  // CRTable::RevisionMap
-#include <map-api/revision.h>
-#include <map-api/transaction.h>
 #include <multiagent-mapping-common/mapped-container-base.h>
 #include <multiagent-mapping-common/traits.h>
 #include <multiagent-mapping-common/unique-id.h>
+
+#include "map-api/app-templates.h"
+#include "map-api/cache-base.h"
+#include "map-api/revision-map.h"
+#include "map-api/transaction.h"
 
 namespace map_api {
 namespace traits {
