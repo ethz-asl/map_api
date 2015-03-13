@@ -223,7 +223,8 @@ class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
 
 template <typename TableType>
 class IntTestWithInit
-    : public FieldTestWithInit<TableDataTypes<TableType, int64_t>> {};  // NOLINT
+    : public FieldTestWithInit<TableDataTypes<TableType, int64_t>> {
+};  // NOLINT
 
 template <typename TableType>
 class CruMapIntTestWithInit
