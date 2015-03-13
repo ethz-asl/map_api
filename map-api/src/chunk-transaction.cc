@@ -20,10 +20,9 @@ ChunkTransaction::ChunkTransaction(const LogicalTime& begin_time, Chunk* chunk,
   structure_reference_ = chunk_->underlying_table_->getTemplate();
 }
 
-CRTable::RevisionMap ChunkTransaction::dumpChunk() {
-  CRTable::RevisionMap result;
-  chunk_->dumpItems(begin_time_, &result);
-  return result;
+void ChunkTransaction::dumpChunk(ConstRevisionMap* result) {
+  CHECK_NOTNULL(result);
+  chunk_->dumpItems(begin_time_, result);
 }
 
 void ChunkTransaction::insert(std::shared_ptr<Revision> revision) {
@@ -99,7 +98,7 @@ bool ChunkTransaction::check() {
     }
   }
   for (const ChunkTransaction::ConflictCondition& item : conflict_conditions_) {
-    CRTable::RevisionMap dummy;
+    ConstRevisionMap dummy;
     chunk_->underlying_table_->findByRevision(item.key, *item.value_holder,
                                               LogicalTime::sample(), &dummy);
     if (!dummy.empty()) {
@@ -143,13 +142,11 @@ void ChunkTransaction::merge(
   std::unordered_map<common::Id, LogicalTime> stamps;
   prepareCheck(merge_transaction->begin_time_, &stamps);
   // The following check may be left out if too costly
-  for (const typename CRTable::NonConstRevisionMap::value_type& item :
-       insertions_) {
+  for (const typename MutableRevisionMap::value_type& item : insertions_) {
     CHECK(stamps.find(item.first) == stamps.end()) << "Insert conflict!";
     merge_transaction->insertions_.insert(item);
   }
-  for (const typename CRTable::NonConstRevisionMap::value_type& item :
-       updates_) {
+  for (const typename MutableRevisionMap::value_type& item : updates_) {
     if (stamps[item.first] >= begin_time_) {
       conflicts->push_back(
           {merge_transaction->getById(item.first), item.second});
@@ -157,8 +154,7 @@ void ChunkTransaction::merge(
       merge_transaction->updates_.insert(item);
     }
   }
-  for (const typename CRTable::NonConstRevisionMap::value_type& item :
-       removes_) {
+  for (const typename MutableRevisionMap::value_type& item : removes_) {
     if (stamps[item.first] >= begin_time_) {
       conflicts->push_back(
           {merge_transaction->getById(item.first), item.second});
@@ -180,19 +176,19 @@ void ChunkTransaction::prepareCheck(
     std::unordered_map<common::Id, LogicalTime>* chunk_stamp) {
   CHECK_NOTNULL(chunk_stamp);
   chunk_stamp->clear();
-  CRTable::RevisionMap contents;
+  ConstRevisionMap contents;
   // same as "chunk_->dumpItems(LogicalTime::sample(), &contents);" without the
   // locking (because that is already done)
   chunk_->underlying_table_->dumpChunk(chunk_->id(), check_time, &contents);
   LogicalTime time;
   if (!updates_.empty()) {
     CHECK(chunk_->underlying_table_->type() == CRTable::Type::CRU);
-    for (const CRTable::RevisionMap::value_type& item : contents) {
+    for (const ConstRevisionMap::value_type& item : contents) {
       time = item.second->getUpdateTime();
       chunk_stamp->insert(std::make_pair(item.first, time));
     }
   } else {
-    for (const CRTable::RevisionMap::value_type& item : contents) {
+    for (const ConstRevisionMap::value_type& item : contents) {
       chunk_stamp->insert(std::make_pair(item.first, time));
     }
   }

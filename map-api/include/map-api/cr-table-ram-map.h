@@ -16,16 +16,17 @@ class CRTableRamMap : public CRTable {
   virtual bool insertCRDerived(const LogicalTime& time,
                                const std::shared_ptr<Revision>& query)
       final override;
-  virtual bool bulkInsertCRDerived(const NonConstRevisionMap& query,
+  virtual bool bulkInsertCRDerived(const MutableRevisionMap& query,
                                    const LogicalTime& time) final override;
   virtual bool patchCRDerived(const std::shared_ptr<Revision>& query)
       final override;
   virtual void dumpChunkCRDerived(const common::Id& chunk_id,
                                   const LogicalTime& time,
-                                  RevisionMap* dest) const final override;
-  virtual void findByRevisionCRDerived(
-      int key, const Revision& valueHolder, const LogicalTime& time,
-      CRTable::RevisionMap* dest) const final override;
+                                  ConstRevisionMap* dest) const final override;
+  virtual void findByRevisionCRDerived(int key, const Revision& valueHolder,
+                                       const LogicalTime& time,
+                                       ConstRevisionMap* dest) const
+      final override;
   virtual std::shared_ptr<const Revision> getByIdCRDerived(
       const common::Id& id, const LogicalTime& time) const final override;
   virtual void getAvailableIdsCRDerived(const LogicalTime& time,

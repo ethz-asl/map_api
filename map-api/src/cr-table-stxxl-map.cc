@@ -17,15 +17,15 @@ bool CRTableSTXXLMap::insertCRDerived(const LogicalTime& /*time*/,
   return patchCRDerived(query);
 }
 
-bool CRTableSTXXLMap::bulkInsertCRDerived(const NonConstRevisionMap& query,
+bool CRTableSTXXLMap::bulkInsertCRDerived(const MutableRevisionMap& query,
                                           const LogicalTime& /*time*/) {
-  for (const NonConstRevisionMap::value_type& pair : query) {
+  for (const MutableRevisionMap::value_type& pair : query) {
     if (data_.find(pair.first) != data_.end()) {
       return false;
     }
   }
   // This transitions ownership of the new objects to the db.
-  for (const NonConstRevisionMap::value_type& pair : query) {
+  for (const MutableRevisionMap::value_type& pair : query) {
     patchCRDerived(pair.second);
   }
   return true;
@@ -40,7 +40,7 @@ bool CRTableSTXXLMap::patchCRDerived(const std::shared_ptr<Revision>& query) {
 
 void CRTableSTXXLMap::dumpChunkCRDerived(const common::Id& chunk_id,
                                          const LogicalTime& time,
-                                         RevisionMap* dest) const {
+                                         ConstRevisionMap* dest) const {
   CHECK_NOTNULL(dest)->clear();
   for (const MapType::value_type& pair : data_) {
     std::shared_ptr<const Revision> revision;
@@ -56,7 +56,7 @@ void CRTableSTXXLMap::dumpChunkCRDerived(const common::Id& chunk_id,
 void CRTableSTXXLMap::findByRevisionCRDerived(int key,
                                               const Revision& valueHolder,
                                               const LogicalTime& time,
-                                              RevisionMap* dest) const {
+                                              ConstRevisionMap* dest) const {
   CHECK_NOTNULL(dest);
   dest->clear();
 

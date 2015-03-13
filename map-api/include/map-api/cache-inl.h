@@ -126,7 +126,7 @@ bool Cache<IdType, Value, DerivedValue>::empty() const {
 template <typename IdType, typename Value, typename DerivedValue>
 std::shared_ptr<const Revision>
 Cache<IdType, Value, DerivedValue>::getRevisionLocked(const IdType& id) const {
-  typedef CRTable::RevisionMap::iterator RevisionIterator;
+  typedef ConstRevisionMap::iterator RevisionIterator;
   RevisionIterator found = revisions_.find(id);
   if (found == revisions_.end()) {
     std::shared_ptr<const Revision> revision =
@@ -148,7 +148,7 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
   int num_checked_items = 0;
   int num_cached_items = 0;
   for (const typename CacheMap::value_type& cached_pair : cache_) {
-    CRTable::RevisionMap::iterator corresponding_revision =
+    ConstRevisionMap::iterator corresponding_revision =
         revisions_.find(cached_pair.first);
     if (corresponding_revision == revisions_.end()) {
       // All items that were in the db before must have been gotten through

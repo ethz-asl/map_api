@@ -16,7 +16,9 @@
 #include <multiagent-mapping-common/unique-id.h>
 
 namespace map_api {
+class ConstRevisionMap;
 class Message;
+class MutableRevisionMap;
 class Revision;
 
 /**
@@ -59,7 +61,7 @@ class Chunk {
 
   inline common::Id id() const;
 
-  void dumpItems(const LogicalTime& time, CRTable::RevisionMap* items);
+  void dumpItems(const LogicalTime& time, ConstRevisionMap* items);
   size_t numItems(const LogicalTime& time);
   size_t itemsSizeBytes(const LogicalTime& time);
 
@@ -118,7 +120,7 @@ class Chunk {
   /**
    * insert and update for transactions.
    */
-  void bulkInsertLocked(const CRTable::NonConstRevisionMap& items,
+  void bulkInsertLocked(const MutableRevisionMap& items,
                         const LogicalTime& time);
   void updateLocked(const LogicalTime& time,
                     const std::shared_ptr<Revision>& item);

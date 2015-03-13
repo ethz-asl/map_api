@@ -13,11 +13,13 @@
 #include "map-api/chunk.h"
 #include "map-api/cr-table.h"
 #include "map-api/net-table-index.h"
-#include "map-api/revision.h"
 #include "map-api/reader-writer-lock.h"
 #include "map-api/spatial-index.h"
 
 namespace map_api {
+class ConstRevisionMap;
+class MutableRevisionMap;
+
 inline std::string humanReadableBytes(double size) {
   int i = 0;
   const char* units[] = {"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"};
@@ -102,11 +104,10 @@ class NetTable {
   // ITEM RETRIEVAL
   // (locking all chunks)
   template <typename ValueType>
-  CRTable::RevisionMap lockFind(int key, const ValueType& value,
-                                const LogicalTime& time);
-  void dumpActiveChunks(const LogicalTime& time,
-                        CRTable::RevisionMap* destination);
-  void dumpActiveChunksAtCurrentTime(CRTable::RevisionMap* destination);
+  void lockFind(int key, const ValueType& value, const LogicalTime& time,
+                ConstRevisionMap* destination);
+  void dumpActiveChunks(const LogicalTime& time, ConstRevisionMap* destination);
+  void dumpActiveChunksAtCurrentTime(ConstRevisionMap* destination);
   template <typename IdType>
   void getAvailableIds(const LogicalTime& time,
                        std::vector<IdType>* ids);

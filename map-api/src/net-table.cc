@@ -233,8 +233,9 @@ void NetTable::autoFollowTrackedChunks() {
   for (const ChunkMap::value_type& id_chunk : active_chunks_) {
     Chunk* chunk = id_chunk.second.get();
     Transaction transaction;
-    CRTable::RevisionMap all_items = transaction.dumpChunk(this, chunk);
-    for (const CRTable::RevisionMap::value_type& id_revision : all_items) {
+    ConstRevisionMap all_items;
+    transaction.dumpChunk(this, chunk, &all_items);
+    for (const ConstRevisionMap::value_type& id_revision : all_items) {
       id_revision.second->fetchTrackedChunks();
     }
   }
@@ -348,13 +349,13 @@ bool NetTable::update(const std::shared_ptr<Revision>& query) {
 }
 
 void NetTable::dumpActiveChunks(const LogicalTime& time,
-                                CRTable::RevisionMap* destination) {
+                                ConstRevisionMap* destination) {
   CHECK_NOTNULL(destination);
   destination->clear();
   std::set<common::Id> active_chunk_ids;
   getActiveChunkIds(&active_chunk_ids);
   for (const common::Id& chunk_id : active_chunk_ids) {
-    map_api::CRTable::RevisionMap chunk_revisions;
+    ConstRevisionMap chunk_revisions;
     map_api::Chunk* chunk = getChunk(chunk_id);
     CHECK_NOTNULL(chunk);
     chunk->dumpItems(time, &chunk_revisions);
@@ -362,8 +363,7 @@ void NetTable::dumpActiveChunks(const LogicalTime& time,
   }
 }
 
-void NetTable::dumpActiveChunksAtCurrentTime(
-    CRTable::RevisionMap* destination) {
+void NetTable::dumpActiveChunksAtCurrentTime(ConstRevisionMap* destination) {
   CHECK_NOTNULL(destination);
   return dumpActiveChunks(map_api::LogicalTime::sample(), destination);
 }

@@ -1,5 +1,7 @@
 #include <map-api/cr-table-ram-map.h>
 
+#include "map-api/revision-map.h"
+
 namespace map_api {
 
 CRTableRamMap::~CRTableRamMap() {}
@@ -12,15 +14,15 @@ bool CRTableRamMap::insertCRDerived(const LogicalTime& /*time*/,
   return patchCRDerived(query);
 }
 
-bool CRTableRamMap::bulkInsertCRDerived(const NonConstRevisionMap& query,
+bool CRTableRamMap::bulkInsertCRDerived(const MutableRevisionMap& query,
                                         const LogicalTime& /*time*/) {
-  for (const NonConstRevisionMap::value_type& pair : query) {
+  for (const MutableRevisionMap::value_type& pair : query) {
     if (data_.find(pair.first) != data_.end()) {
       return false;
     }
   }
   // This transitions ownership of the new objects to the db.
-  for (const NonConstRevisionMap::value_type& pair : query) {
+  for (const MutableRevisionMap::value_type& pair : query) {
     CHECK(data_.emplace(pair.first, pair.second).second);
   }
   return true;
@@ -33,7 +35,7 @@ bool CRTableRamMap::patchCRDerived(const std::shared_ptr<Revision>& query) {
 
 void CRTableRamMap::dumpChunkCRDerived(const common::Id& chunk_id,
                                        const LogicalTime& time,
-                                       RevisionMap* dest) const {
+                                       ConstRevisionMap* dest) const {
   CHECK_NOTNULL(dest)->clear();
   for (const MapType::value_type& pair : data_) {
     if (pair.second->getChunkId() == chunk_id) {
@@ -44,9 +46,10 @@ void CRTableRamMap::dumpChunkCRDerived(const common::Id& chunk_id,
   }
 }
 
-void CRTableRamMap::findByRevisionCRDerived(
-    int key, const Revision& valueHolder, const LogicalTime& time,
-    RevisionMap* dest) const {
+void CRTableRamMap::findByRevisionCRDerived(int key,
+                                            const Revision& valueHolder,
+                                            const LogicalTime& time,
+                                            ConstRevisionMap* dest) const {
   CHECK_NOTNULL(dest);
   dest->clear();
   // TODO(tcies) allow optimization by index specification

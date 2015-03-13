@@ -392,7 +392,7 @@ TYPED_TEST(CruMapIntTestWithInit, Remove) {
   std::vector<common::Id> ids;
   this->table_->getAvailableIds(LogicalTime::sample(), &ids);
   EXPECT_EQ(1u, ids.size());
-  CRTable::RevisionMap result;
+  ConstRevisionMap result;
   this->table_->find(-1, 0, LogicalTime::sample(), &result);
   EXPECT_EQ(1u, result.size());
 

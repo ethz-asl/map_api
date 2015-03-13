@@ -182,7 +182,7 @@ TEST_P(NetTableFixture, RemoteUpdate) {
     A_UPDATED,
     DIE
   };
-  CRTable::RevisionMap results;
+  ConstRevisionMap results;
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
     Chunk* chunk = table_->newChunk();
@@ -230,7 +230,7 @@ TEST_P(NetTableFixture, Grind) {
     ID_SHARED,
     DIE
   };
-  CRTable::RevisionMap results;
+  ConstRevisionMap results;
   if (getSubprocessId() == 0) {
     for (uint64_t i = 1u; i < kProcesses; ++i) {
       launchSubprocess(i);
@@ -272,7 +272,7 @@ TEST_P(NetTableFixture, ChunkTransactions) {
     IDS_SHARED,
     DIE
   };
-  CRTable::RevisionMap results;
+  ConstRevisionMap results;
   if (getSubprocessId() == 0) {
     std::ostringstream extra_flags_ss;
     extra_flags_ss << "--grind_processes=" << FLAGS_grind_processes << " ";
@@ -347,7 +347,7 @@ TEST_P(NetTableFixture, ChunkTransactionsConflictConditions) {
     ID_SHARED,
     DIE
   };
-  CRTable::RevisionMap results;
+  ConstRevisionMap results;
   if (getSubprocessId() == 0) {
     for (uint64_t i = 1u; i < kProcesses; ++i) {
       launchSubprocess(i);
@@ -364,7 +364,7 @@ TEST_P(NetTableFixture, ChunkTransactionsConflictConditions) {
     table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(kUniqueItems, static_cast<int>(results.size()));
     std::set<int> unique_results;
-    for (const CRTable::RevisionMap::value_type& item : results) {
+    for (const ConstRevisionMap::value_type& item : results) {
       int result;
       item.second->get(kFieldName, &result);
       unique_results.insert(result);

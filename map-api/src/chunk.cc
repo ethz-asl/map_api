@@ -12,6 +12,7 @@
 #include "map-api/hub.h"
 #include "map-api/message.h"
 #include "map-api/net-table-manager.h"
+#include "map-api/revision-map.h"
 
 enum UnlockStrategy {
   REVERSE,
@@ -107,7 +108,7 @@ bool Chunk::init(
   return true;
 }
 
-void Chunk::dumpItems(const LogicalTime& time, CRTable::RevisionMap* items) {
+void Chunk::dumpItems(const LogicalTime& time, ConstRevisionMap* items) {
   CHECK_NOTNULL(items);
   distributedReadLock();
   underlying_table_->dumpChunk(id(), time, items);
@@ -122,7 +123,7 @@ size_t Chunk::numItems(const LogicalTime& time) {
 }
 
 size_t Chunk::itemsSizeBytes(const LogicalTime& time) {
-  CRTable::RevisionMap items;
+  ConstRevisionMap items;
   distributedReadLock();
   underlying_table_->dumpChunk(id(), time, &items);
   distributedUnlock();
@@ -145,7 +146,7 @@ void Chunk::getCommitTimes(const LogicalTime& sample_time,
   //  time. The expected amount of commit times << the expected amount of items,
   //  so this should be worth it.
   std::unordered_set<LogicalTime> unordered_commit_times;
-  CRTable::RevisionMap items;
+  ConstRevisionMap items;
   CRUTable::HistoryMap histories;
   distributedReadLock();
   if (underlying_table_->type() == CRTable::Type::CR) {
@@ -157,7 +158,7 @@ void Chunk::getCommitTimes(const LogicalTime& sample_time,
   }
   distributedUnlock();
   if (underlying_table_->type() == CRTable::Type::CR) {
-    for (const CRTable::RevisionMap::value_type& item : items) {
+    for (const ConstRevisionMap::value_type& item : items) {
       unordered_commit_times.insert(item.second->getInsertTime());
     }
   } else {
@@ -323,12 +324,12 @@ void Chunk::waitForTriggerCompletion() {
   ScopedWriteLock lock(&triggers_are_active_while_has_readers_);
 }
 
-void Chunk::bulkInsertLocked(const CRTable::NonConstRevisionMap& items,
+void Chunk::bulkInsertLocked(const MutableRevisionMap& items,
                              const LogicalTime& time) {
   std::vector<proto::PatchRequest> insert_requests;
   insert_requests.resize(items.size());
   int i = 0;
-  for (const CRTable::NonConstRevisionMap::value_type& item : items) {
+  for (const MutableRevisionMap::value_type& item : items) {
     CHECK_NOTNULL(item.second.get());
     item.second->setChunkId(id());
     fillMetadata(&insert_requests[i]);
@@ -340,7 +341,7 @@ void Chunk::bulkInsertLocked(const CRTable::NonConstRevisionMap& items,
   // fields are also set, which allows remote peers to just patch the revision
   // into their table.
   i = 0;
-  for (const CRTable::RevisionMap::value_type& item : items) {
+  for (const ConstRevisionMap::value_type& item : items) {
     insert_requests[i]
         .set_serialized_revision(item.second->serializeUnderlying());
     request.impose<kInsertRequest>(insert_requests[i]);
@@ -690,9 +691,9 @@ bool Chunk::isWriter(const PeerId& peer) {
 void Chunk::initRequestSetData(proto::InitRequest* request) {
   CHECK_NOTNULL(request);
   if (underlying_table_->type() == CRTable::Type::CR) {
-    CRTable::RevisionMap data;
+    ConstRevisionMap data;
     underlying_table_->dumpChunk(id(), LogicalTime::sample(), &data);
-    for (const CRTable::RevisionMap::value_type& data_pair : data) {
+    for (const ConstRevisionMap::value_type& data_pair : data) {
       request->add_serialized_items(data_pair.second->serializeUnderlying());
     }
   } else {

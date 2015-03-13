@@ -18,18 +18,19 @@ class CRUTableSTXXLMap : public CRUTable {
   virtual bool initCRDerived() final override;
   virtual bool insertCRUDerived(
       const std::shared_ptr<Revision>& query) final override;
-  virtual bool bulkInsertCRUDerived(
-      const NonConstRevisionMap& query) final override;
+  virtual bool bulkInsertCRUDerived(const MutableRevisionMap& query)
+      final override;
   virtual bool patchCRDerived(
       const std::shared_ptr<Revision>& query) final override;
   virtual std::shared_ptr<const Revision> getByIdCRDerived(
       const common::Id& id, const LogicalTime& time) const final override;
   virtual void dumpChunkCRDerived(const common::Id& chunk_id,
                                   const LogicalTime& time,
-                                  RevisionMap* dest) const final override;
+                                  ConstRevisionMap* dest) const final override;
   virtual void findByRevisionCRDerived(int key, const Revision& valueHolder,
                                        const LogicalTime& time,
-                                       RevisionMap* dest) const final override;
+                                       ConstRevisionMap* dest) const
+      final override;
   virtual int countByRevisionCRDerived(
       int key, const Revision& valueHolder,
       const LogicalTime& time) const final override;

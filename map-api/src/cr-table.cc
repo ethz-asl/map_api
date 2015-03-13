@@ -52,17 +52,17 @@ bool CRTable::insert(const LogicalTime& time,
   return insertCRDerived(time, query);
 }
 
-bool CRTable::bulkInsert(const NonConstRevisionMap& query) {
+bool CRTable::bulkInsert(const MutableRevisionMap& query) {
   return bulkInsert(query, LogicalTime::sample());
 }
 
-bool CRTable::bulkInsert(const NonConstRevisionMap& query,
+bool CRTable::bulkInsert(const MutableRevisionMap& query,
                          const LogicalTime& time) {
   std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   common::Id id;
-  for (const typename NonConstRevisionMap::value_type& id_revision : query) {
+  for (const typename MutableRevisionMap::value_type& id_revision : query) {
     CHECK_NOTNULL(id_revision.second.get());
     CHECK(id_revision.second->structureMatch(*reference))
         << "Bad structure of insert revision";
@@ -86,7 +86,7 @@ bool CRTable::patch(const std::shared_ptr<Revision>& query) {
 }
 
 void CRTable::dumpChunk(const common::Id& chunk_id, const LogicalTime& time,
-                        RevisionMap* dest) const {
+                        ConstRevisionMap* dest) const {
   std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized());
   CHECK_NOTNULL(dest);
@@ -96,7 +96,8 @@ void CRTable::dumpChunk(const common::Id& chunk_id, const LogicalTime& time,
 }
 
 void CRTable::findByRevision(int key, const Revision& valueHolder,
-                             const LogicalTime& time, RevisionMap* dest) const {
+                             const LogicalTime& time,
+                             ConstRevisionMap* dest) const {
   std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized()) << "Attempted to find in non-initialized table";
   // whether valueHolder contains key is implicitly checked whenever using
@@ -123,7 +124,7 @@ int CRTable::countByRevision(int key, const Revision& valueHolder,
 
 // although this is very similar to rawGetRow(), I don't see how to share the
 // features without loss of performance TODO(discuss)
-void CRTable::dump(const LogicalTime& time, RevisionMap* dest) const {
+void CRTable::dump(const LogicalTime& time, ConstRevisionMap* dest) const {
   CHECK_NOTNULL(dest);
   std::shared_ptr<Revision> valueHolder = getTemplate();
   CHECK(valueHolder != nullptr);

@@ -5,6 +5,8 @@
 #include <utility>
 #include <vector>
 
+#include "map-api/revision-map.h"
+
 namespace map_api {
 
 template <typename IdType>
@@ -35,56 +37,9 @@ void CRTable::getAvailableIds(const LogicalTime& time,
   }
 }
 
-template <typename RevisionType>
-template <typename Derived>
-typename CRTable::RevisionMapBase<RevisionType>::iterator
-CRTable::RevisionMapBase<RevisionType>::find(
-    const common::UniqueId<Derived>& key) {
-  common::Id id_key;
-  sm::HashId hash_id;
-  key.toHashId(&hash_id);
-  id_key.fromHashId(hash_id);
-  return find(id_key);
-}
-
-template <typename RevisionType>
-template <typename Derived>
-typename CRTable::RevisionMapBase<RevisionType>::const_iterator
-CRTable::RevisionMapBase<RevisionType>::find(
-    const common::UniqueId<Derived>& key)
-    const {
-  common::Id id_key;
-  sm::HashId hash_id;
-  key.toHashId(&hash_id);
-  id_key.fromHashId(hash_id);  // TODO(tcies) avoid conversion? how?
-  return find(id_key);
-}
-
-template <typename RevisionType>
-std::pair<typename CRTable::RevisionMapBase<RevisionType>::iterator, bool>
-CRTable::RevisionMapBase<RevisionType>::insert(
-    const std::shared_ptr<RevisionType>& revision) {
-  CHECK_NOTNULL(revision.get());
-  return insert(std::make_pair(
-      revision->template getId<common::Id>(), revision));
-}
-
-template <typename RevisionType>
-template <typename Derived>
-std::pair<typename CRTable::RevisionMapBase<RevisionType>::iterator, bool>
-CRTable::RevisionMapBase<RevisionType>::insert(
-    const common::UniqueId<Derived>& key,
-    const std::shared_ptr<RevisionType>& revision) {
-  common::Id id_key;
-  sm::HashId hash_id;
-  key.toHashId(&hash_id);
-  id_key.fromHashId(hash_id);  // TODO(tcies) avoid conversion? how?
-  return insert(std::make_pair(id_key, revision));
-}
-
 template <typename ValueType>
 void CRTable::find(int key, const ValueType& value, const LogicalTime& time,
-                  RevisionMap* dest) const {
+                   ConstRevisionMap* dest) const {
   std::shared_ptr<Revision> valueHolder = this->getTemplate();
   if (key >= 0) {
     valueHolder->set(key, value);
@@ -106,7 +61,7 @@ int CRTable::count(
 template <typename ValueType>
 std::shared_ptr<const Revision> CRTable::findUnique(
     int key, const ValueType& value, const LogicalTime& time) const {
-  RevisionMap results;
+  ConstRevisionMap results;
   find(key, value, time, &results);
   int count = results.size();
   if (count > 1) {
@@ -115,7 +70,7 @@ std::shared_ptr<const Revision> CRTable::findUnique(
         ") item with given"\
         " value of " << key << ", table " << descriptor_->name() << std::endl;
     report << "Items found at " << time << " are:" << std::endl;
-    for (const RevisionMap::value_type result : results) {
+    for (const ConstRevisionMap::value_type result : results) {
       report << result.second->dumpToString() << std::endl;
     }
     LOG(FATAL) << report.str();

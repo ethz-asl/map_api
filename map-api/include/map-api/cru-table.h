@@ -61,7 +61,7 @@ class CRUTable : public CRTable {
   virtual bool insertCRDerived(const LogicalTime& time,
                                const std::shared_ptr<Revision>& query)
       final override;
-  virtual bool bulkInsertCRDerived(const NonConstRevisionMap& query,
+  virtual bool bulkInsertCRDerived(const MutableRevisionMap& query,
                                    const LogicalTime& time) final override;
   /**
    * ================================================
@@ -70,7 +70,7 @@ class CRUTable : public CRTable {
    * The CRTable class contains most documentation on these functions.
    */
   virtual bool insertCRUDerived(const std::shared_ptr<Revision>& query) = 0;
-  virtual bool bulkInsertCRUDerived(const NonConstRevisionMap& query) = 0;
+  virtual bool bulkInsertCRUDerived(const MutableRevisionMap& query) = 0;
   virtual bool patchCRDerived(const std::shared_ptr<Revision>& query)
       override = 0;
 

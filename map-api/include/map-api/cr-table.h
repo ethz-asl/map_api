@@ -9,12 +9,17 @@
 
 #include <gflags/gflags.h>
 
-#include "map-api/revision.h"
 #include "map-api/table-descriptor.h"
-#include <multiagent-mapping-common/unique-id.h>
 #include "./core.pb.h"
 
+namespace common {
+class Id;
+}  // namespace common
+
 namespace map_api {
+class ConstRevisionMap;
+class MutableRevisionMap;
+class Revision;
 
 /**
  * Abstract table class. Implements structure definition, provides a non-virtual
@@ -26,31 +31,6 @@ class CRTable {
     CR,
     CRU
   };
-
-  template <typename RevisionType>
-  class RevisionMapBase
-      : public std::unordered_map<common::Id, std::shared_ptr<RevisionType> > {
-   public:
-    typedef std::unordered_map<common::Id, std::shared_ptr<RevisionType> > Base;
-    typedef typename Base::iterator iterator;
-    typedef typename Base::const_iterator const_iterator;
-
-    using Base::find;
-    template <typename Derived>
-    iterator find(const common::UniqueId<Derived>& key);
-    template <typename Derived>
-    const_iterator find(const common::UniqueId<Derived>& key) const;
-
-    using Base::insert;
-    std::pair<iterator, bool> insert(
-        const std::shared_ptr<RevisionType>& revision);
-    template <typename Derived>
-    std::pair<typename Base::iterator, bool> insert(
-        const common::UniqueId<Derived>& key,
-        const std::shared_ptr<RevisionType>& revision);
-  };
-  typedef RevisionMapBase<const Revision> RevisionMap;
-  typedef RevisionMapBase<Revision> NonConstRevisionMap;
 
   virtual ~CRTable();
 
@@ -99,8 +79,8 @@ class CRTable {
    */
   virtual bool insert(const LogicalTime& time,
                       const std::shared_ptr<Revision>& query) final;
-  virtual bool bulkInsert(const NonConstRevisionMap& query) final;
-  virtual bool bulkInsert(const NonConstRevisionMap& query,
+  virtual bool bulkInsert(const MutableRevisionMap& query) final;
+  virtual bool bulkInsert(const MutableRevisionMap& query,
                           const LogicalTime& time) final;
   /**
    * Unlike insert, patch does not modify the query, but assumes that all
@@ -125,17 +105,17 @@ class CRTable {
    */
   template <typename ValueType>
   void find(int key, const ValueType& value, const LogicalTime& time,
-            RevisionMap* dest) const;
+            ConstRevisionMap* dest) const;
   void dumpChunk(const common::Id& chunk_id, const LogicalTime& time,
-                 RevisionMap* dest) const;
+                 ConstRevisionMap* dest) const;
 
   /**
    * Same as find() but not typed. Value is looked up in the corresponding field
    * of valueHolder.
    */
-  virtual void findByRevision(
-      int key, const Revision& valueHolder,
-      const LogicalTime& time, RevisionMap* dest) const final;
+  virtual void findByRevision(int key, const Revision& valueHolder,
+                              const LogicalTime& time,
+                              ConstRevisionMap* dest) const final;
   /**
    * Same as find() but makes the assumption that there is only one result.
    */
@@ -151,7 +131,8 @@ class CRTable {
   virtual int countByRevision(int key, const Revision& valueHolder,
                               const LogicalTime& time) const final;
 
-  virtual void dump(const LogicalTime& time, RevisionMap* dest) const final;
+  virtual void dump(const LogicalTime& time, ConstRevisionMap* dest) const
+      final;
 
   /**
    * Count all items that match key = value at time.
@@ -191,20 +172,20 @@ class CRTable {
   virtual bool initCRDerived() = 0;
   virtual bool insertCRDerived(const LogicalTime& time,
                                const std::shared_ptr<Revision>& query) = 0;
-  virtual bool bulkInsertCRDerived(const NonConstRevisionMap& query,
+  virtual bool bulkInsertCRDerived(const MutableRevisionMap& query,
                                    const LogicalTime& time) = 0;
   virtual bool patchCRDerived(const std::shared_ptr<Revision>& query) = 0;
   virtual std::shared_ptr<const Revision> getByIdCRDerived(
       const common::Id& id, const LogicalTime& time) const = 0;
   virtual void dumpChunkCRDerived(const common::Id& chunk_id,
                                   const LogicalTime& time,
-                                  RevisionMap* dest) const = 0;
+                                  ConstRevisionMap* dest) const = 0;
   /**
    * If key is -1, this should return all the data in the table.
    */
   virtual void findByRevisionCRDerived(int key, const Revision& valueHolder,
                                        const LogicalTime& time,
-                                       RevisionMap* dest) const = 0;
+                                       ConstRevisionMap* dest) const = 0;
   virtual void getAvailableIdsCRDerived(const LogicalTime& time,
                                         std::vector<common::Id>* ids) const = 0;
 

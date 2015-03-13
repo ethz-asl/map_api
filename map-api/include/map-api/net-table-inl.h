@@ -17,13 +17,12 @@ void __attribute__((deprecated)) NetTable::registerItemInSpace(
 }
 
 template <typename ValueType>
-CRTable::RevisionMap NetTable::lockFind(int key, const ValueType& value,
-                                        const LogicalTime& time) {
-  CRTable::RevisionMap result;
+void NetTable::lockFind(int key, const ValueType& value,
+                        const LogicalTime& time, ConstRevisionMap* result) {
+  CHECK_NOTNULL(result);
   readLockActiveChunks();
-  cache_->find(key, value, time, &result);
+  cache_->find(key, value, time, result);
   unlockActiveChunks();
-  return result;
 }
 
 template <typename IdType>

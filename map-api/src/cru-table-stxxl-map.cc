@@ -23,14 +23,13 @@ bool CRUTableSTXXLMap::insertCRUDerived(
   return true;
 }
 
-bool CRUTableSTXXLMap::bulkInsertCRUDerived(
-    const NonConstRevisionMap& query) {
-  for (const RevisionMap::value_type& pair : query) {
+bool CRUTableSTXXLMap::bulkInsertCRUDerived(const MutableRevisionMap& query) {
+  for (const MutableRevisionMap::value_type& pair : query) {
     if (data_.find(pair.first) != data_.end()) {
       return false;
     }
   }
-  for (const RevisionMap::value_type& pair : query) {
+  for (const MutableRevisionMap::value_type& pair : query) {
     CRURevisionInformation revision_information;
     CHECK(revision_store_->storeRevision(*pair.second, &revision_information));
     data_[pair.first].push_front(revision_information);
@@ -78,7 +77,7 @@ std::shared_ptr<const Revision> CRUTableSTXXLMap::getByIdCRDerived(
 
 void CRUTableSTXXLMap::dumpChunkCRDerived(const common::Id& chunk_id,
                                           const LogicalTime& time,
-                                          RevisionMap* dest) const {
+                                          ConstRevisionMap* dest) const {
   CHECK_NOTNULL(dest)->clear();
   // TODO(tcies) Zero-copy const RevisionMap instead of copyForWrite?
   forChunkItemsAtTime(chunk_id, time,
@@ -90,7 +89,7 @@ void CRUTableSTXXLMap::dumpChunkCRDerived(const common::Id& chunk_id,
 void CRUTableSTXXLMap::findByRevisionCRDerived(int key,
                                                const Revision& value_holder,
                                                const LogicalTime& time,
-                                               RevisionMap* dest) const {
+                                               ConstRevisionMap* dest) const {
   CHECK_NOTNULL(dest);
   dest->clear();
   // TODO(tcies) Zero-copy const RevisionMap instead of copyForWrite?

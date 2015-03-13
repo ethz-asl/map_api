@@ -206,9 +206,9 @@ TEST_P(NetTableFixture, Transactions) {
       while (true) {
         Transaction attempt;
         increment(table_, ab_id, ab_chunk, &attempt);
-        CRTable::RevisionMap chunk_dump =
-            attempt.dumpChunk(second_table, b_chunk);
-        CRTable::RevisionMap::iterator found = chunk_dump.find(b_id);
+        ConstRevisionMap chunk_dump;
+        attempt.dumpChunk(second_table, b_chunk, &chunk_dump);
+        ConstRevisionMap::iterator found = chunk_dump.find(b_id);
         std::shared_ptr<Revision> to_update = found->second->copyForWrite();
         int transient_value;
         to_update->get(kSecondTableFieldName, &transient_value);
@@ -243,10 +243,10 @@ TEST_P(NetTableFixture, CommitTime) {
   transaction.insert(table_, chunk, to_insert_1);
   transaction.insert(table_, chunk, to_insert_2);
   ASSERT_TRUE(transaction.commit());
-  CRTable::RevisionMap retrieved;
+  ConstRevisionMap retrieved;
   chunk->dumpItems(LogicalTime::sample(), &retrieved);
   ASSERT_EQ(2u, retrieved.size());
-  CRTable::RevisionMap::iterator it = retrieved.begin();
+  ConstRevisionMap::iterator it = retrieved.begin();
   LogicalTime time_1 = it->second->getInsertTime();
   ++it;
   LogicalTime time_2 = it->second->getInsertTime();
@@ -268,7 +268,7 @@ TEST_P(NetTableFixture, ChunkLookup) {
     DIE
   };
   Chunk* chunk;
-  CRTable::RevisionMap results;
+  ConstRevisionMap results;
   if (getSubprocessId() == MASTER) {
     launchSubprocess(SLAVE);
     IPC::barrier(INIT, 1);

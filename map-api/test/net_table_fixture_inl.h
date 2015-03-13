@@ -24,7 +24,7 @@ void NetTableFixture::SetUp() {
 }
 
 size_t NetTableFixture::count() {
-  CRTable::RevisionMap results;
+  ConstRevisionMap results;
   table_->dumpActiveChunksAtCurrentTime(&results);
   return results.size();
 }
@@ -33,8 +33,9 @@ void NetTableFixture::increment(const common::Id& id, Chunk* chunk,
                                 NetTableTransaction* transaction) {
   CHECK_NOTNULL(chunk);
   CHECK_NOTNULL(transaction);
-  CRTable::RevisionMap chunk_dump = transaction->dumpChunk(chunk);
-  CRTable::RevisionMap::iterator found = chunk_dump.find(id);
+  ConstRevisionMap chunk_dump;
+  transaction->dumpChunk(chunk, &chunk_dump);
+  ConstRevisionMap::iterator found = chunk_dump.find(id);
   std::shared_ptr<Revision> to_update = found->second->copyForWrite();
   int transient_value;
   to_update->get(kFieldName, &transient_value);
@@ -48,8 +49,9 @@ void NetTableFixture::increment(NetTable* table, const common::Id& id,
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(chunk);
   CHECK_NOTNULL(transaction);
-  CRTable::RevisionMap chunk_dump = transaction->dumpChunk(table, chunk);
-  CRTable::RevisionMap::iterator found = chunk_dump.find(id);
+  ConstRevisionMap chunk_dump;
+  transaction->dumpChunk(table, chunk, &chunk_dump);
+  ConstRevisionMap::iterator found = chunk_dump.find(id);
   std::shared_ptr<Revision> to_update = found->second->copyForWrite();
   int transient_value;
   to_update->get(kFieldName, &transient_value);
