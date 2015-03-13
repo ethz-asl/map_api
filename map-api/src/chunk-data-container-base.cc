@@ -3,43 +3,36 @@
 
 #include <glog/logging.h>
 #include <gflags/gflags.h>
+#include <map-api/chunk-data-container-base.h>
 
 #include "./core.pb.h"
 #include <map-api/core.h>
-#include <map-api/table-data-container-base.h>
 
 namespace map_api {
 
-TableDataContainerBase::~TableDataContainerBase() {}
+ChunkDataContainerBase::~ChunkDataContainerBase() {}
 
-bool TableDataContainerBase::init(
-    std::unique_ptr<TableDescriptor>* descriptor) {
-  CHECK_NOTNULL(descriptor);
-  CHECK((*descriptor)->has_name());
-  descriptor_ = std::move(*descriptor);
+bool ChunkDataContainerBase::init(std::shared_ptr<TableDescriptor> descriptor) {
+  CHECK(descriptor);
+  CHECK(descriptor->has_name());
+  descriptor_ = descriptor;
   CHECK(initImpl());
   initialized_ = true;
   return true;
 }
 
-bool TableDataContainerBase::isInitialized() const { return initialized_; }
+bool ChunkDataContainerBase::isInitialized() const { return initialized_; }
 
-const std::string& TableDataContainerBase::name() const {
+const std::string& ChunkDataContainerBase::name() const {
   return descriptor_->name();
 }
 
-std::shared_ptr<Revision> TableDataContainerBase::getTemplate() const {
+std::shared_ptr<Revision> ChunkDataContainerBase::getTemplate() const {
   CHECK(isInitialized()) << "Can't get template of non-initialized table";
-  std::shared_ptr<Revision> ret = Revision::fromProto(
-      std::unique_ptr<proto::Revision>(new proto::Revision));
-  // add editable fields
-  for (int i = 0; i < descriptor_->fields_size(); ++i) {
-    ret->addField(i, descriptor_->fields(i));
-  }
-  return ret;
+  return descriptor_->getTemplate();
 }
 
-bool TableDataContainerBase::insert(const LogicalTime& time,
+bool ChunkDataContainerBase::insert(const LogicalTime& time,
                                     const std::shared_ptr<Revision>& query) {
   std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(query.get() != nullptr);
@@ -54,7 +47,7 @@ bool TableDataContainerBase::insert(const LogicalTime& time,
   return insertImpl(query);
 }
 
-bool TableDataContainerBase::bulkInsert(const LogicalTime& time,
+bool ChunkDataContainerBase::bulkInsert(const LogicalTime& time,
                                         const MutableRevisionMap& query) {
   std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
@@ -73,7 +66,7 @@ bool TableDataContainerBase::bulkInsert(const LogicalTime& time,
   return bulkInsertImpl(query);
 }
 
-bool TableDataContainerBase::patch(
+bool ChunkDataContainerBase::patch(
     const std::shared_ptr<const Revision>& query) {
   std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(query != nullptr);
@@ -85,18 +78,7 @@ bool TableDataContainerBase::patch(
   return patchImpl(query);
 }
 
-void TableDataContainerBase::dumpChunk(const common::Id& chunk_id,
-                                       const LogicalTime& time,
-                                       ConstRevisionMap* dest) const {
-  std::lock_guard<std::mutex> lock(access_mutex_);
-  CHECK(isInitialized());
-  CHECK_NOTNULL(dest);
-  dest->clear();
-  CHECK_LE(time, LogicalTime::sample());
-  return dumpChunkImpl(chunk_id, time, dest);
-}
-
-void TableDataContainerBase::findByRevision(int key,
+void ChunkDataContainerBase::findByRevision(int key,
                                             const Revision& valueHolder,
                                             const LogicalTime& time,
                                             ConstRevisionMap* dest) const {
@@ -112,7 +94,7 @@ void TableDataContainerBase::findByRevision(int key,
   findByRevisionImpl(key, valueHolder, time, dest);
 }
 
-int TableDataContainerBase::countByRevision(int key,
+int ChunkDataContainerBase::countByRevision(int key,
                                             const Revision& valueHolder,
                                             const LogicalTime& time) const {
   std::lock_guard<std::mutex> lock(access_mutex_);
@@ -127,7 +109,7 @@ int TableDataContainerBase::countByRevision(int key,
 
 // although this is very similar to rawGetRow(), I don't see how to share the
 // features without loss of performance TODO(discuss)
-void TableDataContainerBase::dump(const LogicalTime& time,
+void ChunkDataContainerBase::dump(const LogicalTime& time,
                                   ConstRevisionMap* dest) const {
   CHECK_NOTNULL(dest);
   std::shared_ptr<Revision> valueHolder = getTemplate();
@@ -135,7 +117,7 @@ void TableDataContainerBase::dump(const LogicalTime& time,
   findByRevision(-1, *valueHolder, time, dest);
 }
 
-void TableDataContainerBase::findHistoryByRevision(int key,
+void ChunkDataContainerBase::findHistoryByRevision(int key,
                                                    const Revision& valueHolder,
                                                    const LogicalTime& time,
                                                    HistoryMap* dest) const {
@@ -146,7 +128,7 @@ void TableDataContainerBase::findHistoryByRevision(int key,
   return findHistoryByRevisionImpl(key, valueHolder, time, dest);
 }
 
-void TableDataContainerBase::update(const LogicalTime& time,
+void ChunkDataContainerBase::update(const LogicalTime& time,
                                     const std::shared_ptr<Revision>& query) {
   CHECK(query != nullptr);
   CHECK(isInitialized()) << "Attempted to update in non-initialized table";
@@ -161,7 +143,7 @@ void TableDataContainerBase::update(const LogicalTime& time,
   CHECK(insertUpdatedImpl(query));
 }
 
-void TableDataContainerBase::remove(const LogicalTime& time,
+void ChunkDataContainerBase::remove(const LogicalTime& time,
                                     const std::shared_ptr<Revision>& query) {
   CHECK(query != nullptr);
   CHECK(isInitialized());
@@ -174,25 +156,17 @@ void TableDataContainerBase::remove(const LogicalTime& time,
   CHECK(insertUpdatedImpl(query));
 }
 
-int TableDataContainerBase::countByChunk(const common::Id& chunk_id,
-                                         const LogicalTime& time) const {
-  std::lock_guard<std::mutex> lock(access_mutex_);
-  CHECK(isInitialized());
-  CHECK(time < LogicalTime::sample());
-  return countByChunkImpl(chunk_id, time);
-}
-
-void TableDataContainerBase::clear() {
+void ChunkDataContainerBase::clear() {
   std::lock_guard<std::mutex> lock(access_mutex_);
   clearImpl();
 }
 
 std::ostream& operator<<(std::ostream& stream,
-                         const TableDataContainerBase::ItemDebugInfo& info) {
+                         const ChunkDataContainerBase::ItemDebugInfo& info) {
   return stream << "For table " << info.table << ", item " << info.id << ": ";
 }
 
-bool TableDataContainerBase::getLatestUpdateTime(const common::Id& id,
+bool ChunkDataContainerBase::getLatestUpdateTime(const common::Id& id,
                                                  LogicalTime* time) {
   CHECK_NE(common::Id(), id);
   CHECK_NOTNULL(time);

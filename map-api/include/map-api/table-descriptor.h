@@ -8,9 +8,10 @@
 #include "./core.pb.h"
 
 namespace map_api {
+class Revision;
 
 class TableDescriptor : private proto::TableDescriptor {
-  friend class TableDataContainerBase;
+  friend class ChunkDataContainerBase;
   friend class NetTableManager;
   friend class Revision;
 
@@ -25,6 +26,8 @@ class TableDescriptor : private proto::TableDescriptor {
 
   void setSpatialIndex(const SpatialIndex::BoundingBox& extent,
                        const std::vector<size_t>& subdivision);
+
+  std::shared_ptr<Revision> getTemplate() const;
 };
 
 }  // namespace map_api

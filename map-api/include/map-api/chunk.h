@@ -11,6 +11,7 @@
 
 #include <multiagent-mapping-common/unique-id.h>
 
+#include "map-api/chunk-data-container-base.h"
 #include "map-api/logical-time.h"
 #include "map-api/peer-handler.h"
 #include "map-api/reader-writer-lock.h"
@@ -21,7 +22,6 @@ class ConstRevisionMap;
 class Message;
 class MutableRevisionMap;
 class Revision;
-class TableDataContainerBase;
 
 /**
  * A chunk is the smallest unit of data sharing among the map_api peers. Each
@@ -57,10 +57,10 @@ class Chunk {
                              const common::IdSet& updates)> TriggerCallback;
 
  public:
-  bool init(const common::Id& id, TableDataContainerBase* underlying_table,
+  bool init(const common::Id& id, std::shared_ptr<TableDescriptor> descriptor,
             bool initialize);
   bool init(const common::Id& id, const proto::InitRequest& request,
-            const PeerId& sender, TableDataContainerBase* underlying_table);
+            const PeerId& sender, std::shared_ptr<TableDescriptor> descriptor);
 
   inline common::Id id() const;
 
@@ -231,7 +231,7 @@ class Chunk {
 
   common::Id id_;
   PeerHandler peers_;
-  TableDataContainerBase* table_data_container_;
+  std::unique_ptr<ChunkDataContainerBase> data_container_;
   DistributedRWLock lock_;
   std::vector<std::function<
       void(const std::unordered_set<common::Id>& insertions,

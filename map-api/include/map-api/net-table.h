@@ -9,12 +9,12 @@
 
 #include <gtest/gtest_prod.h>
 
+#include "map-api/chunk-data-container-base.h"
 #include "map-api/app-templates.h"
 #include "map-api/chunk.h"
 #include "map-api/net-table-index.h"
 #include "map-api/reader-writer-lock.h"
 #include "map-api/spatial-index.h"
-#include "map-api/table-data-container-base.h"
 
 namespace map_api {
 class ConstRevisionMap;
@@ -184,7 +184,7 @@ class NetTable {
   NetTable(const NetTable&) = delete;
   NetTable& operator =(const NetTable&) = delete;
 
-  bool init(std::unique_ptr<TableDescriptor>* descriptor);
+  bool init(std::shared_ptr<TableDescriptor> descriptor);
 
   // Interface for NetTableManager:
   void createIndex();
@@ -233,7 +233,7 @@ class NetTable {
   void fetchAllCallback(const common::IdSet& insertions,
                         const common::IdSet& updates, Chunk* chunk);
 
-  std::unique_ptr<TableDataContainerBase> data_container_;
+  std::shared_ptr<TableDescriptor> descriptor_;
   ChunkMap active_chunks_;
   mutable ReaderWriterMutex active_chunks_lock_;
 

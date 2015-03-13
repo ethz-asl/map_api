@@ -1,12 +1,12 @@
-#include <map-api/table-data-ram-container.h>
+#include "../include/map-api/chunk-data-ram-container.h"
 
 namespace map_api {
 
-TableDataRamContainer::~TableDataRamContainer() {}
+ChunkDataRamContainer::~ChunkDataRamContainer() {}
 
-bool TableDataRamContainer::initImpl() { return true; }
+bool ChunkDataRamContainer::initImpl() { return true; }
 
-bool TableDataRamContainer::insertImpl(
+bool ChunkDataRamContainer::insertImpl(
     const std::shared_ptr<const Revision>& query) {
   CHECK(query != nullptr);
   common::Id id = query->getId<common::Id>();
@@ -18,7 +18,7 @@ bool TableDataRamContainer::insertImpl(
   return true;
 }
 
-bool TableDataRamContainer::bulkInsertImpl(const MutableRevisionMap& query) {
+bool ChunkDataRamContainer::bulkInsertImpl(const MutableRevisionMap& query) {
   for (const MutableRevisionMap::value_type& pair : query) {
     if (data_.find(pair.first) != data_.end()) {
       return false;
@@ -30,7 +30,7 @@ bool TableDataRamContainer::bulkInsertImpl(const MutableRevisionMap& query) {
   return true;
 }
 
-bool TableDataRamContainer::patchImpl(
+bool ChunkDataRamContainer::patchImpl(
     const std::shared_ptr<const Revision>& query) {
   CHECK(query != nullptr);
   common::Id id = query->getId<common::Id>();
@@ -52,7 +52,7 @@ bool TableDataRamContainer::patchImpl(
   return true;
 }
 
-std::shared_ptr<const Revision> TableDataRamContainer::getByIdImpl(
+std::shared_ptr<const Revision> ChunkDataRamContainer::getByIdImpl(
     const common::Id& id, const LogicalTime& time) const {
   HistoryMap::const_iterator found = data_.find(id);
   if (found == data_.end()) {
@@ -65,18 +65,7 @@ std::shared_ptr<const Revision> TableDataRamContainer::getByIdImpl(
   return *latest;
 }
 
-void TableDataRamContainer::dumpChunkImpl(const common::Id& chunk_id,
-                                          const LogicalTime& time,
-                                          ConstRevisionMap* dest) const {
-  CHECK_NOTNULL(dest)->clear();
-  // TODO(tcies) Zero-copy const RevisionMap instead of copyForWrite?
-  forChunkItemsAtTime(chunk_id, time,
-                      [&dest](const common::Id& id, const Revision& item) {
-    CHECK(dest->emplace(id, item.copyForWrite()).second);
-  });
-}
-
-void TableDataRamContainer::findByRevisionImpl(int key,
+void ChunkDataRamContainer::findByRevisionImpl(int key,
                                                const Revision& value_holder,
                                                const LogicalTime& time,
                                                ConstRevisionMap* dest) const {
@@ -90,7 +79,7 @@ void TableDataRamContainer::findByRevisionImpl(int key,
   });
 }
 
-void TableDataRamContainer::getAvailableIdsImpl(
+void ChunkDataRamContainer::getAvailableIdsImpl(
     const LogicalTime& time, std::vector<common::Id>* ids) const {
   CHECK_NOTNULL(ids);
   ids->clear();
@@ -105,7 +94,7 @@ void TableDataRamContainer::getAvailableIdsImpl(
   }
 }
 
-int TableDataRamContainer::countByRevisionImpl(int key,
+int ChunkDataRamContainer::countByRevisionImpl(int key,
                                                const Revision& value_holder,
                                                const LogicalTime& time) const {
   int count = 0;
@@ -115,21 +104,12 @@ int TableDataRamContainer::countByRevisionImpl(int key,
   return count;
 }
 
-int TableDataRamContainer::countByChunkImpl(const common::Id& chunk_id,
-                                            const LogicalTime& time) const {
-  int count = 0;
-  forChunkItemsAtTime(chunk_id, time,
-                      [&count](const common::Id& /*id*/,
-                               const Revision& /*item*/) { ++count; });
-  return count;
-}
-
-bool TableDataRamContainer::insertUpdatedImpl(
+bool ChunkDataRamContainer::insertUpdatedImpl(
     const std::shared_ptr<Revision>& query) {
   return patchImpl(query);
 }
 
-void TableDataRamContainer::findHistoryByRevisionImpl(
+void ChunkDataRamContainer::findHistoryByRevisionImpl(
     int key, const Revision& valueHolder, const LogicalTime& time,
     HistoryMap* dest) const {
   CHECK_NOTNULL(dest);
@@ -143,7 +123,7 @@ void TableDataRamContainer::findHistoryByRevisionImpl(
   trimToTime(time, dest);
 }
 
-void TableDataRamContainer::chunkHistory(const common::Id& chunk_id,
+void ChunkDataRamContainer::chunkHistory(const common::Id& chunk_id,
                                          const LogicalTime& time,
                                          HistoryMap* dest) const {
   CHECK_NOTNULL(dest)->clear();
@@ -155,7 +135,7 @@ void TableDataRamContainer::chunkHistory(const common::Id& chunk_id,
   trimToTime(time, dest);
 }
 
-void TableDataRamContainer::itemHistoryImpl(const common::Id& id,
+void ChunkDataRamContainer::itemHistoryImpl(const common::Id& id,
                                             const LogicalTime& time,
                                             History* dest) const {
   CHECK_NOTNULL(dest)->clear();
@@ -167,9 +147,9 @@ void TableDataRamContainer::itemHistoryImpl(const common::Id& id,
   });
 }
 
-void TableDataRamContainer::clearImpl() { data_.clear(); }
+void ChunkDataRamContainer::clearImpl() { data_.clear(); }
 
-inline void TableDataRamContainer::forEachItemFoundAtTime(
+inline void ChunkDataRamContainer::forEachItemFoundAtTime(
     int key, const Revision& value_holder, const LogicalTime& time,
     const std::function<void(const common::Id& id, const Revision& item)>&
         action) const {
@@ -185,7 +165,7 @@ inline void TableDataRamContainer::forEachItemFoundAtTime(
   }
 }
 
-inline void TableDataRamContainer::forChunkItemsAtTime(
+inline void ChunkDataRamContainer::forChunkItemsAtTime(
     const common::Id& chunk_id, const LogicalTime& time,
     const std::function<void(const common::Id& id, const Revision& item)>&
         action) const {
@@ -201,7 +181,7 @@ inline void TableDataRamContainer::forChunkItemsAtTime(
   }
 }
 
-inline void TableDataRamContainer::trimToTime(const LogicalTime& time,
+inline void ChunkDataRamContainer::trimToTime(const LogicalTime& time,
                                               HistoryMap* subject) const {
   CHECK_NOTNULL(subject);
   for (HistoryMap::value_type& pair : *subject) {

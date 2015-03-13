@@ -23,7 +23,7 @@ class ProtoAutoSerializationWorks;
 
 class Revision {
   friend class Chunk;
-  friend class TableDataContainerBase;
+  friend class ChunkDataContainerBase;
   template<int BlockSize>
   friend class STXXLRevisionStore;
   friend class Transaction;

@@ -1,5 +1,7 @@
 #include <map-api/net-table.h>
 #include <glog/logging.h>
+#include <map-api/chunk-data-ram-container.h>
+#include <map-api/chunk-data-stxxl-container.h>
 
 #include <multiagent-mapping-common/backtrace.h>
 #include <statistics/statistics.h>
@@ -8,11 +10,7 @@
 #include "map-api/core.h"
 #include "map-api/hub.h"
 #include "map-api/net-table-manager.h"
-#include "map-api/table-data-ram-container.h"
-#include "map-api/table-data-stxxl-container.h"
 #include "map-api/transaction.h"
-
-DEFINE_bool(use_external_memory, false, "External memory vs. RAM tables.");
 
 namespace map_api {
 
@@ -27,13 +25,8 @@ MAP_API_STRING_MESSAGE(NetTable::kAnnounceToListeners);
 
 NetTable::NetTable() {}
 
-bool NetTable::init(std::unique_ptr<TableDescriptor>* descriptor) {
-  if (FLAGS_use_external_memory) {
-    data_container_.reset(new TableDataStxxlContainer);
-  } else {
-    data_container_.reset(new TableDataRamContainer);
-  }
-  CHECK(data_container_->init(descriptor));
+bool NetTable::init(std::shared_ptr<TableDescriptor> descriptor) {
+  descriptor_ = descriptor;
   return true;
 }
 
