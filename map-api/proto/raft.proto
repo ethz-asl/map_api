@@ -1,0 +1,14 @@
+package map_api.proto;
+
+message RaftHeartbeat {
+  required uint64 term = 1;
+}
+
+message RequestVote {
+  required uint64 term = 1;
+  required uint64 logical_time = 2;
+}
+
+message ResponseVote {
+  required bool vote = 1;
+}
