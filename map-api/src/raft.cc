@@ -260,7 +260,7 @@ void RaftCluster::heartbeatThread(RaftCluster* raft) {
       uint64_t term = ++raft->current_term_;
       raft->leader_known_ = false;
       state_lck.unlock();
-      long unsigned int num_votes = 0;
+      uint32_t num_votes = 0;
 
       LOG(INFO) << "Peer " << PeerId::self()
                 << " is an election candidate for term " << term;
