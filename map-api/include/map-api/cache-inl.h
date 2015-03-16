@@ -165,16 +165,27 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
       if (cached_pair.second.dirty == ValueHolder::DirtyState::kDirty) {
         // Convert the object to the revision and then compare if it has changed.
         std::shared_ptr<map_api::Revision> update_revision =
-            std::make_shared<map_api::Revision>(
-                *corresponding_revision->second);
+            corresponding_revision->second->copyForWrite();
         objectToRevision(cached_pair.first,
                          Factory::getReferenceToDerived(
                              cached_pair.second.value),
                          update_revision.get());
         ++num_checked_items;
         if (*update_revision != *corresponding_revision->second) {
-          transaction_.get()->update(underlying_table_, update_revision);
-          ++num_dirty_items;
+          // To handle addition of fields, we check if the objects also differ
+          // if we would reserialize the db version.
+          std::shared_ptr<typename Factory::ElementType> value =
+              objectFromRevision<typename Factory::ElementType>(
+                  *corresponding_revision->second);
+          std::shared_ptr<map_api::Revision> reserialized_revision =
+              corresponding_revision->second->copyForWrite();
+          objectToRevision(cached_pair.first,
+                           *value, reserialized_revision.get());
+
+          if (*update_revision != *reserialized_revision) {
+            transaction_.get()->update(underlying_table_, update_revision);
+            ++num_dirty_items;
+          }
         }
       }
     }
@@ -187,8 +198,7 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
     if (revisions_.find(id) == revisions_.end()) {
       continue;
     }
-    std::shared_ptr<Revision> to_remove =
-        std::make_shared<Revision>(*getRevisionLocked(id));
+    std::shared_ptr<Revision> to_remove = getRevisionLocked(id)->copyForWrite();
     transaction_.get()->remove(underlying_table_, to_remove);
   }
   staged_ = true;
