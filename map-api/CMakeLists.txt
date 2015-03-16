@@ -80,8 +80,9 @@ if(!APPLE)
   target_link_libraries(test_discovery ${PROJECT_NAME})
 endif()
 
-catkin_add_gtest(test_table_interface_test test/table_interface_test.cc)
-target_link_libraries(test_table_interface_test ${PROJECT_NAME})
+catkin_add_gtest(test_table_data_container_test 
+  test/table_data_container_test.cc)
+target_link_libraries(test_table_data_container_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_core_test test/core_test.cc)
 target_link_libraries(test_core_test ${PROJECT_NAME})
