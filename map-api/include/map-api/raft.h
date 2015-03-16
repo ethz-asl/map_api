@@ -19,7 +19,7 @@
  *  TODO List
  * --------------------------------------------------------------
  *
- *  * PENDING: Send heartbeat is blocking. the cycle takes longer of there
+ * PENDING: Send heartbeat is blocking. the cycle takes longer if there
  *  are many peers. This may cause problems of timeout when there are a
  *  lot of peers. Is there a Way to send heartbeat and not wait for response?
  *  UDP style?
@@ -30,6 +30,7 @@
  * PENDING: Peer handling, adding, removing
  * PENDING: When to start raft server
  * PENDING: Multiple raft instances managed by a manager class
+ * PENDING: Remove the extra log messages
  *
  * DONE: Protobuf for messages, including heatbeat. Should have fields:
  *  term index, logical time
@@ -117,11 +118,18 @@ class RaftCluster {
    * ==================================================
    */
 
+  /**
+   *
+   * @param id
+   * @param term
+   * @return True if RPC is acknowledged.
+   */
   bool sendHeartbeat(PeerId id, uint64_t term);
 
   /**
    *
    * @param id
+   * @param term
    * @return 1 if vote granted, 0 if vote denied, -1 if peer unreachable.
    */
   int sendRequestVote(PeerId id, uint64_t term);
@@ -142,8 +150,6 @@ class RaftCluster {
   std::mutex last_heartbeat_mutex_;
 
   // Heartbeat monitoring/sending, state changes managed in a separate thread.
-  // The main thread never changes the state. ONLY this thread can change the
-  // state
   static void heartbeatThread(RaftCluster* thisRaftCluster);
   std::thread heartbeat_thread_;  // kill in destructor
   std::atomic<bool> heartbeat_thread_running_;

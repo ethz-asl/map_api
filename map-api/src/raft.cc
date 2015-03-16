@@ -43,8 +43,8 @@ RaftCluster::RaftCluster()
 }
 
 RaftCluster::~RaftCluster() {
+  if (heartbeat_thread_.joinable()) heartbeat_thread_.join();
   is_exiting_ = true;
-  heartbeat_thread_.join();
 }
 
 RaftCluster& RaftCluster::instance() {
@@ -92,10 +92,11 @@ void RaftCluster::handleRequestVote(const Message& request, Message* response) {
 
   {
     std::lock_guard<std::mutex> state_lck(state_mutex_);
-    if (req.term() > current_term_ && state_ == State::FOLLOWER) {
+    if (req.term() > current_term_) {
       resp.set_vote(true);
       current_term_ = req.term();
       leader_known_ = false;
+      state_ = State::FOLLOWER;
       LOG(INFO) << "Peer " << PeerId::self().ipPort() << " is voting for "
                 << request.sender() << " in term " << current_term_;
     } else {
@@ -112,8 +113,6 @@ void RaftCluster::handleRequestVote(const Message& request, Message* response) {
   }
 }
 
-// Function called from within the heartbeat thread.
-// No need to lock as locks are acquired before calling this function.
 bool RaftCluster::sendHeartbeat(PeerId id, uint64_t term) {
   Message request, response;
   proto::RaftHeartbeat heartbeat;
@@ -133,8 +132,6 @@ bool RaftCluster::sendHeartbeat(PeerId id, uint64_t term) {
   }
 }
 
-// Function called from within the heartbeat thread.
-// No need to lock as locks are acquired before calling this function.
 int RaftCluster::sendRequestVote(PeerId id, uint64_t term) {
   Message request, response;
   proto::RequestVote vote_request;
@@ -184,6 +181,7 @@ void RaftCluster::heartbeatThread(RaftCluster* raft) {
         (last_hb_sender != leader_id || last_hb_sender_term != current_term ||
          !leader_known);
 
+    // See if the heartbeat sender has changed. If so, update the leader_id.
     if (sender_changed) {
       if (last_hb_sender_term > current_term ||
           (last_hb_sender_term == current_term && !leader_known)) {
@@ -195,7 +193,8 @@ void RaftCluster::heartbeatThread(RaftCluster* raft) {
         state_lck.unlock();
         last_correct_hb = last_hb_time;
         continue;
-      } else if (last_hb_sender_term == current_term &&
+      } else if (state == State::FOLLOWER &&
+                 last_hb_sender_term == current_term &&
                  last_hb_sender != leader_id && current_term > 0 &&
                  leader_known) {
         // This should not happen !!!
@@ -213,7 +212,8 @@ void RaftCluster::heartbeatThread(RaftCluster* raft) {
       last_correct_hb = last_hb_time;
     }
 
-    // Handle the heartbeat timings
+    // Handle the heartbeat timings. Send heartbeat periodically if in
+    // Leader state. Check for heartbeat timeouts if in follower state.
     if (state == State::FOLLOWER) {
       TimePoint now = std::chrono::system_clock::now();
       double duration = static_cast<double>(
@@ -253,7 +253,7 @@ void RaftCluster::heartbeatThread(RaftCluster* raft) {
       continue;
     }
 
-    // Handle state changes
+    // Handle state changes if in follower state and heartbeat timeout occurs.
     if (election_timeout) {
       state_lck.lock();
       raft->state_ = State::CANDIDATE;
@@ -275,12 +275,15 @@ void RaftCluster::heartbeatThread(RaftCluster* raft) {
       LOG(INFO) << "Peer " << PeerId::self() << " Received " << num_votes
                 << " votes in term " << term;
 
-      // See if there are enough votes, and if someone else became leader making
+      // See if there are enough votes, and if someone else became leader,
+      // making
       // this follower
       state_lck.lock();
-      if (num_votes >= raft->peer_list_.size() / 2) {
+      if (raft->state_ == State::CANDIDATE &&
+          num_votes >= raft->peer_list_.size() / 2) {
         raft->state_ = State::LEADER;
         raft->leader_known_ = true;
+        raft->leader_id_ = PeerId::self();
         LOG(INFO) << "Peer " << PeerId::self()
                   << "Elected as the leader for term " << raft->current_term_;
       } else {
@@ -290,6 +293,13 @@ void RaftCluster::heartbeatThread(RaftCluster* raft) {
       state_lck.unlock();
 
       election_timeout = false;
+
+      // Reset the last heartbeat time so that the next timeout is not based on
+      // a stale heartbeat.
+      {
+        std::lock_guard<std::mutex> lck(raft->last_heartbeat_mutex_);
+        raft->last_heartbeat_ = std::chrono::system_clock::now();
+      }
 
       // Set the election timeout again
       std::random_device rd;
