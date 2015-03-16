@@ -126,6 +126,13 @@ class ChordIndex {
   virtual bool pushResponsibilitiesRpc(
       const PeerId& to, const DataMap& responsibilities) = 0;
 
+  // This function gets executed after data that is allocated locally (i.e. not
+  // on another peer) gets updated. Derived classes can use this to implement
+  // triggers on chord data.
+  virtual void localUpdateCallback(const std::string& key,
+                                   const std::string& old_value,
+                                   const std::string& new_value);
+
   static void stabilizeThread(ChordIndex* self);
   static void integrateThread(ChordIndex* self);
 
