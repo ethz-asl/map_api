@@ -34,8 +34,7 @@ RaftCluster::RaftCluster()
       last_heartbeat_sender_(PeerId("0.0.0.0:0")),
       last_heartbeat_sender_term_(0),
       heartbeat_thread_running_(false),
-      is_exiting_(false),
-      final_result_(std::make_pair(0, 0)) {
+      is_exiting_(false) {
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_int_distribution<> dist(150, 300);
