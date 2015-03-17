@@ -31,6 +31,7 @@
  * PENDING: When to start raft server
  * PENDING: Multiple raft instances managed by a manager class
  * PENDING: Remove the extra log messages
+ * PENDING: std::async vs std::thread+join for heartbeat
  *
  * DONE: Protobuf for messages, including heatbeat. Should have fields:
  *  term index, logical time
@@ -60,7 +61,7 @@
 #include <mutex>
 #include <set>
 #include <thread>
-#include <condition_variable>
+#include <vector>
 
 #include "map-api/message.h"
 #include "map-api/peer-id.h"
@@ -134,13 +135,17 @@ class RaftCluster {
    */
   int sendRequestVote(PeerId id, uint64_t term);
 
+  /**
+   * ===============================
+   * Leader election related members
+   * ===============================
+   */
   // State information
   PeerId leader_id_;
   State state_;
   uint64_t current_term_;
   bool leader_known_;
   std::mutex state_mutex_;
-  std::condition_variable cv_state_;
 
   // Heartbeat information
   typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;

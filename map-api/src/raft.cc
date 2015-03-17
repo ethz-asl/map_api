@@ -1,5 +1,6 @@
 #include "map-api/raft.h"
 
+#include <future>
 #include <random>
 
 #include <multiagent-mapping-common/conversions.h>
@@ -33,7 +34,8 @@ RaftCluster::RaftCluster()
       last_heartbeat_sender_(PeerId("0.0.0.0:0")),
       last_heartbeat_sender_term_(0),
       heartbeat_thread_running_(false),
-      is_exiting_(false) {
+      is_exiting_(false),
+      final_result_(std::make_pair(0, 0)) {
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_int_distribution<> dist(150, 300);
@@ -82,6 +84,7 @@ void RaftCluster::handleHearbeat(const Message& request, Message* response) {
   last_heartbeat_sender_ = PeerId(request.sender());
   last_heartbeat_sender_term_ = heartbeat.term();
   last_heartbeat_mutex_.unlock();
+  usleep(1000);
   response->ack();
 }
 
@@ -177,14 +180,14 @@ void RaftCluster::heartbeatThread(RaftCluster* raft) {
     bool leader_known = raft->leader_known_;
     state_lck.unlock();
 
-    bool sender_changed =
-        (last_hb_sender != leader_id || last_hb_sender_term != current_term ||
-         !leader_known);
-
     // See if the heartbeat sender has changed. If so, update the leader_id.
+    bool sender_changed = (!leader_known || last_hb_sender != leader_id ||
+                           last_hb_sender_term != current_term);
+
     if (sender_changed) {
       if (last_hb_sender_term > current_term ||
           (last_hb_sender_term == current_term && !leader_known)) {
+        // Found a new leader
         state_lck.lock();
         if (state == State::LEADER) raft->state_ = State::FOLLOWER;
         raft->current_term_ = last_hb_sender_term;
@@ -197,18 +200,20 @@ void RaftCluster::heartbeatThread(RaftCluster* raft) {
                  last_hb_sender_term == current_term &&
                  last_hb_sender != leader_id && current_term > 0 &&
                  leader_known) {
-        // This should not happen !!!
+        // This should not happen.
         LOG(INFO) << "Peer " << PeerId::self().ipPort()
                   << " has found 2 leaders in the same term (" << current_term
                   << "). They are " << leader_id.ipPort() << " (current) and "
                   << last_hb_sender.ipPort() << " (new) ";
-      } else {  // Heartbeat from a server with older term.
+      } else {
+        // Heartbeat from a server with older term.
         // Ignore if follower.
         if (state == State::LEADER) {
           // raft->sendHeartbeat(last_hb_sender, current_term);
         }
       }
-    } else {  // No changes. Simply update heartbeat time.
+    } else {
+      // No changes. Simply update last heartbeat time.
       last_correct_hb = last_hb_time;
     }
 
@@ -239,8 +244,16 @@ void RaftCluster::heartbeatThread(RaftCluster* raft) {
         if (log_info) LOG(INFO) << "Leader: Time to send new hearbeat";
         // send heartbeat
         int num_ack = 0;
+        std::vector<std::future<bool>> responses;
         for (auto peer : raft->peer_list_) {
-          if (raft->sendHeartbeat(peer, current_term)) ++num_ack;
+          std::future<bool> p =
+              std::async(std::launch::async, &RaftCluster::sendHeartbeat, raft,
+                         peer, current_term);
+          responses.push_back(std::move(p));
+        }
+
+        for (std::future<bool>& response : responses) {
+          if (response.get()) ++num_ack;
         }
         if (num_ack == 0) {  // This means we are disconnected
           state_lck.lock();
