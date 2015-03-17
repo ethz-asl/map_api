@@ -164,6 +164,21 @@ class RaftCluster {
 
   double election_timeout_;  // A random value between 50 and 150 ms
   static void setElectionTimeout();
+
+  /**
+   * ===============================
+   * Revision/log entries
+   * ===============================
+   */
+  struct LogEntry {
+    uint64_t term;
+    uint16_t logicaltime;
+    uint16_t index;
+    uint16_t entry;
+  };
+  std::vector<LogEntry> uncommitted_log_;
+  // std::vector<std::pair<uint16_t, uint16_t>> committed_log_;
+  std::pair<uint16_t, uint16_t> final_result_;
 };
 
 }  // namespace map_api
