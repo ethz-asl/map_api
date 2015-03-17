@@ -61,6 +61,7 @@
 #include <mutex>
 #include <set>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "map-api/message.h"
