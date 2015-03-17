@@ -32,6 +32,7 @@
  * PENDING: Multiple raft instances managed by a manager class
  * PENDING: Remove the extra log messages
  * PENDING: std::async vs std::thread+join for heartbeat
+ * PENDING: why static for heartbeat thread?
  *
  * DONE: Protobuf for messages, including heatbeat. Should have fields:
  *  term index, logical time
@@ -165,6 +166,15 @@ class RaftCluster {
 
   double election_timeout_;  // A random value between 50 and 150 ms
   static void setElectionTimeout();
+
+  std::vector<std::thread> follower_handlers_;
+  std::atomic<uint16_t> num_votes_;
+  std::atomic<uint16_t> num_vote_responses_;
+  std::atomic<bool> election_won_;
+  std::atomic<bool> follower_handler_wait_;
+  std::atomic<bool> follower_handler_run_;
+
+  void followerHandler(PeerId peer, uint64_t term);
 
   /**
    * ===============================
