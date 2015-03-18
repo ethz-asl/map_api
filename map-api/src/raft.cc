@@ -242,8 +242,9 @@ void RaftCluster::heartbeatThread(RaftCluster* raft) {
       }
     }
 
-    // Handle state changes if in follower state and heartbeat timeout occurs.
+    // Handle election
     if (election_timeout) {
+      election_timeout = false;
       state_lck.lock();
       raft->state_ = State::CANDIDATE;
       uint64_t term = ++raft->current_term_;
@@ -266,8 +267,7 @@ void RaftCluster::heartbeatThread(RaftCluster* raft) {
       }
 
       // See if there are enough votes, and if someone else became leader,
-      // making
-      // this follower
+      // making this follower
       state_lck.lock();
       if (raft->state_ == State::CANDIDATE &&
           raft->num_votes_ >= raft->peer_list_.size() / 2) {
@@ -286,8 +286,6 @@ void RaftCluster::heartbeatThread(RaftCluster* raft) {
                 << " votes in term " << term;
       state_lck.unlock();
 
-      election_timeout = false;
-
       // Set the election timeout again
       std::random_device rd;
       std::mt19937 gen(rd());
@@ -301,7 +299,7 @@ void RaftCluster::heartbeatThread(RaftCluster* raft) {
         while (state == State::LEADER) {
           usleep(5000);
           state_lck.lock();
-          state = raft->state_;  // only accessed in thread
+          state = raft->state_;
           state_lck.unlock();
         }
         raft->follower_handler_run_ = false;

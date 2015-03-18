@@ -33,6 +33,8 @@
  * PENDING: Remove the extra log messages
  * PENDING: std::async vs std::thread+join for heartbeat
  * PENDING: why static for heartbeat thread?
+ * PENDING: cond var for election result and state changes
+ * PENDING: Change leader to follower if heartbeat not ack'd.
  *
  * DONE: Protobuf for messages, including heatbeat. Should have fields:
  *  term index, logical time
@@ -182,9 +184,9 @@ class RaftCluster {
    * ===============================
    */
   struct LogEntry {
+    uint16_t index;
     uint64_t term;
     uint16_t logicaltime;
-    uint16_t index;
     uint16_t entry;
   };
   std::vector<LogEntry> uncommitted_log_;
