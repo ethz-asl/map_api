@@ -1,13 +1,10 @@
 /* Notes:
  * Things raft should be doing
  *    - Send heartbeats to all peers if leader
- *    - Handle heartbeat timeouts if follower
- *    - Heartbeats from leaders include logical time, term number
+ *    - Handle heartbeat timeouts if follower, hold election
+ *    - Heartbeats from leaders include term number, log entry info
  *    - Handle RPC from clients
- *
- *
- * One thread for handling heartbeats and state
- * One thread for handling RPCs
+ *    - Send new log entries/chunk revisions to all peers
  *
  * CURRENT ASSUMPTIONS:
  * - A peer can reach all other peers, or none.
@@ -16,45 +13,17 @@
  * - No malicious peers!
  *
  * --------------------------------------------------------------
- *  TODO List
+ *  TODO List at this point
  * --------------------------------------------------------------
  *
- * PENDING: Send heartbeat is blocking. the cycle takes longer if there
- *  are many peers. This may cause problems of timeout when there are a
- *  lot of peers. Is there a Way to send heartbeat and not wait for response?
- *  UDP style?
  * PENDING: Handle peers who dont respond to vote rpc
  * PENDING: Values for timeout
  * PENDING: Impl good way to get peer list, remove non responding peers
  * PENDING: Vote RPC is now sent one by one. can parallelize?
  * PENDING: Peer handling, adding, removing
- * PENDING: When to start raft server
  * PENDING: Multiple raft instances managed by a manager class
  * PENDING: Remove the extra log messages
- * PENDING: std::async vs std::thread+join for heartbeat
- * PENDING: why static for heartbeat thread?
- * PENDING: cond var for election result and state changes
- * PENDING: Change leader to follower if heartbeat not ack'd.
- *
- * DONE: Protobuf for messages, including heatbeat. Should have fields:
- *  term index, logical time
- * DONE: Change leader to follower if heartbeat not ack'd.
- * DEFERRED: MIGHT NOT BE NECESSARY: Make a heartbeat struct (atomic) having
- *   rcvd time, term, sender id, contained logical time. Write struct in handler
- *   func. read and act on state in heartbeat thread.
- * DONE: Accessing atomic state_ member within lock in heartbeat thread.
- *   verify if there will be deadlocks!
- * DONE: Handle RPC in a separate thread? See how listener thread in hub
- *  invokes callback in main thread. Turns out, it is exec in the hub's
- *  listener thread.??
- * Not needed: Atomic or lock for election timeout member var
- * DONE: can discard last_correct_hb_time in the thread? - no, an extra variable
- *    is needed anyway, for send heartbeat time.
- *
- * DONE: Check if logical time check in requestVote is ok. Because
- *  Logical time can increase due to other messages after a candidate sends
- *  requestvote rpc. OR may be compare it with last heartbeat logical time.
- *  -- Not ok.
+ * PENDING: Change leader to follower if many heartbeats not ack'd?
  */
 
 #ifndef MAP_API_RAFT_H_
@@ -66,6 +35,7 @@
 #include <thread>
 #include <utility>
 #include <vector>
+#include <condition_variable>
 
 #include "map-api/message.h"
 #include "map-api/peer-id.h"
@@ -87,6 +57,11 @@ class RaftCluster {
 
   void start();
   bool isRunning() const { return heartbeat_thread_running_; }
+  uint64_t term();
+  PeerId leader();
+  State state();
+  bool leader_known();
+  PeerId self_id() { return PeerId::self(); }
 
   static void staticHandleHearbeat(const Message& request, Message* response);
   static void staticHandleRequestVote(const Message& request,
@@ -118,31 +93,22 @@ class RaftCluster {
   void handleRequestVote(const Message& request, Message* response);
 
   /**
-   * ==================================================
-   * RPCs for heartbeat, leader election, transactions
-   * ==================================================
+   * ====================================================
+   * RPCs for heartbeat, leader election, log replication
+   * ====================================================
    */
 
-  /**
-   *
-   * @param id
-   * @param term
-   * @return True if RPC is acknowledged.
-   */
   bool sendHeartbeat(PeerId id, uint64_t term);
 
   /**
-   *
-   * @param id
-   * @param term
    * @return 1 if vote granted, 0 if vote denied, -1 if peer unreachable.
    */
   int sendRequestVote(PeerId id, uint64_t term);
 
   /**
-   * ===============================
-   * Leader election related members
-   * ===============================
+   * =====
+   * State
+   * =====
    */
   // State information
   PeerId leader_id_;
@@ -150,6 +116,7 @@ class RaftCluster {
   uint64_t current_term_;
   bool leader_known_;
   std::mutex state_mutex_;
+  std::condition_variable leadership_lost_;
 
   // Heartbeat information
   typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
@@ -158,42 +125,33 @@ class RaftCluster {
   uint64_t last_heartbeat_sender_term_;
   std::mutex last_heartbeat_mutex_;
 
-  // Heartbeat monitoring/sending, state changes managed in a separate thread.
-  static void heartbeatThread(RaftCluster* thisRaftCluster);
+  void heartbeatThread();
   std::thread heartbeat_thread_;  // kill in destructor
   std::atomic<bool> heartbeat_thread_running_;
   std::atomic<bool> is_exiting_;
 
   std::set<PeerId> peer_list_;
 
-  double election_timeout_;  // A random value between 50 and 150 ms
-  static void setElectionTimeout();
+  /**
+   * ===============
+   * Leader election
+   * ===============
+   */
 
+  int election_timeout_;  // A random value between 50 and 150 ms
+  static int setElectionTimeout();
+
+  void followerHandler(PeerId peer, uint64_t term);
   std::vector<std::thread> follower_handlers_;
+
   std::atomic<uint16_t> num_votes_;
   std::atomic<uint16_t> num_vote_responses_;
   std::atomic<bool> election_won_;
-  std::atomic<bool> follower_handler_wait_;
+  std::atomic<bool> election_over_;
   std::atomic<bool> follower_handler_run_;
-
-  void followerHandler(PeerId peer, uint64_t term);
-
-  /**
-   * ===============================
-   * Revision/log entries
-   * ===============================
-   */
-  struct LogEntry {
-    uint16_t index;
-    uint64_t term;
-    uint16_t logicaltime;
-    uint16_t entry;
-  };
-  std::vector<LogEntry> uncommitted_log_;
-  // std::vector<std::pair<uint16_t, uint16_t>> committed_log_;
-  std::pair<uint16_t, uint16_t> final_result_;
+  std::mutex election_mutex_;
+  std::condition_variable election_finished_;
 };
-
 }  // namespace map_api
 
 #endif  // MAP_API_RAFT_H_

@@ -1,4 +1,5 @@
 #include <set>
+#include <sys/types.h>
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -26,9 +27,13 @@ TEST_F(ConsensusFixture, ChunkTransactions) {
     PEERS_SETUP,
     DIE
   };
-  // Main parent process
-  RaftCluster::instance().registerHandlers();
 
+  RaftCluster::instance().registerHandlers();
+  pid_t pid = getpid();
+  LOG(INFO) << "Peer Id " << RaftCluster::instance().self_id().ipPort()
+            << " : PID " << pid;
+
+  // Main parent process
   if (getSubprocessId() == 0) {
     // RaftCluster::instance().setState(RaftCluster::State::LEADER);
     std::ostringstream extra_flags_ss;
@@ -36,6 +41,7 @@ TEST_F(ConsensusFixture, ChunkTransactions) {
     for (uint64_t i = 1u; i < kProcesses; ++i) {
       launchSubprocess(i, extra_flags_ss.str());
     }
+
     IPC::barrier(INIT, kProcesses - 1);
 
     // Find peers in the network, add them to raft cluster
@@ -51,8 +57,6 @@ TEST_F(ConsensusFixture, ChunkTransactions) {
     while (true) {
       // Do nothing
     }
-
-    // } else if (getSubprocessId() == 2) {  // faulty process
   } else {  // Subprocesses
     IPC::barrier(INIT, kProcesses - 1);
     // Find peers in the network, add them to raft cluster
