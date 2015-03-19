@@ -51,7 +51,7 @@ SET(CORE_SOURCE  src/internal/trackee-multimap.cc
                  src/peer-id.cc
                  src/peer-handler.cc
                  src/proto-table-file-io.cc
-				 src/raft.cc
+		 src/raft.cc
                  src/revision.cc
                  src/server-discovery.cc
                  src/spatial-index.cc
