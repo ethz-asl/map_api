@@ -17,7 +17,6 @@ class ConsensusFixture : public common::MultiprocessFixture {
  protected:
   NetTable* table_;
   uint64_t num_sub_processes_;
-  // const std::set<PeerId>& getChunkPeerList(Chunk* chunk);
   virtual void SetUpImpl();
   virtual void TearDownImpl();
 };

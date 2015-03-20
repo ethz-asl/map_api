@@ -20,7 +20,7 @@ DEFINE_uint64(grind_processes, 5u,
 constexpr int kMainInsertVal = 342;
 constexpr int kNumChunkPeers = 4;
 
-TEST_F(ConsensusFixture, ChunkTransactions) {
+TEST_F(ConsensusFixture, DISABLED_LeaderElection) {
   const uint64_t kProcesses = FLAGS_grind_processes;
   enum Barriers {
     INIT,
@@ -35,7 +35,6 @@ TEST_F(ConsensusFixture, ChunkTransactions) {
 
   // Main parent process
   if (getSubprocessId() == 0) {
-    // RaftCluster::instance().setState(RaftCluster::State::LEADER);
     std::ostringstream extra_flags_ss;
     extra_flags_ss << "--grind_processes=" << FLAGS_grind_processes << " ";
     for (uint64_t i = 1u; i < kProcesses; ++i) {

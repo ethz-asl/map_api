@@ -30,18 +30,20 @@
 #define MAP_API_RAFT_H_
 
 #include <atomic>
+#include <condition_variable>
 #include <mutex>
 #include <set>
 #include <thread>
 #include <utility>
 #include <vector>
-#include <condition_variable>
 
 #include "map-api/message.h"
 #include "map-api/peer-id.h"
 
 namespace map_api {
 
+// Implementation of Raft consensus algorithm presented here:
+// https://raftconsensus.github.io, http://ramcloud.stanford.edu/raft.pdf
 class RaftCluster {
  public:
   enum class State {
@@ -56,65 +58,60 @@ class RaftCluster {
   void registerHandlers();
 
   void start();
-  bool isRunning() const { return heartbeat_thread_running_; }
+  inline bool isRunning() const { return heartbeat_thread_running_; }
   uint64_t term();
   PeerId leader();
   State state();
-  bool leader_known();
-  PeerId self_id() { return PeerId::self(); }
+  bool is_leader_known();
+  inline PeerId self_id() { return PeerId::self(); }
 
   static void staticHandleHearbeat(const Message& request, Message* response);
   static void staticHandleRequestVote(const Message& request,
                                       Message* response);
 
-  // ONLY FOR TEST. REMOVE LATER.
-  void addPeerBeforeStart(PeerId peer) { peer_list_.insert(peer); }
+  // TODO(aqurai) Only for test, will be removed later.
+  inline void addPeerBeforeStart(PeerId peer) { peer_list_.insert(peer); }
 
   static const char kHeartbeat[];
   static const char kVoteRequest[];
   static const char kVoteResponse[];
 
  private:
-  /**
-   * Singleton class. Will have a singleton manager class later, for managing
-   * multiple raft instances per peer.
-   */
+  // Singleton class. There will be a singleton manager class later,
+  // for managing multiple raft instances per peer.
   RaftCluster();
   RaftCluster(const RaftCluster&) = delete;
   RaftCluster& operator=(const RaftCluster&) = delete;
   ~RaftCluster();
 
-  /**
-   * ========
-   * Handlers
-   * ========
-   */
+  // ========
+  // Handlers
+  // ========
   void handleHearbeat(const Message& request, Message* response);
   void handleRequestVote(const Message& request, Message* response);
 
-  /**
-   * ====================================================
-   * RPCs for heartbeat, leader election, log replication
-   * ====================================================
-   */
-
+  // ====================================================
+  // RPCs for heartbeat, leader election, log replication
+  // ====================================================
   bool sendHeartbeat(PeerId id, uint64_t term);
 
-  /**
-   * @return 1 if vote granted, 0 if vote denied, -1 if peer unreachable.
-   */
+  // @return 1 if vote granted, 0 if vote denied, -1 if peer unreachable.
+  enum {
+    VOTE_GRANTED,
+    VOTE_DECLINED,
+    FAILED_REQUEST
+  };
   int sendRequestVote(PeerId id, uint64_t term);
 
-  /**
-   * =====
-   * State
-   * =====
-   */
+  // =====
+  // State
+  // =====
+
   // State information
   PeerId leader_id_;
   State state_;
   uint64_t current_term_;
-  bool leader_known_;
+  bool is_leader_known_;
   std::mutex state_mutex_;
   std::condition_variable leadership_lost_;
 
@@ -126,23 +123,23 @@ class RaftCluster {
   std::mutex last_heartbeat_mutex_;
 
   void heartbeatThread();
-  std::thread heartbeat_thread_;  // kill in destructor
+  std::thread heartbeat_thread_;  // Gets killed in destructor
   std::atomic<bool> heartbeat_thread_running_;
   std::atomic<bool> is_exiting_;
 
   std::set<PeerId> peer_list_;
 
-  /**
-   * ===============
-   * Leader election
-   * ===============
-   */
+  // ===============
+  // Leader election
+  // ===============
 
-  int election_timeout_;  // A random value between 50 and 150 ms
+  int election_timeout_;  // A random value between 50 and 150 ms.
   static int setElectionTimeout();
 
   void followerHandler(PeerId peer, uint64_t term);
-  std::vector<std::thread> follower_handlers_;
+  std::vector<std::thread> follower_handlers_;  // Started when leadership is
+                                                // acquired. Get killed when
+                                                // leadership is lost
 
   std::atomic<uint16_t> num_votes_;
   std::atomic<uint16_t> num_vote_responses_;
