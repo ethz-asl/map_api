@@ -46,7 +46,7 @@ TEST_F(ConsensusFixture, DISABLED_LeaderElection) {
     // Find peers in the network, add them to raft cluster
     std::set<PeerId> peer_list;
     Hub::instance().getPeers(&peer_list);
-    for (auto peer : peer_list) {
+    for (const PeerId& peer : peer_list) {
       RaftCluster::instance().addPeerBeforeStart(peer);
     }
 
@@ -61,7 +61,7 @@ TEST_F(ConsensusFixture, DISABLED_LeaderElection) {
     // Find peers in the network, add them to raft cluster
     std::set<PeerId> peer_list;
     Hub::instance().getPeers(&peer_list);
-    for (auto peer : peer_list) {
+    for (const PeerId& peer : peer_list) {
       RaftCluster::instance().addPeerBeforeStart(peer);
     }
     IPC::barrier(PEERS_SETUP, kProcesses - 1);
