@@ -13,7 +13,7 @@
 #include "map-api/cru-table-stxxl-map.h"
 #include "map-api/logical-time.h"
 #include "map-api/test/testing-entrypoint.h"
-#include "map-api/unique-id.h"
+#include <multiagent-mapping-common/unique-id.h>
 #include "./test_table.cc"
 
 namespace map_api {
@@ -104,15 +104,15 @@ class FieldTest<int32_t> : public ::testing::Test {
   int32_t sample_data_2() { return -42; }
 };
 template <>
-class FieldTest<map_api::Id> : public ::testing::Test {
+class FieldTest<common::Id> : public ::testing::Test {
  protected:
-  map_api::Id sample_data_1() {
-    map_api::Id id;
+  common::Id sample_data_1() {
+    common::Id id;
     id.fromHexString("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
     return id;
   }
-  map_api::Id sample_data_2() {
-    map_api::Id id;
+  common::Id sample_data_2() {
+    common::Id id;
     id.fromHexString("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
     return id;
   }
@@ -171,9 +171,9 @@ class FieldTestWithoutInit
     return query_;
   }
 
-  Id fillRevision(const typename TableDataType::DataType& value) {
+  common::Id fillRevision(const typename TableDataType::DataType& value) {
     getTemplate();
-    Id inserted;
+    common::Id inserted;
     generateId(&inserted);
     query_->setId(inserted);
     // to_insert_->set("owner", Id::random()); TODO(tcies) later, from core
@@ -181,15 +181,14 @@ class FieldTestWithoutInit
     return inserted;
   }
 
-  Id fillRevision() { return fillRevision(this->sample_data_1()); }
+  common::Id fillRevision() { return fillRevision(this->sample_data_1()); }
 
   bool insertRevision() {
     return this->table_->insert(LogicalTime::sample(), query_);
   }
 
-  void getRevision(const Id& id) {
-    query_ = std::make_shared<Revision>(
-        *this->table_->getById(id, LogicalTime::sample()));
+  void getRevision(const common::Id& id) {
+    query_ = this->table_->getById(id, LogicalTime::sample())->copyForWrite();
   }
 
   std::unique_ptr<typename TableDataType::TableType> table_;
@@ -214,8 +213,7 @@ template <typename TableDataType>
 class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
  protected:
   bool updateRevision() {
-    std::shared_ptr<Revision> revision =
-        std::make_shared<Revision>(*this->query_);
+    std::shared_ptr<Revision> revision = this->query_->copyForWrite();
     this->table_->update(revision);
     return true;
   }
@@ -245,7 +243,7 @@ class CruMapIntTestWithInit
   TableDataTypes<table_type, testBlob>,                                        \
       TableDataTypes<table_type, std::string>,                                 \
       TableDataTypes<table_type, int32_t>, TableDataTypes<table_type, double>, \
-      TableDataTypes<table_type, map_api::Id>,                                 \
+      TableDataTypes<table_type, common::Id>,                                 \
       TableDataTypes<table_type, int64_t>,                                     \
       TableDataTypes<table_type, map_api::LogicalTime>
 
@@ -273,7 +271,7 @@ TYPED_TEST(FieldTestWithoutInit, CreateBeforeInit) {
 
 TYPED_TEST(FieldTestWithoutInit, ReadBeforeInit) {
   ::testing::FLAGS_gtest_death_test_style = "fast";
-  Id item_id;
+  common::Id item_id;
   generateId(&item_id);
   EXPECT_DEATH(this->table_->getById(item_id, LogicalTime::sample()),
                "Attempted to getById from non-initialized table");
@@ -281,11 +279,11 @@ TYPED_TEST(FieldTestWithoutInit, ReadBeforeInit) {
 }
 
 TYPED_TEST(FieldTestWithInit, CreateRead) {
-  Id inserted = this->fillRevision();
+  common::Id inserted = this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
-  std::shared_ptr<Revision> rowFromTable = std::make_shared<Revision>(
-      *this->table_->getById(inserted, LogicalTime::sample()));
+  std::shared_ptr<Revision> rowFromTable =
+      this->table_->getById(inserted, LogicalTime::sample())->copyForWrite();
   ASSERT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
   rowFromTable->get(FieldTestTable<TypeParam>::kTestField, &dataFromTable);
@@ -296,17 +294,17 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRow) {
   this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
-  Id other_id;
+  common::Id other_id;
   generateId(&other_id);
   EXPECT_FALSE(this->table_->getById(other_id, LogicalTime::sample()));
 }
 
 TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
-  Id inserted = this->fillRevision();
+  common::Id inserted = this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
-  std::shared_ptr<Revision> rowFromTable = std::make_shared<Revision>(
-      *this->table_->getById(inserted, LogicalTime::sample()));
+  std::shared_ptr<Revision> rowFromTable =
+      this->table_->getById(inserted, LogicalTime::sample())->copyForWrite();
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
   ::testing::FLAGS_gtest_death_test_style = "fast";
@@ -316,7 +314,7 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
 }
 
 TYPED_TEST(UpdateFieldTestWithInit, UpdateRead) {
-  Id inserted = this->fillRevision();
+  common::Id inserted = this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
   std::shared_ptr<const Revision> rowFromTable =
@@ -336,7 +334,7 @@ TYPED_TEST(UpdateFieldTestWithInit, UpdateRead) {
 
 TYPED_TEST(IntTestWithInit, CreateReadThousand) {
   for (int i = 0; i < 1000; ++i) {
-    Id inserted = this->fillRevision(i);
+    common::Id inserted = this->fillRevision(i);
     timing::Timer insert_timer("insert - " +
                                std::string(::testing::UnitTest::GetInstance()
     ->current_test_info()
@@ -364,7 +362,7 @@ TYPED_TEST(IntTestWithInit, CreateReadThousand) {
 TYPED_TEST(CruMapIntTestWithInit, HistoryAtTime) {
   typedef FieldTestTable<TypeParam> FieldTestTableType;
   constexpr int64_t kFirst = 42, kSecond = 21, kThird = 84;
-  Id id = this->fillRevision(kFirst);
+  common::Id id = this->fillRevision(kFirst);
   ASSERT_TRUE(this->insertRevision());
   this->getRevision(id);
   ASSERT_TRUE(this->query_.get() != nullptr);
@@ -391,15 +389,14 @@ TYPED_TEST(CruMapIntTestWithInit, Remove) {
   this->insertRevision();
 
   EXPECT_EQ(1, this->table_->count(-1, 0, LogicalTime::sample()));
-  std::vector<Id> ids;
+  std::vector<common::Id> ids;
   this->table_->getAvailableIds(LogicalTime::sample(), &ids);
   EXPECT_EQ(1u, ids.size());
   CRTable::RevisionMap result;
   this->table_->find(-1, 0, LogicalTime::sample(), &result);
   EXPECT_EQ(1u, result.size());
 
-  std::shared_ptr<Revision> revision =
-      std::make_shared<Revision>(*result.begin()->second);
+  std::shared_ptr<Revision> revision = result.begin()->second->copyForWrite();
   this->table_->remove(LogicalTime::sample(), revision);
 
   EXPECT_EQ(0, this->table_->count(-1, 0, LogicalTime::sample()));

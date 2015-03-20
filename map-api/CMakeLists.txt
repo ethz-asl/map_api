@@ -53,9 +53,9 @@ SET(CORE_SOURCE  src/internal/trackee-multimap.cc
                  src/revision.cc
                  src/server-discovery.cc
                  src/spatial-index.cc
+                 src/spatial-index-cell-data.cc
                  src/table-descriptor.cc
-                 src/transaction.cc
-                 src/unique-id.cc)
+                 src/transaction.cc)
                  
 cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
 # we need to add dependencies of external project packages to fetch headers

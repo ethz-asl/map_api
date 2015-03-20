@@ -1,4 +1,4 @@
-#include <map-api/cr-table-stxxl-map.h>
+#include "map-api/cr-table-stxxl-map.h"
 
 namespace map_api {
 
@@ -35,10 +35,10 @@ bool CRTableSTXXLMap::patchCRDerived(const std::shared_ptr<Revision>& query) {
   CHECK(query != nullptr);
   CRRevisionInformation revision_information;
   CHECK(revision_store_->storeRevision(*query, &revision_information));
-  return data_.emplace(query->getId<Id>(), revision_information).second;
+  return data_.emplace(query->getId<common::Id>(), revision_information).second;
 }
 
-void CRTableSTXXLMap::dumpChunkCRDerived(const Id& chunk_id,
+void CRTableSTXXLMap::dumpChunkCRDerived(const common::Id& chunk_id,
                                          const LogicalTime& time,
                                          RevisionMap* dest) const {
   CHECK_NOTNULL(dest)->clear();
@@ -72,7 +72,7 @@ void CRTableSTXXLMap::findByRevisionCRDerived(int key,
 }
 
 std::shared_ptr<const Revision> CRTableSTXXLMap::getByIdCRDerived(
-    const Id& id, const LogicalTime& time) const {
+    const common::Id& id, const LogicalTime& time) const {
   MapType::const_iterator found = data_.find(id);
   if (found == data_.end() || found->second.insert_time_ > time) {
     return std::shared_ptr<Revision>();
@@ -83,10 +83,10 @@ std::shared_ptr<const Revision> CRTableSTXXLMap::getByIdCRDerived(
 }
 
 void CRTableSTXXLMap::getAvailableIdsCRDerived(
-    const LogicalTime& time, std::vector<Id>* ids) const {
+    const LogicalTime& time, std::vector<common::Id>* ids) const {
   CHECK_NOTNULL(ids);
   ids->clear();
-  std::vector<std::pair<Id, CRRevisionInformation> > ids_and_info;
+  std::vector<std::pair<common::Id, CRRevisionInformation> > ids_and_info;
   ids_and_info.reserve(data_.size());
   for (const MapType::value_type& pair : data_) {
     if (pair.second.insert_time_ <= time) {
@@ -94,8 +94,8 @@ void CRTableSTXXLMap::getAvailableIdsCRDerived(
     }
   }
   std::sort(ids_and_info.begin(), ids_and_info.end(),
-            [] (const std::pair<Id, CRRevisionInformation>& lhs,
-                 const std::pair<Id, CRRevisionInformation>& rhs) {
+            [] (const std::pair<common::Id, CRRevisionInformation>& lhs,
+                 const std::pair<common::Id, CRRevisionInformation>& rhs) {
     return lhs.second.memory_block_ < rhs.second.memory_block_;
   });
   ids->reserve(ids_and_info.size());
@@ -121,7 +121,7 @@ int CRTableSTXXLMap::countByRevisionCRDerived(int key,
   return count;
 }
 
-int CRTableSTXXLMap::countByChunkCRDerived(const Id& chunk_id,
+int CRTableSTXXLMap::countByChunkCRDerived(const common::Id& chunk_id,
                                            const LogicalTime& time) const {
   int count = 0;
   for (const MapType::value_type& pair : data_) {

@@ -16,10 +16,10 @@ using namespace map_api;  // NOLINT
 TEST_P(NetTableFixture, SaveAndRestoreFromFile) {
   Chunk* chunk = table_->newChunk();
   CHECK_NOTNULL(chunk);
-  Id chunk_id = chunk->id();
-  Id item_1_id;
+  common::Id chunk_id = chunk->id();
+  common::Id item_1_id;
   generateId(&item_1_id);
-  Id item_2_id;
+  common::Id item_2_id;
   generateId(&item_2_id);
   {
     Transaction transaction;

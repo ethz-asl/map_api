@@ -41,6 +41,8 @@ class Message : public proto::HubMessage {
   template <const char* message_type>
   bool isType() const;
 
+  inline bool isOk() const { return isType<kAck>(); }
+
   /**
    * General-purpose message types
    */

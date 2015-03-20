@@ -29,14 +29,13 @@ size_t NetTableFixture::count() {
   return results.size();
 }
 
-void NetTableFixture::increment(const Id& id, Chunk* chunk,
+void NetTableFixture::increment(const common::Id& id, Chunk* chunk,
                                 NetTableTransaction* transaction) {
   CHECK_NOTNULL(chunk);
   CHECK_NOTNULL(transaction);
   CRTable::RevisionMap chunk_dump = transaction->dumpChunk(chunk);
   CRTable::RevisionMap::iterator found = chunk_dump.find(id);
-  std::shared_ptr<Revision> to_update =
-      std::make_shared<Revision>(*found->second);
+  std::shared_ptr<Revision> to_update = found->second->copyForWrite();
   int transient_value;
   to_update->get(kFieldName, &transient_value);
   ++transient_value;
@@ -44,15 +43,14 @@ void NetTableFixture::increment(const Id& id, Chunk* chunk,
   transaction->update(to_update);
 }
 
-void NetTableFixture::increment(NetTable* table, const Id& id, Chunk* chunk,
-                                Transaction* transaction) {
+void NetTableFixture::increment(NetTable* table, const common::Id& id,
+                                Chunk* chunk, Transaction* transaction) {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(chunk);
   CHECK_NOTNULL(transaction);
   CRTable::RevisionMap chunk_dump = transaction->dumpChunk(table, chunk);
   CRTable::RevisionMap::iterator found = chunk_dump.find(id);
-  std::shared_ptr<Revision> to_update =
-      std::make_shared<Revision>(*found->second);
+  std::shared_ptr<Revision> to_update = found->second->copyForWrite();
   int transient_value;
   to_update->get(kFieldName, &transient_value);
   ++transient_value;
@@ -60,8 +58,8 @@ void NetTableFixture::increment(NetTable* table, const Id& id, Chunk* chunk,
   transaction->update(table, to_update);
 }
 
-Id NetTableFixture::insert(int n, Chunk* chunk) {
-  Id insert_id;
+common::Id NetTableFixture::insert(int n, Chunk* chunk) {
+  common::Id insert_id;
   generateId(&insert_id);
   std::shared_ptr<Revision> to_insert = table_->getTemplate();
   to_insert->setId(insert_id);
@@ -70,8 +68,8 @@ Id NetTableFixture::insert(int n, Chunk* chunk) {
   return insert_id;
 }
 
-Id NetTableFixture::insert(int n, ChunkTransaction* transaction) {
-  Id insert_id;
+common::Id NetTableFixture::insert(int n, ChunkTransaction* transaction) {
+  common::Id insert_id;
   generateId(&insert_id);
   std::shared_ptr<Revision> to_insert = table_->getTemplate();
   to_insert->setId(insert_id);
@@ -80,7 +78,7 @@ Id NetTableFixture::insert(int n, ChunkTransaction* transaction) {
   return insert_id;
 }
 
-void NetTableFixture::insert(int n, Id* id, Transaction* transaction) {
+void NetTableFixture::insert(int n, common::Id* id, Transaction* transaction) {
   CHECK_NOTNULL(id);
   CHECK_NOTNULL(transaction);
   generateId(id);
@@ -90,10 +88,11 @@ void NetTableFixture::insert(int n, Id* id, Transaction* transaction) {
   transaction->insert(table_, chunk_, to_insert);
 }
 
-void NetTableFixture::update(int n, const Id& id, Transaction* transaction) {
+void NetTableFixture::update(int n, const common::Id& id,
+                             Transaction* transaction) {
   CHECK_NOTNULL(transaction);
   std::shared_ptr<Revision> to_update =
-      std::make_shared<Revision>(*transaction->getById(id, table_, chunk_));
+      transaction->getById(id, table_, chunk_)->copyForWrite();
   to_update->set(kFieldName, n);
   transaction->update(table_, to_update);
 }
