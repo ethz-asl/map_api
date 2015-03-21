@@ -480,6 +480,10 @@ void ChordIndex::leaveClean() {
   unlock();
 }
 
+void ChordIndex::localUpdateCallback(const std::string& /*key*/,
+                                     const std::string& /*old_value*/,
+                                     const std::string& /*new_value*/) {}
+
 PeerId ChordIndex::closestPrecedingFinger(
     const Key& key) {
   peer_lock_.acquireReadLock();
@@ -621,8 +625,11 @@ bool ChordIndex::waitUntilInitialized() {
 bool ChordIndex::addDataLocally(
     const std::string& key, const std::string& value) {
   data_lock_.acquireWriteLock();
+  const std::string old_value = data_[key];
   data_[key] = value;
+  // Releasing lock here so the update callback can do whatever it wants to.
   data_lock_.releaseWriteLock();
+  localUpdateCallback(key, old_value, value);
   return true;
 }
 

@@ -86,14 +86,20 @@ class NetTable {
   void getChunksInBoundingBox(const SpatialIndex::BoundingBox& bounding_box);
   void getChunksInBoundingBox(const SpatialIndex::BoundingBox& bounding_box,
                               std::unordered_set<Chunk*>* chunks);
+  inline SpatialIndex& spatial_index() {
+    return *CHECK_NOTNULL(spatial_index_.get());
+  }
+
+  // TRIGGER RELATED
   typedef std::function<void(const std::unordered_set<common::Id>& insertions,
                              const std::unordered_set<common::Id>& updates,
                              Chunk* chunk)> TriggerCallbackWithChunkPointer;
-
-  // TRIGGER RELATED
+  typedef std::function<void(Chunk* chunk)> ChunkAcquisitionCallback;
   // Will bind to Chunk* the pointer of the current chunk.
-  void attachTriggerOnChunkAcquisition(
+  void attachTriggerToCurrentAndFutureChunks(
       const TriggerCallbackWithChunkPointer& trigger);
+  void attachCallbackToChunkAcquisition(
+      const ChunkAcquisitionCallback& callback);
   // Returns false if peer not reachable.
   bool listenToChunksFromPeer(const PeerId& peer);
   void handleListenToChunksFromPeer(const PeerId& listener, Message* response);
@@ -179,6 +185,8 @@ class NetTable {
                                  Message* response);
   static const char kAnnounceToListeners[];
 
+  void handleSpatialIndexTrigger(const proto::SpatialIndexTrigger& trigger);
+
  private:
   NetTable();
   NetTable(const NetTable&) = delete;
@@ -195,6 +203,9 @@ class NetTable {
                         const std::vector<size_t>& subdivision,
                         const PeerId& entry_point);
   void announceToListeners(const PeerIdList& listeners);
+
+  typedef std::unordered_map<common::Id, std::unique_ptr<Chunk> > ChunkMap;
+  Chunk* addInitializedChunk(std::unique_ptr<Chunk>&& chunk);
 
   bool insert(const LogicalTime& time, Chunk* chunk,
               const std::shared_ptr<Revision>& query);
@@ -214,7 +225,6 @@ class NetTable {
   void readLockActiveChunks();
   void unlockActiveChunks();
 
-  typedef std::unordered_map<common::Id, std::unique_ptr<Chunk> > ChunkMap;
   bool routingBasics(
       const common::Id& chunk_id, Message* response, ChunkMap::iterator* found);
 
@@ -244,8 +254,11 @@ class NetTable {
   ReaderWriterMutex index_lock_;
 
   std::vector<TriggerCallbackWithChunkPointer>
-      triggers_to_attach_on_chunk_acquisition_;
+      triggers_to_attach_to_future_chunks_;
   std::mutex m_triggers_to_attach_;
+
+  std::vector<ChunkAcquisitionCallback> chunk_acquisition_callbacks_;
+  std::mutex m_chunk_acquisition_callbacks_;
 
   std::mutex m_new_chunk_listeners_;
   PeerIdSet new_chunk_listeners_;
