@@ -86,6 +86,8 @@ class NetTableManager {
                                          Message* response);
   static void handleAnnounceToListenersRequest(const Message& request,
                                                Message* response);
+  static void handleSpatialTriggerNotification(const Message& request,
+                                               Message* response);
   /**
    * Chord requests
    */
@@ -118,6 +120,10 @@ class NetTableManager {
   template <typename MetadataRequestType>
   static bool getTableForRequestWithMetadataOrDecline(
       const MetadataRequestType& request, Message* response,
+      TableMap::iterator* found);
+  template <typename StringRequestType>
+  static bool getTableForRequestWithStringOrDecline(
+      const StringRequestType& request, Message* response,
       TableMap::iterator* found);
 
   /**
