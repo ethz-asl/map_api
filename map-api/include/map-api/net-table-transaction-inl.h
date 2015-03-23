@@ -4,8 +4,6 @@
 #include <string>
 #include <vector>
 
-#include "map-api/net-table.h"
-
 namespace map_api {
 
 template <typename IdType>
@@ -57,10 +55,10 @@ std::shared_ptr<const Revision> NetTableTransaction::getByIdFromUncommitted(
 }
 
 template <typename ValueType>
-CRTable::RevisionMap NetTableTransaction::find(int key,
-                                               const ValueType& value) {
+void NetTableTransaction::find(int key, const ValueType& value,
+                               ConstRevisionMap* result) {
   // TODO(tcies) uncommitted
-  return table_->lockFind(key, value, begin_time_);
+  return table_->lockFind(key, value, begin_time_, result);
 }
 
 template <typename IdType>
