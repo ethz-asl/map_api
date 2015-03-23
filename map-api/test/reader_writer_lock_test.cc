@@ -1,7 +1,7 @@
 #include <functional>
 #include <memory>
-#include <vector>
 #include <thread>
+#include <vector>
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -15,7 +15,7 @@ namespace map_api {
 
 TEST_F(ReaderWriterMutexFixture, ReaderWriterLock) {
   map_api::ReaderWriterMutex mutex;
-  std::vector < std::thread > threads;
+  std::vector<std::thread> threads;
   for (int i = 0; i < kNumThreads; ++i) {
     threads.emplace_back([this]() { reader(); });
     threads.emplace_back([this]() { writer(); });
