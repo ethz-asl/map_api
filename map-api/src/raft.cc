@@ -112,7 +112,8 @@ void RaftCluster::handleHearbeat(const Message& request, Message* response) {
 
   if (sender_changed) {
     if (hb_term > current_term || (hb_term == current_term && !leader_known)) {
-      // Found a new leader.
+      // Update state and leader info if another leader with newer term is found
+      // or, if a leader is found when a there isn't a known one.
       state_lck.lock();
       current_term_ = hb_term;
       leader_id_ = hb_sender;
@@ -370,7 +371,7 @@ void RaftCluster::followerHandler(PeerId peer, uint64_t term) {
       // send heartbeat
       sendHeartbeat(peer, term);
     }
-    usleep(5000);
+    usleep(kHeartbeatSendPeriodMs);
     continue;
   }
 }

@@ -23,8 +23,8 @@ TEST_F(ConsensusFixture, DISABLED_LeaderElection) {
 
   RaftCluster::instance().registerHandlers();
   pid_t pid = getpid();
-  LOG(INFO) << "Peer Id " << RaftCluster::instance().self_id().ipPort()
-            << " : PID " << pid;
+  LOG(INFO) << "Peer Id " << RaftCluster::instance().self_id() << " : PID "
+            << pid;
 
   // Main parent process
   if (getSubprocessId() == 0) {
