@@ -1,5 +1,7 @@
 #include <string>
 
+#include <eigen-checks/gtest.h>
+
 #include "map-api/core.h"
 #include "map-api/ipc.h"
 #include "map-api/net-table.h"
@@ -142,25 +144,89 @@ const double SpatialIndexTest::kCBox[] = {0.25, 0.75, 0.75, 1.25, 0, 0.75};
 const double SpatialIndexTest::kDBox[] = {1.25, 1.75, 0.75, 1.25, 1.25, 1.99};
 const size_t SpatialIndexTest::kSubdiv[] = {2u, 2u, 2u};
 
-TEST_F(SpatialIndexTest, RegisterSeek) {
-  enum Barriers {
-    INIT,
-    PUSH_ADDRESS,
-    SPATIAL_REGISTERED,
-    DIE
-  };
-  enum Processes {
-    ROOT,
-    A
-  };
-  if (getSubprocessId() == ROOT) {
-    createSpatialIndex();
-    launchSubprocess(A);
-    IPC::barrier(INIT, 1);
-    IPC::push(PeerId::self());
-    IPC::barrier(PUSH_ADDRESS, 1);
-    IPC::barrier(SPATIAL_REGISTERED, 1);
+TEST_F(SpatialIndexTest, CellDimensions) {
+  createSpatialIndex();
+  const Eigen::AlignedBox3d kExpected[] = {
+      Eigen::AlignedBox3d(Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(1, 1, 1)),
+      Eigen::AlignedBox3d(Eigen::Vector3d(0, 0, 1), Eigen::Vector3d(1, 1, 2)),
+      Eigen::AlignedBox3d(Eigen::Vector3d(0, 1, 0), Eigen::Vector3d(1, 2, 1)),
+      Eigen::AlignedBox3d(Eigen::Vector3d(0, 1, 1), Eigen::Vector3d(1, 2, 2)),
+      Eigen::AlignedBox3d(Eigen::Vector3d(1, 0, 0), Eigen::Vector3d(2, 1, 1)),
+      Eigen::AlignedBox3d(Eigen::Vector3d(1, 0, 1), Eigen::Vector3d(2, 1, 2)),
+      Eigen::AlignedBox3d(Eigen::Vector3d(1, 1, 0), Eigen::Vector3d(2, 2, 1)),
+      Eigen::AlignedBox3d(Eigen::Vector3d(1, 1, 1), Eigen::Vector3d(2, 2, 2))};
+  int pos = 0;
+  EXPECT_EQ(8u, table_->spatial_index().size());
+  for (SpatialIndex::Cell& cell : table_->spatial_index()) {
+    Eigen::AlignedBox3d cell_box;
+    cell.getDimensions(&cell_box);
+    EXPECT_TRUE(
+        EIGEN_MATRIX_EQUAL_DOUBLE(cell_box.min(), kExpected[pos].min()));
+    EXPECT_TRUE(
+        EIGEN_MATRIX_EQUAL_DOUBLE(cell_box.max(), kExpected[pos].max()));
+    ++pos;
+  }
+}
 
+class SpatialIndexTwoPeerTest : public SpatialIndexTest {
+ public:
+  void run() {
+    enum Barriers {
+      INIT,
+      PUSH_ADDRESS,
+      SPATIAL_REGISTERED,
+      DIE
+    };
+    enum Processes {
+      ROOT,
+      A
+    };
+    if (getSubprocessId() == ROOT) {
+      createSpatialIndex();
+
+      beforeSlaveLaunch();
+
+      launchSubprocess(A);
+      IPC::barrier(INIT, 1);
+      IPC::push(PeerId::self());
+      IPC::barrier(PUSH_ADDRESS, 1);
+      IPC::barrier(SPATIAL_REGISTERED, 1);
+
+      afterSlaveTask();
+
+      IPC::barrier(DIE, 1);
+    }
+    if (getSubprocessId() == A) {
+      IPC::barrier(INIT, 1);
+      IPC::barrier(PUSH_ADDRESS, 1);
+      PeerId root = IPC::pop<PeerId>();
+      joinSpatialIndex(root);
+
+      slaveTask();
+
+      IPC::barrier(SPATIAL_REGISTERED, 1);
+      IPC::barrier(DIE, 1);
+    }
+  }
+
+ private:
+  virtual void beforeSlaveLaunch() = 0;
+  virtual void slaveTask() = 0;
+  virtual void afterSlaveTask() = 0;
+};
+
+class SpatialIndexRegisterSeekTest : public SpatialIndexTwoPeerTest {
+ private:
+  virtual void beforeSlaveLaunch() {
+    EXPECT_TRUE(checkExpectedActive(common::IdSet()));
+  }
+
+  virtual void slaveTask() {
+    createDefaultChunks();
+    registerDefaultChunks();
+  }
+
+  virtual void afterSlaveTask() {
     std::unordered_set<Chunk*> result;
     table_->getChunksInBoundingBox(box(kABox), &result);
     EXPECT_TRUE(checkExpectedActive(expected_a_));
@@ -174,20 +240,57 @@ TEST_F(SpatialIndexTest, RegisterSeek) {
     table_->getChunksInBoundingBox(box(kDBox), &result);
     EXPECT_TRUE(checkExpectedActive(expected_d_));
     table_->leaveAllChunks();
-
-    IPC::barrier(DIE, 1);
   }
-  if (getSubprocessId() == A) {
-    IPC::barrier(INIT, 1);
-    IPC::barrier(PUSH_ADDRESS, 1);
-    PeerId root = IPC::pop<PeerId>();
-    joinSpatialIndex(root);
+};
+
+TEST_F(SpatialIndexRegisterSeekTest, Run) { run(); }
+
+class SpatialIndexAddListenerTest : public SpatialIndexTwoPeerTest {
+ private:
+  virtual void beforeSlaveLaunch() {
+    for (SpatialIndex::Cell cell : table_->spatial_index()) {
+      PeerIdSet listeners;
+      cell.getListeners(&listeners);
+      EXPECT_TRUE(listeners.empty());
+    }
+  }
+
+  virtual void slaveTask() {
+    for (SpatialIndex::Cell cell : table_->spatial_index()) {
+      cell.announceAsListener();
+    }
+  }
+
+  virtual void afterSlaveTask() {
+    for (SpatialIndex::Cell cell : table_->spatial_index()) {
+      PeerIdSet listeners;
+      cell.getListeners(&listeners);
+      EXPECT_EQ(1u, listeners.size());
+    }
+  }
+};
+
+TEST_F(SpatialIndexAddListenerTest, Run) { run(); }
+
+class SpatialIndexListenToSpaceTest : public SpatialIndexTwoPeerTest {
+ private:
+  virtual void beforeSlaveLaunch() {
+    table_->spatial_index().listenToSpace(box(kABox));
+  }
+
+  virtual void slaveTask() {
     createDefaultChunks();
     registerDefaultChunks();
-    IPC::barrier(SPATIAL_REGISTERED, 1);
-    IPC::barrier(DIE, 1);
   }
-}
+
+  virtual void afterSlaveTask() {
+    // TODO(tcies) Implement waitForTriggerCompletion() like in Chunk.
+    usleep(10000);  // Leave time for trigger completion.
+    EXPECT_TRUE(checkExpectedActive(expected_a_));
+  }
+};
+
+TEST_F(SpatialIndexListenToSpaceTest, Run) { run(); }
 
 }  // namespace map_api
 

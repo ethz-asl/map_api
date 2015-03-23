@@ -47,6 +47,7 @@ SET(CORE_SOURCE  src/internal/trackee-multimap.cc
                  src/revision.cc
                  src/server-discovery.cc
                  src/spatial-index.cc
+                 src/spatial-index-cell-data.cc
                  src/table-data-container-base.cc
                  src/table-data-ram-container.cc
                  src/table-data-stxxl-container.cc
