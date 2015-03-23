@@ -148,6 +148,19 @@ class RaftCluster {
   std::atomic<bool> follower_handler_run_;
   std::mutex election_mutex_;
   std::condition_variable election_finished_;
+
+  // =====================
+  // Log entries/revisions
+  // =====================
+
+  struct LogEntry {
+    uint16_t index;
+    uint64_t term;
+    uint16_t logicaltime;
+    uint16_t entry;
+  };
+  std::vector<LogEntry> uncommitted_log_;
+  std::pair<uint16_t, uint16_t> final_result_;
 };
 }  // namespace map_api
 

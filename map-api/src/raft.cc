@@ -19,7 +19,7 @@ const char RaftCluster::kHeartbeat[] = "raft_cluster_heart_beat";
 const char RaftCluster::kVoteRequest[] = "raft_cluster_vote_request";
 const char RaftCluster::kVoteResponse[] = "raft_cluster_vote_response";
 
-MAP_API_PROTO_MESSAGE(RaftCluster::kHeartbeat, proto::RaftHeartbeat);
+MAP_API_PROTO_MESSAGE(RaftCluster::kHeartbeat, proto::AppendEntriesRequest);
 MAP_API_PROTO_MESSAGE(RaftCluster::kVoteRequest, proto::RequestVote);
 MAP_API_PROTO_MESSAGE(RaftCluster::kVoteResponse, proto::ResponseVote);
 
@@ -88,7 +88,7 @@ void RaftCluster::staticHandleRequestVote(const Message& request,
 }
 
 void RaftCluster::handleHearbeat(const Message& request, Message* response) {
-  proto::RaftHeartbeat heartbeat;
+  proto::AppendEntriesRequest heartbeat;
   request.extract<kHeartbeat>(&heartbeat);
 
   VLOG(2) << "Received heartbeat from " << request.sender();
@@ -186,7 +186,7 @@ void RaftCluster::handleRequestVote(const Message& request, Message* response) {
 
 bool RaftCluster::sendHeartbeat(PeerId id, uint64_t term) {
   Message request, response;
-  proto::RaftHeartbeat heartbeat;
+  proto::AppendEntriesRequest heartbeat;
   heartbeat.set_term(term);
   request.impose<kHeartbeat>(heartbeat);
   if (Hub::instance().try_request(id, &request, &response)) {

@@ -20,7 +20,7 @@ DEFINE_uint64(grind_processes, 5u,
 constexpr int kMainInsertVal = 342;
 constexpr int kNumChunkPeers = 4;
 
-TEST_F(ConsensusFixture, DISABLED_LeaderElection) {
+TEST_F(ConsensusFixture, LeaderElection) {
   const uint64_t kProcesses = FLAGS_grind_processes;
   enum Barriers {
     INIT,

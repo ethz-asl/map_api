@@ -4,6 +4,19 @@ message RaftHeartbeat {
   required uint64 term = 1;
 }
 
+message AppendEntriesRequest {
+  required uint64 term = 1;
+  optional uint64 prevLogIndex = 2;
+  optional uint64 prevLogTerm = 3;
+  optional uint64 commitIndex = 4;
+  repeated uint64 newEntry = 5;
+}
+
+message AppendEntriesResponse {
+  optional uint64 term = 1;
+  optional bool appendSuccess = 2;
+}
+
 message RequestVote {
   required uint64 term = 1;
   required uint64 logical_time = 2;
