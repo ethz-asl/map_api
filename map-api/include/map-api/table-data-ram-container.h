@@ -58,6 +58,6 @@ class TableDataRamContainer : public TableDataContainerBase {
   HistoryMap data_;
 };
 
-} /* namespace map_api */
+}  // namespace map_api
 
 #endif  // MAP_API_TABLE_DATA_RAM_CONTAINER_H_

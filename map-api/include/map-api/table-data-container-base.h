@@ -26,6 +26,7 @@ class TableDataContainerBase {
   friend class Chunk;
 
  public:
+  TableDataContainerBase();
   virtual ~TableDataContainerBase();
 
   virtual bool init(std::unique_ptr<TableDescriptor>* descriptor) final;
@@ -101,6 +102,7 @@ class TableDataContainerBase {
   // ============
   class History : public std::list<std::shared_ptr<const Revision> > {
    public:
+    virtual ~History();
     inline const_iterator latestAt(const LogicalTime& time) const;
   };
   template <typename IdType>
@@ -193,7 +195,7 @@ class TableDataContainerBase {
   virtual int countByChunkImpl(const common::Id& chunk_id,
                                const LogicalTime& time) const = 0;
 
-  bool initialized_ = false;
+  bool initialized_;
   std::unique_ptr<TableDescriptor> descriptor_;
   mutable std::mutex access_mutex_;
 };

@@ -10,6 +10,8 @@
 
 namespace map_api {
 
+TableDataContainerBase::TableDataContainerBase() : initialized_(false) {}
+
 TableDataContainerBase::~TableDataContainerBase() {}
 
 bool TableDataContainerBase::init(
@@ -125,8 +127,6 @@ int TableDataContainerBase::countByRevision(int key,
   return countByRevisionImpl(key, valueHolder, time);
 }
 
-// although this is very similar to rawGetRow(), I don't see how to share the
-// features without loss of performance TODO(discuss)
 void TableDataContainerBase::dump(const LogicalTime& time,
                                   ConstRevisionMap* dest) const {
   CHECK_NOTNULL(dest);
