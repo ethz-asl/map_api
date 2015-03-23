@@ -135,6 +135,8 @@ void TableDataContainerBase::dump(const LogicalTime& time,
   findByRevision(-1, *valueHolder, time, dest);
 }
 
+TableDataContainerBase::History::~History() {}
+
 void TableDataContainerBase::findHistoryByRevision(int key,
                                                    const Revision& valueHolder,
                                                    const LogicalTime& time,

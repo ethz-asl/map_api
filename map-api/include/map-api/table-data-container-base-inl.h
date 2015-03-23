@@ -58,8 +58,6 @@ std::shared_ptr<const Revision> TableDataContainerBase::findUnique(
   }
 }
 
-TableDataContainerBase::History::~History() {}
-
 TableDataContainerBase::History::const_iterator
 TableDataContainerBase::History::latestAt(const LogicalTime& time) const {
   for (const_iterator it = cbegin(); it != cend(); ++it) {
