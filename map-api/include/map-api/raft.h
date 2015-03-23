@@ -112,7 +112,6 @@ class RaftCluster {
   uint64_t current_term_;
   bool is_leader_known_;
   std::mutex state_mutex_;
-  std::condition_variable leadership_lost_;
 
   // Heartbeat information
   typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
@@ -131,20 +130,14 @@ class RaftCluster {
   // ===============
 
   int election_timeout_;  // A random value between 50 and 150 ms.
-  static int setElectionTimeout();
-
+  void conductElection();
   void followerHandler(PeerId peer, uint64_t term);
   std::vector<std::thread> follower_handlers_;  // Started when leadership is
                                                 // acquired. Get killed when
                                                 // leadership is lost
 
-  std::atomic<uint16_t> num_votes_;
-  std::atomic<uint16_t> num_vote_responses_;
-  std::atomic<bool> election_won_;
-  std::atomic<bool> election_over_;
   std::atomic<bool> follower_handler_run_;
-  std::mutex election_mutex_;
-  std::condition_variable election_finished_;
+  static int setElectionTimeout();
 };
 }  // namespace map_api
 
