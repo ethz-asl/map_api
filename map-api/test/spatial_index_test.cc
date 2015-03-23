@@ -71,8 +71,7 @@ class SpatialIndexTest : public MapApiFixture {
     std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
     descriptor->setName(kTableName);
     descriptor->addField<int>(kFieldName);
-    table_ =
-        NetTableManager::instance().addTable(CRTable::Type::CR, &descriptor);
+    table_ = NetTableManager::instance().addTable(&descriptor);
 
     generateIdFromInt(1, &chunk_a_id_);
     generateIdFromInt(2, &chunk_b_id_);

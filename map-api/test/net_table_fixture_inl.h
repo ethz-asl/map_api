@@ -19,8 +19,7 @@ void NetTableFixture::SetUp() {
   std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
   descriptor->setName(kTableName);
   descriptor->addField<int>(kFieldName);
-  table_ = NetTableManager::instance().addTable(
-      GetParam() ? CRTable::Type::CRU : CRTable::Type::CR, &descriptor);
+  table_ = NetTableManager::instance().addTable(&descriptor);
 }
 
 size_t NetTableFixture::count() {
@@ -100,10 +99,6 @@ void NetTableFixture::update(int n, const common::Id& id,
 }
 
 const std::string NetTableFixture::kTableName = "chunk_test_table";
-
-// Parameter true / false tests CRU / CR tables.
-INSTANTIATE_TEST_CASE_P(Default, NetTableFixture,
-                        ::testing::Values(false, true));
 
 }  // namespace map_api
 
