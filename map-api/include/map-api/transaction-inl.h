@@ -6,10 +6,11 @@
 namespace map_api {
 
 template <typename ValueType>
-CRTable::RevisionMap Transaction::find(int key, const ValueType& value,
-                                       NetTable* table) {
+void Transaction::find(int key, const ValueType& value, NetTable* table,
+                       ConstRevisionMap* result) {
   CHECK_NOTNULL(table);
-  return this->transactionOf(table)->find(key, value);
+  CHECK_NOTNULL(result);
+  return this->transactionOf(table)->find(key, value, result);
 }
 
 template <typename IdType>

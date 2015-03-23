@@ -6,12 +6,10 @@
 #include <timing/timer.h>
 
 #include "map-api/core.h"
-#include "map-api/cr-table-ram-map.h"
-#include "map-api/cr-table-stxxl-map.h"
-#include "map-api/cru-table-ram-map.h"
-#include "map-api/cru-table-stxxl-map.h"
 #include "map-api/hub.h"
 #include "map-api/net-table-manager.h"
+#include "map-api/table-data-ram-container.h"
+#include "map-api/table-data-stxxl-container.h"
 #include "map-api/transaction.h"
 
 DEFINE_bool(use_external_memory, false, "External memory vs. RAM tables.");
@@ -27,28 +25,15 @@ const char NetTable::kAnnounceToListeners[] =
 MAP_API_STRING_MESSAGE(NetTable::kPushNewChunksRequest);
 MAP_API_STRING_MESSAGE(NetTable::kAnnounceToListeners);
 
-NetTable::NetTable() : type_(CRTable::Type::CR) {}
+NetTable::NetTable() {}
 
-bool NetTable::init(
-    CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor) {
-  type_ = type;
-  switch (type) {
-    case CRTable::Type::CR:
-      if (FLAGS_use_external_memory) {
-        cache_.reset(new CRTableSTXXLMap);
-      } else {
-        cache_.reset(new CRTableRamMap);
-      }
-      break;
-    case CRTable::Type::CRU:
-      if (FLAGS_use_external_memory) {
-        cache_.reset(new CRUTableSTXXLMap);
-      } else {
-        cache_.reset(new CRUTableRamMap);
-      }
-      break;
+bool NetTable::init(std::unique_ptr<TableDescriptor>* descriptor) {
+  if (FLAGS_use_external_memory) {
+    data_container_.reset(new TableDataStxxlContainer);
+  } else {
+    data_container_.reset(new TableDataRamContainer);
   }
-  CHECK(cache_->init(descriptor));
+  CHECK(data_container_->init(descriptor));
   return true;
 }
 
@@ -90,7 +75,7 @@ void NetTable::joinSpatialIndex(const SpatialIndex::BoundingBox& bounds,
 void NetTable::announceToListeners(const PeerIdList& listeners) {
   for (const PeerId& peer : listeners) {
     Message request, response;
-    request.impose<kAnnounceToListeners>(cache_->name());
+    request.impose<kAnnounceToListeners>(data_container_->name());
     if (!Hub::instance().hasPeer(peer)) {
       LOG(ERROR) << "Host " << peer << " not among peers!";
       continue;
@@ -104,14 +89,10 @@ void NetTable::announceToListeners(const PeerIdList& listeners) {
   }
 }
 
-const std::string& NetTable::name() const {
-  return cache_->name();
-}
-
-const CRTable::Type& NetTable::type() const { return type_; }
+const std::string& NetTable::name() const { return data_container_->name(); }
 
 std::shared_ptr<Revision> NetTable::getTemplate() const {
-  return cache_->getTemplate();
+  return data_container_->getTemplate();
 }
 
 Chunk* NetTable::newChunk() {
@@ -122,7 +103,7 @@ Chunk* NetTable::newChunk() {
 
 Chunk* NetTable::newChunk(const common::Id& chunk_id) {
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
-  CHECK(chunk->init(chunk_id, cache_.get(), true));
+  CHECK(chunk->init(chunk_id, data_container_.get(), true));
   attachTriggers(chunk.get());
   active_chunks_lock_.acquireWriteLock();
   std::pair<ChunkMap::iterator, bool> inserted =
@@ -233,8 +214,9 @@ void NetTable::autoFollowTrackedChunks() {
   for (const ChunkMap::value_type& id_chunk : active_chunks_) {
     Chunk* chunk = id_chunk.second.get();
     Transaction transaction;
-    CRTable::RevisionMap all_items = transaction.dumpChunk(this, chunk);
-    for (const CRTable::RevisionMap::value_type& id_revision : all_items) {
+    ConstRevisionMap all_items;
+    transaction.dumpChunk(this, chunk, &all_items);
+    for (const ConstRevisionMap::value_type& id_revision : all_items) {
       id_revision.second->fetchTrackedChunks();
     }
   }
@@ -295,7 +277,7 @@ void NetTable::attachTriggerOnChunkAcquisition(
 
 bool NetTable::listenToChunksFromPeer(const PeerId& peer) {
   Message request, response;
-  request.impose<NetTable::kPushNewChunksRequest>(cache_->name());
+  request.impose<NetTable::kPushNewChunksRequest>(data_container_->name());
   if (!Hub::instance().hasPeer(peer)) {
     LOG(ERROR) << "Peer with address " << peer << " not among peers!";
     return false;
@@ -342,19 +324,18 @@ bool NetTable::insert(const LogicalTime& time, Chunk* chunk,
 
 bool NetTable::update(const std::shared_ptr<Revision>& query) {
   CHECK(query != nullptr);
-  CHECK(type_ == CRTable::Type::CRU);
   CHECK_NOTNULL(getChunk(query->getChunkId()))->update(query);
   return true;
 }
 
 void NetTable::dumpActiveChunks(const LogicalTime& time,
-                                CRTable::RevisionMap* destination) {
+                                ConstRevisionMap* destination) {
   CHECK_NOTNULL(destination);
   destination->clear();
   std::set<common::Id> active_chunk_ids;
   getActiveChunkIds(&active_chunk_ids);
   for (const common::Id& chunk_id : active_chunk_ids) {
-    map_api::CRTable::RevisionMap chunk_revisions;
+    ConstRevisionMap chunk_revisions;
     map_api::Chunk* chunk = getChunk(chunk_id);
     CHECK_NOTNULL(chunk);
     chunk->dumpItems(time, &chunk_revisions);
@@ -362,8 +343,7 @@ void NetTable::dumpActiveChunks(const LogicalTime& time,
   }
 }
 
-void NetTable::dumpActiveChunksAtCurrentTime(
-    CRTable::RevisionMap* destination) {
+void NetTable::dumpActiveChunksAtCurrentTime(ConstRevisionMap* destination) {
   CHECK_NOTNULL(destination);
   return dumpActiveChunks(map_api::LogicalTime::sample(), destination);
 }
@@ -373,7 +353,7 @@ Chunk* NetTable::connectTo(const common::Id& chunk_id,
   Message request, response;
   // sends request of chunk info to peer
   proto::ChunkRequestMetadata metadata;
-  metadata.set_table(cache_->name());
+  metadata.set_table(data_container_->name());
   chunk_id.serialize(metadata.mutable_chunk_id());
   request.impose<Chunk::kConnectRequest>(metadata);
   // TODO(tcies) add to local peer subset as well?
@@ -415,7 +395,7 @@ size_t NetTable::numActiveChunksItems() {
 }
 
 size_t NetTable::numItems() const {
-  return cache_->count(-1, 0, LogicalTime::sample());
+  return data_container_->count(-1, 0, LogicalTime::sample());
 }
 
 size_t NetTable::activeChunksItemsSizeBytes() {
@@ -483,7 +463,7 @@ void NetTable::leaveAllChunks() {
   active_chunks_lock_.acquireWriteLock();
   active_chunks_.clear();
   active_chunks_lock_.releaseWriteLock();
-  cache_->clear();
+  data_container_->clear();
 }
 
 std::string NetTable::getStatistics() {
@@ -547,7 +527,7 @@ void NetTable::handleInitRequest(
   CHECK_NOTNULL(response);
   common::Id chunk_id(request.metadata().chunk_id());
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
-  CHECK(chunk->init(chunk_id, request, sender, cache_.get()));
+  CHECK(chunk->init(chunk_id, request, sender, data_container_.get()));
   attachTriggers(chunk.get());
   active_chunks_lock_.acquireWriteLock();
   std::pair<ChunkMap::iterator, bool> inserted =
