@@ -173,28 +173,28 @@ void RaftCluster::handleRequestVote(const Message& request, Message* response) {
   }
 }
 
-bool RaftCluster::sendHeartbeat(PeerId id, uint64_t term) {
+bool RaftCluster::sendHeartbeat(const PeerId& peer, uint64_t term) {
   Message request, response;
   proto::RaftHeartbeat heartbeat;
   heartbeat.set_term(term);
   request.impose<kHeartbeat>(heartbeat);
-  if (Hub::instance().try_request(id, &request, &response)) {
+  if (Hub::instance().try_request(peer, &request, &response)) {
     if (response.isOk())
       return true;
     else
       return false;
   } else {
-    VLOG(3) << "Hearbeat failed for peer " << id.ipPort();
+    VLOG(3) << "Hearbeat failed for peer " << peer.ipPort();
     return false;
   }
 }
 
-int RaftCluster::sendRequestVote(PeerId id, uint64_t term) {
+int RaftCluster::sendRequestVote(const PeerId& peer, uint64_t term) {
   Message request, response;
   proto::RequestVote vote_request;
   vote_request.set_term(term);
   request.impose<kVoteRequest>(vote_request);
-  if (Hub::instance().try_request(id, &request, &response)) {
+  if (Hub::instance().try_request(peer, &request, &response)) {
     proto::ResponseVote vote_response;
     response.extract<kVoteResponse>(&vote_response);
     if (vote_response.vote())
@@ -305,7 +305,7 @@ void RaftCluster::conductElection() {
   state_lck.unlock();
 }
 
-void RaftCluster::followerHandler(PeerId peer, uint64_t term) {
+void RaftCluster::followerHandler(const PeerId& peer, uint64_t term) {
   TimePoint last_heartbeat = std::chrono::system_clock::now();
   sendHeartbeat(peer, term);
 

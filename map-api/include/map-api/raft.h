@@ -93,14 +93,14 @@ class RaftCluster {
   // ====================================================
   // RPCs for heartbeat, leader election, log replication
   // ====================================================
-  bool sendHeartbeat(PeerId id, uint64_t term);
+  bool sendHeartbeat(const PeerId& peer, uint64_t term);
 
   enum {
     VOTE_GRANTED,
     VOTE_DECLINED,
     FAILED_REQUEST
   };
-  int sendRequestVote(PeerId id, uint64_t term);
+  int sendRequestVote(const PeerId& peer, uint64_t term);
 
   // =====
   // State
@@ -131,7 +131,7 @@ class RaftCluster {
 
   int election_timeout_;  // A random value between 50 and 150 ms.
   void conductElection();
-  void followerHandler(PeerId peer, uint64_t term);
+  void followerHandler(const PeerId& peer, uint64_t term);
   std::vector<std::thread> follower_handlers_;  // Started when leadership is
                                                 // acquired. Get killed when
                                                 // leadership is lost
