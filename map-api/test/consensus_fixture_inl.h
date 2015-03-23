@@ -27,15 +27,6 @@ void ConsensusFixture::SetUpImpl() {
 
 void ConsensusFixture::TearDownImpl() { map_api::Core::instance()->kill(); }
 
-void ConsensusFixture::mainProcess(uint64_t num_sub_processes) {
-  num_sub_processes_ = num_sub_processes;
-}
-
-/*const std::set<PeerId>& ConsensusFixture::getChunkPeerList(Chunk* chunk) {
-  CHECK_NOTNULL(chunk);
-  return chunk->peers_.peers();
-}*/
-
 }  // namespace map_api
 
 #endif  // MAP_API_CONSENSUS_FIXTURE_INL_H_

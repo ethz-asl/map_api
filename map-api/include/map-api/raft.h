@@ -37,10 +37,10 @@
 #include <utility>
 #include <vector>
 
-#include "map-api/message.h"
 #include "map-api/peer-id.h"
 
 namespace map_api {
+class Message;
 
 // Implementation of Raft consensus algorithm presented here:
 // https://raftconsensus.github.io, http://ramcloud.stanford.edu/raft.pdf
@@ -95,7 +95,6 @@ class RaftCluster {
   // ====================================================
   bool sendHeartbeat(PeerId id, uint64_t term);
 
-  // @return 1 if vote granted, 0 if vote denied, -1 if peer unreachable.
   enum {
     VOTE_GRANTED,
     VOTE_DECLINED,
@@ -118,12 +117,10 @@ class RaftCluster {
   // Heartbeat information
   typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
   TimePoint last_heartbeat_;
-  PeerId last_heartbeat_sender_;
-  uint64_t last_heartbeat_sender_term_;
   std::mutex last_heartbeat_mutex_;
 
   void heartbeatThread();
-  std::thread heartbeat_thread_;  // Gets killed in destructor
+  std::thread heartbeat_thread_;  // Gets joined in destructor
   std::atomic<bool> heartbeat_thread_running_;
   std::atomic<bool> is_exiting_;
 

@@ -8,10 +8,11 @@
 #include "./raft.pb.h"
 #include "map-api/hub.h"
 #include "map-api/logical-time.h"
+#include "map-api/message.h"
 
 // TODO(aqurai): decide good values for these
 constexpr double kHeartbeatTimeoutMs = 50;
-constexpr double kHeartbeatSendPeriod = 25;
+constexpr double kHeartbeatSendPeriodMs = 25;
 
 namespace map_api {
 
@@ -29,17 +30,17 @@ RaftCluster::RaftCluster()
       current_term_(0),
       is_leader_known_(false),
       last_heartbeat_(std::chrono::system_clock::now()),
-      last_heartbeat_sender_(PeerId("0.0.0.0:0")),
-      last_heartbeat_sender_term_(0),
       heartbeat_thread_running_(false),
       is_exiting_(false) {
   election_timeout_ = setElectionTimeout();
   VLOG(1) << "Peer " << PeerId::self()
-          << ": Timeout value = " << election_timeout_;
+          << ": Election timeout = " << election_timeout_;
 }
 
 RaftCluster::~RaftCluster() {
-  if (heartbeat_thread_.joinable()) heartbeat_thread_.join();
+  if (heartbeat_thread_.joinable()) {
+    heartbeat_thread_.join();
+  }
   is_exiting_ = true;
 }
 
@@ -122,14 +123,13 @@ void RaftCluster::handleHearbeat(const Message& request, Message* response) {
       }
       state_lck.unlock();
 
-      if (losing_leadership) leadership_lost_.notify_all();
+      if (losing_leadership) {
+        leadership_lost_.notify_all();
+      }
 
       // Update the last heartbeat info.
-      last_heartbeat_mutex_.lock();
+      std::unique_lock<std::mutex> state_lck(last_heartbeat_mutex_);
       last_heartbeat_ = std::chrono::system_clock::now();
-      last_heartbeat_sender_ = hb_sender;
-      last_heartbeat_sender_term_ = hb_term;
-      last_heartbeat_mutex_.unlock();
     } else if (state == State::FOLLOWER && hb_term == current_term &&
                hb_sender != leader_id && current_term > 0 && leader_known) {
       // This should not happen.
@@ -141,12 +141,9 @@ void RaftCluster::handleHearbeat(const Message& request, Message* response) {
       // TODO(aqurai) Handle heartbeat from a server with older term.
     }
   } else {
-    // No changes. Simply update last heartbeat time.
-    last_heartbeat_mutex_.lock();
+    // Leader didn't change. Simply update last heartbeat time.
+    std::unique_lock<std::mutex> state_lck(last_heartbeat_mutex_);
     last_heartbeat_ = std::chrono::system_clock::now();
-    last_heartbeat_sender_ = hb_sender;
-    last_heartbeat_sender_term_ = hb_term;
-    last_heartbeat_mutex_.unlock();
   }
   response->ack();
 }
@@ -175,7 +172,9 @@ void RaftCluster::handleRequestVote(const Message& request, Message* response) {
     }
   }
 
-  if (losing_leadership) leadership_lost_.notify_all();
+  if (losing_leadership) {
+    leadership_lost_.notify_all();
+  }
 
   response->impose<kVoteResponse>(resp);
   {
@@ -204,7 +203,6 @@ int RaftCluster::sendRequestVote(PeerId id, uint64_t term) {
   Message request, response;
   proto::RequestVote vote_request;
   vote_request.set_term(term);
-  vote_request.set_logical_time(LogicalTime::sample().serialize());
   request.impose<kVoteRequest>(vote_request);
   if (Hub::instance().try_request(id, &request, &response)) {
     proto::ResponseVote vote_response;
@@ -220,7 +218,6 @@ int RaftCluster::sendRequestVote(PeerId id, uint64_t term) {
 
 void RaftCluster::heartbeatThread() {
   TimePoint last_hb_time;
-  PeerId last_hb_sender;
   bool election_timeout = false;
   heartbeat_thread_running_ = true;
 
@@ -229,7 +226,6 @@ void RaftCluster::heartbeatThread() {
     {
       std::lock_guard<std::mutex> lck(last_heartbeat_mutex_);
       last_hb_time = last_heartbeat_;
-      last_hb_sender = last_heartbeat_sender_;
     }
 
     // Read state info
@@ -275,11 +271,11 @@ void RaftCluster::heartbeatThread() {
                                         peer, term);
       }
 
-      std::unique_lock<std::mutex> lck(election_mutex_);
+      std::unique_lock<std::mutex> election_lock(election_mutex_);
       while (num_vote_responses_ != peer_list_.size()) {
-        election_finished_.wait(lck);
+        election_finished_.wait(election_lock);
       }
-      lck.unlock();
+      election_lock.unlock();
 
       VLOG(1) << "Peer " << PeerId::self() << " Received " << num_votes_
               << " votes in term " << term;
@@ -347,7 +343,9 @@ void RaftCluster::followerHandler(PeerId peer, uint64_t term) {
       break;
   }
 
-  if (num_vote_responses_ == peer_list_.size()) election_finished_.notify_all();
+  if (num_vote_responses_ == peer_list_.size()) {
+    election_finished_.notify_all();
+  }
 
   std::unique_lock<std::mutex> lck(election_mutex_);
   while (!election_over_) {
@@ -367,7 +365,7 @@ void RaftCluster::followerHandler(PeerId peer, uint64_t term) {
     double duration_ms = static_cast<double>(
         std::chrono::duration_cast<std::chrono::milliseconds>(
             now - last_heartbeat).count());
-    if (duration_ms > kHeartbeatSendPeriod) {
+    if (duration_ms > kHeartbeatSendPeriodMs) {
       last_heartbeat = now;
       // send heartbeat
       sendHeartbeat(peer, term);
