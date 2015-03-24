@@ -15,7 +15,8 @@ SET(PROTO_DEFNS proto/chord-index.proto
                 proto/core.proto
                 proto/chunk.proto
                 proto/ipc.proto
-                proto/net-table.proto)
+                proto/net-table.proto
+                proto/raft.proto)
 PROTOBUF_CATKIN_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
@@ -44,6 +45,7 @@ SET(CORE_SOURCE  src/internal/trackee-multimap.cc
                  src/peer-id.cc
                  src/peer-handler.cc
                  src/proto-table-file-io.cc
+                 src/raft-node.cc
                  src/revision.cc
                  src/server-discovery.cc
                  src/spatial-index.cc
@@ -75,6 +77,9 @@ target_link_libraries(test_chord_index_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_chunk_test test/chunk_test.cc)
 target_link_libraries(test_chunk_test ${PROJECT_NAME})
+
+catkin_add_gtest(test_raft_test test/raft_test.cc)
+target_link_libraries(test_raft_test ${PROJECT_NAME})
 
 if(!APPLE)
   catkin_add_gtest(test_discovery test/discovery_test.cc)
