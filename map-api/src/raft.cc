@@ -253,9 +253,7 @@ void RaftNode::heartbeatThread() {
       }
 
       for (std::thread& follower_thread : follower_trackers_) {
-        if (follower_thread.joinable()) {
-          follower_thread.join();
-        }
+        follower_thread.join();
       }
       follower_trackers_.clear();
     }
