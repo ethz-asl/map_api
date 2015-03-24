@@ -31,8 +31,7 @@ class NetTableManager {
   void initMetatable(bool create_metatable_chunk);
 
   NetTable* __attribute__((warn_unused_result))
-      addTable(CRTable::Type type,
-               std::unique_ptr<TableDescriptor>* descriptor);
+      addTable(std::unique_ptr<TableDescriptor>* descriptor);
   /**
    * Can leave dangling reference
    */
@@ -86,6 +85,8 @@ class NetTableManager {
                                          Message* response);
   static void handleAnnounceToListenersRequest(const Message& request,
                                                Message* response);
+  static void handleSpatialTriggerNotification(const Message& request,
+                                               Message* response);
   /**
    * Chord requests
    */
@@ -100,8 +101,7 @@ class NetTableManager {
   NetTableManager& operator =(const NetTableManager&) = delete;
   ~NetTableManager() = default;
 
-  bool syncTableDefinition(CRTable::Type type,
-                           const TableDescriptor& descriptor, bool* first,
+  bool syncTableDefinition(const TableDescriptor& descriptor, bool* first,
                            PeerId* entry_point, PeerIdList* listeners);
 
   template <const char* RequestType>
@@ -118,6 +118,10 @@ class NetTableManager {
   template <typename MetadataRequestType>
   static bool getTableForRequestWithMetadataOrDecline(
       const MetadataRequestType& request, Message* response,
+      TableMap::iterator* found);
+  template <typename StringRequestType>
+  static bool getTableForRequestWithStringOrDecline(
+      const StringRequestType& request, Message* response,
       TableMap::iterator* found);
 
   /**

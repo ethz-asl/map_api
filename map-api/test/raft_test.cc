@@ -7,69 +7,40 @@
 #include "map-api/hub.h"
 #include "map-api/ipc.h"
 #include "map-api/peer-id.h"
-#include "map-api/raft.h"
-#include "map-api/transaction.h"
+#include "map-api/raft-node.h"
 #include "map-api/test/testing-entrypoint.h"
 #include "./consensus_fixture.h"
 
 namespace map_api {
 
-DEFINE_uint64(grind_processes, 5u,
-              "Total amount of processes in ChunkTest.Grind");
-
-constexpr int kMainInsertVal = 342;
-constexpr int kNumChunkPeers = 4;
-
-TEST_F(ConsensusFixture, LeaderElection) {
-  const uint64_t kProcesses = FLAGS_grind_processes;
+TEST_F(ConsensusFixture, DISABLED_LeaderElection) {
+  const uint64_t kProcesses = 5;
   enum Barriers {
     INIT,
     PEERS_SETUP,
     DIE
   };
 
-  RaftCluster::instance().registerHandlers();
   pid_t pid = getpid();
-  LOG(INFO) << "Peer Id " << RaftCluster::instance().self_id().ipPort()
-            << " : PID " << pid;
+  LOG(INFO) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid;
 
-  // Main parent process
   if (getSubprocessId() == 0) {
-    std::ostringstream extra_flags_ss;
-    extra_flags_ss << "--grind_processes=" << FLAGS_grind_processes << " ";
     for (uint64_t i = 1u; i < kProcesses; ++i) {
-      launchSubprocess(i, extra_flags_ss.str());
+      launchSubprocess(i);
     }
+  }
+  IPC::barrier(INIT, kProcesses - 1);
+  // Find peers in the network and add them to raft cluster.
+  std::set<PeerId> peer_list;
+  Hub::instance().getPeers(&peer_list);
+  for (const PeerId& peer : peer_list) {
+    RaftNode::instance().addPeerBeforeStart(peer);
+  }
 
-    IPC::barrier(INIT, kProcesses - 1);
-
-    // Find peers in the network, add them to raft cluster
-    std::set<PeerId> peer_list;
-    Hub::instance().getPeers(&peer_list);
-    for (const PeerId& peer : peer_list) {
-      RaftCluster::instance().addPeerBeforeStart(peer);
-    }
-
-    // IPC Push info
-    IPC::barrier(PEERS_SETUP, kProcesses - 1);
-    RaftCluster::instance().start();
-    while (true) {
-      // Do nothing
-    }
-  } else {  // Subprocesses
-    IPC::barrier(INIT, kProcesses - 1);
-    // Find peers in the network, add them to raft cluster
-    std::set<PeerId> peer_list;
-    Hub::instance().getPeers(&peer_list);
-    for (const PeerId& peer : peer_list) {
-      RaftCluster::instance().addPeerBeforeStart(peer);
-    }
-    IPC::barrier(PEERS_SETUP, kProcesses - 1);
-    // IPC::barrier(DIE, kProcesses - 1);
-    RaftCluster::instance().start();
-    while (true) {
-      // Do nothing
-    }
+  IPC::barrier(PEERS_SETUP, kProcesses - 1);
+  RaftNode::instance().start();
+  while (true) {
+    // Do nothing
   }
 }
 

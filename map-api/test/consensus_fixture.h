@@ -11,12 +11,7 @@
 namespace map_api {
 
 class ConsensusFixture : public common::MultiprocessFixture {
- private:
-  void mainProcess(uint64_t num_sub_processes);
-
  protected:
-  NetTable* table_;
-  uint64_t num_sub_processes_;
   virtual void SetUpImpl();
   virtual void TearDownImpl();
 };

@@ -21,19 +21,24 @@ namespace map_api {
 
 Transaction::Transaction() : Transaction(LogicalTime::sample()) {}
 Transaction::Transaction(const LogicalTime& begin_time)
-    : begin_time_(begin_time), chunk_tracking_disabled_(false) {
+    : begin_time_(begin_time),
+      chunk_tracking_disabled_(false),
+      already_committed_(false) {
   CHECK(begin_time < LogicalTime::sample());
 }
 
-CRTable::RevisionMap Transaction::dumpChunk(NetTable* table, Chunk* chunk) {
+void Transaction::dumpChunk(NetTable* table, Chunk* chunk,
+                            ConstRevisionMap* result) {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(chunk);
-  return transactionOf(table)->dumpChunk(chunk);
+  CHECK_NOTNULL(result);
+  return transactionOf(table)->dumpChunk(chunk, result);
 }
 
-CRTable::RevisionMap Transaction::dumpActiveChunks(NetTable* table) {
+void Transaction::dumpActiveChunks(NetTable* table, ConstRevisionMap* result) {
   CHECK_NOTNULL(table);
-  return transactionOf(table)->dumpActiveChunks();
+  CHECK_NOTNULL(result);
+  return transactionOf(table)->dumpActiveChunks(result);
 }
 
 void Transaction::insert(
@@ -67,6 +72,8 @@ void Transaction::remove(NetTable* table, std::shared_ptr<Revision> revision) {
 // net_table_transactions_, and have the locks acquired in that order
 // (resource hierarchy solution)
 bool Transaction::commit() {
+  CHECK(!already_committed_);
+  already_committed_ = true;
   if (FLAGS_blame_commit) {
     LOG(INFO) << "Transaction committed from:\n" << common::backtrace();
   }
