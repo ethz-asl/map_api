@@ -45,8 +45,8 @@ class Transaction {
   template <typename IdType>
   std::shared_ptr<const Revision> getById(const IdType& id, NetTable* table,
                                           Chunk* chunk) const;
-  CRTable::RevisionMap dumpChunk(NetTable* table, Chunk* chunk);
-  CRTable::RevisionMap dumpActiveChunks(NetTable* table);
+  void dumpChunk(NetTable* table, Chunk* chunk, ConstRevisionMap* result);
+  void dumpActiveChunks(NetTable* table, ConstRevisionMap* result);
   template <typename IdType>
   void getAvailableIds(NetTable* table, std::vector<IdType>* ids);
   /**
@@ -54,7 +54,8 @@ class Transaction {
    * fundamentally differing from getById or dumpChunk.
    */
   template <typename ValueType>
-  CRTable::RevisionMap find(int key, const ValueType& value, NetTable* table);
+  void find(int key, const ValueType& value, NetTable* table,
+            ConstRevisionMap* result);
 
   // WRITE
   void insert(

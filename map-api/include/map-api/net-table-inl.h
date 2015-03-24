@@ -17,19 +17,18 @@ void __attribute__((deprecated)) NetTable::registerItemInSpace(
 }
 
 template <typename ValueType>
-CRTable::RevisionMap NetTable::lockFind(int key, const ValueType& value,
-                                        const LogicalTime& time) {
-  CRTable::RevisionMap result;
+void NetTable::lockFind(int key, const ValueType& value,
+                        const LogicalTime& time, ConstRevisionMap* result) {
+  CHECK_NOTNULL(result);
   readLockActiveChunks();
-  cache_->find(key, value, time, &result);
+  data_container_->find(key, value, time, result);
   unlockActiveChunks();
-  return result;
 }
 
 template <typename IdType>
 std::shared_ptr<const Revision> NetTable::getByIdInconsistent(
     const IdType& id, const LogicalTime& time) {
-  return cache_->getById(id, time);
+  return data_container_->getById(id, time);
 }
 
 template <typename IdType>
@@ -38,7 +37,7 @@ void NetTable::getAvailableIds(const LogicalTime& time,
   CHECK_NOTNULL(ids);
   ids->clear();
   readLockActiveChunks();
-  cache_->getAvailableIds(time, ids);
+  data_container_->getAvailableIds(time, ids);
   unlockActiveChunks();
 }
 
