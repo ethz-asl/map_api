@@ -37,10 +37,10 @@ RaftCluster::RaftCluster()
 }
 
 RaftCluster::~RaftCluster() {
+  is_exiting_ = true;
   if (heartbeat_thread_.joinable()) {
     heartbeat_thread_.join();
   }
-  is_exiting_ = true;
 }
 
 RaftCluster& RaftCluster::instance() {
@@ -49,7 +49,7 @@ RaftCluster& RaftCluster::instance() {
 }
 
 void RaftCluster::registerHandlers() {
-  Hub::instance().registerHandler(kHeartbeat, staticHandleHearbeat);
+  Hub::instance().registerHandler(kHeartbeat, staticHandleHeartbeat);
   Hub::instance().registerHandler(kVoteRequest, staticHandleRequestVote);
 }
 
@@ -57,29 +57,29 @@ void RaftCluster::start() {
   heartbeat_thread_ = std::thread(&RaftCluster::heartbeatThread, this);
 }
 
-uint64_t RaftCluster::term() {
-  std::lock_guard<std::mutex> lck(state_mutex_);
+uint64_t RaftCluster::term() const {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   return current_term_;
 }
 
-PeerId RaftCluster::leader() {
-  std::lock_guard<std::mutex> lck(state_mutex_);
+const PeerId& RaftCluster::leader() const {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   return leader_id_;
 }
 
-RaftCluster::State RaftCluster::state() {
-  std::lock_guard<std::mutex> lck(state_mutex_);
+RaftCluster::State RaftCluster::state() const {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   return state_;
 }
 
-bool RaftCluster::is_leader_known() {
-  std::lock_guard<std::mutex> lck(state_mutex_);
+bool RaftCluster::is_leader_known() const {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   return is_leader_known_;
 }
 
-void RaftCluster::staticHandleHearbeat(const Message& request,
-                                       Message* response) {
-  instance().handleHearbeat(request, response);
+void RaftCluster::staticHandleHeartbeat(const Message& request,
+                                        Message* response) {
+  instance().handleHeartbeat(request, response);
 }
 
 void RaftCluster::staticHandleRequestVote(const Message& request,
@@ -87,7 +87,7 @@ void RaftCluster::staticHandleRequestVote(const Message& request,
   instance().handleRequestVote(request, response);
 }
 
-void RaftCluster::handleHearbeat(const Message& request, Message* response) {
+void RaftCluster::handleHeartbeat(const Message& request, Message* response) {
   proto::RaftHeartbeat heartbeat;
   request.extract<kHeartbeat>(&heartbeat);
 
@@ -97,49 +97,45 @@ void RaftCluster::handleHearbeat(const Message& request, Message* response) {
   uint64_t hb_term = heartbeat.term();
 
   // Lock and read the state.
-  std::unique_lock<std::mutex> state_lck(state_mutex_);
-  PeerId leader_id = leader_id_;
-  State state = state_;
-  uint64_t current_term = current_term_;
-  bool leader_known = is_leader_known_;
-  state_lck.unlock();
+  std::unique_lock<std::mutex> state_lock(state_mutex_);
 
   // See if the heartbeat sender has changed. If so, update the leader_id.
-  bool sender_changed =
-      (!leader_known || hb_sender != leader_id || hb_term != current_term);
+  bool sender_changed = (!is_leader_known_ || hb_sender != leader_id_ ||
+                         hb_term != current_term_);
 
   if (sender_changed) {
-    if (hb_term > current_term || (hb_term == current_term && !leader_known)) {
+    if (hb_term > current_term_ ||
+        (hb_term == current_term_ && !is_leader_known_)) {
       // Update state and leader info if another leader with newer term is found
       // or, if a leader is found when a there isn't a known one.
-      state_lck.lock();
       current_term_ = hb_term;
       leader_id_ = hb_sender;
       is_leader_known_ = true;
-      if (state == State::LEADER) {
+      if (state_ == State::LEADER) {
         state_ = State::FOLLOWER;
         follower_handler_run_ = false;
       }
-      state_lck.unlock();
 
       // Update the last heartbeat info.
-      std::unique_lock<std::mutex> state_lck(last_heartbeat_mutex_);
+      std::unique_lock<std::mutex> heartbeat_lock(last_heartbeat_mutex_);
       last_heartbeat_ = std::chrono::system_clock::now();
-    } else if (state == State::FOLLOWER && hb_term == current_term &&
-               hb_sender != leader_id && current_term > 0 && leader_known) {
+    } else if (state_ == State::FOLLOWER && hb_term == current_term_ &&
+               hb_sender != leader_id_ && current_term_ > 0 &&
+               is_leader_known_) {
       // This should not happen.
       LOG(FATAL) << "Peer " << PeerId::self().ipPort()
-                 << " has found 2 leaders in the same term (" << current_term
-                 << "). They are " << leader_id.ipPort() << " (current) and "
+                 << " has found 2 leaders in the same term (" << current_term_
+                 << "). They are " << leader_id_.ipPort() << " (current) and "
                  << hb_sender.ipPort() << " (new) ";
     } else {
       // TODO(aqurai) Handle heartbeat from a server with older term.
     }
   } else {
     // Leader didn't change. Simply update last heartbeat time.
-    std::unique_lock<std::mutex> state_lck(last_heartbeat_mutex_);
+    std::unique_lock<std::mutex> heartbeat_lock(last_heartbeat_mutex_);
     last_heartbeat_ = std::chrono::system_clock::now();
   }
+  state_lock.unlock();
   response->ack();
 }
 
@@ -148,7 +144,7 @@ void RaftCluster::handleRequestVote(const Message& request, Message* response) {
   proto::ResponseVote resp;
   request.extract<kVoteRequest>(&req);
   {
-    std::lock_guard<std::mutex> state_lck(state_mutex_);
+    std::lock_guard<std::mutex> state_lock(state_mutex_);
     if (req.term() > current_term_) {
       resp.set_vote(true);
       current_term_ = req.term();
@@ -168,7 +164,7 @@ void RaftCluster::handleRequestVote(const Message& request, Message* response) {
 
   response->impose<kVoteResponse>(resp);
   {
-    std::lock_guard<std::mutex> lck(last_heartbeat_mutex_);
+    std::lock_guard<std::mutex> lock(last_heartbeat_mutex_);
     last_heartbeat_ = std::chrono::system_clock::now();
   }
 }
@@ -184,7 +180,7 @@ bool RaftCluster::sendHeartbeat(const PeerId& peer, uint64_t term) {
     else
       return false;
   } else {
-    VLOG(3) << "Hearbeat failed for peer " << peer.ipPort();
+    VLOG(3) << "Heartbeat failed for peer " << peer.ipPort();
     return false;
   }
 }
@@ -218,12 +214,13 @@ void RaftCluster::heartbeatThread() {
     if (election_timeout) {
       election_timeout = false;
       conductElection();
-      election_timeout_ = setElectionTimeout();  // Renew every session
+      // Renew election timeout every session.
+      election_timeout_ = setElectionTimeout();
     }
 
-    // Read state info
+    // Read state information.
     {
-      std::lock_guard<std::mutex> state_lck(state_mutex_);
+      std::lock_guard<std::mutex> state_lock(state_mutex_);
       state = state_;
       current_term = current_term_;
     }
@@ -231,7 +228,7 @@ void RaftCluster::heartbeatThread() {
     if (state == State::FOLLOWER) {
       // Check for heartbeat timeout if in follower state.
       {
-        std::lock_guard<std::mutex> lck(last_heartbeat_mutex_);
+        std::lock_guard<std::mutex> lock(last_heartbeat_mutex_);
         last_hb_time = last_heartbeat_;
       }
       TimePoint now = std::chrono::system_clock::now();
@@ -242,11 +239,10 @@ void RaftCluster::heartbeatThread() {
         VLOG(1) << "Follower: " << PeerId::self() << " : Heartbeat timed out. ";
         election_timeout = true;
       } else {
-        usleep(5000);
+        usleep(election_timeout_);
       }
-      continue;
     } else if (state == State::LEADER) {
-      // Launch follower_handler threads if in leader state
+      // Launch follower_handler threads if state is LEADER.
       VLOG(1) << "Peer " << PeerId::self() << " Elected as the leader for term "
               << current_term_;
       follower_handler_run_ = true;
@@ -268,11 +264,11 @@ void RaftCluster::heartbeatThread() {
 
 void RaftCluster::conductElection() {
   uint16_t num_votes = 0;
-  std::unique_lock<std::mutex> state_lck(state_mutex_);
+  std::unique_lock<std::mutex> state_lock(state_mutex_);
   state_ = State::CANDIDATE;
   uint64_t term = ++current_term_;
   is_leader_known_ = false;
-  state_lck.unlock();
+  state_lock.unlock();
 
   VLOG(1) << "Peer " << PeerId::self() << " is an election candidate for term "
           << term;
@@ -291,7 +287,7 @@ void RaftCluster::conductElection() {
     }
   }
 
-  state_lck.lock();
+  state_lock.lock();
   if (state_ == State::CANDIDATE && num_votes >= peer_list_.size() / 2) {
     // This peer wins the election.
     state_ = State::LEADER;
@@ -302,22 +298,12 @@ void RaftCluster::conductElection() {
     state_ = State::FOLLOWER;
     is_leader_known_ = false;
   }
-  state_lck.unlock();
+  state_lock.unlock();
 }
 
 void RaftCluster::followerHandler(const PeerId& peer, uint64_t term) {
-  TimePoint last_heartbeat = std::chrono::system_clock::now();
-  sendHeartbeat(peer, term);
-
   while (follower_handler_run_) {
-    TimePoint now = std::chrono::system_clock::now();
-    double duration_ms = static_cast<double>(
-        std::chrono::duration_cast<std::chrono::milliseconds>(
-            now - last_heartbeat).count());
-    if (duration_ms > kHeartbeatSendPeriodMs) {
-      last_heartbeat = now;
-      sendHeartbeat(peer, term);
-    }
+    sendHeartbeat(peer, term);
     usleep(kHeartbeatSendPeriodMs);
   }
 }

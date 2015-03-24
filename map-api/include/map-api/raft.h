@@ -59,13 +59,13 @@ class RaftCluster {
 
   void start();
   inline bool isRunning() const { return heartbeat_thread_running_; }
-  uint64_t term();
-  PeerId leader();
-  State state();
-  bool is_leader_known();
-  inline PeerId self_id() { return PeerId::self(); }
+  uint64_t term() const;
+  const PeerId& leader() const;
+  State state() const;
+  bool is_leader_known() const;
+  inline PeerId self_id() const { return PeerId::self(); }
 
-  static void staticHandleHearbeat(const Message& request, Message* response);
+  static void staticHandleHeartbeat(const Message& request, Message* response);
   static void staticHandleRequestVote(const Message& request,
                                       Message* response);
 
@@ -87,7 +87,7 @@ class RaftCluster {
   // ========
   // Handlers
   // ========
-  void handleHearbeat(const Message& request, Message* response);
+  void handleHeartbeat(const Message& request, Message* response);
   void handleRequestVote(const Message& request, Message* response);
 
   // ====================================================
@@ -111,7 +111,7 @@ class RaftCluster {
   State state_;
   uint64_t current_term_;
   bool is_leader_known_;
-  std::mutex state_mutex_;
+  mutable std::mutex state_mutex_;
 
   // Heartbeat information
   typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
@@ -119,7 +119,7 @@ class RaftCluster {
   std::mutex last_heartbeat_mutex_;
 
   void heartbeatThread();
-  std::thread heartbeat_thread_;  // Gets joined in destructor
+  std::thread heartbeat_thread_;  // Gets joined in destructor.
   std::atomic<bool> heartbeat_thread_running_;
   std::atomic<bool> is_exiting_;
 
@@ -132,10 +132,9 @@ class RaftCluster {
   int election_timeout_;  // A random value between 50 and 150 ms.
   void conductElection();
   void followerHandler(const PeerId& peer, uint64_t term);
-  std::vector<std::thread> follower_handlers_;  // Started when leadership is
-                                                // acquired. Get killed when
-                                                // leadership is lost
 
+  // Started when leadership is acquired. Gets killed when leadership is lost.
+  std::vector<std::thread> follower_handlers_;
   std::atomic<bool> follower_handler_run_;
   static int setElectionTimeout();
 };
