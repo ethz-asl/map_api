@@ -109,14 +109,13 @@ class RaftNode {
   // State
   // =====
 
-  // State information
+  // State information.
   PeerId leader_id_;
   State state_;
   uint64_t current_term_;
-  bool is_leader_known_;
   mutable std::mutex state_mutex_;
 
-  // Heartbeat information
+  // Heartbeat information.
   typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
   TimePoint last_heartbeat_;
   std::mutex last_heartbeat_mutex_;

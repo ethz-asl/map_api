@@ -24,10 +24,12 @@ MAP_API_PROTO_MESSAGE(RaftNode::kHeartbeat, proto::RaftHeartbeat);
 MAP_API_PROTO_MESSAGE(RaftNode::kVoteRequest, proto::RequestVote);
 MAP_API_PROTO_MESSAGE(RaftNode::kVoteResponse, proto::ResponseVote);
 
+const PeerId kInvalidId = PeerId();
+
 RaftNode::RaftNode()
-    : state_(State::FOLLOWER),
+    : leader_id_(PeerId()),
+      state_(State::FOLLOWER),
       current_term_(0),
-      is_leader_known_(false),
       last_heartbeat_(std::chrono::system_clock::now()),
       heartbeat_thread_running_(false),
       is_exiting_(false) {
@@ -74,7 +76,7 @@ RaftNode::State RaftNode::state() const {
 
 bool RaftNode::is_leader_known() const {
   std::lock_guard<std::mutex> lock(state_mutex_);
-  return is_leader_known_;
+  return leader_id_.isValid();
 }
 
 void RaftNode::staticHandleHeartbeat(const Message& request,
@@ -100,17 +102,16 @@ void RaftNode::handleHeartbeat(const Message& request, Message* response) {
   std::unique_lock<std::mutex> state_lock(state_mutex_);
 
   // See if the heartbeat sender has changed. If so, update the leader_id.
-  bool sender_changed = (!is_leader_known_ || hb_sender != leader_id_ ||
+  bool sender_changed = (!leader_id_.isValid() || hb_sender != leader_id_ ||
                          hb_term != current_term_);
 
   if (sender_changed) {
     if (hb_term > current_term_ ||
-        (hb_term == current_term_ && !is_leader_known_)) {
+        (hb_term == current_term_ && !leader_id_.isValid())) {
       // Update state and leader info if another leader with newer term is found
       // or, if a leader is found when a there isn't a known one.
       current_term_ = hb_term;
       leader_id_ = hb_sender;
-      is_leader_known_ = true;
       if (state_ == State::LEADER) {
         state_ = State::FOLLOWER;
         follower_trackers_run_ = false;
@@ -121,7 +122,7 @@ void RaftNode::handleHeartbeat(const Message& request, Message* response) {
       last_heartbeat_ = std::chrono::system_clock::now();
     } else if (state_ == State::FOLLOWER && hb_term == current_term_ &&
                hb_sender != leader_id_ && current_term_ > 0 &&
-               is_leader_known_) {
+               leader_id_.isValid()) {
       // This should not happen.
       LOG(FATAL) << "Peer " << PeerId::self().ipPort()
                  << " has found 2 leaders in the same term (" << current_term_
@@ -148,7 +149,7 @@ void RaftNode::handleRequestVote(const Message& request, Message* response) {
     if (req.term() > current_term_) {
       resp.set_vote(true);
       current_term_ = req.term();
-      is_leader_known_ = false;
+      leader_id_ = PeerId();
       if (state_ == State::LEADER) {
         follower_trackers_run_ = false;
       }
@@ -267,7 +268,7 @@ void RaftNode::conductElection() {
   std::unique_lock<std::mutex> state_lock(state_mutex_);
   state_ = State::CANDIDATE;
   uint64_t term = ++current_term_;
-  is_leader_known_ = false;
+  leader_id_ = PeerId();
   state_lock.unlock();
 
   VLOG(1) << "Peer " << PeerId::self() << " is an election candidate for term "
@@ -291,12 +292,11 @@ void RaftNode::conductElection() {
   if (state_ == State::CANDIDATE && num_votes >= peer_list_.size() / 2) {
     // This peer wins the election.
     state_ = State::LEADER;
-    is_leader_known_ = true;
     leader_id_ = PeerId::self();
   } else {
     // This peer doesn't win the election.
     state_ = State::FOLLOWER;
-    is_leader_known_ = false;
+    leader_id_ = PeerId();
   }
   state_lock.unlock();
 }
