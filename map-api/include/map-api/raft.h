@@ -37,6 +37,8 @@
 #include <utility>
 #include <vector>
 
+#include <gtest/gtest_prod.h>
+
 #include "map-api/peer-id.h"
 
 namespace map_api {
@@ -44,7 +46,7 @@ class Message;
 
 // Implementation of Raft consensus algorithm presented here:
 // https://raftconsensus.github.io, http://ramcloud.stanford.edu/raft.pdf
-class RaftCluster {
+class RaftNode {
  public:
   enum class State {
     LEADER,
@@ -53,7 +55,7 @@ class RaftCluster {
     DISCONNECTING
   };
 
-  static RaftCluster& instance();
+  static RaftNode& instance();
 
   void registerHandlers();
 
@@ -69,20 +71,21 @@ class RaftCluster {
   static void staticHandleRequestVote(const Message& request,
                                       Message* response);
 
-  // TODO(aqurai) Only for test, will be removed later.
-  inline void addPeerBeforeStart(PeerId peer) { peer_list_.insert(peer); }
-
   static const char kHeartbeat[];
   static const char kVoteRequest[];
   static const char kVoteResponse[];
 
  private:
+  FRIEND_TEST(ConsensusFixture, DISABLED_LeaderElection);
+  // TODO(aqurai) Only for test, will be removed later.
+  inline void addPeerBeforeStart(PeerId peer) { peer_list_.insert(peer); }
+
   // Singleton class. There will be a singleton manager class later,
   // for managing multiple raft instances per peer.
-  RaftCluster();
-  RaftCluster(const RaftCluster&) = delete;
-  RaftCluster& operator=(const RaftCluster&) = delete;
-  ~RaftCluster();
+  RaftNode();
+  RaftNode(const RaftNode&) = delete;
+  RaftNode& operator=(const RaftNode&) = delete;
+  ~RaftNode();
 
   // ========
   // Handlers
@@ -131,11 +134,11 @@ class RaftCluster {
 
   int election_timeout_;  // A random value between 50 and 150 ms.
   void conductElection();
-  void followerHandler(const PeerId& peer, uint64_t term);
+  void followerTracker(const PeerId& peer, uint64_t term);
 
   // Started when leadership is acquired. Gets killed when leadership is lost.
-  std::vector<std::thread> follower_handlers_;
-  std::atomic<bool> follower_handler_run_;
+  std::vector<std::thread> follower_trackers_;
+  std::atomic<bool> follower_trackers_run_;
   static int setElectionTimeout();
 };
 }  // namespace map_api

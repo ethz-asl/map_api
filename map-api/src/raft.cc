@@ -16,15 +16,15 @@ constexpr double kHeartbeatSendPeriodMs = 25;
 
 namespace map_api {
 
-const char RaftCluster::kHeartbeat[] = "raft_cluster_heart_beat";
-const char RaftCluster::kVoteRequest[] = "raft_cluster_vote_request";
-const char RaftCluster::kVoteResponse[] = "raft_cluster_vote_response";
+const char RaftNode::kHeartbeat[] = "raft_cluster_heart_beat";
+const char RaftNode::kVoteRequest[] = "raft_cluster_vote_request";
+const char RaftNode::kVoteResponse[] = "raft_cluster_vote_response";
 
-MAP_API_PROTO_MESSAGE(RaftCluster::kHeartbeat, proto::RaftHeartbeat);
-MAP_API_PROTO_MESSAGE(RaftCluster::kVoteRequest, proto::RequestVote);
-MAP_API_PROTO_MESSAGE(RaftCluster::kVoteResponse, proto::ResponseVote);
+MAP_API_PROTO_MESSAGE(RaftNode::kHeartbeat, proto::RaftHeartbeat);
+MAP_API_PROTO_MESSAGE(RaftNode::kVoteRequest, proto::RequestVote);
+MAP_API_PROTO_MESSAGE(RaftNode::kVoteResponse, proto::ResponseVote);
 
-RaftCluster::RaftCluster()
+RaftNode::RaftNode()
     : state_(State::FOLLOWER),
       current_term_(0),
       is_leader_known_(false),
@@ -36,58 +36,58 @@ RaftCluster::RaftCluster()
           << ": Election timeout = " << election_timeout_;
 }
 
-RaftCluster::~RaftCluster() {
+RaftNode::~RaftNode() {
   is_exiting_ = true;
   if (heartbeat_thread_.joinable()) {
     heartbeat_thread_.join();
   }
 }
 
-RaftCluster& RaftCluster::instance() {
-  static RaftCluster instance;
+RaftNode& RaftNode::instance() {
+  static RaftNode instance;
   return instance;
 }
 
-void RaftCluster::registerHandlers() {
+void RaftNode::registerHandlers() {
   Hub::instance().registerHandler(kHeartbeat, staticHandleHeartbeat);
   Hub::instance().registerHandler(kVoteRequest, staticHandleRequestVote);
 }
 
-void RaftCluster::start() {
-  heartbeat_thread_ = std::thread(&RaftCluster::heartbeatThread, this);
+void RaftNode::start() {
+  heartbeat_thread_ = std::thread(&RaftNode::heartbeatThread, this);
 }
 
-uint64_t RaftCluster::term() const {
+uint64_t RaftNode::term() const {
   std::lock_guard<std::mutex> lock(state_mutex_);
   return current_term_;
 }
 
-const PeerId& RaftCluster::leader() const {
+const PeerId& RaftNode::leader() const {
   std::lock_guard<std::mutex> lock(state_mutex_);
   return leader_id_;
 }
 
-RaftCluster::State RaftCluster::state() const {
+RaftNode::State RaftNode::state() const {
   std::lock_guard<std::mutex> lock(state_mutex_);
   return state_;
 }
 
-bool RaftCluster::is_leader_known() const {
+bool RaftNode::is_leader_known() const {
   std::lock_guard<std::mutex> lock(state_mutex_);
   return is_leader_known_;
 }
 
-void RaftCluster::staticHandleHeartbeat(const Message& request,
-                                        Message* response) {
+void RaftNode::staticHandleHeartbeat(const Message& request,
+                                     Message* response) {
   instance().handleHeartbeat(request, response);
 }
 
-void RaftCluster::staticHandleRequestVote(const Message& request,
-                                          Message* response) {
+void RaftNode::staticHandleRequestVote(const Message& request,
+                                       Message* response) {
   instance().handleRequestVote(request, response);
 }
 
-void RaftCluster::handleHeartbeat(const Message& request, Message* response) {
+void RaftNode::handleHeartbeat(const Message& request, Message* response) {
   proto::RaftHeartbeat heartbeat;
   request.extract<kHeartbeat>(&heartbeat);
 
@@ -113,7 +113,7 @@ void RaftCluster::handleHeartbeat(const Message& request, Message* response) {
       is_leader_known_ = true;
       if (state_ == State::LEADER) {
         state_ = State::FOLLOWER;
-        follower_handler_run_ = false;
+        follower_trackers_run_ = false;
       }
 
       // Update the last heartbeat info.
@@ -139,7 +139,7 @@ void RaftCluster::handleHeartbeat(const Message& request, Message* response) {
   response->ack();
 }
 
-void RaftCluster::handleRequestVote(const Message& request, Message* response) {
+void RaftNode::handleRequestVote(const Message& request, Message* response) {
   proto::RequestVote req;
   proto::ResponseVote resp;
   request.extract<kVoteRequest>(&req);
@@ -150,7 +150,7 @@ void RaftCluster::handleRequestVote(const Message& request, Message* response) {
       current_term_ = req.term();
       is_leader_known_ = false;
       if (state_ == State::LEADER) {
-        follower_handler_run_ = false;
+        follower_trackers_run_ = false;
       }
       state_ = State::FOLLOWER;
       VLOG(1) << "Peer " << PeerId::self().ipPort() << " is voting for "
@@ -169,7 +169,7 @@ void RaftCluster::handleRequestVote(const Message& request, Message* response) {
   }
 }
 
-bool RaftCluster::sendHeartbeat(const PeerId& peer, uint64_t term) {
+bool RaftNode::sendHeartbeat(const PeerId& peer, uint64_t term) {
   Message request, response;
   proto::RaftHeartbeat heartbeat;
   heartbeat.set_term(term);
@@ -185,7 +185,7 @@ bool RaftCluster::sendHeartbeat(const PeerId& peer, uint64_t term) {
   }
 }
 
-int RaftCluster::sendRequestVote(const PeerId& peer, uint64_t term) {
+int RaftNode::sendRequestVote(const PeerId& peer, uint64_t term) {
   Message request, response;
   proto::RequestVote vote_request;
   vote_request.set_term(term);
@@ -202,7 +202,7 @@ int RaftCluster::sendRequestVote(const PeerId& peer, uint64_t term) {
   }
 }
 
-void RaftCluster::heartbeatThread() {
+void RaftNode::heartbeatThread() {
   TimePoint last_hb_time;
   bool election_timeout = false;
   State state;
@@ -245,24 +245,24 @@ void RaftCluster::heartbeatThread() {
       // Launch follower_handler threads if state is LEADER.
       VLOG(1) << "Peer " << PeerId::self() << " Elected as the leader for term "
               << current_term_;
-      follower_handler_run_ = true;
+      follower_trackers_run_ = true;
       for (const PeerId& peer : peer_list_) {
-        follower_handlers_.emplace_back(&RaftCluster::followerHandler, this,
-                                        peer, current_term);
+        follower_trackers_.emplace_back(&RaftNode::followerTracker, this, peer,
+                                        current_term);
       }
 
-      for (std::thread& follower_thread : follower_handlers_) {
+      for (std::thread& follower_thread : follower_trackers_) {
         if (follower_thread.joinable()) {
           follower_thread.join();
         }
       }
-      follower_handlers_.clear();
+      follower_trackers_.clear();
     }
   }  // while(!is_exiting_)
   heartbeat_thread_running_ = false;
 }
 
-void RaftCluster::conductElection() {
+void RaftNode::conductElection() {
   uint16_t num_votes = 0;
   std::unique_lock<std::mutex> state_lock(state_mutex_);
   state_ = State::CANDIDATE;
@@ -276,7 +276,7 @@ void RaftCluster::conductElection() {
   std::vector<std::future<int>> responses;
   for (const PeerId& peer : peer_list_) {
     std::future<int> p = std::async(
-        std::launch::async, &RaftCluster::sendRequestVote, this, peer, term);
+        std::launch::async, &RaftNode::sendRequestVote, this, peer, term);
     responses.push_back(std::move(p));
   }
   for (std::future<int>& response : responses) {
@@ -301,14 +301,14 @@ void RaftCluster::conductElection() {
   state_lock.unlock();
 }
 
-void RaftCluster::followerHandler(const PeerId& peer, uint64_t term) {
-  while (follower_handler_run_) {
+void RaftNode::followerTracker(const PeerId& peer, uint64_t term) {
+  while (follower_trackers_run_) {
     sendHeartbeat(peer, term);
     usleep(kHeartbeatSendPeriodMs);
   }
 }
 
-int RaftCluster::setElectionTimeout() {
+int RaftNode::setElectionTimeout() {
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_int_distribution<> dist(kHeartbeatTimeoutMs,

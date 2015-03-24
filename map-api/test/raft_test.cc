@@ -21,47 +21,26 @@ TEST_F(ConsensusFixture, DISABLED_LeaderElection) {
     DIE
   };
 
-  RaftCluster::instance().registerHandlers();
   pid_t pid = getpid();
-  LOG(INFO) << "Peer Id " << RaftCluster::instance().self_id() << " : PID "
-            << pid;
+  LOG(INFO) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid;
 
-  // Main parent process
   if (getSubprocessId() == 0) {
-    std::ostringstream extra_flags_ss;
     for (uint64_t i = 1u; i < kProcesses; ++i) {
       launchSubprocess(i);
     }
+  }
+  IPC::barrier(INIT, kProcesses - 1);
+  // Find peers in the network and add them to raft cluster.
+  std::set<PeerId> peer_list;
+  Hub::instance().getPeers(&peer_list);
+  for (const PeerId& peer : peer_list) {
+    RaftNode::instance().addPeerBeforeStart(peer);
+  }
 
-    IPC::barrier(INIT, kProcesses - 1);
-
-    // Find peers in the network, add them to raft cluster
-    std::set<PeerId> peer_list;
-    Hub::instance().getPeers(&peer_list);
-    for (const PeerId& peer : peer_list) {
-      RaftCluster::instance().addPeerBeforeStart(peer);
-    }
-
-    // IPC Push info
-    IPC::barrier(PEERS_SETUP, kProcesses - 1);
-    RaftCluster::instance().start();
-    while (true) {
-      // Do nothing
-    }
-  } else {  // Subprocesses
-    IPC::barrier(INIT, kProcesses - 1);
-    // Find peers in the network, add them to raft cluster
-    std::set<PeerId> peer_list;
-    Hub::instance().getPeers(&peer_list);
-    for (const PeerId& peer : peer_list) {
-      RaftCluster::instance().addPeerBeforeStart(peer);
-    }
-    IPC::barrier(PEERS_SETUP, kProcesses - 1);
-    // IPC::barrier(DIE, kProcesses - 1);
-    RaftCluster::instance().start();
-    while (true) {
-      // Do nothing
-    }
+  IPC::barrier(PEERS_SETUP, kProcesses - 1);
+  RaftNode::instance().start();
+  while (true) {
+    // Do nothing
   }
 }
 

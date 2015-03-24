@@ -15,14 +15,7 @@ namespace map_api {
 void ConsensusFixture::SetUpImpl() {
   map_api::Core::initializeInstance();  // Core init.
   ASSERT_TRUE(map_api::Core::instance() != nullptr);
-  std::unique_ptr<map_api::TableDescriptor> descriptor;
-
-  // Create a table
-  descriptor.reset(new map_api::TableDescriptor);
-  descriptor->setName("Table0");
-  descriptor->addField<int>(kTableFieldId);
-  table_ = map_api::NetTableManager::instance().addTable(
-      map_api::CRTable::Type::CRU, &descriptor);
+  RaftNode::instance().registerHandlers();
 }
 
 void ConsensusFixture::TearDownImpl() { map_api::Core::instance()->kill(); }
