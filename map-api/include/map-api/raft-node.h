@@ -70,12 +70,12 @@ class RaftNode {
   static void staticHandleRequestVote(const Message& request,
                                       Message* response);
 
-  static const char kHeartbeat[];
+  static const char kAppendEntries[];
   static const char kVoteRequest[];
   static const char kVoteResponse[];
 
  private:
-  FRIEND_TEST(ConsensusFixture, DISABLED_LeaderElection);
+  FRIEND_TEST(ConsensusFixture, LeaderElection);
   // TODO(aqurai) Only for test, will be removed later.
   inline void addPeerBeforeStart(PeerId peer) { peer_list_.insert(peer); }
 
@@ -134,24 +134,22 @@ class RaftNode {
   void conductElection();
   void followerTracker(const PeerId& peer, uint64_t term);
 
+  // Started when leadership is acquired. Gets killed when leadership is lost.
+  std::vector<std::thread> follower_trackers_;
+  std::atomic<bool> follower_trackers_run_;
+  static int setElectionTimeout();
 
   // =====================
   // Log entries/revisions
   // =====================
 
   struct LogEntry {
-    uint16_t index;
+    uint64_t index;
     uint64_t term;
-    uint16_t logicaltime;
-    uint16_t entry;
+    uint32_t entry;
   };
   std::vector<LogEntry> uncommitted_log_;
   std::pair<uint16_t, uint16_t> final_result_;
-
-  // Started when leadership is acquired. Gets killed when leadership is lost.
-  std::vector<std::thread> follower_trackers_;
-  std::atomic<bool> follower_trackers_run_;
-  static int setElectionTimeout();
 };
 }  // namespace map_api
 

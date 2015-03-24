@@ -16,11 +16,11 @@ constexpr double kHeartbeatSendPeriodMs = 25;
 
 namespace map_api {
 
-const char RaftNode::kHeartbeat[] = "raft_cluster_heart_beat";
+const char RaftNode::kAppendEntries[] = "raft_cluster_append_entries";
 const char RaftNode::kVoteRequest[] = "raft_cluster_vote_request";
 const char RaftNode::kVoteResponse[] = "raft_cluster_vote_response";
 
-MAP_API_PROTO_MESSAGE(RaftNode::kHeartbeat, proto::RaftHeartbeat);
+MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntries, proto::AppendEntriesRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kVoteRequest, proto::RequestVote);
 MAP_API_PROTO_MESSAGE(RaftNode::kVoteResponse, proto::ResponseVote);
 
@@ -51,7 +51,7 @@ RaftNode& RaftNode::instance() {
 }
 
 void RaftNode::registerHandlers() {
-  Hub::instance().registerHandler(kHeartbeat, staticHandleHeartbeat);
+  Hub::instance().registerHandler(kAppendEntries, staticHandleHeartbeat);
   Hub::instance().registerHandler(kVoteRequest, staticHandleRequestVote);
 }
 
@@ -85,8 +85,8 @@ void RaftNode::staticHandleRequestVote(const Message& request,
 }
 
 void RaftNode::handleHeartbeat(const Message& request, Message* response) {
-  proto::RaftHeartbeat heartbeat;
-  request.extract<kHeartbeat>(&heartbeat);
+  proto::AppendEntriesRequest heartbeat;
+  request.extract<kAppendEntries>(&heartbeat);
 
   VLOG(2) << "Received heartbeat from " << request.sender();
 
@@ -167,9 +167,9 @@ void RaftNode::handleRequestVote(const Message& request, Message* response) {
 
 bool RaftNode::sendHeartbeat(const PeerId& peer, uint64_t term) {
   Message request, response;
-  proto::RaftHeartbeat heartbeat;
+  proto::AppendEntriesRequest heartbeat;
   heartbeat.set_term(term);
-  request.impose<kHeartbeat>(heartbeat);
+  request.impose<kAppendEntries>(heartbeat);
   if (Hub::instance().try_request(peer, &request, &response)) {
     if (response.isOk())
       return true;
