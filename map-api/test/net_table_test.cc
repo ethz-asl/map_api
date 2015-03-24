@@ -17,10 +17,7 @@ namespace map_api {
  * sense because A's operations per transaction are less complex, thus
  * faster executed, and A gets to lock first.
  */
-TEST_P(NetTableFixture, NetTableTransactions) {
-  if (!GetParam()) {
-    return;
-  }
+TEST_F(NetTableFixture, NetTableTransactions) {
   enum Processes {
     ROOT,
     A,
@@ -107,10 +104,7 @@ TEST_P(NetTableFixture, NetTableTransactions) {
   LOG(INFO) << PeerId::self() << " done";
 }
 
-TEST_P(NetTableFixture, Transactions) {
-  if (!GetParam()) {
-    return;
-  }
+TEST_F(NetTableFixture, Transactions) {
   enum Processes {
     ROOT,
     A,
@@ -130,8 +124,7 @@ TEST_P(NetTableFixture, Transactions) {
   std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
   descriptor->setName(kSecondTableName);
   descriptor->addField<int>(kSecondTableFieldName);
-  NetTable* second_table =
-      NetTableManager::instance().addTable(CRTable::Type::CRU, &descriptor);
+  NetTable* second_table = NetTableManager::instance().addTable(&descriptor);
   ASSERT_TRUE(second_table);
 
   common::Id ab_chunk_id, b_chunk_id, ab_id, b_id;
@@ -206,9 +199,9 @@ TEST_P(NetTableFixture, Transactions) {
       while (true) {
         Transaction attempt;
         increment(table_, ab_id, ab_chunk, &attempt);
-        CRTable::RevisionMap chunk_dump =
-            attempt.dumpChunk(second_table, b_chunk);
-        CRTable::RevisionMap::iterator found = chunk_dump.find(b_id);
+        ConstRevisionMap chunk_dump;
+        attempt.dumpChunk(second_table, b_chunk, &chunk_dump);
+        ConstRevisionMap::iterator found = chunk_dump.find(b_id);
         std::shared_ptr<Revision> to_update = found->second->copyForWrite();
         int transient_value;
         to_update->get(kSecondTableFieldName, &transient_value);
@@ -224,10 +217,7 @@ TEST_P(NetTableFixture, Transactions) {
   }
 }
 
-TEST_P(NetTableFixture, CommitTime) {
-  if (!GetParam()) {
-    return;
-  }
+TEST_F(NetTableFixture, CommitTime) {
   Chunk* chunk = table_->newChunk();
   Transaction transaction;
   // TODO(tcies) factor insertion into a NetTableTest function
@@ -243,10 +233,10 @@ TEST_P(NetTableFixture, CommitTime) {
   transaction.insert(table_, chunk, to_insert_1);
   transaction.insert(table_, chunk, to_insert_2);
   ASSERT_TRUE(transaction.commit());
-  CRTable::RevisionMap retrieved;
+  ConstRevisionMap retrieved;
   chunk->dumpItems(LogicalTime::sample(), &retrieved);
   ASSERT_EQ(2u, retrieved.size());
-  CRTable::RevisionMap::iterator it = retrieved.begin();
+  ConstRevisionMap::iterator it = retrieved.begin();
   LogicalTime time_1 = it->second->getInsertTime();
   ++it;
   LogicalTime time_2 = it->second->getInsertTime();
@@ -254,10 +244,7 @@ TEST_P(NetTableFixture, CommitTime) {
   // TODO(tcies) also test update times, and times accross multiple chunks
 }
 
-TEST_P(NetTableFixture, ChunkLookup) {
-  if (GetParam()) {
-    return;  // independent of updateability
-  }
+TEST_F(NetTableFixture, ChunkLookup) {
   enum Processes {
     MASTER,
     SLAVE
@@ -268,7 +255,7 @@ TEST_P(NetTableFixture, ChunkLookup) {
     DIE
   };
   Chunk* chunk;
-  CRTable::RevisionMap results;
+  ConstRevisionMap results;
   if (getSubprocessId() == MASTER) {
     launchSubprocess(SLAVE);
     IPC::barrier(INIT, 1);
@@ -293,10 +280,7 @@ TEST_P(NetTableFixture, ChunkLookup) {
   IPC::barrier(DIE, 1);
 }
 
-TEST_P(NetTableFixture, ListenToChunksFromPeer) {
-  if (GetParam()) {
-    return;  // Independent of whether CR or CRUD.
-  }
+TEST_F(NetTableFixture, ListenToChunksFromPeer) {
   enum Processes {
     MASTER,
     SLAVE
@@ -329,10 +313,7 @@ TEST_P(NetTableFixture, ListenToChunksFromPeer) {
   }
 }
 
-TEST_P(NetTableFixture, ListenToNewPeersOfTable) {
-  if (GetParam()) {
-    return;  // Independent of whether CR or CRUD.
-  }
+TEST_F(NetTableFixture, ListenToNewPeersOfTable) {
   enum Processes {
     MASTER,
     SLAVE
@@ -382,8 +363,7 @@ class NetTableChunkTrackingTest : public NetTableFixture {
     std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
     descriptor->setName(kTrackeeTableName);
     descriptor->addField<common::Id>(kParent);
-    trackee_table_ =
-        NetTableManager::instance().addTable(CRTable::Type::CR, &descriptor);
+    trackee_table_ = NetTableManager::instance().addTable(&descriptor);
     trackee_table_->pushNewChunkIdsToTracker(table_, get_tracker);
     generateIdFromInt(1, &master_chunk_id_);
     generateIdFromInt(1, &master_item_id_);
@@ -433,10 +413,7 @@ const std::string NetTableChunkTrackingTest::kTrackeeTableName =
     "trackee_table";
 const size_t NetTableChunkTrackingTest::kNumTrackeeChunks = 10;
 
-INSTANTIATE_TEST_CASE_P(Default, NetTableChunkTrackingTest,
-                        ::testing::Values(true));
-
-TEST_P(NetTableChunkTrackingTest, ChunkTrackingSameTransaction) {
+TEST_F(NetTableChunkTrackingTest, ChunkTrackingSameTransaction) {
   enum Barriers {
     INIT,
     SLAVE_DONE,
@@ -462,7 +439,7 @@ TEST_P(NetTableChunkTrackingTest, ChunkTrackingSameTransaction) {
   IPC::barrier(DIE, 1);
 }
 
-TEST_P(NetTableChunkTrackingTest, ChunkTrackingDifferentTransaction) {
+TEST_F(NetTableChunkTrackingTest, ChunkTrackingDifferentTransaction) {
   enum Barriers {
     INIT,
     TRACKER_DONE,
@@ -494,7 +471,7 @@ TEST_P(NetTableChunkTrackingTest, ChunkTrackingDifferentTransaction) {
   IPC::barrier(DIE, 1);
 }
 
-TEST_P(NetTableChunkTrackingTest, FollowTrackedChunks) {
+TEST_F(NetTableChunkTrackingTest, FollowTrackedChunks) {
   enum Barriers {
     INIT,
     TRACKER_DONE,
@@ -529,7 +506,7 @@ TEST_P(NetTableChunkTrackingTest, FollowTrackedChunks) {
   IPC::barrier(DIE, 1);
 }
 
-TEST_P(NetTableChunkTrackingTest, AutoFollowTrackedChunks) {
+TEST_F(NetTableChunkTrackingTest, AutoFollowTrackedChunks) {
   enum Barriers {
     INIT,
     TRACKER_DONE,
@@ -566,14 +543,9 @@ TEST_P(NetTableChunkTrackingTest, AutoFollowTrackedChunks) {
   IPC::barrier(DIE, 1);
 }
 
-TEST_P(NetTableFixture, GetAllIdsNoNewChunkRaceConditionThreads) {
+TEST_F(NetTableFixture, GetAllIdsNoNewChunkRaceConditionThreads) {
   constexpr size_t kNumPushers = 50;
   constexpr size_t kItemsToPush = 100;
-
-  if (!GetParam()) {
-    // No need for separate CR test.
-    return;
-  }
 
   auto push_items = [this]() {
     for (size_t i = 0u; i < kItemsToPush; ++i) {

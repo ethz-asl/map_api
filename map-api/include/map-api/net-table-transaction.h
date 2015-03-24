@@ -7,14 +7,14 @@
 
 #include <gtest/gtest_prod.h>
 
-#include "map-api/chunk.h"
 #include "map-api/chunk-transaction.h"
 #include "map-api/logical-time.h"
 #include "map-api/net-table.h"
-#include "map-api/revision.h"
 
 namespace map_api {
 class Chunk;
+class ConstRevisionMap;
+class Revision;
 
 class NetTableTransaction {
   friend class Transaction;
@@ -33,10 +33,10 @@ class NetTableTransaction {
   template <typename IdType>
   std::shared_ptr<const Revision> getByIdFromUncommitted(const IdType& id)
       const;
-  CRTable::RevisionMap dumpChunk(Chunk* chunk);
-  CRTable::RevisionMap dumpActiveChunks();
+  void dumpChunk(Chunk* chunk, ConstRevisionMap* result);
+  void dumpActiveChunks(ConstRevisionMap* result);
   template <typename ValueType>
-  CRTable::RevisionMap find(int key, const ValueType& value);
+  void find(int key, const ValueType& value, ConstRevisionMap* result);
   template <typename IdType>
   void getAvailableIds(std::vector<IdType>* ids);
 
