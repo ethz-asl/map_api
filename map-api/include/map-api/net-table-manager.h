@@ -31,8 +31,7 @@ class NetTableManager {
   void initMetatable(bool create_metatable_chunk);
 
   NetTable* __attribute__((warn_unused_result))
-      addTable(CRTable::Type type,
-               std::unique_ptr<TableDescriptor>* descriptor);
+      addTable(std::unique_ptr<TableDescriptor>* descriptor);
   /**
    * Can leave dangling reference
    */
@@ -40,25 +39,27 @@ class NetTableManager {
 
   void tableList(std::vector<std::string>* tables);
 
+  void listenToPeersJoiningTable(const std::string& table_name);
+
   void kill();
 
   typedef std::unordered_map<std::string, std::unique_ptr<NetTable> > TableMap;
   // Need custom iterator to skip metatable, which is not supposed to be part of
   // the iteration.
-  class iterator {
+  class Iterator {
    public:
-    iterator(const TableMap::iterator& base, const TableMap& map);
-    iterator& operator++();
+    Iterator(const TableMap::iterator& base, const TableMap& map);
+    Iterator& operator++();
     NetTable* operator*();
-    bool operator!=(const iterator& other) const;
+    bool operator!=(const Iterator& other) const;
 
    private:
     TableMap::iterator base_;
     const TableMap::const_iterator metatable_;
   };
   // Not thread-safe, assumes table initialization has happened before.
-  inline iterator begin() { return iterator(tables_.begin(), tables_); }
-  inline iterator end() { return iterator(tables_.end(), tables_); }
+  inline Iterator begin() { return Iterator(tables_.begin(), tables_); }
+  inline Iterator end() { return Iterator(tables_.end(), tables_); }
 
   /**
    * ==========================
@@ -82,6 +83,10 @@ class NetTableManager {
    */
   static void handlePushNewChunksRequest(const Message& request,
                                          Message* response);
+  static void handleAnnounceToListenersRequest(const Message& request,
+                                               Message* response);
+  static void handleSpatialTriggerNotification(const Message& request,
+                                               Message* response);
   /**
    * Chord requests
    */
@@ -91,14 +96,13 @@ class NetTableManager {
                                                Message* response);
 
  private:
-  NetTableManager() = default;
+  NetTableManager();
   NetTableManager(const NetTableManager&) = delete;
   NetTableManager& operator =(const NetTableManager&) = delete;
   ~NetTableManager() = default;
 
-  bool syncTableDefinition(
-      CRTable::Type type, const TableDescriptor& descriptor, bool* first,
-      PeerId* entry_point);
+  bool syncTableDefinition(const TableDescriptor& descriptor, bool* first,
+                           PeerId* entry_point, PeerIdList* listeners);
 
   template <const char* RequestType>
   static bool getTableForMetadataRequestOrDecline(const Message& request,
@@ -106,10 +110,18 @@ class NetTableManager {
                                                   TableMap::iterator* found,
                                                   common::Id* chunk_id,
                                                   PeerId* peer);
-
+  template <const char* RequestType>
+  static bool getTableForStringRequestOrDecline(const Message& request,
+                                                Message* response,
+                                                TableMap::iterator* found,
+                                                PeerId* peer);
   template <typename MetadataRequestType>
   static bool getTableForRequestWithMetadataOrDecline(
       const MetadataRequestType& request, Message* response,
+      TableMap::iterator* found);
+  template <typename StringRequestType>
+  static bool getTableForRequestWithStringOrDecline(
+      const StringRequestType& request, Message* response,
       TableMap::iterator* found);
 
   /**
@@ -119,7 +131,7 @@ class NetTableManager {
   static bool findTable(const std::string& table_name,
                         TableMap::iterator* found);
 
-  Chunk* metatable_chunk_ = nullptr;
+  Chunk* metatable_chunk_;
 
   TableMap tables_;
   ReaderWriterMutex tables_lock_;

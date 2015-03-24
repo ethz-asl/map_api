@@ -13,27 +13,35 @@ MAP_API_REVISION_PROTOBUF(proto::PeerList);
 enum MetaTableFields {
   kMetaTableNameField,
   kMetaTableStructureField,
-  kMetaTableUpdateableField,
-  kMetaTableParticipantsField
+  kMetaTableParticipantsField,
+  kMetaTableListenersField
 };
 
 constexpr char kMetaTableChunkHexString[] = "000000000000000000000003E1A1AB7E";
 
 const char NetTableManager::kMetaTableName[] = "map_api_metatable";
 
+NetTableManager::NetTableManager()
+    : metatable_chunk_(nullptr), metatable_(nullptr) {}
+
 template <>
-bool NetTableManager::getTableForRequestWithMetadataOrDecline<
-    proto::ChunkRequestMetadata>(const proto::ChunkRequestMetadata& request,
-                                 Message* response, TableMap::iterator* found) {
+bool NetTableManager::getTableForRequestWithStringOrDecline<std::string>(
+    const std::string& request, Message* response, TableMap::iterator* found) {
   CHECK_NOTNULL(response);
   CHECK_NOTNULL(found);
-  const std::string& table = request.table();
-  common::Id chunk_id(request.chunk_id());
-  if (!findTable(table, found)) {
+  if (!findTable(request, found)) {
     response->impose<Message::kDecline>();
     return false;
   }
   return true;
+}
+
+template <>
+bool NetTableManager::getTableForRequestWithMetadataOrDecline<
+    proto::ChunkRequestMetadata>(const proto::ChunkRequestMetadata& request,
+                                 Message* response, TableMap::iterator* found) {
+  return getTableForRequestWithStringOrDecline(request.table(), response,
+                                               found);
 }
 
 void NetTableManager::registerHandlers() {
@@ -50,6 +58,10 @@ void NetTableManager::registerHandlers() {
   // Net table requests.
   Hub::instance().registerHandler(NetTable::kPushNewChunksRequest,
                                   handlePushNewChunksRequest);
+  Hub::instance().registerHandler(NetTable::kAnnounceToListeners,
+                                  handleAnnounceToListenersRequest);
+  Hub::instance().registerHandler(SpatialIndex::kTriggerRequest,
+                                  handleSpatialTriggerNotification);
 
   // Chord requests.
   Hub::instance().registerHandler(NetTableIndex::kRoutedChordRequest,
@@ -88,9 +100,9 @@ void NetTableManager::initMetatable(bool create_metatable_chunk) {
   metatable_descriptor->addField<std::string>(kMetaTableNameField);
   metatable_descriptor->addField<proto::TableDescriptor>(
       kMetaTableStructureField);
-  metatable_descriptor->addField<bool>(kMetaTableUpdateableField);
   metatable_descriptor->addField<proto::PeerList>(kMetaTableParticipantsField);
-  metatable->init(CRTable::Type::CRU, &metatable_descriptor);
+  metatable_descriptor->addField<proto::PeerList>(kMetaTableListenersField);
+  metatable->init(&metatable_descriptor);
   tables_lock_.releaseWriteLock();
   // 3. INITIALIZATION OF INDEX
   // outside of table lock to avoid deadlock
@@ -123,45 +135,50 @@ void NetTableManager::initMetatable(bool create_metatable_chunk) {
     // TODO(tcies) spin till successful
     metatable_chunk_ = metatable->getChunk(metatable_chunk_id);
   }
-  if (metatable_chunk_ == nullptr) {
-    // TODO(tcies) net chunk lookup
-    LOG(ERROR) << "Need to implement net chunk lookup!";
-  }
 }
 
 NetTable* NetTableManager::addTable(
-    CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor) {
+    std::unique_ptr<TableDescriptor>* descriptor) {
   CHECK_NOTNULL(descriptor);
   CHECK(*descriptor);
   TableDescriptor* descriptor_raw = descriptor->get();  // needed later
+
+  // Create NetTable if not already there.
   tables_lock_.acquireWriteLock();
   TableMap::iterator found = tables_.find((*descriptor)->name());
   if (found != tables_.end()) {
     LOG(WARNING) << "Table already defined! Checking consistency...";
     std::unique_ptr<NetTable> temp(new NetTable);
-    temp->init(type, descriptor);
+    temp->init(descriptor);
     std::shared_ptr<Revision> left = found->second->getTemplate(),
         right = temp->getTemplate();
     CHECK(right->structureMatch(*left));
   } else {
+    // Storing as a pointer as NetTable memory position must not shift around
+    // in memory.
     std::pair<TableMap::iterator, bool> inserted = tables_.insert(
         std::make_pair((*descriptor)->name(), std::unique_ptr<NetTable>()));
     CHECK(inserted.second) << tables_.size();
     inserted.first->second.reset(new NetTable);
-    CHECK(inserted.first->second->init(type, descriptor));
+    CHECK(inserted.first->second->init(descriptor));
   }
   tables_lock_.releaseWriteLock();
+
+  // Ensure validity of table structure. May receive requests after this.
   bool first;
   PeerId entry_point;
-  // Ensure validity of table structure
-  CHECK(syncTableDefinition(type, *descriptor_raw, &first, &entry_point));
-  // May receive requests at this point TODO(tcies) defer them
+  PeerIdList listeners;
+  CHECK(syncTableDefinition(*descriptor_raw, &first, &entry_point, &listeners));
+
+  // Join reference chord index.
   NetTable* table = &getTable(descriptor_raw->name());
   if (first) {
     table->createIndex();
   } else {
     table->joinIndex(entry_point);
   }
+
+  // Join spatial chord index if applicable.
   if (descriptor_raw->spatial_extent_size() > 0) {
     CHECK_EQ(descriptor_raw->spatial_subdivision_size() * 2,
              descriptor_raw->spatial_extent_size());
@@ -177,6 +194,10 @@ NetTable* NetTableManager::addTable(
       table->joinSpatialIndex(box, subdivision, entry_point);
     }
   }
+
+  // Announce to listeners.
+  table->announceToListeners(listeners);
+
   return table;
 }
 
@@ -202,6 +223,26 @@ void NetTableManager::tableList(std::vector<std::string>* tables) {
   tables_lock_.releaseReadLock();
 }
 
+void NetTableManager::listenToPeersJoiningTable(const std::string& table_name) {
+  NetTable* metatable = &getTable(kMetaTableName);
+  // TODO(tcies) Define default merging for metatable.
+  while (true) {
+    ChunkTransaction add_self_to_listeners(metatable_chunk_, metatable);
+    std::shared_ptr<const Revision> current =
+        add_self_to_listeners.findUnique(kMetaTableNameField, table_name);
+    CHECK(current);
+    proto::PeerList listeners;
+    current->get(kMetaTableListenersField, &listeners);
+    listeners.add_peers(Hub::instance().ownAddress());
+    std::shared_ptr<Revision> next = current->copyForWrite();
+    next->set(kMetaTableListenersField, listeners);
+    add_self_to_listeners.update(next);
+    if (add_self_to_listeners.commit()) {
+      break;
+    }
+  }
+}
+
 void NetTableManager::kill() {
   tables_lock_.acquireReadLock();
   for (const std::pair<const std::string, std::unique_ptr<NetTable> >& table :
@@ -214,7 +255,7 @@ void NetTableManager::kill() {
   tables_lock_.releaseWriteLock();
 }
 
-NetTableManager::iterator::iterator(const TableMap::iterator& base,
+NetTableManager::Iterator::Iterator(const TableMap::iterator& base,
                                     const TableMap& map)
     : base_(base), metatable_(map.find(kMetaTableName)) {
   CHECK(metatable_ != map.end());
@@ -223,7 +264,7 @@ NetTableManager::iterator::iterator(const TableMap::iterator& base,
   }
 }
 
-NetTableManager::iterator& NetTableManager::iterator::operator++() {
+NetTableManager::Iterator& NetTableManager::Iterator::operator++() {
   ++base_;
   if (base_ == metatable_) {
     ++base_;
@@ -231,9 +272,9 @@ NetTableManager::iterator& NetTableManager::iterator::operator++() {
   return *this;
 }
 
-NetTable* NetTableManager::iterator::operator*() { return base_->second.get(); }
+NetTable* NetTableManager::Iterator::operator*() { return base_->second.get(); }
 
-bool NetTableManager::iterator::operator!=(const iterator& other) const {
+bool NetTableManager::Iterator::operator!=(const Iterator& other) const {
   return other.base_ != base_;
 }
 
@@ -281,9 +322,8 @@ void NetTableManager::handleInsertRequest(
   if (getTableForRequestWithMetadataOrDecline(patch_request, response,
                                               &found)) {
     common::Id chunk_id(patch_request.metadata().chunk_id());
-    std::shared_ptr<proto::Revision> parsed(new proto::Revision);
-    CHECK(parsed->ParseFromString(patch_request.serialized_revision()));
-    std::shared_ptr<Revision> to_insert = std::make_shared<Revision>(parsed);
+    std::shared_ptr<Revision> to_insert =
+        Revision::fromProtoString(patch_request.serialized_revision());
     found->second->handleInsertRequest(chunk_id, to_insert, response);
   }
 }
@@ -342,9 +382,8 @@ void NetTableManager::handleUpdateRequest(
   if (getTableForRequestWithMetadataOrDecline(patch_request, response,
                                               &found)) {
     common::Id chunk_id(patch_request.metadata().chunk_id());
-    std::shared_ptr<proto::Revision> parsed(new proto::Revision);
-    CHECK(parsed->ParseFromString(patch_request.serialized_revision()));
-    std::shared_ptr<Revision> to_insert = std::make_shared<Revision>(parsed);
+    std::shared_ptr<Revision> to_insert =
+        Revision::fromProtoString(patch_request.serialized_revision());
     PeerId sender(request.sender());
     found->second->handleUpdateRequest(chunk_id, to_insert, sender, response);
   }
@@ -354,11 +393,34 @@ void NetTableManager::handlePushNewChunksRequest(const Message& request,
                                                  Message* response) {
   CHECK_NOTNULL(response);
   TableMap::iterator found;
-  common::Id chunk_id;
-  PeerId peer;
-  if (getTableForMetadataRequestOrDecline<NetTable::kPushNewChunksRequest>(
-          request, response, &found, &chunk_id, &peer)) {
-    found->second->handleListenToChunksFromPeer(peer, response);
+  PeerId listener;
+  if (getTableForStringRequestOrDecline<NetTable::kPushNewChunksRequest>(
+          request, response, &found, &listener)) {
+    found->second->handleListenToChunksFromPeer(listener, response);
+  }
+}
+
+void NetTableManager::handleAnnounceToListenersRequest(const Message& request,
+                                                       Message* response) {
+  CHECK_NOTNULL(response);
+  TableMap::iterator found;
+  PeerId announcer;
+  if (getTableForStringRequestOrDecline<NetTable::kAnnounceToListeners>(
+          request, response, &found, &announcer)) {
+    found->second->handleAnnounceToListeners(announcer, response);
+  }
+}
+
+void NetTableManager::handleSpatialTriggerNotification(const Message& request,
+                                                       Message* response) {
+  CHECK_NOTNULL(response);
+  proto::SpatialIndexTrigger trigger;
+  request.extract<SpatialIndex::kTriggerRequest>(&trigger);
+  TableMap::iterator found;
+  PeerId source;
+  if (getTableForRequestWithStringOrDecline(trigger, response, &found)) {
+    found->second->handleSpatialIndexTrigger(trigger);
+    response->ack();
   }
 }
 
@@ -384,13 +446,16 @@ void NetTableManager::handleRoutedSpatialChordRequests(const Message& request,
   table->second->handleRoutedSpatialChordRequests(request, response);
 }
 
-bool NetTableManager::syncTableDefinition(
-    CRTable::Type type, const TableDescriptor& descriptor, bool* first,
-    PeerId* entry_point) {
+bool NetTableManager::syncTableDefinition(const TableDescriptor& descriptor,
+                                          bool* first, PeerId* entry_point,
+                                          PeerIdList* listeners) {
   CHECK_NOTNULL(first);
   CHECK_NOTNULL(entry_point);
+  CHECK_NOTNULL(listeners);
   CHECK_NOTNULL(metatable_chunk_);
   NetTable& metatable = getTable(kMetaTableName);
+
+  // Assume that we are the first ones to define the table.
   ChunkTransaction try_insert(metatable_chunk_, &metatable);
   std::shared_ptr<Revision> attempt = metatable.getTemplate();
   common::Id metatable_id;
@@ -400,17 +465,8 @@ bool NetTableManager::syncTableDefinition(
   proto::PeerList peers;
   peers.add_peers(PeerId::self().ipPort());
   attempt->set(kMetaTableParticipantsField, peers);
+  attempt->set(kMetaTableListenersField, proto::PeerList());
   attempt->set(kMetaTableStructureField, descriptor);
-  switch (type) {
-    case CRTable::Type::CR:
-      attempt->set(kMetaTableUpdateableField, false);
-      break;
-    case CRTable::Type::CRU:
-      attempt->set(kMetaTableUpdateableField, true);
-      break;
-    default:
-      LOG(FATAL) << "Unknown table type";
-  }
   try_insert.insert(attempt);
   try_insert.addConflictCondition(kMetaTableNameField, descriptor.name());
 
@@ -421,41 +477,34 @@ bool NetTableManager::syncTableDefinition(
     *first = false;
   }
 
-  // Case Table definition already in metatable
-  while (true) {
-    ChunkTransaction try_join(metatable_chunk_, &metatable);
-    // 1. Read previous registration in metatable
-    std::shared_ptr<const Revision> previous = try_join.findUnique(
-        static_cast<int>(kMetaTableNameField), descriptor.name());
-    CHECK(previous) << "Can't find table " << descriptor.name() <<
-        " even though its presence seemingly caused a conflict";
-    // 2. Verify structure
-    TableDescriptor previous_descriptor;
-    previous->get(kMetaTableStructureField, &previous_descriptor);
-    CHECK_EQ(descriptor.SerializeAsString(),
-             previous_descriptor.SerializeAsString());
-    bool previous_updateable;
-    previous->get(kMetaTableUpdateableField, &previous_updateable);
-    switch (type) {
-      case CRTable::Type::CR:
-        CHECK(!previous_updateable);
-        break;
-      case CRTable::Type::CRU:
-        CHECK(previous_updateable);
-        break;
-      default:
-        LOG(FATAL) << "Unknown table type";
-    }
-    // 3. Pick entry point peer
-    proto::PeerList peers;
-    previous->get(kMetaTableParticipantsField, &peers);
-    CHECK_EQ(1, peers.peers_size()) << "Current implementation assumes only "\
-        "one entry point peer per table";
-    *entry_point = PeerId(peers.peers(0));
-    // 4. Register as peer
-    // TODO(tcies) later, this isn't necessary for the demo
-    break;
+  // Case Table definition already in metatable.
+  ChunkTransaction try_join(metatable_chunk_, &metatable);
+  // 1. Read previous registration in metatable.
+  std::shared_ptr<const Revision> previous = try_join.findUnique(
+      static_cast<int>(kMetaTableNameField), descriptor.name());
+  CHECK(previous) << "Can't find table " << descriptor.name()
+                  << " even though its presence seemingly caused a conflict.";
+  // 2. Verify structure.
+  TableDescriptor previous_descriptor;
+  previous->get(kMetaTableStructureField, &previous_descriptor);
+  CHECK_EQ(descriptor.SerializeAsString(),
+           previous_descriptor.SerializeAsString());
+  // 3. Pick entry point peer.
+  previous->get(kMetaTableParticipantsField, &peers);
+  CHECK_EQ(1, peers.peers_size()) << "Current implementation assumes only "
+                                  << "one entry point peer per table.";
+  *entry_point = PeerId(peers.peers(0));
+  // 4. TODO(tcies) Register as peer.
+
+  // 5. Grab listener peer ids.
+  proto::PeerList listener_proto;
+  previous->get(kMetaTableListenersField, &listener_proto);
+  for (int i = 0; i < listener_proto.peers_size(); ++i) {
+    listeners->push_back(PeerId(listener_proto.peers(i)));
   }
+
+  // TODO(tcies) Commit registering as peer and remove table listeners
+  // that are not reachable (merge while fail)?
   return true;
 }
 

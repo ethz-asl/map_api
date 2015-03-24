@@ -19,12 +19,11 @@ void NetTableFixture::SetUp() {
   std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
   descriptor->setName(kTableName);
   descriptor->addField<int>(kFieldName);
-  table_ = NetTableManager::instance().addTable(
-      GetParam() ? CRTable::Type::CRU : CRTable::Type::CR, &descriptor);
+  table_ = NetTableManager::instance().addTable(&descriptor);
 }
 
 size_t NetTableFixture::count() {
-  CRTable::RevisionMap results;
+  ConstRevisionMap results;
   table_->dumpActiveChunksAtCurrentTime(&results);
   return results.size();
 }
@@ -33,10 +32,10 @@ void NetTableFixture::increment(const common::Id& id, Chunk* chunk,
                                 NetTableTransaction* transaction) {
   CHECK_NOTNULL(chunk);
   CHECK_NOTNULL(transaction);
-  CRTable::RevisionMap chunk_dump = transaction->dumpChunk(chunk);
-  CRTable::RevisionMap::iterator found = chunk_dump.find(id);
-  std::shared_ptr<Revision> to_update =
-      std::make_shared<Revision>(*found->second);
+  ConstRevisionMap chunk_dump;
+  transaction->dumpChunk(chunk, &chunk_dump);
+  ConstRevisionMap::iterator found = chunk_dump.find(id);
+  std::shared_ptr<Revision> to_update = found->second->copyForWrite();
   int transient_value;
   to_update->get(kFieldName, &transient_value);
   ++transient_value;
@@ -49,10 +48,10 @@ void NetTableFixture::increment(NetTable* table, const common::Id& id,
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(chunk);
   CHECK_NOTNULL(transaction);
-  CRTable::RevisionMap chunk_dump = transaction->dumpChunk(table, chunk);
-  CRTable::RevisionMap::iterator found = chunk_dump.find(id);
-  std::shared_ptr<Revision> to_update =
-      std::make_shared<Revision>(*found->second);
+  ConstRevisionMap chunk_dump;
+  transaction->dumpChunk(table, chunk, &chunk_dump);
+  ConstRevisionMap::iterator found = chunk_dump.find(id);
+  std::shared_ptr<Revision> to_update = found->second->copyForWrite();
   int transient_value;
   to_update->get(kFieldName, &transient_value);
   ++transient_value;
@@ -94,16 +93,12 @@ void NetTableFixture::update(int n, const common::Id& id,
                              Transaction* transaction) {
   CHECK_NOTNULL(transaction);
   std::shared_ptr<Revision> to_update =
-      std::make_shared<Revision>(*transaction->getById(id, table_, chunk_));
+      transaction->getById(id, table_, chunk_)->copyForWrite();
   to_update->set(kFieldName, n);
   transaction->update(table_, to_update);
 }
 
 const std::string NetTableFixture::kTableName = "chunk_test_table";
-
-// Parameter true / false tests CRU / CR tables.
-INSTANTIATE_TEST_CASE_P(Default, NetTableFixture,
-                        ::testing::Values(false, true));
 
 }  // namespace map_api
 

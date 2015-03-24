@@ -20,12 +20,37 @@ bool NetTableManager::getTableForMetadataRequestOrDecline(
   return getTableForRequestWithMetadataOrDecline(metadata, response, found);
 }
 
+template <const char* RequestType>
+bool NetTableManager::getTableForStringRequestOrDecline(
+    const Message& request, Message* response, TableMap::iterator* found,
+    PeerId* peer) {
+  CHECK_NOTNULL(peer);
+  std::string table_name;
+  request.extract<RequestType>(&table_name);
+  *peer = PeerId(request.sender());
+  return getTableForRequestWithStringOrDecline(table_name, response, found);
+}
+
 template <typename RequestType>
 bool NetTableManager::getTableForRequestWithMetadataOrDecline(
     const RequestType& request, Message* response, TableMap::iterator* found) {
   CHECK_NOTNULL(response);
   CHECK_NOTNULL(found);
   const std::string& table = request.metadata().table();
+  if (!findTable(table, found)) {
+    response->impose<Message::kDecline>();
+    return false;
+  }
+  return true;
+}
+
+template <typename StringRequestType>
+bool NetTableManager::getTableForRequestWithStringOrDecline(
+    const StringRequestType& request, Message* response,
+    TableMap::iterator* found) {
+  CHECK_NOTNULL(response);
+  CHECK_NOTNULL(found);
+  const std::string& table = request.table_name();
   if (!findTable(table, found)) {
     response->impose<Message::kDecline>();
     return false;
