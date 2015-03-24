@@ -183,6 +183,7 @@ Chunk* NetTable::getChunk(const common::Id& chunk_id) {
   Chunk* result = found->second.get();
   active_chunks_lock_.releaseReadLock();
   timer.Stop();
+  VLOG(3) << "Got chunk " << chunk_id;
   return result;
 }
 
