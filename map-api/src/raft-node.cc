@@ -1,4 +1,4 @@
-#include "map-api/raft.h"
+#include "map-api/raft-node.h"
 
 #include <future>
 #include <random>
@@ -72,11 +72,6 @@ const PeerId& RaftNode::leader() const {
 RaftNode::State RaftNode::state() const {
   std::lock_guard<std::mutex> lock(state_mutex_);
   return state_;
-}
-
-bool RaftNode::is_leader_known() const {
-  std::lock_guard<std::mutex> lock(state_mutex_);
-  return leader_id_.isValid();
 }
 
 void RaftNode::staticHandleHeartbeat(const Message& request,

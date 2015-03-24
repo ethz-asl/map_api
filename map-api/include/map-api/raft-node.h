@@ -26,8 +26,8 @@
  * PENDING: Change leader to follower if many heartbeats not ack'd?
  */
 
-#ifndef MAP_API_RAFT_H_
-#define MAP_API_RAFT_H_
+#ifndef MAP_API_RAFT_NODE_H_
+#define MAP_API_RAFT_NODE_H_
 
 #include <atomic>
 #include <condition_variable>
@@ -64,7 +64,6 @@ class RaftNode {
   uint64_t term() const;
   const PeerId& leader() const;
   State state() const;
-  bool is_leader_known() const;
   inline PeerId self_id() const { return PeerId::self(); }
 
   static void staticHandleHeartbeat(const Message& request, Message* response);
@@ -142,4 +141,4 @@ class RaftNode {
 };
 }  // namespace map_api
 
-#endif  // MAP_API_RAFT_H_
+#endif  // MAP_API_RAFT_NODE_H_
