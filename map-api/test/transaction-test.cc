@@ -5,10 +5,7 @@
 
 namespace map_api {
 
-TEST_P(NetTableFixture, TransactionMerge) {
-  if (!GetParam()) {
-    return;
-  }
+TEST_F(NetTableFixture, TransactionMerge) {
   enum Processes {
     ROOT,
     A
