@@ -1,4 +1,5 @@
-#include <map-api/net-table-transaction.h>
+#include "map-api/net-table-transaction.h"
+
 #include <statistics/statistics.h>
 
 namespace map_api {
@@ -12,15 +13,14 @@ NetTableTransaction::NetTableTransaction(
   CHECK(begin_time < LogicalTime::sample());
 }
 
-CRTable::RevisionMap NetTableTransaction::dumpChunk(Chunk* chunk) {
+void NetTableTransaction::dumpChunk(Chunk* chunk, ConstRevisionMap* result) {
   CHECK_NOTNULL(chunk);
-  return transactionOf(chunk)->dumpChunk();
+  transactionOf(chunk)->dumpChunk(result);
 }
 
-CRTable::RevisionMap NetTableTransaction::dumpActiveChunks() {
-  CRTable::RevisionMap result;
-  table_->dumpActiveChunks(begin_time_, &result);
-  return result;
+void NetTableTransaction::dumpActiveChunks(ConstRevisionMap* result) {
+  CHECK_NOTNULL(result);
+  table_->dumpActiveChunks(begin_time_, result);
 }
 
 void NetTableTransaction::insert(Chunk* chunk,

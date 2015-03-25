@@ -9,15 +9,19 @@
 #include <unordered_set>
 #include <vector>
 
-#include "./chunk.pb.h"
-#include "map-api/cr-table.h"
-#include "map-api/peer-handler.h"
-#include "map-api/reader-writer-lock.h"
 #include <multiagent-mapping-common/unique-id.h>
 
+#include "map-api/logical-time.h"
+#include "map-api/peer-handler.h"
+#include "map-api/reader-writer-lock.h"
+#include "./chunk.pb.h"
+
 namespace map_api {
+class ConstRevisionMap;
 class Message;
+class MutableRevisionMap;
 class Revision;
+class TableDataContainerBase;
 
 /**
  * A chunk is the smallest unit of data sharing among the map_api peers. Each
@@ -53,13 +57,14 @@ class Chunk {
                              const common::IdSet& updates)> TriggerCallback;
 
  public:
-  bool init(const common::Id& id, CRTable* underlying_table, bool initialize);
+  bool init(const common::Id& id, TableDataContainerBase* underlying_table,
+            bool initialize);
   bool init(const common::Id& id, const proto::InitRequest& request,
-            const PeerId& sender, CRTable* underlying_table);
+            const PeerId& sender, TableDataContainerBase* underlying_table);
 
   inline common::Id id() const;
 
-  void dumpItems(const LogicalTime& time, CRTable::RevisionMap* items);
+  void dumpItems(const LogicalTime& time, ConstRevisionMap* items);
   size_t numItems(const LogicalTime& time);
   size_t itemsSizeBytes(const LogicalTime& time);
 
@@ -118,7 +123,7 @@ class Chunk {
   /**
    * insert and update for transactions.
    */
-  void bulkInsertLocked(const CRTable::NonConstRevisionMap& items,
+  void bulkInsertLocked(const MutableRevisionMap& items,
                         const LogicalTime& time);
   void updateLocked(const LogicalTime& time,
                     const std::shared_ptr<Revision>& item);
@@ -226,7 +231,7 @@ class Chunk {
 
   common::Id id_;
   PeerHandler peers_;
-  CRTable* underlying_table_;
+  TableDataContainerBase* table_data_container_;
   DistributedRWLock lock_;
   std::vector<std::function<
       void(const std::unordered_set<common::Id>& insertions,
