@@ -3,23 +3,20 @@
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
-
+#include <multiagent-mapping-common/unique-id.h>
 #include <timing/timer.h>
 
 #include "map-api/core.h"
-#include "map-api/cr-table-ram-map.h"
-#include "map-api/cr-table-stxxl-map.h"
-#include "map-api/cru-table-ram-map.h"
-#include "map-api/cru-table-stxxl-map.h"
 #include "map-api/logical-time.h"
+#include "map-api/table-data-ram-container.h"
+#include "map-api/table-data-stxxl-container.h"
 #include "map-api/test/testing-entrypoint.h"
-#include <multiagent-mapping-common/unique-id.h>
 #include "./test_table.cc"
 
 namespace map_api {
 
 template <typename TableType>
-class TableInterfaceTest : public ::testing::Test {
+class TableDataContainerTest : public ::testing::Test {
  public:
   virtual void SetUp() final override {
     Core::initializeInstance();
@@ -28,10 +25,11 @@ class TableInterfaceTest : public ::testing::Test {
   virtual void TearDown() final override { Core::instance()->kill(); }
 };
 
-typedef ::testing::Types<CRTableSTXXLMap, CRUTableSTXXLMap> TableTypes;
-TYPED_TEST_CASE(TableInterfaceTest, TableTypes);
+typedef ::testing::Types<TableDataRamContainer, TableDataStxxlContainer>
+    TableTypes;
+TYPED_TEST_CASE(TableDataContainerTest, TableTypes);
 
-TYPED_TEST(TableInterfaceTest, initEmpty) {
+TYPED_TEST(TableDataContainerTest, initEmpty) {
   TestTable<TypeParam>::instance();
   std::shared_ptr<Revision> structure =
       TestTable<TypeParam>::instance().getTemplate();
@@ -214,7 +212,7 @@ class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
  protected:
   bool updateRevision() {
     std::shared_ptr<Revision> revision = this->query_->copyForWrite();
-    this->table_->update(revision);
+    this->table_->update(LogicalTime::sample(), revision);
     return true;
   }
 
@@ -226,12 +224,12 @@ class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
 template <typename TableType>
 class IntTestWithInit
     : public FieldTestWithInit<TableDataTypes<TableType, int64_t>> {
-};
+};  // NOLINT
 
 template <typename TableType>
 class CruMapIntTestWithInit
-    : public UpdateFieldTestWithInit<TableDataTypes<CRUTableRamMap, int64_t>> {
-};
+    : public UpdateFieldTestWithInit<
+          TableDataTypes<TableDataRamContainer, int64_t>> {};  // NOLINT
 
 /**
  *************************
@@ -243,20 +241,18 @@ class CruMapIntTestWithInit
   TableDataTypes<table_type, testBlob>,                                        \
       TableDataTypes<table_type, std::string>,                                 \
       TableDataTypes<table_type, int32_t>, TableDataTypes<table_type, double>, \
-      TableDataTypes<table_type, common::Id>,                                 \
+      TableDataTypes<table_type, common::Id>,                                  \
       TableDataTypes<table_type, int64_t>,                                     \
       TableDataTypes<table_type, map_api::LogicalTime>
 
-typedef ::testing::Types<ALL_DATA_TYPES(CRTableSTXXLMap),
-                         ALL_DATA_TYPES(CRUTableSTXXLMap)> CrAndCruTypes;
+typedef ::testing::Types<ALL_DATA_TYPES(TableDataRamContainer),
+                         ALL_DATA_TYPES(TableDataStxxlContainer)> AllTypes;
 
-typedef ::testing::Types<ALL_DATA_TYPES(CRUTableSTXXLMap)> CruTypes;
-
-TYPED_TEST_CASE(FieldTestWithoutInit, CrAndCruTypes);
-TYPED_TEST_CASE(FieldTestWithInit, CrAndCruTypes);
-TYPED_TEST_CASE(UpdateFieldTestWithInit, CruTypes);
+TYPED_TEST_CASE(FieldTestWithoutInit, AllTypes);
+TYPED_TEST_CASE(FieldTestWithInit, AllTypes);
+TYPED_TEST_CASE(UpdateFieldTestWithInit, AllTypes);
 TYPED_TEST_CASE(IntTestWithInit, TableTypes);
-TYPED_TEST_CASE(CruMapIntTestWithInit, CruTypes);
+TYPED_TEST_CASE(CruMapIntTestWithInit, AllTypes);
 
 TYPED_TEST(FieldTestWithInit, Init) {
   EXPECT_EQ(1, this->getTemplate()->customFieldCount());
@@ -337,15 +333,15 @@ TYPED_TEST(IntTestWithInit, CreateReadThousand) {
     common::Id inserted = this->fillRevision(i);
     timing::Timer insert_timer("insert - " +
                                std::string(::testing::UnitTest::GetInstance()
-    ->current_test_info()
-    ->test_case_name()));
+                                               ->current_test_info()
+                                               ->test_case_name()));
     EXPECT_TRUE(this->insertRevision());
     insert_timer.Stop();
 
     timing::Timer read_timer("read - " +
                              std::string(::testing::UnitTest::GetInstance()
-    ->current_test_info()
-    ->test_case_name()));
+                                             ->current_test_info()
+                                             ->test_case_name()));
     std::shared_ptr<const Revision> rowFromTable =
         this->table_->getById(inserted, LogicalTime::sample());
     read_timer.Stop();
@@ -374,11 +370,11 @@ TYPED_TEST(CruMapIntTestWithInit, HistoryAtTime) {
   this->query_->set(FieldTestTableType::kTestField, kThird);
   ASSERT_TRUE(this->updateRevision());
 
-  CRUTable::History old_history;
+  TableDataContainerBase::History old_history;
   this->table_->itemHistory(id, before_third, &old_history);
   EXPECT_EQ(2u, old_history.size());
 
-  CRUTable::History new_history;
+  TableDataContainerBase::History new_history;
   this->table_->itemHistory(id, LogicalTime::sample(), &new_history);
   EXPECT_EQ(3u, new_history.size());
 }
@@ -392,7 +388,7 @@ TYPED_TEST(CruMapIntTestWithInit, Remove) {
   std::vector<common::Id> ids;
   this->table_->getAvailableIds(LogicalTime::sample(), &ids);
   EXPECT_EQ(1u, ids.size());
-  CRTable::RevisionMap result;
+  ConstRevisionMap result;
   this->table_->find(-1, 0, LogicalTime::sample(), &result);
   EXPECT_EQ(1u, result.size());
 
