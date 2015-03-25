@@ -8,10 +8,10 @@
 
 #include <gtest/gtest_prod.h>
 
-#include "map-api/cr-table.h"
 #include "map-api/logical-time.h"
 #include "map-api/net-table.h"
 #include "map-api/revision.h"
+#include "map-api/revision-map.h"
 
 namespace map_api {
 class Chunk;
@@ -42,7 +42,7 @@ class ChunkTransaction {
       const;
   template <typename ValueType>
   std::shared_ptr<const Revision> findUnique(int key, const ValueType& value);
-  CRTable::RevisionMap dumpChunk();
+  void dumpChunk(ConstRevisionMap* result);
 
   // WRITE
   void insert(std::shared_ptr<Revision> revision);
@@ -78,9 +78,9 @@ class ChunkTransaction {
   /**
    * Strong typing of table operation maps.
    */
-  class InsertMap : public CRTable::NonConstRevisionMap {};
-  class UpdateMap : public CRTable::NonConstRevisionMap {};
-  class RemoveMap : public CRTable::NonConstRevisionMap {};
+  class InsertMap : public MutableRevisionMap {};
+  class UpdateMap : public MutableRevisionMap {};
+  class RemoveMap : public MutableRevisionMap {};
   struct ConflictCondition {
     const int key;
     const std::shared_ptr<Revision> value_holder;
