@@ -7,3 +7,6 @@
 [submodule "gtsam_devel"]
 	path = gtsam_devel
 	url = git@github.com:ethz-asl/gtsam_devel.git
+[submodule "tools/multiagent_mapping_test_data"]
+	path = tools/multiagent_mapping_test_data
+	url = git@github.com:ethz-asl/multiagent_mapping_test_data.git

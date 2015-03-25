@@ -1,40 +1,47 @@
 #include <functional>
 #include <memory>
+#include <thread>
+#include <vector>
 
-#include "map-api/reader-writer-lock.h"
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+
 #include "map-api/test/testing-entrypoint.h"
+#include "./reader_writer_mutex_fixture.h"
 
-int kMagicNumber = 29845;
+constexpr int kNumThreads = 20;
 
-void reader(int* n, map_api::ReaderWriterMutex* mutex) {
-  CHECK_NOTNULL(n);
-  CHECK_NOTNULL(mutex);
-  for (int i = 0; i < 1000; ++i) {
-    map_api::ScopedReadLock lock(mutex);
-    EXPECT_EQ(0, *n % kMagicNumber);
-  }
-}
-void writer(int* n, map_api::ReaderWriterMutex* mutex) {
-  CHECK_NOTNULL(n);
-  CHECK_NOTNULL(mutex);
-  for (int i = 0; i < 1000; ++i) {
-    map_api::ScopedWriteLock lock(mutex);
-    *n = i * kMagicNumber;
-  }
-}
+namespace map_api {
 
-TEST(MultiagentMappingCommon, ReaderWriterLock) {
-  int n = 0;
+TEST_F(ReaderWriterMutexFixture, ReaderWriterLock) {
   map_api::ReaderWriterMutex mutex;
-  std::vector < std::thread > threads;
-  for (int i = 0; i < 20; ++i) {
-    threads.emplace_back(reader, &n, &mutex);
-    threads.emplace_back(writer, &n, &mutex);
+  std::vector<std::thread> threads;
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads.emplace_back([this]() { reader(); });
+    threads.emplace_back([this]() { writer(); });
   }
   for (std::thread& thread : threads) {
     thread.join();
   }
-  EXPECT_EQ(0, n % kMagicNumber);
+  EXPECT_EQ(0, value() % kMagicNumber);
 }
+
+TEST_F(ReaderWriterMutexFixture, UpgradeReaderLock) {
+  std::vector<std::thread> threads;
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads.emplace_back([this]() { delayedReader(); });
+    threads.emplace_back([this]() { readerUpgrade(); });
+  }
+  for (std::thread& thread : threads) {
+    thread.join();
+  }
+  VLOG(3) << "Number of writes after upgrade: " << num_writes();
+  VLOG(3) << "Number of failed upgrades: " << num_upgrade_failures();
+  EXPECT_NE(0, value());
+  EXPECT_NE(0, num_writes());
+  EXPECT_EQ(value(), num_writes() * kMagicNumber);
+}
+
+}  // namespace map_api
 
 MAP_API_UNITTEST_ENTRYPOINT
