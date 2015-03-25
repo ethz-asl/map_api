@@ -9,18 +9,22 @@
 #include "map-api/hub.h"
 #include "map-api/logical-time.h"
 #include "map-api/message.h"
+#include "map-api/reader-writer-lock.h"
 
 // TODO(aqurai): decide good values for these
-constexpr double kHeartbeatTimeoutMs = 50;
-constexpr double kHeartbeatSendPeriodMs = 25;
+constexpr int kHeartbeatTimeoutMs = 50;
+constexpr int kHeartbeatSendPeriodMs = 25;
 
 namespace map_api {
 
 const char RaftNode::kAppendEntries[] = "raft_cluster_append_entries";
+const char RaftNode::kAppendEntriesResponse[] = "raft_cluster_append_response";
 const char RaftNode::kVoteRequest[] = "raft_cluster_vote_request";
 const char RaftNode::kVoteResponse[] = "raft_cluster_vote_response";
 
 MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntries, proto::AppendEntriesRequest);
+MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntriesResponse,
+                      proto::AppendEntriesResponse);
 MAP_API_PROTO_MESSAGE(RaftNode::kVoteRequest, proto::RequestVote);
 MAP_API_PROTO_MESSAGE(RaftNode::kVoteResponse, proto::ResponseVote);
 
@@ -32,7 +36,10 @@ RaftNode::RaftNode()
       current_term_(0),
       last_heartbeat_(std::chrono::system_clock::now()),
       heartbeat_thread_running_(false),
-      is_exiting_(false) {
+      is_exiting_(false),
+      final_result_(std::make_pair(0, 0)),
+      commit_index_(0),
+      last_applied_index_(0) {
   election_timeout_ = setElectionTimeout();
   VLOG(1) << "Peer " << PeerId::self()
           << ": Election timeout = " << election_timeout_;
@@ -132,7 +139,10 @@ void RaftNode::handleHeartbeat(const Message& request, Message* response) {
     last_heartbeat_ = std::chrono::system_clock::now();
   }
   state_lock.unlock();
-  response->ack();
+  proto::AppendEntriesResponse append_response;
+  append_response.set_appendsuccess(true);
+  response->impose<kAppendEntriesResponse>(append_response);
+  // response->ack();
 }
 
 void RaftNode::handleRequestVote(const Message& request, Message* response) {
@@ -175,6 +185,20 @@ bool RaftNode::sendHeartbeat(const PeerId& peer, uint64_t term) {
       return true;
     else
       return false;
+  } else {
+    VLOG(3) << "Heartbeat failed for peer " << peer.ipPort();
+    return false;
+  }
+}
+
+bool RaftNode::sendAppendEntries(
+    const PeerId& peer, proto::AppendEntriesRequest& append_entries,
+    proto::AppendEntriesResponse* append_response) {
+  Message request, response;
+  request.impose<kAppendEntries>(append_entries);
+  if (Hub::instance().try_request(peer, &request, &response)) {
+    response.extract<kAppendEntriesResponse>(append_response);
+    return true;
   } else {
     VLOG(3) << "Heartbeat failed for peer " << peer.ipPort();
     return false;
@@ -235,7 +259,7 @@ void RaftNode::heartbeatThread() {
         VLOG(1) << "Follower: " << PeerId::self() << " : Heartbeat timed out. ";
         election_timeout = true;
       } else {
-        usleep(election_timeout_);
+        usleep(election_timeout_ * 1000);
       }
     } else if (state == State::LEADER) {
       // Launch follower_handler threads if state is LEADER.
@@ -295,9 +319,20 @@ void RaftNode::conductElection() {
 }
 
 void RaftNode::followerTracker(const PeerId& peer, uint64_t term) {
+  uint64_t follower_next_index = 0;
+  uint64_t follower_commit_index = 0;
+  std::mutex wait_mutex;
+  std::unique_lock<std::mutex> wait_lock(wait_mutex);
+  proto::AppendEntriesRequest append_entries;
+  proto::AppendEntriesResponse append_response;
+
   while (follower_trackers_run_) {
-    sendHeartbeat(peer, term);
-    usleep(kHeartbeatSendPeriodMs);
+    append_entries.Clear();
+    append_entries.set_term(term);
+
+    sendAppendEntries(peer, append_entries, &append_response);
+    new_entries_signal_.wait_for(
+        wait_lock, std::chrono::milliseconds(kHeartbeatSendPeriodMs));
   }
 }
 
@@ -307,6 +342,31 @@ int RaftNode::setElectionTimeout() {
   std::uniform_int_distribution<> dist(kHeartbeatTimeoutMs,
                                        3 * kHeartbeatTimeoutMs);
   return dist(gen);
+}
+
+void RaftNode::appendLogEntry(uint32_t entry) {
+  uint64_t current_term;
+  {
+    std::lock_guard<std::mutex> state_lock(state_mutex_);
+    if (state_ != State::LEADER) {
+      return;
+    }
+    current_term = current_term_;
+  }
+  log_mutex_.acquireWriteLock();
+  LogEntry new_entry;
+  if (log_entries_.empty()) {
+    new_entry.index = 0;
+
+  } else {
+    new_entry.index = log_entries_.back().index + 1;
+  }
+  new_entry.term = current_term;
+  new_entry.entry = entry;
+  new_entry.commmit_count = 0;
+  log_entries_.push_back(new_entry);
+  log_mutex_.releaseWriteLock();
+  new_entries_signal_.notify_all();
 }
 
 }  // namespace map_api

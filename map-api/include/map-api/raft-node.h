@@ -24,6 +24,10 @@
  * PENDING: Multiple raft instances managed by a manager class
  * PENDING: Remove the extra log messages
  * PENDING: Change leader to follower if many heartbeats not ack'd?
+ *
+ * PENDING: Rename heartbeatThread to stateManager?
+ * PENDING: Handle append entry on follower
+ * PENDING: send appendentries repeatedly if failed to reach
  */
 
 #ifndef MAP_API_RAFT_NODE_H_
@@ -39,10 +43,13 @@
 
 #include <gtest/gtest_prod.h>
 
+#include "./raft.pb.h"
 #include "map-api/peer-id.h"
+#include "map-api/reader-writer-lock.h"
 
 namespace map_api {
 class Message;
+class ReaderWriterMutex;
 
 // Implementation of Raft consensus algorithm presented here:
 // https://raftconsensus.github.io, http://ramcloud.stanford.edu/raft.pdf
@@ -71,6 +78,7 @@ class RaftNode {
                                       Message* response);
 
   static const char kAppendEntries[];
+  static const char kAppendEntriesResponse[];
   static const char kVoteRequest[];
   static const char kVoteResponse[];
 
@@ -96,6 +104,9 @@ class RaftNode {
   // RPCs for heartbeat, leader election, log replication
   // ====================================================
   bool sendHeartbeat(const PeerId& peer, uint64_t term);
+  bool sendAppendEntries(const PeerId& peer,
+                         proto::AppendEntriesRequest& append_entries,
+                         proto::AppendEntriesResponse* append_response);
 
   enum {
     VOTE_GRANTED,
@@ -142,14 +153,31 @@ class RaftNode {
   // =====================
   // Log entries/revisions
   // =====================
-
+  /* Notes
+   * List Never to be deleted.
+   * final result will contain index
+   * Index will ALWAYS be sequential, unique
+   * leader will overwrite follower logs where index+term doesn't match.
+   * Presently sending all log entries to everyone, but later, just send latest
+   * revision and new log entries to new peers.
+   */
   struct LogEntry {
     uint64_t index;
     uint64_t term;
     uint32_t entry;
+    uint commmit_count;
   };
-  std::vector<LogEntry> uncommitted_log_;
-  std::pair<uint16_t, uint16_t> final_result_;
+  std::vector<LogEntry> log_entries_;
+  std::pair<uint64_t, uint64_t> final_result_;
+  uint64_t commit_index_;
+  uint64_t last_applied_index_;
+  std::condition_variable new_entries_signal_;
+  ReaderWriterMutex log_mutex_;
+
+  // std::vector<LogEntry> getNLogEntriesLaterThan(uint64_t index, uint64_t
+  // num_entries);
+
+  void appendLogEntry(uint32_t entry);
 };
 }  // namespace map_api
 
