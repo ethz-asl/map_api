@@ -34,7 +34,7 @@ UNIQUE_ID_DEFINE_ID_HASH(map_api::IntId);
 
 namespace map_api {
 
-TEST_P(NetTableFixture, Cache) {
+TEST_F(NetTableFixture, Cache) {
   enum SubProcesses {
     ROOT,
     A
@@ -82,7 +82,7 @@ TEST_P(NetTableFixture, Cache) {
     ASSERT_TRUE(cache->has(kId[0]));
     ASSERT_TRUE(cache->has(kId[1]));
     EXPECT_FALSE(cache->has(kId[2]));
-    EXPECT_EQ((GetParam() ? (*kVal[2]) : (*kVal[0])), *cache->get(kId[0]));
+    EXPECT_EQ(*kVal[2], *cache->get(kId[0]));
     EXPECT_EQ(*kVal[1], *cache->get(kId[1]));
   }
   if (getSubprocessId() == A) {
@@ -92,10 +92,8 @@ TEST_P(NetTableFixture, Cache) {
     manager.reset(new ChunkManagerChunkSize(kKb, table_));
     cache.reset(
         new Cache<IntId, std::shared_ptr<int>>(transaction, table_, manager));
-    if (GetParam()) {
-      CHECK(cache->has(kId[0]));
-      *cache->get(kId[0]) = *kVal[2];
-    }
+    CHECK(cache->has(kId[0]));
+    *cache->get(kId[0]) = *kVal[2];
     CHECK(cache->insert(kId[1], kVal[1]));
     CHECK(transaction->commit());
     manager->requestParticipationAllChunks();
