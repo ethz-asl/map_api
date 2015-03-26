@@ -10,13 +10,13 @@
 
 namespace map_api {
 
-TEST_P(NetTableFixture, NetInsert) {
+TEST_F(NetTableFixture, NetInsert) {
   Chunk* chunk = table_->newChunk();
   ASSERT_TRUE(chunk);
   insert(42, chunk);
 }
 
-TEST_P(NetTableFixture, ParticipationRequest) {
+TEST_F(NetTableFixture, ParticipationRequest) {
   enum SubProcesses {
     ROOT,
     A
@@ -44,7 +44,7 @@ TEST_P(NetTableFixture, ParticipationRequest) {
   }
 }
 
-TEST_P(NetTableFixture, FullJoinTwice) {
+TEST_F(NetTableFixture, FullJoinTwice) {
   enum SubProcesses {
     ROOT,
     A,
@@ -96,7 +96,7 @@ TEST_P(NetTableFixture, FullJoinTwice) {
   }
 }
 
-TEST_P(NetTableFixture, RemoteInsert) {
+TEST_F(NetTableFixture, RemoteInsert) {
   enum Subprocesses {
     ROOT,
     A
@@ -132,7 +132,7 @@ TEST_P(NetTableFixture, RemoteInsert) {
   }
 }
 
-TEST_P(NetTableFixture, Leave) {
+TEST_F(NetTableFixture, Leave) {
   enum SubProcesses {
     ROOT,
     A
@@ -168,10 +168,7 @@ TEST_P(NetTableFixture, Leave) {
   }
 }
 
-TEST_P(NetTableFixture, RemoteUpdate) {
-  if (!GetParam()) {  // not updateable - just pass test
-    return;
-  }
+TEST_F(NetTableFixture, RemoteUpdate) {
   enum Subprocesses {
     ROOT,
     A
@@ -182,7 +179,7 @@ TEST_P(NetTableFixture, RemoteUpdate) {
     A_UPDATED,
     DIE
   };
-  CRTable::RevisionMap results;
+  ConstRevisionMap results;
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
     Chunk* chunk = table_->newChunk();
@@ -222,7 +219,7 @@ DEFINE_uint64(grind_processes, 10u,
 DEFINE_uint64(grind_cycles, 10u,
               "Total amount of insert-update cycles in ChunkTest.Grind");
 
-TEST_P(NetTableFixture, Grind) {
+TEST_F(NetTableFixture, Grind) {
   const int kInsertUpdateCycles = FLAGS_grind_cycles;
   const uint64_t kProcesses = FLAGS_grind_processes;
   enum Barriers {
@@ -230,7 +227,7 @@ TEST_P(NetTableFixture, Grind) {
     ID_SHARED,
     DIE
   };
-  CRTable::RevisionMap results;
+  ConstRevisionMap results;
   if (getSubprocessId() == 0) {
     for (uint64_t i = 1u; i < kProcesses; ++i) {
       launchSubprocess(i);
@@ -252,27 +249,25 @@ TEST_P(NetTableFixture, Grind) {
       // insert
       insert(42, chunk);
       // update
-      if (GetParam()) {
         table_->dumpActiveChunksAtCurrentTime(&results);
         std::shared_ptr<Revision> revision =
             results.begin()->second->copyForWrite();
         revision->set(kFieldName, 21);
         EXPECT_TRUE(table_->update(revision));
-      }
     }
     IPC::barrier(DIE, kProcesses - 1);
     VLOG(3) << "Finishing...";
   }
 }
 
-TEST_P(NetTableFixture, ChunkTransactions) {
+TEST_F(NetTableFixture, ChunkTransactions) {
   const uint64_t kProcesses = FLAGS_grind_processes;
   enum Barriers {
     INIT,
     IDS_SHARED,
     DIE
   };
-  CRTable::RevisionMap results;
+  ConstRevisionMap results;
   if (getSubprocessId() == 0) {
     std::ostringstream extra_flags_ss;
     extra_flags_ss << "--grind_processes=" << FLAGS_grind_processes << " ";
@@ -297,11 +292,7 @@ TEST_P(NetTableFixture, ChunkTransactions) {
     if (found != results.end()) {
       int final_value;
       found->second->get(kFieldName, &final_value);
-      if (GetParam()) {
-        EXPECT_EQ(static_cast<int>(kProcesses), final_value);
-      } else {
-        EXPECT_EQ(1, final_value);
-      }
+      EXPECT_EQ(static_cast<int>(kProcesses), final_value);
     } else {
       // still need a clean disconnect
       EXPECT_TRUE(false);
@@ -318,7 +309,6 @@ TEST_P(NetTableFixture, ChunkTransactions) {
       // insert
       insert(42, &transaction);
       // update
-      if (GetParam()) {
         int transient_value;
         std::shared_ptr<const Revision> to_update =
             transaction.getById(item_id);
@@ -327,7 +317,6 @@ TEST_P(NetTableFixture, ChunkTransactions) {
         std::shared_ptr<Revision> revision = to_update->copyForWrite();
         revision->set(kFieldName, transient_value);
         transaction.update(revision);
-      }
       if (transaction.commit()) {
         break;
       }
@@ -336,10 +325,7 @@ TEST_P(NetTableFixture, ChunkTransactions) {
   }
 }
 
-TEST_P(NetTableFixture, ChunkTransactionsConflictConditions) {
-  if (GetParam()) {
-    return;  // No need to test this for updateable tables as well
-  }
+TEST_F(NetTableFixture, ChunkTransactionsConflictConditions) {
   const uint64_t kProcesses = FLAGS_grind_processes;
   const int kUniqueItems = 10;
   enum Barriers {
@@ -347,7 +333,7 @@ TEST_P(NetTableFixture, ChunkTransactionsConflictConditions) {
     ID_SHARED,
     DIE
   };
-  CRTable::RevisionMap results;
+  ConstRevisionMap results;
   if (getSubprocessId() == 0) {
     for (uint64_t i = 1u; i < kProcesses; ++i) {
       launchSubprocess(i);
@@ -364,7 +350,7 @@ TEST_P(NetTableFixture, ChunkTransactionsConflictConditions) {
     table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(kUniqueItems, static_cast<int>(results.size()));
     std::set<int> unique_results;
-    for (const CRTable::RevisionMap::value_type& item : results) {
+    for (const ConstRevisionMap::value_type& item : results) {
       int result;
       item.second->get(kFieldName, &result);
       unique_results.insert(result);
@@ -391,10 +377,7 @@ TEST_P(NetTableFixture, ChunkTransactionsConflictConditions) {
   }
 }
 
-TEST_P(NetTableFixture, Triggers) {
-  if (GetParam()) {
-    return;  // No need for CRUD.
-  }
+TEST_F(NetTableFixture, Triggers) {
   enum Processes {
     ROOT,
     A
@@ -445,14 +428,7 @@ TEST_P(NetTableFixture, Triggers) {
     if (highest_value < 10) {
       ++highest_value;
       item->set(kFieldName, highest_value);
-      if (GetParam()) {
-        transaction.update(table_, item);
-      } else {
-        common::Id insert_id;
-        generateId(&insert_id);
-        item->setId(insert_id);
-        transaction.insert(table_, chunk_, item);
-      }
+      transaction.update(table_, item);
       CHECK(transaction.commit());
     }
                 }));
@@ -491,7 +467,7 @@ TEST_P(NetTableFixture, Triggers) {
   }
 }
 
-TEST_P(NetTableFixture, SendHistory) {
+TEST_F(NetTableFixture, SendHistory) {
   enum Processes {
     ROOT,
     A
@@ -517,30 +493,21 @@ TEST_P(NetTableFixture, SendHistory) {
     std::shared_ptr<const Revision> current_version =
         current_transaction.getById(item_id_, table_, chunk_);
     ASSERT_TRUE(current_version.get() != nullptr);
-    EXPECT_TRUE(current_version->verifyEqual(kFieldName,
-                                             GetParam() ? kAfter : kBefore));
+    EXPECT_TRUE(current_version->verifyEqual(kFieldName, kAfter));
 
     Transaction time_travel(before_mod);
     std::shared_ptr<const Revision> past_version =
         time_travel.getById(item_id_, table_, chunk_);
-    if (GetParam()) {
       ASSERT_TRUE(past_version.get() != nullptr);
       EXPECT_TRUE(past_version->verifyEqual(kFieldName, kBefore));
-    } else {
-      EXPECT_FALSE(past_version);
-    }
   }
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 1);
     chunk_ = table_->newChunk();
     IPC::push(chunk_->id());
-    if (!GetParam()) {
-      IPC::push(LogicalTime::sample());
-    }
     Transaction insert_transaction;
     insert(kBefore, &item_id_, &insert_transaction);
     CHECK(insert_transaction.commit());
-    if (GetParam()) {
       IPC::push(LogicalTime::sample());
       Transaction update_transaction;
       std::shared_ptr<Revision> to_update =
@@ -548,23 +515,20 @@ TEST_P(NetTableFixture, SendHistory) {
       to_update->set(kFieldName, kAfter);
       update_transaction.update(table_, to_update);
       CHECK(update_transaction.commit());
-    }
     IPC::push(item_id_);
     IPC::barrier(A_DONE, 1);
     IPC::barrier(DIE, 1);
   }
 }
 
-TEST_P(NetTableFixture, GetCommitTimes) {
+TEST_F(NetTableFixture, GetCommitTimes) {
   chunk_ = table_->newChunk();
   Transaction first;
   common::Id id;
   insert(42, &id, &first);
   ASSERT_TRUE(first.commit());
   Transaction second;
-  if (GetParam()) {
-    update(21, id, &second);
-  }
+  update(21, id, &second);
   insert(42, &id, &second);
   ASSERT_TRUE(second.commit());
   std::set<LogicalTime> commit_times;

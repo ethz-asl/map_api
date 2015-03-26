@@ -10,7 +10,7 @@
 namespace map_api {
 
 class TableDescriptor : private proto::TableDescriptor {
-  friend class CRTable;
+  friend class TableDataContainerBase;
   friend class NetTableManager;
   friend class Revision;
 
