@@ -28,6 +28,15 @@
  * PENDING: Rename heartbeatThread to stateManager?
  * PENDING: Handle append entry on follower
  * PENDING: send appendentries repeatedly if failed to reach
+ * PENDING: add a (0,0) default log entry instead of checking isEmpty in
+ *follower trackers
+ * PENDING: possible to read index -1 in log_entry_ vector in follower tracker
+ * PENDING: Necessary to replicate all log? allow replication of partial log for
+ *new peers.
+ * PENDING: Multiple entries at once, and send at most 10 entries at a time
+ * PENDING: while (!append_successs) can run indefinitely in a bad case
+ * PENDING: At leader, handle if follower responds with higher term.
+ * PENDING: failure of sendAppendEntries (i.e. non responding peer)
  */
 
 #ifndef MAP_API_RAFT_NODE_H_
@@ -169,14 +178,20 @@ class RaftNode {
   };
   std::vector<LogEntry> log_entries_;
   std::pair<uint64_t, uint64_t> final_result_;
-  uint64_t commit_index_;
   uint64_t last_applied_index_;
   std::condition_variable new_entries_signal_;
   ReaderWriterMutex log_mutex_;
 
+  std::atomic<uint64_t> commit_index_;
+
+  struct FollowerStatus {
+    uint64_t next_index;
+    uint64_t commit_index;
+  };
+
   // std::vector<LogEntry> getNLogEntriesLaterThan(uint64_t index, uint64_t
   // num_entries);
-
+  std::vector<LogEntry>::iterator getIteratorByIndex(uint64_t index);
   void appendLogEntry(uint32_t entry);
 };
 }  // namespace map_api
