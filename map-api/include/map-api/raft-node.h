@@ -37,6 +37,8 @@
  * PENDING: while (!append_successs) can run indefinitely in a bad case
  * PENDING: At leader, handle if follower responds with higher term.
  * PENDING: failure of sendAppendEntries (i.e. non responding peer)
+ * PENDING: remove commit count member. better way to store commit count
+ *
  */
 
 #ifndef MAP_API_RAFT_NODE_H_
@@ -174,12 +176,13 @@ class RaftNode {
     uint64_t index;
     uint64_t term;
     uint32_t entry;
-    uint commmit_count;
+    uint replication_count;
   };
   std::vector<LogEntry> log_entries_;
   std::pair<uint64_t, uint64_t> final_result_;
   uint64_t last_applied_index_;
   std::condition_variable new_entries_signal_;
+  std::condition_variable entry_replicated_signal_;
   ReaderWriterMutex log_mutex_;
 
   std::atomic<uint64_t> commit_index_;
@@ -193,6 +196,10 @@ class RaftNode {
   // num_entries);
   std::vector<LogEntry>::iterator getIteratorByIndex(uint64_t index);
   void appendLogEntry(uint32_t entry);
+
+  // After a new entry is replicated on followers,
+  // checks if some entries can be committed.
+  void commitReplicatedEntries();
 };
 }  // namespace map_api
 

@@ -15,9 +15,9 @@ message AppendEntriesRequest {
 
 message AppendEntriesResponse {
   required uint64 term = 1;
-  required uint64 previousLogIndex = 2;
-  required uint64 previousLogTerm = 3;
-  required uint64 commitIndex = 4;
+  optional uint64 previousLogIndex = 2;
+  optional uint64 previousLogTerm = 3;
+  optional uint64 commitIndex = 4;
   required bool success = 5;
 }
 
