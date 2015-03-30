@@ -191,7 +191,7 @@ class RaftNode {
     uint64_t next_index;
     uint64_t commit_index;
   };
-
+  
   // std::vector<LogEntry> getNLogEntriesLaterThan(uint64_t index, uint64_t
   // num_entries);
   std::vector<LogEntry>::iterator getIteratorByIndex(uint64_t index);

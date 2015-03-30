@@ -14,8 +14,8 @@
 #include "map-api/reader-writer-lock.h"
 
 // TODO(aqurai): decide good values for these
-constexpr int kHeartbeatTimeoutMs = 50;
-constexpr int kHeartbeatSendPeriodMs = 25;
+constexpr int kHeartbeatTimeoutMs = 8;
+constexpr int kHeartbeatSendPeriodMs = 15;
 
 namespace map_api {
 
@@ -147,10 +147,10 @@ void RaftNode::handleHeartbeat(const Message& request, Message* response) {
     std::unique_lock<std::mutex> heartbeat_lock(last_heartbeat_mutex_);
     last_heartbeat_ = std::chrono::system_clock::now();
   }
-
+  
   append_response.set_term(current_term_);
   state_lock.unlock();
-
+  
   log_mutex_.acquireReadLock();
   append_response.set_previouslogindex(log_entries_.back().index);
   append_response.set_previouslogterm(log_entries_.back().term);
@@ -254,6 +254,7 @@ void RaftNode::handleRequestVote(const Message& request, Message* response) {
       leader_id_ = PeerId();
       if (state_ == State::LEADER) {
         follower_trackers_run_ = false;
+        entry_replicated_signal_.notify_all();
       }
       state_ = State::FOLLOWER;
       VLOG(1) << "Peer " << PeerId::self().ipPort() << " is voting for "
@@ -372,18 +373,21 @@ void RaftNode::heartbeatThread() {
       std::unique_lock<std::mutex> wait_lock(wait_mutex);
       while (follower_trackers_run_) {
         // call commit new entries
-        if (setElectionTimeout() < 90) {
+        if (setElectionTimeout() < 120) {
           appendLogEntry(19);
-          VLOG(1) << "Adding entry to log";
+          
         }
         commitReplicatedEntries();
-        entry_replicated_signal_.wait(wait_lock);
+        if(follower_trackers_run_) {
+          entry_replicated_signal_.wait(wait_lock);
+        }
       }
-
+      VLOG(1) << "Peer " << PeerId::self() << " Lost leadership. ";
       for (std::thread& follower_thread : follower_trackers_) {
         follower_thread.join();
       }
       follower_trackers_.clear();
+      VLOG(1) << "Peer " << PeerId::self() << ": Follower trackers closed. ";
     }
   }  // while(!is_exiting_)
   heartbeat_thread_running_ = false;
@@ -440,7 +444,7 @@ void RaftNode::followerTracker(const PeerId& peer, uint64_t term) {
     append_response.Clear();
     append_entries.set_term(term);
     bool append_successs = false;
-    while (!append_successs) {
+    while (!append_successs && follower_trackers_run_) {
       log_mutex_.acquireReadLock();
       append_entries.set_previouslogindex(log_entries_.back().index);
       append_entries.set_previouslogterm(log_entries_.back().term);
@@ -465,7 +469,11 @@ void RaftNode::followerTracker(const PeerId& peer, uint64_t term) {
 
       append_entries.set_commitindex(commit_index_);
       log_mutex_.releaseReadLock();
-      sendAppendEntries(peer, append_entries, &append_response);
+
+      if(!sendAppendEntries(peer, append_entries, &append_response)){
+        VLOG(1) << PeerId::self() << ": Flr trkr C - failed sendAppendEntries to " << peer;
+        continue;
+      }
 
       follower_commit_index = append_response.commitindex();
       append_successs = append_response.success();
@@ -475,7 +483,7 @@ void RaftNode::followerTracker(const PeerId& peer, uint64_t term) {
         --follower_next_index;
         if (append_response.commitindex() >= follower_next_index) {
           // This should not happen.
-          LOG(FATAL) << "Conflicting entry already committed on peer " << peer
+          LOG(WARNING) << "Conflicting entry already committed on peer " << peer
                      << ". Peer commit index " << follower_commit_index
                      << ". Peer last log index, term "
                      << append_response.previouslogindex() << ", "
@@ -486,7 +494,7 @@ void RaftNode::followerTracker(const PeerId& peer, uint64_t term) {
         }
       } else {
         if (follower_next_index == append_response.previouslogindex()) {
-          // The response is from an append entry RPF, not a regular heartbeat.
+            // The response is from an append entry RPF, not a regular heartbeat.
           log_mutex_.acquireWriteLock();
           std::vector<LogEntry>::iterator it =
               getIteratorByIndex(follower_next_index);
@@ -498,8 +506,10 @@ void RaftNode::followerTracker(const PeerId& peer, uint64_t term) {
       }
     }  //  while (!append_successs)
 
-    new_entries_signal_.wait_for(
+    if(follower_trackers_run_) {
+      new_entries_signal_.wait_for(
         wait_lock, std::chrono::milliseconds(kHeartbeatSendPeriodMs));
+    }
   }
 }
 
@@ -546,6 +556,7 @@ void RaftNode::appendLogEntry(uint32_t entry) {
   log_entries_.push_back(new_entry);
   log_mutex_.releaseWriteLock();
   new_entries_signal_.notify_all();
+  VLOG(1) << "Adding entry to log with index " << new_entry.index; 
 }
 
 void RaftNode::commitReplicatedEntries() {
@@ -560,14 +571,15 @@ void RaftNode::commitReplicatedEntries() {
     if (it->replication_count > peer_list_.size() / 2) {
       // Replicated on more than half of the peers.
       ++commit_index_;
-      VLOG(1) << "Commit index increased to " << commit_index_
-              << " With replication count " << it->replication_count;
       uint64_t old_result = final_result_.second;
       if (!log_mutex_.upgradeToWriteLock()) {
         log_mutex_.acquireWriteLock();
       }
       final_result_ = std::make_pair(it->term, old_result + it->entry);
       log_mutex_.releaseWriteLock();
+      VLOG(1) << "Commit index increased to " << commit_index_
+              << " With replication count " << it->replication_count 
+              << " and with term " << it->term;
       return;
     }
   }
