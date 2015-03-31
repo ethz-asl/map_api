@@ -52,7 +52,8 @@ bool Hub::init(bool* is_first_peer) {
   if (FLAGS_discovery_mode == kFileDiscovery) {
     discovery_.reset(new FileDiscovery());
   } else if (FLAGS_discovery_mode == kServerDiscovery) {
-    discovery_.reset(new ServerDiscovery(FLAGS_discovery_server, *context_));
+    discovery_.reset(
+        new ServerDiscovery(PeerId(FLAGS_discovery_server), *context_));
   } else {
     LOG(FATAL) << "Specified discovery mode unknown";
   }
@@ -83,8 +84,8 @@ bool Hub::init(bool* is_first_peer) {
     // don't attempt to connect if already connected
     if (peers_.find(peer) != peers_.end()) continue;
 
-    peers_.insert(std::make_pair(peer, std::unique_ptr<Peer>(new Peer(
-                                           peer.ipPort(), *context_, ZMQ_REQ))));
+    peers_.insert(std::make_pair(
+        peer, std::unique_ptr<Peer>(new Peer(peer, *context_, ZMQ_REQ))));
 
     // connection request is sent outside the peer_mutex_ lock to avoid
     // deadlocks where two peers try to connect to each other:
@@ -206,8 +207,7 @@ void Hub::request(const PeerId& peer, Message* request, Message* response) {
         peers_.find(peer);
     if (found == peers_.end()) {
       std::pair<PeerMap::iterator, bool> emplacement = peers_.emplace(
-          peer,
-          std::unique_ptr<Peer>(new Peer(peer.ipPort(), *context_, ZMQ_REQ)));
+          peer, std::unique_ptr<Peer>(new Peer(peer, *context_, ZMQ_REQ)));
       CHECK(emplacement.second);
       found = emplacement.first;
     }
@@ -229,9 +229,9 @@ bool Hub::try_request(const PeerId& peer, Message* request, Message* response) {
     std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
         peers_.find(peer);
     if (found == peers_.end()) {
-      found = peers_.insert(std::make_pair(peer, std::unique_ptr<Peer>(new Peer(
-                                                     peer.ipPort(), *context_,
-                                                     ZMQ_REQ)))).first;
+      found = peers_.insert(std::make_pair(
+                                peer, std::unique_ptr<Peer>(new Peer(
+                                          peer, *context_, ZMQ_REQ)))).first;
     }
   }
   return found->second->try_request(request, response);
