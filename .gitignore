@@ -38,3 +38,6 @@ CATKIN_IGNORE
 *.csv
 *.asv
 *.jpg
+
+# MacOS Desktop Services Store
+.DS_Store
