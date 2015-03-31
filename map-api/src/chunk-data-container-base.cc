@@ -10,6 +10,8 @@
 
 namespace map_api {
 
+ChunkDataContainerBase::ChunkDataContainerBase() : initialized_(false) {}
+
 ChunkDataContainerBase::~ChunkDataContainerBase() {}
 
 bool ChunkDataContainerBase::init(std::shared_ptr<TableDescriptor> descriptor) {
@@ -39,9 +41,9 @@ bool ChunkDataContainerBase::insert(const LogicalTime& time,
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(query->structureMatch(*reference))
-      << "Bad structure of insert revision";
+  << "Bad structure of insert revision";
   CHECK(query->getId<common::Id>().isValid())
-      << "Attempted to insert element with invalid ID";
+  << "Attempted to insert element with invalid ID";
   query->setInsertTime(time);
   query->setUpdateTime(time);
   return insertImpl(query);
@@ -56,7 +58,7 @@ bool ChunkDataContainerBase::bulkInsert(const LogicalTime& time,
   for (const typename MutableRevisionMap::value_type& id_revision : query) {
     CHECK_NOTNULL(id_revision.second.get());
     CHECK(id_revision.second->structureMatch(*reference))
-        << "Bad structure of insert revision";
+    << "Bad structure of insert revision";
     id = id_revision.second->getId<common::Id>();
     CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
     CHECK(id == id_revision.first) << "ID in RevisionMap doesn't match";
@@ -74,7 +76,7 @@ bool ChunkDataContainerBase::patch(
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(query->structureMatch(*reference)) << "Bad structure of patch revision";
   CHECK(query->getId<common::Id>().isValid())
-      << "Attempted to insert element with invalid ID";
+  << "Attempted to insert element with invalid ID";
   return patchImpl(query);
 }
 
@@ -90,7 +92,7 @@ void ChunkDataContainerBase::findByRevision(int key,
   CHECK_NOTNULL(dest);
   dest->clear();
   CHECK(time < LogicalTime::sample())
-      << "Seeing the future is yet to be implemented ;)";
+  << "Seeing the future is yet to be implemented ;)";
   findByRevisionImpl(key, valueHolder, time, dest);
 }
 
@@ -103,12 +105,10 @@ int ChunkDataContainerBase::countByRevision(int key,
   // Revision::insertPlaceHolder - for now it's a pretty safe bet that the
   // implementation uses that - this would be rather cumbersome to check here.
   CHECK(time < LogicalTime::sample())
-      << "Seeing the future is yet to be implemented ;)";
+  << "Seeing the future is yet to be implemented ;)";
   return countByRevisionImpl(key, valueHolder, time);
 }
 
-// although this is very similar to rawGetRow(), I don't see how to share the
-// features without loss of performance TODO(discuss)
 void ChunkDataContainerBase::dump(const LogicalTime& time,
                                   ConstRevisionMap* dest) const {
   CHECK_NOTNULL(dest);
@@ -116,6 +116,8 @@ void ChunkDataContainerBase::dump(const LogicalTime& time,
   CHECK(valueHolder != nullptr);
   findByRevision(-1, *valueHolder, time, dest);
 }
+
+ChunkDataContainerBase::History::~History() {}
 
 void ChunkDataContainerBase::findHistoryByRevision(int key,
                                                    const Revision& valueHolder,
@@ -135,9 +137,9 @@ void ChunkDataContainerBase::update(const LogicalTime& time,
   std::shared_ptr<Revision> reference = getTemplate();
   // TODO(tcies) const template, cow template?
   CHECK(query->structureMatch(*reference))
-      << "Bad structure of update revision";
+  << "Bad structure of update revision";
   CHECK(query->getId<common::Id>().isValid())
-      << "Attempted to update element with invalid ID";
+  << "Attempted to update element with invalid ID";
   LogicalTime update_time = time;
   query->setUpdateTime(update_time);
   CHECK(insertUpdatedImpl(query));

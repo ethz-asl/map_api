@@ -53,6 +53,6 @@ class ChunkDataRamContainer : public ChunkDataContainerBase {
   HistoryMap data_;
 };
 
-} /* namespace map_api */
+}  // namespace map_api
 
 #endif  // MAP_API_CHUNK_DATA_RAM_CONTAINER_H_

@@ -70,6 +70,6 @@ class ChunkDataStxxlContainer : public ChunkDataContainerBase {
   std::unique_ptr<STXXLRevisionStore<kBlockSize>> revision_store_;
 };
 
-} /* namespace map_api */
+}  // namespace map_api
 
 #endif  // MAP_API_CHUNK_DATA_STXXL_CONTAINER_H_

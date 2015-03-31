@@ -28,6 +28,7 @@ class ChunkDataContainerBase {
 
  public:
   virtual ~ChunkDataContainerBase();
+  ChunkDataContainerBase();
 
   virtual bool init(std::shared_ptr<TableDescriptor> descriptor) final;
   bool isInitialized() const;
@@ -88,7 +89,7 @@ class ChunkDataContainerBase {
   void find(int key, const ValueType& value, const LogicalTime& time,
             ConstRevisionMap* dest) const;
   virtual void dump(const LogicalTime& time, ConstRevisionMap* dest) const
-      final;
+  final;
   template <typename ValueType>
   std::shared_ptr<const Revision> findUnique(int key, const ValueType& value,
                                              const LogicalTime& time) const;
@@ -100,6 +101,7 @@ class ChunkDataContainerBase {
   // ============
   class History : public std::list<std::shared_ptr<const Revision> > {
    public:
+    virtual ~History();
     inline const_iterator latestAt(const LogicalTime& time) const;
   };
   template <typename IdType>
@@ -147,10 +149,10 @@ class ChunkDataContainerBase {
     std::string table;
     std::string id;
     ItemDebugInfo(const std::string& _table, const common::Id& _id)
-        : table(_table), id(_id.hexString()) {}
+    : table(_table), id(_id.hexString()) {}
   };
 
- private:
+  private:
   /**
    * ================================================
    * FUNCTIONS TO BE IMPLEMENTED BY THE DERIVED CLASS
@@ -186,7 +188,7 @@ class ChunkDataContainerBase {
   virtual int countByRevisionImpl(int key, const Revision& valueHolder,
                                   const LogicalTime& time) const = 0;
 
-  bool initialized_ = false;
+  bool initialized_;
   std::shared_ptr<TableDescriptor> descriptor_;
   mutable std::mutex access_mutex_;
 };

@@ -50,6 +50,7 @@ SET(CORE_SOURCE  src/internal/trackee-multimap.cc
                  src/revision.cc
                  src/server-discovery.cc
                  src/spatial-index.cc
+                 src/spatial-index-cell-data.cc
                  src/table-descriptor.cc
                  src/transaction.cc)
                  
