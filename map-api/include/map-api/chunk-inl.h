@@ -6,7 +6,7 @@
 namespace map_api {
 
 template <typename RequestType>
-void Chunk::fillMetadata(RequestType* destination) {
+void Chunk::fillMetadata(RequestType* destination) const {
   CHECK_NOTNULL(destination);
   destination->mutable_metadata()->set_table(this->data_container_->name());
   id().serialize(destination->mutable_metadata()->mutable_chunk_id());

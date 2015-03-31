@@ -18,6 +18,8 @@ class TableDescriptor : private proto::TableDescriptor {
  public:
   virtual ~TableDescriptor();
 
+  using proto::TableDescriptor::name;
+
   template <typename Type>
   void addField(int index);
   void addField(int index, proto::Type type);

@@ -4,6 +4,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include <glog/logging.h>

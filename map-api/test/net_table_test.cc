@@ -121,10 +121,10 @@ TEST_F(NetTableFixture, Transactions) {
     kSecondTableFieldName
   };
 
-  std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
+  std::shared_ptr<TableDescriptor> descriptor(new TableDescriptor);
   descriptor->setName(kSecondTableName);
   descriptor->addField<int>(kSecondTableFieldName);
-  NetTable* second_table = NetTableManager::instance().addTable(&descriptor);
+  NetTable* second_table = NetTableManager::instance().addTable(descriptor);
   ASSERT_TRUE(second_table);
 
   common::Id ab_chunk_id, b_chunk_id, ab_id, b_id;
@@ -360,10 +360,10 @@ class NetTableChunkTrackingTest : public NetTableFixture {
 
   void SetUp() {
     NetTableFixture::SetUp();
-    std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
+    std::shared_ptr<TableDescriptor> descriptor(new TableDescriptor);
     descriptor->setName(kTrackeeTableName);
     descriptor->addField<common::Id>(kParent);
-    trackee_table_ = NetTableManager::instance().addTable(&descriptor);
+    trackee_table_ = NetTableManager::instance().addTable(descriptor);
     trackee_table_->pushNewChunkIdsToTracker(table_, get_tracker);
     generateIdFromInt(1, &master_chunk_id_);
     generateIdFromInt(1, &master_item_id_);

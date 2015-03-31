@@ -110,7 +110,7 @@ class NetTable {
   // (locking all chunks)
   template <typename ValueType>
   void lockFind(int key, const ValueType& value, const LogicalTime& time,
-                ConstRevisionMap* destination);
+                ConstRevisionMap* destination) const;
   void dumpActiveChunks(const LogicalTime& time, ConstRevisionMap* destination);
   void dumpActiveChunksAtCurrentTime(ConstRevisionMap* destination);
   template <typename IdType>
@@ -219,11 +219,18 @@ class NetTable {
    * TODO(tcies) probably requires mutex on a data level
    */
   template <typename IdType>
-  std::shared_ptr<const Revision> getByIdInconsistent(const IdType& id,
-                                                      const LogicalTime& time);
+  std::shared_ptr<const Revision> getById(const IdType& id,
+                                          const LogicalTime& time);
 
   void readLockActiveChunks();
   void unlockActiveChunks();
+
+  // Read-locks active_chunks_lock_ and passes each active chunk to action
+  // individually.
+  void forEachActiveChunk(const std::function<void(const Chunk& chunk)>& action)
+      const;
+  void forEachActiveChunkUntil(
+      const std::function<bool(const Chunk& chunk)>& action) const;  // NOLINT
 
   bool routingBasics(
       const common::Id& chunk_id, Message* response, ChunkMap::iterator* found);

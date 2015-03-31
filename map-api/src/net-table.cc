@@ -68,7 +68,7 @@ void NetTable::joinSpatialIndex(const SpatialIndex::BoundingBox& bounds,
 void NetTable::announceToListeners(const PeerIdList& listeners) {
   for (const PeerId& peer : listeners) {
     Message request, response;
-    request.impose<kAnnounceToListeners>(data_container_->name());
+    request.impose<kAnnounceToListeners>(descriptor_->name());
     if (!Hub::instance().hasPeer(peer)) {
       LOG(ERROR) << "Host " << peer << " not among peers!";
       continue;
@@ -82,7 +82,7 @@ void NetTable::announceToListeners(const PeerIdList& listeners) {
   }
 }
 
-const std::string& NetTable::name() const { return data_container_->name(); }
+const std::string& NetTable::name() const { return descriptor_->name(); }
 
 Chunk* NetTable::addInitializedChunk(std::unique_ptr<Chunk>&& chunk) {
   ScopedWriteLock lock(&active_chunks_lock_);
@@ -105,7 +105,7 @@ Chunk* NetTable::addInitializedChunk(std::unique_ptr<Chunk>&& chunk) {
 }
 
 std::shared_ptr<Revision> NetTable::getTemplate() const {
-  return data_container_->getTemplate();
+  return descriptor_->getTemplate();
 }
 
 Chunk* NetTable::newChunk() {
@@ -116,7 +116,7 @@ Chunk* NetTable::newChunk() {
 
 Chunk* NetTable::newChunk(const common::Id& chunk_id) {
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
-  CHECK(chunk->init(chunk_id, data_container_.get(), true));
+  CHECK(chunk->init(chunk_id, descriptor_, true));
   Chunk* final_chunk_ptr = addInitializedChunk(std::move(chunk));
   // Add self to chunk posessors in index.
   index_lock_.acquireReadLock();
@@ -215,8 +215,7 @@ void NetTable::autoFollowTrackedChunks() {
     chunk->dumpItems(map_api::LogicalTime::sample(), &revisions);
 
     common::IdSet ids;
-    for (const ConstRevisionMap::value_type& id_revision :
-         revisions) {
+    for (const ConstRevisionMap::value_type& id_revision : revisions) {
       CHECK(ids.emplace(id_revision.first).second);
     }
 
@@ -310,7 +309,7 @@ void NetTable::attachCallbackToChunkAcquisition(
 
 bool NetTable::listenToChunksFromPeer(const PeerId& peer) {
   Message request, response;
-  request.impose<NetTable::kPushNewChunksRequest>(data_container_->name());
+  request.impose<NetTable::kPushNewChunksRequest>(descriptor_->name());
   if (!Hub::instance().hasPeer(peer)) {
     LOG(ERROR) << "Peer with address " << peer << " not among peers!";
     return false;
@@ -386,7 +385,7 @@ Chunk* NetTable::connectTo(const common::Id& chunk_id,
   Message request, response;
   // sends request of chunk info to peer
   proto::ChunkRequestMetadata metadata;
-  metadata.set_table(data_container_->name());
+  metadata.set_table(descriptor_->name());
   chunk_id.serialize(metadata.mutable_chunk_id());
   request.impose<Chunk::kConnectRequest>(metadata);
   // TODO(tcies) add to local peer subset as well?
@@ -428,7 +427,12 @@ size_t NetTable::numActiveChunksItems() {
 }
 
 size_t NetTable::numItems() const {
-  return data_container_->count(-1, 0, LogicalTime::sample());
+  size_t result = 0;
+  LogicalTime count_time = LogicalTime::sample();
+  forEachActiveChunk([&](const Chunk& chunk) {
+    result += chunk.constData()->count(count_time);
+  });
+  return result;
 }
 
 size_t NetTable::activeChunksItemsSizeBytes() {
@@ -496,7 +500,6 @@ void NetTable::leaveAllChunks() {
   active_chunks_lock_.acquireWriteLock();
   active_chunks_.clear();
   active_chunks_lock_.releaseWriteLock();
-  data_container_->clear();
 }
 
 std::string NetTable::getStatistics() {
@@ -543,6 +546,24 @@ void NetTable::unlockActiveChunks() {
   active_chunks_lock_.releaseReadLock();
 }
 
+void NetTable::forEachActiveChunk(
+    const std::function<void(const Chunk& chunk)>& action) const {
+  ScopedReadLock lock(&active_chunks_lock_);
+  for (const ChunkMap::value_type& chunk : active_chunks_) {
+    action(*chunk.second);
+  }
+}
+
+void NetTable::forEachActiveChunkUntil(
+    const std::function<bool(const Chunk& chunk)>& action) const {  // NOLINT
+  ScopedReadLock lock(&active_chunks_lock_);
+  for (const ChunkMap::value_type& chunk : active_chunks_) {
+    if (action(*chunk.second)) {
+      break;
+    }
+  }
+}
+
 void NetTable::handleConnectRequest(const common::Id& chunk_id,
                                     const PeerId& peer,
                                     Message* response) {
@@ -560,7 +581,7 @@ void NetTable::handleInitRequest(
   CHECK_NOTNULL(response);
   common::Id chunk_id(request.metadata().chunk_id());
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
-  CHECK(chunk->init(chunk_id, request, sender, data_container_.get()));
+  CHECK(chunk->init(chunk_id, request, sender, descriptor_));
   addInitializedChunk(std::move(chunk));
   response->ack();
 }
