@@ -11,13 +11,15 @@
 
 #include "map-api/app-templates.h"
 #include "map-api/chunk.h"
-#include "map-api/cr-table.h"
 #include "map-api/net-table-index.h"
-#include "map-api/revision.h"
 #include "map-api/reader-writer-lock.h"
 #include "map-api/spatial-index.h"
+#include "map-api/table-data-container-base.h"
 
 namespace map_api {
+class ConstRevisionMap;
+class MutableRevisionMap;
+
 inline std::string humanReadableBytes(double size) {
   int i = 0;
   const char* units[] = {"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"};
@@ -45,7 +47,6 @@ class NetTable {
 
   // BASICS
   const std::string& name() const;
-  const CRTable::Type& type() const;
   std::shared_ptr<Revision> getTemplate() const;
 
   // BASIC CHUNK MANAGEMENT
@@ -108,11 +109,10 @@ class NetTable {
   // ITEM RETRIEVAL
   // (locking all chunks)
   template <typename ValueType>
-  CRTable::RevisionMap lockFind(int key, const ValueType& value,
-                                const LogicalTime& time);
-  void dumpActiveChunks(const LogicalTime& time,
-                        CRTable::RevisionMap* destination);
-  void dumpActiveChunksAtCurrentTime(CRTable::RevisionMap* destination);
+  void lockFind(int key, const ValueType& value, const LogicalTime& time,
+                ConstRevisionMap* destination);
+  void dumpActiveChunks(const LogicalTime& time, ConstRevisionMap* destination);
+  void dumpActiveChunksAtCurrentTime(ConstRevisionMap* destination);
   template <typename IdType>
   void getAvailableIds(const LogicalTime& time,
                        std::vector<IdType>* ids);
@@ -192,7 +192,7 @@ class NetTable {
   NetTable(const NetTable&) = delete;
   NetTable& operator =(const NetTable&) = delete;
 
-  bool init(CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor);
+  bool init(std::unique_ptr<TableDescriptor>* descriptor);
 
   // Interface for NetTableManager:
   void createIndex();
@@ -243,8 +243,7 @@ class NetTable {
   void fetchAllCallback(const common::IdSet& insertions,
                         const common::IdSet& updates, Chunk* chunk);
 
-  CRTable::Type type_;
-  std::unique_ptr<CRTable> cache_;
+  std::unique_ptr<TableDataContainerBase> data_container_;
   ChunkMap active_chunks_;
   mutable ReaderWriterMutex active_chunks_lock_;
 

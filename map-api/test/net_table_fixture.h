@@ -12,12 +12,13 @@
 
 namespace map_api {
 
-class NetTableFixture : public MapApiFixture,
-                        public ::testing::WithParamInterface<bool> {
+class NetTableFixture : public MapApiFixture {
  public:
   enum Fields {
     kFieldName
   };
+
+  virtual ~NetTableFixture() {}
 
  protected:
   virtual void SetUp();
