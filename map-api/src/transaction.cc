@@ -27,15 +27,18 @@ Transaction::Transaction(const LogicalTime& begin_time)
   CHECK(begin_time < LogicalTime::sample());
 }
 
-CRTable::RevisionMap Transaction::dumpChunk(NetTable* table, Chunk* chunk) {
+void Transaction::dumpChunk(NetTable* table, Chunk* chunk,
+                            ConstRevisionMap* result) {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(chunk);
-  return transactionOf(table)->dumpChunk(chunk);
+  CHECK_NOTNULL(result);
+  return transactionOf(table)->dumpChunk(chunk, result);
 }
 
-CRTable::RevisionMap Transaction::dumpActiveChunks(NetTable* table) {
+void Transaction::dumpActiveChunks(NetTable* table, ConstRevisionMap* result) {
   CHECK_NOTNULL(table);
-  return transactionOf(table)->dumpActiveChunks();
+  CHECK_NOTNULL(result);
+  return transactionOf(table)->dumpActiveChunks(result);
 }
 
 void Transaction::insert(
