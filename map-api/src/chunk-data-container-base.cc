@@ -3,60 +3,53 @@
 
 #include <glog/logging.h>
 #include <gflags/gflags.h>
+#include <map-api/chunk-data-container-base.h>
 
 #include "./core.pb.h"
 #include <map-api/core.h>
-#include <map-api/table-data-container-base.h>
 
 namespace map_api {
 
-TableDataContainerBase::TableDataContainerBase() : initialized_(false) {}
+ChunkDataContainerBase::ChunkDataContainerBase() : initialized_(false) {}
 
-TableDataContainerBase::~TableDataContainerBase() {}
+ChunkDataContainerBase::~ChunkDataContainerBase() {}
 
-bool TableDataContainerBase::init(
-    std::unique_ptr<TableDescriptor>* descriptor) {
-  CHECK_NOTNULL(descriptor);
-  CHECK((*descriptor)->has_name());
-  descriptor_ = std::move(*descriptor);
+bool ChunkDataContainerBase::init(std::shared_ptr<TableDescriptor> descriptor) {
+  CHECK(descriptor);
+  CHECK(descriptor->has_name());
+  descriptor_ = descriptor;
   CHECK(initImpl());
   initialized_ = true;
   return true;
 }
 
-bool TableDataContainerBase::isInitialized() const { return initialized_; }
+bool ChunkDataContainerBase::isInitialized() const { return initialized_; }
 
-const std::string& TableDataContainerBase::name() const {
+const std::string& ChunkDataContainerBase::name() const {
   return descriptor_->name();
 }
 
-std::shared_ptr<Revision> TableDataContainerBase::getTemplate() const {
+std::shared_ptr<Revision> ChunkDataContainerBase::getTemplate() const {
   CHECK(isInitialized()) << "Can't get template of non-initialized table";
-  std::shared_ptr<Revision> ret = Revision::fromProto(
-      std::unique_ptr<proto::Revision>(new proto::Revision));
-  // add editable fields
-  for (int i = 0; i < descriptor_->fields_size(); ++i) {
-    ret->addField(i, descriptor_->fields(i));
-  }
-  return ret;
+  return descriptor_->getTemplate();
 }
 
-bool TableDataContainerBase::insert(const LogicalTime& time,
+bool ChunkDataContainerBase::insert(const LogicalTime& time,
                                     const std::shared_ptr<Revision>& query) {
   std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(query.get() != nullptr);
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(query->structureMatch(*reference))
-      << "Bad structure of insert revision";
+  << "Bad structure of insert revision";
   CHECK(query->getId<common::Id>().isValid())
-      << "Attempted to insert element with invalid ID";
+  << "Attempted to insert element with invalid ID";
   query->setInsertTime(time);
   query->setUpdateTime(time);
   return insertImpl(query);
 }
 
-bool TableDataContainerBase::bulkInsert(const LogicalTime& time,
+bool ChunkDataContainerBase::bulkInsert(const LogicalTime& time,
                                         const MutableRevisionMap& query) {
   std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
@@ -65,7 +58,7 @@ bool TableDataContainerBase::bulkInsert(const LogicalTime& time,
   for (const typename MutableRevisionMap::value_type& id_revision : query) {
     CHECK_NOTNULL(id_revision.second.get());
     CHECK(id_revision.second->structureMatch(*reference))
-        << "Bad structure of insert revision";
+    << "Bad structure of insert revision";
     id = id_revision.second->getId<common::Id>();
     CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
     CHECK(id == id_revision.first) << "ID in RevisionMap doesn't match";
@@ -75,7 +68,7 @@ bool TableDataContainerBase::bulkInsert(const LogicalTime& time,
   return bulkInsertImpl(query);
 }
 
-bool TableDataContainerBase::patch(
+bool ChunkDataContainerBase::patch(
     const std::shared_ptr<const Revision>& query) {
   std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(query != nullptr);
@@ -83,22 +76,11 @@ bool TableDataContainerBase::patch(
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(query->structureMatch(*reference)) << "Bad structure of patch revision";
   CHECK(query->getId<common::Id>().isValid())
-      << "Attempted to insert element with invalid ID";
+  << "Attempted to insert element with invalid ID";
   return patchImpl(query);
 }
 
-void TableDataContainerBase::dumpChunk(const common::Id& chunk_id,
-                                       const LogicalTime& time,
-                                       ConstRevisionMap* dest) const {
-  std::lock_guard<std::mutex> lock(access_mutex_);
-  CHECK(isInitialized());
-  CHECK_NOTNULL(dest);
-  dest->clear();
-  CHECK_LE(time, LogicalTime::sample());
-  return dumpChunkImpl(chunk_id, time, dest);
-}
-
-void TableDataContainerBase::findByRevision(int key,
+void ChunkDataContainerBase::findByRevision(int key,
                                             const Revision& valueHolder,
                                             const LogicalTime& time,
                                             ConstRevisionMap* dest) const {
@@ -110,11 +92,15 @@ void TableDataContainerBase::findByRevision(int key,
   CHECK_NOTNULL(dest);
   dest->clear();
   CHECK(time < LogicalTime::sample())
-      << "Seeing the future is yet to be implemented ;)";
+  << "Seeing the future is yet to be implemented ;)";
   findByRevisionImpl(key, valueHolder, time, dest);
 }
 
-int TableDataContainerBase::countByRevision(int key,
+int ChunkDataContainerBase::numAvailableIds(const LogicalTime& time) const {
+  return count(-1, 0, time);
+}
+
+int ChunkDataContainerBase::countByRevision(int key,
                                             const Revision& valueHolder,
                                             const LogicalTime& time) const {
   std::lock_guard<std::mutex> lock(access_mutex_);
@@ -123,11 +109,11 @@ int TableDataContainerBase::countByRevision(int key,
   // Revision::insertPlaceHolder - for now it's a pretty safe bet that the
   // implementation uses that - this would be rather cumbersome to check here.
   CHECK(time < LogicalTime::sample())
-      << "Seeing the future is yet to be implemented ;)";
+  << "Seeing the future is yet to be implemented ;)";
   return countByRevisionImpl(key, valueHolder, time);
 }
 
-void TableDataContainerBase::dump(const LogicalTime& time,
+void ChunkDataContainerBase::dump(const LogicalTime& time,
                                   ConstRevisionMap* dest) const {
   CHECK_NOTNULL(dest);
   std::shared_ptr<Revision> valueHolder = getTemplate();
@@ -135,9 +121,9 @@ void TableDataContainerBase::dump(const LogicalTime& time,
   findByRevision(-1, *valueHolder, time, dest);
 }
 
-TableDataContainerBase::History::~History() {}
+ChunkDataContainerBase::History::~History() {}
 
-void TableDataContainerBase::findHistoryByRevision(int key,
+void ChunkDataContainerBase::findHistoryByRevision(int key,
                                                    const Revision& valueHolder,
                                                    const LogicalTime& time,
                                                    HistoryMap* dest) const {
@@ -148,22 +134,22 @@ void TableDataContainerBase::findHistoryByRevision(int key,
   return findHistoryByRevisionImpl(key, valueHolder, time, dest);
 }
 
-void TableDataContainerBase::update(const LogicalTime& time,
+void ChunkDataContainerBase::update(const LogicalTime& time,
                                     const std::shared_ptr<Revision>& query) {
   CHECK(query != nullptr);
   CHECK(isInitialized()) << "Attempted to update in non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   // TODO(tcies) const template, cow template?
   CHECK(query->structureMatch(*reference))
-      << "Bad structure of update revision";
+  << "Bad structure of update revision";
   CHECK(query->getId<common::Id>().isValid())
-      << "Attempted to update element with invalid ID";
+  << "Attempted to update element with invalid ID";
   LogicalTime update_time = time;
   query->setUpdateTime(update_time);
   CHECK(insertUpdatedImpl(query));
 }
 
-void TableDataContainerBase::remove(const LogicalTime& time,
+void ChunkDataContainerBase::remove(const LogicalTime& time,
                                     const std::shared_ptr<Revision>& query) {
   CHECK(query != nullptr);
   CHECK(isInitialized());
@@ -176,25 +162,17 @@ void TableDataContainerBase::remove(const LogicalTime& time,
   CHECK(insertUpdatedImpl(query));
 }
 
-int TableDataContainerBase::countByChunk(const common::Id& chunk_id,
-                                         const LogicalTime& time) const {
-  std::lock_guard<std::mutex> lock(access_mutex_);
-  CHECK(isInitialized());
-  CHECK(time < LogicalTime::sample());
-  return countByChunkImpl(chunk_id, time);
-}
-
-void TableDataContainerBase::clear() {
+void ChunkDataContainerBase::clear() {
   std::lock_guard<std::mutex> lock(access_mutex_);
   clearImpl();
 }
 
 std::ostream& operator<<(std::ostream& stream,
-                         const TableDataContainerBase::ItemDebugInfo& info) {
+                         const ChunkDataContainerBase::ItemDebugInfo& info) {
   return stream << "For table " << info.table << ", item " << info.id << ": ";
 }
 
-bool TableDataContainerBase::getLatestUpdateTime(const common::Id& id,
+bool ChunkDataContainerBase::getLatestUpdateTime(const common::Id& id,
                                                  LogicalTime* time) {
   CHECK_NE(common::Id(), id);
   CHECK_NOTNULL(time);
