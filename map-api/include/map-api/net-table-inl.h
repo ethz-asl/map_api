@@ -12,34 +12,42 @@ template <typename IdType>
 void __attribute__((deprecated)) NetTable::registerItemInSpace(
     const IdType& id, const SpatialIndex::BoundingBox& bounding_box) {
   std::shared_ptr<const Revision> item_revision =
-      getByIdInconsistent(id, LogicalTime::sample());
+      getById(id, LogicalTime::sample());
   registerChunkInSpace(item_revision->getChunkId(), bounding_box);
 }
 
 template <typename ValueType>
-CRTable::RevisionMap NetTable::lockFind(int key, const ValueType& value,
-                                        const LogicalTime& time) {
-  CRTable::RevisionMap result;
-  readLockActiveChunks();
-  cache_->find(key, value, time, &result);
-  unlockActiveChunks();
-  return result;
+void NetTable::lockFind(int key, const ValueType& value,
+                        const LogicalTime& time,
+                        ConstRevisionMap* result) const {
+  CHECK_NOTNULL(result)->clear();
+  forEachActiveChunk([&](const Chunk& chunk) {
+    ConstRevisionMap chunk_result;
+    chunk.constData()->find(key, value, time, &chunk_result);
+    result->insert(chunk_result.begin(), chunk_result.end());
+  });
 }
 
 template <typename IdType>
-std::shared_ptr<const Revision> NetTable::getByIdInconsistent(
-    const IdType& id, const LogicalTime& time) {
-  return cache_->getById(id, time);
+std::shared_ptr<const Revision> NetTable::getById(const IdType& id,
+                                                  const LogicalTime& time) {
+  std::shared_ptr<const Revision> result;
+  forEachActiveChunkUntil([&](const Chunk& chunk) {
+    result = chunk.constData()->getById(id, time);
+    return static_cast<bool>(result);
+  });
+  return result;
 }
 
 template <typename IdType>
 void NetTable::getAvailableIds(const LogicalTime& time,
                                std::vector<IdType>* ids) {
-  CHECK_NOTNULL(ids);
-  ids->clear();
-  readLockActiveChunks();
-  cache_->getAvailableIds(time, ids);
-  unlockActiveChunks();
+  CHECK_NOTNULL(ids)->clear();
+  forEachActiveChunk([&](const Chunk& chunk) {
+    std::vector<IdType> chunk_result;
+    chunk.constData()->getAvailableIds(time, &chunk_result);
+    ids->insert(ids->end(), chunk_result.begin(), chunk_result.end());
+  });
 }
 
 template <typename TrackeeType, typename TrackerType, typename TrackerIdType>

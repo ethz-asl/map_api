@@ -4,17 +4,18 @@
 #include <fstream>  // NOLINT
 #include <string>
 #include <utility>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 #include <google/protobuf/io/gzip_stream.h>
-
-#include "map-api/cr-table.h"
 #include <multiagent-mapping-common/unique-id.h>
+
 #include "map-api/logical-time.h"
 
 namespace map_api {
 class Chunk;
+class ConstRevisionMap;
 class NetTable;
 class Transaction;
 
@@ -42,7 +43,7 @@ class ProtoTableFileIO {
   ProtoTableFileIO(const std::string& filename, map_api::NetTable* table);
   ~ProtoTableFileIO();
   bool storeTableContents(const map_api::LogicalTime& time);
-  bool storeTableContents(const map_api::CRTable::RevisionMap& revisions,
+  bool storeTableContents(const ConstRevisionMap& revisions,
                           const std::vector<common::Id>& ids_to_store);
   bool restoreTableContents();
   bool restoreTableContents(map_api::Transaction* transaction,

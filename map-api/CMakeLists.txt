@@ -28,15 +28,12 @@ SET(CORE_SOURCE  src/internal/trackee-multimap.cc
                  src/cache-base.cc
                  src/chord-index.cc
                  src/chunk.cc
+                 src/chunk-data-container-base.cc
+                 src/chunk-data-ram-container.cc
+                 src/chunk-data-stxxl-container.cc
                  src/chunk-manager.cc
                  src/chunk-transaction.cc
                  src/core.cc
-                 src/cr-table.cc
-                 src/cr-table-ram-map.cc
-                 src/cr-table-stxxl-map.cc
-                 src/cru-table.cc
-                 src/cru-table-ram-map.cc
-                 src/cru-table-stxxl-map.cc
                  src/file-discovery.cc
                  src/hub.cc
                  src/ipc.cc
@@ -84,8 +81,9 @@ if(!APPLE)
   target_link_libraries(test_discovery ${PROJECT_NAME})
 endif()
 
-catkin_add_gtest(test_table_interface_test test/table_interface_test.cc)
-target_link_libraries(test_table_interface_test ${PROJECT_NAME})
+catkin_add_gtest(test_chunk_data_container_test 
+  test/chunk_data_container_test.cc)
+target_link_libraries(test_chunk_data_container_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_core_test test/core_test.cc)
 target_link_libraries(test_core_test ${PROJECT_NAME})
