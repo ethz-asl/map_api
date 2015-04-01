@@ -1,5 +1,5 @@
-#ifndef MAP_API_TABLE_DATA_CONTAINER_BASE_H_
-#define MAP_API_TABLE_DATA_CONTAINER_BASE_H_
+#ifndef MAP_API_CHUNK_DATA_CONTAINER_BASE_H_
+#define MAP_API_CHUNK_DATA_CONTAINER_BASE_H_
 
 #include <list>
 #include <memory>
@@ -18,18 +18,19 @@ class Id;
 }  // namespace common
 
 namespace map_api {
+class Chunk;
 class ConstRevisionMap;
 class MutableRevisionMap;
 class Revision;
 
-class TableDataContainerBase {
+class ChunkDataContainerBase {
   friend class Chunk;
 
  public:
-  TableDataContainerBase();
-  virtual ~TableDataContainerBase();
+  virtual ~ChunkDataContainerBase();
+  ChunkDataContainerBase();
 
-  virtual bool init(std::unique_ptr<TableDescriptor>* descriptor) final;
+  virtual bool init(std::shared_ptr<TableDescriptor> descriptor) final;
   bool isInitialized() const;
   const std::string& name() const;
   std::shared_ptr<Revision> getTemplate() const;
@@ -88,9 +89,7 @@ class TableDataContainerBase {
   void find(int key, const ValueType& value, const LogicalTime& time,
             ConstRevisionMap* dest) const;
   virtual void dump(const LogicalTime& time, ConstRevisionMap* dest) const
-      final;
-  void dumpChunk(const common::Id& chunk_id, const LogicalTime& time,
-                 ConstRevisionMap* dest) const;
+  final;
   template <typename ValueType>
   std::shared_ptr<const Revision> findUnique(int key, const ValueType& value,
                                              const LogicalTime& time) const;
@@ -140,10 +139,10 @@ class TableDataContainerBase {
   // ====
   template <typename IdType>
   void getAvailableIds(const LogicalTime& time, std::vector<IdType>* ids) const;
+  int numAvailableIds(const LogicalTime& time) const;
   // If "key" is -1, no filter will be applied.
   template <typename ValueType>
   int count(int key, const ValueType& value, const LogicalTime& time) const;
-  int countByChunk(const common::Id& id, const LogicalTime& time) const;
   virtual int countByRevision(int key, const Revision& valueHolder,
                               const LogicalTime& time) const final;
   bool getLatestUpdateTime(const common::Id& id, LogicalTime* time);
@@ -151,10 +150,10 @@ class TableDataContainerBase {
     std::string table;
     std::string id;
     ItemDebugInfo(const std::string& _table, const common::Id& _id)
-        : table(_table), id(_id.hexString()) {}
+    : table(_table), id(_id.hexString()) {}
   };
 
- private:
+  private:
   /**
    * ================================================
    * FUNCTIONS TO BE IMPLEMENTED BY THE DERIVED CLASS
@@ -170,9 +169,6 @@ class TableDataContainerBase {
   virtual bool patchImpl(const std::shared_ptr<const Revision>& query) = 0;
   virtual std::shared_ptr<const Revision> getByIdImpl(
       const common::Id& id, const LogicalTime& time) const = 0;
-  virtual void dumpChunkImpl(const common::Id& chunk_id,
-                             const LogicalTime& time,
-                             ConstRevisionMap* dest) const = 0;
   // If key is -1, this should return all the data in the table.
   virtual void findByRevisionImpl(int key, const Revision& valueHolder,
                                   const LogicalTime& time,
@@ -192,19 +188,17 @@ class TableDataContainerBase {
   // If key is -1, this should return all the data in the table.
   virtual int countByRevisionImpl(int key, const Revision& valueHolder,
                                   const LogicalTime& time) const = 0;
-  virtual int countByChunkImpl(const common::Id& chunk_id,
-                               const LogicalTime& time) const = 0;
 
   bool initialized_;
-  std::unique_ptr<TableDescriptor> descriptor_;
+  std::shared_ptr<TableDescriptor> descriptor_;
   mutable std::mutex access_mutex_;
 };
 
 std::ostream& operator<<(std::ostream& stream,
-                         const TableDataContainerBase::ItemDebugInfo& info);
+                         const ChunkDataContainerBase::ItemDebugInfo& info);
 
 }  // namespace map_api
 
-#include "./table-data-container-base-inl.h"
+#include "./chunk-data-container-base-inl.h"
 
-#endif  // MAP_API_TABLE_DATA_CONTAINER_BASE_H_
+#endif  // MAP_API_CHUNK_DATA_CONTAINER_BASE_H_

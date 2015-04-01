@@ -81,7 +81,7 @@ Chunk* NetTableTransaction::chunkOf(
     const IdType& id, std::shared_ptr<const Revision>* inconsistent) const {
   CHECK_NOTNULL(inconsistent);
   // TODO(tcies) uncommitted
-  *inconsistent = table_->getByIdInconsistent(id, begin_time_);
+  *inconsistent = table_->getById(id, begin_time_);
   if (!(*inconsistent)) {
     return nullptr;
   }
