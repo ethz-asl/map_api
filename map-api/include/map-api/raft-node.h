@@ -48,6 +48,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <set>
+#include <string>  // remove later
 #include <thread>
 #include <utility>
 #include <vector>
@@ -197,7 +198,7 @@ class RaftNode {
     uint64_t next_index;
     uint64_t commit_index;
   };
-  
+
   std::vector<LogEntry>::iterator getIteratorByIndex(uint64_t index);
   uint64_t appendLogEntry(uint32_t entry);
   uint64_t appendLogEntry(uint32_t entry, uint64_t term);

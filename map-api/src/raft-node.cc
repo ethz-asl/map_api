@@ -257,7 +257,6 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
   if (append_response.success() &&
       commit_index_ < append_request.commitindex() &&
       commit_index_ < log_entries_.back().index) {
-
     std::vector<LogEntry>::iterator it = getIteratorByIndex(commit_index_);
     CHECK(it->index == commit_index_);
     commit_index_ =
@@ -441,7 +440,6 @@ void RaftNode::stateManagerThread() {
         // call commit new entries
         ++a;
         if (a % 4 == 0) {
-
           appendLogEntry(19);
         }
 
@@ -608,7 +606,7 @@ void RaftNode::followerTracker(const PeerId& peer, uint64_t term) {
       if (!append_successs) {
         // Append on follower failed due to a conflict. Send an older entry
         // and try again.
-        CHECK(follower_next_index > 1);
+        CHECK_GT(follower_next_index, 1);
         --follower_next_index;
         if (follower_commit_index >= follower_next_index) {
           // This should not happen.
@@ -657,7 +655,6 @@ int RaftNode::setElectionTimeout() {
 }
 
 // Assumes at least read lock is acquired for log_mutex_
-// TODO - make this neater
 std::vector<RaftNode::LogEntry>::iterator RaftNode::getIteratorByIndex(
     uint64_t index) {
   std::vector<LogEntry>::iterator it = log_entries_.end();
