@@ -1,15 +1,14 @@
 #ifndef MAP_API_CHUNK_INL_H_
 #define MAP_API_CHUNK_INL_H_
 
-#include "map-api/table-data-container-base.h"
+#include "map-api/chunk-data-container-base.h"
 
 namespace map_api {
 
 template <typename RequestType>
-void Chunk::fillMetadata(RequestType* destination) {
+void Chunk::fillMetadata(RequestType* destination) const {
   CHECK_NOTNULL(destination);
-  destination->mutable_metadata()->set_table(
-      this->table_data_container_->name());
+  destination->mutable_metadata()->set_table(this->data_container_->name());
   id().serialize(destination->mutable_metadata()->mutable_chunk_id());
 }
 

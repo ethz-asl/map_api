@@ -8,10 +8,10 @@
 
 #include "map-api/core.h"
 #include "map-api/logical-time.h"
-#include "map-api/table-data-ram-container.h"
-#include "map-api/table-data-stxxl-container.h"
 #include "map-api/test/testing-entrypoint.h"
 #include "./test_table.cc"
+#include "../include/map-api/chunk-data-ram-container.h"
+#include "../include/map-api/chunk-data-stxxl-container.h"
 
 namespace map_api {
 
@@ -25,7 +25,7 @@ class TableDataContainerTest : public ::testing::Test {
   virtual void TearDown() final override { Core::instance()->kill(); }
 };
 
-typedef ::testing::Types<TableDataRamContainer, TableDataStxxlContainer>
+typedef ::testing::Types<ChunkDataRamContainer, ChunkDataStxxlContainer>
     TableTypes;
 TYPED_TEST_CASE(TableDataContainerTest, TableTypes);
 
@@ -59,11 +59,11 @@ class FieldTestTable : public TestTable<typename TableDataType::TableType> {
   static typename TableDataType::TableType* forge() {
     typename TableDataType::TableType* table =
         new typename TableDataType::TableType;
-    std::unique_ptr<map_api::TableDescriptor> descriptor(
+    std::shared_ptr<map_api::TableDescriptor> descriptor(
         new map_api::TableDescriptor);
     descriptor->setName("field_test_table");
     descriptor->template addField<typename TableDataType::DataType>(kTestField);
-    table->init(&descriptor);
+    table->init(descriptor);
     return table;
   }
 };
@@ -229,7 +229,7 @@ class IntTestWithInit
 template <typename TableType>
 class CruMapIntTestWithInit
     : public UpdateFieldTestWithInit<
-          TableDataTypes<TableDataRamContainer, int64_t>> {};  // NOLINT
+          TableDataTypes<ChunkDataRamContainer, int64_t>> {};  // NOLINT
 
 /**
  *************************
@@ -245,8 +245,8 @@ class CruMapIntTestWithInit
       TableDataTypes<table_type, int64_t>,                                     \
       TableDataTypes<table_type, map_api::LogicalTime>
 
-typedef ::testing::Types<ALL_DATA_TYPES(TableDataRamContainer),
-                         ALL_DATA_TYPES(TableDataStxxlContainer)> AllTypes;
+typedef ::testing::Types<ALL_DATA_TYPES(ChunkDataRamContainer),
+                         ALL_DATA_TYPES(ChunkDataStxxlContainer)> AllTypes;
 
 TYPED_TEST_CASE(FieldTestWithoutInit, AllTypes);
 TYPED_TEST_CASE(FieldTestWithInit, AllTypes);
@@ -370,11 +370,11 @@ TYPED_TEST(CruMapIntTestWithInit, HistoryAtTime) {
   this->query_->set(FieldTestTableType::kTestField, kThird);
   ASSERT_TRUE(this->updateRevision());
 
-  TableDataContainerBase::History old_history;
+  ChunkDataContainerBase::History old_history;
   this->table_->itemHistory(id, before_third, &old_history);
   EXPECT_EQ(2u, old_history.size());
 
-  TableDataContainerBase::History new_history;
+  ChunkDataContainerBase::History new_history;
   this->table_->itemHistory(id, LogicalTime::sample(), &new_history);
   EXPECT_EQ(3u, new_history.size());
 }
