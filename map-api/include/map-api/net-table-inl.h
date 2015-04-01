@@ -20,7 +20,7 @@ template <typename ValueType>
 void NetTable::lockFind(int key, const ValueType& value,
                         const LogicalTime& time,
                         ConstRevisionMap* result) const {
-  CHECK_NOTNULL(result);
+  CHECK_NOTNULL(result)->clear();
   forEachActiveChunk([&](const Chunk& chunk) {
     ConstRevisionMap chunk_result;
     chunk.constData()->find(key, value, time, &chunk_result);
@@ -46,7 +46,6 @@ void NetTable::getAvailableIds(const LogicalTime& time,
   forEachActiveChunk([&](const Chunk& chunk) {
     std::vector<IdType> chunk_result;
     chunk.constData()->getAvailableIds(time, &chunk_result);
-    ids->reserve(ids->size() + chunk_result.size());
     ids->insert(ids->end(), chunk_result.begin(), chunk_result.end());
   });
 }

@@ -430,7 +430,7 @@ size_t NetTable::numItems() const {
   size_t result = 0;
   LogicalTime count_time = LogicalTime::sample();
   forEachActiveChunk([&](const Chunk& chunk) {
-    result += chunk.constData()->count(count_time);
+    result += chunk.constData()->numAvailableIds(count_time);
   });
   return result;
 }

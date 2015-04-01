@@ -96,7 +96,7 @@ void ChunkDataContainerBase::findByRevision(int key,
   findByRevisionImpl(key, valueHolder, time, dest);
 }
 
-int ChunkDataContainerBase::count(const LogicalTime& time) const {
+int ChunkDataContainerBase::numAvailableIds(const LogicalTime& time) const {
   return count(-1, 0, time);
 }
 

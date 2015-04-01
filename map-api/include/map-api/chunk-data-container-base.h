@@ -139,7 +139,7 @@ class ChunkDataContainerBase {
   // ====
   template <typename IdType>
   void getAvailableIds(const LogicalTime& time, std::vector<IdType>* ids) const;
-  int count(const LogicalTime& time) const;
+  int numAvailableIds(const LogicalTime& time) const;
   // If "key" is -1, no filter will be applied.
   template <typename ValueType>
   int count(int key, const ValueType& value, const LogicalTime& time) const;

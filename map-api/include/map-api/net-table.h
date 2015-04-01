@@ -229,6 +229,7 @@ class NetTable {
   // individually.
   void forEachActiveChunk(const std::function<void(const Chunk& chunk)>& action)
       const;
+  // Same as the above, but breaks if the function returns true.
   void forEachActiveChunkUntil(
       const std::function<bool(const Chunk& chunk)>& action) const;  // NOLINT
 

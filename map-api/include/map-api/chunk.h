@@ -77,6 +77,7 @@ class Chunk {
 
   void enableLockLogging();
 
+  // Non-const intended to avoid accidental write-lock while reading.
   void writeLock();
 
   void readLock() const;
@@ -204,6 +205,7 @@ class Chunk {
    */
   void distributedReadLock() const;
 
+  // Non-const intended to avoid accidental write-lock while reading.
   void distributedWriteLock();
 
   void distributedUnlock() const;

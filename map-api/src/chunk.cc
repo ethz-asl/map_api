@@ -117,7 +117,7 @@ void Chunk::dumpItems(const LogicalTime& time, ConstRevisionMap* items) {
 
 size_t Chunk::numItems(const LogicalTime& time) {
   distributedReadLock();
-  size_t result = data_container_->count(time);
+  size_t result = data_container_->numAvailableIds(time);
   distributedUnlock();
   return result;
 }
