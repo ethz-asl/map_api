@@ -16,10 +16,10 @@ namespace map_api {
 
 void NetTableFixture::SetUp() {
   MapApiFixture::SetUp();
-  std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
+  std::shared_ptr<TableDescriptor> descriptor(new TableDescriptor);
   descriptor->setName(kTableName);
   descriptor->addField<int>(kFieldName);
-  table_ = NetTableManager::instance().addTable(&descriptor);
+  table_ = NetTableManager::instance().addTable(descriptor);
 }
 
 size_t NetTableFixture::count() {
