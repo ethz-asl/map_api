@@ -274,6 +274,7 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
     }
     final_result_ =
         std::make_pair(static_cast<uint64_t>(commit_index_), result);
+    // TODO(aqurai): Remove later
     VLOG_IF(1, commit_index_ % 50 == 0)
         << PeerId::self() << ": Entry " << commit_index_
         << " committed ***************************";
@@ -476,7 +477,6 @@ void RaftNode::conductElection() {
   uint16_t num_votes = 0;
   std::unique_lock<std::mutex> state_lock(state_mutex_);
   state_ = State::CANDIDATE;
-  uint64_t old_term = current_term_;
   uint64_t term = ++current_term_;
   if (last_vote_request_term_ >= current_term_) {
     current_term_ = last_vote_request_term_ + 1;
@@ -538,15 +538,12 @@ void RaftNode::followerTracker(const PeerId& peer, uint64_t term) {
   proto::AppendEntriesResponse append_response;
 
   while (follower_trackers_run_) {
-    append_entries.Clear();
-    append_response.Clear();
-    append_entries.set_term(term);
     bool append_successs = false;
-
     while (!append_successs && follower_trackers_run_) {
+      append_entries.Clear();
+      append_response.Clear();
+      append_entries.set_term(term);
       log_mutex_.acquireReadLock();
-      append_entries.set_previouslogindex(log_entries_.back().index);
-      append_entries.set_previouslogterm(log_entries_.back().term);
       append_entries.set_commitindex(commit_index_);
 
       if (follower_next_index > log_entries_.back().index) {
@@ -557,47 +554,21 @@ void RaftNode::followerTracker(const PeerId& peer, uint64_t term) {
         // There is at least one new entry to be sent.
         std::vector<LogEntry>::iterator it =
             getIteratorByIndex(follower_next_index);
+
         // if this is the case, the control shouldn't have reached here,
-
-        if (it == log_entries_.end()) {
-          int a = 0;
-          // for(LogEntry e : log_entries_) {
-          for (std::vector<LogEntry>::iterator ii = log_entries_.begin();
-               ii != log_entries_.end(); ++ii) {
-            VLOG(1) << PeerId::self() << ": Element index " << ii->index
-                    << " -- cnt = " << a;
-            a++;
-          }
-          VLOG(1) << PeerId::self() << ": Num Logs =  " << log_entries_.size();
-          VLOG(1) << PeerId::self() << ": follower_next_index "
-                  << follower_next_index;
-
-          std::stringstream logss;
-          logss << " ********************* \n";
-          for (std::string str : loglog) {
-            logss << str << " ::\n";
-          }
-          logss << "*************************** \n";
-
-          VLOG(1) << "loglog print : ";
-
-          VLOG(1) << logss.str();
-
-          CHECK(it != log_entries_.end());
-        }
-
+        CHECK(it != log_entries_.end());
         append_entries.set_newentry(it->entry);
         append_entries.set_newentryterm(it->term);
         // TODO(aqurai): verify that (it-1) never throws an error.
         append_entries.set_previouslogindex((it - 1)->index);
         append_entries.set_previouslogterm((it - 1)->term);
+      } else {
+        CHECK_GE(log_entries_.size(), 1);
       }
-
-      append_entries.set_commitindex(commit_index_);
       log_mutex_.releaseReadLock();
 
       if (!sendAppendEntries(peer, append_entries, &append_response)) {
-        VLOG(1) << PeerId::self() << ": Flr trkr C - failed sendAppendEntries to " << peer;
+        VLOG(1) << PeerId::self() << ": Failed sendAppendEntries to " << peer;
         continue;
       }
 
@@ -628,6 +599,7 @@ void RaftNode::followerTracker(const PeerId& peer, uint64_t term) {
           std::vector<LogEntry>::iterator it =
               getIteratorByIndex(follower_next_index);
           ++it->replication_count;
+          // TODO(aqurai): Remove later
           VLOG_IF(1, it->index % 20 == 0 &&
                          it->replication_count == peer_list_.size())
               << "********* Entry " << it->index << " replicated on all peers";
@@ -638,7 +610,6 @@ void RaftNode::followerTracker(const PeerId& peer, uint64_t term) {
       }
     }  //  while (!append_successs && follower_trackers_run_)
 
-    // Todo: see if this condition check is necessary
     if (follower_trackers_run_) {
       new_entries_signal_.wait_for(
           wait_lock, std::chrono::milliseconds(kHeartbeatSendPeriodMs));
@@ -663,17 +634,8 @@ std::vector<RaftNode::LogEntry>::iterator RaftNode::getIteratorByIndex(
   } else {
     // The log indexes are always sequential.
     it = log_entries_.begin() + (index - log_entries_.front().index);
-    // todo: remove before commit
-    if (it != log_entries_.end()) {
-      LOG_IF(FATAL, it->index != index) << PeerId::self()
-                                        << ": it->index: " << it->index
-                                        << ", index arg: " << index << ".  "
-                                        << " log front index = "
-                                        << log_entries_.front().index
-                                        << "Log begin iter index = "
-                                        << log_entries_.begin()->index;
-      CHECK(it->index == index);
-    }
+    // TODO(aqurai): Remove check later?
+    CHECK(it->index == index);
     return it;
   }
 }

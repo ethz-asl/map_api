@@ -6,18 +6,18 @@ message RaftHeartbeat {
 
 message AppendEntriesRequest {
   required uint64 term = 1;
-  optional uint64 previousLogIndex = 2;
-  optional uint64 previousLogTerm = 3;
-  optional uint64 commitIndex = 4;
+  required uint64 previousLogIndex = 2;
+  required uint64 previousLogTerm = 3;
+  required uint64 commitIndex = 4;
   optional uint32 newEntry = 5;
   optional uint64 newEntryTerm = 6;
 }
 
 message AppendEntriesResponse {
   required uint64 term = 1;
-  optional uint64 previousLogIndex = 2;
-  optional uint64 previousLogTerm = 3;
-  optional uint64 commitIndex = 4;
+  required uint64 previousLogIndex = 2;
+  required uint64 previousLogTerm = 3;
+  required uint64 commitIndex = 4;
   required bool success = 5;
 }
 
