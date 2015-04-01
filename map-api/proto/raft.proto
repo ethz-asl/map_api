@@ -23,9 +23,13 @@ message AppendEntriesResponse {
 
 message RequestVote {
   required uint64 term = 1;
-  optional uint64 commitIndex = 2;
+  optional uint64 previousLogIndex = 2;
+  optional uint64 previousLogTerm = 3;
+  optional uint64 commitIndex = 4;
 }
 
 message ResponseVote {
   required bool vote = 1;
+  optional uint64 previousLogIndex = 2;
+  optional uint64 previousLogTerm = 3;
 }

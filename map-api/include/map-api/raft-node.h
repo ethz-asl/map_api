@@ -78,7 +78,7 @@ class RaftNode {
   void registerHandlers();
 
   void start();
-  inline bool isRunning() const { return heartbeat_thread_running_; }
+  inline bool isRunning() const { return state_thread_running_; }
   uint64_t term() const;
   const PeerId& leader() const;
   State state() const;
@@ -108,7 +108,7 @@ class RaftNode {
   // ========
   // Handlers
   // ========
-  void handleHeartbeat(const Message& request, Message* response);
+  void handleAppendRequest(const Message& request, Message* response);
   void handleRequestVote(const Message& request, Message* response);
 
   // ====================================================
@@ -124,7 +124,8 @@ class RaftNode {
     VOTE_DECLINED,
     FAILED_REQUEST
   };
-  int sendRequestVote(const PeerId& peer, uint64_t term);
+  int sendRequestVote(const PeerId& peer, uint64_t term,
+                      uint64_t last_log_index, uint64_t last_log_term);
 
   // =====
   // State
@@ -141,10 +142,14 @@ class RaftNode {
   TimePoint last_heartbeat_;
   std::mutex last_heartbeat_mutex_;
 
-  void heartbeatThread();
-  std::thread heartbeat_thread_;  // Gets joined in destructor.
-  std::atomic<bool> heartbeat_thread_running_;
+  void stateManagerThread();
+  std::thread state_manager_thread_;  // Gets joined in destructor.
+  std::atomic<bool> state_thread_running_;
   std::atomic<bool> is_exiting_;
+
+  // ===============
+  // Peer management
+  // ===============
 
   std::set<PeerId> peer_list_;
 
@@ -152,13 +157,14 @@ class RaftNode {
   // Leader election
   // ===============
 
-  int election_timeout_;  // A random value between 50 and 150 ms.
+  std::atomic<int> election_timeout_;  // A random value between 50 and 150 ms.
   void conductElection();
   void followerTracker(const PeerId& peer, uint64_t term);
 
   // Started when leadership is acquired. Gets killed when leadership is lost.
   std::vector<std::thread> follower_trackers_;
   std::atomic<bool> follower_trackers_run_;
+  std::atomic<uint64_t> last_vote_request_term_;
   static int setElectionTimeout();
 
   // =====================
@@ -192,14 +198,14 @@ class RaftNode {
     uint64_t commit_index;
   };
   
-  // std::vector<LogEntry> getNLogEntriesLaterThan(uint64_t index, uint64_t
-  // num_entries);
   std::vector<LogEntry>::iterator getIteratorByIndex(uint64_t index);
-  void appendLogEntry(uint32_t entry);
+  uint64_t appendLogEntry(uint32_t entry);
+  uint64_t appendLogEntry(uint32_t entry, uint64_t term);
 
   // After a new entry is replicated on followers,
   // checks if some entries can be committed.
   void commitReplicatedEntries();
+  std::vector<std::string> loglog;
 };
 }  // namespace map_api
 
