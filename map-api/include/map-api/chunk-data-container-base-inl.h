@@ -1,5 +1,5 @@
-#ifndef MAP_API_TABLE_DATA_CONTAINER_BASE_INL_H_
-#define MAP_API_TABLE_DATA_CONTAINER_BASE_INL_H_
+#ifndef MAP_API_CHUNK_DATA_CONTAINER_BASE_INL_H_
+#define MAP_API_CHUNK_DATA_CONTAINER_BASE_INL_H_
 
 #include <sstream>  // NOLINT
 #include <utility>
@@ -10,7 +10,7 @@
 namespace map_api {
 
 template <typename IdType>
-std::shared_ptr<const Revision> TableDataContainerBase::getById(
+std::shared_ptr<const Revision> ChunkDataContainerBase::getById(
     const IdType& id, const LogicalTime& time) const {
   std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
@@ -23,7 +23,7 @@ std::shared_ptr<const Revision> TableDataContainerBase::getById(
 }
 
 template <typename ValueType>
-void TableDataContainerBase::find(int key, const ValueType& value,
+void ChunkDataContainerBase::find(int key, const ValueType& value,
                                   const LogicalTime& time,
                                   ConstRevisionMap* dest) const {
   std::shared_ptr<Revision> valueHolder = this->getTemplate();
@@ -34,7 +34,7 @@ void TableDataContainerBase::find(int key, const ValueType& value,
 }
 
 template <typename ValueType>
-std::shared_ptr<const Revision> TableDataContainerBase::findUnique(
+std::shared_ptr<const Revision> ChunkDataContainerBase::findUnique(
     int key, const ValueType& value, const LogicalTime& time) const {
   ConstRevisionMap results;
   find(key, value, time, &results);
@@ -58,8 +58,8 @@ std::shared_ptr<const Revision> TableDataContainerBase::findUnique(
   }
 }
 
-TableDataContainerBase::History::const_iterator
-TableDataContainerBase::History::latestAt(const LogicalTime& time) const {
+ChunkDataContainerBase::History::const_iterator
+ChunkDataContainerBase::History::latestAt(const LogicalTime& time) const {
   for (const_iterator it = cbegin(); it != cend(); ++it) {
     if ((*it)->getUpdateTime() <= time) {
       return it;
@@ -69,7 +69,7 @@ TableDataContainerBase::History::latestAt(const LogicalTime& time) const {
 }
 
 template <typename IdType>
-void TableDataContainerBase::itemHistory(const IdType& id,
+void ChunkDataContainerBase::itemHistory(const IdType& id,
                                          const LogicalTime& time,
                                          History* dest) const {
   common::Id map_api_id;
@@ -80,7 +80,7 @@ void TableDataContainerBase::itemHistory(const IdType& id,
 }
 
 template <typename ValueType>
-void TableDataContainerBase::findHistory(int key, const ValueType& value,
+void ChunkDataContainerBase::findHistory(int key, const ValueType& value,
                                          const LogicalTime& time,
                                          HistoryMap* dest) const {
   std::shared_ptr<Revision> valueHolder = this->getTemplate();
@@ -91,14 +91,14 @@ void TableDataContainerBase::findHistory(int key, const ValueType& value,
 }
 
 template <typename IdType>
-void TableDataContainerBase::remove(const LogicalTime& time, const IdType& id) {
+void ChunkDataContainerBase::remove(const LogicalTime& time, const IdType& id) {
   std::shared_ptr<Revision> latest =
       std::make_shared<Revision>(*getById(id, time));
   remove(time, latest);
 }
 
 template <typename IdType>
-void TableDataContainerBase::getAvailableIds(const LogicalTime& time,
+void ChunkDataContainerBase::getAvailableIds(const LogicalTime& time,
                                              std::vector<IdType>* ids) const {
   std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
@@ -113,7 +113,7 @@ void TableDataContainerBase::getAvailableIds(const LogicalTime& time,
 }
 
 template <typename ValueType>
-int TableDataContainerBase::count(int key, const ValueType& value,
+int ChunkDataContainerBase::count(int key, const ValueType& value,
                                   const LogicalTime& time) const {
   std::shared_ptr<Revision> valueHolder = this->getTemplate();
   CHECK(valueHolder != nullptr);
@@ -125,4 +125,4 @@ int TableDataContainerBase::count(int key, const ValueType& value,
 
 }  // namespace map_api
 
-#endif  // MAP_API_TABLE_DATA_CONTAINER_BASE_INL_H_
+#endif  // MAP_API_CHUNK_DATA_CONTAINER_BASE_INL_H_
