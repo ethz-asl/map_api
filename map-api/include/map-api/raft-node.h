@@ -48,7 +48,6 @@
 #include <condition_variable>
 #include <mutex>
 #include <set>
-#include <string>  // remove later
 #include <thread>
 #include <utility>
 #include <vector>
@@ -85,6 +84,9 @@ class RaftNode {
   State state() const;
   inline PeerId self_id() const { return PeerId::self(); }
 
+  // Returns index of the appended entry if append succeeds, or zero otherwise
+  uint64_t appendLogEntry(uint32_t entry);
+
   static void staticHandleHeartbeat(const Message& request, Message* response);
   static void staticHandleRequestVote(const Message& request,
                                       Message* response);
@@ -95,7 +97,7 @@ class RaftNode {
   static const char kVoteResponse[];
 
  private:
-  FRIEND_TEST(ConsensusFixture, LeaderElection);
+  FRIEND_TEST(ConsensusFixture, DISABLED_LeaderElection);
   // TODO(aqurai) Only for test, will be removed later.
   inline void addPeerBeforeStart(PeerId peer) { peer_list_.insert(peer); }
 
@@ -128,9 +130,9 @@ class RaftNode {
   int sendRequestVote(const PeerId& peer, uint64_t term,
                       uint64_t last_log_index, uint64_t last_log_term);
 
-  // =====
-  // State
-  // =====
+  // ================
+  // State Management
+  // ================
 
   // State information.
   PeerId leader_id_;
@@ -143,10 +145,10 @@ class RaftNode {
   TimePoint last_heartbeat_;
   std::mutex last_heartbeat_mutex_;
 
-  void stateManagerThread();
   std::thread state_manager_thread_;  // Gets joined in destructor.
   std::atomic<bool> state_thread_running_;
   std::atomic<bool> is_exiting_;
+  void stateManagerThread();
 
   // ===============
   // Peer management
@@ -159,35 +161,34 @@ class RaftNode {
   // ===============
 
   std::atomic<int> election_timeout_;  // A random value between 50 and 150 ms.
+  static int setElectionTimeout();     // Set a random election timeout value.
   void conductElection();
-  void followerTracker(const PeerId& peer, uint64_t term);
 
   // Started when leadership is acquired. Gets killed when leadership is lost.
   std::vector<std::thread> follower_trackers_;
   std::atomic<bool> follower_trackers_run_;
   std::atomic<uint64_t> last_vote_request_term_;
-  static int setElectionTimeout();
+  void followerTrackerThread(const PeerId& peer, uint64_t term);
 
   // =====================
   // Log entries/revisions
   // =====================
-  /* Notes
-   * List Never to be deleted.
-   * final result will contain index
-   * Index will ALWAYS be sequential, unique
-   * leader will overwrite follower logs where index+term doesn't match.
-   * Presently sending all log entries to everyone, but later, just send latest
-   * revision and new log entries to new peers.
-   */
+  // Index will always be sequential, unique.
+  // Leader will overwrite follower logs where index+term doesn't match.
+  // Presently sending all log entries to everyone, but later, just send latest
+  // revision and new log entries to new peers.
+
   struct LogEntry {
     uint64_t index;
     uint64_t term;
     uint32_t entry;
-    uint replication_count;
+    std::set<PeerId> replicator_peers;
   };
+
+  // In Follower state, only handleAppendRequest writes to log_entries.
+  // In Leader state, only appendLogEntry writes to log entries.
   std::vector<LogEntry> log_entries_;
-  std::pair<uint64_t, uint64_t> final_result_;
-  uint64_t last_applied_index_;
+  std::pair<uint64_t, uint64_t> committed_result_;
   std::condition_variable new_entries_signal_;
   std::condition_variable entry_replicated_signal_;
   ReaderWriterMutex log_mutex_;
@@ -200,13 +201,10 @@ class RaftNode {
   };
 
   std::vector<LogEntry>::iterator getIteratorByIndex(uint64_t index);
-  uint64_t appendLogEntry(uint32_t entry);
-  uint64_t appendLogEntry(uint32_t entry, uint64_t term);
 
   // After a new entry is replicated on followers,
   // checks if some entries can be committed.
   void commitReplicatedEntries();
-  std::vector<std::string> loglog;
 };
 }  // namespace map_api
 
