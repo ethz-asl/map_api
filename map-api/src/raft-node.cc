@@ -127,10 +127,9 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
   bool sender_changed = (!leader_id_.isValid() || hb_sender != leader_id_ ||
                          request_term != current_term_);
 
-  // ===============================
-  // Check if the sender has changed
-  // ===============================
-
+  // ================================
+  // Check if the sender has changed.
+  // ================================
   if (sender_changed) {
     if (request_term > current_term_ ||
         (request_term == current_term_ && !leader_id_.isValid()) ||
@@ -174,9 +173,9 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
   }
   state_lock.unlock();
 
-  // ==============================
-  // Check if there are new entries
-  // ==============================
+  // ===============================
+  // Check if there are new entries.
+  // ===============================
   log_mutex_.acquireReadLock();
   append_response.set_lastlogindex(log_entries_.back().index);
   append_response.set_lastlogterm(log_entries_.back().term);
@@ -243,9 +242,9 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
     log_mutex_.releaseReadLock();
   }
 
-  // ==================================
-  // Check if new entries are committed
-  // ==================================
+  // ===================================
+  // Check if new entries are committed.
+  // ===================================
   log_mutex_.acquireReadLock();
   if (append_response.response() == proto::Response::SUCCESS &&
       commit_index_ < append_request.commitindex() &&
@@ -265,9 +264,8 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
     committed_result_ =
         std::make_pair(static_cast<uint64_t>(commit_index_), result);
     // TODO(aqurai): Remove later
-    VLOG_IF(1, commit_index_ % 50 == 0)
-        << PeerId::self() << ": Entry " << commit_index_
-        << " committed ***************************";
+    VLOG_IF(1, commit_index_ % 50 == 0) << PeerId::self() << ": Entry "
+                                        << commit_index_ << " committed *****";
     // TODO(aqurai): Remove check?
     CHECK(commit_index_ * 19 == committed_result_.second);
     log_mutex_.releaseWriteLock();
@@ -321,22 +319,6 @@ void RaftNode::handleRequestVote(const Message& request, Message* response) {
     last_heartbeat_ = std::chrono::system_clock::now();
   }
   election_timeout_ = setElectionTimeout();
-}
-
-bool RaftNode::sendHeartbeat(const PeerId& peer, uint64_t term) {
-  Message request, response;
-  proto::AppendEntriesRequest heartbeat;
-  heartbeat.set_term(term);
-  request.impose<kAppendEntries>(heartbeat);
-  if (Hub::instance().try_request(peer, &request, &response)) {
-    if (response.isOk())
-      return true;
-    else
-      return false;
-  } else {
-    VLOG(3) << "Heartbeat failed for peer " << peer.ipPort();
-    return false;
-  }
 }
 
 bool RaftNode::sendAppendEntries(
@@ -530,7 +512,6 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term) {
         CHECK(it != log_entries_.end());
         append_entries.set_newentry(it->entry);
         append_entries.set_newentryterm(it->term);
-        // TODO(aqurai): verify that (it-1) never throws an error.
         append_entries.set_previouslogindex((it - 1)->index);
         append_entries.set_previouslogterm((it - 1)->term);
       } else {
@@ -638,9 +619,8 @@ void RaftNode::commitReplicatedEntries() {
   log_mutex_.acquireReadLock();
   std::vector<LogEntry>::iterator it = getIteratorByIndex(commit_index_ + 1);
   if (it != log_entries_.end()) {
-    // Todo before commit - remove?
     if (!(it->replicator_peers.size() <= peer_list_.size())) {
-      LOG(ERROR) << "Replication count (" << it->replicator_peers.size()
+      LOG(FATAL) << "Replication count (" << it->replicator_peers.size()
                  << ") is higher than peer size (" << peer_list_.size()
                  << ") at peer " << PeerId::self() << " for entry index "
                  << commit_index_;
@@ -658,7 +638,6 @@ void RaftNode::commitReplicatedEntries() {
       }
       committed_result_ = std::make_pair(it->term, old_result + it->entry);
       log_mutex_.releaseWriteLock();
-
       return;
     }
   }
