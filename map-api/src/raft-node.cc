@@ -644,4 +644,26 @@ void RaftNode::commitReplicatedEntries() {
   log_mutex_.releaseReadLock();
 }
 
+uint64_t RaftNode::committed_result() const {
+  ScopedReadLock lock(&log_mutex_);
+  return committed_result_.second;
+}
+
+bool RaftNode::giveUpLeadership() {
+  std::unique_lock<std::mutex> lock(state_mutex_);
+  if (state_ == State::LEADER) {
+    follower_trackers_run_ = false;
+    entry_replicated_signal_.notify_all();
+    state_ = State::FOLLOWER;
+    lock.unlock();
+
+    std::unique_lock<std::mutex> heartbeat_lock(last_heartbeat_mutex_);
+    last_heartbeat_ = std::chrono::system_clock::now();
+    return true;
+  } else {
+    lock.unlock();
+    return false;
+  }
+}
+
 }  // namespace map_api

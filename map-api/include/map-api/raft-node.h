@@ -18,7 +18,7 @@
  *
  * PENDING: Handle peers who don't respond to vote rpc
  * PENDING: Values for timeout
- * PENDING: Addind and removing peers, handling non-responding peers
+ * PENDING: Adding and removing peers, handling non-responding peers
  * PENDING: Multiple raft instances managed by a manager class
  * PENDING: Remove the extra log messages
  */
@@ -79,9 +79,12 @@ class RaftNode {
   static const char kVoteResponse[];
 
  private:
-  FRIEND_TEST(ConsensusFixture, DISABLED_LeaderElection);
+  FRIEND_TEST(ConsensusFixture, LeaderElection);
   // TODO(aqurai) Only for test, will be removed later.
   inline void addPeerBeforeStart(PeerId peer) { peer_list_.insert(peer); }
+  uint64_t committed_result() const;
+  uint64_t commit_index() const { return static_cast<uint64_t>(commit_index_); }
+  bool giveUpLeadership();
 
   // Singleton class. There will be a singleton manager class later,
   // for managing multiple raft instances per peer.
@@ -172,7 +175,7 @@ class RaftNode {
   std::pair<uint64_t, uint64_t> committed_result_;
   std::condition_variable new_entries_signal_;
   std::condition_variable entry_replicated_signal_;
-  ReaderWriterMutex log_mutex_;
+  mutable ReaderWriterMutex log_mutex_;
 
   std::atomic<uint64_t> commit_index_;
 
