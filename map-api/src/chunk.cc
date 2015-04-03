@@ -8,11 +8,14 @@
 
 #include "./core.pb.h"
 #include "./chunk.pb.h"
+#include "map-api/chunk-data-ram-container.h"
+#include "map-api/chunk-data-stxxl-container.h"
 #include "map-api/hub.h"
 #include "map-api/message.h"
 #include "map-api/net-table-manager.h"
 #include "map-api/revision-map.h"
 
+DEFINE_bool(use_external_memory, false, "STXXL vs. RAM data container.");
 enum UnlockStrategy {
   REVERSE,
   FORWARD,
@@ -49,27 +52,32 @@ MAP_API_PROTO_MESSAGE(Chunk::kUpdateRequest, proto::PatchRequest);
 
 const char Chunk::kLockSequenceFile[] = "meas_lock_sequence.txt";
 
-template<>
+template <>
 void Chunk::fillMetadata<proto::ChunkRequestMetadata>(
-    proto::ChunkRequestMetadata* destination) {
+    proto::ChunkRequestMetadata* destination) const {
   CHECK_NOTNULL(destination);
-  destination->set_table(table_data_container_->name());
+  destination->set_table(data_container_->name());
   id().serialize(destination->mutable_chunk_id());
 }
 
-bool Chunk::init(const common::Id& id, TableDataContainerBase* underlying_table,
-                 bool initialize) {
-  CHECK_NOTNULL(underlying_table);
+bool Chunk::init(const common::Id& id,
+                 std::shared_ptr<TableDescriptor> descriptor, bool initialize) {
+  CHECK(descriptor);
   id_ = id;
-  table_data_container_ = underlying_table;
+  if (FLAGS_use_external_memory) {
+    data_container_.reset(new ChunkDataStxxlContainer);
+  } else {
+    data_container_.reset(new ChunkDataRamContainer);
+  }
+  CHECK(data_container_->init(descriptor));
   initialized_ = initialize;
   return true;
 }
 
 bool Chunk::init(const common::Id& id, const proto::InitRequest& init_request,
                  const PeerId& sender,
-                 TableDataContainerBase* table_data_container) {
-  CHECK(init(id, table_data_container, false));
+                 std::shared_ptr<TableDescriptor> descriptor) {
+  CHECK(init(id, descriptor, false));
   CHECK_GT(init_request.peer_address_size(), 0);
   for (int i = 0; i < init_request.peer_address_size(); ++i) {
     peers_.add(PeerId(init_request.peer_address(i)));
@@ -85,7 +93,7 @@ bool Chunk::init(const common::Id& id, const proto::InitRequest& init_request,
       std::shared_ptr<Revision> data =
           Revision::fromProto(std::unique_ptr<proto::Revision>(
               history_proto.mutable_revisions()->ReleaseLast()));
-      CHECK(table_data_container->patch(data));
+      CHECK(data_container_->patch(data));
       // TODO(tcies) guarantee order, then only sync latest time
       syncLatestCommitTime(*data);
     }
@@ -103,13 +111,13 @@ bool Chunk::init(const common::Id& id, const proto::InitRequest& init_request,
 void Chunk::dumpItems(const LogicalTime& time, ConstRevisionMap* items) {
   CHECK_NOTNULL(items);
   distributedReadLock();
-  table_data_container_->dumpChunk(id(), time, items);
+  data_container_->dump(time, items);
   distributedUnlock();
 }
 
 size_t Chunk::numItems(const LogicalTime& time) {
   distributedReadLock();
-  size_t result = table_data_container_->countByChunk(id(), time);
+  size_t result = data_container_->numAvailableIds(time);
   distributedUnlock();
   return result;
 }
@@ -117,7 +125,7 @@ size_t Chunk::numItems(const LogicalTime& time) {
 size_t Chunk::itemsSizeBytes(const LogicalTime& time) {
   ConstRevisionMap items;
   distributedReadLock();
-  table_data_container_->dumpChunk(id(), time, &items);
+  data_container_->dump(time, &items);
   distributedUnlock();
   size_t num_bytes = 0;
   for (const std::pair<common::Id,
@@ -139,11 +147,11 @@ void Chunk::getCommitTimes(const LogicalTime& sample_time,
   //  so this should be worth it.
   std::unordered_set<LogicalTime> unordered_commit_times;
   ConstRevisionMap items;
-  TableDataContainerBase::HistoryMap histories;
+  ChunkDataContainerBase::HistoryMap histories;
   distributedReadLock();
-  table_data_container_->chunkHistory(id(), sample_time, &histories);
+  data_container_->chunkHistory(id(), sample_time, &histories);
   distributedUnlock();
-  for (const TableDataContainerBase::HistoryMap::value_type& history :
+  for (const ChunkDataContainerBase::HistoryMap::value_type& history :
        histories) {
     for (const std::shared_ptr<const Revision>& revision : history.second) {
       unordered_commit_times.insert(revision->getUpdateTime());
@@ -161,7 +169,7 @@ bool Chunk::insert(const LogicalTime& time,
   fillMetadata(&insert_request);
   Message request;
   distributedReadLock();  // avoid adding of new peers while inserting
-  table_data_container_->insert(time, item);
+  data_container_->insert(time, item);
   // at this point, insert() has modified the revision such that all default
   // fields are also set, which allows remote peers to just patch the revision
   // into their table.
@@ -225,14 +233,37 @@ void Chunk::triggerWrapper(const std::unordered_set<common::Id>&& insertions,
 
 void Chunk::writeLock() { distributedWriteLock(); }
 
-void Chunk::readLock() { distributedReadLock(); }
+void Chunk::readLock() const { distributedReadLock(); }
 
 bool Chunk::isLocked() {
   std::lock_guard<std::mutex> metalock(lock_.mutex);
   return isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id();
 }
 
-void Chunk::unlock() { distributedUnlock(); }
+void Chunk::unlock() const { distributedUnlock(); }
+
+Chunk::MutableDataAccess::MutableDataAccess(Chunk* chunk)
+    : chunk_(CHECK_NOTNULL(chunk)) {
+  chunk->writeLock();
+}
+
+Chunk::MutableDataAccess::~MutableDataAccess() { chunk_->unlock(); }
+
+ChunkDataContainerBase& Chunk::MutableDataAccess::operator->() {
+  return *chunk_->data_container_;
+}
+
+Chunk::ConstDataAccess::ConstDataAccess(const Chunk& chunk) : chunk_(chunk) {
+  chunk.readLock();
+}
+
+Chunk::ConstDataAccess::~ConstDataAccess() { chunk_.unlock(); }
+
+const ChunkDataContainerBase* Chunk::ConstDataAccess::operator->() const {
+  CHECK(chunk_.initialized_);
+  CHECK(chunk_.data_container_);
+  return chunk_.data_container_.get();
+}
 
 // not expressing in terms of the peer-specifying overload in order to avoid
 // unnecessary distributed lock and unlocks
@@ -270,7 +301,7 @@ void Chunk::update(const std::shared_ptr<Revision>& item) {
   fillMetadata(&update_request);
   Message request;
   distributedWriteLock();  // avoid adding of new peers while inserting
-  table_data_container_->update(LogicalTime::sample(), item);
+  data_container_->update(LogicalTime::sample(), item);
   // at this point, update() has modified the revision such that all default
   // fields are also set, which allows remote peers to just patch the revision
   // into their table.
@@ -314,7 +345,7 @@ void Chunk::bulkInsertLocked(const MutableRevisionMap& items,
     ++i;
   }
   Message request;
-  table_data_container_->bulkInsert(time, items);
+  data_container_->bulkInsert(time, items);
   // at this point, insert() has modified the revisions such that all default
   // fields are also set, which allows remote peers to just patch the revision
   // into their table.
@@ -336,7 +367,7 @@ void Chunk::updateLocked(const LogicalTime& time,
   proto::PatchRequest update_request;
   fillMetadata(&update_request);
   Message request;
-  table_data_container_->update(time, item);
+  data_container_->update(time, item);
   // at this point, update() has modified the revision such that all default
   // fields are also set, which allows remote peers to just patch the revision
   // into their table.
@@ -352,7 +383,7 @@ void Chunk::removeLocked(const LogicalTime& time,
   proto::PatchRequest remove_request;
   fillMetadata(&remove_request);
   Message request;
-  table_data_container_->remove(time, item);
+  data_container_->remove(time, item);
   // at this point, update() has modified the revision such that all default
   // fields are also set, which allows remote peers to just patch the revision
   // into their table.
@@ -429,7 +460,7 @@ size_t Chunk::addAllPeers() {
   return count;
 }
 
-void Chunk::distributedReadLock() {
+void Chunk::distributedReadLock() const {
   if (log_locking_) {
     startState(READ_ATTEMPT);
   }
@@ -552,7 +583,7 @@ void Chunk::distributedWriteLock() {
   }
 }
 
-void Chunk::distributedUnlock() {
+void Chunk::distributedUnlock() const {
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   switch (lock_.state) {
     case DistributedRWLock::State::UNLOCKED: {
@@ -657,16 +688,16 @@ void Chunk::distributedUnlock() {
   metalock.unlock();
 }
 
-bool Chunk::isWriter(const PeerId& peer) {
+bool Chunk::isWriter(const PeerId& peer) const {
   return (lock_.state == DistributedRWLock::State::WRITE_LOCKED &&
       lock_.holder == peer);
 }
 
 void Chunk::initRequestSetData(proto::InitRequest* request) {
   CHECK_NOTNULL(request);
-  TableDataContainerBase::HistoryMap data;
-  table_data_container_->chunkHistory(id(), LogicalTime::sample(), &data);
-  for (const TableDataContainerBase::HistoryMap::value_type& data_pair : data) {
+  ChunkDataContainerBase::HistoryMap data;
+  data_container_->chunkHistory(id(), LogicalTime::sample(), &data);
+  for (const ChunkDataContainerBase::HistoryMap::value_type& data_pair : data) {
     proto::History history_proto;
     for (const std::shared_ptr<const Revision>& revision : data_pair.second) {
       history_proto.mutable_revisions()->AddAllocated(
@@ -762,7 +793,7 @@ void Chunk::handleInsertRequest(const std::shared_ptr<Revision>& item,
     std::lock_guard<std::mutex> metalock(lock_.mutex);
     CHECK(!isWriter(PeerId::self()));
   }
-  table_data_container_->patch(item);
+  data_container_->patch(item);
   syncLatestCommitTime(*item);
   response->ack();
   leave_lock_.releaseReadLock();
@@ -898,7 +929,7 @@ void Chunk::handleUpdateRequest(const std::shared_ptr<Revision>& item,
     std::lock_guard<std::mutex> metalock(lock_.mutex);
     CHECK(isWriter(sender));
   }
-  table_data_container_->patch(item);
+  data_container_->patch(item);
   syncLatestCommitTime(*item);
   response->ack();
 
@@ -913,7 +944,7 @@ void Chunk::awaitInitialized() const {
   }
 }
 
-void Chunk::startState(LockState new_state) {
+void Chunk::startState(LockState new_state) const {
   // only log main thread
   if (std::this_thread::get_id() == main_thread_id_) {
     switch (new_state) {
