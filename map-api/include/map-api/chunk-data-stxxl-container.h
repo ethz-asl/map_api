@@ -1,18 +1,18 @@
-#ifndef MAP_API_TABLE_DATA_STXXL_CONTAINER_H_
-#define MAP_API_TABLE_DATA_STXXL_CONTAINER_H_
+#ifndef MAP_API_CHUNK_DATA_STXXL_CONTAINER_H_
+#define MAP_API_CHUNK_DATA_STXXL_CONTAINER_H_
 
 #include <list>
 #include <vector>
 
+#include "map-api/chunk-data-container-base.h"
 #include "map-api/stxxl-revision-store.h"
-#include "map-api/table-data-container-base.h"
 
 namespace map_api {
 
-class TableDataStxxlContainer : public TableDataContainerBase {
+class ChunkDataStxxlContainer : public ChunkDataContainerBase {
  public:
-  TableDataStxxlContainer();
-  virtual ~TableDataStxxlContainer();
+  ChunkDataStxxlContainer();
+  virtual ~ChunkDataStxxlContainer();
 
  private:
   virtual bool initImpl() final override;
@@ -23,9 +23,6 @@ class TableDataStxxlContainer : public TableDataContainerBase {
       final override;
   virtual std::shared_ptr<const Revision> getByIdImpl(
       const common::Id& id, const LogicalTime& time) const final override;
-  virtual void dumpChunkImpl(const common::Id& chunk_id,
-                             const LogicalTime& time,
-                             ConstRevisionMap* dest) const final override;
   virtual void findByRevisionImpl(int key, const Revision& valueHolder,
                                   const LogicalTime& time,
                                   ConstRevisionMap* dest) const final override;
@@ -34,9 +31,6 @@ class TableDataStxxlContainer : public TableDataContainerBase {
   virtual void getAvailableIdsImpl(const LogicalTime& time,
                                    std::vector<common::Id>* ids) const
       final override;
-  virtual int countByChunkImpl(const common::Id& chunk_id,
-                               const LogicalTime& time) const final override;
-
   virtual bool insertUpdatedImpl(const std::shared_ptr<Revision>& query)
       final override;
   virtual void findHistoryByRevisionImpl(int key, const Revision& valueHolder,
@@ -78,4 +72,4 @@ class TableDataStxxlContainer : public TableDataContainerBase {
 
 }  // namespace map_api
 
-#endif  // MAP_API_TABLE_DATA_STXXL_CONTAINER_H_
+#endif  // MAP_API_CHUNK_DATA_STXXL_CONTAINER_H_
