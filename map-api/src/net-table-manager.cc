@@ -95,14 +95,14 @@ void NetTableManager::initMetatable(bool create_metatable_chunk) {
   inserted.first->second.reset(new NetTable);
   NetTable* metatable = inserted.first->second.get();
   // 2. INITIALIZATION OF STRUCTURE
-  std::unique_ptr<TableDescriptor> metatable_descriptor(new TableDescriptor);
+  std::shared_ptr<TableDescriptor> metatable_descriptor(new TableDescriptor);
   metatable_descriptor->setName(kMetaTableName);
   metatable_descriptor->addField<std::string>(kMetaTableNameField);
   metatable_descriptor->addField<proto::TableDescriptor>(
       kMetaTableStructureField);
   metatable_descriptor->addField<proto::PeerList>(kMetaTableParticipantsField);
   metatable_descriptor->addField<proto::PeerList>(kMetaTableListenersField);
-  metatable->init(&metatable_descriptor);
+  metatable->init(metatable_descriptor);
   tables_lock_.releaseWriteLock();
   // 3. INITIALIZATION OF INDEX
   // outside of table lock to avoid deadlock
@@ -138,14 +138,13 @@ void NetTableManager::initMetatable(bool create_metatable_chunk) {
 }
 
 NetTable* NetTableManager::addTable(
-    std::unique_ptr<TableDescriptor>* descriptor) {
-  CHECK_NOTNULL(descriptor);
-  CHECK(*descriptor);
-  TableDescriptor* descriptor_raw = descriptor->get();  // needed later
+    std::shared_ptr<TableDescriptor> descriptor) {
+  CHECK(descriptor);
+  TableDescriptor* descriptor_raw = descriptor.get();  // needed later
 
   // Create NetTable if not already there.
   tables_lock_.acquireWriteLock();
-  TableMap::iterator found = tables_.find((*descriptor)->name());
+  TableMap::iterator found = tables_.find(descriptor->name());
   if (found != tables_.end()) {
     LOG(WARNING) << "Table already defined! Checking consistency...";
     std::unique_ptr<NetTable> temp(new NetTable);
@@ -157,7 +156,7 @@ NetTable* NetTableManager::addTable(
     // Storing as a pointer as NetTable memory position must not shift around
     // in memory.
     std::pair<TableMap::iterator, bool> inserted = tables_.insert(
-        std::make_pair((*descriptor)->name(), std::unique_ptr<NetTable>()));
+        std::make_pair(descriptor->name(), std::unique_ptr<NetTable>()));
     CHECK(inserted.second) << tables_.size();
     inserted.first->second.reset(new NetTable);
     CHECK(inserted.first->second->init(descriptor));
@@ -511,13 +510,11 @@ bool NetTableManager::syncTableDefinition(const TableDescriptor& descriptor,
 bool NetTableManager::findTable(const std::string& table_name,
                                 TableMap::iterator* found) {
   CHECK_NOTNULL(found);
-  instance().tables_lock_.acquireReadLock();
+  ScopedReadLock lock(&instance().tables_lock_);
   *found = instance().tables_.find(table_name);
   if (*found == instance().tables_.end()) {
-    instance().tables_lock_.releaseReadLock();
     return false;
   }
-  instance().tables_lock_.releaseReadLock();
   return true;
 }
 

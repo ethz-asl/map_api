@@ -1,15 +1,15 @@
-#ifndef MAP_API_TABLE_DATA_RAM_CONTAINER_H_
-#define MAP_API_TABLE_DATA_RAM_CONTAINER_H_
+#ifndef MAP_API_CHUNK_DATA_RAM_CONTAINER_H_
+#define MAP_API_CHUNK_DATA_RAM_CONTAINER_H_
 
 #include <vector>
 
-#include "map-api/table-data-container-base.h"
+#include "map-api/chunk-data-container-base.h"
 
 namespace map_api {
 
-class TableDataRamContainer : public TableDataContainerBase {
+class ChunkDataRamContainer : public ChunkDataContainerBase {
  public:
-  virtual ~TableDataRamContainer();
+  virtual ~ChunkDataRamContainer();
 
  private:
   virtual bool initImpl() final override;
@@ -20,9 +20,6 @@ class TableDataRamContainer : public TableDataContainerBase {
       final override;
   virtual std::shared_ptr<const Revision> getByIdImpl(
       const common::Id& id, const LogicalTime& time) const final override;
-  virtual void dumpChunkImpl(const common::Id& chunk_id,
-                             const LogicalTime& time,
-                             ConstRevisionMap* dest) const final override;
   virtual void findByRevisionImpl(int key, const Revision& valueHolder,
                                   const LogicalTime& time,
                                   ConstRevisionMap* dest) const final override;
@@ -31,8 +28,6 @@ class TableDataRamContainer : public TableDataContainerBase {
   virtual void getAvailableIdsImpl(const LogicalTime& time,
                                    std::vector<common::Id>* ids) const
       final override;
-  virtual int countByChunkImpl(const common::Id& chunk_id,
-                               const LogicalTime& time) const final override;
 
   virtual bool insertUpdatedImpl(const std::shared_ptr<Revision>& query)
       final override;
@@ -60,4 +55,4 @@ class TableDataRamContainer : public TableDataContainerBase {
 
 }  // namespace map_api
 
-#endif  // MAP_API_TABLE_DATA_RAM_CONTAINER_H_
+#endif  // MAP_API_CHUNK_DATA_RAM_CONTAINER_H_
