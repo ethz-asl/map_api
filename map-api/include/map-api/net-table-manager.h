@@ -31,7 +31,7 @@ class NetTableManager {
   void initMetatable(bool create_metatable_chunk);
 
   NetTable* __attribute__((warn_unused_result))
-      addTable(std::unique_ptr<TableDescriptor>* descriptor);
+      addTable(std::shared_ptr<TableDescriptor> descriptor);
   /**
    * Can leave dangling reference
    */
