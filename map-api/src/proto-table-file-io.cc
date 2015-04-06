@@ -5,9 +5,9 @@
 #include <google/protobuf/io/gzip_stream.h>
 #include <google/protobuf/io/zero_copy_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <map-api/chunk-data-container-base.h>
 
 #include <map-api/chunk-manager.h>
-#include <map-api/table-data-container-base.h>
 #include <map-api/transaction.h>
 
 namespace map_api {

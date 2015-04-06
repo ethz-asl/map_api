@@ -70,10 +70,10 @@ class SpatialIndexTest : public MapApiFixture {
 
   virtual void SetUp() {
     MultiprocessFixture::SetUp();
-    std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
+    std::shared_ptr<TableDescriptor> descriptor(new TableDescriptor);
     descriptor->setName(kTableName);
     descriptor->addField<int>(kFieldName);
-    table_ = NetTableManager::instance().addTable(&descriptor);
+    table_ = NetTableManager::instance().addTable(descriptor);
 
     generateIdFromInt(1, &chunk_a_id_);
     generateIdFromInt(2, &chunk_b_id_);
@@ -284,8 +284,7 @@ class SpatialIndexListenToSpaceTest : public SpatialIndexTwoPeerTest {
   }
 
   virtual void afterSlaveTask() {
-    // TODO(tcies) Implement waitForTriggerCompletion() like in Chunk.
-    usleep(10000);  // Leave time for trigger completion.
+    sleep(1);  // Leave time for slave triggers to reach us.
     EXPECT_TRUE(checkExpectedActive(expected_a_));
   }
 };

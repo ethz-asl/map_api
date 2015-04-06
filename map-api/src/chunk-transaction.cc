@@ -16,7 +16,7 @@ ChunkTransaction::ChunkTransaction(const LogicalTime& begin_time, Chunk* chunk,
   CHECK(begin_time < LogicalTime::sample());
   insertions_.clear();
   updates_.clear();
-  structure_reference_ = chunk_->table_data_container_->getTemplate();
+  structure_reference_ = chunk_->data_container_->getTemplate();
 }
 
 void ChunkTransaction::dumpChunk(ConstRevisionMap* result) {
@@ -77,7 +77,7 @@ bool ChunkTransaction::check() {
   for (const std::pair<const common::Id,
       std::shared_ptr<const Revision> >& item : insertions_) {
     if (stamps.find(item.first) != stamps.end()) {
-      LOG(ERROR) << "Table " << chunk_->table_data_container_->name()
+      LOG(ERROR) << "Table " << chunk_->data_container_->name()
                  << " already contains id " << item.first;
       return false;
     }
@@ -96,8 +96,8 @@ bool ChunkTransaction::check() {
   }
   for (const ChunkTransaction::ConflictCondition& item : conflict_conditions_) {
     ConstRevisionMap dummy;
-    chunk_->table_data_container_->findByRevision(
-        item.key, *item.value_holder, LogicalTime::sample(), &dummy);
+    chunk_->data_container_->findByRevision(item.key, *item.value_holder,
+                                            LogicalTime::sample(), &dummy);
     if (!dummy.empty()) {
       return false;
     }
@@ -176,7 +176,7 @@ void ChunkTransaction::prepareCheck(
   ConstRevisionMap contents;
   // same as "chunk_->dumpItems(LogicalTime::sample(), &contents);" without the
   // locking (because that is already done)
-  chunk_->table_data_container_->dumpChunk(chunk_->id(), check_time, &contents);
+  chunk_->data_container_->dump(check_time, &contents);
   LogicalTime time;
   if (!updates_.empty()) {
     for (const ConstRevisionMap::value_type& item : contents) {
