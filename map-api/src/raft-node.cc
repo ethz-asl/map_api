@@ -636,7 +636,7 @@ void RaftNode::commitReplicatedEntries() {
       if (!log_mutex_.upgradeToWriteLock()) {
         log_mutex_.acquireWriteLock();
       }
-      committed_result_ = std::make_pair(it->term, old_result + it->entry);
+      committed_result_ = std::make_pair(it->index, old_result + it->entry);
       log_mutex_.releaseWriteLock();
       return;
     }
