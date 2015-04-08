@@ -18,7 +18,7 @@
  *
  * PENDING: Handle peers who don't respond to vote rpc
  * PENDING: Values for timeout
- * PENDING: Addind and removing peers, handling non-responding peers
+ * PENDING: Adding and removing peers, handling non-responding peers
  * PENDING: Multiple raft instances managed by a manager class
  * PENDING: Remove the extra log messages
  */
@@ -42,7 +42,6 @@
 
 namespace map_api {
 class Message;
-class ReaderWriterMutex;
 
 // Implementation of Raft consensus algorithm presented here:
 // https://raftconsensus.github.io, http://ramcloud.stanford.edu/raft.pdf
@@ -79,7 +78,7 @@ class RaftNode {
   static const char kVoteResponse[];
 
  private:
-  FRIEND_TEST(ConsensusFixture, DISABLED_LeaderElection);
+  FRIEND_TEST(ConsensusFixture, LeaderElection);
   // TODO(aqurai) Only for test, will be removed later.
   inline void addPeerBeforeStart(PeerId peer) { peer_list_.insert(peer); }
 
@@ -100,7 +99,7 @@ class RaftNode {
   // RPCs for heartbeat, leader election, log replication
   // ====================================================
   bool sendAppendEntries(const PeerId& peer,
-                         proto::AppendEntriesRequest& append_entries,
+                         const proto::AppendEntriesRequest& append_entries,
                          proto::AppendEntriesResponse* append_response);
 
   enum {
@@ -141,7 +140,7 @@ class RaftNode {
   // Leader election
   // ===============
 
-  std::atomic<int> election_timeout_;  // A random value between 50 and 150 ms.
+  std::atomic<int> election_timeout_ms_;  // A random value between 50 and 150 ms.
   static int setElectionTimeout();     // Set a random election timeout value.
   void conductElection();
 
@@ -176,6 +175,7 @@ class RaftNode {
 
   std::atomic<uint64_t> commit_index_;
 
+  // Assumes at least read lock is acquired for log_mutex_
   std::vector<LogEntry>::iterator getIteratorByIndex(uint64_t index);
 
   // After a new entry is replicated on followers,
