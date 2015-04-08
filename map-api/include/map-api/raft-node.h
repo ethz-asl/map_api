@@ -72,14 +72,17 @@ class RaftNode {
   static void staticHandleHeartbeat(const Message& request, Message* response);
   static void staticHandleRequestVote(const Message& request,
                                       Message* response);
+  static void staticHandleAddRemovePeer(const Message& request,
+                                        Message* response);
 
   static const char kAppendEntries[];
   static const char kAppendEntriesResponse[];
   static const char kVoteRequest[];
   static const char kVoteResponse[];
+  static const char kAddRemovePeer[];
 
  private:
-  FRIEND_TEST(ConsensusFixture, DISABLED_LeaderElection);
+  FRIEND_TEST(ConsensusFixture, LeaderElection);
   // TODO(aqurai) Only for test, will be removed later.
   inline void addPeerBeforeStart(PeerId peer) { peer_list_.insert(peer); }
 
@@ -95,6 +98,7 @@ class RaftNode {
   // ========
   void handleAppendRequest(const Message& request, Message* response);
   void handleRequestVote(const Message& request, Message* response);
+  void handleAddRemovePeer(const Message& request, Message* response);
 
   // ====================================================
   // RPCs for heartbeat, leader election, log replication
@@ -110,6 +114,9 @@ class RaftNode {
   };
   int sendRequestVote(const PeerId& peer, uint64_t term,
                       uint64_t last_log_index, uint64_t last_log_term);
+
+  bool sendAddPeer(const PeerId& peer, const PeerId& new_peer_id);
+  bool sendRemovePeer(const PeerId& peer, const PeerId& new_peer_id);
 
   // ================
   // State Management
