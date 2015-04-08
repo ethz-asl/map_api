@@ -13,7 +13,7 @@
 
 namespace map_api {
 
-TEST_F(ConsensusFixture, LeaderElection) {
+TEST_F(ConsensusFixture, DISABLED_LeaderElection) {
   const uint64_t kProcesses = 5;
   enum Barriers {
     INIT,

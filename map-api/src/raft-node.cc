@@ -133,7 +133,8 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
         (request_term < current_term_ && !leader_id_.isValid() &&
          is_sender_log_newer)) {
       // Update state and leader info if another leader with newer term is found
-      // or, if a leader is found when a there isn't a known one.
+      // or, if a leader is found when a there isn't a known one. The new leader
+      // should either have same/higher term or more updated log.
       current_term_ = request_term;
       leader_id_ = request_sender;
       if (state_ == State::LEADER) {
@@ -244,11 +245,11 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
   // Check if new entries are committed.
   // ===================================
   log_mutex_.acquireReadLock();
+  CHECK_LE(commit_index_, log_entries_.back().index);
   if (append_response.response() == proto::Response::SUCCESS &&
       commit_index_ < append_request.commitindex() &&
       commit_index_ < log_entries_.back().index) {
     std::vector<LogEntry>::iterator it = getIteratorByIndex(commit_index_);
-    CHECK(it->index == commit_index_);
     commit_index_ =
         std::min(log_entries_.back().index, append_request.commitindex());
     uint64_t result = committed_result_.second;
@@ -620,6 +621,7 @@ void RaftNode::commitReplicatedEntries() {
     if (it->replicator_peers.size() > peer_list_.size() / 2) {
       // Replicated on more than half of the peers.
       ++commit_index_;
+      CHECK_LE(commit_index_, log_entries_.back().index);
       VLOG_IF(1, commit_index_ % 10 == 0)
           << PeerId::self() << ": Commit index increased to " << commit_index_
           << " With replication count " << it->replicator_peers.size()
