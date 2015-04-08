@@ -11,6 +11,7 @@
 
 #include <multiagent-mapping-common/unique-id.h>
 
+#include "map-api/chunk-data-container-base.h"
 #include "map-api/logical-time.h"
 #include "map-api/peer-handler.h"
 #include "map-api/reader-writer-lock.h"
@@ -21,7 +22,6 @@ class ConstRevisionMap;
 class Message;
 class MutableRevisionMap;
 class Revision;
-class TableDataContainerBase;
 
 /**
  * A chunk is the smallest unit of data sharing among the map_api peers. Each
@@ -57,10 +57,10 @@ class Chunk {
                              const common::IdSet& updates)> TriggerCallback;
 
  public:
-  bool init(const common::Id& id, TableDataContainerBase* underlying_table,
+  bool init(const common::Id& id, std::shared_ptr<TableDescriptor> descriptor,
             bool initialize);
   bool init(const common::Id& id, const proto::InitRequest& request,
-            const PeerId& sender, TableDataContainerBase* underlying_table);
+            const PeerId& sender, std::shared_ptr<TableDescriptor> descriptor);
 
   inline common::Id id() const;
 
@@ -77,13 +77,39 @@ class Chunk {
 
   void enableLockLogging();
 
+  // Non-const intended to avoid accidental write-lock while reading.
   void writeLock();
 
-  void readLock();
+  void readLock() const;
 
   bool isLocked();
 
-  void unlock();
+  void unlock() const;
+
+  class MutableDataAccess {
+   public:
+    explicit MutableDataAccess(Chunk* chunk);
+    ~MutableDataAccess();
+
+    ChunkDataContainerBase& operator->();
+
+   private:
+    Chunk* chunk_;
+  };
+
+  class ConstDataAccess {
+   public:
+    explicit ConstDataAccess(const Chunk& chunk);
+    ~ConstDataAccess();
+
+    const ChunkDataContainerBase* operator->() const;
+
+   private:
+    const Chunk& chunk_;
+  };
+
+  inline MutableDataAccess mutableData() { return MutableDataAccess(this); }
+  inline ConstDataAccess constData() const { return ConstDataAccess(*this); }
 
   /**
    * Requests all peers in MapApiHub to participate in a given chunk.
@@ -177,14 +203,15 @@ class Chunk {
    * defers distributed write lock requests until unlocking or denies them
    * altogether.
    */
-  void distributedReadLock();
+  void distributedReadLock() const;
 
+  // Non-const intended to avoid accidental write-lock while reading.
   void distributedWriteLock();
 
-  void distributedUnlock();
+  void distributedUnlock() const;
 
   template <typename RequestType>
-  void fillMetadata(RequestType* destination);
+  void fillMetadata(RequestType* destination) const;
 
   /**
    * Returns true iff lock status is WRITE_LOCKED and lock holder is self.
@@ -193,7 +220,7 @@ class Chunk {
    * context where that lock is already acquired, and recursive_mutex isn't
    * compatible with conditional_variable)
    */
-  bool isWriter(const PeerId& peer);
+  bool isWriter(const PeerId& peer) const;
 
   void initRequestSetData(proto::InitRequest* request);
   void initRequestSetPeers(proto::InitRequest* request);
@@ -231,15 +258,15 @@ class Chunk {
 
   common::Id id_;
   PeerHandler peers_;
-  TableDataContainerBase* table_data_container_;
-  DistributedRWLock lock_;
+  std::unique_ptr<ChunkDataContainerBase> data_container_;
+  mutable DistributedRWLock lock_;
   std::vector<std::function<
       void(const std::unordered_set<common::Id>& insertions,
            const std::unordered_set<common::Id>& updates)>> triggers_;
   std::mutex trigger_mutex_;
   ReaderWriterMutex triggers_are_active_while_has_readers_;
   std::unordered_set<common::Id> trigger_insertions_, trigger_updates_;
-  std::mutex add_peer_mutex_;
+  mutable std::mutex add_peer_mutex_;
   ReaderWriterMutex leave_lock_;
   volatile bool initialized_ = false;
   volatile bool relinquished_ = false;
@@ -255,13 +282,13 @@ class Chunk {
     WRITE_ATTEMPT,
     WRITE_SUCCESS
   };
-  LockState current_state_;
+  mutable LockState current_state_;
   typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
-  TimePoint current_state_start_;
+  mutable TimePoint current_state_start_;
   TimePoint global_start_;
   std::thread::id main_thread_id_;
 
-  void startState(LockState new_state);
+  void startState(LockState new_state) const;
   void logStateDuration(LockState state, const TimePoint& start,
                         const TimePoint& end) const;
 };
