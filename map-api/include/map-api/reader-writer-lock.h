@@ -79,6 +79,9 @@ class ReaderWriterMutex {
     pending_upgrade_ = false;
     --num_readers_;
     current_writer_ = true;
+    if (num_readers_ == 0) {
+      cv_readers.notify_all();
+    }
     return true;
   }
 };
