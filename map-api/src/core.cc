@@ -61,6 +61,12 @@ void Core::kill() {
   initialized_ = false;  // TODO(tcies) re-order?
 }
 
+void Core::killOnceShared() {
+  table_manager_.killOnceShared();
+  hub_.kill();
+  initialized_ = false;
+}
+
 Core::~Core() {
   CHECK(initialized_mutex_.try_lock());
   if (initialized_) {

@@ -34,6 +34,11 @@ class Core final {
    * own address from discovery file.
    */
   void kill();
+  /**
+   * Same as kill, but makes sure each chunk has at least one other peer. Use
+   * this only if you are sure that your data will be picked up by other peers.
+   */
+  void killOnceShared();
 
   // NetTableManager& tableManager();
   // const NetTableManager& tableManager() const;

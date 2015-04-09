@@ -229,6 +229,7 @@ class Chunk {
   inline void syncLatestCommitTime(const Revision& item);
 
   void leave();  // May only be used by NetTable.
+  void leaveOnceShared();  // Make sure to have at least one peer left.
 
   void triggerWrapper(const std::unordered_set<common::Id>&& insertions,
                       const std::unordered_set<common::Id>&& updates);

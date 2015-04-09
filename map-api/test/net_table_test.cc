@@ -339,6 +339,64 @@ TEST_F(NetTableFixture, ListenToNewPeersOfTable) {
   }
 }
 
+class LeaveOnceSharedTest : public NetTableFixture {
+ public:
+  virtual void TearDownImpl() override {
+    if (getSubprocessId() == 0) {
+      map_api::Core::instance()->kill();
+    } else {
+      map_api::Core::instance()->killOnceShared();
+    }
+  }
+};
+
+// This actually doesn't require the slave to run killOnceShared(), as the
+// chunk is fully shared inside the newChunk() call, but let's keep this here
+// in case things are redesigned in the future.
+TEST_F(LeaveOnceSharedTest, LeaveOnceSharedListening) {
+  enum Processes {
+    MASTER,
+    SLAVE
+  };
+  if (getSubprocessId() == MASTER) {
+    // Currently, it is only possible to listen to peers joining the table
+    // in the future.
+    NetTableManager::instance().listenToPeersJoiningTable(table_->name());
+    launchSubprocess(SLAVE);
+    usleep(50000);  // Should suffice for auto-fetching.
+    EXPECT_EQ(1u, table_->numActiveChunks());
+  }
+  if (getSubprocessId() == SLAVE) {
+    table_->newChunk();
+  }
+}
+
+TEST_F(LeaveOnceSharedTest, LeaveOnceSharedRequesting) {
+  enum Processes {
+    MASTER,
+    SLAVE
+  };
+  enum Barriers {
+    ID_SHARED
+  };
+  if (getSubprocessId() == MASTER) {
+    // Currently, it is only possible to listen to peers joining the table
+    // in the future.
+    launchSubprocess(SLAVE);
+    IPC::barrier(ID_SHARED, 1);
+    chunk_id_ = IPC::pop<common::Id>();
+    table_->getChunk(chunk_id_);
+    EXPECT_EQ(1u, table_->numActiveChunks());
+    // Avoid situation where slave remains being last peer of some chunk after
+    // all.
+    usleep(50000);
+  }
+  if (getSubprocessId() == SLAVE) {
+    IPC::push(table_->newChunk()->id());
+    IPC::barrier(ID_SHARED, 1);
+  }
+}
+
 class NetTableChunkTrackingTest : public NetTableFixture {
  protected:
   enum Processes {
