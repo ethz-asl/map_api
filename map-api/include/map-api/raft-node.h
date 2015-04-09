@@ -12,6 +12,16 @@
  *    peers and not others.
  * - No malicious peers!
  *
+ * -------------------------
+ * Lock acquisition ordering
+ * -------------------------
+ * 1. state_mutex_
+ * 2. log_mutex_
+ * 3. commit_mutex_
+ * 4. last_heartbeat_mutex_
+ *
+ *
+ *
  * --------------------------------------------------------------
  *  TODO List at this point
  * --------------------------------------------------------------
@@ -168,19 +178,29 @@ class RaftNode {
   // In Follower state, only handleAppendRequest writes to log_entries.
   // In Leader state, only appendLogEntry writes to log entries.
   std::vector<LogEntry> log_entries_;
-  std::pair<uint64_t, uint64_t> committed_result_;
   std::condition_variable new_entries_signal_;
   std::condition_variable entry_replicated_signal_;
   ReaderWriterMutex log_mutex_;
 
-  std::atomic<uint64_t> commit_index_;
-
-  // Assumes at least read lock is acquired for log_mutex_
+  // Assumes at least read lock is acquired for log_mutex_.
   std::vector<LogEntry>::iterator getIteratorByIndex(uint64_t index);
 
-  // After a new entry is replicated on followers,
-  // checks if some entries can be committed.
-  void commitReplicatedEntries();
+  // The two following methods assume write lock is acquired for log_mutex_.
+  proto::Response followerAppendNewEntries(
+      const proto::AppendEntriesRequest& request);
+  void followerCommitNewEntries(const proto::AppendEntriesRequest& request);
+
+  uint64_t commit_index_;
+  uint64_t committed_result_;
+  mutable std::mutex commit_mutex_;
+  const uint64_t& commit_index() const;
+  const uint64_t& committed_result() const;
+  void set_committed_result(uint64_t index, uint64_t result);
+
+  // After a new entry is replicated on followers, checks if some entries
+  // can be committed. Expects locks for commit_mutex_ and log_mutex_
+  // to NOT have been acquired.
+  void leaderCommitReplicatedEntries();
 };
 }  // namespace map_api
 
