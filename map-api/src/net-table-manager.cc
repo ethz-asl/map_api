@@ -211,6 +211,15 @@ NetTable& NetTableManager::getTable(const std::string& name) {
   return *found->second;
 }
 
+bool NetTableManager::hasTable(const std::string& name) {
+  CHECK(Core::instance() != nullptr) << "Map API not initialized!";
+
+  tables_lock_.acquireReadLock();
+  bool has_table = tables_.count(name) > 0u;
+  tables_lock_.releaseReadLock();
+  return has_table;
+}
+
 void NetTableManager::tableList(std::vector<std::string>* tables) {
   CHECK_NOTNULL(tables);
   tables->clear();
