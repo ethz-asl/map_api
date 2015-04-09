@@ -37,6 +37,8 @@ class NetTableManager {
    */
   NetTable& getTable(const std::string& name);
 
+  bool hasTable(const std::string& name);
+
   void tableList(std::vector<std::string>* tables);
 
   void listenToPeersJoiningTable(const std::string& table_name);
