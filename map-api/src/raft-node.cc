@@ -634,11 +634,6 @@ void RaftNode::leaderCommitReplicatedEntries() {
   }
 }
 
-uint64_t RaftNode::committed_result() const {
-  ScopedReadLock lock(&log_mutex_);
-  return committed_result_.second;
-}
-
 bool RaftNode::giveUpLeadership() {
   std::unique_lock<std::mutex> lock(state_mutex_);
   if (state_ == State::LEADER) {

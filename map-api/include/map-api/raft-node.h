@@ -91,8 +91,6 @@ class RaftNode {
   FRIEND_TEST(ConsensusFixture, LeaderElection);
   // TODO(aqurai) Only for test, will be removed later.
   inline void addPeerBeforeStart(PeerId peer) { peer_list_.insert(peer); }
-  uint64_t committed_result() const;
-  uint64_t commit_index() const { return static_cast<uint64_t>(commit_index_); }
   bool giveUpLeadership();
 
   // Singleton class. There will be a singleton manager class later,
