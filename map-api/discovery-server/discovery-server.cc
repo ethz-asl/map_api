@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
 
   std::unordered_set<PeerId> peers_;
   bool locked = false;
-  std::string locker;
+  PeerId locker;
 
   zmq::context_t context;
   zmq::socket_t server(context, ZMQ_REP);
