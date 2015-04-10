@@ -363,7 +363,7 @@ TEST_F(LeaveOnceSharedTest, LeaveOnceSharedListening) {
     // in the future.
     NetTableManager::instance().listenToPeersJoiningTable(table_->name());
     launchSubprocess(SLAVE);
-    usleep(50000);  // Should suffice for auto-fetching.
+    sleep(1);  // Should suffice for auto-fetching.
     EXPECT_EQ(1u, table_->numActiveChunks());
   }
   if (getSubprocessId() == SLAVE) {
