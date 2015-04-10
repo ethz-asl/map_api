@@ -65,8 +65,7 @@ void ServerDiscovery::unlock() {
   CHECK(requestAck<kUnlockRequest>());
 }
 
-ServerDiscovery::ServerDiscovery(
-    const std::string& address, zmq::context_t& context)
-: server_(address, context, ZMQ_REQ) {}
+ServerDiscovery::ServerDiscovery(const PeerId& address, zmq::context_t& context)
+    : server_(address, context, ZMQ_REQ) {}
 
 } /* namespace map_api */
