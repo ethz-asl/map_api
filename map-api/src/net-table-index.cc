@@ -58,7 +58,8 @@ void NetTableIndex::renouncePosession(const common::Id& chunk_id) {
       break;
     }
   }
-  CHECK(found);
+  LOG_IF(ERROR, !found)
+      << "Tried to renounce possession that was not announced!";
   CHECK(addData(chunk_id.hexString(), peers.SerializeAsString()));
 }
 
