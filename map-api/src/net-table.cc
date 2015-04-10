@@ -138,8 +138,8 @@ Chunk* NetTable::getChunk(const common::Id& chunk_id) {
     // (for now metatable only)
     std::unordered_set<PeerId> peers;
     getChunkHolders(chunk_id, &peers);
-    CHECK_GT(peers.size(), 0u) << "Chunk " << chunk_id.hexString()
-                               << " not available!";
+    CHECK(!peers.empty()) << "Chunk " << chunk_id.hexString()
+                          << " not available!";
     active_chunks_lock_.releaseReadLock();
     connectTo(chunk_id, *peers.begin());
     active_chunks_lock_.acquireReadLock();
