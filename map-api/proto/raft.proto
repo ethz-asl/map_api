@@ -18,7 +18,8 @@ message AppendEntriesRequest {
 enum Response {
   FAILED = 0;
   REJECTED = 1;
-  SUCCESS = 2;
+  ALREADY_PRESENT = 2;
+  SUCCESS = 3;
 }
 
 message AppendEntriesResponse {

@@ -88,9 +88,10 @@ class RaftNode {
   static const char kVoteResponse[];
 
  private:
-  FRIEND_TEST(ConsensusFixture, DISABLED_LeaderElection);
+  FRIEND_TEST(ConsensusFixture, LeaderElection);
   // TODO(aqurai) Only for test, will be removed later.
   inline void addPeerBeforeStart(PeerId peer) { peer_list_.insert(peer); }
+  bool giveUpLeadership();
 
   // Singleton class. There will be a singleton manager class later,
   // for managing multiple raft instances per peer.
