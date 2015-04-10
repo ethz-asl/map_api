@@ -27,6 +27,7 @@ class PeerHandler {
                  std::unordered_map<PeerId, Message>* responses);
 
   bool empty() const;
+  // If empty, print "info" (if != "") to LOG(INFO), then block until empty.
   void awaitNonEmpty(const std::string& info) const;
   /**
    * Allows user to view peers, e.g. for ConnectResponse
