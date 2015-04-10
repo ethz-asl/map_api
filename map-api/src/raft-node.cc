@@ -13,8 +13,8 @@
 #include "map-api/reader-writer-lock.h"
 
 // TODO(aqurai): decide good values for these
-constexpr int kHeartbeatTimeoutMs = 50;
-constexpr int kHeartbeatSendPeriodMs = 25;
+constexpr int kHeartbeatTimeoutMs = 500;
+constexpr int kHeartbeatSendPeriodMs = 100;
 
 namespace map_api {
 
@@ -22,12 +22,15 @@ const char RaftNode::kAppendEntries[] = "raft_cluster_append_entries";
 const char RaftNode::kAppendEntriesResponse[] = "raft_cluster_append_response";
 const char RaftNode::kVoteRequest[] = "raft_cluster_vote_request";
 const char RaftNode::kVoteResponse[] = "raft_cluster_vote_response";
+const char RaftNode::kQueryState[] = "raft_node_query_state";
+const char RaftNode::kQueryStateResponse[] = "raft_node_query_state_response";
 
 MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntries, proto::AppendEntriesRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntriesResponse,
                       proto::AppendEntriesResponse);
 MAP_API_PROTO_MESSAGE(RaftNode::kVoteRequest, proto::RequestVote);
 MAP_API_PROTO_MESSAGE(RaftNode::kVoteResponse, proto::ResponseVote);
+MAP_API_PROTO_MESSAGE(RaftNode::kQueryStateResponse, proto::QueryStateResponse);
 
 const PeerId kInvalidId = PeerId();
 
@@ -51,10 +54,7 @@ RaftNode::RaftNode()
   log_entries_.push_back(default_entry);
 }
 
-RaftNode::~RaftNode() {
-  is_exiting_ = true;
-  state_manager_thread_.join();
-}
+RaftNode::~RaftNode() { stop(); }
 
 RaftNode& RaftNode::instance() {
   static RaftNode instance;
@@ -64,10 +64,19 @@ RaftNode& RaftNode::instance() {
 void RaftNode::registerHandlers() {
   Hub::instance().registerHandler(kAppendEntries, staticHandleHeartbeat);
   Hub::instance().registerHandler(kVoteRequest, staticHandleRequestVote);
+  Hub::instance().registerHandler(kQueryState, staticHandleQueryState);
 }
 
 void RaftNode::start() {
   state_manager_thread_ = std::thread(&RaftNode::stateManagerThread, this);
+}
+
+void RaftNode::stop() {
+  if (state_thread_running_ && !is_exiting_) {
+    is_exiting_ = true;
+    giveUpLeadership();
+    state_manager_thread_.join();
+  }
 }
 
 uint64_t RaftNode::term() const {
@@ -93,6 +102,11 @@ void RaftNode::staticHandleHeartbeat(const Message& request,
 void RaftNode::staticHandleRequestVote(const Message& request,
                                        Message* response) {
   instance().handleRequestVote(request, response);
+}
+
+void RaftNode::staticHandleQueryState(const Message& request,
+                                      Message* response) {
+  instance().handleQueryState(request, response);
 }
 
 // If there are no new entries, Leader sends empty message (heartbeat)
@@ -237,6 +251,21 @@ void RaftNode::handleRequestVote(const Message& request, Message* response) {
   election_timeout_ms_ = setElectionTimeout();
 }
 
+void RaftNode::handleQueryState(const Message& request, Message* response) {
+  proto::QueryStateResponse state_response;
+  std::lock_guard<std::mutex> state_lock(state_mutex_);
+  state_response.set_leader_id_(leader_id_.ipPort());
+
+  ScopedReadLock log_lock(&log_mutex_);
+  state_response.set_last_log_index(log_entries_.back().index);
+  state_response.set_last_log_term(log_entries_.back().term);
+
+  std::lock_guard<std::mutex> commit_lock(commit_mutex_);
+  state_response.set_commit_index(commit_index_);
+  state_response.set_commit_result(committed_result_);
+  response->impose<kQueryStateResponse>(state_response);
+}
+
 bool RaftNode::sendAppendEntries(
     const PeerId& peer, const proto::AppendEntriesRequest& append_entries,
     proto::AppendEntriesResponse* append_response) {
@@ -331,6 +360,7 @@ void RaftNode::stateManagerThread() {
         follower_thread.join();
       }
       follower_trackers_.clear();
+      follower_trackers_closed_signal_.notify_all();
       VLOG(1) << "Peer " << PeerId::self() << ": Follower trackers closed. ";
     }
   }  // while(!is_exiting_)
@@ -644,6 +674,14 @@ bool RaftNode::giveUpLeadership() {
 
     std::unique_lock<std::mutex> heartbeat_lock(last_heartbeat_mutex_);
     last_heartbeat_ = std::chrono::system_clock::now();
+
+    std::mutex wait_mutex;
+    std::unique_lock<std::mutex> wait_lock(wait_mutex);
+    while (!follower_trackers_.empty()) {
+      follower_trackers_closed_signal_.wait(wait_lock);
+    }
+    // Prevent this peer from holding election again.
+    election_timeout_ms_ = 4 * setElectionTimeout();
     return true;
   } else {
     lock.unlock();

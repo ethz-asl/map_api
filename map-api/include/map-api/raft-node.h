@@ -69,6 +69,7 @@ class RaftNode {
   void registerHandlers();
 
   void start();
+  void stop();
   inline bool isRunning() const { return state_thread_running_; }
   uint64_t term() const;
   const PeerId& leader() const;
@@ -81,16 +82,21 @@ class RaftNode {
   static void staticHandleHeartbeat(const Message& request, Message* response);
   static void staticHandleRequestVote(const Message& request,
                                       Message* response);
+  static void staticHandleQueryState(const Message& request, Message* response);
 
   static const char kAppendEntries[];
   static const char kAppendEntriesResponse[];
   static const char kVoteRequest[];
   static const char kVoteResponse[];
+  static const char kQueryState[];
+  static const char kQueryStateResponse[];
 
  private:
-  FRIEND_TEST(ConsensusFixture, LeaderElection);
+  friend class ConsensusFixture;
   // TODO(aqurai) Only for test, will be removed later.
-  inline void addPeerBeforeStart(PeerId peer) { peer_list_.insert(peer); }
+  inline void addPeerBeforeStart(const PeerId& peer) {
+    peer_list_.insert(peer);
+  }
   bool giveUpLeadership();
 
   // Singleton class. There will be a singleton manager class later,
@@ -105,6 +111,7 @@ class RaftNode {
   // ========
   void handleAppendRequest(const Message& request, Message* response);
   void handleRequestVote(const Message& request, Message* response);
+  void handleQueryState(const Message& request, Message* response);
 
   // ====================================================
   // RPCs for heartbeat, leader election, log replication
@@ -159,6 +166,7 @@ class RaftNode {
   std::vector<std::thread> follower_trackers_;
   std::atomic<bool> follower_trackers_run_;
   std::atomic<uint64_t> last_vote_request_term_;
+  std::condition_variable follower_trackers_closed_signal_;
   void followerTrackerThread(const PeerId& peer, uint64_t term);
 
   // =====================
