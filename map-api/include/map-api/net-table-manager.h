@@ -37,9 +37,11 @@ class NetTableManager {
    */
   NetTable& getTable(const std::string& name);
 
-  bool hasTable(const std::string& name);
+  const NetTable& getTable(const std::string& name) const;
 
-  void tableList(std::vector<std::string>* tables);
+  bool hasTable(const std::string& name) const;
+
+  void tableList(std::vector<std::string>* tables) const;
 
   void listenToPeersJoiningTable(const std::string& table_name);
 
@@ -136,7 +138,7 @@ class NetTableManager {
   Chunk* metatable_chunk_;
 
   TableMap tables_;
-  ReaderWriterMutex tables_lock_;
+  mutable ReaderWriterMutex tables_lock_;
 
   NetTable* metatable_;
 };
