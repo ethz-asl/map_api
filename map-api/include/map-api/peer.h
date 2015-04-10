@@ -6,12 +6,14 @@
 
 #include <zeromq_cpp/zmq.hpp>
 
+#include "map-api/peer-id.h"
+
 namespace map_api {
 class Message;
 
 class Peer {
  public:
-  std::string address() const;
+  const PeerId& address() const;
 
   void request(Message* request, Message* response);
 
@@ -30,11 +32,11 @@ class Peer {
    */
   friend class Hub;
   friend class ServerDiscovery;
-  explicit Peer(const std::string& address, zmq::context_t& context,
+  explicit Peer(const PeerId& address, zmq::context_t& context,
                 int socket_type);
 
   // ZMQ sockets are not inherently thread-safe
-  std::string address_;
+  PeerId address_;
   zmq::socket_t socket_;
   std::mutex socket_mutex_;
 };
