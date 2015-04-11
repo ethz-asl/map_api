@@ -445,7 +445,8 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term) {
 
       follower_commit_index = append_response.commit_index();
       append_successs =
-          (append_response.response() == proto::Response::SUCCESS);
+          (append_response.response() == proto::Response::SUCCESS || 
+              append_response.response() == proto::Response::ALREADY_PRESENT);
       if (append_successs) {
         if (!sending_heartbeat) {
           // The response is from an append entry RPC, not a regular heartbeat.
@@ -536,7 +537,9 @@ proto::Response RaftNode::followerAppendNewEntries(
       CHECK(it != log_entries_.end());
       // Erase and replace only of the entry is different from the one already 
       // stored.
-      if((it+1)->entry != request.new_entry() || (it+1)->term != request.new_entry_term()) {
+      if((it+1)->entry == request.new_entry() && (it+1)->term == request.new_entry_term()){
+        return proto::Response::ALREADY_PRESENT;
+      } else {
         VLOG(1) << "Leader is erasing entries in log of " << PeerId::self()
                 << ". from " << (it + 1)->index;
         
@@ -551,8 +554,8 @@ proto::Response RaftNode::followerAppendNewEntries(
         new_entry.term = request.new_entry_term();
         new_entry.entry = request.new_entry();
         log_entries_.push_back(new_entry);
+        return proto::Response::SUCCESS;
       }
-      return proto::Response::SUCCESS;
     } else {
       return proto::Response::FAILED;
     }
