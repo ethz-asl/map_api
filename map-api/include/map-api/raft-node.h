@@ -202,6 +202,8 @@ class RaftNode {
   // can be committed. Expects locks for commit_mutex_ and log_mutex_
   // to NOT have been acquired.
   void leaderCommitReplicatedEntries();
+  
+  std::stringstream lgs;
 };
 }  // namespace map_api
 
