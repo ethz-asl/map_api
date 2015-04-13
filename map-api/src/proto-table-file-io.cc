@@ -5,10 +5,9 @@
 #include <google/protobuf/io/gzip_stream.h>
 #include <google/protobuf/io/zero_copy_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <map-api/chunk-data-container-base.h>
 
 #include <map-api/chunk-manager.h>
-#include <map-api/cr-table.h>
-#include <map-api/cru-table.h>
 #include <map-api/transaction.h>
 
 namespace map_api {
@@ -36,24 +35,22 @@ void ProtoTableFileIO::truncFile() {
 
 bool ProtoTableFileIO::storeTableContents(const map_api::LogicalTime& time) {
   map_api::Transaction transaction(time);
-  map_api::CRTable::RevisionMap revisions =
-      transaction.dumpActiveChunks(table_);
+  ConstRevisionMap revisions;
+  transaction.dumpActiveChunks(table_, &revisions);
   std::vector<common::Id> ids_to_store;
   ids_to_store.reserve(revisions.size());
-  for (const map_api::CRTable::RevisionMap::value_type& value :
-      revisions) {
+  for (const ConstRevisionMap::value_type& value : revisions) {
     ids_to_store.push_back(value.first);
   }
   return storeTableContents(revisions, ids_to_store);
 }
 bool ProtoTableFileIO::storeTableContents(
-    const map_api::CRTable::RevisionMap& revisions,
+    const ConstRevisionMap& revisions,
     const std::vector<common::Id>& ids_to_store) {
   CHECK(file_.is_open());
 
   for (const common::Id& revision_id : ids_to_store) {
-    map_api::CRTable::RevisionMap::const_iterator it =
-        revisions.find(revision_id);
+    ConstRevisionMap::const_iterator it = revisions.find(revision_id);
     CHECK(it != revisions.end());
     CHECK(it->second != nullptr);
 

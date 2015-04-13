@@ -1,5 +1,8 @@
-#include <map-api/table-descriptor.h>
+#include "map-api/table-descriptor.h"
+
 #include <glog/logging.h>
+
+#include "map-api/revision.h"
 
 namespace map_api {
 
@@ -22,6 +25,16 @@ void TableDescriptor::setSpatialIndex(const SpatialIndex::BoundingBox& extent,
   for (size_t dimension_division : subdivision) {
     add_spatial_subdivision(dimension_division);
   }
+}
+
+std::shared_ptr<Revision> TableDescriptor::getTemplate() const {
+  std::shared_ptr<Revision> ret = Revision::fromProto(
+      std::unique_ptr<proto::Revision>(new proto::Revision));
+  // add editable fields
+  for (int i = 0; i < fields_size(); ++i) {
+    ret->addField(i, fields(i));
+  }
+  return ret;
 }
 
 } /* namespace map_api */

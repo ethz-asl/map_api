@@ -9,15 +9,17 @@
 
 #include <gtest/gtest_prod.h>
 
+#include "map-api/chunk-data-container-base.h"
 #include "map-api/app-templates.h"
 #include "map-api/chunk.h"
-#include "map-api/cr-table.h"
 #include "map-api/net-table-index.h"
-#include "map-api/revision.h"
 #include "map-api/reader-writer-lock.h"
 #include "map-api/spatial-index.h"
 
 namespace map_api {
+class ConstRevisionMap;
+class MutableRevisionMap;
+
 inline std::string humanReadableBytes(double size) {
   int i = 0;
   const char* units[] = {"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"};
@@ -45,7 +47,6 @@ class NetTable {
 
   // BASICS
   const std::string& name() const;
-  const CRTable::Type& type() const;
   std::shared_ptr<Revision> getTemplate() const;
 
   // BASIC CHUNK MANAGEMENT
@@ -108,11 +109,10 @@ class NetTable {
   // ITEM RETRIEVAL
   // (locking all chunks)
   template <typename ValueType>
-  CRTable::RevisionMap lockFind(int key, const ValueType& value,
-                                const LogicalTime& time);
-  void dumpActiveChunks(const LogicalTime& time,
-                        CRTable::RevisionMap* destination);
-  void dumpActiveChunksAtCurrentTime(CRTable::RevisionMap* destination);
+  void lockFind(int key, const ValueType& value, const LogicalTime& time,
+                ConstRevisionMap* destination) const;
+  void dumpActiveChunks(const LogicalTime& time, ConstRevisionMap* destination);
+  void dumpActiveChunksAtCurrentTime(ConstRevisionMap* destination);
   template <typename IdType>
   void getAvailableIds(const LogicalTime& time,
                        std::vector<IdType>* ids);
@@ -192,7 +192,7 @@ class NetTable {
   NetTable(const NetTable&) = delete;
   NetTable& operator =(const NetTable&) = delete;
 
-  bool init(CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor);
+  bool init(std::shared_ptr<TableDescriptor> descriptor);
 
   // Interface for NetTableManager:
   void createIndex();
@@ -219,11 +219,19 @@ class NetTable {
    * TODO(tcies) probably requires mutex on a data level
    */
   template <typename IdType>
-  std::shared_ptr<const Revision> getByIdInconsistent(const IdType& id,
-                                                      const LogicalTime& time);
+  std::shared_ptr<const Revision> getById(const IdType& id,
+                                          const LogicalTime& time);
 
   void readLockActiveChunks();
   void unlockActiveChunks();
+
+  // Read-locks active_chunks_lock_ and passes each active chunk to action
+  // individually.
+  void forEachActiveChunk(const std::function<void(const Chunk& chunk)>& action)
+      const;
+  // Same as the above, but breaks if the function returns true.
+  void forEachActiveChunkUntil(
+      const std::function<bool(const Chunk& chunk)>& action) const;  // NOLINT
 
   bool routingBasics(
       const common::Id& chunk_id, Message* response, ChunkMap::iterator* found);
@@ -243,8 +251,7 @@ class NetTable {
   void fetchAllCallback(const common::IdSet& insertions,
                         const common::IdSet& updates, Chunk* chunk);
 
-  CRTable::Type type_;
-  std::unique_ptr<CRTable> cache_;
+  std::shared_ptr<TableDescriptor> descriptor_;
   ChunkMap active_chunks_;
   mutable ReaderWriterMutex active_chunks_lock_;
 

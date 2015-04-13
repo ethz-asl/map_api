@@ -31,14 +31,17 @@ class NetTableManager {
   void initMetatable(bool create_metatable_chunk);
 
   NetTable* __attribute__((warn_unused_result))
-      addTable(CRTable::Type type,
-               std::unique_ptr<TableDescriptor>* descriptor);
+      addTable(std::shared_ptr<TableDescriptor> descriptor);
   /**
    * Can leave dangling reference
    */
   NetTable& getTable(const std::string& name);
 
-  void tableList(std::vector<std::string>* tables);
+  const NetTable& getTable(const std::string& name) const;
+
+  bool hasTable(const std::string& name) const;
+
+  void tableList(std::vector<std::string>* tables) const;
 
   void listenToPeersJoiningTable(const std::string& table_name);
 
@@ -102,8 +105,7 @@ class NetTableManager {
   NetTableManager& operator =(const NetTableManager&) = delete;
   ~NetTableManager() = default;
 
-  bool syncTableDefinition(CRTable::Type type,
-                           const TableDescriptor& descriptor, bool* first,
+  bool syncTableDefinition(const TableDescriptor& descriptor, bool* first,
                            PeerId* entry_point, PeerIdList* listeners);
 
   template <const char* RequestType>
@@ -136,7 +138,7 @@ class NetTableManager {
   Chunk* metatable_chunk_;
 
   TableMap tables_;
-  ReaderWriterMutex tables_lock_;
+  mutable ReaderWriterMutex tables_lock_;
 
   NetTable* metatable_;
 };
