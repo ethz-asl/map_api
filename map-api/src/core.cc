@@ -70,6 +70,16 @@ void Core::killOnceShared() {
   initialized_ = false;
 }
 
+void Core::killOnceSharedUnlessAlone() {
+  std::set<PeerId> peers;
+  hub_.getPeers(&peers);
+  if (peers.empty()) {
+    kill();
+  } else {
+    killOnceShared();
+  }
+}
+
 Core::~Core() {
   CHECK(initialized_mutex_.try_lock());
   if (initialized_) {
