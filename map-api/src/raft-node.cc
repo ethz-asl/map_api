@@ -317,6 +317,8 @@ void RaftNode::stateManagerThread() {
       for (const PeerId& peer : peer_list_) {
         follower_trackers_.emplace_back(&RaftNode::followerTrackerThread, this,
                                         peer, current_term);
+        std::unique_ptr<std::atomic<uint64_t>> u (new std::atomic<uint64_t>(0));
+        replication_indices_.insert(std::make_pair(peer, std::move(u)));
       }
 
       std::mutex wait_mutex;
@@ -442,7 +444,7 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term) {
         VLOG(1) << PeerId::self() << ": Failed sendAppendEntries to " << peer;
         continue;
       }
-
+      
       follower_commit_index = append_response.commit_index();
       append_successs =
           (append_response.response() == proto::Response::SUCCESS || 
@@ -453,11 +455,8 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term) {
           log_mutex_.acquireWriteLock();
           std::vector<LogEntry>::iterator it =
               getIteratorByIndex(follower_next_index);
-          it->replicator_peers.insert(peer);
-          // TODO(aqurai): Remove later
-          VLOG_IF(1, it->index % 20 == 0 &&
-                         it->replicator_peers.size() == peer_list_.size())
-              << "******** Entry " << it->index << " replicated on all peers";
+          ReplicationIterator replication_it = replication_indices_.find(peer);
+          replication_it->second->store(follower_next_index);
           log_mutex_.releaseWriteLock();
           ++follower_next_index;
           entry_replicated_signal_.notify_all();
@@ -630,25 +629,29 @@ uint64_t RaftNode::appendLogEntry(uint32_t entry) {
 void RaftNode::leaderCommitReplicatedEntries() {
   ScopedReadLock log_lock(&log_mutex_);
   std::lock_guard<std::mutex> commit_lock(commit_mutex_);
-  std::vector<LogEntry>::iterator it = getIteratorByIndex(commit_index_ + 1);
-  if (it != log_entries_.end()) {
-    if (it->replicator_peers.size() > peer_list_.size()) {
-      LOG(FATAL) << "Replication count (" << it->replicator_peers.size()
-                 << ") is higher than peer size (" << peer_list_.size()
-                 << ") at peer " << PeerId::self() << " for entry index "
-                 << commit_index_;
+
+  uint new_entry_replication_count = 0;
+  for (ReplicationIterator itr=replication_indices_.begin(); itr!=replication_indices_.end(); ++itr) {
+    if(itr->second->load() > commit_index_) {
+      ++new_entry_replication_count; 
     }
-    if (it->replicator_peers.size() > peer_list_.size() / 2) {
-      // Replicated on more than half of the peers.
-      ++commit_index_;
-      CHECK_LE(commit_index_, log_entries_.back().index);
-      VLOG_IF(1, commit_index_ % 10 == 0)
-          << PeerId::self() << ": Commit index increased to " << commit_index_
-          << " With replication count " << it->replicator_peers.size()
-          << " and with term " << it->term;
-      committed_result_ += it->entry;
-      return;
-    }
+  }
+  if ((unsigned long int)new_entry_replication_count > peer_list_.size()) {
+     LOG(FATAL) << "Replication count (" << new_entry_replication_count
+                << ") is higher than peer size (" << peer_list_.size()
+                << ") at peer " << PeerId::self() << " for entry index "
+                << commit_index_;
+  }
+  if((unsigned long int)new_entry_replication_count > peer_list_.size() / 2) {
+    // Replicated on more than half of the peers.
+    ++commit_index_;
+    CHECK_LE(commit_index_, log_entries_.back().index);
+    // TODO(aqurai): Remove later
+    VLOG_IF(1, commit_index_ % 10 == 0)
+        << PeerId::self() << ": Commit index increased to " << commit_index_
+        << " With replication count " << new_entry_replication_count;
+    std::vector<LogEntry>::iterator it = getIteratorByIndex(commit_index_);
+    committed_result_ += it->entry;
   }
 }
 
