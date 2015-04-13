@@ -138,6 +138,10 @@ Chunk* NetTable::getChunk(const common::Id& chunk_id) {
     // (for now metatable only)
     std::unordered_set<PeerId> peers;
     getChunkHolders(chunk_id, &peers);
+    // Chord can possibly be inconsistent, we therefore need to remove ourself
+    // from the chunk holder list if we happen to be part of it.
+    LOG_IF(WARNING, peers.erase(PeerId::self()) > 0u)
+        << "Peer was falsely in holders of chunk " << chunk_id;
     CHECK(!peers.empty()) << "Chunk " << chunk_id.hexString()
                           << " not available!";
     active_chunks_lock_.releaseReadLock();
@@ -381,6 +385,7 @@ Chunk* NetTable::connectTo(const common::Id& chunk_id,
   chunk_id.serialize(metadata.mutable_chunk_id());
   request.impose<Chunk::kConnectRequest>(metadata);
   // TODO(tcies) add to local peer subset as well?
+  VLOG(3) << "Connecting to " << peer << " for chunk " << chunk_id;
   Hub::instance().request(peer, &request, &response);
   CHECK(response.isType<Message::kAck>()) << response.type();
   // wait for connect handle thread of other peer to succeed
