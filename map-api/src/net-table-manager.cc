@@ -202,12 +202,11 @@ NetTable* NetTableManager::addTable(
 
 NetTable& NetTableManager::getTable(const std::string& name) {
   CHECK(Core::instance() != nullptr) << "Map API not initialized!";
-  tables_lock_.acquireReadLock();
+  ScopedReadLock lock(&tables_lock_);
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = tables_.find(name);
   // TODO(tcies) load table schema from metatable if not active
   CHECK(found != tables_.end()) << "Table not found: " << name;
-  tables_lock_.releaseReadLock();
   return *found->second;
 }
 
@@ -223,12 +222,11 @@ bool NetTableManager::hasTable(const std::string& name) {
 void NetTableManager::tableList(std::vector<std::string>* tables) {
   CHECK_NOTNULL(tables);
   tables->clear();
-  tables_lock_.acquireReadLock();
+  ScopedReadLock lock(&tables_lock_);
   for (const std::pair<const std::string, std::unique_ptr<NetTable> >& pair :
        tables_) {
     tables->push_back(pair.first);
   }
-  tables_lock_.releaseReadLock();
 }
 
 void NetTableManager::listenToPeersJoiningTable(const std::string& table_name) {
@@ -257,8 +255,18 @@ void NetTableManager::kill() {
        tables_) {
     table.second->kill();
   }
-  tables_lock_.releaseReadLock();
-  tables_lock_.acquireWriteLock();
+  CHECK(tables_lock_.upgradeToWriteLock());
+  tables_.clear();
+  tables_lock_.releaseWriteLock();
+}
+
+void NetTableManager::killOnceShared() {
+  tables_lock_.acquireReadLock();
+  for (const std::pair<const std::string, std::unique_ptr<NetTable> >& table :
+       tables_) {
+    table.second->killOnceShared();
+  }
+  CHECK(tables_lock_.upgradeToWriteLock());
   tables_.clear();
   tables_lock_.releaseWriteLock();
 }
@@ -298,17 +306,15 @@ void NetTableManager::handleConnectRequest(const Message& request,
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
   CHECK_NOTNULL(Core::instance());
-  instance().tables_lock_.acquireReadLock();
+  ScopedReadLock lock(&instance().tables_lock_);
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = instance().tables_.find(table);
   if (found == instance().tables_.end()) {
-    instance().tables_lock_.releaseReadLock();
     response->impose<Message::kDecline>();
     return;
   }
   found->second->handleConnectRequest(chunk_id, PeerId(request.sender()),
                                       response);
-  instance().tables_lock_.releaseReadLock();
 }
 
 void NetTableManager::handleInitRequest(

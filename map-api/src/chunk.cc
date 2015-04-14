@@ -195,12 +195,13 @@ void Chunk::enableLockLogging() {
 }
 
 void Chunk::leave() {
-  std::unique_lock<std::mutex> lock(trigger_mutex_);
-  triggers_.clear();
-  waitForTriggerCompletion();
-  // Need to unlock, otherwise we could get into deadlocks, as
-  // distributedUnlock() below calls triggers on other peers.
-  lock.unlock();
+  {
+    std::unique_lock<std::mutex> lock(trigger_mutex_);
+    triggers_.clear();
+    waitForTriggerCompletion();
+    // Need to unlock, otherwise we could get into deadlocks, as
+    // distributedUnlock() below calls triggers on other peers.
+  }
 
   Message request;
   proto::ChunkRequestMetadata metadata;
@@ -210,13 +211,20 @@ void Chunk::leave() {
   // leaving must be atomic wrt request handlers to prevent conflicts
   // this must happen after acquring the write lock to avoid deadlocks, should
   // two peers try to leave at the same time.
-  leave_lock_.acquireWriteLock();
-  CHECK(peers_.undisputableBroadcast(&request));
-  relinquished_ = true;
-  leave_lock_.releaseWriteLock();
+  {
+    ScopedWriteLock lock(&leave_lock_);
+    CHECK(peers_.undisputableBroadcast(&request));
+    relinquished_ = true;
+  }
   distributedUnlock();  // i.e. must be able to handle unlocks from outside
   // the swarm. Should this pose problems in the future, we could tie unlocking
   // to leaving.
+}
+
+void Chunk::leaveOnceShared() {
+  peers_.awaitNonEmpty("Waiting for chunk " + id().hexString() + " of table " +
+                       data_container_->name() + " to be shared...");
+  leave();
 }
 
 void Chunk::triggerWrapper(const std::unordered_set<common::Id>&& insertions,
