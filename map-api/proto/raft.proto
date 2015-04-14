@@ -1,39 +1,41 @@
 package map_api.proto;
 
-message RaftHeartbeat {
-  required uint64 term = 1;
+message RaftRevision {
+  required uint64 index = 1;
+  required uint64 entry = 2;
+  required uint64 term = 3;
 }
 
 message AppendEntriesRequest {
   required uint64 term = 1;
-  required uint64 lastLogIndex = 2;
-  required uint64 lastLogTerm = 3;
-  required uint64 commitIndex = 4;
-  optional uint64 previousLogIndex = 5;
-  optional uint64 previousLogTerm = 6;
-  optional uint32 newEntry = 7;
-  optional uint64 newEntryTerm = 8;
+  required uint64 last_log_index = 2;
+  required uint64 last_log_term = 3;
+  required uint64 commit_index = 4;
+  optional uint64 previous_log_index = 5;
+  optional uint64 previous_log_term = 6;
+  optional RaftRevision revision = 7;
 }
 
-enum Response {
+enum AppendResponseStatus {
   FAILED = 0;
   REJECTED = 1;
-  SUCCESS = 2;
+  ALREADY_PRESENT = 2;
+  SUCCESS = 3;
 }
 
 message AppendEntriesResponse {
   required uint64 term = 1;
-  required uint64 lastLogIndex = 2;
-  required uint64 lastLogTerm = 3;
-  required uint64 commitIndex = 4;
-  required Response response = 5;
+  required uint64 last_log_index = 2;
+  required uint64 last_log_term = 3;
+  required uint64 commit_index = 4;
+  required AppendResponseStatus response = 5;
 }
 
 message RequestVote {
   required uint64 term = 1;
-  required uint64 lastLogIndex = 2;
-  required uint64 lastLogTerm = 3;
-  required uint64 commitIndex = 4;
+  required uint64 last_log_index = 2;
+  required uint64 last_log_term = 3;
+  required uint64 commit_index = 4;
 }
 
 message ResponseVote {

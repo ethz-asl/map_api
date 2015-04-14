@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <future>
 #include <random>
-#include <sys/param.h>
 
 #include <multiagent-mapping-common/conversions.h>
 
@@ -13,16 +12,17 @@
 #include "map-api/message.h"
 #include "map-api/reader-writer-lock.h"
 
-// TODO(aqurai): decide good values for these
-constexpr int kHeartbeatTimeoutMs = 50;
-constexpr int kHeartbeatSendPeriodMs = 25;
-
 namespace map_api {
 
-const char RaftNode::kAppendEntries[] = "raft_cluster_append_entries";
-const char RaftNode::kAppendEntriesResponse[] = "raft_cluster_append_response";
-const char RaftNode::kVoteRequest[] = "raft_cluster_vote_request";
-const char RaftNode::kVoteResponse[] = "raft_cluster_vote_response";
+// TODO(aqurai): decide good values for these
+constexpr int kHeartbeatTimeoutMs = 150;
+constexpr int kHeartbeatSendPeriodMs = 50;
+constexpr int kMaxLogQueueLength = 20;
+
+const char RaftNode::kAppendEntries[] = "raft_node_append_entries";
+const char RaftNode::kAppendEntriesResponse[] = "raft_node_append_response";
+const char RaftNode::kVoteRequest[] = "raft_node_vote_request";
+const char RaftNode::kVoteResponse[] = "raft_node_vote_response";
 const char RaftNode::kAddRemovePeer[] = "raft_node_add_remove_peer";
 
 MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntries, proto::AppendEntriesRequest);
@@ -42,23 +42,22 @@ RaftNode::RaftNode()
       state_thread_running_(false),
       is_exiting_(false),
       last_vote_request_term_(0),
-      committed_result_(std::make_pair(0, 0)),
-      commit_index_(0) {
-  election_timeout_ = setElectionTimeout();
+      commit_index_(0),
+      committed_result_(0) {
+  election_timeout_ms_ = setElectionTimeout();
   VLOG(1) << "Peer " << PeerId::self()
-          << ": Election timeout = " << election_timeout_;
-  LogEntry default_entry;
-  default_entry.index = 0;
-  default_entry.term = 0;
-  default_entry.entry = 0;
-  log_entries_.push_back(default_entry);
+          << ": Election timeout = " << election_timeout_ms_;
+  std::shared_ptr<proto::RaftRevision> default_revision(
+      new proto::RaftRevision);
+  default_revision->set_index(0);
+  default_revision->set_entry(0);
+  default_revision->set_term(0);
+  log_entries_.push_back(default_revision);
 }
 
 RaftNode::~RaftNode() {
   is_exiting_ = true;
-  if (state_manager_thread_.joinable()) {
-    state_manager_thread_.join();
-  }
+  state_manager_thread_.join();
 }
 
 RaftNode& RaftNode::instance() {
@@ -106,34 +105,31 @@ void RaftNode::staticHandleAddRemovePeer(const Message& request,
   instance().handleAddRemovePeer(request, response);
 }
 
-// If there are no new entries, Leader sends empty AppendRequest Message
-// (heartbeat)
+// If there are no new entries, Leader sends empty message (heartbeat)
 // Message contains leader commit index, used to update own commit index
-// In Follower state, ONLY this thread writes to log_entries_
+// In Follower state, ONLY this thread writes to log_entries_ (via the function
+//  followerAppendNewEntries(..))
 void RaftNode::handleAppendRequest(const Message& request, Message* response) {
   proto::AppendEntriesRequest append_request;
   proto::AppendEntriesResponse append_response;
   request.extract<kAppendEntries>(&append_request);
-
   VLOG(3) << "Received AppendRequest/Heartbeat from " << request.sender();
 
-  PeerId hb_sender = PeerId(request.sender());
-  uint64_t request_term = append_request.term();
-
-  // Lock and read log info
-  log_mutex_.acquireReadLock();
-  uint64_t last_log_index = log_entries_.back().index;
-  uint64_t last_log_term = log_entries_.back().term;
-  log_mutex_.releaseReadLock();
-  bool is_sender_log_newer = append_request.lastlogterm() > last_log_term ||
-                             (append_request.lastlogterm() == last_log_term &&
-                              append_request.lastlogindex() >= last_log_index);
+  const PeerId request_sender = PeerId(request.sender());
+  const uint64_t request_term = append_request.term();
 
   // Lock and read the state.
   std::unique_lock<std::mutex> state_lock(state_mutex_);
-  append_response.set_term(current_term_);
-  bool sender_changed = (!leader_id_.isValid() || hb_sender != leader_id_ ||
-                         request_term != current_term_);
+  bool sender_changed =
+      (request_sender != leader_id_ || request_term != current_term_);
+
+  // Lock and read log info
+  log_mutex_.acquireReadLock();
+  const uint64_t last_log_index = log_entries_.back()->index();
+  const uint64_t last_log_term = log_entries_.back()->term();
+  bool is_sender_log_newer = append_request.last_log_term() > last_log_term ||
+                             (append_request.last_log_term() == last_log_term &&
+                              append_request.last_log_index() >= last_log_index);
 
   // ================================
   // Check if the sender has changed.
@@ -144,166 +140,88 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
         (request_term < current_term_ && !leader_id_.isValid() &&
          is_sender_log_newer)) {
       // Update state and leader info if another leader with newer term is found
-      // or, if a leader is found when a there isn't a known one.
+      // or, if a leader is found when a there isn't a known one. The new leader
+      // should either have same/higher term or more updated log.
       current_term_ = request_term;
-      leader_id_ = hb_sender;
-      if (state_ == State::LEADER) {
+      leader_id_ = request_sender;
+      if (state_ == State::LEADER || state_ == State::CANDIDATE) {
         state_ = State::FOLLOWER;
         follower_trackers_run_ = false;
+        entry_replicated_signal_.notify_all();
       }
 
       // Update the last heartbeat info.
-      std::unique_lock<std::mutex> heartbeat_lock(last_heartbeat_mutex_);
+      std::lock_guard<std::mutex> heartbeat_lock(last_heartbeat_mutex_);
       last_heartbeat_ = std::chrono::system_clock::now();
     } else if (state_ == State::FOLLOWER && request_term == current_term_ &&
-               hb_sender != leader_id_ && current_term_ > 0 &&
+               request_sender != leader_id_ && current_term_ > 0 &&
                leader_id_.isValid()) {
       // This should not happen.
       LOG(FATAL) << "Peer " << PeerId::self().ipPort()
                  << " has found 2 leaders in the same term (" << current_term_
                  << "). They are " << leader_id_.ipPort() << " (current) and "
-                 << hb_sender.ipPort() << " (new) ";
+                 << request_sender.ipPort() << " (new) ";
     } else {
       // TODO(aqurai): Handle AppendEntry from a server with older term and log.
-      append_response.set_response(proto::Response::REJECTED);
-      log_mutex_.acquireReadLock();
-      append_response.set_lastlogindex(log_entries_.back().index);
-      append_response.set_lastlogterm(log_entries_.back().term);
-      append_response.set_commitindex(commit_index_);
+      append_response.set_term(current_term_);
+      append_response.set_response(proto::AppendResponseStatus::REJECTED);
+      append_response.set_last_log_index(log_entries_.back()->index());
+      append_response.set_last_log_term(log_entries_.back()->term());
+      append_response.set_commit_index(commit_index());
       log_mutex_.releaseReadLock();
       response->impose<kAppendEntriesResponse>(append_response);
       return;
     }
   } else {
     // Leader didn't change. Simply update last heartbeat time.
-    std::unique_lock<std::mutex> heartbeat_lock(last_heartbeat_mutex_);
+    std::lock_guard<std::mutex> heartbeat_lock(last_heartbeat_mutex_);
     last_heartbeat_ = std::chrono::system_clock::now();
   }
-  state_lock.unlock();
+  append_response.set_term(current_term_);
 
-  // ===============================
+  // ==============================
+  // Append/commit new log entries.
+  // ==============================
+  CHECK(log_mutex_.upgradeToWriteLock());
+
   // Check if there are new entries.
-  // ===============================
-  log_mutex_.acquireReadLock();
-  append_response.set_lastlogindex(log_entries_.back().index);
-  append_response.set_lastlogterm(log_entries_.back().term);
-  append_response.set_commitindex(commit_index_);
+  proto::AppendResponseStatus response_status =
+      followerAppendNewEntries(append_request);
 
-  if (!append_request.has_newentry() || !append_request.has_newentryterm() ||
-      !append_request.has_previouslogindex() ||
-      !append_request.has_previouslogterm()) {
-    // No need to proceed further as message contains no new entries
-    log_mutex_.releaseReadLock();
-    append_response.set_response(proto::Response::SUCCESS);
-
-  } else if (append_request.previouslogindex() == log_entries_.back().index &&
-             append_request.previouslogterm() == log_entries_.back().term) {
-    // All is well, append the new entry, but don't commit it yet.
-    LogEntry new_entry;
-    new_entry.index = log_entries_.back().index + 1;
-    new_entry.term = append_request.newentryterm();
-    new_entry.entry = append_request.newentry();
-
-    if (!log_mutex_.upgradeToWriteLock()) {
-      log_mutex_.acquireWriteLock();
-    }
-
-    log_entries_.push_back(new_entry);
-    append_response.set_lastlogindex(log_entries_.back().index);
-    append_response.set_lastlogterm(log_entries_.back().term);
-    append_response.set_response(proto::Response::SUCCESS);
-    log_mutex_.releaseWriteLock();
-
-  } else if (append_request.previouslogindex() < log_entries_.back().index) {
-    // Leader sends an older entry due to a conflict
-    std::vector<LogEntry>::iterator it =
-        getIteratorByIndex(append_request.previouslogindex());
-
-    if (it != log_entries_.end() &&
-        append_request.previouslogterm() == it->term) {
-      // The received entry matched one of the older entries in the log.
-
-      // TODO(aqurai) remove CHECK later?
-      CHECK(it->index == append_request.previouslogindex());
-      if (!log_mutex_.upgradeToWriteLock()) {
-        log_mutex_.acquireWriteLock();
-      }
-      VLOG(1) << "Leader is erasing entries in log of " << PeerId::self()
-              << ". from " << (it + 1)->index;
-      log_entries_.erase(it + 1, log_entries_.end());
-      LogEntry new_entry;
-      new_entry.index = log_entries_.back().index + 1;
-      new_entry.term = append_request.newentryterm();
-      new_entry.entry = append_request.newentry();
-      log_entries_.push_back(new_entry);
-      append_response.set_lastlogindex(log_entries_.back().index);
-      append_response.set_lastlogterm(log_entries_.back().term);
-      append_response.set_response(proto::Response::SUCCESS);
-      log_mutex_.releaseWriteLock();
-    } else {
-      append_response.set_response(proto::Response::FAILED);
-      log_mutex_.releaseReadLock();
-    }
-  } else {
-    // term and index don't match with leader's log.
-    append_response.set_response(proto::Response::FAILED);
-    log_mutex_.releaseReadLock();
-  }
-
-  // ===================================
   // Check if new entries are committed.
-  // ===================================
-  log_mutex_.acquireReadLock();
-  if (append_response.response() == proto::Response::SUCCESS &&
-      commit_index_ < append_request.commitindex() &&
-      commit_index_ < log_entries_.back().index) {
-    std::vector<LogEntry>::iterator it = getIteratorByIndex(commit_index_);
-    CHECK(it->index == commit_index_);
-    commit_index_ =
-        MIN(log_entries_.back().index, append_request.commitindex());
-    uint64_t result = committed_result_.second;
-
-    std::vector<LogEntry>::iterator it2 = getIteratorByIndex(commit_index_);
-    std::for_each(it + 1, it2 + 1,
-                  [&](const LogEntry& e) { result += e.entry; });
-    if (!log_mutex_.upgradeToWriteLock()) {
-      log_mutex_.acquireWriteLock();
-    }
-    committed_result_ =
-        std::make_pair(static_cast<uint64_t>(commit_index_), result);
-    // TODO(aqurai): Remove later
-    VLOG_IF(1, commit_index_ % 50 == 0) << PeerId::self() << ": Entry "
-                                        << commit_index_ << " committed *****";
-    // TODO(aqurai): Remove check?
-    CHECK(commit_index_ * 19 == committed_result_.second);
-    log_mutex_.releaseWriteLock();
-  } else {
-    log_mutex_.releaseReadLock();
+  if (response_status == proto::AppendResponseStatus::SUCCESS) {
+    followerCommitNewEntries(append_request);
   }
-  append_response.set_commitindex(commit_index_);
+
+  append_response.set_response(response_status);
+  append_response.set_last_log_index(log_entries_.back()->index());
+  append_response.set_last_log_term(log_entries_.back()->term());
+  append_response.set_commit_index(commit_index());
+  log_mutex_.releaseWriteLock();
+  state_lock.unlock();
   response->impose<kAppendEntriesResponse>(append_response);
 }
 
 void RaftNode::handleRequestVote(const Message& request, Message* response) {
-  proto::RequestVote req;
-  proto::ResponseVote resp;
-  request.extract<kVoteRequest>(&req);
+  proto::RequestVote request_vote;
+  proto::ResponseVote response_vote;
+  request.extract<kVoteRequest>(&request_vote);
   log_mutex_.acquireReadLock();
-  uint64_t last_log_index = log_entries_.back().index;
-  uint64_t last_log_term = log_entries_.back().term;
-  resp.set_previouslogindex(last_log_index);
-  resp.set_previouslogterm(last_log_term);
+  const uint64_t last_log_index = log_entries_.back()->index();
+  const uint64_t last_log_term = log_entries_.back()->term();
+  response_vote.set_previous_log_index(last_log_index);
+  response_vote.set_previous_log_term(last_log_term);
   log_mutex_.releaseReadLock();
-  bool is_candidate_log_newer = req.lastlogterm() > last_log_term ||
-                                (req.lastlogterm() == last_log_term &&
-                                 req.lastlogindex() >= last_log_index);
+  bool is_candidate_log_newer = request_vote.last_log_term() > last_log_term ||
+                                (request_vote.last_log_term() == last_log_term &&
+                                 request_vote.last_log_index() >= last_log_index);
   last_vote_request_term_ =
-      MAX(static_cast<uint64_t>(last_vote_request_term_), req.term());
+      std::max(static_cast<uint64_t>(last_vote_request_term_), request_vote.term());
   {
     std::lock_guard<std::mutex> state_lock(state_mutex_);
-    if (req.term() > current_term_ && is_candidate_log_newer) {
-      resp.set_vote(true);
-      current_term_ = req.term();
+    if (request_vote.term() > current_term_ && is_candidate_log_newer) {
+      response_vote.set_vote(true);
+      current_term_ = request_vote.term();
       leader_id_ = PeerId();
       if (state_ == State::LEADER) {
         follower_trackers_run_ = false;
@@ -314,19 +232,21 @@ void RaftNode::handleRequestVote(const Message& request, Message* response) {
               << request.sender() << " in term " << current_term_;
     } else {
       VLOG(1) << "Peer " << PeerId::self().ipPort() << " is declining vote for "
-              << request.sender() << " in term " << req.term() << ". Reason: "
-              << (req.term() > current_term_ ? "" : "Term is equal or less. ")
+              << request.sender() << " in term " << request_vote.term()
+              << ". Reason: " << (request_vote.term() > current_term_
+                                      ? ""
+                                      : "Term is equal or less. ")
               << (is_candidate_log_newer ? "" : "Log is older. ");
-      resp.set_vote(false);
+      response_vote.set_vote(false);
     }
   }
 
-  response->impose<kVoteResponse>(resp);
+  response->impose<kVoteResponse>(response_vote);
   {
     std::lock_guard<std::mutex> lock(last_heartbeat_mutex_);
     last_heartbeat_ = std::chrono::system_clock::now();
   }
-  election_timeout_ = setElectionTimeout();
+  election_timeout_ms_ = setElectionTimeout();
 }
 
 void RaftNode::handleAddRemovePeer(const Message& request, Message* response) {
@@ -352,7 +272,7 @@ void RaftNode::handleAddRemovePeer(const Message& request, Message* response) {
 }
 
 bool RaftNode::sendAppendEntries(
-    const PeerId& peer, proto::AppendEntriesRequest& append_entries,
+    const PeerId& peer, const proto::AppendEntriesRequest& append_entries,
     proto::AppendEntriesResponse* append_response) {
   Message request, response;
   request.impose<kAppendEntries>(append_entries);
@@ -370,9 +290,9 @@ int RaftNode::sendRequestVote(const PeerId& peer, uint64_t term,
   Message request, response;
   proto::RequestVote vote_request;
   vote_request.set_term(term);
-  vote_request.set_commitindex(commit_index_);
-  vote_request.set_lastlogindex(last_log_index);
-  vote_request.set_lastlogterm(last_log_term);
+  vote_request.set_commit_index(commit_index());
+  vote_request.set_last_log_index(last_log_index);
+  vote_request.set_last_log_term(last_log_term);
   request.impose<kVoteRequest>(vote_request);
   if (Hub::instance().try_request(peer, &request, &response)) {
     proto::ResponseVote vote_response;
@@ -427,7 +347,6 @@ void RaftNode::stateManagerThread() {
   bool election_timeout = false;
   State state;
   uint64_t current_term;
-  PeerId leader_id;
   state_thread_running_ = true;
 
   while (!is_exiting_) {
@@ -442,7 +361,6 @@ void RaftNode::stateManagerThread() {
       std::lock_guard<std::mutex> state_lock(state_mutex_);
       state = state_;
       current_term = current_term_;
-      leader_id = leader_id_;
     }
 
     if (state == State::FOLLOWER) {
@@ -456,11 +374,11 @@ void RaftNode::stateManagerThread() {
           std::chrono::duration_cast<std::chrono::milliseconds>(
               now - last_hb_time).count());
 
-      if (duration_ms >= election_timeout_) {
+      if (duration_ms >= election_timeout_ms_) {
         VLOG(1) << "Follower: " << PeerId::self() << " : Heartbeat timed out. ";
         election_timeout = true;
       } else {
-        usleep(election_timeout_ * 1000);
+        usleep(election_timeout_ms_ * kMillisecondsToMicroseconds);
       }
     } else if (state == State::LEADER) {
       // Launch follower_handler threads if state is LEADER.
@@ -468,15 +386,17 @@ void RaftNode::stateManagerThread() {
       for (const PeerId& peer : peer_list_) {
         follower_trackers_.emplace_back(&RaftNode::followerTrackerThread, this,
                                         peer, current_term);
+        std::unique_ptr<std::atomic<uint64_t>> u(new std::atomic<uint64_t>(0));
+        peer_replication_indices_.insert(std::make_pair(peer, std::move(u)));
       }
 
+      // This lock is only used for waiting on a condition variable.
       std::mutex wait_mutex;
       std::unique_lock<std::mutex> wait_lock(wait_mutex);
       while (follower_trackers_run_) {
-        commitReplicatedEntries();
+        leaderCommitReplicatedEntries();
         if (follower_trackers_run_) {
-          entry_replicated_signal_.wait_for(wait_lock,
-                                            std::chrono::milliseconds(20));
+          entry_replicated_signal_.wait(wait_lock);
         }
       }
       VLOG(1) << "Peer " << PeerId::self() << " Lost leadership. ";
@@ -484,6 +404,7 @@ void RaftNode::stateManagerThread() {
         follower_thread.join();
       }
       follower_trackers_.clear();
+      peer_replication_indices_.clear();
       VLOG(1) << "Peer " << PeerId::self() << ": Follower trackers closed. ";
     }
   }  // while(!is_exiting_)
@@ -500,11 +421,11 @@ void RaftNode::conductElection() {
     term = current_term_;
   }
   leader_id_ = PeerId();
-  state_lock.unlock();
   log_mutex_.acquireReadLock();
-  uint64_t last_log_index = log_entries_.back().index;
-  uint64_t last_log_term = log_entries_.back().term;
+  const uint64_t last_log_index = log_entries_.back()->index();
+  const uint64_t last_log_term = log_entries_.back()->term();
   log_mutex_.releaseReadLock();
+  state_lock.unlock();
 
   VLOG(1) << "Peer " << PeerId::self() << " is an election candidate for term "
           << term;
@@ -520,7 +441,7 @@ void RaftNode::conductElection() {
     if (response.get() == VOTE_GRANTED) {
       ++num_votes;
     } else {
-      // TODO(aqurai): Handle non-responding peers
+      // TODO(aqurai): Handle non-responding peers.
     }
   }
 
@@ -530,11 +451,11 @@ void RaftNode::conductElection() {
     state_ = State::LEADER;
     leader_id_ = PeerId::self();
     // Renew election timeout every session.
-    election_timeout_ = setElectionTimeout();
+    election_timeout_ms_ = setElectionTimeout();
     VLOG(1) << "*** Peer " << PeerId::self()
             << " Elected as the leader for term " << current_term_ << " with "
             << num_votes + 1 << " votes. ***";
-  } else {
+  } else if (state_ == State::CANDIDATE) {
     // This peer doesn't win the election.
     state_ = State::FOLLOWER;
     leader_id_ = PeerId();
@@ -542,7 +463,7 @@ void RaftNode::conductElection() {
     // from holding elections and getting rejected repeatedly in consecutive
     // terms (due to less updated log) and blocking other peers from holding
     // election.
-    election_timeout_ = 4 * setElectionTimeout();
+    election_timeout_ms_ = 4 * setElectionTimeout();
   }
   state_lock.unlock();
   std::unique_lock<std::mutex> heartbeat_lock(last_heartbeat_mutex_);
@@ -550,36 +471,39 @@ void RaftNode::conductElection() {
 }
 
 void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term) {
-  uint64_t follower_next_index = commit_index_ + 1;  // This is at least 1.
+  uint64_t follower_next_index = commit_index() + 1;  // This is at least 1.
   uint64_t follower_commit_index = 0;
-  std::mutex wait_mutex;
-  std::unique_lock<std::mutex> wait_lock(wait_mutex);
   proto::AppendEntriesRequest append_entries;
   proto::AppendEntriesResponse append_response;
+
+  // This lock is only used for waiting on a condition variable
+  // (new_entries_signal_), which is notified when there is a new log entry.
+  std::mutex wait_mutex;
+  std::unique_lock<std::mutex> wait_lock(wait_mutex);
 
   while (follower_trackers_run_) {
     bool append_successs = false;
     while (!append_successs && follower_trackers_run_) {
+      bool sending_heartbeat = false;
       append_entries.Clear();
       append_response.Clear();
       append_entries.set_term(term);
       log_mutex_.acquireReadLock();
-      append_entries.set_commitindex(commit_index_);
-      append_entries.set_lastlogindex(log_entries_.back().index);
-      append_entries.set_lastlogterm(log_entries_.back().term);
-      if (follower_next_index > log_entries_.back().index) {
-        // There are no new entries to send.
-      } else if (follower_next_index <= log_entries_.back().index) {
+      append_entries.set_commit_index(commit_index());
+      append_entries.set_last_log_index(log_entries_.back()->index());
+      append_entries.set_last_log_term(log_entries_.back()->term());
+      if (follower_next_index > log_entries_.back()->index()) {
+        // There are no new entries to send. Send an empty message (heartbeat).
+        sending_heartbeat = true;
+      } else if (follower_next_index <= log_entries_.back()->index()) {
         // There is at least one new entry to be sent.
-        std::vector<LogEntry>::iterator it =
-            getIteratorByIndex(follower_next_index);
+        LogIterator it = getLogIteratorByIndex(follower_next_index);
 
         // if this is the case, the control shouldn't have reached here,
         CHECK(it != log_entries_.end());
-        append_entries.set_newentry(it->entry);
-        append_entries.set_newentryterm(it->term);
-        append_entries.set_previouslogindex((it - 1)->index);
-        append_entries.set_previouslogterm((it - 1)->term);
+        append_entries.set_allocated_revision(it->get());
+        append_entries.set_previous_log_index((*(it - 1))->index());
+        append_entries.set_previous_log_term((*(it - 1))->term());
       } else {
         CHECK_GE(log_entries_.size(), 1);
       }
@@ -589,42 +513,41 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term) {
         VLOG(1) << PeerId::self() << ": Failed sendAppendEntries to " << peer;
         continue;
       }
+      append_entries.release_revision();
 
-      follower_commit_index = append_response.commitindex();
+      follower_commit_index = append_response.commit_index();
       append_successs =
-          (append_response.response() == proto::Response::SUCCESS);
-      if (!append_successs) {
+          (append_response.response() == proto::AppendResponseStatus::SUCCESS ||
+           append_response.response() ==
+               proto::AppendResponseStatus::ALREADY_PRESENT);
+
+      if (append_successs) {
+        if (!sending_heartbeat) {
+          // The response is from an append entry RPC, not a regular heartbeat.
+          ReplicationIterator replication_it =
+              peer_replication_indices_.find(peer);
+          replication_it->second->store(follower_next_index);
+          ++follower_next_index;
+          entry_replicated_signal_.notify_all();
+        }
+      } else {
         // Append on follower failed due to a conflict. Send an older entry
         // and try again.
         CHECK_GT(follower_next_index, 1);
         --follower_next_index;
         if (follower_commit_index >= follower_next_index &&
-            (append_response.response() != proto::Response::REJECTED)) {
+            (append_response.response() !=
+             proto::AppendResponseStatus::REJECTED)) {
           // This should not happen.
           LOG(FATAL) << PeerId::self()
                      << ": Conflicting entry already committed on peer " << peer
                      << ". Peer commit index " << follower_commit_index
                      << ". Peer last log index, term "
-                     << append_response.lastlogindex() << ", "
-                     << append_response.lastlogterm() << ". "
+                     << append_response.last_log_index() << ", "
+                     << append_response.last_log_term() << ". "
                      << "Leader previous log index, term "
-                     << append_entries.previouslogindex() << ", "
-                     << append_entries.previouslogterm() << ". ";
-        }
-      } else {
-        if (follower_next_index == append_response.lastlogindex()) {
-          // The response is from an append entry RPC, not a regular heartbeat.
-          log_mutex_.acquireWriteLock();
-          std::vector<LogEntry>::iterator it =
-              getIteratorByIndex(follower_next_index);
-          it->replicator_peers.insert(peer);
-          // TODO(aqurai): Remove later
-          VLOG_IF(1, it->index % 20 == 0 &&
-                         it->replicator_peers.size() == peer_list_.size())
-              << "******** Entry " << it->index << " replicated on all peers";
-          log_mutex_.releaseWriteLock();
-          ++follower_next_index;
-          entry_replicated_signal_.notify_all();
+                     << append_entries.previous_log_index() << ", "
+                     << append_entries.previous_log_term() << ". ";
         }
       }
     }  //  while (!append_successs && follower_trackers_run_)
@@ -644,19 +567,105 @@ int RaftNode::setElectionTimeout() {
   return dist(gen);
 }
 
-// Assumes at least read lock is acquired for log_mutex_
-std::vector<RaftNode::LogEntry>::iterator RaftNode::getIteratorByIndex(
-    uint64_t index) {
-  std::vector<LogEntry>::iterator it = log_entries_.end();
-  if (index < log_entries_.front().index || index > log_entries_.back().index) {
+// Assumes at least read lock is acquired for log_mutex_.
+RaftNode::LogIterator RaftNode::getLogIteratorByIndex(uint64_t index) {
+  LogIterator it = log_entries_.end();
+  if (index < log_entries_.front()->index() ||
+      index > log_entries_.back()->index()) {
     return it;
   } else {
     // The log indexes are always sequential.
-    it = log_entries_.begin() + (index - log_entries_.front().index);
+    it = log_entries_.begin() + (index - log_entries_.front()->index());
     // TODO(aqurai): Remove check later?
-    CHECK(it->index == index);
+    CHECK((*it)->index() == index);
     return it;
   }
+}
+
+proto::AppendResponseStatus RaftNode::followerAppendNewEntries(
+    proto::AppendEntriesRequest& request) {
+  if (!request.has_revision()) {
+    // No need to proceed further as message contains no new entries
+    return proto::AppendResponseStatus::SUCCESS;
+  } else if (request.previous_log_index() == log_entries_.back()->index() &&
+             request.previous_log_term() == log_entries_.back()->term()) {
+    // All is well, append the new entry, but don't commit it yet.
+    std::shared_ptr<proto::RaftRevision> new_revision(
+        request.release_revision());
+    CHECK_EQ(new_revision->index(), log_entries_.back()->index() + 1);
+    log_entries_.push_back(new_revision);
+    return proto::AppendResponseStatus::SUCCESS;
+  } else if (request.previous_log_index() < log_entries_.back()->index()) {
+    // Leader sends an older entry due to a conflict
+    LogIterator it = getLogIteratorByIndex(request.previous_log_index());
+    if (it != log_entries_.end() &&
+        request.previous_log_term() == (*it)->term()) {
+      // The received entry matched one of the older entries in the log.
+      CHECK(it != log_entries_.end());
+      // Erase and replace only of the entry is different from the one already
+      // stored.
+      if ((*(it + 1))->entry() == request.revision().entry() &&
+          (*(it + 1))->term() == request.revision().term()) {
+        return proto::AppendResponseStatus::ALREADY_PRESENT;
+      } else {
+        VLOG(1) << "Leader is erasing entries in log of " << PeerId::self()
+                << ". from " << (*(it + 1))->index();
+        CHECK_LT(commit_index(), (*(it + 1))->index());
+        log_entries_.resize(std::distance(log_entries_.begin(), it + 1));
+        std::shared_ptr<proto::RaftRevision> new_revision(
+            request.release_revision());
+        CHECK_EQ(new_revision->index(), log_entries_.back()->index() + 1);
+        log_entries_.push_back(new_revision);
+        return proto::AppendResponseStatus::SUCCESS;
+      }
+    } else {
+      return proto::AppendResponseStatus::FAILED;
+    }
+  } else {
+    // term and index don't match with leader's log.
+    return proto::AppendResponseStatus::FAILED;
+  }
+  return proto::AppendResponseStatus::FAILED;
+}
+
+void RaftNode::followerCommitNewEntries(
+    const proto::AppendEntriesRequest& request) {
+  CHECK_LE(commit_index(), log_entries_.back()->index());
+  if (commit_index() < request.commit_index() &&
+      commit_index() < log_entries_.back()->index()) {
+    std::lock_guard<std::mutex> commit_lock(commit_mutex_);
+    LogIterator it = getLogIteratorByIndex(commit_index_);
+    commit_index_ =
+        std::min(log_entries_.back()->index(), request.commit_index());
+    uint64_t result_increment = 0;
+
+    LogIterator it2 = getLogIteratorByIndex(commit_index_);
+    std::for_each(it + 1, it2 + 1,
+                  [&](const std::shared_ptr<proto::RaftRevision>& e) {
+      result_increment += e->entry();
+    });
+
+    committed_result_ += result_increment;
+    // TODO(aqurai): remove log later. Or increase the verbosity arg.
+    VLOG_IF(1, commit_index_ % 50 == 0) << PeerId::self() << ": Entry "
+                                        << commit_index_ << " committed *****";
+  }
+}
+
+const uint64_t& RaftNode::commit_index() const {
+  std::lock_guard<std::mutex> lock(commit_mutex_);
+  return commit_index_;
+}
+
+const uint64_t& RaftNode::committed_result() const {
+  std::lock_guard<std::mutex> lock(commit_mutex_);
+  return committed_result_;
+}
+
+void RaftNode::set_committed_result(uint64_t index, uint64_t result) {
+  std::lock_guard<std::mutex> lock(commit_mutex_);
+  commit_index_ = index;
+  committed_result_ = result;
 }
 
 uint64_t RaftNode::appendLogEntry(uint32_t entry) {
@@ -668,46 +677,84 @@ uint64_t RaftNode::appendLogEntry(uint32_t entry) {
     }
     current_term = current_term_;
   }
-  log_mutex_.acquireWriteLock();
-  LogEntry new_entry;
-  new_entry.index = log_entries_.back().index + 1;
-  new_entry.term = current_term;
-  new_entry.entry = entry;
-  log_entries_.push_back(new_entry);
-  log_mutex_.releaseWriteLock();
+  ScopedWriteLock log_lock(&log_mutex_);
+  if (log_entries_.back()->index() - commit_index() > kMaxLogQueueLength) {
+    return 0;
+  }
+  std::shared_ptr<proto::RaftRevision> new_revision(new proto::RaftRevision);
+  new_revision->set_index(log_entries_.back()->index() + 1);
+  new_revision->set_entry(entry);
+  new_revision->set_term(current_term);
+  log_entries_.push_back(new_revision);
+
   new_entries_signal_.notify_all();
-  VLOG_IF(1, new_entry.index % 10 == 0) << "Adding entry to log with index "
-                                        << new_entry.index;
-  return new_entry.index;
+  VLOG_IF(1, new_revision->index() % 10 == 0)
+      << "Adding entry to log with index " << new_revision->index();
+  return new_revision->index();
 }
 
-void RaftNode::commitReplicatedEntries() {
-  log_mutex_.acquireReadLock();
-  std::vector<LogEntry>::iterator it = getIteratorByIndex(commit_index_ + 1);
-  if (it != log_entries_.end()) {
-    if (!(it->replicator_peers.size() <= peer_list_.size())) {
-      LOG(FATAL) << "Replication count (" << it->replicator_peers.size()
-                 << ") is higher than peer size (" << peer_list_.size()
-                 << ") at peer " << PeerId::self() << " for entry index "
-                 << commit_index_;
-    }
-    if (it->replicator_peers.size() > peer_list_.size() / 2) {
-      // Replicated on more than half of the peers.
-      ++commit_index_;
-      VLOG_IF(1, commit_index_ % 10 == 0)
-          << PeerId::self() << ": Commit index increased to " << commit_index_
-          << " With replication count " << it->replicator_peers.size()
-          << " and with term " << it->term;
-      uint64_t old_result = committed_result_.second;
-      if (!log_mutex_.upgradeToWriteLock()) {
-        log_mutex_.acquireWriteLock();
-      }
-      committed_result_ = std::make_pair(it->index, old_result + it->entry);
-      log_mutex_.releaseWriteLock();
-      return;
+void RaftNode::leaderCommitReplicatedEntries() {
+  const uint64_t current_term = term();
+  ScopedReadLock log_lock(&log_mutex_);
+  std::lock_guard<std::mutex> commit_lock(commit_mutex_);
+
+  uint replication_count = 0;
+  for (ReplicationIterator it = peer_replication_indices_.begin();
+       it != peer_replication_indices_.end(); ++it) {
+    if (it->second->load() > commit_index_) {
+      ++replication_count;
     }
   }
-  log_mutex_.releaseReadLock();
+  if (replication_count > peer_list_.size()) {
+    LOG(FATAL) << "Replication count (" << replication_count
+               << ") is higher than peer size (" << peer_list_.size()
+               << ") at peer " << PeerId::self() << " for entry index "
+               << commit_index_;
+  }
+
+  LogIterator it = getLogIteratorByIndex(commit_index_ + 1);
+  if (it == log_entries_.end()) {
+    return;
+  }
+  CHECK_LE(commit_index_ + 1, log_entries_.back()->index());
+
+  // Commit entries from older leaders only if they are replicated on all peers,
+  // because otherwise they can potentially be overwritten by new leaders.
+  // (see §5.4.2 of http://ramcloud.stanford.edu/raft.pdf)
+  bool ready_to_commit = ((*it)->term() < current_term &&
+                          replication_count == peer_list_.size()) ||
+                         ((*it)->term() == current_term &&
+                          replication_count > peer_list_.size() / 2);
+
+  if (ready_to_commit) {
+    ++commit_index_;
+    // TODO(aqurai): Remove later
+    VLOG_IF(1, commit_index_ % 10 == 0) << PeerId::self()
+                                        << ": Commit index increased to "
+                                        << commit_index_
+                                        << " With replication count "
+                                        << replication_count << " and term "
+                                        << (*it)->term();
+    committed_result_ += (*it)->entry();
+  }
+}
+
+bool RaftNode::giveUpLeadership() {
+  std::unique_lock<std::mutex> lock(state_mutex_);
+  if (state_ == State::LEADER) {
+    follower_trackers_run_ = false;
+    entry_replicated_signal_.notify_all();
+    state_ = State::FOLLOWER;
+    lock.unlock();
+
+    std::unique_lock<std::mutex> heartbeat_lock(last_heartbeat_mutex_);
+    last_heartbeat_ = std::chrono::system_clock::now();
+    election_timeout_ms_ = 4 * setElectionTimeout();
+    return true;
+  } else {
+    lock.unlock();
+    return false;
+  }
 }
 
 }  // namespace map_api

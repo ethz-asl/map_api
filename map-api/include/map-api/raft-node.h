@@ -12,13 +12,23 @@
  *    peers and not others.
  * - No malicious peers!
  *
+ * -------------------------
+ * Lock acquisition ordering
+ * -------------------------
+ * 1. state_mutex_
+ * 2. log_mutex_
+ * 3. commit_mutex_
+ * 4. last_heartbeat_mutex_
+ *
+ *
+ *
  * --------------------------------------------------------------
  *  TODO List at this point
  * --------------------------------------------------------------
  *
  * PENDING: Handle peers who don't respond to vote rpc
  * PENDING: Values for timeout
- * PENDING: Addind and removing peers, handling non-responding peers
+ * PENDING: Adding and removing peers, handling non-responding peers
  * PENDING: Multiple raft instances managed by a manager class
  * PENDING: Remove the extra log messages
  */
@@ -28,6 +38,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <map>
 #include <mutex>
 #include <set>
 #include <thread>
@@ -42,7 +53,6 @@
 
 namespace map_api {
 class Message;
-class ReaderWriterMutex;
 
 // Implementation of Raft consensus algorithm presented here:
 // https://raftconsensus.github.io, http://ramcloud.stanford.edu/raft.pdf
@@ -85,6 +95,7 @@ class RaftNode {
   FRIEND_TEST(ConsensusFixture, LeaderElection);
   // TODO(aqurai) Only for test, will be removed later.
   inline void addPeerBeforeStart(PeerId peer) { peer_list_.insert(peer); }
+  bool giveUpLeadership();
 
   // Singleton class. There will be a singleton manager class later,
   // for managing multiple raft instances per peer.
@@ -104,7 +115,7 @@ class RaftNode {
   // RPCs for heartbeat, leader election, log replication
   // ====================================================
   bool sendAppendEntries(const PeerId& peer,
-                         proto::AppendEntriesRequest& append_entries,
+                         const proto::AppendEntriesRequest& append_entries,
                          proto::AppendEntriesResponse* append_response);
 
   enum {
@@ -148,7 +159,7 @@ class RaftNode {
   // Leader election
   // ===============
 
-  std::atomic<int> election_timeout_;  // A random value between 50 and 150 ms.
+  std::atomic<int> election_timeout_ms_;  // A random value between 50 and 150 ms.
   static int setElectionTimeout();     // Set a random election timeout value.
   void conductElection();
 
@@ -163,31 +174,38 @@ class RaftNode {
   // =====================
   // Index will always be sequential, unique.
   // Leader will overwrite follower logs where index+term doesn't match.
-  // Presently sending all log entries to everyone, but later, just send latest
-  // revision and new log entries to new peers.
-
-  struct LogEntry {
-    uint64_t index;
-    uint64_t term;
-    uint32_t entry;
-    std::set<PeerId> replicator_peers;
-  };
 
   // In Follower state, only handleAppendRequest writes to log_entries.
   // In Leader state, only appendLogEntry writes to log entries.
-  std::vector<LogEntry> log_entries_;
-  std::pair<uint64_t, uint64_t> committed_result_;
+  std::vector<std::shared_ptr<proto::RaftRevision>> log_entries_;
   std::condition_variable new_entries_signal_;
   std::condition_variable entry_replicated_signal_;
   ReaderWriterMutex log_mutex_;
+  typedef std::vector<std::shared_ptr<proto::RaftRevision>>::iterator
+      LogIterator;
 
-  std::atomic<uint64_t> commit_index_;
+  // Assumes at least read lock is acquired for log_mutex_.
+  LogIterator getLogIteratorByIndex(uint64_t index);
 
-  std::vector<LogEntry>::iterator getIteratorByIndex(uint64_t index);
+  // The two following methods assume write lock is acquired for log_mutex_.
+  proto::AppendResponseStatus followerAppendNewEntries(
+      proto::AppendEntriesRequest& request);
+  void followerCommitNewEntries(const proto::AppendEntriesRequest& request);
 
-  // After a new entry is replicated on followers,
-  // checks if some entries can be committed.
-  void commitReplicatedEntries();
+  // Expects locks for commit_mutex_ and log_mutex_to NOT have been acquired.
+  void leaderCommitReplicatedEntries();
+
+  std::map<PeerId, std::unique_ptr<std::atomic<uint64_t>>>
+      peer_replication_indices_;
+  typedef std::map<PeerId, std::unique_ptr<std::atomic<uint64_t>>>::iterator
+      ReplicationIterator;
+
+  uint64_t commit_index_;
+  uint64_t committed_result_;
+  mutable std::mutex commit_mutex_;
+  const uint64_t& commit_index() const;
+  const uint64_t& committed_result() const;
+  void set_committed_result(uint64_t index, uint64_t result);
 };
 }  // namespace map_api
 
