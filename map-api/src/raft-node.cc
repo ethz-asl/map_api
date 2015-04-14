@@ -322,7 +322,7 @@ void RaftNode::stateManagerThread() {
         follower_trackers_.emplace_back(&RaftNode::followerTrackerThread, this,
                                         peer, current_term);
         std::unique_ptr<std::atomic<uint64_t>> u(new std::atomic<uint64_t>(0));
-        replication_indices_.insert(std::make_pair(peer, std::move(u)));
+        peer_replication_indices_.insert(std::make_pair(peer, std::move(u)));
       }
 
       // This lock is only used for waiting on a condition variable.
@@ -339,7 +339,7 @@ void RaftNode::stateManagerThread() {
         follower_thread.join();
       }
       follower_trackers_.clear();
-      replication_indices_.clear();
+      peer_replication_indices_.clear();
       VLOG(1) << "Peer " << PeerId::self() << ": Follower trackers closed. ";
     }
   }  // while(!is_exiting_)
@@ -458,7 +458,8 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term) {
       if (append_successs) {
         if (!sending_heartbeat) {
           // The response is from an append entry RPC, not a regular heartbeat.
-          ReplicationIterator replication_it = replication_indices_.find(peer);
+          ReplicationIterator replication_it =
+              peer_replication_indices_.find(peer);
           replication_it->second->store(follower_next_index);
           ++follower_next_index;
           entry_replicated_signal_.notify_all();
@@ -562,10 +563,6 @@ proto::Response RaftNode::followerAppendNewEntries(
 
 void RaftNode::followerCommitNewEntries(
     const proto::AppendEntriesRequest& request) {
-  // LOG(WARNING) << "follower commit called for " << PeerId::self() << ". My
-  // last idx, leader commit: "
-  //      << log_entries_.back()->index() << ", " << request.commit_index()
-  //      << ". my commit index = " << commit_index();
   CHECK_LE(commit_index(), log_entries_.back()->index());
   if (commit_index() < request.commit_index() &&
       commit_index() < log_entries_.back()->index()) {
@@ -630,31 +627,47 @@ uint64_t RaftNode::appendLogEntry(uint32_t entry) {
 }
 
 void RaftNode::leaderCommitReplicatedEntries() {
+  uint64_t current_term = term();
   ScopedReadLock log_lock(&log_mutex_);
   std::lock_guard<std::mutex> commit_lock(commit_mutex_);
 
-  uint new_entry_replication_count = 0;
-  for (ReplicationIterator it = replication_indices_.begin();
-       it != replication_indices_.end(); ++it) {
+  uint replication_count = 0;
+  for (ReplicationIterator it = peer_replication_indices_.begin();
+       it != peer_replication_indices_.end(); ++it) {
     if (it->second->load() > commit_index_) {
-      ++new_entry_replication_count;
+      ++replication_count;
     }
   }
-  if (new_entry_replication_count > peer_list_.size()) {
-    LOG(FATAL) << "Replication count (" << new_entry_replication_count
+  if (replication_count > peer_list_.size()) {
+    LOG(FATAL) << "Replication count (" << replication_count
                << ") is higher than peer size (" << peer_list_.size()
                << ") at peer " << PeerId::self() << " for entry index "
                << commit_index_;
   }
-  if (new_entry_replication_count > peer_list_.size() / 2) {
-    // Replicated on more than half of the peers.
+
+  LogIterator it = getIteratorByIndex(commit_index_ + 1);
+  if (it == log_entries_.end()) {
+    return;
+  }
+  CHECK_LE(commit_index_ + 1, log_entries_.back()->index());
+
+  // Commit entries from older leaders only if they are replicated on all peers,
+  // because otherwise they can potentially be overwritten by new leaders.
+  // (see §5.4.2 of http://ramcloud.stanford.edu/raft.pdf)
+  bool ready_to_commit = ((*it)->term() < current_term &&
+                          replication_count == peer_list_.size()) ||
+                         ((*it)->term() == current_term &&
+                          replication_count > peer_list_.size() / 2);
+
+  if (ready_to_commit) {
     ++commit_index_;
-    CHECK_LE(commit_index_, log_entries_.back()->index());
     // TODO(aqurai): Remove later
-    VLOG_IF(1, commit_index_ % 10 == 0)
-        << PeerId::self() << ": Commit index increased to " << commit_index_
-        << " With replication count " << new_entry_replication_count;
-    LogIterator it = getIteratorByIndex(commit_index_);
+    VLOG_IF(1, commit_index_ % 10 == 0) << PeerId::self()
+                                        << ": Commit index increased to "
+                                        << commit_index_
+                                        << " With replication count "
+                                        << replication_count << " and term "
+                                        << (*it)->term();
     committed_result_ += (*it)->entry();
   }
 }

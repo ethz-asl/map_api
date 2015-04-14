@@ -181,7 +181,8 @@ class RaftNode {
   std::condition_variable entry_replicated_signal_;
   ReaderWriterMutex log_mutex_;
 
-  std::map<PeerId, std::unique_ptr<std::atomic<uint64_t>>> replication_indices_;
+  std::map<PeerId, std::unique_ptr<std::atomic<uint64_t>>>
+      peer_replication_indices_;
   typedef std::map<PeerId, std::unique_ptr<std::atomic<uint64_t>>>::iterator ReplicationIterator;
 
   // Assumes at least read lock is acquired for log_mutex_.
