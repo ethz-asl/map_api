@@ -115,7 +115,7 @@ void NetTableIndex::handleRoutedRequest(
 
   if (!request.has_sender()) {
     CHECK(routed_request_message.has_sender());
-    request.set_sender(routed_request_message.sender());
+    request.setSender(routed_request_message.sender());
   }
 
   if (request.isType<kGetClosestPrecedingFingerRequest>()) {

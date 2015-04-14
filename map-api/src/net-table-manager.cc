@@ -203,14 +203,23 @@ NetTable* NetTableManager::addTable(
 NetTable& NetTableManager::getTable(const std::string& name) {
   CHECK(Core::instance() != nullptr) << "Map API not initialized!";
   ScopedReadLock lock(&tables_lock_);
-  std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
-  found = tables_.find(name);
+  TableMap::iterator found = tables_.find(name);
   // TODO(tcies) load table schema from metatable if not active
   CHECK(found != tables_.end()) << "Table not found: " << name;
   return *found->second;
 }
 
-bool NetTableManager::hasTable(const std::string& name) {
+const NetTable& NetTableManager::getTable(const std::string& name) const {
+  CHECK(Core::instance() != nullptr) << "Map API not initialized!";
+  tables_lock_.acquireReadLock();
+  TableMap::const_iterator found = tables_.find(name);
+  // TODO(tcies) load table schema from metatable if not active
+  CHECK(found != tables_.end()) << "Table not found: " << name;
+  tables_lock_.releaseReadLock();
+  return *found->second;
+}
+
+bool NetTableManager::hasTable(const std::string& name) const {
   CHECK(Core::instance() != nullptr) << "Map API not initialized!";
 
   tables_lock_.acquireReadLock();
@@ -219,7 +228,7 @@ bool NetTableManager::hasTable(const std::string& name) {
   return has_table;
 }
 
-void NetTableManager::tableList(std::vector<std::string>* tables) {
+void NetTableManager::tableList(std::vector<std::string>* tables) const {
   CHECK_NOTNULL(tables);
   tables->clear();
   ScopedReadLock lock(&tables_lock_);
