@@ -37,11 +37,18 @@ class NetTableManager {
    */
   NetTable& getTable(const std::string& name);
 
-  void tableList(std::vector<std::string>* tables);
+  const NetTable& getTable(const std::string& name) const;
+
+  bool hasTable(const std::string& name) const;
+
+  void tableList(std::vector<std::string>* tables) const;
 
   void listenToPeersJoiningTable(const std::string& table_name);
 
   void kill();
+
+  // Makes sure all chunk has at least one other peer.
+  void killOnceShared();
 
   typedef std::unordered_map<std::string, std::unique_ptr<NetTable> > TableMap;
   // Need custom iterator to skip metatable, which is not supposed to be part of
@@ -134,7 +141,7 @@ class NetTableManager {
   Chunk* metatable_chunk_;
 
   TableMap tables_;
-  ReaderWriterMutex tables_lock_;
+  mutable ReaderWriterMutex tables_lock_;
 
   NetTable* metatable_;
 };
