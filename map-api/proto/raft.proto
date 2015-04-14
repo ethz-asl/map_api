@@ -40,8 +40,8 @@ message RequestVote {
 
 message ResponseVote {
   required bool vote = 1;
-  optional uint64 previousLogIndex = 2;
-  optional uint64 previousLogTerm = 3;
+  optional uint64 previous_log_index = 2;
+  optional uint64 previous_log_term = 3;
 }
 
 enum RequestType {ADD_PEER = 1; REMOVE_PEER = 2;}
