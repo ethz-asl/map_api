@@ -173,7 +173,6 @@ class RaftNode {
     uint64_t index;
     uint64_t term;
     uint32_t entry;
-    std::set<PeerId> replicator_peers;
   };
 
   // In Follower state, only handleAppendRequest writes to log_entries.
@@ -182,6 +181,9 @@ class RaftNode {
   std::condition_variable new_entries_signal_;
   std::condition_variable entry_replicated_signal_;
   ReaderWriterMutex log_mutex_;
+  
+  std::map<PeerId, std::unique_ptr<std::atomic<uint64_t>>> replication_indices_;
+  typedef std::map<PeerId, std::unique_ptr<std::atomic<uint64_t>>>::iterator ReplicationIterator;
 
   // Assumes at least read lock is acquired for log_mutex_.
   std::vector<LogEntry>::iterator getIteratorByIndex(uint64_t index);
@@ -202,6 +204,8 @@ class RaftNode {
   // can be committed. Expects locks for commit_mutex_ and log_mutex_
   // to NOT have been acquired.
   void leaderCommitReplicatedEntries();
+  
+  std::stringstream lgs;
 };
 }  // namespace map_api
 

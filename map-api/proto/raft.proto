@@ -42,3 +42,11 @@ message ResponseVote {
   optional uint64 previous_log_index = 2;
   optional uint64 previous_log_term = 3;
 }
+
+message QueryStateResponse {
+  optional string leader_id_ = 1;
+  optional uint64 last_log_index = 3;
+  optional uint64 last_log_term = 4;
+  optional uint64 commit_index = 5;
+  optional uint64 commit_result = 6;
+}
