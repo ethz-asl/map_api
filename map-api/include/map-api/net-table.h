@@ -258,6 +258,11 @@ class NetTable {
 
   void leaveIndices();
 
+  void getChunkHolders(const common::Id& chunk_id,
+                       std::unordered_set<PeerId>* peers);
+  void joinChunkHolders(const common::Id& chunk_id);
+  void leaveChunkHolders(const common::Id& chunk_id);
+
   std::shared_ptr<TableDescriptor> descriptor_;
   ChunkMap active_chunks_;
   mutable ReaderWriterMutex active_chunks_lock_;

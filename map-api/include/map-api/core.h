@@ -39,6 +39,9 @@ class Core final {
    * this only if you are sure that your data will be picked up by other peers.
    */
   void killOnceShared();
+  // The following can malfunction if the only other peer leaves in the middle
+  // of the execution of this function.
+  void killOnceSharedUnlessAlone();
 
   // NetTableManager& tableManager();
   // const NetTableManager& tableManager() const;
