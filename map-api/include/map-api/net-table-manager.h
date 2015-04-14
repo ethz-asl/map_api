@@ -43,6 +43,9 @@ class NetTableManager {
 
   void kill();
 
+  // Makes sure all chunk has at least one other peer.
+  void killOnceShared();
+
   typedef std::unordered_map<std::string, std::unique_ptr<NetTable> > TableMap;
   // Need custom iterator to skip metatable, which is not supposed to be part of
   // the iteration.
