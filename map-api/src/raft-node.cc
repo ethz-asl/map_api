@@ -12,11 +12,12 @@
 #include "map-api/message.h"
 #include "map-api/reader-writer-lock.h"
 
+namespace map_api {
+
 // TODO(aqurai): decide good values for these
 constexpr int kHeartbeatTimeoutMs = 150;
 constexpr int kHeartbeatSendPeriodMs = 50;
-
-namespace map_api {
+constexpr int kMaxLogQueueLength = 20;
 
 const char RaftNode::kAppendEntries[] = "raft_node_append_entries";
 const char RaftNode::kAppendEntriesResponse[] = "raft_node_append_response";
@@ -613,6 +614,9 @@ uint64_t RaftNode::appendLogEntry(uint32_t entry) {
     current_term = current_term_;
   }
   ScopedWriteLock log_lock(&log_mutex_);
+  if (log_entries_.back()->index() - commit_index() > kMaxLogQueueLength) {
+    return 0;
+  }
   std::shared_ptr<proto::RaftRevision> new_revision(new proto::RaftRevision);
   new_revision->set_index(log_entries_.back()->index() + 1);
   new_revision->set_entry(entry);
