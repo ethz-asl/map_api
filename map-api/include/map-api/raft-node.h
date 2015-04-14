@@ -38,6 +38,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <map>
 #include <mutex>
 #include <set>
 #include <thread>
@@ -178,15 +179,22 @@ class RaftNode {
   // In Follower state, only handleAppendRequest writes to log_entries.
   // In Leader state, only appendLogEntry writes to log entries.
   std::vector<LogEntry> log_entries_;
+
+  // TODO(aqurai): See if we can/should use unique_ptr
+  std::vector<std::shared_ptr<proto::RaftRevision>> log_entries_new_;
+  typedef std::vector<std::shared_ptr<proto::RaftRevision>>::iterator
+      LogIterator;
+
   std::condition_variable new_entries_signal_;
   std::condition_variable entry_replicated_signal_;
   ReaderWriterMutex log_mutex_;
-  
+
   std::map<PeerId, std::unique_ptr<std::atomic<uint64_t>>> replication_indices_;
   typedef std::map<PeerId, std::unique_ptr<std::atomic<uint64_t>>>::iterator ReplicationIterator;
 
   // Assumes at least read lock is acquired for log_mutex_.
   std::vector<LogEntry>::iterator getIteratorByIndex(uint64_t index);
+  LogIterator getIteratorByIndex2(uint64_t index);
 
   // The two following methods assume write lock is acquired for log_mutex_.
   proto::Response followerAppendNewEntries(
@@ -204,7 +212,7 @@ class RaftNode {
   // can be committed. Expects locks for commit_mutex_ and log_mutex_
   // to NOT have been acquired.
   void leaderCommitReplicatedEntries();
-  
+
   std::stringstream lgs;
 };
 }  // namespace map_api
