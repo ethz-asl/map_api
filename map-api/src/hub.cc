@@ -272,15 +272,13 @@ bool Hub::isReady(const PeerId& peer) {
 
 void Hub::discoveryHandler(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
-  // lock peer set lock so we can write without a race condition
-  instance().peer_mutex_.lock();
+  std::lock_guard<std::mutex> lock(instance().peer_mutex_);
+
   instance().peers_.insert(
       std::make_pair(PeerId(request.sender()),
                      std::unique_ptr<Peer>(new Peer(
                          request.sender(), *instance().context_, ZMQ_REQ))));
-  instance().peer_mutex_.unlock();
-  // ack by resend
-  response->impose<Message::kAck>();
+  response->ack();
 }
 
 void Hub::readyHandler(const Message& request, Message* response) {
