@@ -384,8 +384,12 @@ void RaftNode::stateManagerThread() {
       // Launch follower_handler threads if state is LEADER.
       follower_trackers_run_ = true;
       for (const PeerId& peer : peer_list_) {
-        follower_trackers_.emplace_back(&RaftNode::followerTrackerThread, this,
-                                        peer, current_term);
+        // follower_trackers_.emplace_back(&RaftNode::followerTrackerThread,
+        // this,
+        //                              peer, current_term);
+        std::thread follower_tracker(&RaftNode::followerTrackerThread, this,
+                                     peer, current_term);
+        follower_trackers2_.emplace(peer, std::move(follower_tracker));
         std::unique_ptr<std::atomic<uint64_t>> u(new std::atomic<uint64_t>(0));
         peer_replication_indices_.insert(std::make_pair(peer, std::move(u)));
       }
@@ -400,10 +404,11 @@ void RaftNode::stateManagerThread() {
         }
       }
       VLOG(1) << "Peer " << PeerId::self() << " Lost leadership. ";
-      for (std::thread& follower_thread : follower_trackers_) {
-        follower_thread.join();
+      for (std::unordered_map<PeerId, std::thread>::value_type&
+               follower_tracker : follower_trackers2_) {
+        follower_tracker.second.join();
       }
-      follower_trackers_.clear();
+      follower_trackers2_.clear();
       peer_replication_indices_.clear();
       VLOG(1) << "Peer " << PeerId::self() << ": Follower trackers closed. ";
     }

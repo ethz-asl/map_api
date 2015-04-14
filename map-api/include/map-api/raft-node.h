@@ -42,6 +42,7 @@
 #include <mutex>
 #include <set>
 #include <thread>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -153,6 +154,18 @@ class RaftNode {
   // Peer management
   // ===============
 
+  enum PeerStatus {
+    JOINING,
+    AVAILABLE,
+    NOT_RESPONDING,
+    DISCONNECTING,
+    OFFLINE
+  };
+
+  struct PeerInfo {
+    PeerId peer_id;
+    PeerStatus status;
+  };
   std::set<PeerId> peer_list_;
 
   // ===============
@@ -165,6 +178,7 @@ class RaftNode {
 
   // Started when leadership is acquired. Gets killed when leadership is lost.
   std::vector<std::thread> follower_trackers_;
+  std::unordered_map<PeerId, std::thread> follower_trackers2_;
   std::atomic<bool> follower_trackers_run_;
   std::atomic<uint64_t> last_vote_request_term_;
   void followerTrackerThread(const PeerId& peer, uint64_t term);
