@@ -170,18 +170,10 @@ class RaftNode {
   // Presently sending all log entries to everyone, but later, just send latest
   // revision and new log entries to new peers.
 
-  struct LogEntry {
-    uint64_t index;
-    uint64_t term;
-    uint32_t entry;
-  };
-
   // In Follower state, only handleAppendRequest writes to log_entries.
   // In Leader state, only appendLogEntry writes to log entries.
-  std::vector<LogEntry> log_entries_;
-
   // TODO(aqurai): See if we can/should use unique_ptr
-  std::vector<std::shared_ptr<proto::RaftRevision>> log_entries_new_;
+  std::vector<std::shared_ptr<proto::RaftRevision>> log_entries_;
   typedef std::vector<std::shared_ptr<proto::RaftRevision>>::iterator
       LogIterator;
 
@@ -193,12 +185,11 @@ class RaftNode {
   typedef std::map<PeerId, std::unique_ptr<std::atomic<uint64_t>>>::iterator ReplicationIterator;
 
   // Assumes at least read lock is acquired for log_mutex_.
-  std::vector<LogEntry>::iterator getIteratorByIndex(uint64_t index);
-  LogIterator getIteratorByIndex2(uint64_t index);
+  LogIterator getIteratorByIndex(uint64_t index);
 
   // The two following methods assume write lock is acquired for log_mutex_.
   proto::Response followerAppendNewEntries(
-      const proto::AppendEntriesRequest& request);
+      proto::AppendEntriesRequest& request);
   void followerCommitNewEntries(const proto::AppendEntriesRequest& request);
 
   uint64_t commit_index_;
@@ -212,8 +203,6 @@ class RaftNode {
   // can be committed. Expects locks for commit_mutex_ and log_mutex_
   // to NOT have been acquired.
   void leaderCommitReplicatedEntries();
-
-  std::stringstream lgs;
 };
 }  // namespace map_api
 

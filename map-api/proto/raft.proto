@@ -13,9 +13,7 @@ message AppendEntriesRequest {
   required uint64 commit_index = 4;
   optional uint64 previous_log_index = 5;
   optional uint64 previous_log_term = 6;
-  optional uint32 new_entry = 7;
-  optional uint64 new_entry_term = 8;
-  optional RaftRevision revision = 9;
+  optional RaftRevision revision = 7;
 }
 
 enum Response {
