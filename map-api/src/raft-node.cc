@@ -418,7 +418,8 @@ void RaftNode::stateManagerThread() {
   state_thread_running_ = false;
 }
 
-bool RaftNode::leaderAddRemovePeer(const PeerId& peer, proto::PeerRequestType request_type) {
+bool RaftNode::leaderAddRemovePeer(const PeerId& peer, 
+                      proto::PeerRequestType request_type) {
   return appendLogEntry(0, peer, request_type);
 }
 
@@ -699,7 +700,8 @@ uint64_t RaftNode::appendLogEntry(uint32_t entry) {
   return appendLogEntry(entry, invalid);
 }
 
-uint64_t RaftNode::appendLogEntry(uint32_t entry, PeerId& peer_id, proto::PeerRequestType request_type) {
+uint64_t RaftNode::appendLogEntry(uint32_t entry, PeerId& peer_id, 
+                                  proto::PeerRequestType request_type) {
   uint64_t current_term;
   {
     std::lock_guard<std::mutex> state_lock(state_mutex_);

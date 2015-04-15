@@ -80,7 +80,8 @@ class RaftNode {
 
   // Returns index of the appended entry if append succeeds, or zero otherwise
   uint64_t appendLogEntry(uint32_t entry);
-  uint64_t appendLogEntry(uint32_t entry, PeerId& peer_id, proto::PeerRequestType request_type = proto::PeerRequestType::ADD_PEER);
+  uint64_t appendLogEntry(uint32_t entry, PeerId& peer_id, 
+        proto::PeerRequestType request_type = proto::PeerRequestType::ADD_PEER);
 
   static void staticHandleHeartbeat(const Message& request, Message* response);
   static void staticHandleRequestVote(const Message& request,
