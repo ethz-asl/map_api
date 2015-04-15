@@ -206,9 +206,10 @@ void RaftNode::handleRequestVote(const Message& request, Message* response) {
   response_vote.set_previous_log_index(log_entries_.back()->index());
   response_vote.set_previous_log_term(log_entries_.back()->term());
   
-  bool is_candidate_log_newer = request_vote.last_log_term() > log_entries_.back()->term() ||
-                                (request_vote.last_log_term() == log_entries_.back()->term() &&
-                                 request_vote.last_log_index() >= log_entries_.back()->index());
+  bool is_candidate_log_newer = 
+                request_vote.last_log_term() > log_entries_.back()->term() ||
+                (request_vote.last_log_term() == log_entries_.back()->term() &&
+                request_vote.last_log_index() >= log_entries_.back()->index());
   log_mutex_.releaseReadLock();
   last_vote_request_term_ =
     std::max(static_cast<uint64_t>(last_vote_request_term_), request_vote.term());
@@ -496,9 +497,8 @@ RaftNode::LogIterator RaftNode::getLogIteratorByIndex(uint64_t index) {
       index > log_entries_.back()->index()) {
     return it;
   } else {
-    // The log indexes are always sequential.
+    // The log indices are always sequential.
     it = log_entries_.begin() + (index - log_entries_.front()->index());
-    // TODO(aqurai): Remove check later?
     CHECK((*it)->index() == index);
     return it;
   }
