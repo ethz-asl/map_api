@@ -24,6 +24,8 @@ const char RaftNode::kAppendEntriesResponse[] = "raft_node_append_response";
 const char RaftNode::kVoteRequest[] = "raft_node_vote_request";
 const char RaftNode::kVoteResponse[] = "raft_node_vote_response";
 const char RaftNode::kAddRemovePeer[] = "raft_node_add_remove_peer";
+const char RaftNode::kJoinRequest[] = "raft_node_join_request";
+const char RaftNode::kJoinResponse[] = "raft_node_join_response";
 
 MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntries, proto::AppendEntriesRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntriesResponse,
@@ -259,13 +261,16 @@ void RaftNode::handleAddRemovePeer(const Message& request, Message* response) {
   }
   proto::AddRemovePeer req;
   request.extract<kAddRemovePeer>(&req);
-  if (req.request_type() == proto::RequestType::ADD_PEER) {
+  std::lock_guard<std::mutex> peer_lock(peer_mutex_);
+  if (req.request_type() == proto::PeerRequestType::ADD_PEER) {
     peer_list_.insert(PeerId(req.peer_id()));
+    ++num_peers_;
     response->ack();
   } else {
     if (peer_list_.erase(PeerId(req.peer_id())) != 1) {
       response->decline();
     } else {
+      --num_peers_;
       response->ack();
     }
   }
@@ -310,7 +315,7 @@ bool RaftNode::sendAddPeer(const PeerId& peer, const PeerId& new_peer_id) {
   Message request, response;
   proto::AddRemovePeer add_peer_request;
   add_peer_request.set_peer_id(new_peer_id.ipPort());
-  add_peer_request.set_request_type(proto::RequestType::ADD_PEER);
+  add_peer_request.set_request_type(proto::PeerRequestType::ADD_PEER);
   request.impose<kAddRemovePeer>(add_peer_request);
   if (Hub::instance().try_request(peer, &request, &response)) {
     if (response.isOk()) {
@@ -328,7 +333,7 @@ bool RaftNode::sendRemovePeer(const PeerId& peer, const PeerId& new_peer_id) {
   Message request, response;
   proto::AddRemovePeer add_peer_request;
   add_peer_request.set_peer_id(new_peer_id.ipPort());
-  add_peer_request.set_request_type(proto::RequestType::REMOVE_PEER);
+  add_peer_request.set_request_type(proto::PeerRequestType::REMOVE_PEER);
   request.impose<kAddRemovePeer>(add_peer_request);
   if (Hub::instance().try_request(peer, &request, &response)) {
     if (response.isOk()) {
@@ -384,12 +389,9 @@ void RaftNode::stateManagerThread() {
       // Launch follower_handler threads if state is LEADER.
       follower_trackers_run_ = true;
       for (const PeerId& peer : peer_list_) {
-        // follower_trackers_.emplace_back(&RaftNode::followerTrackerThread,
-        // this,
-        //                              peer, current_term);
         std::thread follower_tracker(&RaftNode::followerTrackerThread, this,
                                      peer, current_term);
-        follower_trackers2_.emplace(peer, std::move(follower_tracker));
+        follower_trackers_.emplace(peer, std::move(follower_tracker));
         std::unique_ptr<std::atomic<uint64_t>> u(new std::atomic<uint64_t>(0));
         peer_replication_indices_.insert(std::make_pair(peer, std::move(u)));
       }
@@ -405,16 +407,32 @@ void RaftNode::stateManagerThread() {
       }
       VLOG(1) << "Peer " << PeerId::self() << " Lost leadership. ";
       for (std::unordered_map<PeerId, std::thread>::value_type&
-               follower_tracker : follower_trackers2_) {
+               follower_tracker : follower_trackers_) {
         follower_tracker.second.join();
       }
-      follower_trackers2_.clear();
+      follower_trackers_.clear();
       peer_replication_indices_.clear();
       VLOG(1) << "Peer " << PeerId::self() << ": Follower trackers closed. ";
     }
   }  // while(!is_exiting_)
   state_thread_running_ = false;
 }
+
+bool RaftNode::leaderAddRemovePeer(const PeerId& peer, proto::PeerRequestType request_type) {
+  return appendLogEntry(0, peer, request_type);
+}
+
+void RaftNode::peerAddRemovePeer(const proto::AddRemovePeer& add_remove_peer) {
+  std::lock_guard<std::mutex> peer_lock(peer_mutex_);
+  if(add_remove_peer.request_type() == proto::PeerRequestType::ADD_PEER) {
+    peer_list_.insert(PeerId(add_remove_peer.peer_id()));
+    ++num_peers_;
+  } else {
+    peer_list_.erase(PeerId(add_remove_peer.peer_id()));
+    --num_peers_;
+  }
+}
+
 
 void RaftNode::conductElection() {
   uint16_t num_votes = 0;
@@ -648,6 +666,9 @@ void RaftNode::followerCommitNewEntries(
     std::for_each(it + 1, it2 + 1,
                   [&](const std::shared_ptr<proto::RaftRevision>& e) {
       result_increment += e->entry();
+      if(e->has_add_remove_peer()) {
+        peerAddRemovePeer(e->add_remove_peer());
+      }
     });
 
     committed_result_ += result_increment;
@@ -674,6 +695,11 @@ void RaftNode::set_committed_result(uint64_t index, uint64_t result) {
 }
 
 uint64_t RaftNode::appendLogEntry(uint32_t entry) {
+  PeerId invalid = PeerId();
+  return appendLogEntry(entry, invalid);
+}
+
+uint64_t RaftNode::appendLogEntry(uint32_t entry, PeerId& peer_id, proto::PeerRequestType request_type) {
   uint64_t current_term;
   {
     std::lock_guard<std::mutex> state_lock(state_mutex_);
@@ -690,6 +716,14 @@ uint64_t RaftNode::appendLogEntry(uint32_t entry) {
   new_revision->set_index(log_entries_.back()->index() + 1);
   new_revision->set_entry(entry);
   new_revision->set_term(current_term);
+
+  if(peer_id.isValid()) {
+    proto::AddRemovePeer* add_remove_peer = new proto::AddRemovePeer;
+    add_remove_peer->set_peer_id(peer_id.ipPort());
+    add_remove_peer->set_request_type(request_type);
+    new_revision->set_allocated_add_remove_peer(add_remove_peer);
+  }
+
   log_entries_.push_back(new_revision);
 
   new_entries_signal_.notify_all();
@@ -741,6 +775,9 @@ void RaftNode::leaderCommitReplicatedEntries() {
                                         << replication_count << " and term "
                                         << (*it)->term();
     committed_result_ += (*it)->entry();
+    if((*it)->has_add_remove_peer()) {
+      peerAddRemovePeer((*it)->add_remove_peer());
+    }
   }
 }
 

@@ -63,6 +63,7 @@ class RaftNode {
     LEADER,
     FOLLOWER,
     CANDIDATE,
+    JOINING,
     DISCONNECTING
   };
 
@@ -79,6 +80,7 @@ class RaftNode {
 
   // Returns index of the appended entry if append succeeds, or zero otherwise
   uint64_t appendLogEntry(uint32_t entry);
+  uint64_t appendLogEntry(uint32_t entry, PeerId& peer_id, proto::PeerRequestType request_type = proto::PeerRequestType::ADD_PEER);
 
   static void staticHandleHeartbeat(const Message& request, Message* response);
   static void staticHandleRequestVote(const Message& request,
@@ -91,7 +93,9 @@ class RaftNode {
   static const char kVoteRequest[];
   static const char kVoteResponse[];
   static const char kAddRemovePeer[];
-
+  static const char kJoinRequest[];
+  static const char kJoinResponse[];
+  
  private:
   FRIEND_TEST(ConsensusFixture, LeaderElection);
   // TODO(aqurai) Only for test, will be removed later.
@@ -119,11 +123,7 @@ class RaftNode {
                          const proto::AppendEntriesRequest& append_entries,
                          proto::AppendEntriesResponse* append_response);
 
-  enum {
-    VOTE_GRANTED,
-    VOTE_DECLINED,
-    FAILED_REQUEST
-  };
+
   int sendRequestVote(const PeerId& peer, uint64_t term,
                       uint64_t last_log_index, uint64_t last_log_term);
 
@@ -162,23 +162,32 @@ class RaftNode {
     OFFLINE
   };
 
-  struct PeerInfo {
-    PeerId peer_id;
-    PeerStatus status;
-  };
+  std::unordered_map<PeerId, std::unique_ptr<PeerStatus>> peer_status_map_;
+  
+  // Available peers
   std::set<PeerId> peer_list_;
+  std::atomic<uint> num_peers_;
+  
+  // Started when leadership is acquired. Gets killed when leadership is lost.
+  std::unordered_map<PeerId, std::thread> follower_trackers_;
+  std::mutex peer_mutex_;
+  
+  bool leaderAddRemovePeer(const PeerId& peer, proto::PeerRequestType request_type);
+  void peerAddRemovePeer(const proto::AddRemovePeer& add_remove_peer);
 
   // ===============
   // Leader election
   // ===============
 
+  enum {
+    VOTE_GRANTED,
+    VOTE_DECLINED,
+    FAILED_REQUEST
+  };
   std::atomic<int> election_timeout_ms_;  // A random value between 50 and 150 ms.
   static int setElectionTimeout();     // Set a random election timeout value.
   void conductElection();
 
-  // Started when leadership is acquired. Gets killed when leadership is lost.
-  std::vector<std::thread> follower_trackers_;
-  std::unordered_map<PeerId, std::thread> follower_trackers2_;
   std::atomic<bool> follower_trackers_run_;
   std::atomic<uint64_t> last_vote_request_term_;
   void followerTrackerThread(const PeerId& peer, uint64_t term);
