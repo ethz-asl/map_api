@@ -700,7 +700,7 @@ uint64_t RaftNode::appendLogEntry(uint32_t entry) {
   return appendLogEntry(entry, invalid);
 }
 
-uint64_t RaftNode::appendLogEntry(uint32_t entry, PeerId& peer_id, 
+uint64_t RaftNode::appendLogEntry(uint32_t entry, const PeerId& peer_id, 
                                   proto::PeerRequestType request_type) {
   uint64_t current_term;
   {
