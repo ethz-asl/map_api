@@ -27,8 +27,8 @@ const char RaftNode::kVoteResponse[] = "raft_node_vote_response";
 MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntries, proto::AppendEntriesRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntriesResponse,
                       proto::AppendEntriesResponse);
-MAP_API_PROTO_MESSAGE(RaftNode::kVoteRequest, proto::RequestVote);
-MAP_API_PROTO_MESSAGE(RaftNode::kVoteResponse, proto::ResponseVote);
+MAP_API_PROTO_MESSAGE(RaftNode::kVoteRequest, proto::VoteRequest);
+MAP_API_PROTO_MESSAGE(RaftNode::kVoteResponse, proto::VoteResponse);
 
 const PeerId kInvalidId = PeerId();
 
@@ -97,6 +97,15 @@ void RaftNode::staticHandleRequestVote(const Message& request,
   instance().handleRequestVote(request, response);
 }
 
+inline void RaftNode::setAppendEntriesResponse(
+   proto::AppendEntriesResponse* response, proto::AppendResponseStatus status) {
+  response->set_term(current_term_);
+  response->set_response(status);
+  response->set_last_log_index(log_entries_.back()->index());
+  response->set_last_log_term(log_entries_.back()->term());
+  response->set_commit_index(commit_index());
+}
+
 // If there are no new entries, Leader sends empty message (heartbeat)
 // Message contains leader commit index, used to update own commit index
 // In Follower state, ONLY this thread writes to log_entries_ (via the function
@@ -154,11 +163,8 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
                  << request_sender.ipPort() << " (new) ";
     } else {
       // TODO(aqurai): Handle AppendEntry from a server with older term and log.
-      append_response.set_term(current_term_);
-      append_response.set_response(proto::AppendResponseStatus::REJECTED);
-      append_response.set_last_log_index(log_entries_.back()->index());
-      append_response.set_last_log_term(log_entries_.back()->term());
-      append_response.set_commit_index(commit_index());
+      setAppendEntriesResponse(&append_response, 
+                                        proto::AppendResponseStatus::REJECTED);
       log_mutex_.releaseReadLock();
       response->impose<kAppendEntriesResponse>(append_response);
       return;
@@ -168,7 +174,6 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
     std::lock_guard<std::mutex> heartbeat_lock(last_heartbeat_mutex_);
     last_heartbeat_ = std::chrono::system_clock::now();
   }
-  append_response.set_term(current_term_);
 
   // ==============================
   // Append/commit new log entries.
@@ -184,10 +189,7 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
     followerCommitNewEntries(append_request);
   }
 
-  append_response.set_response(response_status);
-  append_response.set_last_log_index(log_entries_.back()->index());
-  append_response.set_last_log_term(log_entries_.back()->term());
-  append_response.set_commit_index(commit_index());
+  setAppendEntriesResponse(&append_response, response_status);
   log_mutex_.releaseWriteLock();
   state_lock.unlock();
   response->impose<kAppendEntriesResponse>(append_response);
@@ -198,24 +200,24 @@ void RaftNode::handleRequestVote(const Message& request, Message* response) {
     std::lock_guard<std::mutex> lock(last_heartbeat_mutex_);
     last_heartbeat_ = std::chrono::system_clock::now();
   }
-  proto::RequestVote request_vote;
-  proto::ResponseVote response_vote;
-  request.extract<kVoteRequest>(&request_vote);
+  proto::VoteRequest vote_request;
+  proto::VoteResponse vote_response;
+  request.extract<kVoteRequest>(&vote_request);
   std::lock_guard<std::mutex> state_lock(state_mutex_);
   log_mutex_.acquireReadLock();
-  response_vote.set_previous_log_index(log_entries_.back()->index());
-  response_vote.set_previous_log_term(log_entries_.back()->term());
+  vote_response.set_previous_log_index(log_entries_.back()->index());
+  vote_response.set_previous_log_term(log_entries_.back()->term());
   
   bool is_candidate_log_newer = 
-                request_vote.last_log_term() > log_entries_.back()->term() ||
-                (request_vote.last_log_term() == log_entries_.back()->term() &&
-                request_vote.last_log_index() >= log_entries_.back()->index());
+                vote_request.last_log_term() > log_entries_.back()->term() ||
+                (vote_request.last_log_term() == log_entries_.back()->term() &&
+                vote_request.last_log_index() >= log_entries_.back()->index());
   log_mutex_.releaseReadLock();
   last_vote_request_term_ =
-    std::max(static_cast<uint64_t>(last_vote_request_term_), request_vote.term());
-  if (request_vote.term() > current_term_ && is_candidate_log_newer) {
-    response_vote.set_vote(true);
-    current_term_ = request_vote.term();
+    std::max(static_cast<uint64_t>(last_vote_request_term_), vote_request.term());
+  if (vote_request.term() > current_term_ && is_candidate_log_newer) {
+    vote_response.set_vote(true);
+    current_term_ = vote_request.term();
     leader_id_ = PeerId();
     if (state_ == State::LEADER) {
       follower_trackers_run_ = false;
@@ -225,15 +227,15 @@ void RaftNode::handleRequestVote(const Message& request, Message* response) {
             << request.sender() << " in term " << current_term_;
   } else {
     VLOG(1) << "Peer " << PeerId::self().ipPort() << " is declining vote for "
-            << request.sender() << " in term " << request_vote.term()
-            << ". Reason: " << (request_vote.term() > current_term_
+            << request.sender() << " in term " << vote_request.term()
+            << ". Reason: " << (vote_request.term() > current_term_
                                     ? ""
                                     : "Term is equal or less. ")
             << (is_candidate_log_newer ? "" : "Log is older. ");
-    response_vote.set_vote(false);
+    vote_response.set_vote(false);
   }
   
-  response->impose<kVoteResponse>(response_vote);
+  response->impose<kVoteResponse>(vote_response);
   election_timeout_ms_ = setElectionTimeout();
 }
 
@@ -254,14 +256,14 @@ bool RaftNode::sendAppendEntries(
 RaftNode::VoteResponse RaftNode::sendRequestVote(const PeerId& peer, uint64_t term,
                               uint64_t last_log_index, uint64_t last_log_term) {
   Message request, response;
-  proto::RequestVote vote_request;
+  proto::VoteRequest vote_request;
   vote_request.set_term(term);
   vote_request.set_commit_index(commit_index());
   vote_request.set_last_log_index(last_log_index);
   vote_request.set_last_log_term(last_log_term);
   request.impose<kVoteRequest>(vote_request);
   if (Hub::instance().try_request(peer, &request, &response)) {
-    proto::ResponseVote vote_response;
+    proto::VoteResponse vote_response;
     response.extract<kVoteResponse>(&vote_response);
     if (vote_response.vote())
       return VoteResponse::VOTE_GRANTED;
@@ -410,7 +412,7 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term) {
   while (follower_trackers_run_) {
     bool append_successs = false;
     while (!append_successs && follower_trackers_run_) {
-      bool sending_heartbeat = false;
+      bool sending_entries = false;
       append_entries.Clear();
       append_response.Clear();
       append_entries.set_term(term);
@@ -418,10 +420,8 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term) {
       append_entries.set_commit_index(commit_index());
       append_entries.set_last_log_index(log_entries_.back()->index());
       append_entries.set_last_log_term(log_entries_.back()->term());
-      if (follower_next_index > log_entries_.back()->index()) {
-        // There are no new entries to send. Send an empty message (heartbeat).
-        sending_heartbeat = true;
-      } else if (follower_next_index <= log_entries_.back()->index()) {
+      if (follower_next_index <= log_entries_.back()->index()) {
+        sending_entries = true;
         // There is at least one new entry to be sent.
         LogIterator it = getLogIteratorByIndex(follower_next_index);
 
@@ -446,7 +446,7 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term) {
                proto::AppendResponseStatus::ALREADY_PRESENT);
 
       if (append_successs) {
-        if (!sending_heartbeat) {
+        if (sending_entries) {
           // The response is from an append entry RPC, not a regular heartbeat.
           ReplicationIterator replication_it =
               peer_replication_indices_.find(peer);
@@ -556,13 +556,13 @@ void RaftNode::followerCommitNewEntries(
   if (commit_index() < request.commit_index() &&
       commit_index() < log_entries_.back()->index()) {
     std::lock_guard<std::mutex> commit_lock(commit_mutex_);
-    LogIterator it = getLogIteratorByIndex(commit_index_);
+    LogIterator old_commit = getLogIteratorByIndex(commit_index_);
     commit_index_ =
         std::min(log_entries_.back()->index(), request.commit_index());
     uint64_t result_increment = 0;
 
-    LogIterator it2 = getLogIteratorByIndex(commit_index_);
-    std::for_each(it + 1, it2 + 1,
+    LogIterator new_commit = getLogIteratorByIndex(commit_index_);
+    std::for_each(old_commit + 1, new_commit + 1,
                   [&](const std::shared_ptr<proto::RaftRevision>& e) {
       result_increment += e->entry();
     });
