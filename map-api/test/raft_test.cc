@@ -13,7 +13,7 @@
 
 namespace map_api {
 
-TEST_F(ConsensusFixture, LeaderElection) {
+TEST_F(ConsensusFixture, DISABLED_LeaderElection) {
   const uint64_t kProcesses = 5;
   enum Barriers {
     INIT,
@@ -39,29 +39,8 @@ TEST_F(ConsensusFixture, LeaderElection) {
 
   IPC::barrier(PEERS_SETUP, kProcesses - 1);
   RaftNode::instance().start();
-  RaftNode::TimePoint t_begin = std::chrono::system_clock::now();
-  uint num_appends = 0;
   while (true) {
-    RaftNode::TimePoint now = std::chrono::system_clock::now();
-    uint16_t duration_ms = static_cast<uint16_t>(
-        std::chrono::duration_cast<std::chrono::milliseconds>(now - t_begin)
-            .count());
-
-    if (RaftNode::instance().state() == RaftNode::State::LEADER) {
-      if (duration_ms > 15) {
-        RaftNode::instance().leaderAppendLogEntry(19);
-        ++num_appends;
-        t_begin = std::chrono::system_clock::now();
-      }
-      if (num_appends > 200) {
-        RaftNode::instance().giveUpLeadership();
-        num_appends = 0;
-        t_begin = std::chrono::system_clock::now();
-      }
-    } else {
-      t_begin = std::chrono::system_clock::now();
-    }
-    // usleep (20000);
+    // Do nothing
   }
 }
 
