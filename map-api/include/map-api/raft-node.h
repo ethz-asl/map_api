@@ -12,18 +12,23 @@
  *    peers and not others.
  * - No malicious peers!
  *
+ * -------------------------
+ * Lock acquisition ordering
+ * -------------------------
+ * 1. state_mutex_
+ * 2. log_mutex_
+ * 3. commit_mutex_
+ * 4. last_heartbeat_mutex_
+ * 
  * --------------------------------------------------------------
  *  TODO List at this point
  * --------------------------------------------------------------
  *
- * PENDING: Handle peers who dont respond to vote rpc
+ * PENDING: Handle peers who don't respond to vote rpc
  * PENDING: Values for timeout
- * PENDING: Impl good way to get peer list, remove non responding peers
- * PENDING: Vote RPC is now sent one by one. can parallelize?
- * PENDING: Peer handling, adding, removing
+ * PENDING: Adding and removing peers, handling non-responding peers
  * PENDING: Multiple raft instances managed by a manager class
  * PENDING: Remove the extra log messages
- * PENDING: Change leader to follower if many heartbeats not ack'd?
  */
 
 #ifndef MAP_API_RAFT_NODE_H_
@@ -39,7 +44,9 @@
 
 #include <gtest/gtest_prod.h>
 
+#include "./raft.pb.h"
 #include "map-api/peer-id.h"
+#include "map-api/reader-writer-lock.h"
 
 namespace map_api {
 class Message;
@@ -60,17 +67,22 @@ class RaftNode {
   void registerHandlers();
 
   void start();
-  inline bool isRunning() const { return heartbeat_thread_running_; }
+  inline bool isRunning() const { return state_thread_running_; }
   uint64_t term() const;
   const PeerId& leader() const;
   State state() const;
   inline PeerId self_id() const { return PeerId::self(); }
 
-  static void staticHandleHeartbeat(const Message& request, Message* response);
+  // Returns index of the appended entry if append succeeds, or zero otherwise
+  uint64_t leaderAppendLogEntry(uint32_t entry);
+
+  static void staticHandleAppendRequest(const Message& request, 
+                                      Message* response);
   static void staticHandleRequestVote(const Message& request,
                                       Message* response);
 
-  static const char kHeartbeat[];
+  static const char kAppendEntries[];
+  static const char kAppendEntriesResponse[];
   static const char kVoteRequest[];
   static const char kVoteResponse[];
 
@@ -89,24 +101,27 @@ class RaftNode {
   // ========
   // Handlers
   // ========
-  void handleHeartbeat(const Message& request, Message* response);
+  void handleAppendRequest(const Message& request, Message* response);
   void handleRequestVote(const Message& request, Message* response);
 
   // ====================================================
   // RPCs for heartbeat, leader election, log replication
   // ====================================================
-  bool sendHeartbeat(const PeerId& peer, uint64_t term);
+  bool sendAppendEntries(const PeerId& peer,
+                         const proto::AppendEntriesRequest& append_entries,
+                         proto::AppendEntriesResponse* append_response);
 
-  enum {
+  enum class VoteResponse {
     VOTE_GRANTED,
     VOTE_DECLINED,
     FAILED_REQUEST
   };
-  int sendRequestVote(const PeerId& peer, uint64_t term);
+  VoteResponse sendRequestVote(const PeerId& peer, uint64_t term,
+                      uint64_t last_log_index, uint64_t last_log_term);
 
-  // =====
-  // State
-  // =====
+  // ================
+  // State Management
+  // ================
 
   // State information.
   PeerId leader_id_;
@@ -119,10 +134,14 @@ class RaftNode {
   TimePoint last_heartbeat_;
   std::mutex last_heartbeat_mutex_;
 
-  void heartbeatThread();
-  std::thread heartbeat_thread_;  // Gets joined in destructor.
-  std::atomic<bool> heartbeat_thread_running_;
+  std::thread state_manager_thread_;  // Gets joined in destructor.
+  std::atomic<bool> state_thread_running_;
   std::atomic<bool> is_exiting_;
+  void stateManagerThread();
+
+  // ===============
+  // Peer management
+  // ===============
 
   std::set<PeerId> peer_list_;
 
@@ -130,14 +149,55 @@ class RaftNode {
   // Leader election
   // ===============
 
-  int election_timeout_;  // A random value between 50 and 150 ms.
+  std::atomic<int> election_timeout_ms_;  // A random value between 50 and 150 ms.
+  static int setElectionTimeout();     // Set a random election timeout value.
   void conductElection();
-  void followerTracker(const PeerId& peer, uint64_t term);
 
   // Started when leadership is acquired. Gets killed when leadership is lost.
   std::vector<std::thread> follower_trackers_;
   std::atomic<bool> follower_trackers_run_;
-  static int setElectionTimeout();
+  std::atomic<uint64_t> last_vote_request_term_;
+  void followerTrackerThread(const PeerId& peer, uint64_t term);
+
+  // =====================
+  // Log entries/revisions
+  // =====================
+  // Index will always be sequential, unique.
+  // Leader will overwrite follower logs where index+term doesn't match.
+  // Presently sending all log entries to everyone, but later, just send latest
+  // revision and new log entries to new peers.
+
+  struct LogEntry {
+    uint64_t index;
+    uint64_t term;
+    uint32_t entry;
+    std::set<PeerId> replicator_peers;
+  };
+
+  // In Follower state, only handleAppendRequest writes to log_entries.
+  // In Leader state, only appendLogEntry writes to log entries.
+  std::vector<LogEntry> log_entries_;
+  std::condition_variable new_entries_signal_;
+  ReaderWriterMutex log_mutex_;
+
+  // Assumes at least read lock is acquired for log_mutex_.
+  std::vector<LogEntry>::iterator getIteratorByIndex(uint64_t index);
+
+  // The two following methods assume write lock is acquired for log_mutex_.
+  proto::Response followerAppendNewEntries(
+      const proto::AppendEntriesRequest& request);
+  void followerCommitNewEntries(const proto::AppendEntriesRequest& request);
+
+  uint64_t commit_index_;
+  uint64_t committed_result_;
+  mutable std::mutex commit_mutex_;
+  const uint64_t& commit_index() const;
+  const uint64_t& committed_result() const;
+
+  // After a new entry is replicated on followers, checks if some entries
+  // can be committed. Expects locks for commit_mutex_ and log_mutex_
+  // to NOT have been acquired.
+  void leaderCommitReplicatedEntries();
 };
 }  // namespace map_api
 

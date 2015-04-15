@@ -4,10 +4,40 @@ message RaftHeartbeat {
   required uint64 term = 1;
 }
 
+message AppendEntriesRequest {
+  required uint64 term = 1;
+  required uint64 last_log_index = 2;
+  required uint64 last_log_term = 3;
+  required uint64 commit_index = 4;
+  optional uint64 previous_log_index = 5;
+  optional uint64 previous_log_term = 6;
+  optional uint32 new_entry = 7;
+  optional uint64 new_entry_term = 8;
+}
+
+enum Response {
+  FAILED = 0;
+  REJECTED = 1;
+  SUCCESS = 2;
+}
+
+message AppendEntriesResponse {
+  required uint64 term = 1;
+  required uint64 last_log_index = 2;
+  required uint64 last_log_term = 3;
+  required uint64 commit_index = 4;
+  required Response response = 5;
+}
+
 message RequestVote {
   required uint64 term = 1;
+  required uint64 last_log_index = 2;
+  required uint64 last_log_term = 3;
+  required uint64 commit_index = 4;
 }
 
 message ResponseVote {
   required bool vote = 1;
+  optional uint64 previous_log_index = 2;
+  optional uint64 previous_log_term = 3;
 }

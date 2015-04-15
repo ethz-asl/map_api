@@ -22,7 +22,7 @@ TEST_F(ConsensusFixture, DISABLED_LeaderElection) {
   };
 
   pid_t pid = getpid();
-  LOG(INFO) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid;
+  VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid;
 
   if (getSubprocessId() == 0) {
     for (uint64_t i = 1u; i < kProcesses; ++i) {
