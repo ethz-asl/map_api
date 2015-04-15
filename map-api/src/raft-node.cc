@@ -658,7 +658,6 @@ bool RaftNode::giveUpLeadership() {
   std::unique_lock<std::mutex> lock(state_mutex_);
   if (state_ == State::LEADER) {
     follower_trackers_run_ = false;
-    entry_replicated_signal_.notify_all();
     state_ = State::FOLLOWER;
     lock.unlock();
 

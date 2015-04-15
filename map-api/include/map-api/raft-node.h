@@ -196,11 +196,6 @@ class RaftNode {
   mutable std::mutex commit_mutex_;
   const uint64_t& commit_index() const;
   const uint64_t& committed_result() const;
-
-  // After a new entry is replicated on followers, checks if some entries
-  // can be committed. Expects locks for commit_mutex_ and log_mutex_
-  // to NOT have been acquired.
-  void leaderCommitReplicatedEntries();
 };
 }  // namespace map_api
 
