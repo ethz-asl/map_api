@@ -189,7 +189,7 @@ class RaftNode {
   std::mutex follower_tracker_mutex_;
   
   void leaderAddRemovePeer(const PeerId& peer, proto::PeerRequestType request);
-  void peerAddRemovePeer(const proto::AddRemovePeer& add_remove_peer);
+  void followerAddRemovePeer(const proto::AddRemovePeer& add_remove_peer);
 
   // ===============
   // Leader election

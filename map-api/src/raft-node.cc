@@ -433,7 +433,7 @@ void RaftNode::leaderAddRemovePeer(const PeerId& peer,
   }
 }
 
-void RaftNode::peerAddRemovePeer(const proto::AddRemovePeer& add_remove_peer) {
+void RaftNode::followerAddRemovePeer(const proto::AddRemovePeer& add_remove_peer) {
   std::lock_guard<std::mutex> peer_lock(peer_mutex_);
   if(add_remove_peer.request_type() == proto::PeerRequestType::ADD_PEER) {
     peer_list_.insert(PeerId(add_remove_peer.peer_id()));
@@ -676,7 +676,7 @@ void RaftNode::followerCommitNewEntries(
         result_increment += e->entry();
       }
       if(e->has_add_remove_peer()) {
-        peerAddRemovePeer(e->add_remove_peer());
+        followerAddRemovePeer(e->add_remove_peer());
       }
     });
 
