@@ -64,7 +64,7 @@ RaftNode& RaftNode::instance() {
 }
 
 void RaftNode::registerHandlers() {
-  Hub::instance().registerHandler(kAppendEntries, staticHandleHeartbeat);
+  Hub::instance().registerHandler(kAppendEntries, staticHandleAppendRequest);
   Hub::instance().registerHandler(kVoteRequest, staticHandleRequestVote);
 }
 
@@ -87,7 +87,7 @@ RaftNode::State RaftNode::state() const {
   return state_;
 }
 
-void RaftNode::staticHandleHeartbeat(const Message& request,
+void RaftNode::staticHandleAppendRequest(const Message& request,
                                      Message* response) {
   instance().handleAppendRequest(request, response);
 }
@@ -139,7 +139,6 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
       if (state_ == State::LEADER || state_ == State::CANDIDATE) {
         state_ = State::FOLLOWER;
         follower_trackers_run_ = false;
-        entry_replicated_signal_.notify_all();
       }
 
       // Update the last heartbeat info.
@@ -195,49 +194,45 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
 }
 
 void RaftNode::handleRequestVote(const Message& request, Message* response) {
-  proto::RequestVote request_vote;
-  proto::ResponseVote response_vote;
-  request.extract<kVoteRequest>(&request_vote);
-  log_mutex_.acquireReadLock();
-  const uint64_t last_log_index = log_entries_.back()->index();
-  const uint64_t last_log_term = log_entries_.back()->term();
-  response_vote.set_previous_log_index(last_log_index);
-  response_vote.set_previous_log_term(last_log_term);
-  log_mutex_.releaseReadLock();
-  bool is_candidate_log_newer = request_vote.last_log_term() > last_log_term ||
-                                (request_vote.last_log_term() == last_log_term &&
-                                 request_vote.last_log_index() >= last_log_index);
-  last_vote_request_term_ =
-      std::max(static_cast<uint64_t>(last_vote_request_term_), request_vote.term());
-  {
-    std::lock_guard<std::mutex> state_lock(state_mutex_);
-    if (request_vote.term() > current_term_ && is_candidate_log_newer) {
-      response_vote.set_vote(true);
-      current_term_ = request_vote.term();
-      leader_id_ = PeerId();
-      if (state_ == State::LEADER) {
-        follower_trackers_run_ = false;
-        entry_replicated_signal_.notify_all();
-      }
-      state_ = State::FOLLOWER;
-      VLOG(1) << "Peer " << PeerId::self().ipPort() << " is voting for "
-              << request.sender() << " in term " << current_term_;
-    } else {
-      VLOG(1) << "Peer " << PeerId::self().ipPort() << " is declining vote for "
-              << request.sender() << " in term " << request_vote.term()
-              << ". Reason: " << (request_vote.term() > current_term_
-                                      ? ""
-                                      : "Term is equal or less. ")
-              << (is_candidate_log_newer ? "" : "Log is older. ");
-      response_vote.set_vote(false);
-    }
-  }
-
-  response->impose<kVoteResponse>(response_vote);
   {
     std::lock_guard<std::mutex> lock(last_heartbeat_mutex_);
     last_heartbeat_ = std::chrono::system_clock::now();
   }
+  proto::RequestVote request_vote;
+  proto::ResponseVote response_vote;
+  request.extract<kVoteRequest>(&request_vote);
+  std::lock_guard<std::mutex> state_lock(state_mutex_);
+  log_mutex_.acquireReadLock();
+  response_vote.set_previous_log_index(log_entries_.back()->index());
+  response_vote.set_previous_log_term(log_entries_.back()->term());
+  
+  bool is_candidate_log_newer = request_vote.last_log_term() > log_entries_.back()->term() ||
+                                (request_vote.last_log_term() == log_entries_.back()->term() &&
+                                 request_vote.last_log_index() >= log_entries_.back()->index());
+  log_mutex_.releaseReadLock();
+  last_vote_request_term_ =
+    std::max(static_cast<uint64_t>(last_vote_request_term_), request_vote.term());
+  if (request_vote.term() > current_term_ && is_candidate_log_newer) {
+    response_vote.set_vote(true);
+    current_term_ = request_vote.term();
+    leader_id_ = PeerId();
+    if (state_ == State::LEADER) {
+      follower_trackers_run_ = false;
+    }
+    state_ = State::FOLLOWER;
+    VLOG(1) << "Peer " << PeerId::self().ipPort() << " is voting for "
+            << request.sender() << " in term " << current_term_;
+  } else {
+    VLOG(1) << "Peer " << PeerId::self().ipPort() << " is declining vote for "
+            << request.sender() << " in term " << request_vote.term()
+            << ". Reason: " << (request_vote.term() > current_term_
+                                    ? ""
+                                    : "Term is equal or less. ")
+            << (is_candidate_log_newer ? "" : "Log is older. ");
+    response_vote.set_vote(false);
+  }
+  
+  response->impose<kVoteResponse>(response_vote);
   election_timeout_ms_ = setElectionTimeout();
 }
 
@@ -255,7 +250,7 @@ bool RaftNode::sendAppendEntries(
   }
 }
 
-int RaftNode::sendRequestVote(const PeerId& peer, uint64_t term,
+RaftNode::VoteResponse RaftNode::sendRequestVote(const PeerId& peer, uint64_t term,
                               uint64_t last_log_index, uint64_t last_log_term) {
   Message request, response;
   proto::RequestVote vote_request;
@@ -268,11 +263,11 @@ int RaftNode::sendRequestVote(const PeerId& peer, uint64_t term,
     proto::ResponseVote vote_response;
     response.extract<kVoteResponse>(&vote_response);
     if (vote_response.vote())
-      return VOTE_GRANTED;
+      return VoteResponse::VOTE_GRANTED;
     else
-      return VOTE_DECLINED;
+      return VoteResponse::VOTE_DECLINED;
   } else {
-    return FAILED_REQUEST;
+    return VoteResponse::FAILED_REQUEST;
   }
 }
 
@@ -330,7 +325,7 @@ void RaftNode::stateManagerThread() {
       while (follower_trackers_run_) {
         leaderCommitReplicatedEntries();
         if (follower_trackers_run_) {
-          entry_replicated_signal_.wait(wait_lock);
+          usleep(kHeartbeatSendPeriodMs * kMillisecondsToMicroseconds);
         }
       }
       VLOG(1) << "Peer " << PeerId::self() << " Lost leadership. ";
@@ -349,11 +344,8 @@ void RaftNode::conductElection() {
   uint16_t num_votes = 0;
   std::unique_lock<std::mutex> state_lock(state_mutex_);
   state_ = State::CANDIDATE;
-  uint64_t term = ++current_term_;
-  if (last_vote_request_term_ >= current_term_) {
-    current_term_ = last_vote_request_term_ + 1;
-    term = current_term_;
-  }
+  current_term_ = std::max(current_term_ + 1, last_vote_request_term_ + 1);
+  uint64_t term = current_term_;
   leader_id_ = PeerId();
   log_mutex_.acquireReadLock();
   const uint64_t last_log_index = log_entries_.back()->index();
@@ -364,15 +356,15 @@ void RaftNode::conductElection() {
   VLOG(1) << "Peer " << PeerId::self() << " is an election candidate for term "
           << term;
 
-  std::vector<std::future<int>> responses;
+  std::vector<std::future<VoteResponse>> responses;
   for (const PeerId& peer : peer_list_) {
-    std::future<int> p =
+    std::future<VoteResponse> vote_response =
         std::async(std::launch::async, &RaftNode::sendRequestVote, this, peer,
                    term, last_log_index, last_log_term);
-    responses.push_back(std::move(p));
+    responses.push_back(std::move(vote_response));
   }
-  for (std::future<int>& response : responses) {
-    if (response.get() == VOTE_GRANTED) {
+  for (std::future<VoteResponse>& response : responses) {
+    if (response.get() == VoteResponse::VOTE_GRANTED) {
       ++num_votes;
     } else {
       // TODO(aqurai): Handle non-responding peers.
@@ -399,7 +391,6 @@ void RaftNode::conductElection() {
     // election.
     election_timeout_ms_ = 4 * setElectionTimeout();
   }
-  state_lock.unlock();
   std::unique_lock<std::mutex> heartbeat_lock(last_heartbeat_mutex_);
   last_heartbeat_ = std::chrono::system_clock::now();
 }
@@ -438,8 +429,6 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term) {
         append_entries.set_allocated_revision(it->get());
         append_entries.set_previous_log_index((*(it - 1))->index());
         append_entries.set_previous_log_term((*(it - 1))->term());
-      } else {
-        CHECK_GE(log_entries_.size(), 1);
       }
       log_mutex_.releaseReadLock();
 
@@ -462,7 +451,6 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term) {
               peer_replication_indices_.find(peer);
           replication_it->second->store(follower_next_index);
           ++follower_next_index;
-          entry_replicated_signal_.notify_all();
         }
       } else {
         // Append on follower failed due to a conflict. Send an older entry
@@ -581,8 +569,8 @@ void RaftNode::followerCommitNewEntries(
 
     committed_result_ += result_increment;
     // TODO(aqurai): remove log later. Or increase the verbosity arg.
-    VLOG_IF(1, commit_index_ % 50 == 0) << PeerId::self() << ": Entry "
-                                        << commit_index_ << " committed *****";
+    VLOG_EVERY_N(1, 50) << PeerId::self() << ": Entry " << commit_index_ 
+                        << " committed *****";
   }
 }
 
@@ -596,13 +584,7 @@ const uint64_t& RaftNode::committed_result() const {
   return committed_result_;
 }
 
-void RaftNode::set_committed_result(uint64_t index, uint64_t result) {
-  std::lock_guard<std::mutex> lock(commit_mutex_);
-  commit_index_ = index;
-  committed_result_ = result;
-}
-
-uint64_t RaftNode::appendLogEntry(uint32_t entry) {
+uint64_t RaftNode::leaderAppendLogEntry(uint32_t entry) {
   uint64_t current_term;
   {
     std::lock_guard<std::mutex> state_lock(state_mutex_);
@@ -622,8 +604,8 @@ uint64_t RaftNode::appendLogEntry(uint32_t entry) {
   log_entries_.push_back(new_revision);
 
   new_entries_signal_.notify_all();
-  VLOG_IF(1, new_revision->index() % 10 == 0)
-      << "Adding entry to log with index " << new_revision->index();
+  VLOG_EVERY_N(1,10) << "Adding entry to log with index " 
+                      << new_revision->index();
   return new_revision->index();
 }
 
@@ -663,12 +645,11 @@ void RaftNode::leaderCommitReplicatedEntries() {
   if (ready_to_commit) {
     ++commit_index_;
     // TODO(aqurai): Remove later
-    VLOG_IF(1, commit_index_ % 10 == 0) << PeerId::self()
-                                        << ": Commit index increased to "
-                                        << commit_index_
-                                        << " With replication count "
-                                        << replication_count << " and term "
-                                        << (*it)->term();
+    VLOG_EVERY_N(1, 10) << PeerId::self() << ": Commit index increased to "
+                                          << commit_index_
+                                          << " With replication count "
+                                          << replication_count << " and term "
+                                          << (*it)->term();
     committed_result_ += (*it)->entry();
   }
 }
