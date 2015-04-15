@@ -7,9 +7,19 @@ message AddRemovePeer {
   required PeerRequestType request_type = 2;
 }
 
+message JoinQuitRequest {
+  required PeerRequestType type = 1;
+}
+
+message JoinQuitResponse {
+  required bool response = 1;
+  repeated string peer_id = 2;
+  optional string leader_id = 3;
+}
+
 message RaftRevision {
   required uint64 index = 1;
-  required uint64 entry = 2;
+  optional uint64 entry = 2;
   required uint64 term = 3;
   optional AddRemovePeer add_remove_peer = 4;
 }
