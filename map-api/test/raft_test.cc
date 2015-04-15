@@ -49,7 +49,7 @@ TEST_F(ConsensusFixture, LeaderElection) {
 
     if (RaftNode::instance().state() == RaftNode::State::LEADER) {
       if (duration_ms > 15) {
-        RaftNode::instance().appendLogEntry(19);
+        RaftNode::instance().leaderAppendLogEntry(19);
         ++num_appends;
         t_begin = std::chrono::system_clock::now();
       }

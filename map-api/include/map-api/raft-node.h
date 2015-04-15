@@ -19,9 +19,7 @@
  * 2. log_mutex_
  * 3. commit_mutex_
  * 4. last_heartbeat_mutex_
- *
- *
- *
+ * 
  * --------------------------------------------------------------
  *  TODO List at this point
  * --------------------------------------------------------------
@@ -79,11 +77,12 @@ class RaftNode {
   inline PeerId self_id() const { return PeerId::self(); }
 
   // Returns index of the appended entry if append succeeds, or zero otherwise
-  uint64_t appendLogEntry(uint32_t entry);
-  uint64_t appendLogEntry(uint32_t entry, const PeerId& peer_id, 
+  uint64_t leaderAppendLogEntry(uint32_t entry);
+  uint64_t leaderAppendLogEntry(uint32_t entry, const PeerId& peer_id, 
         proto::PeerRequestType request_type = proto::PeerRequestType::ADD_PEER);
 
-  static void staticHandleHeartbeat(const Message& request, Message* response);
+  static void staticHandleAppendRequest(const Message& request, 
+                                      Message* response);
   static void staticHandleRequestVote(const Message& request,
                                       Message* response);
   static void staticHandleAddRemovePeer(const Message& request,
@@ -125,7 +124,12 @@ class RaftNode {
                          proto::AppendEntriesResponse* append_response);
 
 
-  int sendRequestVote(const PeerId& peer, uint64_t term,
+  enum class VoteResponse {
+    VOTE_GRANTED,
+    VOTE_DECLINED,
+    FAILED_REQUEST
+  };
+  VoteResponse sendRequestVote(const PeerId& peer, uint64_t term,
                       uint64_t last_log_index, uint64_t last_log_term);
 
   bool sendAddPeer(const PeerId& peer, const PeerId& new_peer_id);
@@ -203,7 +207,6 @@ class RaftNode {
   // In Leader state, only appendLogEntry writes to log entries.
   std::vector<std::shared_ptr<proto::RaftRevision>> log_entries_;
   std::condition_variable new_entries_signal_;
-  std::condition_variable entry_replicated_signal_;
   ReaderWriterMutex log_mutex_;
   typedef std::vector<std::shared_ptr<proto::RaftRevision>>::iterator
       LogIterator;
@@ -229,7 +232,6 @@ class RaftNode {
   mutable std::mutex commit_mutex_;
   const uint64_t& commit_index() const;
   const uint64_t& committed_result() const;
-  void set_committed_result(uint64_t index, uint64_t result);
 };
 }  // namespace map_api
 
