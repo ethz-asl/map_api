@@ -77,8 +77,8 @@ class RaftNode {
   // Returns index of the appended entry if append succeeds, or zero otherwise
   uint64_t leaderAppendLogEntry(uint32_t entry);
 
-  static void staticHandleAppendRequest(const Message& request, 
-                                      Message* response);
+  static void staticHandleAppendRequest(const Message& request,
+                                        Message* response);
   static void staticHandleRequestVote(const Message& request,
                                       Message* response);
 
@@ -182,8 +182,8 @@ class RaftNode {
   proto::AppendResponseStatus followerAppendNewEntries(
       proto::AppendEntriesRequest& request);
   void followerCommitNewEntries(const proto::AppendEntriesRequest& request);
-  void setAppendEntriesResponse(proto::AppendEntriesResponse* response, 
-                                           proto::AppendResponseStatus status);
+  void setAppendEntriesResponse(proto::AppendResponseStatus status,
+                                proto::AppendEntriesResponse* response);
 
   // Expects locks for commit_mutex_ and log_mutex_to NOT have been acquired.
   void leaderCommitReplicatedEntries();

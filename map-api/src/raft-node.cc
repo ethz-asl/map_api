@@ -98,8 +98,8 @@ void RaftNode::staticHandleRequestVote(const Message& request,
 }
 
 inline void RaftNode::setAppendEntriesResponse(
-    proto::AppendEntriesResponse* response,
-    proto::AppendResponseStatus status) {
+    proto::AppendResponseStatus status,
+    proto::AppendEntriesResponse* response) {
   response->set_term(current_term_);
   response->set_response(status);
   response->set_last_log_index(log_entries_.back()->index());
@@ -164,8 +164,8 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
                  << request_sender.ipPort() << " (new) ";
     } else {
       // TODO(aqurai): Handle AppendEntry from a server with older term and log.
-      setAppendEntriesResponse(&append_response,
-                               proto::AppendResponseStatus::REJECTED);
+      setAppendEntriesResponse(proto::AppendResponseStatus::REJECTED,
+                               &append_response);
       log_mutex_.releaseReadLock();
       response->impose<kAppendEntriesResponse>(append_response);
       return;
@@ -190,7 +190,7 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
     followerCommitNewEntries(append_request);
   }
 
-  setAppendEntriesResponse(&append_response, response_status);
+  setAppendEntriesResponse(response_status, &append_response);
   log_mutex_.releaseWriteLock();
   state_lock.unlock();
   response->impose<kAppendEntriesResponse>(append_response);
@@ -425,6 +425,7 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term) {
 
         // if this is the case, the control shouldn't have reached here,
         CHECK(it != log_entries_.end());
+        CHECK(it != log_entries_.begin());
         append_entries.set_allocated_revision(it->get());
         append_entries.set_previous_log_index((*(it - 1))->index());
         append_entries.set_previous_log_term((*(it - 1))->term());
@@ -435,6 +436,8 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term) {
         VLOG(1) << PeerId::self() << ": Failed sendAppendEntries to " << peer;
         continue;
       }
+      // Need to release revision so as to prevent prevent the allocated memory
+      // being deleted during append_entries.Clear().
       append_entries.release_revision();
 
       follower_commit_index = append_response.commit_index();
@@ -522,6 +525,7 @@ proto::AppendResponseStatus RaftNode::followerAppendNewEntries(
         request.previous_log_term() == (*it)->term()) {
       // The received entry matched one of the older entries in the log.
       CHECK(it != log_entries_.end());
+      CHECK((it + 1) != log_entries_.end());
       // Erase and replace only of the entry is different from the one already
       // stored.
       if ((*(it + 1))->entry() == request.revision().entry() &&
