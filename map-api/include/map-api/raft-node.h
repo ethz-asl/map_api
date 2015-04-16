@@ -19,9 +19,7 @@
  * 2. log_mutex_
  * 3. commit_mutex_
  * 4. last_heartbeat_mutex_
- *
- *
- *
+ * 
  * --------------------------------------------------------------
  *  TODO List at this point
  * --------------------------------------------------------------
@@ -77,9 +75,10 @@ class RaftNode {
   inline PeerId self_id() const { return PeerId::self(); }
 
   // Returns index of the appended entry if append succeeds, or zero otherwise
-  uint64_t appendLogEntry(uint32_t entry);
+  uint64_t leaderAppendLogEntry(uint32_t entry);
 
-  static void staticHandleHeartbeat(const Message& request, Message* response);
+  static void staticHandleAppendRequest(const Message& request, 
+                                      Message* response);
   static void staticHandleRequestVote(const Message& request,
                                       Message* response);
 
@@ -89,7 +88,7 @@ class RaftNode {
   static const char kVoteResponse[];
 
  private:
-  FRIEND_TEST(ConsensusFixture, LeaderElection);
+  FRIEND_TEST(ConsensusFixture, DISABLED_LeaderElection);
   // TODO(aqurai) Only for test, will be removed later.
   inline void addPeerBeforeStart(PeerId peer) { peer_list_.insert(peer); }
   bool giveUpLeadership();
@@ -114,12 +113,12 @@ class RaftNode {
                          const proto::AppendEntriesRequest& append_entries,
                          proto::AppendEntriesResponse* append_response);
 
-  enum {
+  enum class VoteResponse {
     VOTE_GRANTED,
     VOTE_DECLINED,
     FAILED_REQUEST
   };
-  int sendRequestVote(const PeerId& peer, uint64_t term,
+  VoteResponse sendRequestVote(const PeerId& peer, uint64_t term,
                       uint64_t last_log_index, uint64_t last_log_term);
 
   // ================
@@ -172,7 +171,6 @@ class RaftNode {
   // In Leader state, only appendLogEntry writes to log entries.
   std::vector<std::shared_ptr<proto::RaftRevision>> log_entries_;
   std::condition_variable new_entries_signal_;
-  std::condition_variable entry_replicated_signal_;
   ReaderWriterMutex log_mutex_;
   typedef std::vector<std::shared_ptr<proto::RaftRevision>>::iterator
       LogIterator;
@@ -184,6 +182,8 @@ class RaftNode {
   proto::AppendResponseStatus followerAppendNewEntries(
       proto::AppendEntriesRequest& request);
   void followerCommitNewEntries(const proto::AppendEntriesRequest& request);
+  void setAppendEntriesResponse(proto::AppendEntriesResponse* response, 
+                                           proto::AppendResponseStatus status);
 
   // Expects locks for commit_mutex_ and log_mutex_to NOT have been acquired.
   void leaderCommitReplicatedEntries();
@@ -198,7 +198,6 @@ class RaftNode {
   mutable std::mutex commit_mutex_;
   const uint64_t& commit_index() const;
   const uint64_t& committed_result() const;
-  void set_committed_result(uint64_t index, uint64_t result);
 };
 }  // namespace map_api
 
