@@ -31,38 +31,34 @@ bool NetTable::init(std::shared_ptr<TableDescriptor> descriptor) {
 }
 
 void NetTable::createIndex() {
-  index_lock_.acquireWriteLock();
+  ScopedWriteLock lock(&index_lock_);
   CHECK(index_.get() == nullptr);
   index_.reset(new NetTableIndex(name()));
   index_->create();
-  index_lock_.releaseWriteLock();
 }
 
 void NetTable::joinIndex(const PeerId& entry_point) {
-  index_lock_.acquireWriteLock();
+  ScopedWriteLock lock(&index_lock_);
   CHECK(index_.get() == nullptr);
   index_.reset(new NetTableIndex(name()));
   index_->join(entry_point);
-  index_lock_.releaseWriteLock();
 }
 
 void NetTable::createSpatialIndex(const SpatialIndex::BoundingBox& bounds,
                                   const std::vector<size_t>& subdivision) {
-  index_lock_.acquireWriteLock();
+  ScopedWriteLock lock(&index_lock_);
   CHECK(spatial_index_.get() == nullptr);
   spatial_index_.reset(new SpatialIndex(name(), bounds, subdivision));
   spatial_index_->create();
-  index_lock_.releaseWriteLock();
 }
 
 void NetTable::joinSpatialIndex(const SpatialIndex::BoundingBox& bounds,
                                 const std::vector<size_t>& subdivision,
                                 const PeerId& entry_point) {
-  index_lock_.acquireWriteLock();
+  ScopedWriteLock lock(&index_lock_);
   CHECK(spatial_index_.get() == nullptr);
   spatial_index_.reset(new SpatialIndex(name(), bounds, subdivision));
   spatial_index_->join(entry_point);
-  index_lock_.releaseWriteLock();
 }
 
 void NetTable::announceToListeners(const PeerIdList& listeners) {
@@ -118,11 +114,9 @@ Chunk* NetTable::newChunk(const common::Id& chunk_id) {
   std::unique_ptr<Chunk> chunk = std::unique_ptr<Chunk>(new Chunk);
   CHECK(chunk->init(chunk_id, descriptor_, true));
   Chunk* final_chunk_ptr = addInitializedChunk(std::move(chunk));
-  // Add self to chunk posessors in index.
-  index_lock_.acquireReadLock();
-  CHECK_NOTNULL(index_.get());
-  index_->announcePosession(chunk_id);
-  index_lock_.releaseReadLock();
+
+  joinChunkHolders(chunk_id);
+
   // Push chunk to listeners.
   std::lock_guard<std::mutex> l_new_chunk_listeners(m_new_chunk_listeners_);
   for (const PeerId& peer : new_chunk_listeners_) {
@@ -143,11 +137,13 @@ Chunk* NetTable::getChunk(const common::Id& chunk_id) {
     // look in index and connect to peers that claim to have the data
     // (for now metatable only)
     std::unordered_set<PeerId> peers;
-    index_lock_.acquireReadLock();
-    CHECK_NOTNULL(index_.get());
-    index_->seekPeers(chunk_id, &peers);
-    index_lock_.releaseReadLock();
-    CHECK_EQ(1u, peers.size()) << "Current implementation expects root only";
+    getChunkHolders(chunk_id, &peers);
+    // Chord can possibly be inconsistent, we therefore need to remove ourself
+    // from the chunk holder list if we happen to be part of it.
+    LOG_IF(WARNING, peers.erase(PeerId::self()) > 0u)
+        << "Peer was falsely in holders of chunk " << chunk_id;
+    CHECK(!peers.empty()) << "Chunk " << chunk_id.hexString()
+                          << " not available!";
     active_chunks_lock_.releaseReadLock();
     connectTo(chunk_id, *peers.begin());
     active_chunks_lock_.acquireReadLock();
@@ -238,9 +234,8 @@ void NetTable::registerChunkInSpace(
   active_chunks_lock_.acquireReadLock();
   CHECK(active_chunks_.find(chunk_id) != active_chunks_.end());
   active_chunks_lock_.releaseReadLock();
-  index_lock_.acquireReadLock();
+  ScopedReadLock lock(&index_lock_);
   spatial_index_->announceChunk(chunk_id, bounding_box);
-  index_lock_.releaseReadLock();
 }
 
 void NetTable::getChunkReferencesInBoundingBox(
@@ -248,9 +243,10 @@ void NetTable::getChunkReferencesInBoundingBox(
     std::unordered_set<common::Id>* chunk_ids) {
   CHECK_NOTNULL(chunk_ids);
   timing::Timer seek_timer("map_api::NetTable::getChunksInBoundingBox - seek");
-  index_lock_.acquireReadLock();
-  spatial_index_->seekChunks(bounding_box, chunk_ids);
-  index_lock_.releaseReadLock();
+  {
+    ScopedReadLock lock(&index_lock_);
+    spatial_index_->seekChunks(bounding_box, chunk_ids);
+  }
   seek_timer.Stop();
   statistics::StatsCollector collector(
       "map_api::NetTable::getChunksInBoundingBox - chunks");
@@ -389,6 +385,7 @@ Chunk* NetTable::connectTo(const common::Id& chunk_id,
   chunk_id.serialize(metadata.mutable_chunk_id());
   request.impose<Chunk::kConnectRequest>(metadata);
   // TODO(tcies) add to local peer subset as well?
+  VLOG(3) << "Connecting to " << peer << " for chunk " << chunk_id;
   Hub::instance().request(peer, &request, &response);
   CHECK(response.isType<Message::kAck>()) << response.type();
   // wait for connect handle thread of other peer to succeed
@@ -450,26 +447,12 @@ size_t NetTable::activeChunksItemsSizeBytes() {
 
 void NetTable::kill() {
   leaveAllChunks();
-  index_lock_.acquireReadLock();
-  if (index_.get() != nullptr) {
-    index_->leave();
-    index_lock_.releaseReadLock();
-    index_lock_.acquireWriteLock();
-    index_.reset();
-    index_lock_.releaseWriteLock();
-  } else {
-    index_lock_.releaseReadLock();
-  }
-  index_lock_.acquireReadLock();
-  if (spatial_index_.get() != nullptr) {
-    spatial_index_->leave();
-    index_lock_.releaseReadLock();
-    index_lock_.acquireWriteLock();
-    spatial_index_.reset();
-    index_lock_.releaseWriteLock();
-  } else {
-    index_lock_.releaseReadLock();
-  }
+  leaveIndices();
+}
+
+void NetTable::killOnceShared() {
+  leaveAllChunksOnceShared();
+  leaveIndices();
 }
 
 void NetTable::shareAllChunks() {
@@ -495,9 +478,21 @@ void NetTable::leaveAllChunks() {
   for (const std::pair<const common::Id, std::unique_ptr<Chunk> >& chunk :
       active_chunks_) {
     chunk.second->leave();
+    leaveChunkHolders(chunk.first);
   }
-  active_chunks_lock_.releaseReadLock();
-  active_chunks_lock_.acquireWriteLock();
+  CHECK(active_chunks_lock_.upgradeToWriteLock());
+  active_chunks_.clear();
+  active_chunks_lock_.releaseWriteLock();
+}
+
+void NetTable::leaveAllChunksOnceShared() {
+  active_chunks_lock_.acquireReadLock();
+  for (const std::pair<const common::Id, std::unique_ptr<Chunk> >& chunk :
+       active_chunks_) {
+    chunk.second->leaveOnceShared();
+    leaveChunkHolders(chunk.first);
+  }
+  CHECK(active_chunks_lock_.upgradeToWriteLock());
   active_chunks_.clear();
   active_chunks_lock_.releaseWriteLock();
 }
@@ -584,6 +579,7 @@ void NetTable::handleInitRequest(
   CHECK(chunk->init(chunk_id, request, sender, descriptor_));
   addInitializedChunk(std::move(chunk));
   response->ack();
+  std::thread(&NetTable::joinChunkHolders, this, chunk_id).detach();
 }
 
 void NetTable::handleInsertRequest(const common::Id& chunk_id,
@@ -649,18 +645,16 @@ void NetTable::handleUpdateRequest(const common::Id& chunk_id,
 
 void NetTable::handleRoutedNetTableChordRequests(const Message& request,
                                                  Message* response) {
-  index_lock_.acquireReadLock();
+  ScopedReadLock lock(&index_lock_);
   CHECK_NOTNULL(index_.get());
   index_->handleRoutedRequest(request, response);
-  index_lock_.releaseReadLock();
 }
 
 void NetTable::handleRoutedSpatialChordRequests(const Message& request,
                                                 Message* response) {
-  index_lock_.acquireReadLock();
+  ScopedReadLock lock(&index_lock_);
   CHECK_NOTNULL(spatial_index_.get());
   spatial_index_->handleRoutedRequest(request, response);
-  index_lock_.releaseReadLock();
 }
 
 void NetTable::handleAnnounceToListeners(const PeerId& announcer,
@@ -724,6 +718,49 @@ void NetTable::fetchAllCallback(const common::IdSet& insertions,
     revision->fetchTrackedChunks();
   }
   VLOG(3) << "Fetch callback complete!";
+}
+
+void NetTable::leaveIndices() {
+  index_lock_.acquireReadLock();
+  if (index_.get() != nullptr) {
+    index_->leave();
+    CHECK(index_lock_.upgradeToWriteLock());
+    index_.reset();
+    index_lock_.releaseWriteLock();
+  } else {
+    index_lock_.releaseReadLock();
+  }
+  index_lock_.acquireReadLock();
+  if (spatial_index_.get() != nullptr) {
+    spatial_index_->leave();
+    CHECK(index_lock_.upgradeToWriteLock());
+    spatial_index_.reset();
+    index_lock_.releaseWriteLock();
+  } else {
+    index_lock_.releaseReadLock();
+  }
+}
+
+void NetTable::getChunkHolders(const common::Id& chunk_id,
+                               std::unordered_set<PeerId>* peers) {
+  CHECK_NOTNULL(peers);
+  ScopedReadLock lock(&index_lock_);
+  CHECK_NOTNULL(index_.get());
+  index_->seekPeers(chunk_id, peers);
+}
+
+void NetTable::joinChunkHolders(const common::Id& chunk_id) {
+  ScopedReadLock lock(&index_lock_);
+  CHECK_NOTNULL(index_.get());
+  VLOG(3) << "Joining " << chunk_id.hexString() << " holders";
+  index_->announcePosession(chunk_id);
+}
+
+void NetTable::leaveChunkHolders(const common::Id& chunk_id) {
+  ScopedReadLock lock(&index_lock_);
+  CHECK_NOTNULL(index_.get());
+  VLOG(3) << "Leaving " << chunk_id.hexString() << " holders";
+  index_->renouncePosession(chunk_id);
 }
 
 }  // namespace map_api
