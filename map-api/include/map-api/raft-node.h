@@ -80,15 +80,15 @@ class RaftNode {
 
   // Returns index of the appended entry if append succeeds, or zero otherwise
   uint64_t leaderAppendLogEntry(uint32_t entry);
-  uint64_t leaderAppendLogEntry(uint32_t entry, const PeerId& peer_id, 
-        proto::PeerRequestType request_type = proto::PeerRequestType::ADD_PEER);
 
-  static void staticHandleAppendRequest(const Message& request, 
-                                      Message* response);
+  static void staticHandleAppendRequest(const Message& request,
+                                        Message* response);
   static void staticHandleRequestVote(const Message& request,
                                       Message* response);
   static void staticHandleJoinQuitRequest(const Message& request,
                                         Message* response);
+  static void staticHandleNotifyJoinQuitSuccess(const Message& request,
+                                                Message* response);
 
   static const char kAppendEntries[];
   static const char kAppendEntriesResponse[];
@@ -97,12 +97,13 @@ class RaftNode {
   static const char kAddRemovePeer[];
   static const char kJoinQuitRequest[];
   static const char kJoinQuitResponse[];
-  
+  static const char kNotifyJoinQuitSuccess[];
+
  private:
   FRIEND_TEST(ConsensusFixture, LeaderElection);
   // TODO(aqurai) Only for test, will be removed later.
-  inline void addPeerBeforeStart(PeerId peer) { 
-      peer_list_.insert(peer); 
+  inline void addPeerBeforeStart(PeerId peer) {
+    peer_list_.insert(peer);
       ++num_peers_;
   }
   bool giveUpLeadership();
@@ -120,6 +121,7 @@ class RaftNode {
   void handleAppendRequest(const Message& request, Message* response);
   void handleRequestVote(const Message& request, Message* response);
   void handleJoinQuitRequest(const Message& request, Message* response);
+  void handleNotifyJoinQuitSuccess(const Message& request, Message* response);
 
   // ====================================================
   // RPCs for heartbeat, leader election, log replication
@@ -134,8 +136,9 @@ class RaftNode {
   };
   VoteResponse sendRequestVote(const PeerId& peer, uint64_t term,
                       uint64_t last_log_index, uint64_t last_log_term);
-  proto::JoinQuitResponse sendJoinQuitRequest(const PeerId& peer, 
-                      proto::PeerRequestType type);
+  proto::JoinQuitResponse sendJoinQuitRequest(const PeerId& peer,
+                                              proto::PeerRequestType type);
+  void sendNotificationJoinQuitSuccess(const PeerId& peer);
 
   // ================
   // State Management
@@ -151,6 +154,10 @@ class RaftNode {
   typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
   TimePoint last_heartbeat_;
   std::mutex last_heartbeat_mutex_;
+  inline void updateHeartbeatTime() {
+    std::lock_guard<std::mutex> heartbeat_lock(last_heartbeat_mutex_);
+    last_heartbeat_ = std::chrono::system_clock::now();
+  }
 
   std::thread state_manager_thread_;  // Gets joined in destructor.
   std::atomic<bool> state_thread_running_;
@@ -165,19 +172,19 @@ class RaftNode {
     JOINING,
     AVAILABLE,
     NOT_RESPONDING,
-    DISCONNECTING,
+    ANNOUNCED_DISCONNECTING,
     OFFLINE
   };
 
   struct FollowerTracker {
     std::thread tracker_thread;
     std::atomic<bool> tracker_run;
-    std::atomic<uint64_t> replicaiton_count;
+    std::atomic<uint64_t> replication_index;
     std::atomic<PeerStatus> status;
   };
-  
+
   typedef std::unordered_map<PeerId, std::shared_ptr<FollowerTracker>> TrackerMap;
-  // One tracker thread is started for each peer when leadership is acquired. 
+  // One tracker thread is started for each peer when leadership is acquired.
   // They get joined when leadership is lost or corresponding peer disconnects.
   TrackerMap follower_tracker_map_;
 
@@ -187,9 +194,21 @@ class RaftNode {
   std::atomic<uint> num_peers_;
   std::mutex peer_mutex_;
   std::mutex follower_tracker_mutex_;
-  
+
+  // Expects follower_tracker_mutex_ locked.
+  void leaderShutDownTracker(const PeerId& peer);
+  void leaderShutDownAllTrackes();
+  void leaderLaunchTracker(const PeerId& peer, uint64_t current_term);
+
+  // Expects no lock to be taken.
+  void leaderMonitorFollowerStatus();
   void leaderAddRemovePeer(const PeerId& peer, proto::PeerRequestType request);
   void followerAddRemovePeer(const proto::AddRemovePeer& add_remove_peer);
+
+  // First time join.
+  bool joined_before_;
+  PeerId raft_leader_;
+  void joinRaft();
 
   // ===============
   // Leader election
@@ -206,8 +225,8 @@ class RaftNode {
 
   std::atomic<bool> follower_trackers_run_;
   std::atomic<uint64_t> last_vote_request_term_;
-  void followerTrackerThread(const PeerId& peer, uint64_t term, 
-                           const std::shared_ptr<FollowerTracker> my_tracker);
+  void followerTrackerThread(const PeerId& peer, uint64_t term,
+                             const std::shared_ptr<FollowerTracker> my_tracker);
 
   // =====================
   // Log entries/revisions
@@ -225,6 +244,12 @@ class RaftNode {
 
   // Assumes at least read lock is acquired for log_mutex_.
   LogIterator getLogIteratorByIndex(uint64_t index);
+
+  // Expects write lock for log_mutex to be acquired.
+  uint64_t leaderAddEntryToLog(uint32_t entry, uint32_t current_term,
+                               const PeerId& peer_id,
+                               proto::PeerRequestType request_type =
+                                   proto::PeerRequestType::ADD_PEER);
 
   // The two following methods assume write lock is acquired for log_mutex_.
   proto::AppendResponseStatus followerAppendNewEntries(
