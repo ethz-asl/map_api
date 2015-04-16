@@ -98,7 +98,8 @@ void RaftNode::staticHandleRequestVote(const Message& request,
 }
 
 inline void RaftNode::setAppendEntriesResponse(
-   proto::AppendEntriesResponse* response, proto::AppendResponseStatus status) {
+    proto::AppendEntriesResponse* response,
+    proto::AppendResponseStatus status) {
   response->set_term(current_term_);
   response->set_response(status);
   response->set_last_log_index(log_entries_.back()->index());
@@ -163,8 +164,8 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
                  << request_sender.ipPort() << " (new) ";
     } else {
       // TODO(aqurai): Handle AppendEntry from a server with older term and log.
-      setAppendEntriesResponse(&append_response, 
-                                        proto::AppendResponseStatus::REJECTED);
+      setAppendEntriesResponse(&append_response,
+                               proto::AppendResponseStatus::REJECTED);
       log_mutex_.releaseReadLock();
       response->impose<kAppendEntriesResponse>(append_response);
       return;
@@ -207,11 +208,11 @@ void RaftNode::handleRequestVote(const Message& request, Message* response) {
   log_mutex_.acquireReadLock();
   vote_response.set_previous_log_index(log_entries_.back()->index());
   vote_response.set_previous_log_term(log_entries_.back()->term());
-  
-  bool is_candidate_log_newer = 
-                vote_request.last_log_term() > log_entries_.back()->term() ||
-                (vote_request.last_log_term() == log_entries_.back()->term() &&
-                vote_request.last_log_index() >= log_entries_.back()->index());
+
+  bool is_candidate_log_newer =
+      vote_request.last_log_term() > log_entries_.back()->term() ||
+      (vote_request.last_log_term() == log_entries_.back()->term() &&
+       vote_request.last_log_index() >= log_entries_.back()->index());
   log_mutex_.releaseReadLock();
   last_vote_request_term_ =
     std::max(static_cast<uint64_t>(last_vote_request_term_), vote_request.term());
@@ -234,7 +235,7 @@ void RaftNode::handleRequestVote(const Message& request, Message* response) {
             << (is_candidate_log_newer ? "" : "Log is older. ");
     vote_response.set_vote(false);
   }
-  
+
   response->impose<kVoteResponse>(vote_response);
   election_timeout_ms_ = setElectionTimeout();
 }
@@ -319,12 +320,9 @@ void RaftNode::stateManagerThread() {
         follower_trackers_.emplace_back(&RaftNode::followerTrackerThread, this,
                                         peer, current_term);
         std::unique_ptr<std::atomic<uint64_t>> u(new std::atomic<uint64_t>(0));
-        peer_replication_indices_.insert(std::make_pair(peer, std::move(u)));
+        peer_replication_indices_.emplace(peer, std::move(u));
       }
 
-      // This lock is only used for waiting on a condition variable.
-      std::mutex wait_mutex;
-      std::unique_lock<std::mutex> wait_lock(wait_mutex);
       while (follower_trackers_run_) {
         leaderCommitReplicatedEntries();
         if (follower_trackers_run_) {
@@ -569,7 +567,7 @@ void RaftNode::followerCommitNewEntries(
 
     committed_result_ += result_increment;
     // TODO(aqurai): remove log later. Or increase the verbosity arg.
-    VLOG_EVERY_N(1, 50) << PeerId::self() << ": Entry " << commit_index_ 
+    VLOG_EVERY_N(1, 50) << PeerId::self() << ": Entry " << commit_index_
                         << " committed *****";
   }
 }
@@ -604,7 +602,7 @@ uint64_t RaftNode::leaderAppendLogEntry(uint32_t entry) {
   log_entries_.push_back(new_revision);
 
   new_entries_signal_.notify_all();
-  VLOG_EVERY_N(1,10) << "Adding entry to log with index " 
+  VLOG_EVERY_N(1, 10) << "Adding entry to log with index "
                       << new_revision->index();
   return new_revision->index();
 }

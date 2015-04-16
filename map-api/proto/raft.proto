@@ -1,16 +1,16 @@
 package map_api.proto;
 
 message RaftRevision {
-  required uint64 index = 1;
-  required uint64 entry = 2;
-  required uint64 term = 3;
+  optional uint64 index = 1;
+  optional uint64 entry = 2;
+  optional uint64 term = 3;
 }
 
 message AppendEntriesRequest {
-  required uint64 term = 1;
-  required uint64 last_log_index = 2;
-  required uint64 last_log_term = 3;
-  required uint64 commit_index = 4;
+  optional uint64 term = 1;
+  optional uint64 last_log_index = 2;
+  optional uint64 last_log_term = 3;
+  optional uint64 commit_index = 4;
   optional uint64 previous_log_index = 5;
   optional uint64 previous_log_term = 6;
   optional RaftRevision revision = 7;
@@ -24,22 +24,22 @@ enum AppendResponseStatus {
 }
 
 message AppendEntriesResponse {
-  required uint64 term = 1;
-  required uint64 last_log_index = 2;
-  required uint64 last_log_term = 3;
-  required uint64 commit_index = 4;
-  required AppendResponseStatus response = 5;
+  optional uint64 term = 1;
+  optional uint64 last_log_index = 2;
+  optional uint64 last_log_term = 3;
+  optional uint64 commit_index = 4;
+  optional AppendResponseStatus response = 5;
 }
 
 message VoteRequest {
-  required uint64 term = 1;
-  required uint64 last_log_index = 2;
-  required uint64 last_log_term = 3;
-  required uint64 commit_index = 4;
+  optional uint64 term = 1;
+  optional uint64 last_log_index = 2;
+  optional uint64 last_log_term = 3;
+  optional uint64 commit_index = 4;
 }
 
 message VoteResponse {
-  required bool vote = 1;
+  optional bool vote = 1;
   optional uint64 previous_log_index = 2;
   optional uint64 previous_log_term = 3;
 }
