@@ -1,9 +1,27 @@
 package map_api.proto;
 
+enum PeerRequestType {ADD_PEER = 1; REMOVE_PEER = 2;}
+
+message AddRemovePeer {
+  required string peer_id = 1;
+  required PeerRequestType request_type = 2;
+}
+
+message JoinQuitRequest {
+  required PeerRequestType type = 1;
+}
+
+message JoinQuitResponse {
+  required bool response = 1;
+  repeated string peer_id = 2;
+  optional string leader_id = 3;
+}
+
 message RaftRevision {
   required uint64 index = 1;
-  required uint64 entry = 2;
+  optional uint64 entry = 2;
   required uint64 term = 3;
+  optional AddRemovePeer add_remove_peer = 4;
 }
 
 message AppendEntriesRequest {
@@ -42,11 +60,4 @@ message ResponseVote {
   required bool vote = 1;
   optional uint64 previous_log_index = 2;
   optional uint64 previous_log_term = 3;
-}
-
-enum RequestType {ADD_PEER = 1; REMOVE_PEER = 2;}
-
-message AddRemovePeer {
-  required string peer_id = 1;
-  required RequestType request_type = 2;
 }
