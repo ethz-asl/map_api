@@ -51,20 +51,20 @@ void Core::init() {
   // ready metatable
   table_manager_.init(is_first_peer);
   initialized_ = true;
-  LOG(INFO) << "Map API instance running at address " << PeerId::self();
+  VLOG(1) << "Map API instance running at address " << PeerId::self();
 }
 
 bool Core::isInitialized() const { return initialized_; }
 
 void Core::kill() {
-  LOG(INFO) << "Killing Map API instance at address " << PeerId::self();
+  VLOG(1) << "Killing Map API instance at address " << PeerId::self();
   table_manager_.kill();
   hub_.kill();
   initialized_ = false;  // TODO(tcies) re-order?
 }
 
 void Core::killOnceShared() {
-  LOG(INFO) << "Killing (once shared) Map API instance at " << PeerId::self();
+  VLOG(1) << "Killing (once shared) Map API instance at " << PeerId::self();
   table_manager_.killOnceShared();
   hub_.kill();
   initialized_ = false;
