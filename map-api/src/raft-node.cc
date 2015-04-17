@@ -63,14 +63,20 @@ RaftNode::RaftNode()
 }
 
 RaftNode::~RaftNode() {
+  follower_trackers_run_ = false;
   is_exiting_ = true;
-  state_manager_thread_.join();
+  if (state_manager_thread_.joinable()) {
+    state_manager_thread_.join();
+  }
+  VLOG(1) << PeerId::self() << ": Raft instance closed.";
 }
 
 RaftNode& RaftNode::instance() {
   static RaftNode instance;
   return instance;
 }
+
+void RaftNode::kill() { this->~RaftNode(); }
 
 void RaftNode::registerHandlers() {
   Hub::instance().registerHandler(kAppendEntries, staticHandleAppendRequest);
@@ -82,9 +88,11 @@ void RaftNode::registerHandlers() {
 
 void RaftNode::start() {
   if (state_thread_running_) {
+    LOG(WARNING) << "Start failed. State manager thread is already running.";
     return;
   }
-  if (state_ == State::JOINING && !joined_before_ && !raft_leader_.isValid()) {
+  if (state_ == State::JOINING && !joined_before_ &&
+      !initial_join_request_peer_.isValid()) {
     return;
   }
   state_manager_thread_ = std::thread(&RaftNode::stateManagerThread, this);
@@ -299,6 +307,7 @@ void RaftNode::handleNotifyJoinQuitSuccess(const Message& request,
   std::lock_guard<std::mutex> state_lock(state_mutex_);
   if (state_ == State::JOINING) {
     state_ = State::FOLLOWER;
+    joined_before_ = true;
   }
   response->ack();
   VLOG(1) << " Peer " << PeerId::self() << " has joined the raft network.";
@@ -512,7 +521,7 @@ void RaftNode::leaderAddRemovePeer(const PeerId& peer,
     peer_list_.erase(peer);
     num_peers_ = peer_list_.size();
     leaderShutDownTracker(peer);
-  } else {  // Add new peer.
+  } else if (peer != PeerId::self()) {  // Add new peer.
     peer_list_.insert(peer);
     num_peers_ = peer_list_.size();
     leaderLaunchTracker(peer, current_term);
@@ -522,8 +531,11 @@ void RaftNode::leaderAddRemovePeer(const PeerId& peer,
 void RaftNode::followerAddRemovePeer(const proto::AddRemovePeer& add_remove_peer) {
   std::lock_guard<std::mutex> peer_lock(peer_mutex_);
   if (add_remove_peer.request_type() == proto::PeerRequestType::ADD_PEER) {
-    peer_list_.insert(PeerId(add_remove_peer.peer_id()));
-    num_peers_ = peer_list_.size();
+    const PeerId& peer = PeerId(add_remove_peer.peer_id());
+    if (peer != PeerId::self()) {
+      peer_list_.insert(peer);
+      num_peers_ = peer_list_.size();
+    }
   } else {
     peer_list_.erase(PeerId(add_remove_peer.peer_id()));
     num_peers_ = peer_list_.size();
@@ -532,9 +544,9 @@ void RaftNode::followerAddRemovePeer(const proto::AddRemovePeer& add_remove_peer
 
 void RaftNode::joinRaft() {
   PeerId peer;
-  if (raft_leader_.isValid()) {
-    peer = raft_leader_;
-    raft_leader_ = PeerId();
+  if (initial_join_request_peer_.isValid()) {
+    peer = initial_join_request_peer_;
+    initial_join_request_peer_ = PeerId();
   } else if (num_peers_ > 0) {
     // TODO(aqurai): lock peers here?
     // TODO(aqurai): Choose a random peer?
@@ -547,6 +559,7 @@ void RaftNode::joinRaft() {
     state_ = State::DISCONNECTING;
     return;
   }
+  VLOG(1) << PeerId::self() << ": Sending join request to " << peer;
   proto::JoinQuitResponse join_response =
       sendJoinQuitRequest(peer, proto::PeerRequestType::ADD_PEER);
   if (!join_response.response()) {
@@ -556,10 +569,14 @@ void RaftNode::joinRaft() {
           sendJoinQuitRequest(peer, proto::PeerRequestType::ADD_PEER);
     }
   }
-  uint num_peers = join_response.peer_id_size();
-  std::lock_guard<std::mutex> peer_lock(peer_mutex_);
-  for (uint i = 0; i < num_peers; ++i) {
-    peer_list_.insert(PeerId(join_response.peer_id(i)));
+
+  if (join_response.response()) {
+    peer_list_.insert(peer);
+    uint num_peers = join_response.peer_id_size();
+    std::lock_guard<std::mutex> peer_lock(peer_mutex_);
+    for (uint i = 0; i < num_peers; ++i) {
+      peer_list_.insert(PeerId(join_response.peer_id(i)));
+    }
     num_peers_ = peer_list_.size();
   }
 }
@@ -606,7 +623,7 @@ void RaftNode::conductElection() {
     state_ = State::JOINING;
     return;
   } else if (state_ == State::CANDIDATE &&
-             num_votes > (num_peers_ - num_failed) / 2) {
+             num_votes + 1 > (num_peers_ + 1 - num_failed) / 2) {
     // This peer wins the election.
     state_ = State::LEADER;
     leader_id_ = PeerId::self();
@@ -633,6 +650,7 @@ void RaftNode::followerTrackerThread(
     const std::shared_ptr<FollowerTracker> this_tracker) {
   uint64_t follower_next_index = commit_index() + 1;  // This is at least 1.
   uint64_t follower_commit_index = 0;
+  VLOG(1) << "Folloer next index = " << follower_next_index;
   proto::AppendEntriesRequest append_entries;
   proto::AppendEntriesResponse append_response;
 
@@ -700,8 +718,8 @@ void RaftNode::followerTrackerThread(
         // Append on follower failed due to a conflict. Send an older entry
         // and try again.
         CHECK_GT(follower_next_index, 1);
-        follower_next_index =
-            std::min(follower_next_index - 1, append_response.last_log_index());
+        follower_next_index = std::min(follower_next_index - 1,
+                                       append_response.last_log_index() + 1);
         if (follower_commit_index >= follower_next_index &&
             (append_response.response() !=
              proto::AppendResponseStatus::REJECTED)) {
@@ -902,10 +920,10 @@ void RaftNode::leaderCommitReplicatedEntries() {
   // Commit entries from older leaders only if they are replicated on all peers,
   // because otherwise they can potentially be overwritten by new leaders.
   // (see §5.4.2 of http://ramcloud.stanford.edu/raft.pdf)
-  bool ready_to_commit = ((*it)->term() < current_term &&
-                          replication_count == num_peers_) ||
-                         ((*it)->term() == current_term &&
-                          replication_count > num_peers_ / 2);
+  bool ready_to_commit =
+      ((*it)->term() < current_term && replication_count == num_peers_) ||
+      ((*it)->term() == current_term && replication_count > num_peers_ / 2) ||
+      num_peers_ == 0;
 
   if (ready_to_commit) {
     ++commit_index_;

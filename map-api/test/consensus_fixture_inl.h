@@ -15,7 +15,6 @@ namespace map_api {
 void ConsensusFixture::SetUpImpl() {
   map_api::Core::initializeInstance();  // Core init.
   ASSERT_TRUE(map_api::Core::instance() != nullptr);
-  RaftNode::instance().registerHandlers();
 }
 
 void ConsensusFixture::TearDownImpl() { map_api::Core::instance()->kill(); }

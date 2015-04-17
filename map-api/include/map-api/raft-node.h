@@ -68,6 +68,7 @@ class RaftNode {
   };
 
   static RaftNode& instance();
+  void kill();
 
   void registerHandlers();
 
@@ -100,7 +101,8 @@ class RaftNode {
   static const char kNotifyJoinQuitSuccess[];
 
  private:
-  FRIEND_TEST(ConsensusFixture, LeaderElection);
+  // FRIEND_TEST(ConsensusFixture, LeaderElection);
+  FRIEND_TEST(ConsensusFixture, LonePeer);
   // TODO(aqurai) Only for test, will be removed later.
   inline void addPeerBeforeStart(PeerId peer) {
     peer_list_.insert(peer);
@@ -207,7 +209,7 @@ class RaftNode {
 
   // First time join.
   bool joined_before_;
-  PeerId raft_leader_;
+  PeerId initial_join_request_peer_;
   void joinRaft();
 
   // ===============
