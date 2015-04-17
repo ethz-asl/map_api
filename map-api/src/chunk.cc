@@ -29,7 +29,7 @@ DEFINE_bool(writelock_persist, true,
 DEFINE_bool(blame_trigger, false,
             "Print backtrace for trigger insertion and"
             " invocation.");
-DEFINE_bool(map_api_time_chunk, false, "Toggle chunk timing");
+DEFINE_bool(map_api_time_chunk, false, "Toggle chunk timing.");
 
 namespace map_api {
 
@@ -473,19 +473,15 @@ void Chunk::distributedReadLock() const {
   if (log_locking_) {
     startState(READ_ATTEMPT);
   }
-  std::shared_ptr<timing::Timer> timer;
-  if (FLAGS_map_api_time_chunk) {
-    timer.reset(new timing::Timer("map_api::Chunk::distributedReadLock"));
-  }
+  timing::Timer timer("map_api::Chunk::distributedReadLock",
+                      !FLAGS_map_api_time_chunk);
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   if (isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id()) {
     // special case: also succeed. This is necessary e.g. when committing
     // transactions
     ++lock_.write_recursion_depth;
     metalock.unlock();
-    if (FLAGS_map_api_time_chunk) {
-      timer->Discard();
-    }
+    timer.Discard();
     return;
   }
   while (lock_.state != DistributedRWLock::State::UNLOCKED &&
@@ -496,9 +492,7 @@ void Chunk::distributedReadLock() const {
   lock_.state = DistributedRWLock::State::READ_LOCKED;
   ++lock_.n_readers;
   metalock.unlock();
-  if (FLAGS_map_api_time_chunk) {
-    timer->Stop();
-  }
+  timer.Stop();
   if (log_locking_) {
     startState(READ_SUCCESS);
   }
