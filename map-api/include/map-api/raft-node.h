@@ -201,7 +201,7 @@ class RaftNode {
   void leaderLaunchTracker(const PeerId& peer, uint64_t current_term);
 
   // Expects no lock to be taken.
-  void leaderMonitorFollowerStatus();
+  void leaderMonitorFollowerStatus(uint64_t current_term);
   void leaderAddRemovePeer(const PeerId& peer, proto::PeerRequestType request);
   void followerAddRemovePeer(const proto::AddRemovePeer& add_remove_peer);
 

@@ -273,6 +273,11 @@ void RaftNode::handleJoinQuitRequest(const Message& request, Message* response) 
     }
   } else {
     ScopedWriteLock log_lock(&log_mutex_);
+    std::lock_guard<std::mutex> tracker_lock(follower_tracker_mutex_);
+    if (follower_tracker_map_.count(request.sender()) == 1) {
+      TrackerMap::iterator it = follower_tracker_map_.find(request.sender());
+      it->second->status = PeerStatus::JOINING;
+    }
     if (leaderAddEntryToLog(0, current_term_, request.sender(),
                             join_quit_request.type()) > 0) {
       join_quit_response.set_response(true);
@@ -409,7 +414,7 @@ void RaftNode::stateManagerThread() {
 
       while (follower_trackers_run_) {
         leaderCommitReplicatedEntries();
-        leaderMonitorFollowerStatus();
+        leaderMonitorFollowerStatus(current_term);
         if (follower_trackers_run_) {
           usleep(kHeartbeatSendPeriodMs * kMillisecondsToMicroseconds);
         }
@@ -455,34 +460,38 @@ void RaftNode::leaderLaunchTracker(const PeerId& peer, uint64_t current_term) {
                    << " is already present but sent Join request again.";
       return;
     }
+    tracker->status = PeerStatus::AVAILABLE;
     tracker->tracker_run = false;
     tracker->tracker_thread.join();
   } else {
     tracker = std::shared_ptr<FollowerTracker>(new FollowerTracker);
     follower_tracker_map_.insert(std::make_pair(peer, tracker));
+    tracker->status = PeerStatus::AVAILABLE;
   }
   tracker->tracker_run = true;
-  tracker->status = PeerStatus::AVAILABLE;
   tracker->replication_index = 0;
   tracker->tracker_thread = std::thread(&RaftNode::followerTrackerThread, this,
                                         peer, current_term, tracker);
 }
 
-void RaftNode::leaderMonitorFollowerStatus() {
+void RaftNode::leaderMonitorFollowerStatus(uint64_t current_term) {
   uint num_not_responding = 0;
   std::vector<PeerId> remove_peer_list;
+  log_mutex_.acquireWriteLock();
   std::unique_lock<std::mutex> tracker_lock(follower_tracker_mutex_);
   for (TrackerMap::value_type& tracker : follower_tracker_map_) {
     if (tracker.second->status == PeerStatus::OFFLINE ||
         tracker.second->status == PeerStatus::ANNOUNCED_DISCONNECTING) {
       leaderShutDownTracker(tracker.first);
-      remove_peer_list.push_back(tracker.first);
+      leaderAddEntryToLog(0, current_term, tracker.first,
+                          proto::PeerRequestType::REMOVE_PEER);
     }
     if (tracker.second->status == PeerStatus::OFFLINE) {
       ++num_not_responding;
     }
   }
   tracker_lock.unlock();
+  log_mutex_.releaseWriteLock();
 
   if (num_not_responding > num_peers_ / 2) {
     VLOG(1) << PeerId::self()
@@ -491,15 +500,6 @@ void RaftNode::leaderMonitorFollowerStatus() {
     state_ = State::JOINING;
     follower_trackers_run_ = false;
     return;
-  }
-
-  if (!remove_peer_list.empty()) {
-    uint64_t current_term = term();
-    ScopedWriteLock log_lock(&log_mutex_);
-    for (const PeerId& peer : remove_peer_list) {
-      leaderAddEntryToLog(0, current_term, peer,
-                          proto::PeerRequestType::REMOVE_PEER);
-    }
   }
 }
 
