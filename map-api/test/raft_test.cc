@@ -48,7 +48,7 @@ TEST_F(ConsensusFixture, LonePeer) {
     double duration_run_ms = 0;
     uint num_appends = 0;
 
-    while (duration_run_ms < 5000) {
+    while (duration_run_ms < 2000) {
       RaftNode::TimePoint now = std::chrono::system_clock::now();
       uint16_t duration_ms = static_cast<uint16_t>(
           std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -81,7 +81,7 @@ TEST_F(ConsensusFixture, LonePeer) {
     begin_time = std::chrono::system_clock::now();
 
     duration_run_ms = 0;
-    while (duration_run_ms < 5000) {
+    while (duration_run_ms < 2000) {
       RaftNode::TimePoint now = std::chrono::system_clock::now();
       uint16_t duration_ms = static_cast<uint16_t>(
           std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -126,7 +126,7 @@ TEST_F(ConsensusFixture, LonePeer) {
   }
 }
 
-/*TEST_F(ConsensusFixture, LeaderElection) {
+TEST_F(ConsensusFixture, LeaderElection) {
   const uint64_t kProcesses = 5;
   enum Barriers {
     INIT,
@@ -176,7 +176,7 @@ TEST_F(ConsensusFixture, LonePeer) {
     }
     // usleep (20000);
   }
-}*/
+}
 
 }  // namespace map_api
 

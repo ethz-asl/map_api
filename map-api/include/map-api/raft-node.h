@@ -101,7 +101,7 @@ class RaftNode {
   static const char kNotifyJoinQuitSuccess[];
 
  private:
-  // FRIEND_TEST(ConsensusFixture, LeaderElection);
+  FRIEND_TEST(ConsensusFixture, LeaderElection);
   FRIEND_TEST(ConsensusFixture, LonePeer);
   // TODO(aqurai) Only for test, will be removed later.
   inline void addPeerBeforeStart(PeerId peer) {

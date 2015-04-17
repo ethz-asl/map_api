@@ -63,12 +63,7 @@ RaftNode::RaftNode()
 }
 
 RaftNode::~RaftNode() {
-  follower_trackers_run_ = false;
-  is_exiting_ = true;
-  if (state_manager_thread_.joinable()) {
-    state_manager_thread_.join();
-  }
-  VLOG(1) << PeerId::self() << ": Raft instance closed.";
+  VLOG(1) << PeerId::self() << ": Raft destructor called.";
 }
 
 RaftNode& RaftNode::instance() {
@@ -76,7 +71,15 @@ RaftNode& RaftNode::instance() {
   return instance;
 }
 
-void RaftNode::kill() { this->~RaftNode(); }
+void RaftNode::kill() {
+  VLOG(1) << PeerId::self() << ": Closing raft instance.";
+  follower_trackers_run_ = false;
+  is_exiting_ = true;
+  if (state_manager_thread_.joinable()) {
+    state_manager_thread_.join();
+  }
+  VLOG(1) << PeerId::self() << ": Raft instance closed.";
+}
 
 void RaftNode::registerHandlers() {
   Hub::instance().registerHandler(kAppendEntries, staticHandleAppendRequest);
