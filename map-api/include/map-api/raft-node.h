@@ -260,6 +260,8 @@ class RaftNode {
   proto::AppendResponseStatus followerAppendNewEntries(
       proto::AppendEntriesRequest& request);
   void followerCommitNewEntries(const proto::AppendEntriesRequest& request);
+  void setAppendEntriesResponse(proto::AppendResponseStatus status,
+                                proto::AppendEntriesResponse* response);
 
   // Expects locks for commit_mutex_ and log_mutex_to NOT have been acquired.
   void leaderCommitReplicatedEntries(uint64_t current_term);
