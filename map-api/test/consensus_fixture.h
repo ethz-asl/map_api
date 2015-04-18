@@ -11,6 +11,9 @@
 namespace map_api {
 
 class ConsensusFixture : public common::MultiprocessFixture {
+ public:
+   void appendEntries();
+    
  protected:
   virtual void SetUpImpl();
   virtual void TearDownImpl();

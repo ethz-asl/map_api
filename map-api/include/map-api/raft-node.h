@@ -102,7 +102,9 @@ class RaftNode {
 
  private:
   FRIEND_TEST(ConsensusFixture, LeaderElection);
-  FRIEND_TEST(ConsensusFixture, LonePeer);
+  FRIEND_TEST(ConsensusFixture, PeerJoin);
+  FRIEND_TEST(ConsensusFixture, PeerAnnouncedQuit);
+  friend class ConsensusFixture;
   // TODO(aqurai) Only for test, will be removed later.
   inline void addPeerBeforeStart(PeerId peer) {
     peer_list_.insert(peer);
@@ -204,7 +206,8 @@ class RaftNode {
 
   // Expects no lock to be taken.
   void leaderMonitorFollowerStatus(uint64_t current_term);
-  void leaderAddRemovePeer(const PeerId& peer, proto::PeerRequestType request);
+  void leaderAddRemovePeer(const PeerId& peer, proto::PeerRequestType request, 
+                           uint64_t current_term);
   void followerAddRemovePeer(const proto::AddRemovePeer& add_remove_peer);
 
   // First time join.
@@ -259,7 +262,7 @@ class RaftNode {
   void followerCommitNewEntries(const proto::AppendEntriesRequest& request);
 
   // Expects locks for commit_mutex_ and log_mutex_to NOT have been acquired.
-  void leaderCommitReplicatedEntries();
+  void leaderCommitReplicatedEntries(uint64_t current_term);
 
   uint64_t commit_index_;
   uint64_t committed_result_;
