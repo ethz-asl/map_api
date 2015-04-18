@@ -165,7 +165,7 @@ TEST_F(ConsensusFixture, PeerJoin) {
   }
 }
 
-TEST_F(ConsensusFixture, DISABLED_LeaderElection) {
+TEST_F(ConsensusFixture, LeaderElection) {
   const uint64_t kProcesses = 5;
   enum Barriers {
     INIT,
