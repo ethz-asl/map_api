@@ -38,7 +38,6 @@
 
 #include <atomic>
 #include <condition_variable>
-#include <map>
 #include <mutex>
 #include <set>
 #include <thread>
@@ -117,7 +116,6 @@ class RaftNode {
   RaftNode();
   RaftNode(const RaftNode&) = delete;
   RaftNode& operator=(const RaftNode&) = delete;
-  ~RaftNode();
 
   // ========
   // Handlers

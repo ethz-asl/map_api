@@ -62,10 +62,6 @@ RaftNode::RaftNode()
   log_entries_.push_back(default_revision);
 }
 
-RaftNode::~RaftNode() {
-  VLOG(1) << PeerId::self() << ": Raft destructor called.";
-}
-
 RaftNode& RaftNode::instance() {
   static RaftNode instance;
   return instance;
