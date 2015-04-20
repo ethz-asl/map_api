@@ -124,9 +124,8 @@ void RaftNode::staticHandleRequestVote(const Message& request,
   instance().handleRequestVote(request, response);
 }
 
-
 void RaftNode::staticHandleJoinQuitRequest(const Message& request,
-                                         Message* response) {
+                                           Message* response) {
   instance().handleJoinQuitRequest(request, response);
 }
 
@@ -226,6 +225,7 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
   // ==========================================
   if (state_ == State::JOINING && is_join_notified_ &&
       join_log_index_ >= log_entries_.back()->index()) {
+    VLOG(1) << PeerId::self() << " has joined the raft network.";
     state_ = State::FOLLOWER;
     is_join_notified_ = false;
     join_log_index_ = 0;
@@ -381,7 +381,7 @@ proto::JoinQuitResponse RaftNode::sendJoinQuitRequest(
   return join_response;
 }
 
-void RaftNode::sendNotificationJoinQuitSuccess(const PeerId& peer) {
+void RaftNode::sendNotifyJoinQuitSuccess(const PeerId& peer) {
   Message request, response;
   request.impose<kNotifyJoinQuitSuccess>();
   Hub::instance().try_request(peer, &request, &response);
@@ -974,8 +974,7 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
       leaderAddRemovePeer(PeerId((*it)->add_remove_peer().peer_id()),
                           (*it)->add_remove_peer().request_type(),
                           current_term);
-      sendNotificationJoinQuitSuccess(
-          PeerId((*it)->add_remove_peer().peer_id()));
+      sendNotifyJoinQuitSuccess(PeerId((*it)->add_remove_peer().peer_id()));
     }
   }
 }

@@ -141,7 +141,7 @@ class RaftNode {
                       uint64_t last_log_index, uint64_t last_log_term);
   proto::JoinQuitResponse sendJoinQuitRequest(const PeerId& peer,
                                               proto::PeerRequestType type);
-  void sendNotificationJoinQuitSuccess(const PeerId& peer);
+  void sendNotifyJoinQuitSuccess(const PeerId& peer);
 
   // ================
   // State Management
