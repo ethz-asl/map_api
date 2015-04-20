@@ -22,7 +22,7 @@ class ConsensusFixture : public common::MultiprocessFixture {
   proto::QueryStateResponse queryState(const PeerId& peer);
   void giveUpLeadership() { RaftNode::instance().giveUpLeadership(); }
   void appendEntry() {
-    RaftNode::instance().appendLogEntry(kRaftTestAppendEntry);
+    RaftNode::instance().leaderAppendLogEntry(kRaftTestAppendEntry);
   }
 
   typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;

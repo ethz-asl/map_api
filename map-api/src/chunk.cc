@@ -29,6 +29,7 @@ DEFINE_bool(writelock_persist, true,
 DEFINE_bool(blame_trigger, false,
             "Print backtrace for trigger insertion and"
             " invocation.");
+DEFINE_bool(map_api_time_chunk, false, "Toggle chunk timing.");
 
 namespace map_api {
 
@@ -195,12 +196,13 @@ void Chunk::enableLockLogging() {
 }
 
 void Chunk::leave() {
-  std::unique_lock<std::mutex> lock(trigger_mutex_);
-  triggers_.clear();
+  {
+    std::unique_lock<std::mutex> lock(trigger_mutex_);
+    triggers_.clear();
+    // Need to unlock, otherwise we could get into deadlocks, as
+    // distributedUnlock() below calls triggers on other peers.
+  }
   waitForTriggerCompletion();
-  // Need to unlock, otherwise we could get into deadlocks, as
-  // distributedUnlock() below calls triggers on other peers.
-  lock.unlock();
 
   Message request;
   proto::ChunkRequestMetadata metadata;
@@ -210,25 +212,32 @@ void Chunk::leave() {
   // leaving must be atomic wrt request handlers to prevent conflicts
   // this must happen after acquring the write lock to avoid deadlocks, should
   // two peers try to leave at the same time.
-  leave_lock_.acquireWriteLock();
-  CHECK(peers_.undisputableBroadcast(&request));
-  relinquished_ = true;
-  leave_lock_.releaseWriteLock();
+  {
+    ScopedWriteLock lock(&leave_lock_);
+    CHECK(peers_.undisputableBroadcast(&request));
+    relinquished_ = true;
+  }
   distributedUnlock();  // i.e. must be able to handle unlocks from outside
   // the swarm. Should this pose problems in the future, we could tie unlocking
   // to leaving.
 }
 
+void Chunk::leaveOnceShared() {
+  peers_.awaitNonEmpty("Waiting for chunk " + id().hexString() + " of table " +
+                       data_container_->name() + " to be shared...");
+  leave();
+}
+
 void Chunk::triggerWrapper(const std::unordered_set<common::Id>&& insertions,
                            const std::unordered_set<common::Id>&& updates) {
   std::lock_guard<std::mutex> trigger_lock(trigger_mutex_);
-  VLOG(3) << triggers_.size() << " triggers called in chunk" << id();
-  ScopedReadLock lock(&triggers_are_active_while_has_readers_);
+  VLOG(3) << triggers_.size() << " triggers called in chunk " << id();
   for (const TriggerCallback& trigger : triggers_) {
     CHECK(trigger);
     trigger(insertions, updates);
   }
   VLOG(3) << "Triggers done.";
+  triggers_are_active_while_has_readers_.releaseReadLock();
 }
 
 void Chunk::writeLock() { distributedWriteLock(); }
@@ -464,7 +473,8 @@ void Chunk::distributedReadLock() const {
   if (log_locking_) {
     startState(READ_ATTEMPT);
   }
-  timing::Timer timer("map_api::Chunk::distributedReadLock");
+  timing::Timer timer("map_api::Chunk::distributedReadLock",
+                      !FLAGS_map_api_time_chunk);
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   if (isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id()) {
     // special case: also succeed. This is necessary e.g. when committing
@@ -912,6 +922,7 @@ void Chunk::handleUnlockRequest(const PeerId& locker, Message* response) {
     // Must copy because of
     // http://stackoverflow.com/questions/7895879 .
     // "trigger_insertions_" and "trigger_updates_" are volatile.
+    triggers_are_active_while_has_readers_.acquireReadLock();
     std::thread trigger_thread(
         &Chunk::triggerWrapper, this,
         std::move(std::unordered_set<common::Id>(trigger_insertions_)),

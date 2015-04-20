@@ -143,7 +143,7 @@ TEST_F(ConsensusFixture, AppendEntries) {
     TimePoint begin = std::chrono::system_clock::now();
     TimePoint append_time = std::chrono::system_clock::now();
     uint16_t total_duration_ms = 0;
-    while (total_duration_ms < 5000 / kMilliSecondsToSeconds) {
+    while (total_duration_ms < 5000) {
       TimePoint now = std::chrono::system_clock::now();
       uint16_t append_duration_ms = static_cast<uint16_t>(
           std::chrono::duration_cast<std::chrono::milliseconds>(
