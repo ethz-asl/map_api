@@ -13,13 +13,13 @@
 
 using namespace map_api;  // NOLINT
 
-TEST_P(NetTableFixture, SaveAndRestoreFromFile) {
+TEST_F(NetTableFixture, SaveAndRestoreFromFile) {
   Chunk* chunk = table_->newChunk();
   CHECK_NOTNULL(chunk);
-  Id chunk_id = chunk->id();
-  Id item_1_id;
+  common::Id chunk_id = chunk->id();
+  common::Id item_1_id;
   generateId(&item_1_id);
-  Id item_2_id;
+  common::Id item_2_id;
   generateId(&item_2_id);
   {
     Transaction transaction;
@@ -32,11 +32,11 @@ TEST_P(NetTableFixture, SaveAndRestoreFromFile) {
     transaction.insert(table_, chunk, to_insert_1);
     transaction.insert(table_, chunk, to_insert_2);
     ASSERT_TRUE(transaction.commit());
-    CRTable::RevisionMap retrieved;
+    ConstRevisionMap retrieved;
     LogicalTime dumptime = LogicalTime::sample();
     chunk->dumpItems(dumptime, &retrieved);
-    ASSERT_EQ(2, retrieved.size());
-    CRTable::RevisionMap::iterator it = retrieved.find(item_1_id);
+    ASSERT_EQ(2u, retrieved.size());
+    ConstRevisionMap::iterator it = retrieved.find(item_1_id);
     ASSERT_FALSE(it == retrieved.end());
     LogicalTime time_1, time_2;
     int item_1, item_2;
@@ -74,13 +74,13 @@ TEST_P(NetTableFixture, SaveAndRestoreFromFile) {
   {
     chunk = table_->getChunk(chunk_id);
     ASSERT_FALSE(chunk == nullptr);
-    CRTable::RevisionMap retrieved;
+    ConstRevisionMap retrieved;
     LogicalTime time_1, time_2;
     int item_1, item_2;
     LogicalTime dumptime = LogicalTime::sample();
     chunk->dumpItems(dumptime, &retrieved);
-    ASSERT_EQ(2, retrieved.size());
-    CRTable::RevisionMap::iterator it = retrieved.find(item_1_id);
+    ASSERT_EQ(2u, retrieved.size());
+    ConstRevisionMap::iterator it = retrieved.find(item_1_id);
     ASSERT_FALSE(it == retrieved.end());
     time_1 = it->second->getInsertTime();
     it->second->get(kFieldName, &item_1);

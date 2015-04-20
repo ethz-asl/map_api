@@ -4,8 +4,6 @@
 #include <string>
 #include <vector>
 
-#include "map-api/net-table.h"
-
 namespace map_api {
 
 template <typename IdType>
@@ -57,10 +55,10 @@ std::shared_ptr<const Revision> NetTableTransaction::getByIdFromUncommitted(
 }
 
 template <typename ValueType>
-CRTable::RevisionMap NetTableTransaction::find(int key,
-                                               const ValueType& value) {
+void NetTableTransaction::find(int key, const ValueType& value,
+                               ConstRevisionMap* result) {
   // TODO(tcies) uncommitted
-  return table_->lockFind(key, value, begin_time_);
+  return table_->lockFind(key, value, begin_time_, result);
 }
 
 template <typename IdType>
@@ -70,7 +68,7 @@ void NetTableTransaction::getAvailableIds(std::vector<IdType>* ids) {
 }
 
 template <typename IdType>
-void NetTableTransaction::remove(const UniqueId<IdType>& id) {
+void NetTableTransaction::remove(const common::UniqueId<IdType>& id) {
   std::shared_ptr<const Revision> revision;
   Chunk* chunk = chunkOf(id, &revision);
   std::shared_ptr<Revision> remove_revision =
@@ -83,11 +81,31 @@ Chunk* NetTableTransaction::chunkOf(
     const IdType& id, std::shared_ptr<const Revision>* inconsistent) const {
   CHECK_NOTNULL(inconsistent);
   // TODO(tcies) uncommitted
-  *inconsistent = table_->getByIdInconsistent(id, begin_time_);
+  *inconsistent = table_->getById(id, begin_time_);
   if (!(*inconsistent)) {
     return nullptr;
   }
   return table_->getChunk((*inconsistent)->getChunkId());
+}
+
+template <typename TrackerIdType>
+void NetTableTransaction::overrideTrackerIdentificationMethod(
+    NetTable* tracker_table,
+    const std::function<TrackerIdType(const Revision&)>&
+        how_to_determine_tracker) {
+  CHECK_NOTNULL(tracker_table);
+  CHECK(how_to_determine_tracker);
+  CHECK_GT(table_->new_chunk_trackers().count(tracker_table), 0)
+      << "Attempted to override a tracker identification method which is "
+      << "however not used for pushing new chunk ids.";
+  auto determine_map_api_tracker_id = [how_to_determine_tracker](
+      const Revision& trackee) {
+    return static_cast<common::Id>(how_to_determine_tracker(trackee));
+  };
+
+  CHECK(push_new_chunk_ids_to_tracker_overrides_
+            .insert(std::make_pair(tracker_table, determine_map_api_tracker_id))
+            .second);
 }
 
 }  // namespace map_api

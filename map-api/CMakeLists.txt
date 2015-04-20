@@ -3,7 +3,6 @@ project(map_api)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
 find_package(catkin_simple REQUIRED)
-find_package(Poco REQUIRED)
 
 catkin_simple(ALL_DEPS_REQUIRED)
 
@@ -29,15 +28,12 @@ SET(CORE_SOURCE  src/internal/trackee-multimap.cc
                  src/cache-base.cc
                  src/chord-index.cc
                  src/chunk.cc
+                 src/chunk-data-container-base.cc
+                 src/chunk-data-ram-container.cc
+                 src/chunk-data-stxxl-container.cc
                  src/chunk-manager.cc
                  src/chunk-transaction.cc
                  src/core.cc
-                 src/cr-table.cc
-                 src/cr-table-ram-map.cc
-                 src/cr-table-stxxl-map.cc
-                 src/cru-table.cc
-                 src/cru-table-ram-map.cc
-                 src/cru-table-stxxl-map.cc
                  src/file-discovery.cc
                  src/hub.cc
                  src/ipc.cc
@@ -54,15 +50,15 @@ SET(CORE_SOURCE  src/internal/trackee-multimap.cc
                  src/revision.cc
                  src/server-discovery.cc
                  src/spatial-index.cc
+                 src/spatial-index-cell-data.cc
                  src/table-descriptor.cc
-                 src/transaction.cc
-                 src/unique-id.cc)
+                 src/transaction.cc)
                  
 cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
 # we need to add dependencies of external project packages to fetch headers
 # before compilation
 add_dependencies(${PROJECT_NAME} zeromq_catkin gflags_catkin glog_catkin)
-target_link_libraries(${PROJECT_NAME} ${POCO_LIBRARIES} pthread)
+target_link_libraries(${PROJECT_NAME} pthread)
 
 cs_add_executable(discovery-server discovery-server/discovery-server.cc
                    ${PROTO_SRCS} ${PROTO_HDRS})
@@ -85,8 +81,9 @@ if(!APPLE)
   target_link_libraries(test_discovery ${PROJECT_NAME})
 endif()
 
-catkin_add_gtest(test_table_interface_test test/table_interface_test.cc)
-target_link_libraries(test_table_interface_test ${PROJECT_NAME})
+catkin_add_gtest(test_chunk_data_container_test 
+  test/chunk_data_container_test.cc)
+target_link_libraries(test_chunk_data_container_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_core_test test/core_test.cc)
 target_link_libraries(test_core_test ${PROJECT_NAME})

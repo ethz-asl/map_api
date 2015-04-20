@@ -8,14 +8,13 @@
 
 #include <gtest/gtest_prod.h>
 
-#include "map-api/cr-table.h"
 #include "map-api/logical-time.h"
+#include "map-api/net-table.h"
 #include "map-api/revision.h"
+#include "map-api/revision-map.h"
 
 namespace map_api {
 class Chunk;
-class Id;
-class NetTable;
 
 /**
  * This class is somewhat weaker than the first transaction draft
@@ -43,7 +42,7 @@ class ChunkTransaction {
       const;
   template <typename ValueType>
   std::shared_ptr<const Revision> findUnique(int key, const ValueType& value);
-  CRTable::RevisionMap dumpChunk();
+  void dumpChunk(ConstRevisionMap* result);
 
   // WRITE
   void insert(std::shared_ptr<Revision> revision);
@@ -71,16 +70,17 @@ class ChunkTransaction {
 
   // INTERNAL
   void prepareCheck(const LogicalTime& check_time,
-                    std::unordered_map<Id, LogicalTime>* chunk_stamp);
-  typedef std::unordered_multimap<NetTable*, Id> TableToIdMultiMap;
-  void getTrackers(TableToIdMultiMap* trackers) const;
+                    std::unordered_map<common::Id, LogicalTime>* chunk_stamp);
+  typedef std::unordered_multimap<NetTable*, common::Id> TableToIdMultiMap;
+  void getTrackers(const NetTable::NewChunkTrackerMap& overrides,
+                   TableToIdMultiMap* trackers) const;
 
   /**
    * Strong typing of table operation maps.
    */
-  class InsertMap : public CRTable::NonConstRevisionMap {};
-  class UpdateMap : public CRTable::NonConstRevisionMap {};
-  class RemoveMap : public CRTable::NonConstRevisionMap {};
+  class InsertMap : public MutableRevisionMap {};
+  class UpdateMap : public MutableRevisionMap {};
+  class RemoveMap : public MutableRevisionMap {};
   struct ConflictCondition {
     const int key;
     const std::shared_ptr<Revision> value_holder;

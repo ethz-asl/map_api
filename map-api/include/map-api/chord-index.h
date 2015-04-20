@@ -8,10 +8,10 @@
 #include <thread>
 #include <unordered_map>
 
-#include <Poco/RWLock.h>  // TODO(tcies) use our own
 #include <gtest/gtest_prod.h>
 
 #include "map-api/peer-id.h"
+#include "map-api/reader-writer-lock.h"
 
 namespace map_api {
 
@@ -126,6 +126,13 @@ class ChordIndex {
   virtual bool pushResponsibilitiesRpc(
       const PeerId& to, const DataMap& responsibilities) = 0;
 
+  // This function gets executed after data that is allocated locally (i.e. not
+  // on another peer) gets updated. Derived classes can use this to implement
+  // triggers on chord data.
+  virtual void localUpdateCallback(const std::string& key,
+                                   const std::string& old_value,
+                                   const std::string& new_value);
+
   static void stabilizeThread(ChordIndex* self);
   static void integrateThread(ChordIndex* self);
 
@@ -200,7 +207,7 @@ class ChordIndex {
   SuccessorListItem successor_;
   std::shared_ptr<ChordPeer> predecessor_;
 
-  Poco::RWLock peer_lock_;
+  ReaderWriterMutex peer_lock_;
 
   FRIEND_TEST(ChordIndexTestInitialized, onePeerJoin);
   friend class ChordIndexTestInitialized;
@@ -223,7 +230,7 @@ class ChordIndex {
 
   // TODO(tcies) data stats: Has it already been requested?
   DataMap data_;
-  Poco::RWLock data_lock_;
+  ReaderWriterMutex data_lock_;
 
   std::mutex node_lock_;
   bool node_locked_ = false;

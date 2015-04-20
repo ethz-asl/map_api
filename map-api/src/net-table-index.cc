@@ -1,7 +1,7 @@
 #include "map-api/net-table-index.h"
 
 #include "map-api/message.h"
-#include "map-api/unique-id.h"
+#include <multiagent-mapping-common/unique-id.h>
 #include "./chord-index.pb.h"
 #include "./net-table.pb.h"
 
@@ -12,20 +12,8 @@ NetTableIndex::NetTableIndex(const std::string& table_name)
 
 NetTableIndex::~NetTableIndex() {}
 
-void NetTableIndex::announcePosession(const Id& chunk_id) {
-  std::string peers_string;
-  proto::PeerList peers;
-  if (!retrieveData(chunk_id.hexString(), &peers_string)) {
-    peers.add_peers(PeerId::self().ipPort());
-  } else {
-    CHECK(peers.ParseFromString(peers_string));
-    peers.add_peers(PeerId::self().ipPort());
-  }
-  CHECK(addData(chunk_id.hexString(), peers.SerializeAsString()));
-}
-
 void NetTableIndex::seekPeers(
-    const Id& chunk_id, std::unordered_set<PeerId>* peers) {
+    const common::Id& chunk_id, std::unordered_set<PeerId>* peers) {
   CHECK_NOTNULL(peers);
   std::string peers_string;
   proto::PeerList peers_proto;
@@ -38,10 +26,41 @@ void NetTableIndex::seekPeers(
     usleep(1000);
   }
   CHECK(peers_proto.ParseFromString(peers_string));
-  CHECK_GT(peers_proto.peers_size(), 0);
+  CHECK_GT(peers_proto.peers_size(), 0) << chunk_id;
   for (int i = 0; i < peers_proto.peers_size(); ++i) {
     peers->insert(PeerId(peers_proto.peers(i)));
   }
+}
+
+void NetTableIndex::announcePosession(const common::Id& chunk_id) {
+  std::string peers_string;
+  proto::PeerList peers;
+  if (!retrieveData(chunk_id.hexString(), &peers_string)) {
+    peers.add_peers(PeerId::self().ipPort());
+  } else {
+    CHECK(peers.ParseFromString(peers_string));
+    peers.add_peers(PeerId::self().ipPort());
+  }
+  CHECK(addData(chunk_id.hexString(), peers.SerializeAsString()));
+}
+
+void NetTableIndex::renouncePosession(const common::Id& chunk_id) {
+  std::string peers_string;
+  proto::PeerList peers;
+  CHECK(retrieveData(chunk_id.hexString(), &peers_string));
+  CHECK(peers.ParseFromString(peers_string));
+
+  bool found = false;
+  for (int i = 0; i < peers.peers_size(); ++i) {
+    if (peers.peers(i) == PeerId::self().ipPort()) {
+      found = true;
+      peers.mutable_peers()->DeleteSubrange(i, 1);
+      break;
+    }
+  }
+  LOG_IF(ERROR, !found)
+      << "Tried to renounce possession that was not announced!";
+  CHECK(addData(chunk_id.hexString(), peers.SerializeAsString()));
 }
 
 const char NetTableIndex::kRoutedChordRequest[] =
@@ -96,7 +115,7 @@ void NetTableIndex::handleRoutedRequest(
 
   if (!request.has_sender()) {
     CHECK(routed_request_message.has_sender());
-    request.set_sender(routed_request_message.sender());
+    request.setSender(routed_request_message.sender());
   }
 
   if (request.isType<kGetClosestPrecedingFingerRequest>()) {

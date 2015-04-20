@@ -10,9 +10,22 @@
 
 #include <map-api/hub.h>
 
+DEFINE_bool(clear_discovery, false, "Will clear file discovery at startup.");
 DEFINE_double(discovery_timeout_seconds, 0.5, "Timeout for file discovery.");
 
 namespace map_api {
+
+FileDiscovery::FileDiscovery() {
+  if (FLAGS_clear_discovery) {
+    LOG(WARNING) << "Beware, discovery file is manually removed!";
+    if (unlink(kFileName) == -1) {
+      CHECK_EQ(errno, ENOENT) << errno;
+    }
+    if (unlink(kLockFileName) == -1) {
+      CHECK_EQ(errno, ENOENT) << errno;
+    }
+  }
+}
 
 FileDiscovery::~FileDiscovery() {}
 
@@ -105,7 +118,7 @@ void FileDiscovery::unlock() {
   mutex_.unlock();
 }
 
-const std::string FileDiscovery::kFileName = "mapapi-discovery.txt";
+const char FileDiscovery::kFileName[] = "mapapi-discovery.txt";
 const char FileDiscovery::kLockFileName[] = "mapapi-discovery.txt.lck";
 std::mutex FileDiscovery::mutex_;
 

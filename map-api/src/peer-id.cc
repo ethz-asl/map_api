@@ -4,8 +4,6 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include <Poco/RegularExpression.h>
-
 #include <map-api/hub.h>
 
 namespace map_api {
@@ -38,7 +36,12 @@ PeerId& PeerId::operator =(const PeerId& other) {
   return *this;
 }
 
-PeerId PeerId::self() { return PeerId(Hub::instance().ownAddress()); }
+PeerId PeerId::self() {
+  PeerId result;
+  // Circumventing validity check as it is pretty expensive.
+  result.ip_port_ = Hub::instance().ownAddress();
+  return result;
+}
 
 size_t PeerId::selfRank() {
   PeerId self_id = self();

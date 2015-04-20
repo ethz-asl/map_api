@@ -1,4 +1,5 @@
-#include <map-api/net-table-transaction.h>
+#include "map-api/net-table-transaction.h"
+
 #include <statistics/statistics.h>
 
 namespace map_api {
@@ -12,15 +13,14 @@ NetTableTransaction::NetTableTransaction(
   CHECK(begin_time < LogicalTime::sample());
 }
 
-CRTable::RevisionMap NetTableTransaction::dumpChunk(Chunk* chunk) {
+void NetTableTransaction::dumpChunk(Chunk* chunk, ConstRevisionMap* result) {
   CHECK_NOTNULL(chunk);
-  return transactionOf(chunk)->dumpChunk();
+  transactionOf(chunk)->dumpChunk(result);
 }
 
-CRTable::RevisionMap NetTableTransaction::dumpActiveChunks() {
-  CRTable::RevisionMap result;
-  table_->dumpActiveChunks(begin_time_, &result);
-  return result;
+void NetTableTransaction::dumpActiveChunks(ConstRevisionMap* result) {
+  CHECK_NOTNULL(result);
+  table_->dumpActiveChunks(begin_time_, result);
 }
 
 void NetTableTransaction::insert(Chunk* chunk,
@@ -30,7 +30,7 @@ void NetTableTransaction::insert(Chunk* chunk,
 }
 
 void NetTableTransaction::update(std::shared_ptr<Revision> revision) {
-  Id id = revision->getId<Id>();
+  common::Id id = revision->getId<common::Id>();
   CHECK(id.isValid());
   if (!revision->getChunkId().isValid()) {
     // Can be the case if an uncommitted revision is being updated.
@@ -149,6 +149,7 @@ void NetTableTransaction::getChunkTrackers(
   for (const TransactionMap::value_type& chunk_transaction :
        chunk_transactions_) {
     chunk_transaction.second->getTrackers(
+        push_new_chunk_ids_to_tracker_overrides_,
         &(*chunk_trackers)[chunk_transaction.first->id()]);
   }
 }

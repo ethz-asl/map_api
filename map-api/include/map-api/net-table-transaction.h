@@ -7,14 +7,14 @@
 
 #include <gtest/gtest_prod.h>
 
-#include "map-api/chunk.h"
 #include "map-api/chunk-transaction.h"
 #include "map-api/logical-time.h"
-#include "map-api/revision.h"
+#include "map-api/net-table.h"
 
 namespace map_api {
 class Chunk;
-class NetTable;
+class ConstRevisionMap;
+class Revision;
 
 class NetTableTransaction {
   friend class Transaction;
@@ -33,10 +33,10 @@ class NetTableTransaction {
   template <typename IdType>
   std::shared_ptr<const Revision> getByIdFromUncommitted(const IdType& id)
       const;
-  CRTable::RevisionMap dumpChunk(Chunk* chunk);
-  CRTable::RevisionMap dumpActiveChunks();
+  void dumpChunk(Chunk* chunk, ConstRevisionMap* result);
+  void dumpActiveChunks(ConstRevisionMap* result);
   template <typename ValueType>
-  CRTable::RevisionMap find(int key, const ValueType& value);
+  void find(int key, const ValueType& value, ConstRevisionMap* result);
   template <typename IdType>
   void getAvailableIds(std::vector<IdType>* ids);
 
@@ -45,7 +45,7 @@ class NetTableTransaction {
   void update(std::shared_ptr<Revision> revision);
   void remove(std::shared_ptr<Revision> revision);
   template <typename IdType>
-  void remove(const UniqueId<IdType>& id);
+  void remove(const common::UniqueId<IdType>& id);
 
   // TRANSACTION OPERATIONS
   /**
@@ -79,9 +79,15 @@ class NetTableTransaction {
   Chunk* chunkOf(const IdType& id,
                  std::shared_ptr<const Revision>* latest) const;
 
-  typedef std::unordered_map<Id, ChunkTransaction::TableToIdMultiMap>
+  typedef std::unordered_map<common::Id, ChunkTransaction::TableToIdMultiMap>
       TrackedChunkToTrackersMap;
   void getChunkTrackers(TrackedChunkToTrackersMap* chunk_trackers) const;
+
+  template <typename TrackerIdType>
+  void overrideTrackerIdentificationMethod(
+      NetTable* tracker_table,
+      const std::function<TrackerIdType(const Revision&)>&
+          how_to_determine_tracker);
 
   /**
    * A global ordering of chunks prevents deadlocks (resource hierarchy
@@ -99,6 +105,8 @@ class NetTableTransaction {
   mutable TransactionMap chunk_transactions_;
   LogicalTime begin_time_;
   NetTable* table_;
+
+  NetTable::NewChunkTrackerMap push_new_chunk_ids_to_tracker_overrides_;
 };
 
 }  // namespace map_api
