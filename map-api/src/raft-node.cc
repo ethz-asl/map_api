@@ -75,9 +75,7 @@ void RaftNode::kill() {
   VLOG(1) << PeerId::self() << ": Closing raft instance.";
   follower_trackers_run_ = false;
   is_exiting_ = true;
-  if (state_manager_thread_.joinable()) {
-    state_manager_thread_.join();
-  }
+  state_manager_thread_.join();
   VLOG(1) << PeerId::self() << ": Raft instance closed.";
 }
 
