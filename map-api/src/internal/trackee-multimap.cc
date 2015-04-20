@@ -22,6 +22,10 @@ void TrackeeMultimap::deserialize(const proto::Revision& proto) {
   }
 }
 
+void TrackeeMultimap::deserialize(const Revision& revision) {
+  deserialize(*revision.underlying_revision_);
+}
+
 void TrackeeMultimap::serialize(proto::Revision* proto) const {
   proto->mutable_chunk_tracking()->Clear();
   for (const value_type& table_trackees : *this) {
@@ -32,6 +36,10 @@ void TrackeeMultimap::serialize(proto::Revision* proto) const {
       trackee.serialize(proto_table_trackee->add_chunk_ids());
     }
   }
+}
+
+void TrackeeMultimap::serialize(Revision* revision) const {
+  serialize(revision->underlying_revision_.get());
 }
 
 void TrackeeMultimap::merge(const TrackeeMultimap& other) {
