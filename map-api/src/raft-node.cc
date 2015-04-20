@@ -691,7 +691,6 @@ void RaftNode::conductElection() {
             << " Elected as the leader for term " << current_term_ << " with "
             << num_votes + 1 << " votes. ***";
   } else if (state_ == State::CANDIDATE) {
-    LOG(WARNING) << "Here 4";
     // This peer doesn't win the election.
     state_ = State::FOLLOWER;
     leader_id_ = PeerId();

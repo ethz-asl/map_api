@@ -63,7 +63,8 @@ class RaftNode {
     LEADER,
     FOLLOWER,
     CANDIDATE,
-    DISCONNECTING
+    DISCONNECTING,
+    STOPPED
   };
 
   static RaftNode& instance();
@@ -96,12 +97,12 @@ class RaftNode {
   static const char kAppendEntriesResponse[];
   static const char kVoteRequest[];
   static const char kVoteResponse[];
-  static const char kQueryState[];
-  static const char kQueryStateResponse[];
   static const char kAddRemovePeer[];
   static const char kJoinQuitRequest[];
   static const char kJoinQuitResponse[];
   static const char kNotifyJoinQuitSuccess[];
+  static const char kQueryState[];
+  static const char kQueryStateResponse[];
 
  private:
   friend class ConsensusFixture;
@@ -123,9 +124,9 @@ class RaftNode {
   // ========
   void handleAppendRequest(const Message& request, Message* response);
   void handleRequestVote(const Message& request, Message* response);
-  void handleQueryState(const Message& request, Message* response);
   void handleJoinQuitRequest(const Message& request, Message* response);
   void handleNotifyJoinQuitSuccess(const Message& request, Message* response);
+  void handleQueryState(const Message& request, Message* response);
 
   // ====================================================
   // RPCs for heartbeat, leader election, log replication

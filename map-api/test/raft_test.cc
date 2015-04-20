@@ -16,7 +16,7 @@
 namespace map_api {
 
 TEST_F(ConsensusFixture, LeaderElection) {
-  const uint64_t kProcesses = 6;
+  const uint64_t kProcesses = 5;  // Processes in addition to supervisor.
   enum Barriers {
     INIT,
     PEERS_SETUP,
@@ -28,9 +28,9 @@ TEST_F(ConsensusFixture, LeaderElection) {
   if (getSubprocessId() == 0) {
     VLOG(1) << "Supervisor Id: " << RaftNode::instance().self_id() << " : PID "
             << pid;
-    setupSupervisor(kProcesses);
+    setupRaftSupervisor(kProcesses);
 
-    IPC::barrier(DIE, kProcesses - 1);
+    IPC::barrier(DIE, kProcesses);
     std::set<PeerId> peer_list;
     Hub::instance().getPeers(&peer_list);
     std::string leader_id;
@@ -43,16 +43,16 @@ TEST_F(ConsensusFixture, LeaderElection) {
     }
   } else {
     VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid;
-    setupPeers(kProcesses);
+    setupRaftPeers(kProcesses);
     RaftNode::instance().start();
     usleep(5000 * kMillisecondsToMicroseconds);
     RaftNode::instance().stop();
-    IPC::barrier(DIE, kProcesses - 1);
+    IPC::barrier(DIE, kProcesses);
   }
 }
 
 TEST_F(ConsensusFixture, LeaderChange) {
-  const uint64_t kProcesses = 6;
+  const uint64_t kProcesses = 5;  // Processes in addition to supervisor.
   enum Barriers {
     INIT,
     PEERS_SETUP,
@@ -66,9 +66,9 @@ TEST_F(ConsensusFixture, LeaderChange) {
   if (getSubprocessId() == 0) {
     VLOG(1) << "Supervisor Id: " << RaftNode::instance().self_id() << " : PID "
             << pid;
-    setupSupervisor(kProcesses);
+    setupRaftSupervisor(kProcesses);
 
-    IPC::barrier(LEADER_ELECTED, kProcesses - 1);
+    IPC::barrier(LEADER_ELECTED, kProcesses);
 
     std::set<PeerId> peer_list;
     Hub::instance().getPeers(&peer_list);
@@ -80,8 +80,8 @@ TEST_F(ConsensusFixture, LeaderChange) {
       }
       EXPECT_EQ(state.leader_id_().compare(leader_id), 0);
     }
-    IPC::barrier(ELECTION_1_TESTED, kProcesses - 1);
-    IPC::barrier(DIE, kProcesses - 1);
+    IPC::barrier(ELECTION_1_TESTED, kProcesses);
+    IPC::barrier(DIE, kProcesses);
     leader_id.clear();
     for (const PeerId& peer : peer_list) {
       proto::QueryStateResponse state = queryState(peer);
@@ -92,26 +92,23 @@ TEST_F(ConsensusFixture, LeaderChange) {
     }
   } else {
     VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid;
-    setupPeers(kProcesses);
-
+    setupRaftPeers(kProcesses);
     RaftNode::instance().start();
     usleep(1000 * kMillisecondsToMicroseconds);
-    IPC::barrier(LEADER_ELECTED, kProcesses - 1);
+    IPC::barrier(LEADER_ELECTED, kProcesses);
+    IPC::barrier(ELECTION_1_TESTED, kProcesses);
 
-    IPC::barrier(ELECTION_1_TESTED, kProcesses - 1);
     if (RaftNode::instance().state() == RaftNode::State::LEADER) {
       giveUpLeadership();
     }
     usleep(2000 * kMillisecondsToMicroseconds);
-
     RaftNode::instance().stop();
-
-    IPC::barrier(DIE, kProcesses - 1);
+    IPC::barrier(DIE, kProcesses);
   }
 }
 
 TEST_F(ConsensusFixture, AppendEntries) {
-  const uint64_t kProcesses = 6;
+  const uint64_t kProcesses = 5;  // Processes in addition to supervisor.
   enum Barriers {
     INIT,
     PEERS_SETUP,
@@ -124,54 +121,47 @@ TEST_F(ConsensusFixture, AppendEntries) {
   if (getSubprocessId() == 0) {
     VLOG(1) << "Supervisor Id: " << RaftNode::instance().self_id() << " : PID "
             << pid;
-    setupSupervisor(kProcesses);
+    setupRaftSupervisor(kProcesses);
 
-    IPC::barrier(LEADER_ELECTED, kProcesses - 1);
-    IPC::barrier(DIE, kProcesses - 1);
+    IPC::barrier(LEADER_ELECTED, kProcesses);
+    IPC::barrier(DIE, kProcesses);
 
-    // TODO(aqurai): Complete this test after fixing conflict issue.
+    std::vector<proto::QueryStateResponse> states;
+    std::set<PeerId> peer_list;
+    Hub::instance().getPeers(&peer_list);
+    std::string leader_id;
+    uint64_t max_commit_index = 0;
+    for (const PeerId& peer : peer_list) {
+      proto::QueryStateResponse state = queryState(peer);
+      states.push_back(state);
+      EXPECT_EQ(state.commit_index() * kRaftTestAppendEntry,
+                state.commit_result());
+      if (state.commit_index() > max_commit_index) {
+        max_commit_index = state.commit_index();
+      }
+    }
+    // Number of peers with more logs than commit index.
+    uint num_complete_log_peers = 0;
+
+    for (proto::QueryStateResponse state : states) {
+      if (state.last_log_index() > max_commit_index) {
+        ++num_complete_log_peers;
+      }
+    }
+    EXPECT_GT(num_complete_log_peers, peer_list.size() / 2);
 
   } else {
     VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid;
-    setupPeers(kProcesses);
+    setupRaftPeers(kProcesses);
 
     RaftNode::instance().start();
     usleep(1000 * kMillisecondsToMicroseconds);
-    IPC::barrier(LEADER_ELECTED, kProcesses - 1);
+    IPC::barrier(LEADER_ELECTED, kProcesses);
 
-    uint num_appends = 0;
-    TimePoint begin = std::chrono::system_clock::now();
-    TimePoint append_time = std::chrono::system_clock::now();
-    uint16_t total_duration_ms = 0;
-    while (total_duration_ms < 5000) {
-      TimePoint now = std::chrono::system_clock::now();
-      uint16_t append_duration_ms = static_cast<uint16_t>(
-          std::chrono::duration_cast<std::chrono::milliseconds>(
-              now - append_time).count());
+    appendEntriesWithLeaderChangesFor(10000, 20);
 
-      // Append new entries if leader.
-      if (RaftNode::instance().state() == RaftNode::State::LEADER) {
-        if (append_duration_ms > 20) {
-          appendEntry();
-          ++num_appends;
-          append_time = std::chrono::system_clock::now();
-        }
-
-        if (num_appends > 100) {
-          giveUpLeadership();
-          num_appends = 0;
-          append_time = std::chrono::system_clock::now();
-        }
-      } else {
-        append_time = std::chrono::system_clock::now();
-      }
-
-      total_duration_ms = static_cast<uint16_t>(
-          std::chrono::duration_cast<std::chrono::milliseconds>(now - begin)
-              .count());
-    }
-
-    IPC::barrier(DIE, kProcesses - 1);
+    IPC::barrier(DIE, kProcesses);
+    RaftNode::instance().kill();
   }
 }
 
