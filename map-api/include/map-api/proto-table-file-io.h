@@ -4,27 +4,28 @@
 #include <fstream>  // NOLINT
 #include <string>
 #include <utility>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 #include <google/protobuf/io/gzip_stream.h>
+#include <multiagent-mapping-common/unique-id.h>
 
-#include "map-api/cr-table.h"
-#include "map-api/unique-id.h"
 #include "map-api/logical-time.h"
 
 namespace map_api {
 class Chunk;
+class ConstRevisionMap;
 class NetTable;
 class Transaction;
 
-typedef std::pair<Id, map_api::LogicalTime> RevisionStamp;
+typedef std::pair<common::Id, map_api::LogicalTime> RevisionStamp;
 }  // namespace map_api
 
 namespace std {
 template <>
 struct hash<map_api::RevisionStamp> {
-  std::hash<map_api::Id> id_hasher;
+  std::hash<common::Id> id_hasher;
   std::hash<map_api::LogicalTime> time_hasher;
   std::size_t operator()(const map_api::RevisionStamp& stamp) const {
     return id_hasher(stamp.first) ^ time_hasher(stamp.second);
@@ -42,11 +43,12 @@ class ProtoTableFileIO {
   ProtoTableFileIO(const std::string& filename, map_api::NetTable* table);
   ~ProtoTableFileIO();
   bool storeTableContents(const map_api::LogicalTime& time);
-  bool storeTableContents(const map_api::CRTable::RevisionMap& revisions,
-                          const std::vector<map_api::Id>& ids_to_store);
+  bool storeTableContents(const ConstRevisionMap& revisions,
+                          const std::vector<common::Id>& ids_to_store);
   bool restoreTableContents();
   bool restoreTableContents(map_api::Transaction* transaction,
-                            std::unordered_map<Id, Chunk*>* existing_chunks);
+                            std::unordered_map<common::Id, Chunk*>*
+                                existing_chunks);
   void truncFile();
 
  private:

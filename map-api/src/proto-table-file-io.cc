@@ -5,10 +5,9 @@
 #include <google/protobuf/io/gzip_stream.h>
 #include <google/protobuf/io/zero_copy_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <map-api/chunk-data-container-base.h>
 
 #include <map-api/chunk-manager.h>
-#include <map-api/cr-table.h>
-#include <map-api/cru-table.h>
 #include <map-api/transaction.h>
 
 namespace map_api {
@@ -36,31 +35,29 @@ void ProtoTableFileIO::truncFile() {
 
 bool ProtoTableFileIO::storeTableContents(const map_api::LogicalTime& time) {
   map_api::Transaction transaction(time);
-  map_api::CRTable::RevisionMap revisions =
-      transaction.dumpActiveChunks(table_);
-  std::vector<map_api::Id> ids_to_store;
+  ConstRevisionMap revisions;
+  transaction.dumpActiveChunks(table_, &revisions);
+  std::vector<common::Id> ids_to_store;
   ids_to_store.reserve(revisions.size());
-  for (const map_api::CRTable::RevisionMap::value_type& value :
-      revisions) {
+  for (const ConstRevisionMap::value_type& value : revisions) {
     ids_to_store.push_back(value.first);
   }
   return storeTableContents(revisions, ids_to_store);
 }
 bool ProtoTableFileIO::storeTableContents(
-    const map_api::CRTable::RevisionMap& revisions,
-    const std::vector<map_api::Id>& ids_to_store) {
+    const ConstRevisionMap& revisions,
+    const std::vector<common::Id>& ids_to_store) {
   CHECK(file_.is_open());
 
-  for (const Id& revision_id : ids_to_store) {
-    map_api::CRTable::RevisionMap::const_iterator it =
-        revisions.find(revision_id);
+  for (const common::Id& revision_id : ids_to_store) {
+    ConstRevisionMap::const_iterator it = revisions.find(revision_id);
     CHECK(it != revisions.end());
     CHECK(it->second != nullptr);
 
     const Revision& revision = *it->second;
 
     RevisionStamp current_item_stamp;
-    current_item_stamp.first = revision.getId<Id>();
+    current_item_stamp.first = revision.getId<common::Id>();
     CHECK_EQ(current_item_stamp.first, revision_id);
 
     current_item_stamp.second = revision.getModificationTime();
@@ -123,7 +120,7 @@ bool ProtoTableFileIO::storeTableContents(
 
 bool ProtoTableFileIO::restoreTableContents() {
   Transaction transaction(LogicalTime::sample());
-  std::unordered_map<Id, Chunk*> existing_chunks;
+  std::unordered_map<common::Id, Chunk*> existing_chunks;
   restoreTableContents(&transaction, &existing_chunks);
   bool ok = transaction.commit();
   LOG_IF(WARNING, !ok) << "Transaction commit failed to load data";
@@ -132,7 +129,7 @@ bool ProtoTableFileIO::restoreTableContents() {
 
 bool ProtoTableFileIO::restoreTableContents(
     map_api::Transaction* transaction,
-    std::unordered_map<Id, Chunk*>* existing_chunks) {
+    std::unordered_map<common::Id, Chunk*>* existing_chunks) {
   CHECK_NOTNULL(transaction);
   CHECK_NOTNULL(existing_chunks);
   CHECK(file_.is_open());
@@ -193,13 +190,12 @@ bool ProtoTableFileIO::restoreTableContents(
       return false;
     }
 
-    std::shared_ptr<proto::Revision> proto_revision(new proto::Revision);
-    std::shared_ptr<Revision> revision(new Revision(proto_revision));
-    revision->parse(input_string);
+    std::shared_ptr<Revision> revision =
+        Revision::fromProtoString(input_string);
 
-    Id chunk_id = revision->getChunkId();
+    common::Id chunk_id = revision->getChunkId();
     Chunk* chunk = nullptr;
-    std::unordered_map<Id, Chunk*>::iterator it =
+    std::unordered_map<common::Id, Chunk*>::iterator it =
         existing_chunks->find(chunk_id);
     if (it == existing_chunks->end()) {
       chunk = table_->newChunk(chunk_id);
@@ -210,6 +206,7 @@ bool ProtoTableFileIO::restoreTableContents(
     CHECK_NOTNULL(chunk);
 
     transaction->insert(table_, chunk, revision);
+    transaction->disableChunkTracking();
   }
   return true;
 }

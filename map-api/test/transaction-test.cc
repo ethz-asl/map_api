@@ -5,10 +5,7 @@
 
 namespace map_api {
 
-TEST_P(NetTableFixture, TransactionMerge) {
-  if (!GetParam()) {
-    return;
-  }
+TEST_F(NetTableFixture, TransactionMerge) {
   enum Processes {
     ROOT,
     A
@@ -19,7 +16,7 @@ TEST_P(NetTableFixture, TransactionMerge) {
     A_COMMITTED
   };
   Chunk* chunk;
-  Id chunk_id, a_id, b_id;
+  common::Id chunk_id, a_id, b_id;
   chunk_id.fromHexString("00000000000000000000000000000042");
   if (getSubprocessId() == ROOT) {
     chunk = table_->newChunk(chunk_id);
@@ -49,7 +46,7 @@ TEST_P(NetTableFixture, TransactionMerge) {
     chunk = table_->getChunk(chunk_id);
     Transaction transaction;
     IPC::barrier(CHECKOUT, 1);
-    a_id = IPC::pop<Id>();
+    a_id = IPC::pop<common::Id>();
     increment(table_, a_id, chunk, &transaction);
     ASSERT_TRUE(transaction.commit());
     IPC::barrier(A_COMMITTED, 1);

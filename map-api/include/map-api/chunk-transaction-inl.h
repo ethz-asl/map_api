@@ -10,7 +10,7 @@ namespace map_api {
 template <typename ValueType>
 void ChunkTransaction::addConflictCondition(int key, const ValueType& value) {
   std::shared_ptr<Revision> value_holder =
-      chunk_->underlying_table_->getTemplate();
+      chunk_->data_container_->getTemplate();
   value_holder->set(key, value);
   conflict_conditions_.push_back(ConflictCondition(key, value_holder));
 }
@@ -22,7 +22,7 @@ std::shared_ptr<const Revision> ChunkTransaction::getById(const IdType& id) {
     return result;
   }
   chunk_->readLock();
-  result = chunk_->underlying_table_->getById(id, begin_time_);
+  result = chunk_->data_container_->getById(id, begin_time_);
   chunk_->unlock();
   return result;
 }
@@ -47,7 +47,7 @@ std::shared_ptr<const Revision> ChunkTransaction::findUnique(
   // FIXME(tcies) also search in uncommitted
   chunk_->readLock();
   std::shared_ptr<const Revision> result =
-      chunk_->underlying_table_->findUnique(key, value, begin_time_);
+      chunk_->data_container_->findUnique(key, value, begin_time_);
   chunk_->unlock();
   return result;
 }

@@ -4,8 +4,11 @@
 #include <sstream>  // NOLINT
 #include <string>
 
-namespace map_api {
+namespace common {
 class Id;
+}  // namespace common
+
+namespace map_api {
 class LogicalTime;
 class PeerId;
 
@@ -24,7 +27,7 @@ Type IPC::pop() {
 template <>
 void IPC::pushFor(const std::string& message, int receiver);
 template <>
-void IPC::pushFor(const Id& message, int receiver);
+void IPC::pushFor(const common::Id& message, int receiver);
 template <>
 void IPC::pushFor(const LogicalTime& message, int receiver);
 template <>
@@ -32,7 +35,7 @@ void IPC::pushFor(const PeerId& peer_id, int receiver);
 template <>
 std::string IPC::popFor(int receiver);
 template <>
-Id IPC::popFor(int receiver);
+common::Id IPC::popFor(int receiver);
 template <>
 LogicalTime IPC::popFor(int receiver);
 template <>

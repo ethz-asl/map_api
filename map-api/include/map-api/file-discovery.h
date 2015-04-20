@@ -17,7 +17,7 @@ class FileDiscovery final : public Discovery {
   friend class FileDiscoveryTest;
 
  public:
-  static const std::string kFileName;
+  static const char kFileName[];
 
   virtual ~FileDiscovery();
   virtual void announce() final override;
@@ -38,7 +38,7 @@ class FileDiscovery final : public Discovery {
   /**
    * May only be used by the Hub
    */
-  FileDiscovery() = default;
+  FileDiscovery();
   FileDiscovery(const FileDiscovery&) = delete;
   FileDiscovery& operator=(const FileDiscovery&) = delete;
   friend class Hub;

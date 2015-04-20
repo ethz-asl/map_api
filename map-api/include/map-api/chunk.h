@@ -7,16 +7,20 @@
 #include <set>
 #include <thread>
 #include <unordered_set>
+#include <vector>
 
-#include <Poco/RWLock.h>  // TODO(tcies) replace with our own
+#include <multiagent-mapping-common/unique-id.h>
 
-#include "./chunk.pb.h"
-#include "map-api/cr-table.h"
+#include "map-api/chunk-data-container-base.h"
+#include "map-api/logical-time.h"
 #include "map-api/peer-handler.h"
-#include "map-api/unique-id.h"
+#include "map-api/reader-writer-lock.h"
+#include "./chunk.pb.h"
 
 namespace map_api {
+class ConstRevisionMap;
 class Message;
+class MutableRevisionMap;
 class Revision;
 
 /**
@@ -49,18 +53,18 @@ class Revision;
  */
 class Chunk {
   friend class ChunkTransaction;
-  typedef std::function<void(const std::unordered_set<Id>& insertions,
-                             const std::unordered_set<Id>& updates)>
-      TriggerCallback;
+  typedef std::function<void(const common::IdSet& insertions,
+                             const common::IdSet& updates)> TriggerCallback;
 
  public:
-  bool init(const Id& id, CRTable* underlying_table, bool initialize);
-  bool init(const Id& id, const proto::InitRequest& request,
-            const PeerId& sender, CRTable* underlying_table);
+  bool init(const common::Id& id, std::shared_ptr<TableDescriptor> descriptor,
+            bool initialize);
+  bool init(const common::Id& id, const proto::InitRequest& request,
+            const PeerId& sender, std::shared_ptr<TableDescriptor> descriptor);
 
-  inline Id id() const;
+  inline common::Id id() const;
 
-  void dumpItems(const LogicalTime& time, CRTable::RevisionMap* items);
+  void dumpItems(const LogicalTime& time, ConstRevisionMap* items);
   size_t numItems(const LogicalTime& time);
   size_t itemsSizeBytes(const LogicalTime& time);
 
@@ -73,13 +77,39 @@ class Chunk {
 
   void enableLockLogging();
 
+  // Non-const intended to avoid accidental write-lock while reading.
   void writeLock();
 
-  void readLock();
+  void readLock() const;
 
   bool isLocked();
 
-  void unlock();
+  void unlock() const;
+
+  class MutableDataAccess {
+   public:
+    explicit MutableDataAccess(Chunk* chunk);
+    ~MutableDataAccess();
+
+    ChunkDataContainerBase& operator->();
+
+   private:
+    Chunk* chunk_;
+  };
+
+  class ConstDataAccess {
+   public:
+    explicit ConstDataAccess(const Chunk& chunk);
+    ~ConstDataAccess();
+
+    const ChunkDataContainerBase* operator->() const;
+
+   private:
+    const Chunk& chunk_;
+  };
+
+  inline MutableDataAccess mutableData() { return MutableDataAccess(this); }
+  inline ConstDataAccess constData() const { return ConstDataAccess(*this); }
 
   /**
    * Requests all peers in MapApiHub to participate in a given chunk.
@@ -99,8 +129,10 @@ class Chunk {
    * then called at an unlock request. The tracked insertions and updates are
    * passed. Note: If the sets are empty, the lock has probably been acquired
    * to modify chunk peers.
+   * Returns position of attached trigger in trigger vector.
    */
-  void attachTrigger(const TriggerCallback& callback);
+  size_t attachTrigger(const TriggerCallback& callback);
+  void waitForTriggerCompletion();
 
   inline LogicalTime getLatestCommitTime();
 
@@ -117,7 +149,7 @@ class Chunk {
   /**
    * insert and update for transactions.
    */
-  void bulkInsertLocked(const CRTable::NonConstRevisionMap& items,
+  void bulkInsertLocked(const MutableRevisionMap& items,
                         const LogicalTime& time);
   void updateLocked(const LogicalTime& time,
                     const std::shared_ptr<Revision>& item);
@@ -171,14 +203,15 @@ class Chunk {
    * defers distributed write lock requests until unlocking or denies them
    * altogether.
    */
-  void distributedReadLock();
+  void distributedReadLock() const;
 
+  // Non-const intended to avoid accidental write-lock while reading.
   void distributedWriteLock();
 
-  void distributedUnlock();
+  void distributedUnlock() const;
 
   template <typename RequestType>
-  void fillMetadata(RequestType* destination);
+  void fillMetadata(RequestType* destination) const;
 
   /**
    * Returns true iff lock status is WRITE_LOCKED and lock holder is self.
@@ -187,7 +220,7 @@ class Chunk {
    * context where that lock is already acquired, and recursive_mutex isn't
    * compatible with conditional_variable)
    */
-  bool isWriter(const PeerId& peer);
+  bool isWriter(const PeerId& peer) const;
 
   void initRequestSetData(proto::InitRequest* request);
   void initRequestSetPeers(proto::InitRequest* request);
@@ -196,6 +229,10 @@ class Chunk {
   inline void syncLatestCommitTime(const Revision& item);
 
   void leave();  // May only be used by NetTable.
+  void leaveOnceShared();  // Make sure to have at least one peer left.
+
+  void triggerWrapper(const std::unordered_set<common::Id>&& insertions,
+                      const std::unordered_set<common::Id>&& updates);
 
   /**
    * ====================================================================
@@ -220,16 +257,18 @@ class Chunk {
 
   void awaitInitialized() const;
 
-  Id id_;
+  common::Id id_;
   PeerHandler peers_;
-  CRTable* underlying_table_;
-  DistributedRWLock lock_;
-  std::function<void(const std::unordered_set<Id>& insertions,
-                     const std::unordered_set<Id>& updates)> trigger_;
+  std::unique_ptr<ChunkDataContainerBase> data_container_;
+  mutable DistributedRWLock lock_;
+  std::vector<std::function<
+      void(const std::unordered_set<common::Id>& insertions,
+           const std::unordered_set<common::Id>& updates)>> triggers_;
   std::mutex trigger_mutex_;
-  std::unordered_set<Id> trigger_insertions_, trigger_updates_;
-  std::mutex add_peer_mutex_;
-  Poco::RWLock leave_lock_;
+  ReaderWriterMutex triggers_are_active_while_has_readers_;
+  std::unordered_set<common::Id> trigger_insertions_, trigger_updates_;
+  mutable std::mutex add_peer_mutex_;
+  ReaderWriterMutex leave_lock_;
   volatile bool initialized_ = false;
   volatile bool relinquished_ = false;
   bool log_locking_ = false;
@@ -244,13 +283,13 @@ class Chunk {
     WRITE_ATTEMPT,
     WRITE_SUCCESS
   };
-  LockState current_state_;
+  mutable LockState current_state_;
   typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
-  TimePoint current_state_start_;
+  mutable TimePoint current_state_start_;
   TimePoint global_start_;
   std::thread::id main_thread_id_;
 
-  void startState(LockState new_state);
+  void startState(LockState new_state) const;
   void logStateDuration(LockState state, const TimePoint& start,
                         const TimePoint& end) const;
 };

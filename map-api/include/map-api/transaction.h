@@ -45,8 +45,8 @@ class Transaction {
   template <typename IdType>
   std::shared_ptr<const Revision> getById(const IdType& id, NetTable* table,
                                           Chunk* chunk) const;
-  CRTable::RevisionMap dumpChunk(NetTable* table, Chunk* chunk);
-  CRTable::RevisionMap dumpActiveChunks(NetTable* table);
+  void dumpChunk(NetTable* table, Chunk* chunk, ConstRevisionMap* result);
+  void dumpActiveChunks(NetTable* table, ConstRevisionMap* result);
   template <typename IdType>
   void getAvailableIds(NetTable* table, std::vector<IdType>* ids);
   /**
@@ -54,7 +54,8 @@ class Transaction {
    * fundamentally differing from getById or dumpChunk.
    */
   template <typename ValueType>
-  CRTable::RevisionMap find(int key, const ValueType& value, NetTable* table);
+  void find(int key, const ValueType& value, NetTable* table,
+            ConstRevisionMap* result);
 
   // WRITE
   void insert(
@@ -69,7 +70,7 @@ class Transaction {
   void remove(NetTable* table, std::shared_ptr<Revision> revision);
   // slow
   template <typename IdType>
-  void remove(NetTable* table, const UniqueId<IdType>& id);
+  void remove(NetTable* table, const common::UniqueId<IdType>& id);
 
   // TRANSACTION OPERATIONS
   bool commit();
@@ -88,7 +89,6 @@ class Transaction {
       return ss.str();
     }
   };
-
   /**
    * Merge_transaction will be filled with all insertions and non-conflicting
    * updates from this transaction, while the conflicting updates will be
@@ -96,12 +96,21 @@ class Transaction {
    */
   void merge(const std::shared_ptr<Transaction>& merge_transaction,
              ConflictMap* conflicts);
+
+  // STATISTICS
   size_t numChangedItems() const;
+
+  // MISCELLANEOUS
+  template <typename TrackerIdType>
+  void overrideTrackerIdentificationMethod(
+      NetTable* trackee_table, NetTable* tracker_table,
+      const std::function<TrackerIdType(const Revision&)>&
+          how_to_determine_tracker);
 
  private:
   void attachCache(NetTable* table, CacheBase* cache);
-  void enableDirectAccessForCache();
-  void disableDirectAccessForCache();
+  void enableDirectAccess();
+  void disableDirectAccess();
 
   NetTableTransaction* transactionOf(NetTable* table) const;
 
@@ -109,6 +118,8 @@ class Transaction {
   void ensureAccessIsDirect(NetTable* table) const;
 
   void pushNewChunkIdsToTrackers();
+  friend class ProtoTableFileIO;
+  inline void disableChunkTracking() { chunk_tracking_disabled_ = true; }
 
   /**
    * A global ordering of tables prevents deadlocks (resource hierarchy
@@ -147,6 +158,10 @@ class Transaction {
   mutable std::mutex access_type_mutex_;
   mutable std::mutex access_mode_mutex_;
   mutable std::mutex net_table_transactions_mutex_;
+
+  bool chunk_tracking_disabled_;
+
+  bool already_committed_;
 };
 
 }  // namespace map_api

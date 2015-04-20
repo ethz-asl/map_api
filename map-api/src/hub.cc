@@ -19,6 +19,7 @@
 #include <map-api/ipc.h>
 #include <map-api/logical-time.h>
 #include <map-api/server-discovery.h>
+#include <multiagent-mapping-common/internal/unique-id.h>
 
 const std::string kFileDiscovery = "file";
 const std::string kServerDiscovery = "server";
@@ -34,6 +35,7 @@ DEFINE_string(discovery_server, "127.0.0.1:5050",
               "Server to be used for "
               "server-discovery");
 DEFINE_string(announce_ip, "", "IP to use for discovery announcement");
+DEFINE_int32(discovery_timeout_ms, 100, "Timeout specific for first contact.");
 DECLARE_int32(simulated_lag_ms);
 
 namespace map_api {
@@ -50,7 +52,8 @@ bool Hub::init(bool* is_first_peer) {
   if (FLAGS_discovery_mode == kFileDiscovery) {
     discovery_.reset(new FileDiscovery());
   } else if (FLAGS_discovery_mode == kServerDiscovery) {
-    discovery_.reset(new ServerDiscovery(FLAGS_discovery_server, *context_));
+    discovery_.reset(
+        new ServerDiscovery(PeerId(FLAGS_discovery_server), *context_));
   } else {
     LOG(FATAL) << "Specified discovery mode unknown";
   }
@@ -81,9 +84,9 @@ bool Hub::init(bool* is_first_peer) {
     // don't attempt to connect if already connected
     if (peers_.find(peer) != peers_.end()) continue;
 
-    peers_.insert(std::make_pair(peer, std::unique_ptr<Peer>(new Peer(
-                                           peer.ipPort(), *context_, ZMQ_REQ))))
-        .first;
+    peers_.insert(std::make_pair(
+        peer, std::unique_ptr<Peer>(new Peer(peer, *context_, ZMQ_REQ))));
+
     // connection request is sent outside the peer_mutex_ lock to avoid
     // deadlocks where two peers try to connect to each other:
     // P1                           P2
@@ -102,7 +105,9 @@ bool Hub::init(bool* is_first_peer) {
   announce_self.impose<kDiscovery>();
   std::unordered_set<PeerId> unreachable;
   for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer : peers_) {
-    if (!peer.second->try_request(&announce_self, &response)) {
+    if (!peer.second->try_request_for(FLAGS_discovery_timeout_ms,
+                                      &announce_self, &response)) {
+      LOG(WARNING) << "Discovery timeout for " << peer.first << "!";
       discovery_->remove(peer.first);
       unreachable.insert(peer.first);
     }
@@ -113,7 +118,6 @@ bool Hub::init(bool* is_first_peer) {
     for (const PeerId& peer : unreachable) {
       PeerMap::iterator found = peers_.find(peer);
       CHECK(found != peers_.end());
-      found->second->disconnect();
       peers_.erase(found);
     }
   }
@@ -139,9 +143,6 @@ void Hub::kill() {
   listener_.join();
   // disconnect from peers (no need to lock as listener should be only other
   // thread)
-  for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer : peers_) {
-    peer.second->disconnect();
-  }
   peers_.clear();
   // destroy context
   discovery_->lock();
@@ -206,8 +207,7 @@ void Hub::request(const PeerId& peer, Message* request, Message* response) {
         peers_.find(peer);
     if (found == peers_.end()) {
       std::pair<PeerMap::iterator, bool> emplacement = peers_.emplace(
-          peer,
-          std::unique_ptr<Peer>(new Peer(peer.ipPort(), *context_, ZMQ_REQ)));
+          peer, std::unique_ptr<Peer>(new Peer(peer, *context_, ZMQ_REQ)));
       CHECK(emplacement.second);
       found = emplacement.first;
     }
@@ -229,9 +229,9 @@ bool Hub::try_request(const PeerId& peer, Message* request, Message* response) {
     std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
         peers_.find(peer);
     if (found == peers_.end()) {
-      found = peers_.insert(std::make_pair(peer, std::unique_ptr<Peer>(new Peer(
-                                                     peer.ipPort(), *context_,
-                                                     ZMQ_REQ)))).first;
+      found = peers_.insert(std::make_pair(
+                                peer, std::unique_ptr<Peer>(new Peer(
+                                          peer, *context_, ZMQ_REQ)))).first;
     }
   }
   return found->second->try_request(request, response);
@@ -272,15 +272,13 @@ bool Hub::isReady(const PeerId& peer) {
 
 void Hub::discoveryHandler(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
-  // lock peer set lock so we can write without a race condition
-  instance().peer_mutex_.lock();
+  std::lock_guard<std::mutex> lock(instance().peer_mutex_);
+
   instance().peers_.insert(
       std::make_pair(PeerId(request.sender()),
                      std::unique_ptr<Peer>(new Peer(
                          request.sender(), *instance().context_, ZMQ_REQ))));
-  instance().peer_mutex_.unlock();
-  // ack by resend
-  response->impose<Message::kAck>();
+  response->ack();
 }
 
 void Hub::readyHandler(const Message& request, Message* response) {
@@ -348,6 +346,12 @@ void Hub::listenThread(Hub* self) {
         server.bind(("tcp://0.0.0.0:" + std::to_string(port)).c_str());
         self->own_address_ =
             ownAddressBeforePort() + ":" + std::to_string(port);
+
+        // Use the current address as a hash-seed for unique-ids.
+        using common::internal::UniqueIdHashSeed;
+        UniqueIdHashSeed::instance().saltSeed(
+            UniqueIdHashSeed::Key(),
+            std::hash<std::string>()(self->own_address_));
         break;
       }
       catch (const std::exception& e) {  // NOLINT

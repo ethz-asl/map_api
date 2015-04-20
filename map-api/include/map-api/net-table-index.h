@@ -7,9 +7,11 @@
 #include "map-api/chord-index.h"
 #include "map-api/peer-handler.h"
 
-namespace map_api {
+namespace common {
 class Id;
+}  // namespace common
 
+namespace map_api {
 class NetTableIndex : public ChordIndex {
  public:
   virtual ~NetTableIndex();
@@ -20,8 +22,9 @@ class NetTableIndex : public ChordIndex {
    * guaranteed is that if at least one peer holds a chunk, at least one peer
    * will be registered in the index.
    */
-  void announcePosession(const Id& chunk_id);
-  void seekPeers(const Id& chunk_id, std::unordered_set<PeerId>* peers);
+  void seekPeers(const common::Id& chunk_id, std::unordered_set<PeerId>* peers);
+  void announcePosession(const common::Id& chunk_id);
+  void renouncePosession(const common::Id& chunk_id);
 
   static const char kRoutedChordRequest[];
   static const char kPeerResponse[];

@@ -2,9 +2,9 @@
 
 #include <algorithm>
 
+#include <multiagent-mapping-common/backtrace.h>
 #include <timing/timer.h>
 
-#include "map-api/internal/trackee-multimap.h"
 #include "map-api/cache-base.h"
 #include "map-api/chunk.h"
 #include "map-api/chunk-manager.h"
@@ -12,25 +12,33 @@
 #include "map-api/net-table-manager.h"
 #include "map-api/net-table-transaction.h"
 #include "map-api/revision.h"
+#include "map-api/trackee-multimap.h"
 #include "./core.pb.h"
+
+DEFINE_bool(blame_commit, false, "Print stack trace for every commit");
 
 namespace map_api {
 
 Transaction::Transaction() : Transaction(LogicalTime::sample()) {}
 Transaction::Transaction(const LogicalTime& begin_time)
-    : begin_time_(begin_time) {
+    : begin_time_(begin_time),
+      chunk_tracking_disabled_(false),
+      already_committed_(false) {
   CHECK(begin_time < LogicalTime::sample());
 }
 
-CRTable::RevisionMap Transaction::dumpChunk(NetTable* table, Chunk* chunk) {
+void Transaction::dumpChunk(NetTable* table, Chunk* chunk,
+                            ConstRevisionMap* result) {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(chunk);
-  return transactionOf(table)->dumpChunk(chunk);
+  CHECK_NOTNULL(result);
+  return transactionOf(table)->dumpChunk(chunk, result);
 }
 
-CRTable::RevisionMap Transaction::dumpActiveChunks(NetTable* table) {
+void Transaction::dumpActiveChunks(NetTable* table, ConstRevisionMap* result) {
   CHECK_NOTNULL(table);
-  return transactionOf(table)->dumpActiveChunks();
+  CHECK_NOTNULL(result);
+  return transactionOf(table)->dumpActiveChunks(result);
 }
 
 void Transaction::insert(
@@ -64,10 +72,17 @@ void Transaction::remove(NetTable* table, std::shared_ptr<Revision> revision) {
 // net_table_transactions_, and have the locks acquired in that order
 // (resource hierarchy solution)
 bool Transaction::commit() {
+  CHECK(!already_committed_);
+  already_committed_ = true;
+  if (FLAGS_blame_commit) {
+    LOG(INFO) << "Transaction committed from:\n" << common::backtrace();
+  }
   for (const CacheMap::value_type& cache_pair : attached_caches_) {
     cache_pair.second->prepareForCommit();
   }
+  enableDirectAccess();
   pushNewChunkIdsToTrackers();
+  disableDirectAccess();
   timing::Timer timer("map_api::Transaction::commit - lock");
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->lock();
@@ -83,6 +98,7 @@ bool Transaction::commit() {
     }
   }
   commit_time_ = LogicalTime::sample();
+  VLOG(3) << "Commit from " << begin_time_ << " to " << commit_time_;
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->checkedCommit(commit_time_);
     net_table_transaction.second->unlock();
@@ -135,12 +151,12 @@ void Transaction::attachCache(NetTable* table, CacheBase* cache) {
   attached_caches_.emplace(table, cache);
 }
 
-void Transaction::enableDirectAccessForCache() {
+void Transaction::enableDirectAccess() {
   std::lock_guard<std::mutex> lock(access_type_mutex_);
   CHECK(cache_access_override_.insert(std::this_thread::get_id()).second);
 }
 
-void Transaction::disableDirectAccessForCache() {
+void Transaction::disableDirectAccess() {
   std::lock_guard<std::mutex> lock(access_type_mutex_);
   CHECK_EQ(1u, cache_access_override_.erase(std::this_thread::get_id()));
 }
@@ -192,6 +208,9 @@ void Transaction::ensureAccessIsDirect(NetTable* table) const {
 }
 
 void Transaction::pushNewChunkIdsToTrackers() {
+  if (chunk_tracking_disabled_) {
+    return;
+  }
   // tracked table -> tracked chunks -> tracking table -> tracking item
   typedef std::unordered_map<NetTable*,
                              NetTableTransaction::TrackedChunkToTrackersMap>
@@ -203,7 +222,7 @@ void Transaction::pushNewChunkIdsToTrackers() {
         &net_table_chunk_trackers[table_transaction.first]);
   }
   // tracking item -> tracked table -> tracked chunks
-  typedef std::unordered_map<Id, TrackeeMultimap> ItemToTrackeeMap;
+  typedef std::unordered_map<common::Id, TrackeeMultimap> ItemToTrackeeMap;
   // tracking table -> tracking item -> tracked table -> tracked chunks
   typedef std::unordered_map<NetTable*, ItemToTrackeeMap> TrackerToTrackeeMap;
   TrackerToTrackeeMap table_item_chunks_to_push;
@@ -214,7 +233,8 @@ void Transaction::pushNewChunkIdsToTrackers() {
       for (const ChunkTransaction::TableToIdMultiMap::value_type& tracker :
            chunk_trackers.second) {
         table_item_chunks_to_push[tracker.first][tracker.second]
-            .emplace(net_table_trackers.first, chunk_trackers.first);
+                                 [net_table_trackers.first]
+                                     .emplace(chunk_trackers.first);
       }
     }
   }
@@ -225,14 +245,15 @@ void Transaction::pushNewChunkIdsToTrackers() {
          table_chunks_to_push.second) {
       // TODO(tcies) keeping track of tracker chunks could optimize this, as
       // the faster getById() overload could be used.
+      CHECK(item_chunks_to_push.first.isValid()) << "Invalid tracker ID for trackee from "
+          << "table " << table_chunks_to_push.first->name();
       std::shared_ptr<const Revision> original_tracker =
           getById(item_chunks_to_push.first, table_chunks_to_push.first);
-      std::shared_ptr<Revision> updated_tracker(
-          new Revision(*original_tracker));
+      std::shared_ptr<Revision> updated_tracker =
+          original_tracker->copyForWrite();
       TrackeeMultimap trackee_multimap;
       trackee_multimap.deserialize(*original_tracker->underlying_revision_);
-      trackee_multimap.insert(item_chunks_to_push.second.begin(),
-                              item_chunks_to_push.second.end());
+      trackee_multimap.merge(item_chunks_to_push.second);
       trackee_multimap.serialize(updated_tracker->underlying_revision_.get());
       update(table_chunks_to_push.first, updated_tracker);
     }
