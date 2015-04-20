@@ -15,6 +15,7 @@ message JoinQuitResponse {
   optional bool response = 1;
   repeated string peer_id = 2;
   optional string leader_id = 3;
+  optional uint64 index = 4;
 }
 
 message RaftRevision {
@@ -56,8 +57,10 @@ message VoteRequest {
   optional uint64 commit_index = 4;
 }
 
+enum VoteResponseType {GRANTED = 1; DECLINED = 2; VOTER_NOT_ELIGIBLE = 3;}
+
 message VoteResponse {
-  optional bool vote = 1;
+  optional VoteResponseType vote = 1;
   optional uint64 previous_log_index = 2;
   optional uint64 previous_log_term = 3;
 }

@@ -12,8 +12,8 @@
 #include "./consensus_fixture.h"
 
 namespace map_api {
-  
-TEST_F(ConsensusFixture, PeerAnnouncedQuit) {
+
+/*TEST_F(ConsensusFixture, PeerAnnouncedQuit) {
   const uint64_t kProcesses = 2;
   enum Barriers {
     INIT,
@@ -23,7 +23,7 @@ TEST_F(ConsensusFixture, PeerAnnouncedQuit) {
     PEER_QUIT,
     DIE
   };
-  
+
   pid_t pid = getpid();
   if (getSubprocessId() == 0) {
     VLOG(1) << "PID of main process. " << pid;
@@ -36,9 +36,9 @@ TEST_F(ConsensusFixture, PeerAnnouncedQuit) {
     IPC::barrier(NEW_PEER, kProcesses);
     IPC::barrier(PEER_QUIT, kProcesses);
     IPC::barrier(DIE, kProcesses);
-    
+
   } else if (getSubprocessId() == 1) {
-    VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid; 
+    VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid;
     RaftNode::instance().registerHandlers();
 
     IPC::barrier(INIT, kProcesses);
@@ -66,26 +66,26 @@ TEST_F(ConsensusFixture, PeerAnnouncedQuit) {
       VLOG_EVERY_N(1, 1) << "Adding entry ... ";
       appendEntries();
     }
-    
+
     //IPC::barrier(DIE, kProcesses);
     VLOG(1) << "Leader Die. ";
     RaftNode::instance().kill();
   } else {
-    VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid; 
+    VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid;
     IPC::barrier(INIT, kProcesses);
     IPC::barrier(PEERS_SETUP, kProcesses);
     IPC::barrier(APPENDED_ENTRIES, kProcesses);
 
-    RaftNode::instance().initial_join_request_peer_ =
+    RaftNode::instance().join_request_peer_ =
         PeerId(IPC::pop<std::string>());
     RaftNode::instance().state_ = RaftNode::State::JOINING;
 
     RaftNode::instance().registerHandlers();
     RaftNode::instance().start();
     IPC::barrier(NEW_PEER, kProcesses);
-    
+
     IPC::barrier(PEER_QUIT, kProcesses);
-    
+
 
     //IPC::barrier(DIE, kProcesses);
     VLOG(1) << "Follower Die. ";
@@ -103,7 +103,7 @@ TEST_F(ConsensusFixture, PeerJoin) {
     NEW_PEER,
     DIE
   };
-  
+
   pid_t pid = getpid();
   if (getSubprocessId() == 0) {
     VLOG(1) << "PID of main process. " << pid;
@@ -115,9 +115,9 @@ TEST_F(ConsensusFixture, PeerJoin) {
     IPC::barrier(APPENDED_ENTRIES, kProcesses);
     IPC::barrier(NEW_PEER, kProcesses);
     IPC::barrier(DIE, kProcesses);
-    
+
   } else if (getSubprocessId() == 1) {
-    VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid; 
+    VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid;
     RaftNode::instance().registerHandlers();
 
     IPC::barrier(INIT, kProcesses);
@@ -130,7 +130,7 @@ TEST_F(ConsensusFixture, PeerJoin) {
 
     IPC::barrier(PEERS_SETUP, kProcesses);
     RaftNode::instance().start();
-    
+
     appendEntries();
 
     VLOG(1) << "creating new peer";
@@ -146,13 +146,12 @@ TEST_F(ConsensusFixture, PeerJoin) {
     VLOG(1) << "Leader Die. ";
     RaftNode::instance().kill();
   } else {
-    VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid; 
+    VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid;
     IPC::barrier(INIT, kProcesses);
     IPC::barrier(PEERS_SETUP, kProcesses);
     IPC::barrier(APPENDED_ENTRIES, kProcesses);
 
-    RaftNode::instance().initial_join_request_peer_ =
-        PeerId(IPC::pop<std::string>());
+    RaftNode::instance().join_request_peer_ = PeerId(IPC::pop<std::string>());
     RaftNode::instance().state_ = RaftNode::State::JOINING;
 
     RaftNode::instance().registerHandlers();
@@ -163,7 +162,7 @@ TEST_F(ConsensusFixture, PeerJoin) {
     VLOG(1) << "Follower Die. ";
     RaftNode::instance().kill();
   }
-}
+}*/
 
 TEST_F(ConsensusFixture, LeaderElection) {
   const uint64_t kProcesses = 5;
@@ -181,6 +180,7 @@ TEST_F(ConsensusFixture, LeaderElection) {
       launchSubprocess(i);
     }
   }
+  RaftNode::instance().registerHandlers();
   IPC::barrier(INIT, kProcesses - 1);
   // Find peers in the network and add them to raft cluster.
   std::set<PeerId> peer_list;
@@ -191,8 +191,15 @@ TEST_F(ConsensusFixture, LeaderElection) {
 
   IPC::barrier(PEERS_SETUP, kProcesses - 1);
   RaftNode::instance().start();
+
+  if (getSubprocessId() == 1) {
+    LOG(WARNING) << PeerId::self() << "This peer is going to die.";
+    usleep(5000000);
+    CHECK(false);
+  }
+
   while (true) {
-    // Do nothing
+    appendEntries();
   }
 }
 
