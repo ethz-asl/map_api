@@ -1,14 +1,15 @@
-#include <map-api/file-discovery.h>
+#include "map-api/file-discovery.h"
+
 #include <fstream>  // NOLINT
 #include <sstream>  // NOLINT
 #include <string>
-
 #include <sys/file.h>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <multiagent-mapping-common/delayed-notification.h>
 
-#include <map-api/hub.h>
+#include "map-api/hub.h"
 
 DEFINE_bool(clear_discovery, false, "Will clear file discovery at startup.");
 
@@ -65,6 +66,7 @@ void FileDiscovery::getFileContents(std::string* result) const {
 
 void FileDiscovery::lock() {
   mutex_.lock();
+  DELAYED_NOTIFICATION_1S("Stuck on the discovery lock file!");
   while (true) {
     {
       bool status =
