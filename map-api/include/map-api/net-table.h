@@ -138,7 +138,12 @@ class NetTable {
 
   void kill();
 
+  // Make sure all chunks have at least one other peer.
+  void killOnceShared();
+
   void leaveAllChunks();
+
+  void leaveAllChunksOnceShared();
 
   std::string getStatistics();
 
@@ -250,6 +255,13 @@ class NetTable {
   // Complements autoFollowTrackedChunks.
   void fetchAllCallback(const common::IdSet& insertions,
                         const common::IdSet& updates, Chunk* chunk);
+
+  void leaveIndices();
+
+  void getChunkHolders(const common::Id& chunk_id,
+                       std::unordered_set<PeerId>* peers);
+  void joinChunkHolders(const common::Id& chunk_id);
+  void leaveChunkHolders(const common::Id& chunk_id);
 
   std::shared_ptr<TableDescriptor> descriptor_;
   ChunkMap active_chunks_;
