@@ -80,7 +80,7 @@ target_link_libraries(test_chord_index_test ${PROJECT_NAME})
 catkin_add_gtest(test_chunk_test test/chunk_test.cc)
 target_link_libraries(test_chunk_test ${PROJECT_NAME})
 
-if(!APPLE)
+if(NOT APPLE)
   catkin_add_gtest(test_discovery test/discovery_test.cc)
   target_link_libraries(test_discovery ${PROJECT_NAME})
 endif()

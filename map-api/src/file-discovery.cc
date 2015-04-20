@@ -1,14 +1,15 @@
-#include <map-api/file-discovery.h>
+#include "map-api/file-discovery.h"
+
+#include <chrono>
 #include <fstream>  // NOLINT
 #include <sstream>  // NOLINT
 #include <string>
-
 #include <sys/file.h>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include <map-api/hub.h>
+#include "map-api/hub.h"
 
 DEFINE_double(discovery_timeout_seconds, 0.5, "Timeout for file discovery.");
 
@@ -53,11 +54,7 @@ void FileDiscovery::getFileContents(std::string* result) const {
 
 void FileDiscovery::lock() {
   mutex_.lock();
-#if GCC_VERSION >= 407 || defined(__clang__)
-using std::chrono::steady_clock;
-#else
-typedef std::chrono::monotonic_clock steady_clock;
-#endif
+  using std::chrono::steady_clock;
   steady_clock::time_point start = steady_clock::now();
   while (true) {
     {
@@ -75,9 +72,7 @@ typedef std::chrono::monotonic_clock steady_clock;
     double time_ms =
         duration_cast<std::chrono::milliseconds>(end - start).count();
     if (time_ms > FLAGS_discovery_timeout_seconds * 1e3) {
-      LOG(ERROR) << "File discovery timed out!";
-      replace("");
-      unlock();
+      LOG(FATAL) << "File discovery lock timed out!";
     }
   }
 }
