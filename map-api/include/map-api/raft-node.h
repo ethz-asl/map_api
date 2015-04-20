@@ -36,6 +36,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <map>
 #include <mutex>
 #include <set>
 #include <thread>
@@ -76,8 +77,8 @@ class RaftNode {
   // Returns index of the appended entry if append succeeds, or zero otherwise
   uint64_t leaderAppendLogEntry(uint32_t entry);
 
-  static void staticHandleAppendRequest(const Message& request, 
-                                      Message* response);
+  static void staticHandleAppendRequest(const Message& request,
+                                        Message* response);
   static void staticHandleRequestVote(const Message& request,
                                       Message* response);
 
@@ -90,6 +91,7 @@ class RaftNode {
   FRIEND_TEST(ConsensusFixture, DISABLED_LeaderElection);
   // TODO(aqurai) Only for test, will be removed later.
   inline void addPeerBeforeStart(PeerId peer) { peer_list_.insert(peer); }
+  bool giveUpLeadership();
 
   // Singleton class. There will be a singleton manager class later,
   // for managing multiple raft instances per peer.
@@ -164,40 +166,38 @@ class RaftNode {
   // =====================
   // Index will always be sequential, unique.
   // Leader will overwrite follower logs where index+term doesn't match.
-  // Presently sending all log entries to everyone, but later, just send latest
-  // revision and new log entries to new peers.
-
-  struct LogEntry {
-    uint64_t index;
-    uint64_t term;
-    uint32_t entry;
-    std::set<PeerId> replicator_peers;
-  };
 
   // In Follower state, only handleAppendRequest writes to log_entries.
   // In Leader state, only appendLogEntry writes to log entries.
-  std::vector<LogEntry> log_entries_;
+  std::vector<std::shared_ptr<proto::RaftRevision>> log_entries_;
   std::condition_variable new_entries_signal_;
   ReaderWriterMutex log_mutex_;
+  typedef std::vector<std::shared_ptr<proto::RaftRevision>>::iterator
+      LogIterator;
 
   // Assumes at least read lock is acquired for log_mutex_.
-  std::vector<LogEntry>::iterator getIteratorByIndex(uint64_t index);
+  LogIterator getLogIteratorByIndex(uint64_t index);
 
   // The two following methods assume write lock is acquired for log_mutex_.
-  proto::Response followerAppendNewEntries(
-      const proto::AppendEntriesRequest& request);
+  proto::AppendResponseStatus followerAppendNewEntries(
+      proto::AppendEntriesRequest& request);
   void followerCommitNewEntries(const proto::AppendEntriesRequest& request);
+  void setAppendEntriesResponse(proto::AppendResponseStatus status,
+                                proto::AppendEntriesResponse* response);
+
+  // Expects locks for commit_mutex_ and log_mutex_to NOT have been acquired.
+  void leaderCommitReplicatedEntries();
+
+  std::map<PeerId, std::unique_ptr<std::atomic<uint64_t>>>
+      peer_replication_indices_;
+  typedef std::map<PeerId, std::unique_ptr<std::atomic<uint64_t>>>::iterator
+      ReplicationIterator;
 
   uint64_t commit_index_;
   uint64_t committed_result_;
   mutable std::mutex commit_mutex_;
   const uint64_t& commit_index() const;
   const uint64_t& committed_result() const;
-
-  // After a new entry is replicated on followers, checks if some entries
-  // can be committed. Expects locks for commit_mutex_ and log_mutex_
-  // to NOT have been acquired.
-  void leaderCommitReplicatedEntries();
 };
 }  // namespace map_api
 
