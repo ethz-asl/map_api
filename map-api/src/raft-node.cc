@@ -24,7 +24,6 @@ const char RaftNode::kAppendEntries[] = "raft_node_append_entries";
 const char RaftNode::kAppendEntriesResponse[] = "raft_node_append_response";
 const char RaftNode::kVoteRequest[] = "raft_node_vote_request";
 const char RaftNode::kVoteResponse[] = "raft_node_vote_response";
-const char RaftNode::kAddRemovePeer[] = "raft_node_add_remove_peer";
 const char RaftNode::kJoinQuitRequest[] = "raft_node_join_quit_request";
 const char RaftNode::kJoinQuitResponse[] = "raft_node_join_quit_response";
 const char RaftNode::kNotifyJoinQuitSuccess[] = "raft_node_notify_join_success";
@@ -638,8 +637,9 @@ void RaftNode::joinRaft() {
     std::lock_guard<std::mutex> peer_lock(peer_mutex_);
     for (uint i = 0; i < num_response_peers; ++i) {
       PeerId insert_peer = PeerId(join_response.peer_id(i));
-      if (insert_peer != PeerId::self())
-        peer_list_.insert(PeerId(join_response.peer_id(i)));
+      if (insert_peer != PeerId::self()) {
+        peer_list_.insert(insert_peer);
+      }
     }
     num_peers_ = peer_list_.size();
   }
