@@ -108,12 +108,6 @@ void RaftNode::stop() {
   }
 }
 
-void RaftNode::quitRaft() {
-  std::lock_guard<std::mutex> state_lock(state_mutex_);
-  sendJoinQuitRequest(leader_id_, proto::PeerRequestType::REMOVE_PEER);
-  stop();
-}
-
 uint64_t RaftNode::term() const {
   std::lock_guard<std::mutex> lock(state_mutex_);
   return current_term_;

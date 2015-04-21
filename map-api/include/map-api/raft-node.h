@@ -74,7 +74,6 @@ class RaftNode {
 
   void start();
   void stop();
-  void quitRaft();
   inline bool isRunning() const { return state_thread_running_; }
   uint64_t term() const;
   const PeerId& leader() const;

@@ -25,11 +25,6 @@ class ConsensusFixture : public common::MultiprocessFixture {
   void appendEntry() {
     RaftNode::instance().leaderAppendLogEntry(kRaftTestAppendEntry);
   }
-  void setJoinRequestPeer(PeerId peer) {
-    RaftNode::instance().state_ = RaftNode::State::JOINING;
-    RaftNode::instance().join_request_peer_ = peer;
-  }
-  void quitRaft() { RaftNode::instance().quitRaft(); }
 
   // Keep apeend entries for a duration of duration_ms, with a delay of
   // delay_ms between consecutive appends.
