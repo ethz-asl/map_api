@@ -157,8 +157,7 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
   // Lock and read the state.
   std::unique_lock<std::mutex> state_lock(state_mutex_);
   bool sender_changed =
-      (request_sender != leader_id_ || request_term != current_term_ ||
-       state_ == State::JOINING);
+      (request_sender != leader_id_ || request_term != current_term_);
 
   // Lock and read log info
   log_mutex_.acquireReadLock();
@@ -221,7 +220,7 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
   // Check if Joining peer can become follower.
   // ==========================================
   if (state_ == State::JOINING && is_join_notified_ &&
-      join_log_index_ >= log_entries_.back()->index()) {
+      log_entries_.back()->index() >= join_log_index_) {
     VLOG(1) << PeerId::self() << " has joined the raft network.";
     state_ = State::FOLLOWER;
     is_join_notified_ = false;
@@ -554,12 +553,11 @@ void RaftNode::followerAddRemovePeer(const proto::AddRemovePeer& add_remove_peer
     const PeerId& peer = PeerId(add_remove_peer.peer_id());
     if (peer != PeerId::self()) {
       peer_list_.insert(peer);
-      num_peers_ = peer_list_.size();
     }
   } else {
     peer_list_.erase(PeerId(add_remove_peer.peer_id()));
-    num_peers_ = peer_list_.size();
   }
+  num_peers_ = peer_list_.size();
 }
 
 void RaftNode::joinRaft() {
@@ -597,7 +595,8 @@ void RaftNode::joinRaft() {
     uint num_response_peers = join_response.peer_id_size();
     std::lock_guard<std::mutex> peer_lock(peer_mutex_);
     for (uint i = 0; i < num_response_peers; ++i) {
-      peer_list_.insert(PeerId(join_response.peer_id(i)));
+      PeerId insert_peer = PeerId(join_response.peer_id(i));
+      if (insert_peer != PeerId::self()) peer_list_.insert(insert_peer);
     }
     num_peers_ = peer_list_.size();
   }
@@ -688,7 +687,8 @@ void RaftNode::followerTrackerThread(
     while (!append_successs && follower_trackers_run_ &&
            this_tracker->tracker_run) {
       if (this_tracker->status == PeerStatus::OFFLINE) {
-        VLOG(1) << "Peer is offline. Not calling sendAppendEntries.";
+        VLOG_EVERY_N(1, 10)
+            << "Peer is offline. Not calling sendAppendEntries.";
         usleep(kJoinResponseTimeoutMs);
         continue;
       }
@@ -800,7 +800,12 @@ proto::AppendResponseStatus RaftNode::followerAppendNewEntries(
     proto::AppendEntriesRequest& request) {
   if (!request.has_revision()) {
     // No need to proceed further as message contains no new entries
-    return proto::AppendResponseStatus::SUCCESS;
+    if (request.last_log_index() == log_entries_.back()->index() &&
+        request.last_log_term() == log_entries_.back()->term()) {
+      return proto::AppendResponseStatus::SUCCESS;
+    } else {
+      return proto::AppendResponseStatus::FAILED;
+    }
   } else if (request.previous_log_index() == log_entries_.back()->index() &&
              request.previous_log_term() == log_entries_.back()->term()) {
     // All is well, append the new entry, but don't commit it yet.
