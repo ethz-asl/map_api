@@ -15,6 +15,9 @@ std::shared_ptr<const Revision> NetTableTransaction::getById(const IdType& id)
   }
   std::shared_ptr<const Revision> result;
   Chunk* chunk = chunkOf(id, &result);
+  if (!workspace_.contains(chunk->id())) {
+    return std::shared_ptr<Revision>();
+  }
   if (chunk) {
     LogicalTime inconsistent_time = result->getModificationTime();
     LogicalTime chunk_latest_commit = chunk->getLatestCommitTime();
@@ -37,6 +40,9 @@ template <typename IdType>
 std::shared_ptr<const Revision> NetTableTransaction::getById(
     const IdType& id, Chunk* chunk) const {
   CHECK_NOTNULL(chunk);
+  if (!workspace_.contains(chunk->id())) {
+    return std::shared_ptr<Revision>();
+  }
   return transactionOf(chunk)->getById(id);
 }
 
@@ -57,14 +63,23 @@ std::shared_ptr<const Revision> NetTableTransaction::getByIdFromUncommitted(
 template <typename ValueType>
 void NetTableTransaction::find(int key, const ValueType& value,
                                ConstRevisionMap* result) {
+  CHECK_NOTNULL(result);
   // TODO(tcies) uncommitted
-  return table_->lockFind(key, value, begin_time_, result);
+  workspace_.forEachChunk([&, this](const Chunk& chunk) {
+    ConstRevisionMap chunk_result;
+    chunk.constData()->find(key, value, begin_time_, &chunk_result);
+    result->insert(chunk_result.begin(), chunk_result.end());
+  });
 }
 
 template <typename IdType>
 void NetTableTransaction::getAvailableIds(std::vector<IdType>* ids) {
   CHECK_NOTNULL(ids);
-  table_->getAvailableIds(begin_time_, ids);
+  workspace_.forEachChunk([&, this](const Chunk& chunk) {
+    std::vector<IdType> chunk_result;
+    chunk.constData()->getAvailableIds(begin_time_, &chunk_result);
+    ids->insert(ids->end(), chunk_result.begin(), chunk_result.end());
+  });
 }
 
 template <typename IdType>
