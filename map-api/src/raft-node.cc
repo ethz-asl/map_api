@@ -24,7 +24,6 @@ const char RaftNode::kAppendEntries[] = "raft_node_append_entries";
 const char RaftNode::kAppendEntriesResponse[] = "raft_node_append_response";
 const char RaftNode::kVoteRequest[] = "raft_node_vote_request";
 const char RaftNode::kVoteResponse[] = "raft_node_vote_response";
-const char RaftNode::kAddRemovePeer[] = "raft_node_add_remove_peer";
 const char RaftNode::kJoinQuitRequest[] = "raft_node_join_quit_request";
 const char RaftNode::kJoinQuitResponse[] = "raft_node_join_quit_response";
 const char RaftNode::kNotifyJoinQuitSuccess[] = "raft_node_notify_join_success";
@@ -659,7 +658,6 @@ void RaftNode::conductElection() {
             << " Elected as the leader for term " << current_term_ << " with "
             << num_votes + 1 << " votes. ***";
   } else if (state_ == State::CANDIDATE) {
-    LOG(WARNING) << "Here 4";
     // This peer doesn't win the election.
     state_ = State::FOLLOWER;
     leader_id_ = PeerId();

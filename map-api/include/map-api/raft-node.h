@@ -94,7 +94,6 @@ class RaftNode {
   static const char kAppendEntriesResponse[];
   static const char kVoteRequest[];
   static const char kVoteResponse[];
-  static const char kAddRemovePeer[];
   static const char kJoinQuitRequest[];
   static const char kJoinQuitResponse[];
   static const char kNotifyJoinQuitSuccess[];
