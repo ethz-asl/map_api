@@ -29,12 +29,13 @@ class ConsensusFixture : public common::MultiprocessFixture {
     RaftNode::instance().state_ = RaftNode::State::JOINING;
     RaftNode::instance().join_request_peer_ = peer;
   }
+  void quitRaft() { RaftNode::instance().quitRaft(); }
 
   // Keep apeend entries for a duration of duration_ms, with a delay of
   // delay_ms between consecutive appends.
-  void appendEntriesFor(uint16_t duration_ms, uint16_t delay_ms);
-  void appendEntriesWithLeaderChangesFor(uint16_t duration_ms,
-                                         uint16_t delay_ms);
+  void appendEntriesForMs(uint16_t duration_ms, uint16_t delay_ms);
+  void appendEntriesWithLeaderChangesForMs(uint16_t duration_ms,
+                                           uint16_t delay_ms);
 
   // Add num_entries entries in a burst
   void appendEntriesBurst(uint16_t num_entries);

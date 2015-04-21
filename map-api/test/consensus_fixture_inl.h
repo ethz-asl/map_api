@@ -59,8 +59,8 @@ void ConsensusFixture::addRaftPeer(const PeerId& peer) {
   RaftNode::instance().addPeerBeforeStart(peer);
 }
 
-void ConsensusFixture::appendEntriesFor(uint16_t duration_ms,
-                                        uint16_t delay_ms) {
+void ConsensusFixture::appendEntriesForMs(uint16_t duration_ms,
+                                          uint16_t delay_ms) {
   TimePoint begin = std::chrono::system_clock::now();
   TimePoint append_time = std::chrono::system_clock::now();
   uint16_t total_duration_ms = 0;
@@ -87,8 +87,8 @@ void ConsensusFixture::appendEntriesFor(uint16_t duration_ms,
   }
 }
 
-void ConsensusFixture::appendEntriesWithLeaderChangesFor(uint16_t duration_ms,
-                                                         uint16_t delay_ms) {
+void ConsensusFixture::appendEntriesWithLeaderChangesForMs(uint16_t duration_ms,
+                                                           uint16_t delay_ms) {
   uint num_appends = 0;
   TimePoint begin = std::chrono::system_clock::now();
   TimePoint append_time = std::chrono::system_clock::now();

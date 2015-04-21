@@ -14,7 +14,12 @@
 #include "./consensus_fixture.h"
 
 namespace map_api {
-/*
+
+constexpr int kWaitTimeMs = 1000;
+constexpr int kAppendEntriesForMs = 10000;
+constexpr int kTimeBetweenAppendsMs = 20;
+constexpr int kNumEntriesToAppend = 40;
+
 TEST_F(ConsensusFixture, LeaderElection) {
   const uint64_t kProcesses = 5;  // Processes in addition to supervisor.
   enum Barriers {
@@ -43,7 +48,7 @@ TEST_F(ConsensusFixture, LeaderElection) {
     VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid;
     setupRaftPeers(kProcesses);
     RaftNode::instance().start();
-    usleep(5000 * kMillisecondsToMicroseconds);
+    usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
     RaftNode::instance().stop();
     IPC::barrier(DIE, kProcesses);
   }
@@ -90,20 +95,20 @@ TEST_F(ConsensusFixture, LeaderChange) {
     VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid;
     setupRaftPeers(kProcesses);
     RaftNode::instance().start();
-    usleep(1000 * kMillisecondsToMicroseconds);
+    usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
     IPC::barrier(LEADER_ELECTED, kProcesses);
     IPC::barrier(ELECTION_1_TESTED, kProcesses);
 
     if (RaftNode::instance().state() == RaftNode::State::LEADER) {
       giveUpLeadership();
     }
-    usleep(2000 * kMillisecondsToMicroseconds);
+    usleep(2 * kWaitTimeMs * kMillisecondsToMicroseconds);
     RaftNode::instance().stop();
     IPC::barrier(DIE, kProcesses);
   }
 }
 
-TEST_F(ConsensusFixture, AppendEntries) {
+TEST_F(ConsensusFixture, AppendEntriesWithLeaderChange) {
   const uint64_t kProcesses = 5;  // Processes in addition to supervisor.
   enum Barriers {
     LEADER_ELECTED,
@@ -134,7 +139,6 @@ TEST_F(ConsensusFixture, AppendEntries) {
     }
     // Number of peers with more logs than commit index.
     uint num_complete_log_peers = 0;
-
     for (proto::QueryStateResponse state : states) {
       if (state.last_log_index() >= max_commit_index) {
         ++num_complete_log_peers;
@@ -148,10 +152,11 @@ TEST_F(ConsensusFixture, AppendEntries) {
     setupRaftPeers(kProcesses);
 
     RaftNode::instance().start();
-    usleep(1000 * kMillisecondsToMicroseconds);
+    usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
     IPC::barrier(LEADER_ELECTED, kProcesses);
 
-    appendEntriesWithLeaderChangesFor(10000, 20);
+    appendEntriesWithLeaderChangesForMs(kAppendEntriesForMs,
+                                        kTimeBetweenAppendsMs);
 
     IPC::barrier(DIE, kProcesses);
     RaftNode::instance().kill();
@@ -185,7 +190,8 @@ TEST_F(ConsensusFixture, BurstAppendEntries) {
       }
       VLOG(1) << peer << ": Commit index = " << state.commit_index();
     }
-    // Number of peers with more logs than commit index.
+    // Number of peers with more logs than commit index. An entry should be
+    // committed only if it is replicated on majority of the peers.
     uint num_complete_log_peers = 0;
     for (proto::QueryStateResponse state : states) {
       if (state.last_log_index() >= max_commit_index) {
@@ -198,9 +204,9 @@ TEST_F(ConsensusFixture, BurstAppendEntries) {
     VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid;
     setupRaftPeers(kProcesses);
     RaftNode::instance().start();
-    usleep(1000 * kMillisecondsToMicroseconds);
-    appendEntriesBurst(40);
-    usleep(4000 * kMillisecondsToMicroseconds);
+    usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
+    appendEntriesBurst(kNumEntriesToAppend);
+    usleep(4 * kWaitTimeMs * kMillisecondsToMicroseconds);
     RaftNode::instance().stop();
     IPC::barrier(DIE, kProcesses);
   }
@@ -215,7 +221,7 @@ TEST_F(ConsensusFixture, OnePeerJoin) {
   };
   enum Barriers {
     INIT,
-    LEADER_ENTRIES_ADD,
+    LEADER_ADD_ENTRIES,
     INIT_JOINING_PEER,
     DIE
   };
@@ -227,7 +233,7 @@ TEST_F(ConsensusFixture, OnePeerJoin) {
     launchSubprocess(LEADER);
     launchSubprocess(JOINING_PEER);
     IPC::barrier(INIT, kProcesses);
-    IPC::barrier(LEADER_ENTRIES_ADD, kProcesses);
+    IPC::barrier(LEADER_ADD_ENTRIES, kProcesses);
     IPC::barrier(INIT_JOINING_PEER, kProcesses);
 
     IPC::barrier(DIE, kProcesses);
@@ -259,40 +265,40 @@ TEST_F(ConsensusFixture, OnePeerJoin) {
 
     VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid;
     RaftNode::instance().start();
-    usleep(1000 * kMillisecondsToMicroseconds);
+    usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
     appendEntriesBurst(40);
-    usleep(4000 * kMillisecondsToMicroseconds);
+    usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
     IPC::push(PeerId::self());
-    IPC::barrier(LEADER_ENTRIES_ADD, kProcesses);
+    IPC::barrier(LEADER_ADD_ENTRIES, kProcesses);
     IPC::barrier(INIT_JOINING_PEER, kProcesses);
 
-    usleep(8000 * kMillisecondsToMicroseconds);
+    usleep(5 * kWaitTimeMs * kMillisecondsToMicroseconds);
     IPC::barrier(DIE, kProcesses);
     RaftNode::instance().stop();
 
   } else if (getSubprocessId() == JOINING_PEER) {
     IPC::barrier(INIT, kProcesses);
     VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid;
-    IPC::barrier(LEADER_ENTRIES_ADD, kProcesses);
+    IPC::barrier(LEADER_ADD_ENTRIES, kProcesses);
     setJoinRequestPeer(IPC::pop<PeerId>());
     RaftNode::instance().start();
     IPC::barrier(INIT_JOINING_PEER, kProcesses);
     IPC::barrier(DIE, kProcesses);
     RaftNode::instance().stop();
   }
-}*/
+}
 
 TEST_F(ConsensusFixture, ManyPeerJoin) {
-  const uint64_t kProcesses = 2;  // Processes in addition to supervisor.
+  const uint64_t kProcesses = 5;  // Processes in addition to supervisor.
   enum {
     SUPERVISOR,
     LEADER,
-    JOINING_PEER
   };
   enum Barriers {
     INIT,
-    LEADER_ENTRIES_ADD,
+    LEADER_ADD_ENTRIES,
     INIT_JOINING_PEER,
+    LEADER_ADD_MORE_ENTRIES,
     DIE
   };
   pid_t pid = getpid();
@@ -300,15 +306,16 @@ TEST_F(ConsensusFixture, ManyPeerJoin) {
   if (getSubprocessId() == SUPERVISOR) {
     VLOG(1) << "Supervisor Id: " << RaftNode::instance().self_id() << " : PID "
             << pid;
-    launchSubprocess(LEADER);
-    launchSubprocess(JOINING_PEER);
+    for (uint64_t i = 1u; i <= kProcesses; ++i) {
+      launchSubprocess(i);
+    }
     IPC::barrier(INIT, kProcesses);
-    IPC::barrier(LEADER_ENTRIES_ADD, kProcesses);
+    IPC::barrier(LEADER_ADD_ENTRIES, kProcesses);
     IPC::barrier(INIT_JOINING_PEER, kProcesses);
-
+    IPC::barrier(LEADER_ADD_MORE_ENTRIES, kProcesses);
     IPC::barrier(DIE, kProcesses);
 
-    /*std::set<PeerId> peer_list;
+    std::set<PeerId> peer_list;
     std::vector<proto::QueryStateResponse> states;
     Hub::instance().getPeers(&peer_list);
     uint64_t max_commit_index = 0;
@@ -329,34 +336,130 @@ TEST_F(ConsensusFixture, ManyPeerJoin) {
       }
     }
     // Check if committed entries are replicated on atleast half of the peers.
-    EXPECT_GT(num_complete_log_peers, peer_list.size() / 2);*/
+    EXPECT_GT(num_complete_log_peers, peer_list.size() / 2);
   } else if (getSubprocessId() == LEADER) {
     IPC::barrier(INIT, kProcesses);
 
     VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid;
     RaftNode::instance().start();
-    usleep(1000 * kMillisecondsToMicroseconds);
+    usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
     appendEntriesBurst(40);
-    usleep(4000 * kMillisecondsToMicroseconds);
+    usleep(2 * kWaitTimeMs * kMillisecondsToMicroseconds);
     IPC::push(PeerId::self());
-    IPC::barrier(LEADER_ENTRIES_ADD, kProcesses);
+    IPC::barrier(LEADER_ADD_ENTRIES, kProcesses);
     IPC::barrier(INIT_JOINING_PEER, kProcesses);
 
-    usleep(8000 * kMillisecondsToMicroseconds);
+    usleep(8 * kWaitTimeMs * kMillisecondsToMicroseconds);
+    IPC::barrier(LEADER_ADD_MORE_ENTRIES, kProcesses);
+    appendEntriesBurst(kNumEntriesToAppend);
+    usleep(4 * kWaitTimeMs * kMillisecondsToMicroseconds);
     IPC::barrier(DIE, kProcesses);
     RaftNode::instance().stop();
 
-  } else if (getSubprocessId() == JOINING_PEER) {
+  } else {
     IPC::barrier(INIT, kProcesses);
     VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " << pid;
-    IPC::barrier(LEADER_ENTRIES_ADD, kProcesses);
+    IPC::barrier(LEADER_ADD_ENTRIES, kProcesses);
     setJoinRequestPeer(IPC::pop<PeerId>());
     RaftNode::instance().start();
     IPC::barrier(INIT_JOINING_PEER, kProcesses);
+    IPC::barrier(LEADER_ADD_MORE_ENTRIES, kProcesses);
     IPC::barrier(DIE, kProcesses);
     RaftNode::instance().stop();
   }
 }
+
+// TODO(aqurai): Implement peer crash and peer quit tests after resolving zeromq
+// crash issue, or find some other way to do it.
+// TEST_F(ConsensusFixture, PeerCrash) {
+//  const uint64_t kProcesses = 5;  // Processes in addition to supervisor.
+//  enum {
+//    SUPERVISOR,
+//    LEADER,
+//  };
+//  enum Barriers {
+//    INIT,
+//    LEADER_ADD_ENTRIES,
+//    INIT_JOINING_PEER,
+//    LEADER_ADD_MORE_ENTRIES,
+//    DIE
+//  };
+//  pid_t pid = getpid();
+//
+//  if (getSubprocessId() == SUPERVISOR) {
+//    VLOG(1) << "Supervisor Id: " << RaftNode::instance().self_id() << " : PID
+// "
+//            << pid;
+//    for (uint64_t i = 1u; i <= kProcesses; ++i) {
+//      launchSubprocess(i);
+//    }
+//    IPC::barrier(INIT, kProcesses);
+//    IPC::barrier(LEADER_ADD_ENTRIES, kProcesses);
+//    IPC::barrier(INIT_JOINING_PEER, kProcesses);
+//    IPC::barrier(LEADER_ADD_MORE_ENTRIES, kProcesses);
+//    IPC::barrier(DIE, kProcesses-1);
+//
+//    std::set<PeerId> peer_list;
+//    std::vector<proto::QueryStateResponse> states;
+//    Hub::instance().getPeers(&peer_list);
+//    uint64_t max_commit_index = 0;
+//    for (const PeerId& peer : peer_list) {
+//      proto::QueryStateResponse state = queryState(peer);
+//      states.push_back(state);
+//
+//      if (state.commit_index() > max_commit_index) {
+//        max_commit_index = state.commit_index();
+//      }
+//      VLOG(1) << peer << ": Commit index = " << state.commit_index();
+//    }
+//    // Number of peers with more logs than commit index.
+//    uint num_complete_log_peers = 0;
+//    for (proto::QueryStateResponse state : states) {
+//      if (state.last_log_index() >= max_commit_index) {
+//        ++num_complete_log_peers;
+//      }
+//    }
+//    // Check if committed entries are replicated on atleast half of the peers.
+//    EXPECT_GT(num_complete_log_peers, peer_list.size() / 2);
+//  } else if (getSubprocessId() == LEADER) {
+//    IPC::barrier(INIT, kProcesses);
+//
+//    VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " <<
+// pid;
+//    RaftNode::instance().start();
+//    usleep(1000 * kMillisecondsToMicroseconds);
+//    appendEntriesBurst(40);
+//    usleep(4000 * kMillisecondsToMicroseconds);
+//    IPC::push(PeerId::self());
+//    IPC::barrier(LEADER_ADD_ENTRIES, kProcesses);
+//    IPC::barrier(INIT_JOINING_PEER, kProcesses);
+//
+//    usleep(8000 * kMillisecondsToMicroseconds);
+//    IPC::barrier(LEADER_ADD_MORE_ENTRIES, kProcesses);
+//    appendEntriesFor(10000, 20);
+//    usleep(4000 * kMillisecondsToMicroseconds);
+//    IPC::barrier(DIE, kProcesses-1);
+//    RaftNode::instance().stop();
+//
+//  } else {
+//    IPC::barrier(INIT, kProcesses);
+//    VLOG(1) << "Peer Id " << RaftNode::instance().self_id() << " : PID " <<
+// pid;
+//    IPC::barrier(LEADER_ADD_ENTRIES, kProcesses);
+//    setJoinRequestPeer(IPC::pop<PeerId>());
+//    RaftNode::instance().start();
+//    IPC::barrier(INIT_JOINING_PEER, kProcesses);
+//    IPC::barrier(LEADER_ADD_MORE_ENTRIES, kProcesses);
+//    if (getSubprocessId() == 2) {
+//      LOG(WARNING) << PeerId::self() << "is quitting 1";
+//      usleep(500 * kMillisecondsToMicroseconds);
+//      LOG(WARNING) << PeerId::self() << "is quitting 2 ";
+//      CHECK(false);
+//    }
+//    IPC::barrier(DIE, kProcesses -1);
+//    RaftNode::instance().stop();
+//  }
+// }
 
 }  // namespace map_api
 

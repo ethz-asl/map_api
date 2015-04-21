@@ -109,6 +109,12 @@ void RaftNode::stop() {
   }
 }
 
+void RaftNode::quitRaft() {
+  std::lock_guard<std::mutex> state_lock(state_mutex_);
+  sendJoinQuitRequest(leader_id_, proto::PeerRequestType::REMOVE_PEER);
+  stop();
+}
+
 uint64_t RaftNode::term() const {
   std::lock_guard<std::mutex> lock(state_mutex_);
   return current_term_;
@@ -308,7 +314,8 @@ void RaftNode::handleJoinQuitRequest(const Message& request, Message* response) 
   } else {
     ScopedWriteLock log_lock(&log_mutex_);
     std::lock_guard<std::mutex> tracker_lock(follower_tracker_mutex_);
-    if (follower_tracker_map_.count(request.sender()) == 1) {
+    if (join_quit_request.type() == proto::PeerRequestType::ADD_PEER &&
+        follower_tracker_map_.count(request.sender()) == 1) {
       // Re-joining after disconnect.
       TrackerMap::iterator it = follower_tracker_map_.find(request.sender());
       it->second->status = PeerStatus::JOINING;
@@ -723,7 +730,8 @@ void RaftNode::followerTrackerThread(
     while (!append_successs && follower_trackers_run_ &&
            this_tracker->tracker_run) {
       if (this_tracker->status == PeerStatus::OFFLINE) {
-        VLOG(1) << "Peer is offline. Not calling sendAppendEntries.";
+        VLOG_EVERY_N(1, 10)
+            << "Peer is offline. Not calling sendAppendEntries.";
         usleep(kJoinResponseTimeoutMs);
         continue;
       }
@@ -807,7 +815,6 @@ void RaftNode::followerTrackerThread(
           wait_lock, std::chrono::milliseconds(kHeartbeatSendPeriodMs));
     }
   }  // while (follower_trackers_run_)
-  VLOG(1) << "tracker exit for peer " << peer;
 }
 
 int RaftNode::setElectionTimeout() {
@@ -1011,7 +1018,11 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
       leaderAddRemovePeer(PeerId((*it)->add_remove_peer().peer_id()),
                           (*it)->add_remove_peer().request_type(),
                           current_term);
-      sendNotifyJoinQuitSuccess(PeerId((*it)->add_remove_peer().peer_id()));
+      // TODO(aqurai): Send notification to quitting peers after zerommq crash
+      // issue is resolved.
+      if ((*it)->add_remove_peer().request_type() ==
+          proto::PeerRequestType::ADD_PEER)
+        sendNotifyJoinQuitSuccess(PeerId((*it)->add_remove_peer().peer_id()));
     }
   }
 }
