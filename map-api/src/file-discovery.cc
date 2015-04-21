@@ -79,13 +79,14 @@ void FileDiscovery::lock() {
         break;
       }
     }
-    usleep(100);
+    usleep(1e4);
     steady_clock::time_point end = steady_clock::now();
     using std::chrono::duration_cast;
     double time_ms =
         duration_cast<std::chrono::milliseconds>(end - start).count();
     if (time_ms > FLAGS_discovery_timeout_seconds * 1e3) {
-      LOG(FATAL) << "File discovery lock timed out!";
+      LOG(FATAL) << "File discovery lock timed out! "
+        << "Need to remove " << kLockFileName;
     }
   }
 }
