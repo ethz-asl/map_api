@@ -15,6 +15,7 @@ constexpr uint32_t kRaftTestAppendEntry = 19;
 
 class ConsensusFixture : public common::MultiprocessFixture {
  public:
+  // Setup supervisor and peers.
   void setupRaftSupervisor(uint64_t num_processes);
   void setupRaftPeers(uint64_t num_processes);
 
@@ -23,6 +24,10 @@ class ConsensusFixture : public common::MultiprocessFixture {
   void giveUpLeadership() { RaftNode::instance().giveUpLeadership(); }
   void appendEntry() {
     RaftNode::instance().leaderAppendLogEntry(kRaftTestAppendEntry);
+  }
+  void setJoinRequestPeer(PeerId peer) {
+    RaftNode::instance().state_ = RaftNode::State::JOINING;
+    RaftNode::instance().join_request_peer_ = peer;
   }
 
   // Keep apeend entries for a duration of duration_ms, with a delay of

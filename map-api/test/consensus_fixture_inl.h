@@ -76,6 +76,7 @@ void ConsensusFixture::appendEntriesFor(uint16_t duration_ms,
         appendEntry();
         append_time = std::chrono::system_clock::now();
       }
+      usleep(delay_ms * kMillisecondsToMicroseconds);
     } else {
       append_time = std::chrono::system_clock::now();
     }
@@ -114,6 +115,7 @@ void ConsensusFixture::appendEntriesWithLeaderChangesFor(uint16_t duration_ms,
         num_appends = 0;
         append_time = std::chrono::system_clock::now();
       }
+      usleep(delay_ms * kMillisecondsToMicroseconds);
     } else {
       append_time = std::chrono::system_clock::now();
     }
