@@ -1,5 +1,7 @@
 #include "map-api/workspace.h"
 
+#include <sstream>  // NOLINT
+
 #include "map-api/chunk.h"
 #include "map-api/net-table.h"
 
@@ -119,6 +121,31 @@ void Workspace::TableInterface::forEachChunk(
       chunk_functional(*table_->getChunk(chunk_id));
     }
   }
+}
+
+std::string Workspace::debugString() const {
+  std::ostringstream ss;
+  ss << "Blacklisted tables:\n";
+  for (NetTable* table : table_blacklist_) {
+    ss << "\t" << table->name() << "\n";
+  }
+  ss << "Whitelisted tables:\n";
+  for (NetTable* table : table_whitelist_) {
+    ss << "\t" << table->name() << "\n";
+  }
+
+  ss << "Blacklisted chunks:\n";
+  for (TrackeeMultimap::value_type table_chunk : chunk_blacklist_) {
+    ss << "\t" << table_chunk.first->name() << ": " << table_chunk.second.size()
+       << " chunks.\n";
+  }
+  ss << "Whitelisted chunks:\n";
+  for (TrackeeMultimap::value_type table_chunk : chunk_whitelist_) {
+    ss << "\t" << table_chunk.first->name() << ": " << table_chunk.second.size()
+       << " chunks.\n";
+  }
+
+  return ss.str();
 }
 
 }  // namespace map_api
