@@ -109,7 +109,7 @@ bool Chunk::init(const common::Id& id, const proto::InitRequest& init_request,
   return true;
 }
 
-void Chunk::dumpItems(const LogicalTime& time, ConstRevisionMap* items) {
+void Chunk::dumpItems(const LogicalTime& time, ConstRevisionMap* items) const {
   CHECK_NOTNULL(items);
   distributedReadLock();
   data_container_->dump(time, items);
