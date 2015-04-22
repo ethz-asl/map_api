@@ -74,7 +74,7 @@ void NetTableTransaction::find(int key, const ValueType& value,
 
 template <typename IdType>
 void NetTableTransaction::getAvailableIds(std::vector<IdType>* ids) {
-  CHECK_NOTNULL(ids);
+  CHECK_NOTNULL(ids)->clear();
   workspace_.forEachChunk([&, this](const Chunk& chunk) {
     std::vector<IdType> chunk_result;
     chunk.constData()->getAvailableIds(begin_time_, &chunk_result);
