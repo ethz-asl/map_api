@@ -23,6 +23,7 @@ void TrackeeMultimap::deserialize(const proto::Revision& proto) {
 }
 
 void TrackeeMultimap::deserialize(const Revision& revision) {
+  CHECK_NOTNULL(revision.underlying_revision_.get());
   deserialize(*revision.underlying_revision_);
 }
 
@@ -39,6 +40,7 @@ void TrackeeMultimap::serialize(proto::Revision* proto) const {
 }
 
 void TrackeeMultimap::serialize(Revision* revision) const {
+  CHECK_NOTNULL(revision->underlying_revision_.get());
   serialize(revision->underlying_revision_.get());
 }
 

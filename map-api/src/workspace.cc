@@ -6,6 +6,7 @@ Workspace::Workspace(const std::initializer_list<NetTable*>& table_blacklist,
                      const std::initializer_list<NetTable*>& table_whitelist)
     : table_blacklist_(table_blacklist), table_whitelist_(table_whitelist) {}
 
+// "table" is an input argument.
 bool Workspace::contains(NetTable* table, const common::Id& id) const {
   CHECK_NOTNULL(table);
   // Fast default case

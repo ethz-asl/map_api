@@ -17,6 +17,7 @@ class Workspace {
   Workspace(const std::initializer_list<NetTable*>& table_blacklist,
             const std::initializer_list<NetTable*>& table_whitelist);
 
+  // "table" is an input argument.
   bool contains(NetTable* table, const common::Id& chunk_id) const;
 
   // The chunk of the revision itself is also merged.
