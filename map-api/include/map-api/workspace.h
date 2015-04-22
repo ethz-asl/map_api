@@ -2,6 +2,7 @@
 #define MAP_API_WORKSPACE_H_
 
 #include <initializer_list>
+#include <string>
 #include <unordered_set>
 
 #include "map-api/trackee-multimap.h"
@@ -40,6 +41,8 @@ class Workspace {
     const Workspace& workspace_;
     NetTable* table_;
   };
+
+  std::string debugString() const;
 
  private:
   std::unordered_set<NetTable*> table_blacklist_;

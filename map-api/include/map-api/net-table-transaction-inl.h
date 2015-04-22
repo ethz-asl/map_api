@@ -15,24 +15,18 @@ std::shared_ptr<const Revision> NetTableTransaction::getById(const IdType& id)
   }
   std::shared_ptr<const Revision> result;
   Chunk* chunk = chunkOf(id, &result);
-  if (!workspace_.contains(chunk->id())) {
+  if (!chunk || !workspace_.contains(chunk->id())) {
     return std::shared_ptr<Revision>();
   }
-  if (chunk) {
-    LogicalTime inconsistent_time = result->getModificationTime();
-    LogicalTime chunk_latest_commit = chunk->getLatestCommitTime();
+  LogicalTime inconsistent_time = result->getModificationTime();
+  LogicalTime chunk_latest_commit = chunk->getLatestCommitTime();
 
-    if (chunk_latest_commit <= inconsistent_time) {
-      return result;
-    } else {
-      // TODO(tcies) another optimization possibility: item dug deep in
-      // history anyways, so not affected be new updates
-      return getById(id, chunk);
-    }
+  if (chunk_latest_commit <= inconsistent_time) {
+    return result;
   } else {
-    LOG(ERROR) << "Item " << id << " from table " << table_->name()
-               << " not present in active chunks";
-    return std::shared_ptr<Revision>();
+    // TODO(tcies) another optimization possibility: item dug deep in
+    // history anyways, so not affected be new updates
+    return getById(id, chunk);
   }
 }
 
