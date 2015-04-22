@@ -16,7 +16,7 @@ std::shared_ptr<const Revision> ChunkDataContainerBase::getById(
   CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
   CHECK(id.isValid()) << "Supplied invalid ID";
   common::Id map_api_id;
-  sm::HashId hash_id;
+  aslam::HashId hash_id;
   id.toHashId(&hash_id);
   map_api_id.fromHashId(hash_id);
   return getByIdImpl(map_api_id, time);
@@ -73,7 +73,7 @@ void ChunkDataContainerBase::itemHistory(const IdType& id,
                                          const LogicalTime& time,
                                          History* dest) const {
   common::Id map_api_id;
-  sm::HashId hash_id;
+  aslam::HashId hash_id;
   id.toHashId(&hash_id);
   map_api_id.fromHashId(hash_id);
   itemHistoryImpl(map_api_id, time, dest);
