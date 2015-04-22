@@ -2,7 +2,7 @@
 #include <memory>
 #include <unordered_map>
 
-#include <sm/hash_id.hpp>
+#include <aslam/common/hash-id.h>
 #include <timing/timer.h>
 
 #include <multiagent-mapping-common/unique-id.h>

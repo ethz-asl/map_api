@@ -7,6 +7,7 @@
 
 namespace map_api {
 class NetTable;
+class Revision;
 
 namespace proto {
 class Revision;
@@ -16,7 +17,9 @@ class TrackeeMultimap
     : public std::unordered_map<NetTable*, std::unordered_set<common::Id>> {
  public:
   void deserialize(const proto::Revision& proto);
+  void deserialize(const Revision& revision);
   void serialize(proto::Revision* proto) const;
+  void serialize(Revision* revision) const;
 
   void merge(const TrackeeMultimap& other);
 
