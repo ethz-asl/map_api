@@ -38,6 +38,7 @@ class NetTable {
   friend class NetTableManager;
   friend class NetTableTransaction;
   friend class SpatialIndexTest;
+  friend class Workspace;
   FRIEND_TEST(NetTableFixture, RemoteUpdate);
   FRIEND_TEST(NetTableFixture, Grind);
   FRIEND_TEST(NetTableFixture, SaveAndRestoreTableFromFile);
