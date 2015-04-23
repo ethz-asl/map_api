@@ -5,11 +5,11 @@
 
 namespace map_api {
 
-ChunkTransaction::ChunkTransaction(Chunk* chunk, NetTable* table)
+ChunkTransaction::ChunkTransaction(ChunkBase* chunk, NetTable* table)
     : ChunkTransaction(LogicalTime::sample(), chunk, table) {}
 
-ChunkTransaction::ChunkTransaction(const LogicalTime& begin_time, Chunk* chunk,
-                                   NetTable* table)
+ChunkTransaction::ChunkTransaction(const LogicalTime& begin_time,
+                                   ChunkBase* chunk, NetTable* table)
     : begin_time_(begin_time),
       chunk_(CHECK_NOTNULL(chunk)),
       table_(CHECK_NOTNULL(table)) {
@@ -70,7 +70,7 @@ bool ChunkTransaction::commit() {
 }
 
 bool ChunkTransaction::check() {
-  CHECK(chunk_->isLocked());
+  CHECK(chunk_->isWriteLocked());
   std::unordered_map<common::Id, LogicalTime> stamps;
   prepareCheck(LogicalTime::sample(), &stamps);
   // The following check may be left out if too costly

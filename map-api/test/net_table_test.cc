@@ -30,7 +30,7 @@ TEST_F(NetTableFixture, NetTableTransactions) {
   };
   int kCycles = 10;
   common::Id ab_chunk_id, b_chunk_id, ab_id, b_id;
-  Chunk* ab_chunk, *b_chunk;
+  ChunkBase* ab_chunk, *b_chunk;
   if (getSubprocessId() == ROOT) {
     ab_chunk = table_->newChunk();
     b_chunk = table_->newChunk();
@@ -131,7 +131,7 @@ TEST_F(NetTableFixture, Transactions) {
   ASSERT_TRUE(second_table);
 
   common::Id ab_chunk_id, b_chunk_id, ab_id, b_id;
-  Chunk* ab_chunk, *b_chunk;
+  ChunkBase* ab_chunk, *b_chunk;
 
   if (getSubprocessId() == ROOT) {
     ab_chunk = table_->newChunk();
@@ -221,7 +221,7 @@ TEST_F(NetTableFixture, Transactions) {
 }
 
 TEST_F(NetTableFixture, CommitTime) {
-  Chunk* chunk = table_->newChunk();
+  ChunkBase* chunk = table_->newChunk();
   Transaction transaction;
   // TODO(tcies) factor insertion into a NetTableTest function
   std::shared_ptr<Revision> to_insert_1 = table_->getTemplate();
@@ -257,7 +257,7 @@ TEST_F(NetTableFixture, ChunkLookup) {
     CHUNK_CREATED,
     DIE
   };
-  Chunk* chunk;
+  ChunkBase* chunk;
   ConstRevisionMap results;
   if (getSubprocessId() == MASTER) {
     launchSubprocess(SLAVE);
@@ -440,7 +440,7 @@ class NetTableChunkTrackingTest : public NetTableFixture {
 
   void insert_trackees(Transaction* transaction) {
     for (size_t i = 0; i < kNumTrackeeChunks; ++i) {
-      Chunk* trackee_chunk = trackee_table_->newChunk();
+      ChunkBase* trackee_chunk = trackee_table_->newChunk();
       std::shared_ptr<Revision> to_insert = trackee_table_->getTemplate();
       common::Id id;
       generateId(&id);
@@ -611,7 +611,7 @@ TEST_F(NetTableFixture, GetAllIdsNoNewChunkRaceConditionThreads) {
   auto push_items = [this]() {
     for (size_t i = 0u; i < kItemsToPush; ++i) {
       Transaction transaction;
-      Chunk* chunk = table_->newChunk();
+      ChunkBase* chunk = table_->newChunk();
       std::shared_ptr<Revision> to_insert = table_->getTemplate();
       common::Id id;
       generateId(&id);

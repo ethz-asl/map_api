@@ -13,7 +13,8 @@ NetTableTransaction::NetTableTransaction(const LogicalTime& begin_time,
   CHECK(begin_time < LogicalTime::sample());
 }
 
-void NetTableTransaction::dumpChunk(Chunk* chunk, ConstRevisionMap* result) {
+void NetTableTransaction::dumpChunk(ChunkBase* chunk,
+                                    ConstRevisionMap* result) {
   CHECK_NOTNULL(chunk);
   if (workspace_.contains(chunk->id())) {
     transactionOf(chunk)->dumpChunk(result);
@@ -24,14 +25,14 @@ void NetTableTransaction::dumpChunk(Chunk* chunk, ConstRevisionMap* result) {
 
 void NetTableTransaction::dumpActiveChunks(ConstRevisionMap* result) {
   CHECK_NOTNULL(result);
-  workspace_.forEachChunk([&, this](const Chunk& chunk) {
+  workspace_.forEachChunk([&, this](const ChunkBase& chunk) {
     ConstRevisionMap chunk_revisions;
     chunk.dumpItems(begin_time_, &chunk_revisions);
     result->insert(chunk_revisions.begin(), chunk_revisions.end());
   });
 }
 
-void NetTableTransaction::insert(Chunk* chunk,
+void NetTableTransaction::insert(ChunkBase* chunk,
                                  std::shared_ptr<Revision> revision) {
   CHECK_NOTNULL(chunk);
   transactionOf(chunk)->insert(revision);
@@ -51,12 +52,12 @@ void NetTableTransaction::update(std::shared_ptr<Revision> revision) {
     LOG(FATAL) << "Chunk id of revision to update invalid, yet revision " << id
                << " can't be found among uncommitted.";
   }
-  Chunk* chunk = table_->getChunk(revision->getChunkId());
+  ChunkBase* chunk = table_->getChunk(revision->getChunkId());
   transactionOf(chunk)->update(revision);
 }
 
 void NetTableTransaction::remove(std::shared_ptr<Revision> revision) {
-  Chunk* chunk = table_->getChunk(revision->getChunkId());
+  ChunkBase* chunk = table_->getChunk(revision->getChunkId());
   transactionOf(chunk)->remove(revision);
 }
 
@@ -137,7 +138,7 @@ size_t NetTableTransaction::numChangedItems() const {
   return result;
 }
 
-ChunkTransaction* NetTableTransaction::transactionOf(Chunk* chunk) const {
+ChunkTransaction* NetTableTransaction::transactionOf(ChunkBase* chunk) const {
   CHECK_NOTNULL(chunk);
   TransactionMap::iterator chunk_transaction = chunk_transactions_.find(chunk);
   if (chunk_transaction == chunk_transactions_.end()) {

@@ -18,13 +18,13 @@ class Id;
 }  // namespace common
 
 namespace map_api {
-class Chunk;
+class LegacyChunk;
 class ConstRevisionMap;
 class MutableRevisionMap;
 class Revision;
 
 class ChunkDataContainerBase {
-  friend class Chunk;
+  friend class LegacyChunk;
 
  public:
   virtual ~ChunkDataContainerBase();

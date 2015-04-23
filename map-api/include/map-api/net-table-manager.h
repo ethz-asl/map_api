@@ -138,7 +138,7 @@ class NetTableManager {
   static bool findTable(const std::string& table_name,
                         TableMap::iterator* found);
 
-  Chunk* metatable_chunk_;
+  ChunkBase* metatable_chunk_;
 
   TableMap tables_;
   mutable ReaderWriterMutex tables_lock_;

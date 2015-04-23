@@ -1,5 +1,5 @@
-#ifndef MAP_API_CHUNK_H_
-#define MAP_API_CHUNK_H_
+#ifndef MAP_API_LEGACY_CHUNK_H_
+#define MAP_API_LEGACY_CHUNK_H_
 
 #include <condition_variable>
 #include <memory>
@@ -11,6 +11,7 @@
 
 #include <multiagent-mapping-common/unique-id.h>
 
+#include "map-api/chunk-base.h"
 #include "map-api/chunk-data-container-base.h"
 #include "map-api/logical-time.h"
 #include "map-api/peer-handler.h"
@@ -51,90 +52,59 @@ class Revision;
  * For the time being, Chunks are NOT robust to sudden loss of connectivity -
  * this could be fixed by adapting a consensus protocol such as Raft.
  */
-class Chunk {
+class LegacyChunk : public ChunkBase {
   friend class ChunkTransaction;
-  typedef std::function<void(const common::IdSet& insertions,
-                             const common::IdSet& updates)> TriggerCallback;
 
  public:
+  virtual ~LegacyChunk();
+
   bool init(const common::Id& id, std::shared_ptr<TableDescriptor> descriptor,
             bool initialize);
+  virtual void initializeNewImpl(
+      const common::Id& id,
+      const std::shared_ptr<TableDescriptor>& descriptor) override;
   bool init(const common::Id& id, const proto::InitRequest& request,
             const PeerId& sender, std::shared_ptr<TableDescriptor> descriptor);
 
-  inline common::Id id() const;
+  virtual void dumpItems(const LogicalTime& time, ConstRevisionMap* items) const
+      override;
+  virtual size_t numItems(const LogicalTime& time) const override;
+  virtual size_t itemsSizeBytes(const LogicalTime& time) const override;
 
-  void dumpItems(const LogicalTime& time, ConstRevisionMap* items) const;
-  size_t numItems(const LogicalTime& time);
-  size_t itemsSizeBytes(const LogicalTime& time);
+  virtual void getCommitTimes(const LogicalTime& sample_time,
+                              std::set<LogicalTime>* commit_times) const
+      override;
 
-  void getCommitTimes(const LogicalTime& sample_time,
-                      std::set<LogicalTime>* commit_times);
+  virtual bool insert(const LogicalTime& time,
+                      const std::shared_ptr<Revision>& item) override;
 
-  bool insert(const LogicalTime& time, const std::shared_ptr<Revision>& item);
-
-  int peerSize() const;
+  virtual int peerSize() const override;
 
   void enableLockLogging();
 
   // Non-const intended to avoid accidental write-lock while reading.
-  void writeLock();
+  virtual void writeLock() override;
 
-  void readLock() const;
+  virtual void readLock() const override;
 
-  bool isLocked();
+  virtual bool isWriteLocked() override;
 
-  void unlock() const;
-
-  class MutableDataAccess {
-   public:
-    explicit MutableDataAccess(Chunk* chunk);
-    ~MutableDataAccess();
-
-    ChunkDataContainerBase& operator->();
-
-   private:
-    Chunk* chunk_;
-  };
-
-  class ConstDataAccess {
-   public:
-    explicit ConstDataAccess(const Chunk& chunk);
-    ~ConstDataAccess();
-
-    const ChunkDataContainerBase* operator->() const;
-
-   private:
-    const Chunk& chunk_;
-  };
-
-  inline MutableDataAccess mutableData() { return MutableDataAccess(this); }
-  inline ConstDataAccess constData() const { return ConstDataAccess(*this); }
+  virtual void unlock() const override;
 
   /**
    * Requests all peers in MapApiHub to participate in a given chunk.
    * At the moment, this is not disputable by the other peers.
    */
-  int requestParticipation();
-  int requestParticipation(const PeerId& peer);
+  virtual int requestParticipation() override;
+  virtual int requestParticipation(const PeerId& peer) override;
 
   /**
    * Update: First locks chunk, then sends update to all peers for patching.
    * Requires underlying table to be CRU (verified).
    */
-  void update(const std::shared_ptr<Revision>& item);
+  virtual void update(const std::shared_ptr<Revision>& item) override;
 
-  /**
-   * Starts tracking insertions / updates after a lock request. The callback is
-   * then called at an unlock request. The tracked insertions and updates are
-   * passed. Note: If the sets are empty, the lock has probably been acquired
-   * to modify chunk peers.
-   * Returns position of attached trigger in trigger vector.
-   */
-  size_t attachTrigger(const TriggerCallback& callback);
-  void waitForTriggerCompletion();
-
-  inline LogicalTime getLatestCommitTime();
+  virtual LogicalTime getLatestCommitTime() const override;
 
   static const char kConnectRequest[];
   static const char kInitRequest[];
@@ -149,12 +119,12 @@ class Chunk {
   /**
    * insert and update for transactions.
    */
-  void bulkInsertLocked(const MutableRevisionMap& items,
-                        const LogicalTime& time);
-  void updateLocked(const LogicalTime& time,
-                    const std::shared_ptr<Revision>& item);
-  void removeLocked(const LogicalTime& time,
-                    const std::shared_ptr<Revision>& item);
+  virtual void bulkInsertLocked(const MutableRevisionMap& items,
+                                const LogicalTime& time) override;
+  virtual void updateLocked(const LogicalTime& time,
+                            const std::shared_ptr<Revision>& item) override;
+  virtual void removeLocked(const LogicalTime& time,
+                            const std::shared_ptr<Revision>& item) override;
 
   /**
    * Adds a peer to the chunk swarm by sending it an init request. Assumes
@@ -228,12 +198,6 @@ class Chunk {
 
   inline void syncLatestCommitTime(const Revision& item);
 
-  void leave();  // May only be used by NetTable.
-  void leaveOnceShared();  // Make sure to have at least one peer left.
-
-  void triggerWrapper(const std::unordered_set<common::Id>&& insertions,
-                      const std::unordered_set<common::Id>&& updates);
-
   /**
    * ====================================================================
    * Handlers for ChunkManager requests that are addressed at this Chunk.
@@ -244,7 +208,7 @@ class Chunk {
    * Handles insert requests
    */
   void handleConnectRequest(const PeerId& peer, Message* response);
-  static void handleConnectRequestThread(Chunk* self, const PeerId& peer);
+  static void handleConnectRequestThread(LegacyChunk* self, const PeerId& peer);
   void handleInsertRequest(const std::shared_ptr<Revision>& item,
                            Message* response);
   void handleLeaveRequest(const PeerId& leaver, Message* response);
@@ -257,16 +221,12 @@ class Chunk {
 
   void awaitInitialized() const;
 
-  common::Id id_;
+  virtual void leaveImpl() override;
+  virtual void awaitShared() override;
+
   PeerHandler peers_;
   std::unique_ptr<ChunkDataContainerBase> data_container_;
   mutable DistributedRWLock lock_;
-  std::vector<std::function<
-      void(const std::unordered_set<common::Id>& insertions,
-           const std::unordered_set<common::Id>& updates)>> triggers_;
-  std::mutex trigger_mutex_;
-  ReaderWriterMutex triggers_are_active_while_has_readers_;
-  std::unordered_set<common::Id> trigger_insertions_, trigger_updates_;
   mutable std::mutex add_peer_mutex_;
   ReaderWriterMutex leave_lock_;
   volatile bool initialized_ = false;
@@ -296,6 +256,6 @@ class Chunk {
 
 }  // namespace map_api
 
-#include "map-api/chunk-inl.h"
+#include "map-api/legacy-chunk-inl.h"
 
-#endif  // MAP_API_CHUNK_H_
+#endif  // MAP_API_LEGACY_CHUNK_H_
