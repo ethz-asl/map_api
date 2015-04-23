@@ -27,6 +27,7 @@ class Revision {
   friend class ChunkDataContainerBase;
   template<int BlockSize>
   friend class STXXLRevisionStore;
+  friend class TrackeeMultimap;
   friend class Transaction;
 
   // Friending parametrized templated test cases seems to miss from

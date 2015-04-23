@@ -64,7 +64,7 @@ class Chunk {
 
   inline common::Id id() const;
 
-  void dumpItems(const LogicalTime& time, ConstRevisionMap* items);
+  void dumpItems(const LogicalTime& time, ConstRevisionMap* items) const;
   size_t numItems(const LogicalTime& time);
   size_t itemsSizeBytes(const LogicalTime& time);
 
