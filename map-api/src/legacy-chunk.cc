@@ -80,7 +80,7 @@ bool LegacyChunk::init(const common::Id& id,
 
 void LegacyChunk::initializeNewImpl(
     const common::Id& id, const std::shared_ptr<TableDescriptor>& descriptor) {
-  init(id, descriptor, true);
+  CHECK(init(id, descriptor, true));
 }
 
 bool LegacyChunk::init(const common::Id& id,

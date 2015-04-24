@@ -225,7 +225,6 @@ class LegacyChunk : public ChunkBase {
   virtual void awaitShared() override;
 
   PeerHandler peers_;
-  std::unique_ptr<ChunkDataContainerBase> data_container_;
   mutable DistributedRWLock lock_;
   mutable std::mutex add_peer_mutex_;
   ReaderWriterMutex leave_lock_;
