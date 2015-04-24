@@ -103,6 +103,7 @@ class ChunkBase {
   void handleCommitEnd();
 
   common::Id id_;
+  std::unique_ptr<ChunkDataContainerBase> data_container_;
 
  private:
   /**
@@ -122,8 +123,6 @@ class ChunkBase {
 
   void triggerWrapper(const std::unordered_set<common::Id>&& insertions,
                       const std::unordered_set<common::Id>&& updates);
-
-  std::unique_ptr<ChunkDataContainerBase> data_container_;
 
   std::vector<TriggerCallback> triggers_;
   mutable std::mutex trigger_mutex_;
