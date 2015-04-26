@@ -21,10 +21,12 @@ namespace map_api {
 class LegacyChunk;
 class ConstRevisionMap;
 class MutableRevisionMap;
+class RaftChunk;
 class Revision;
 
 class ChunkDataContainerBase {
   friend class LegacyChunk;
+  friend class RaftChunk;
 
  public:
   virtual ~ChunkDataContainerBase();

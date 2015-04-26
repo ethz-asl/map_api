@@ -21,15 +21,19 @@ class ConsensusFixture : public common::MultiprocessFixture {
 
   void addRaftPeer(const PeerId& peer);
   proto::QueryStateResponse queryState(const PeerId& peer);
-  void giveUpLeadership() { RaftNode::instance().giveUpLeadership(); }
+  void giveUpLeadership() {
+    //RaftNode::instance().giveUpLeadership(); 
+  }
   void appendEntry() {
-    RaftNode::instance().leaderAppendLogEntry(kRaftTestAppendEntry);
+    //RaftNode::instance().leaderAppendLogEntry(kRaftTestAppendEntry);
   }
   void setJoinRequestPeer(PeerId peer) {
-    RaftNode::instance().state_ = RaftNode::State::JOINING;
-    RaftNode::instance().join_request_peer_ = peer;
+//    RaftNode::instance().state_ = RaftNode::State::JOINING;
+//    RaftNode::instance().join_request_peer_ = peer;
   }
-  void quitRaft() { RaftNode::instance().quitRaft(); }
+  void quitRaft() { 
+   //RaftNode::instance().quitRaft(); 
+  }
 
   // Keep apeend entries for a duration of duration_ms, with a delay of
   // delay_ms between consecutive appends.
@@ -45,6 +49,7 @@ class ConsensusFixture : public common::MultiprocessFixture {
  protected:
   virtual void SetUpImpl();
   virtual void TearDownImpl();
+  NetTable* table_;
 };
 
 }  // namespace map_api

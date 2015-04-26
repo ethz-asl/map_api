@@ -20,6 +20,8 @@ constexpr int kHeartbeatSendPeriodMs = 50;
 constexpr int kJoinResponseTimeoutMs = 1000;
 constexpr int kMaxLogQueueLength = 50;
 
+// Defined message strings again for raft chunk.
+// TODO(aqurai): Will have to be removed once RaftChunk Implementation is complete.
 const char RaftNode::kAppendEntries[] = "raft_node_append_entries";
 const char RaftNode::kAppendEntriesResponse[] = "raft_node_append_response";
 const char RaftNode::kVoteRequest[] = "raft_node_vote_request";
@@ -37,6 +39,8 @@ MAP_API_PROTO_MESSAGE(RaftNode::kVoteRequest, proto::VoteRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kVoteResponse, proto::VoteResponse);
 MAP_API_PROTO_MESSAGE(RaftNode::kJoinQuitRequest, proto::JoinQuitRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kJoinQuitResponse, proto::JoinQuitResponse);
+MAP_API_PROTO_MESSAGE(RaftNode::kNotifyJoinQuitSuccess, proto::NotifyJoinQuitSuccess);
+MAP_API_PROTO_MESSAGE(RaftNode::kQueryState, proto::QueryState);
 MAP_API_PROTO_MESSAGE(RaftNode::kQueryStateResponse, proto::QueryStateResponse);
 
 const PeerId kInvalidId = PeerId();
@@ -65,10 +69,10 @@ RaftNode::RaftNode()
   log_entries_.push_back(default_revision);
 }
 
-RaftNode& RaftNode::instance() {
-  static RaftNode instance;
-  return instance;
-}
+//RaftNode& RaftNode::instance() {
+//  static RaftNode instance;
+//  return instance;
+//}
 
 void RaftNode::kill() {
   VLOG(1) << PeerId::self() << ": Closing raft instance.";
@@ -79,12 +83,12 @@ void RaftNode::kill() {
 }
 
 void RaftNode::registerHandlers() {
-  Hub::instance().registerHandler(kAppendEntries, staticHandleAppendRequest);
-  Hub::instance().registerHandler(kVoteRequest, staticHandleRequestVote);
-  Hub::instance().registerHandler(kQueryState, staticHandleQueryState);
-  Hub::instance().registerHandler(kJoinQuitRequest, staticHandleJoinQuitRequest);
-  Hub::instance().registerHandler(kNotifyJoinQuitSuccess,
-                                  staticHandleNotifyJoinQuitSuccess);
+//  Hub::instance().registerHandler(kAppendEntries, staticHandleAppendRequest);
+//  Hub::instance().registerHandler(kVoteRequest, staticHandleRequestVote);
+//  Hub::instance().registerHandler(kQueryState, staticHandleQueryState);
+//  Hub::instance().registerHandler(kJoinQuitRequest, staticHandleJoinQuitRequest);
+//  Hub::instance().registerHandler(kNotifyJoinQuitSuccess,
+//                                  staticHandleNotifyJoinQuitSuccess);
 }
 
 void RaftNode::start() {
@@ -129,30 +133,30 @@ RaftNode::State RaftNode::state() const {
   return state_;
 }
 
-void RaftNode::staticHandleAppendRequest(const Message& request,
-                                     Message* response) {
-  instance().handleAppendRequest(request, response);
-}
-
-void RaftNode::staticHandleRequestVote(const Message& request,
-                                       Message* response) {
-  instance().handleRequestVote(request, response);
-}
-
-void RaftNode::staticHandleQueryState(const Message& request,
-                                      Message* response) {
-  instance().handleQueryState(request, response);
-}
-
-void RaftNode::staticHandleJoinQuitRequest(const Message& request,
-                                           Message* response) {
-  instance().handleJoinQuitRequest(request, response);
-}
-
-void RaftNode::staticHandleNotifyJoinQuitSuccess(const Message& request,
-                                                 Message* response) {
-  instance().handleNotifyJoinQuitSuccess(request, response);
-}
+//void RaftNode::staticHandleAppendRequest(const Message& request,
+//                                     Message* response) {
+//  instance().handleAppendRequest(request, response);
+//}
+//
+//void RaftNode::staticHandleRequestVote(const Message& request,
+//                                       Message* response) {
+//  instance().handleRequestVote(request, response);
+//}
+//
+//void RaftNode::staticHandleQueryState(const Message& request,
+//                                      Message* response) {
+//  instance().handleQueryState(request, response);
+//}
+//
+//void RaftNode::staticHandleJoinQuitRequest(const Message& request,
+//                                           Message* response) {
+//  instance().handleJoinQuitRequest(request, response);
+//}
+//
+//void RaftNode::staticHandleNotifyJoinQuitSuccess(const Message& request,
+//                                                 Message* response) {
+//  instance().handleNotifyJoinQuitSuccess(request, response);
+//}
 
 inline void RaftNode::setAppendEntriesResponse(
     proto::AppendResponseStatus status,
@@ -364,9 +368,10 @@ void RaftNode::handleQueryState(const Message& request, Message* response) {
 }
 
 bool RaftNode::sendAppendEntries(
-    const PeerId& peer, const proto::AppendEntriesRequest& append_entries,
+    const PeerId& peer, proto::AppendEntriesRequest& append_entries,
     proto::AppendEntriesResponse* append_response) {
   Message request, response;
+  fillMetadata(&append_entries);
   request.impose<kAppendEntries>(append_entries);
   if (Hub::instance().try_request(peer, &request, &response)) {
     response.extract<kAppendEntriesResponse>(append_response);
@@ -385,6 +390,7 @@ RaftNode::VoteResponse RaftNode::sendRequestVote(const PeerId& peer, uint64_t te
   vote_request.set_commit_index(commit_index());
   vote_request.set_last_log_index(last_log_index);
   vote_request.set_last_log_term(last_log_term);
+  fillMetadata(&vote_request);
   request.impose<kVoteRequest>(vote_request);
   if (Hub::instance().try_request(peer, &request, &response)) {
     proto::VoteResponse vote_response;
@@ -406,6 +412,7 @@ proto::JoinQuitResponse RaftNode::sendJoinQuitRequest(
   Message request, response;
   proto::JoinQuitRequest join_quit_request;
   join_quit_request.set_type(type);
+  fillMetadata(&join_quit_request);
   request.impose<kJoinQuitRequest>(join_quit_request);
   proto::JoinQuitResponse join_response;
   updateHeartbeatTime();
@@ -419,7 +426,9 @@ proto::JoinQuitResponse RaftNode::sendJoinQuitRequest(
 
 void RaftNode::sendNotifyJoinQuitSuccess(const PeerId& peer) {
   Message request, response;
-  request.impose<kNotifyJoinQuitSuccess>();
+  proto::NotifyJoinQuitSuccess notification;
+  fillMetadata(&notification);
+  request.impose<kNotifyJoinQuitSuccess>(notification);
   Hub::instance().try_request(peer, &request, &response);
 }
 
@@ -428,7 +437,7 @@ void RaftNode::stateManagerThread() {
   State state;
   uint64_t current_term;
   state_thread_running_ = true;
-
+  LOG(WARNING) << PeerId::self() << " State mgr started.";
   while (!is_exiting_) {
     // Conduct election if timeout has occurred.
     if (election_timeout) {
@@ -453,10 +462,12 @@ void RaftNode::stateManagerThread() {
       }
       usleep(kJoinResponseTimeoutMs * kMillisecondsToMicroseconds);
     } else if (state == State::FOLLOWER) {
+      LOG(WARNING) << PeerId::self() << " is a follower.";
       if (getTimeSinceHeartbeatMs() > election_timeout_ms_) {
         VLOG(1) << "Follower: " << PeerId::self() << " : Heartbeat timed out. ";
         election_timeout = true;
       } else {
+        LOG(WARNING) << PeerId::self() << " HB didnt time out";
         usleep(election_timeout_ms_ * kMillisecondsToMicroseconds);
       }
     } else if (state == State::LEADER) {
@@ -483,6 +494,7 @@ void RaftNode::stateManagerThread() {
       VLOG(1) << "Peer " << PeerId::self() << ": Follower trackers closed. ";
     }
   }  // while(!is_exiting_)
+  LOG(WARNING) << PeerId::self() << " State mgr closed";
   state_thread_running_ = false;
 }
 

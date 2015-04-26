@@ -193,6 +193,15 @@ class NetTable {
   static const char kAnnounceToListeners[];
 
   void handleSpatialIndexTrigger(const proto::SpatialIndexTrigger& trigger);
+  
+  // RaftChunk RPC handlers.
+  // TODO(aqurai): Pass only relevant objects instead of Message request, response
+  void handleRaftAppendRequest(const common::Id& chunk_id, const Message& request, Message* response);
+  void handleRaftRequestVote(const common::Id& chunk_id, const Message& request, Message* response);
+  void handleRaftQueryState(const common::Id& chunk_id, const Message& request, Message* response);
+  void handleRaftJoinQuitRequest(const common::Id& chunk_id, const Message& request, Message* response);
+  void handleRaftNotifyJoinQuitSuccess(const common::Id& chunk_id, const Message& request, Message* response);
+  
 
  private:
   NetTable();

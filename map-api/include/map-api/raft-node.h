@@ -46,6 +46,7 @@
 #include <vector>
 
 #include <gtest/gtest_prod.h>
+#include <multiagent-mapping-common/unique-id.h>
 
 #include "./raft.pb.h"
 #include "map-api/peer-id.h"
@@ -53,6 +54,7 @@
 
 namespace map_api {
 class Message;
+class RaftChunk;
 
 // Implementation of Raft consensus algorithm presented here:
 // https://raftconsensus.github.io, http://ramcloud.stanford.edu/raft.pdf
@@ -67,7 +69,7 @@ class RaftNode {
     STOPPED
   };
 
-  static RaftNode& instance();
+//  static RaftNode& instance();
   void kill();
 
   void registerHandlers();
@@ -84,15 +86,15 @@ class RaftNode {
   // Returns index of the appended entry if append succeeds, or zero otherwise
   uint64_t leaderAppendLogEntry(uint32_t entry);
 
-  static void staticHandleAppendRequest(const Message& request,
-                                        Message* response);
-  static void staticHandleRequestVote(const Message& request,
-                                      Message* response);
-  static void staticHandleQueryState(const Message& request, Message* response);
-  static void staticHandleJoinQuitRequest(const Message& request,
-                                        Message* response);
-  static void staticHandleNotifyJoinQuitSuccess(const Message& request,
-                                                Message* response);
+//  static void staticHandleAppendRequest(const Message& request,
+//                                        Message* response);
+//  static void staticHandleRequestVote(const Message& request,
+//                                      Message* response);
+//  static void staticHandleQueryState(const Message& request, Message* response);
+//  static void staticHandleJoinQuitRequest(const Message& request,
+//                                        Message* response);
+//  static void staticHandleNotifyJoinQuitSuccess(const Message& request,
+//                                                Message* response);
 
   static const char kAppendEntries[];
   static const char kAppendEntriesResponse[];
@@ -106,6 +108,7 @@ class RaftNode {
 
  private:
   friend class ConsensusFixture;
+  friend class RaftChunk;
   // TODO(aqurai) Only for test, will be removed later.
   inline void addPeerBeforeStart(PeerId peer) {
     peer_list_.insert(peer);
@@ -132,7 +135,7 @@ class RaftNode {
   // RPCs for heartbeat, leader election, log replication
   // ====================================================
   bool sendAppendEntries(const PeerId& peer,
-                         const proto::AppendEntriesRequest& append_entries,
+                         proto::AppendEntriesRequest& append_entries,
                          proto::AppendEntriesResponse* append_response);
   enum class VoteResponse {
     VOTE_GRANTED,
@@ -283,6 +286,21 @@ class RaftNode {
   mutable std::mutex commit_mutex_;
   const uint64_t& commit_index() const;
   const uint64_t& committed_result() const;
+  
+  // ========================
+  // Owner chunk information.
+  // ========================
+  
+  //Todo(aqurai): Refactor this.
+  std::string table_name_;
+  common::Id chunk_id_;
+  template <typename RequestType>
+  void fillMetadata(RequestType* destination) const {
+    CHECK_NOTNULL(destination);
+    destination->mutable_metadata()->set_table(table_name_);
+    chunk_id_.serialize(destination->mutable_metadata()->mutable_chunk_id());
+  }
+  
 };
 }  // namespace map_api
 

@@ -1,14 +1,17 @@
 package map_api.proto;
+import "chunk.proto";
 
 enum PeerRequestType {ADD_PEER = 1; REMOVE_PEER = 2;}
 
 message AddRemovePeer {
-  optional string peer_id = 1;
-  optional PeerRequestType request_type = 2;
+  optional ChunkRequestMetadata metadata = 1;
+  optional string peer_id = 2;
+  optional PeerRequestType request_type = 3;
 }
 
 message JoinQuitRequest {
-  optional PeerRequestType type = 1;
+  optional ChunkRequestMetadata metadata = 1;
+  optional PeerRequestType type = 2;
 }
 
 message JoinQuitResponse {
@@ -26,13 +29,14 @@ message RaftRevision {
 }
 
 message AppendEntriesRequest {
-  optional uint64 term = 1;
-  optional uint64 last_log_index = 2;
-  optional uint64 last_log_term = 3;
-  optional uint64 commit_index = 4;
-  optional uint64 previous_log_index = 5;
-  optional uint64 previous_log_term = 6;
-  optional RaftRevision revision = 7;
+optional ChunkRequestMetadata metadata = 1;
+  optional uint64 term = 2;
+  optional uint64 last_log_index = 3;
+  optional uint64 last_log_term = 4;
+  optional uint64 commit_index = 5;
+  optional uint64 previous_log_index = 6;
+  optional uint64 previous_log_term = 7;
+  optional RaftRevision revision = 8;
 }
 
 enum AppendResponseStatus {
@@ -51,10 +55,11 @@ message AppendEntriesResponse {
 }
 
 message VoteRequest {
-  optional uint64 term = 1;
-  optional uint64 last_log_index = 2;
-  optional uint64 last_log_term = 3;
-  optional uint64 commit_index = 4;
+  optional ChunkRequestMetadata metadata = 1;
+  optional uint64 term = 2;
+  optional uint64 last_log_index = 3;
+  optional uint64 last_log_term = 4;
+  optional uint64 commit_index = 5;
 }
 
 enum VoteResponseType {GRANTED = 1; DECLINED = 2; VOTER_NOT_ELIGIBLE = 3;}
@@ -71,4 +76,12 @@ message QueryStateResponse {
   optional uint64 last_log_term = 4;
   optional uint64 commit_index = 5;
   optional uint64 commit_result = 6;
+}
+
+message NotifyJoinQuitSuccess {
+  optional ChunkRequestMetadata metadata = 1;
+}
+
+message QueryState {
+  optional ChunkRequestMetadata metadata = 1;
 }
