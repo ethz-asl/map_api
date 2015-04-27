@@ -146,19 +146,16 @@ void RaftNode::handleConnectRequest(const Message& request, Message* response) {
 // Message contains leader commit index, used to update own commit index
 // In Follower state, ONLY this thread writes to log_entries_ (via the function
 //  followerAppendNewEntries(..))
-void RaftNode::handleAppendRequest(const Message& request, Message* response) {
-  proto::AppendEntriesRequest append_request;
+void RaftNode::handleAppendRequest(proto::AppendEntriesRequest& append_request,
+                                   const PeerId& sender, Message* response) {
   proto::AppendEntriesResponse append_response;
-  request.extract<kAppendEntries>(&append_request);
-  VLOG(3) << "Received AppendRequest/Heartbeat from " << request.sender();
+  VLOG(3) << "Received AppendRequest/Heartbeat from " << sender;
 
-  const PeerId request_sender = PeerId(request.sender());
   const uint64_t request_term = append_request.term();
 
   // Lock and read the state.
   std::unique_lock<std::mutex> state_lock(state_mutex_);
-  bool sender_changed =
-      (request_sender != leader_id_ || request_term != current_term_);
+  bool sender_changed = (sender != leader_id_ || request_term != current_term_);
 
   // Lock and read log info
   log_mutex_.acquireReadLock();
@@ -180,19 +177,19 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
       // or, if a leader is found when a there isn't a known one. The new leader
       // should either have same/higher term or more updated log.
       current_term_ = request_term;
-      leader_id_ = request_sender;
+      leader_id_ = sender;
       if (state_ == State::LEADER || state_ == State::CANDIDATE) {
         state_ = State::FOLLOWER;
         follower_trackers_run_ = false;
       }
     } else if (state_ == State::FOLLOWER && request_term == current_term_ &&
-               request_sender != leader_id_ && current_term_ > 0 &&
+               sender != leader_id_ && current_term_ > 0 &&
                leader_id_.isValid()) {
       // This should not happen.
       LOG(FATAL) << "Peer " << PeerId::self().ipPort()
                  << " has found 2 leaders in the same term (" << current_term_
                  << "). They are " << leader_id_.ipPort() << " (current) and "
-                 << request_sender.ipPort() << " (new) ";
+                 << sender.ipPort() << " (new) ";
     } else {
       setAppendEntriesResponse(proto::AppendResponseStatus::REJECTED,
                                &append_response);
@@ -234,11 +231,10 @@ void RaftNode::handleAppendRequest(const Message& request, Message* response) {
   response->impose<kAppendEntriesResponse>(append_response);
 }
 
-void RaftNode::handleRequestVote(const Message& request, Message* response) {
+void RaftNode::handleRequestVote(const proto::VoteRequest& vote_request,
+                                 const PeerId& sender, Message* response) {
   updateHeartbeatTime();
-  proto::VoteRequest vote_request;
   proto::VoteResponse vote_response;
-  request.extract<kVoteRequest>(&vote_request);
   std::lock_guard<std::mutex> state_lock(state_mutex_);
   log_mutex_.acquireReadLock();
   vote_response.set_previous_log_index(log_entries_.back()->index());
@@ -252,7 +248,7 @@ void RaftNode::handleRequestVote(const Message& request, Message* response) {
   last_vote_request_term_ =
     std::max(static_cast<uint64_t>(last_vote_request_term_), vote_request.term());
   if (state_ == State::JOINING) {
-    join_request_peer_ = request.sender();
+    join_request_peer_ = sender;
     vote_response.set_vote(proto::VoteResponseType::VOTER_NOT_ELIGIBLE);
   } else if (vote_request.term() > current_term_ && is_candidate_log_newer) {
     vote_response.set_vote(proto::VoteResponseType::GRANTED);
@@ -262,14 +258,13 @@ void RaftNode::handleRequestVote(const Message& request, Message* response) {
       follower_trackers_run_ = false;
     }
     state_ = State::FOLLOWER;
-    VLOG(1) << "Peer " << PeerId::self().ipPort() << " is voting for "
-            << request.sender() << " in term " << current_term_;
+    VLOG(1) << "Peer " << PeerId::self().ipPort() << " is voting for " << sender
+            << " in term " << current_term_;
   } else {
     VLOG(1) << "Peer " << PeerId::self().ipPort() << " is declining vote for "
-            << request.sender() << " in term " << vote_request.term()
-            << ". Reason: " << (vote_request.term() > current_term_
-                                    ? ""
-                                    : "Term is equal or less. ")
+            << sender << " in term " << vote_request.term() << ". Reason: "
+            << (vote_request.term() > current_term_ ? ""
+                                                    : "Term is equal or less. ")
             << (is_candidate_log_newer ? "" : "Log is older. ");
     vote_response.set_vote(proto::VoteResponseType::DECLINED);
   }
@@ -278,10 +273,10 @@ void RaftNode::handleRequestVote(const Message& request, Message* response) {
   election_timeout_ms_ = setElectionTimeout();
 }
 
-void RaftNode::handleJoinQuitRequest(const Message& request, Message* response) {
-  proto::JoinQuitRequest join_quit_request;
+void RaftNode::handleJoinQuitRequest(
+    const proto::JoinQuitRequest& join_quit_request, const PeerId& sender,
+    Message* response) {
   proto::JoinQuitResponse join_quit_response;
-  request.extract<kJoinQuitRequest>(&join_quit_request);
   std::unique_lock<std::mutex> state_lock(state_mutex_);
   if (state_ != State::LEADER) {
     join_quit_response.set_response(false);
@@ -292,13 +287,13 @@ void RaftNode::handleJoinQuitRequest(const Message& request, Message* response) 
     ScopedWriteLock log_lock(&log_mutex_);
     std::lock_guard<std::mutex> tracker_lock(follower_tracker_mutex_);
     if (join_quit_request.type() == proto::PeerRequestType::ADD_PEER &&
-        follower_tracker_map_.count(request.sender()) == 1) {
+        follower_tracker_map_.count(sender) == 1) {
       // Re-joining after disconnect.
-      TrackerMap::iterator it = follower_tracker_map_.find(request.sender());
+      TrackerMap::iterator it = follower_tracker_map_.find(sender);
       it->second->status = PeerStatus::JOINING;
     }
-    uint64_t entry_index = leaderAddEntryToLog(
-        0, current_term_, request.sender(), join_quit_request.type());
+    uint64_t entry_index =
+        leaderAddEntryToLog(0, current_term_, sender, join_quit_request.type());
     if (entry_index > 0) {
       join_quit_response.set_response(true);
       if (join_quit_request.type() == proto::PeerRequestType::ADD_PEER) {
@@ -308,15 +303,15 @@ void RaftNode::handleJoinQuitRequest(const Message& request, Message* response) 
       join_quit_response.set_response(false);
     }
     if (join_quit_request.type() == proto::PeerRequestType::ADD_PEER) {
-      // leaderLaunchTracker(request.sender(), current_term_);
+      // leaderLaunchTracker(sender, current_term_);
     }
   }
 
   response->impose<kJoinQuitResponse>(join_quit_response);
 }
 
-void RaftNode::handleNotifyJoinQuitSuccess(const Message& request,
-                                           Message* response) {
+void RaftNode::handleNotifyJoinQuitSuccess(
+    const proto::NotifyJoinQuitSuccess& request, Message* response) {
   std::lock_guard<std::mutex> state_lock(state_mutex_);
   if (state_ == State::JOINING) {
     VLOG(1) << "Join success notification received.";
@@ -326,7 +321,8 @@ void RaftNode::handleNotifyJoinQuitSuccess(const Message& request,
   response->ack();
 }
 
-void RaftNode::handleQueryState(const Message& request, Message* response) {
+void RaftNode::handleQueryState(const proto::QueryState& request,
+                                Message* response) {
   proto::QueryStateResponse state_response;
   std::lock_guard<std::mutex> state_lock(state_mutex_);
   state_response.set_leader_id_(leader_id_.ipPort());

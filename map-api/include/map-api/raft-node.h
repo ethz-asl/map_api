@@ -127,11 +127,15 @@ class RaftNode {
   // Handlers
   // ========
   void handleConnectRequest(const Message& request, Message* response);
-  void handleAppendRequest(const Message& request, Message* response);
-  void handleRequestVote(const Message& request, Message* response);
-  void handleJoinQuitRequest(const Message& request, Message* response);
-  void handleNotifyJoinQuitSuccess(const Message& request, Message* response);
-  void handleQueryState(const Message& request, Message* response);
+  void handleAppendRequest(proto::AppendEntriesRequest& request,
+                           const PeerId& sender, Message* response);
+  void handleRequestVote(const proto::VoteRequest& request,
+                         const PeerId& sender, Message* response);
+  void handleJoinQuitRequest(const proto::JoinQuitRequest& request,
+                             const PeerId& sender, Message* response);
+  void handleNotifyJoinQuitSuccess(const proto::NotifyJoinQuitSuccess& request,
+                                   Message* response);
+  void handleQueryState(const proto::QueryState& request, Message* response);
 
   // ====================================================
   // RPCs for heartbeat, leader election, log replication

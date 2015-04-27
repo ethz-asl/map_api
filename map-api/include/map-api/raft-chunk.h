@@ -47,6 +47,9 @@ class RaftChunk : public ChunkBase {
     raft_node_.start();
   }
 
+  static bool sendConnectRequest(const PeerId& peer,
+                                 proto::ChunkRequestMetadata& metadata);
+
   // -------------------------- Functions from the base class to be impl here.
 
   virtual size_t numItems(const LogicalTime& time) const override { return 0; }
@@ -108,17 +111,16 @@ class RaftChunk : public ChunkBase {
 
   void handleConnectRequest(const Message& request, Message* response);
   // TODO(aqurai): Pass only relevant objects as arguments.
-  void handleRaftAppendRequest(const common::Id& chunk_id,
-                               const Message& request, Message* response);
-  void handleRaftRequestVote(const common::Id& chunk_id, const Message& request,
-                             Message* response);
-  void handleRaftQueryState(const common::Id& chunk_id, const Message& request,
+  void handleRaftAppendRequest(proto::AppendEntriesRequest& request,
+                               const PeerId& sender, Message* response);
+  void handleRaftRequestVote(const proto::VoteRequest& request,
+                             const PeerId& sender, Message* response);
+  void handleRaftQueryState(const proto::QueryState& request,
                             Message* response);
-  void handleRaftJoinQuitRequest(const common::Id& chunk_id,
-                                 const Message& request, Message* response);
-  void handleRaftNotifyJoinQuitSuccess(const common::Id& chunk_id,
-                                       const Message& request,
-                                       Message* response);
+  void handleRaftJoinQuitRequest(const proto::JoinQuitRequest& request,
+                                 const PeerId& sender, Message* response);
+  void handleRaftNotifyJoinQuitSuccess(
+      const proto::NotifyJoinQuitSuccess& request, Message* response);
 };
 
 }  // namespace map_api

@@ -1,5 +1,7 @@
 #include <map-api/raft-chunk.h>
 
+#include <multiagent-mapping-common/conversions.h>
+
 #include "./core.pb.h"
 #include "./chunk.pb.h"
 #include "map-api/chunk-data-ram-container.h"
@@ -51,41 +53,59 @@ void RaftChunk::dumpItems(const LogicalTime& time, ConstRevisionMap* items) cons
   data_container_->dump(time, items);
 }
 
+bool RaftChunk::sendConnectRequest(const PeerId& peer,
+                                   proto::ChunkRequestMetadata& metadata) {
+  Message request, response;
+  proto::JoinQuitRequest connect_request;
+  proto::JoinQuitResponse connect_response;
+  connect_request.set_allocated_metadata(&metadata);
+  request.impose<RaftNode::kJoinQuitRequest>(connect_request);
+
+  connect_response.set_response(false);
+  // TODO(aqurai): Avoid infinite loop.
+  while (!connect_response.response()) {
+    Hub::instance().try_request(peer, &request, &response);
+    response.extract<RaftNode::kJoinQuitResponse>(&connect_response);
+    if (!connect_response.response()) {
+      if (connect_response.has_leader_id()) {
+        Hub::instance().try_request(PeerId(connect_response.leader_id()),
+                                    &request, &response);
+        response.extract<RaftNode::kJoinQuitResponse>(&connect_response);
+      }
+    }
+    usleep(1000 * kMillisecondsToMicroseconds);
+  }
+  connect_request.release_metadata();
+  return true;
+}
+
 void RaftChunk::handleConnectRequest(const Message& request,
                                      Message* response) {}
 
-void RaftChunk::handleRaftAppendRequest(const common::Id& chunk_id,
-                                        const Message& request,
+void RaftChunk::handleRaftAppendRequest(proto::AppendEntriesRequest& request,
+                                        const PeerId& sender,
                                         Message* response) {
-  CHECK(chunk_id == id_);
-  raft_node_.handleAppendRequest(request, response);
+  raft_node_.handleAppendRequest(request, sender, response);
 }
 
-void RaftChunk::handleRaftRequestVote(const common::Id& chunk_id,
-                                      const Message& request,
-                                      Message* response) {
-  CHECK(chunk_id == id_);
-  raft_node_.handleRequestVote(request, response);
+void RaftChunk::handleRaftRequestVote(const proto::VoteRequest& request,
+                                      const PeerId& sender, Message* response) {
+  raft_node_.handleRequestVote(request, sender, response);
 }
 
-void RaftChunk::handleRaftQueryState(const common::Id& chunk_id,
-                                     const Message& request,
+void RaftChunk::handleRaftQueryState(const proto::QueryState& request,
                                      Message* response) {
-  CHECK(chunk_id == id_);
   raft_node_.handleQueryState(request, response);
 }
 
-void RaftChunk::handleRaftJoinQuitRequest(const common::Id& chunk_id,
-                                          const Message& request,
+void RaftChunk::handleRaftJoinQuitRequest(const proto::JoinQuitRequest& request,
+                                          const PeerId& sender,
                                           Message* response) {
-  CHECK(chunk_id == id_);
-  raft_node_.handleJoinQuitRequest(request, response);
+  raft_node_.handleJoinQuitRequest(request, sender, response);
 }
 
-void RaftChunk::handleRaftNotifyJoinQuitSuccess(const common::Id& chunk_id,
-                                                const Message& request,
-                                                Message* response) {
-  CHECK(chunk_id == id_);
+void RaftChunk::handleRaftNotifyJoinQuitSuccess(
+    const proto::NotifyJoinQuitSuccess& request, Message* response) {
   raft_node_.handleNotifyJoinQuitSuccess(request, response);
 }
 

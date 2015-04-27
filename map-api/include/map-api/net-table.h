@@ -16,6 +16,7 @@
 #include "map-api/reader-writer-lock.h"
 #include "map-api/spatial-index.h"
 #include "./chunk.pb.h"
+#include "./raft.pb.h"
 
 namespace map_api {
 class ConstRevisionMap;
@@ -196,12 +197,21 @@ class NetTable {
   
   // RaftChunk RPC handlers.
   // TODO(aqurai): Pass only relevant objects instead of Message request, response
-  void handleRaftAppendRequest(const common::Id& chunk_id, const Message& request, Message* response);
-  void handleRaftRequestVote(const common::Id& chunk_id, const Message& request, Message* response);
-  void handleRaftQueryState(const common::Id& chunk_id, const Message& request, Message* response);
-  void handleRaftJoinQuitRequest(const common::Id& chunk_id, const Message& request, Message* response);
-  void handleRaftNotifyJoinQuitSuccess(const common::Id& chunk_id, const Message& request, Message* response);
-  
+  void handleRaftAppendRequest(const common::Id& chunk_id,
+                               proto::AppendEntriesRequest& request,
+                               const PeerId& sender, Message* response);
+  void handleRaftRequestVote(const common::Id& chunk_id,
+                             const proto::VoteRequest& request,
+                             const PeerId& sender, Message* response);
+  void handleRaftQueryState(const common::Id& chunk_id,
+                            const proto::QueryState& request,
+                            Message* response);
+  void handleRaftJoinQuitRequest(const common::Id& chunk_id,
+                                 const proto::JoinQuitRequest& request,
+                                 const PeerId& sender, Message* response);
+  void handleRaftNotifyJoinQuitSuccess(
+      const common::Id& chunk_id, const proto::NotifyJoinQuitSuccess& request,
+      Message* response);
 
  private:
   NetTable();

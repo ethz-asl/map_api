@@ -504,7 +504,8 @@ void NetTableManager::handleRaftAppendRequest(const Message& request, Message* r
     response->impose<Message::kDecline>();
     return;
   }
-  found->second->handleRaftAppendRequest(chunk_id, request, response);
+  found->second->handleRaftAppendRequest(chunk_id, append_request,
+                                         request.sender(), response);
 }
 
 void NetTableManager::handleRaftRequestVote(const Message& request, Message* response) {
@@ -521,7 +522,8 @@ void NetTableManager::handleRaftRequestVote(const Message& request, Message* res
     response->impose<Message::kDecline>();
     return;
   }
-  found->second->handleRaftRequestVote(chunk_id, request, response);
+  found->second->handleRaftRequestVote(chunk_id, vote_request, request.sender(),
+                                       response);
 }
 
 void NetTableManager::handleRaftJoinQuitRequest(const Message& request,
@@ -539,7 +541,8 @@ void NetTableManager::handleRaftJoinQuitRequest(const Message& request,
     response->impose<Message::kDecline>();
     return;
   }
-  found->second->handleRaftJoinQuitRequest(chunk_id, request, response);
+  found->second->handleRaftJoinQuitRequest(chunk_id, join_quit_request,
+                                           request.sender(), response);
 }
 
 void NetTableManager::handleRaftNotifyJoinQuitSuccess(const Message& request,
@@ -557,7 +560,8 @@ void NetTableManager::handleRaftNotifyJoinQuitSuccess(const Message& request,
     response->impose<Message::kDecline>();
     return;
   }
-  found->second->handleRaftNotifyJoinQuitSuccess(chunk_id, request, response);
+  found->second->handleRaftNotifyJoinQuitSuccess(chunk_id, notification,
+                                                 response);
 }
 
 void NetTableManager::handleRaftQueryState(const Message& request,
@@ -575,7 +579,7 @@ void NetTableManager::handleRaftQueryState(const Message& request,
     response->impose<Message::kDecline>();
     return;
   }
-  found->second->handleRaftQueryState(chunk_id, request, response);
+  found->second->handleRaftQueryState(chunk_id, query_state, response);
 }
 
 bool NetTableManager::syncTableDefinition(const TableDescriptor& descriptor,
