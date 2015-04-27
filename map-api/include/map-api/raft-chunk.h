@@ -18,7 +18,7 @@ class RaftChunk : public ChunkBase {
   friend class ChunkTransaction;
   friend class ConsensusFixture;
   FRIEND_TEST(ConsensusFixture, RaftChunkTest);
-  
+
  public:
   virtual ~RaftChunk();
 
@@ -27,35 +27,53 @@ class RaftChunk : public ChunkBase {
   virtual void initializeNewImpl(
       const common::Id& id,
       const std::shared_ptr<TableDescriptor>& descriptor) override;
+  bool init(const common::Id& id, const PeerId& peer,
+            std::shared_ptr<TableDescriptor> descriptor);
   bool init(const common::Id& id, const proto::InitRequest& request,
             const PeerId& sender, std::shared_ptr<TableDescriptor> descriptor);
   virtual void dumpItems(const LogicalTime& time, ConstRevisionMap* items) const
       override;
 
-  
+  void setStateFollowerAndStart() {
+    raft_node_.state_ = RaftNode::State::FOLLOWER;
+    VLOG(1) << PeerId::self() << ": Starting Raft node as follower for chunk "
+            << id_.printString();
+    raft_node_.start();
+  }
+  void setStateJoiningAndStart(const PeerId& peer) {
+    raft_node_.state_ = RaftNode::State::JOINING;
+    VLOG(1) << PeerId::self() << ": Starting Raft node as joining for chunk "
+            << id_.printString();
+    raft_node_.join_request_peer_ = peer;
+    raft_node_.start();
+  }
+
   // -------------------------- Functions from the base class to be impl here.
-  
-  virtual size_t numItems(const LogicalTime& time) const override {return 0;};
-  virtual size_t itemsSizeBytes(const LogicalTime& time) const override {return 0;};
+
+  virtual size_t numItems(const LogicalTime& time) const override { return 0; }
+  virtual size_t itemsSizeBytes(const LogicalTime& time) const override {
+    return 0;
+  }
 
   virtual void getCommitTimes(const LogicalTime& sample_time,
-                              std::set<LogicalTime>* commit_times) const override {};
+                              std::set<LogicalTime>* commit_times) const
+      override {}
 
   virtual bool insert(const LogicalTime& time,
                       const std::shared_ptr<Revision>& item) override {return true; }
 
-  virtual int peerSize() const override {return raft_node_.num_peers_;};
+  virtual int peerSize() const override { return raft_node_.num_peers_; }
 
   // Non-const intended to avoid accidental write-lock while reading.
-  virtual void writeLock() override {};
+  virtual void writeLock() override {}
   // Doesn't need to be implemented if race conditions with committing can be
   // avoided otherwise.
-  virtual void readLock() const override {};
+  virtual void readLock() const override {}
 
-  virtual bool isWriteLocked() override {return true;};
+  virtual bool isWriteLocked() override { return true; }
 
-  virtual void unlock() const override {};
-  
+  virtual void unlock() const override {}
+
   virtual int requestParticipation() override {return 1;}
   virtual int requestParticipation(const PeerId& peer) override {return 1;}
   virtual void update(const std::shared_ptr<Revision>& item) override {}
@@ -68,37 +86,39 @@ class RaftChunk : public ChunkBase {
                             const std::shared_ptr<Revision>& item) override {}
   virtual void leaveImpl() override {}
   virtual void awaitShared() override {}
-  
+
   // --------------------------------------------------------------------
-  
-  
+
  private:
   volatile bool initialized_ = false;
   volatile bool relinquished_ = false;
-  
+
   // Handles all communication with other chunk holders. No communication except
   // for peer join shall happen between chunk holder peers outside of raft.
   RaftNode raft_node_;
-  
+
   template <typename RequestType>
   void fillMetadata(RequestType* destination) const;
-  
+
   /**
    * ==========================================
    * Handlers for RPCs addressed to this Chunk.
    * ==========================================
    */
   friend class NetTable;
-  
+
   // TODO(aqurai): Pass only relevant objects as arguments.
-  void handleRaftAppendRequest(const common::Id& chunk_id, const Message& request, Message* response);
-  void handleRaftRequestVote(const common::Id& chunk_id, const Message& request, Message* response);
-  void handleRaftQueryState(const common::Id& chunk_id, const Message& request, Message* response);
-  void handleRaftJoinQuitRequest(const common::Id& chunk_id, const Message& request, Message* response);
-  void handleRaftNotifyJoinQuitSuccess(const common::Id& chunk_id, const Message& request, Message* response);
-  
-  
-  
+  void handleRaftAppendRequest(const common::Id& chunk_id,
+                               const Message& request, Message* response);
+  void handleRaftRequestVote(const common::Id& chunk_id, const Message& request,
+                             Message* response);
+  void handleRaftQueryState(const common::Id& chunk_id, const Message& request,
+                            Message* response);
+  void handleRaftJoinQuitRequest(const common::Id& chunk_id,
+                                 const Message& request, Message* response);
+  void handleRaftNotifyJoinQuitSuccess(const common::Id& chunk_id,
+                                       const Message& request,
+                                       Message* response);
 };
 
 }  // namespace map_api

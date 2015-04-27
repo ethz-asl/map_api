@@ -69,11 +69,6 @@ RaftNode::RaftNode()
   log_entries_.push_back(default_revision);
 }
 
-//RaftNode& RaftNode::instance() {
-//  static RaftNode instance;
-//  return instance;
-//}
-
 void RaftNode::kill() {
   VLOG(1) << PeerId::self() << ": Closing raft instance.";
   follower_trackers_run_ = false;
@@ -132,31 +127,6 @@ RaftNode::State RaftNode::state() const {
   std::lock_guard<std::mutex> lock(state_mutex_);
   return state_;
 }
-
-//void RaftNode::staticHandleAppendRequest(const Message& request,
-//                                     Message* response) {
-//  instance().handleAppendRequest(request, response);
-//}
-//
-//void RaftNode::staticHandleRequestVote(const Message& request,
-//                                       Message* response) {
-//  instance().handleRequestVote(request, response);
-//}
-//
-//void RaftNode::staticHandleQueryState(const Message& request,
-//                                      Message* response) {
-//  instance().handleQueryState(request, response);
-//}
-//
-//void RaftNode::staticHandleJoinQuitRequest(const Message& request,
-//                                           Message* response) {
-//  instance().handleJoinQuitRequest(request, response);
-//}
-//
-//void RaftNode::staticHandleNotifyJoinQuitSuccess(const Message& request,
-//                                                 Message* response) {
-//  instance().handleNotifyJoinQuitSuccess(request, response);
-//}
 
 inline void RaftNode::setAppendEntriesResponse(
     proto::AppendResponseStatus status,
@@ -453,21 +423,17 @@ void RaftNode::stateManagerThread() {
     }
 
     if (state == State::JOINING) {
-      double timet = getTimeSinceHeartbeatMs();
-      if (timet > kJoinResponseTimeoutMs) {
+      if (getTimeSinceHeartbeatMs() > kJoinResponseTimeoutMs) {
         VLOG(1) << "Joining peer: " << PeerId::self()
-                << " : Heartbeat timed out. Sending Join request again. "
-                << timet;
+                << " : Heartbeat timed out. Sending Join request. ";
         joinRaft();
       }
       usleep(kJoinResponseTimeoutMs * kMillisecondsToMicroseconds);
     } else if (state == State::FOLLOWER) {
-      LOG(WARNING) << PeerId::self() << " is a follower.";
       if (getTimeSinceHeartbeatMs() > election_timeout_ms_) {
         VLOG(1) << "Follower: " << PeerId::self() << " : Heartbeat timed out. ";
         election_timeout = true;
       } else {
-        LOG(WARNING) << PeerId::self() << " HB didnt time out";
         usleep(election_timeout_ms_ * kMillisecondsToMicroseconds);
       }
     } else if (state == State::LEADER) {
@@ -625,7 +591,7 @@ void RaftNode::joinRaft() {
     peer = *it;
     CHECK(peer.isValid());
   } else {
-    VLOG(1) << PeerId::self() << ": Unable to join raft. Exiting.";
+    VLOG(1) << PeerId::self() << ": Unable to join RaftChunk. Exiting.";
     std::lock_guard<std::mutex> state_lock(state_mutex_);
     state_ = State::DISCONNECTING;
     return;

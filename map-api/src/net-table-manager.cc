@@ -526,7 +526,6 @@ void NetTableManager::handleRaftRequestVote(const Message& request, Message* res
 
 void NetTableManager::handleRaftJoinQuitRequest(const Message& request,
                                                 Message* response) {
-
   proto::JoinQuitRequest join_quit_request;
   request.extract<RaftNode::kJoinQuitRequest>(&join_quit_request);
   const proto::ChunkRequestMetadata metadata = join_quit_request.metadata();

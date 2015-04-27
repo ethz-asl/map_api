@@ -40,6 +40,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <set>
+#include <string>
 #include <thread>
 #include <unordered_map>
 #include <utility>
@@ -286,22 +287,23 @@ class RaftNode {
   mutable std::mutex commit_mutex_;
   const uint64_t& commit_index() const;
   const uint64_t& committed_result() const;
-  
+
   // ========================
   // Owner chunk information.
   // ========================
-  
-  //Todo(aqurai): Refactor this.
+
+  // Todo(aqurai): Refactor this.
   std::string table_name_;
   common::Id chunk_id_;
   template <typename RequestType>
   void fillMetadata(RequestType* destination) const {
     CHECK_NOTNULL(destination);
-    destination->mutable_metadata()->set_table(table_name_);
-    chunk_id_.serialize(destination->mutable_metadata()->mutable_chunk_id());
+    destination->mutable_metadata()->set_table(this->table_name_);
+    this->chunk_id_.serialize(
+        destination->mutable_metadata()->mutable_chunk_id());
   }
-  
 };
+
 }  // namespace map_api
 
 #endif  // MAP_API_RAFT_NODE_H_
