@@ -392,23 +392,39 @@ ChunkBase* NetTable::connectTo(const common::Id& chunk_id, const PeerId& peer) {
   proto::ChunkRequestMetadata metadata;
   metadata.set_table(descriptor_->name());
   chunk_id.serialize(metadata.mutable_chunk_id());
-  request.impose<LegacyChunk::kConnectRequest>(metadata);
-  // TODO(tcies) add to local peer subset as well?
-  VLOG(3) << "Connecting to " << peer << " for chunk " << chunk_id;
-  Hub::instance().request(peer, &request, &response);
-  CHECK(response.isType<Message::kAck>()) << response.type();
-  // wait for connect handle thread of other peer to succeed
-  ChunkMap::iterator found;
 
   if (FLAGS_use_raft) {
-    LOG(WARNING) << "aqurai: Impl this";
-    std::unique_ptr<RaftChunk> chunk =
-        std::unique_ptr<RaftChunk>(new RaftChunk);
-    chunk->init(chunk_id, peer, descriptor_);
-    addInitializedChunk(std::move(chunk));
-    // return chunk.get();
+    LOG(WARNING) << "sending raft connect req";
+    proto::JoinQuitRequest connect_request;
+    proto::JoinQuitResponse connect_response;
+    connect_request.set_allocated_metadata(&metadata);
+    request.impose<RaftNode::kJoinQuitRequest>(connect_request);
+
+    connect_response.set_response(false);
+
+    while (!connect_response.response()) {
+      Hub::instance().try_request(peer, &request, &response);
+      response.extract<RaftNode::kJoinQuitResponse>(&connect_response);
+      if (!connect_response.response()) {
+        if (connect_response.has_leader_id()) {
+          Hub::instance().try_request(PeerId(connect_response.leader_id()),
+                                      &request, &response);
+          response.extract<RaftNode::kJoinQuitResponse>(&connect_response);
+        }
+      }
+      usleep(1000 * 1000);
+    }
+    connect_request.release_metadata();
+  } else {
+    request.impose<LegacyChunk::kConnectRequest>(metadata);
+    // TODO(tcies) add to local peer subset as well?
+    VLOG(3) << "Connecting to " << peer << " for chunk " << chunk_id;
+    Hub::instance().request(peer, &request, &response);
+    CHECK(response.isType<Message::kAck>()) << response.type();
   }
 
+  // wait for connect handle thread of other peer to succeed
+  ChunkMap::iterator found;
   while (true) {
     active_chunks_lock_.acquireReadLock();
     found = active_chunks_.find(chunk_id);
@@ -419,7 +435,6 @@ ChunkBase* NetTable::connectTo(const common::Id& chunk_id, const PeerId& peer) {
     active_chunks_lock_.releaseReadLock();
     usleep(1000);
   }
-  LOG(ERROR) << "Found chunk....";
   return found->second.get();
 }
 
@@ -723,6 +738,17 @@ void NetTable::handleRaftAppendRequest(const common::Id& chunk_id,
     chunk->handleRaftAppendRequest(chunk_id, request, response);
   }
   active_chunks_lock_.releaseReadLock();
+
+  if (found == active_chunks_.end()) {
+    // First time append request for a chunk is in response to a connect
+    // request.
+    std::unique_ptr<RaftChunk> chunk =
+        std::unique_ptr<RaftChunk>(new RaftChunk);
+    CHECK(chunk->init(chunk_id, descriptor_));
+    chunk->handleRaftAppendRequest(chunk_id, request, response);
+    addInitializedChunk(std::move(chunk));
+    std::thread(&NetTable::joinChunkHolders, this, chunk_id).detach();
+  }
 }
 
 void NetTable::handleRaftRequestVote(const common::Id& chunk_id,

@@ -16,9 +16,15 @@ message JoinQuitRequest {
 
 message JoinQuitResponse {
   optional bool response = 1;
-  repeated string peer_id = 2;
   optional string leader_id = 3;
   optional uint64 index = 4;
+}
+
+message NewPeerInit {
+  optional ChunkRequestMetadata metadata = 1;
+  repeated string peer_id = 2;
+  // TODO(aqurai): existing revision proto instead of RaftRevision.
+  repeated RaftRevision revisions = 3;
 }
 
 message RaftRevision {

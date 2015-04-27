@@ -39,23 +39,20 @@ bool RaftChunk::init(const common::Id& id, const PeerId& peer,
   setStateJoiningAndStart(peer);
 }
 
-bool RaftChunk::init(const common::Id& id, const proto::InitRequest& request,
-                     const PeerId& sender,
+bool RaftChunk::init(const common::Id& id,
                      std::shared_ptr<TableDescriptor> descriptor) {
   CHECK(init(id, descriptor, true));
-  /*CHECK_GT(init_request.peer_address_size(), 0);
-  for (int i = 0; i < init_request.peer_address_size(); ++i) {
-    // Add peers.
-    //peers_.add(PeerId(init_request.peer_address(i)));
-  }*/
-  // handle init req from anoter chunk holder peer.
-  // init raft as joining.
+  setStateFollowerAndStart();
+  return true;
 }
 
 void RaftChunk::dumpItems(const LogicalTime& time, ConstRevisionMap* items) const {
   CHECK_NOTNULL(items);
   data_container_->dump(time, items);
 }
+
+void RaftChunk::handleConnectRequest(const Message& request,
+                                     Message* response) {}
 
 void RaftChunk::handleRaftAppendRequest(const common::Id& chunk_id,
                                         const Message& request,

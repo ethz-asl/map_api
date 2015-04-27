@@ -138,6 +138,10 @@ inline void RaftNode::setAppendEntriesResponse(
   response->set_commit_index(commit_index());
 }
 
+void RaftNode::handleConnectRequest(const Message& request, Message* response) {
+  // TODO(aqurai): Separate out join and quit requests.
+}
+
 // If there are no new entries, Leader sends empty message (heartbeat)
 // Message contains leader commit index, used to update own commit index
 // In Follower state, ONLY this thread writes to log_entries_ (via the function
@@ -299,15 +303,15 @@ void RaftNode::handleJoinQuitRequest(const Message& request, Message* response) 
       join_quit_response.set_response(true);
       if (join_quit_request.type() == proto::PeerRequestType::ADD_PEER) {
         join_quit_response.set_index(entry_index);
-        std::lock_guard<std::mutex> peer_lock(peer_mutex_);
-        for (const PeerId& peer : peer_list_) {
-          join_quit_response.add_peer_id(peer.ipPort());
-        }
       }
     } else {
       join_quit_response.set_response(false);
     }
+    if (join_quit_request.type() == proto::PeerRequestType::ADD_PEER) {
+      // leaderLaunchTracker(request.sender(), current_term_);
+    }
   }
+
   response->impose<kJoinQuitResponse>(join_quit_response);
 }
 
@@ -407,7 +411,7 @@ void RaftNode::stateManagerThread() {
   State state;
   uint64_t current_term;
   state_thread_running_ = true;
-  LOG(WARNING) << PeerId::self() << " State mgr started.";
+
   while (!is_exiting_) {
     // Conduct election if timeout has occurred.
     if (election_timeout) {
@@ -460,7 +464,7 @@ void RaftNode::stateManagerThread() {
       VLOG(1) << "Peer " << PeerId::self() << ": Follower trackers closed. ";
     }
   }  // while(!is_exiting_)
-  LOG(WARNING) << PeerId::self() << " State mgr closed";
+  VLOG(1) << PeerId::self() << ": Closing the State manager thread";
   state_thread_running_ = false;
 }
 
@@ -583,6 +587,9 @@ void RaftNode::joinRaft() {
   PeerId peer;
   if (join_request_peer_.isValid()) {
     peer = join_request_peer_;
+    std::lock_guard<std::mutex> peer_lock(peer_mutex_);
+    peer_list_.insert(join_request_peer_);
+    num_peers_ = peer_list_.size();
     join_request_peer_ = PeerId();
   } else if (num_peers_ > 0) {
     // TODO(aqurai): lock peers here?
@@ -609,17 +616,6 @@ void RaftNode::joinRaft() {
 
   if (join_response.response()) {
     join_log_index_ = join_response.index();
-    peer_list_.clear();
-    peer_list_.insert(peer);
-    uint num_response_peers = join_response.peer_id_size();
-    std::lock_guard<std::mutex> peer_lock(peer_mutex_);
-    for (uint i = 0; i < num_response_peers; ++i) {
-      PeerId insert_peer = PeerId(join_response.peer_id(i));
-      if (insert_peer != PeerId::self()) {
-        peer_list_.insert(insert_peer);
-      }
-    }
-    num_peers_ = peer_list_.size();
   }
 }
 
@@ -998,9 +994,9 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
                           current_term);
       // TODO(aqurai): Send notification to quitting peers after zerommq crash
       // issue is resolved.
-      if ((*it)->add_remove_peer().request_type() ==
+      /*if ((*it)->add_remove_peer().request_type() ==
           proto::PeerRequestType::ADD_PEER)
-        sendNotifyJoinQuitSuccess(PeerId((*it)->add_remove_peer().peer_id()));
+        sendNotifyJoinQuitSuccess(PeerId((*it)->add_remove_peer().peer_id()));*/
     }
   }
 }

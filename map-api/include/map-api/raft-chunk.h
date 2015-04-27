@@ -29,8 +29,7 @@ class RaftChunk : public ChunkBase {
       const std::shared_ptr<TableDescriptor>& descriptor) override;
   bool init(const common::Id& id, const PeerId& peer,
             std::shared_ptr<TableDescriptor> descriptor);
-  bool init(const common::Id& id, const proto::InitRequest& request,
-            const PeerId& sender, std::shared_ptr<TableDescriptor> descriptor);
+  bool init(const common::Id& id, std::shared_ptr<TableDescriptor> descriptor);
   virtual void dumpItems(const LogicalTime& time, ConstRevisionMap* items) const
       override;
 
@@ -107,6 +106,7 @@ class RaftChunk : public ChunkBase {
    */
   friend class NetTable;
 
+  void handleConnectRequest(const Message& request, Message* response);
   // TODO(aqurai): Pass only relevant objects as arguments.
   void handleRaftAppendRequest(const common::Id& chunk_id,
                                const Message& request, Message* response);

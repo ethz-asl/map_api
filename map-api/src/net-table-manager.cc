@@ -496,7 +496,7 @@ void NetTableManager::handleRaftAppendRequest(const Message& request, Message* r
   const proto::ChunkRequestMetadata metadata = append_request.metadata();
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
-  CHECK_NOTNULL(Core::instance());
+  // CHECK_NOTNULL(Core::instance());
   ScopedReadLock lock(&instance().tables_lock_);
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = instance().tables_.find(table);
@@ -513,7 +513,7 @@ void NetTableManager::handleRaftRequestVote(const Message& request, Message* res
   const proto::ChunkRequestMetadata metadata = vote_request.metadata();
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
-  CHECK_NOTNULL(Core::instance());
+  // CHECK_NOTNULL(Core::instance());
   ScopedReadLock lock(&instance().tables_lock_);
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = instance().tables_.find(table);
@@ -531,7 +531,7 @@ void NetTableManager::handleRaftJoinQuitRequest(const Message& request,
   const proto::ChunkRequestMetadata metadata = join_quit_request.metadata();
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
-  CHECK_NOTNULL(Core::instance());
+  // CHECK_NOTNULL(Core::instance());
   ScopedReadLock lock(&instance().tables_lock_);
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = instance().tables_.find(table);
@@ -549,7 +549,7 @@ void NetTableManager::handleRaftNotifyJoinQuitSuccess(const Message& request,
   const proto::ChunkRequestMetadata metadata = notification.metadata();
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
-  CHECK_NOTNULL(Core::instance());
+  // CHECK_NOTNULL(Core::instance());
   ScopedReadLock lock(&instance().tables_lock_);
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = instance().tables_.find(table);
@@ -567,7 +567,7 @@ void NetTableManager::handleRaftQueryState(const Message& request,
   const proto::ChunkRequestMetadata metadata = query_state.metadata();
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
-  CHECK_NOTNULL(Core::instance());
+  // CHECK_NOTNULL(Core::instance());
   ScopedReadLock lock(&instance().tables_lock_);
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = instance().tables_.find(table);

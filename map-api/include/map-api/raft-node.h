@@ -126,6 +126,7 @@ class RaftNode {
   // ========
   // Handlers
   // ========
+  void handleConnectRequest(const Message& request, Message* response);
   void handleAppendRequest(const Message& request, Message* response);
   void handleRequestVote(const Message& request, Message* response);
   void handleJoinQuitRequest(const Message& request, Message* response);
