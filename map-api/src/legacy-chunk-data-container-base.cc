@@ -65,7 +65,6 @@ void LegacyChunkDataContainerBase::update(
   CHECK(query != nullptr);
   CHECK(isInitialized()) << "Attempted to update in non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
-  // TODO(tcies) const template, cow template?
   CHECK(query->structureMatch(*reference))
       << "Bad structure of update revision";
   CHECK(query->getId<common::Id>().isValid())
