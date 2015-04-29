@@ -10,6 +10,7 @@
 #include "map-api/chunk-transaction.h"
 #include "map-api/logical-time.h"
 #include "map-api/net-table.h"
+#include "map-api/workspace.h"
 
 namespace map_api {
 class Chunk;
@@ -22,8 +23,8 @@ class NetTableTransaction {
   FRIEND_TEST(NetTableFixture, NetTableTransactions);
 
  private:
-  explicit NetTableTransaction(NetTable* table);
-  NetTableTransaction(const LogicalTime& begin_time, NetTable* table);
+  NetTableTransaction(const LogicalTime& begin_time, NetTable* table,
+                      const Workspace& workspace);
 
   // READ (see transaction.h)
   template <typename IdType>
@@ -105,6 +106,7 @@ class NetTableTransaction {
   mutable TransactionMap chunk_transactions_;
   LogicalTime begin_time_;
   NetTable* table_;
+  Workspace::TableInterface workspace_;
 
   NetTable::NewChunkTrackerMap push_new_chunk_ids_to_tracker_overrides_;
 };
