@@ -56,8 +56,7 @@ const char LegacyChunk::kLockSequenceFile[] = "meas_lock_sequence.txt";
 template <>
 void LegacyChunk::fillMetadata<proto::ChunkRequestMetadata>(
     proto::ChunkRequestMetadata* destination) const {
-  CHECK_NOTNULL(destination);
-  destination->set_table(data_container_->name());
+  CHECK_NOTNULL(destination)->set_table(data_container_->name());
   id().serialize(destination->mutable_chunk_id());
 }
 

@@ -49,8 +49,8 @@ class Revision;
  * Chunk ownership may be relinquished at any time, automatically relinquishing
  * access to the latest data in the chunk and the right to modify it.
  *
- * For the time being, Chunks are NOT robust to sudden loss of connectivity -
- * this could be fixed by adapting a consensus protocol such as Raft.
+ * Legacy chunks are NOT robust to sudden loss of connectivity -
+ * this should be fixed with Raft chunks.
  */
 class LegacyChunk : public ChunkBase {
   friend class ChunkTransaction;

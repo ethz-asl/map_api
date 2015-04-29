@@ -2,7 +2,6 @@
 
 #include <sstream>  // NOLINT
 
-#include "../include/map-api/legacy-chunk.h"
 #include "map-api/net-table.h"
 
 namespace map_api {
