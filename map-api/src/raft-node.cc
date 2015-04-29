@@ -151,7 +151,7 @@ void RaftNode::staticHandleNotifyJoinQuitSuccess(const Message& request,
 
 inline void RaftNode::setAppendEntriesResponse(
     proto::AppendResponseStatus status,
-    proto::AppendEntriesResponse* response) {
+    proto::AppendEntriesResponse* response) const {
   response->set_term(current_term_);
   response->set_response(status);
   response->set_last_log_index(log_entries_.back()->index());
@@ -343,7 +343,8 @@ void RaftNode::handleNotifyJoinQuitSuccess(const Message& request,
   response->ack();
 }
 
-void RaftNode::handleQueryState(const Message& request, Message* response) {
+void RaftNode::handleQueryState(const Message& request,
+                                Message* response) const {
   proto::QueryStateResponse state_response;
   std::lock_guard<std::mutex> state_lock(state_mutex_);
   state_response.set_leader_id_(leader_id_.ipPort());
@@ -360,7 +361,7 @@ void RaftNode::handleQueryState(const Message& request, Message* response) {
 
 bool RaftNode::sendAppendEntries(
     const PeerId& peer, const proto::AppendEntriesRequest& append_entries,
-    proto::AppendEntriesResponse* append_response) {
+    proto::AppendEntriesResponse* append_response) const {
   Message request, response;
   request.impose<kAppendEntries>(append_entries);
   if (Hub::instance().try_request(peer, &request, &response)) {
@@ -372,8 +373,10 @@ bool RaftNode::sendAppendEntries(
   }
 }
 
-RaftNode::VoteResponse RaftNode::sendRequestVote(const PeerId& peer, uint64_t term,
-                              uint64_t last_log_index, uint64_t last_log_term) {
+RaftNode::VoteResponse RaftNode::sendRequestVote(const PeerId& peer,
+                                                 uint64_t term,
+                                                 uint64_t last_log_index,
+                                                 uint64_t last_log_term) const {
   Message request, response;
   proto::VoteRequest vote_request;
   vote_request.set_term(term);
@@ -397,7 +400,7 @@ RaftNode::VoteResponse RaftNode::sendRequestVote(const PeerId& peer, uint64_t te
 }
 
 proto::JoinQuitResponse RaftNode::sendJoinQuitRequest(
-    const PeerId& peer, proto::PeerRequestType type) {
+    const PeerId& peer, proto::PeerRequestType type) const {
   Message request, response;
   proto::JoinQuitRequest join_quit_request;
   join_quit_request.set_type(type);
@@ -412,7 +415,7 @@ proto::JoinQuitResponse RaftNode::sendJoinQuitRequest(
   return join_response;
 }
 
-void RaftNode::sendNotifyJoinQuitSuccess(const PeerId& peer) {
+void RaftNode::sendNotifyJoinQuitSuccess(const PeerId& peer) const {
   Message request, response;
   request.impose<kNotifyJoinQuitSuccess>();
   Hub::instance().try_request(peer, &request, &response);

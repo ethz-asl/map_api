@@ -125,14 +125,14 @@ class RaftNode {
   void handleRequestVote(const Message& request, Message* response);
   void handleJoinQuitRequest(const Message& request, Message* response);
   void handleNotifyJoinQuitSuccess(const Message& request, Message* response);
-  void handleQueryState(const Message& request, Message* response);
+  void handleQueryState(const Message& request, Message* response) const;
 
   // ====================================================
   // RPCs for heartbeat, leader election, log replication
   // ====================================================
   bool sendAppendEntries(const PeerId& peer,
                          const proto::AppendEntriesRequest& append_entries,
-                         proto::AppendEntriesResponse* append_response);
+                         proto::AppendEntriesResponse* append_response) const;
   enum class VoteResponse {
     VOTE_GRANTED,
     VOTE_DECLINED,
@@ -140,10 +140,11 @@ class RaftNode {
     FAILED_REQUEST
   };
   VoteResponse sendRequestVote(const PeerId& peer, uint64_t term,
-                      uint64_t last_log_index, uint64_t last_log_term);
-  proto::JoinQuitResponse sendJoinQuitRequest(const PeerId& peer,
-                                              proto::PeerRequestType type);
-  void sendNotifyJoinQuitSuccess(const PeerId& peer);
+                               uint64_t last_log_index,
+                               uint64_t last_log_term) const;
+  proto::JoinQuitResponse sendJoinQuitRequest(
+      const PeerId& peer, proto::PeerRequestType type) const;
+  void sendNotifyJoinQuitSuccess(const PeerId& peer) const;
 
   // ================
   // State Management
@@ -157,13 +158,13 @@ class RaftNode {
 
   // Heartbeat information.
   typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
-  TimePoint last_heartbeat_;
-  std::mutex last_heartbeat_mutex_;
-  inline void updateHeartbeatTime() {
+  mutable TimePoint last_heartbeat_;
+  mutable std::mutex last_heartbeat_mutex_;
+  inline void updateHeartbeatTime() const {
     std::lock_guard<std::mutex> heartbeat_lock(last_heartbeat_mutex_);
     last_heartbeat_ = std::chrono::system_clock::now();
   }
-  inline double getTimeSinceHeartbeatMs() {
+  inline double getTimeSinceHeartbeatMs() const {
     std::lock_guard<std::mutex> lock(last_heartbeat_mutex_);
     TimePoint last_hb_time = last_heartbeat_;
     TimePoint now = std::chrono::system_clock::now();
@@ -253,7 +254,7 @@ class RaftNode {
   // In Leader state, only appendLogEntry writes to log entries.
   std::vector<std::shared_ptr<proto::RaftRevision>> log_entries_;
   std::condition_variable new_entries_signal_;
-  ReaderWriterMutex log_mutex_;
+  mutable ReaderWriterMutex log_mutex_;
   typedef std::vector<std::shared_ptr<proto::RaftRevision>>::iterator
       LogIterator;
 
@@ -272,7 +273,7 @@ class RaftNode {
   void followerCommitNewEntries(const proto::AppendEntriesRequest& request,
                                 State state);
   void setAppendEntriesResponse(proto::AppendResponseStatus status,
-                                proto::AppendEntriesResponse* response);
+                                proto::AppendEntriesResponse* response) const;
 
   // Expects locks for commit_mutex_ and log_mutex_to NOT have been acquired.
   void leaderCommitReplicatedEntries(uint64_t current_term);
