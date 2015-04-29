@@ -4,23 +4,31 @@
 
 namespace map_api {
 
-NetTableTransaction::NetTableTransaction(NetTable* table)
-: NetTableTransaction(LogicalTime::sample(), table) {}
-
-NetTableTransaction::NetTableTransaction(
-    const LogicalTime& begin_time, NetTable* table) : begin_time_(begin_time),
-        table_(table) {
+NetTableTransaction::NetTableTransaction(const LogicalTime& begin_time,
+                                         NetTable* table,
+                                         const Workspace& workspace)
+    : begin_time_(begin_time),
+      table_(table),
+      workspace_(Workspace::TableInterface(workspace, table)) {
   CHECK(begin_time < LogicalTime::sample());
 }
 
 void NetTableTransaction::dumpChunk(Chunk* chunk, ConstRevisionMap* result) {
   CHECK_NOTNULL(chunk);
-  transactionOf(chunk)->dumpChunk(result);
+  if (workspace_.contains(chunk->id())) {
+    transactionOf(chunk)->dumpChunk(result);
+  } else {
+    result->clear();
+  }
 }
 
 void NetTableTransaction::dumpActiveChunks(ConstRevisionMap* result) {
   CHECK_NOTNULL(result);
-  table_->dumpActiveChunks(begin_time_, result);
+  workspace_.forEachChunk([&, this](const Chunk& chunk) {
+    ConstRevisionMap chunk_revisions;
+    chunk.dumpItems(begin_time_, &chunk_revisions);
+    result->insert(chunk_revisions.begin(), chunk_revisions.end());
+  });
 }
 
 void NetTableTransaction::insert(Chunk* chunk,

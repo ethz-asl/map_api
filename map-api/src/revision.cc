@@ -179,7 +179,7 @@ MAP_API_TYPE_ENUM(int32_t, proto::Type::INT32);
 MAP_API_TYPE_ENUM(uint32_t, proto::Type::UINT32);
 MAP_API_TYPE_ENUM(bool, proto::Type::INT32);
 MAP_API_TYPE_ENUM(common::Id, proto::Type::HASH128);
-MAP_API_TYPE_ENUM(sm::HashId, proto::Type::HASH128);
+MAP_API_TYPE_ENUM(aslam::HashId, proto::Type::HASH128);
 MAP_API_TYPE_ENUM(int64_t, proto::Type::INT64);
 MAP_API_TYPE_ENUM(uint64_t, proto::Type::UINT64);
 MAP_API_TYPE_ENUM(LogicalTime, proto::Type::UINT64);
@@ -214,7 +214,7 @@ MAP_API_REVISION_SET(common::Id /*value*/) {
   field->set_string_value(value.hexString());
   return true;
 }
-MAP_API_REVISION_SET(sm::HashId /*value*/) {
+MAP_API_REVISION_SET(aslam::HashId /*value*/) {
   field->set_string_value(value.hexString());
   return true;
 }
@@ -273,7 +273,7 @@ MAP_API_REVISION_GET(bool /*value*/) {
   *value = field.int_value() != 0;
   return true;
 }
-MAP_API_REVISION_GET(sm::HashId /*value*/) {
+MAP_API_REVISION_GET(aslam::HashId /*value*/) {
   if (!value->fromHexString(field.string_value())) {
     LOG(FATAL) << "Failed to parse Hash id from string \""
                << field.string_value() << "\"";
