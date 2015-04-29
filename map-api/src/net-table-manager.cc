@@ -68,8 +68,8 @@ void NetTableManager::registerHandlers() {
   // RaftChunk requests.
   Hub::instance().registerHandler(RaftNode::kConnectRequest,
                                   handleRaftConnectRequest);
-  Hub::instance().registerHandler(RaftNode::kInitRequest, 
-                                   handleRaftInitRequest);
+  Hub::instance().registerHandler(RaftNode::kInitRequest,
+                                  handleRaftInitRequest);
   Hub::instance().registerHandler(RaftNode::kAppendEntries,
                                   handleRaftAppendRequest);
   Hub::instance().registerHandler(RaftNode::kInsertRequest, handleRaftInsertRequest);
@@ -525,8 +525,8 @@ void NetTableManager::handleRaftInitRequest(const Message& request, Message* res
     response->impose<Message::kDecline>();
     return;
   }
-  found->second->handleRaftInitRequest(chunk_id, init_request, 
-                                       request.sender(), response);
+  found->second->handleRaftInitRequest(chunk_id, init_request, request.sender(),
+                                       response);
 }
 
 void NetTableManager::handleRaftAppendRequest(const Message& request, Message* response) {
@@ -543,7 +543,7 @@ void NetTableManager::handleRaftAppendRequest(const Message& request, Message* r
     response->impose<Message::kDecline>();
     return;
   }
-  found->second->handleRaftAppendRequest(chunk_id, append_request,
+  found->second->handleRaftAppendRequest(chunk_id, &append_request,
                                          request.sender(), response);
 }
 

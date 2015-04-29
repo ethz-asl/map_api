@@ -698,8 +698,8 @@ void NetTable::handleSpatialIndexTrigger(
   }
 }
 
-void NetTable::handleRaftConnectRequest(const common::Id& chunk_id, 
-                                        const PeerId& sender, 
+void NetTable::handleRaftConnectRequest(const common::Id& chunk_id,
+                                        const PeerId& sender,
                                         Message* response) {
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
@@ -711,9 +711,9 @@ void NetTable::handleRaftConnectRequest(const common::Id& chunk_id,
   active_chunks_lock_.releaseReadLock();
 }
 
-void NetTable::handleRaftInitRequest(const common::Id& chunk_id, 
-                                      const proto::InitRequest& init_request, 
-                                      const PeerId& sender, Message* response) {
+void NetTable::handleRaftInitRequest(const common::Id& chunk_id,
+                                     const proto::InitRequest& init_request,
+                                     const PeerId& sender, Message* response) {
   CHECK_NOTNULL(response);
   std::unique_ptr<RaftChunk> chunk =
       std::unique_ptr<RaftChunk>(new RaftChunk);
@@ -723,9 +723,8 @@ void NetTable::handleRaftInitRequest(const common::Id& chunk_id,
   std::thread(&NetTable::joinChunkHolders, this, chunk_id).detach();
 }
 
-
 void NetTable::handleRaftAppendRequest(const common::Id& chunk_id,
-                                       proto::AppendEntriesRequest& request,
+                                       proto::AppendEntriesRequest* request,
                                        const PeerId& sender,
                                        Message* response) {
   ChunkMap::iterator found;
@@ -749,7 +748,10 @@ void NetTable::handleRaftAppendRequest(const common::Id& chunk_id,
   }*/
 }
 
-void NetTable::handleRaftInsertRequest(const common::Id& chunk_id, const proto::InsertRequest& request, const PeerId& sender, Message* response) {
+void NetTable::handleRaftInsertRequest(const common::Id& chunk_id,
+                                       const proto::InsertRequest& request,
+                                       const PeerId& sender,
+                                       Message* response) {
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
   if (routingBasics(chunk_id, response, &found)) {

@@ -100,7 +100,6 @@ class RaftNode {
   static const char kConnectRequest[];
   static const char kConnectResponse[];
   static const char kInitRequest[];
-  
 
  private:
   friend class ConsensusFixture;
@@ -122,7 +121,7 @@ class RaftNode {
   // Handlers
   // ========
   void handleConnectRequest(const PeerId& sender, Message* response);
-  void handleAppendRequest(proto::AppendEntriesRequest& request,
+  void handleAppendRequest(proto::AppendEntriesRequest* request,
                            const PeerId& sender, Message* response);
   void handleInsertRequest(const proto::InsertRequest& request,
                            const PeerId& sender, Message* response);
@@ -151,7 +150,7 @@ class RaftNode {
   proto::JoinQuitResponse sendJoinQuitRequest(const PeerId& peer,
                                               proto::PeerRequestType type);
   void sendNotifyJoinQuitSuccess(const PeerId& peer);
-  
+
   bool sendInitRequest(const PeerId& peer);
 
   // ================
@@ -255,12 +254,12 @@ class RaftNode {
   // =====================
   // Log entries/revisions
   // =====================
-  
-  // New revision request.
-  uint64_t sendInsertRequest(uint64_t entry);
-  
+
   // Index will always be sequential, unique.
   // Leader will overwrite follower logs where index+term doesn't match.
+
+  // New revision request.
+  uint64_t sendInsertRequest(uint64_t entry);
 
   // In Follower state, only handleAppendRequest writes to log_entries.
   // In Leader state, only appendLogEntry writes to log entries.
@@ -281,8 +280,8 @@ class RaftNode {
 
   // The two following methods assume write lock is acquired for log_mutex_.
   proto::AppendResponseStatus followerAppendNewEntries(
-      proto::AppendEntriesRequest& request);
-  void followerCommitNewEntries(const proto::AppendEntriesRequest& request,
+      proto::AppendEntriesRequest* request);
+  void followerCommitNewEntries(const proto::AppendEntriesRequest* request,
                                 State state);
   void setAppendEntriesResponse(proto::AppendResponseStatus status,
                                 proto::AppendEntriesResponse* response);

@@ -194,15 +194,15 @@ class NetTable {
   static const char kAnnounceToListeners[];
 
   void handleSpatialIndexTrigger(const proto::SpatialIndexTrigger& trigger);
-  
+
   // RaftChunk RPC handlers.
-  void handleRaftConnectRequest(const common::Id& chunk_id, 
+  void handleRaftConnectRequest(const common::Id& chunk_id,
                                 const PeerId& sender, Message* response);
-  void handleRaftInitRequest(const common::Id& chunk_id, 
-                                const proto::InitRequest& init_request,
-                                const PeerId& sender, Message* response);
+  void handleRaftInitRequest(const common::Id& chunk_id,
+                             const proto::InitRequest& init_request,
+                             const PeerId& sender, Message* response);
   void handleRaftAppendRequest(const common::Id& chunk_id,
-                               proto::AppendEntriesRequest& request,
+                               proto::AppendEntriesRequest* request,
                                const PeerId& sender, Message* response);
   void handleRaftInsertRequest(const common::Id& chunk_id,
                                const proto::InsertRequest& request,

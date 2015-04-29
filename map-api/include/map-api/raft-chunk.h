@@ -39,16 +39,10 @@ class RaftChunk : public ChunkBase {
             << id_.printString();
     raft_node_.start();
   }
-  void setStateJoiningAndStartRaft(const PeerId& peer) {
-    raft_node_.state_ = RaftNode::State::JOINING;
-    VLOG(1) << PeerId::self() << ": Starting Raft node as joining for chunk "
-            << id_.printString();
-    raft_node_.join_request_peer_ = peer;
-    raft_node_.start();
-  }
 
-  // -------------------------- Functions from the base class to be impl here.
-
+  // ====================
+  // Not implemented yet.
+  // ====================
   virtual size_t numItems(const LogicalTime& time) const override { return 0; }
   virtual size_t itemsSizeBytes(const LogicalTime& time) const override {
     return 0;
@@ -64,7 +58,7 @@ class RaftChunk : public ChunkBase {
   virtual int peerSize() const override { return raft_node_.num_peers_; }
 
   // Non-const intended to avoid accidental write-lock while reading.
-  // Read lock is definitely not needed for RaftChunk. Write lock has to be 
+  // Read lock is definitely not needed for RaftChunk. Write lock has to be
   // decided depending on the multi chunk commit issue.
   virtual void writeLock() override {}
   virtual void readLock() const override {}
@@ -83,8 +77,7 @@ class RaftChunk : public ChunkBase {
                             const std::shared_ptr<Revision>& item) override {}
   virtual void leaveImpl() override {}
   virtual void awaitShared() override {}
-
-  // --------------------------------------------------------------------
+  // ========================================================================
 
   static bool sendConnectRequest(const PeerId& peer,
                                  proto::ChunkRequestMetadata& metadata);
@@ -97,8 +90,8 @@ class RaftChunk : public ChunkBase {
   // for peer join shall happen between chunk holder peers outside of raft.
   RaftNode raft_node_;
 
-  // TODO(aqurai): Replace arg with proto::Revision when implementing transactions.
-  // Also add logical time.
+  // TODO(aqurai): Replace arg with proto::Revision when implementing
+  // transactions. Also add logical time.
   uint64_t insertRequest(uint64_t revision_entry);
 
   /**
@@ -109,7 +102,7 @@ class RaftChunk : public ChunkBase {
   friend class NetTable;
 
   void handleRaftConnectRequest(const PeerId& sender, Message* response);
-  void handleRaftAppendRequest(proto::AppendEntriesRequest& request,
+  void handleRaftAppendRequest(proto::AppendEntriesRequest* request,
                                const PeerId& sender, Message* response);
   void handleRaftInsertRequest(const proto::InsertRequest& request,
                                const PeerId& sender, Message* response);
