@@ -9,6 +9,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include <multiagent-mapping-common/condition.h>
 #include <multiagent-mapping-common/unique-id.h>
 
 #include "map-api/chunk-base.h"
@@ -49,8 +50,8 @@ class Revision;
  * Chunk ownership may be relinquished at any time, automatically relinquishing
  * access to the latest data in the chunk and the right to modify it.
  *
- * For the time being, Chunks are NOT robust to sudden loss of connectivity -
- * this could be fixed by adapting a consensus protocol such as Raft.
+ * Legacy chunks are NOT robust to sudden loss of connectivity -
+ * this should be fixed with Raft chunks.
  */
 class LegacyChunk : public ChunkBase {
   friend class ChunkTransaction;
@@ -228,7 +229,7 @@ class LegacyChunk : public ChunkBase {
   mutable DistributedRWLock lock_;
   mutable std::mutex add_peer_mutex_;
   ReaderWriterMutex leave_lock_;
-  volatile bool initialized_ = false;
+  common::Condition initialized_;
   volatile bool relinquished_ = false;
   bool log_locking_ = false;
   size_t self_rank_;

@@ -5,8 +5,7 @@
 #include <multiagent-mapping-common/backtrace.h>
 
 DEFINE_bool(blame_trigger, false,
-            "Print backtrace for trigger insertion and"
-            " invocation.");
+            "Print backtrace for trigger insertion and invocation.");
 
 namespace map_api {
 
@@ -14,6 +13,7 @@ ChunkBase::~ChunkBase() {}
 
 void ChunkBase::initializeNew(
     const common::Id& id, const std::shared_ptr<TableDescriptor>& descriptor) {
+  CHECK(descriptor);
   id_ = id;
   initializeNewImpl(id, descriptor);
   CHECK(data_container_) << "Implementation didn't instantiate data container.";
@@ -29,8 +29,7 @@ ChunkBase::ConstDataAccess::ConstDataAccess(const ChunkBase& chunk)
 ChunkBase::ConstDataAccess::~ConstDataAccess() { chunk_.unlock(); }
 
 const ChunkDataContainerBase* ChunkBase::ConstDataAccess::operator->() const {
-  CHECK(chunk_.data_container_);
-  return chunk_.data_container_.get();
+  return CHECK_NOTNULL(chunk_.data_container_.get());
 }
 
 size_t ChunkBase::attachTrigger(const TriggerCallback& callback) {
@@ -43,7 +42,7 @@ size_t ChunkBase::attachTrigger(const TriggerCallback& callback) {
                  << abi::__cxa_demangle(callback.target_type().name(), NULL,
                                         NULL, &status) << " for chunk " << id()
                  << " attached from:";
-    LOG(INFO) << "\n" << common::backtrace();
+    LOG(INFO) << common::backtrace();
   }
   triggers_.push_back(callback);
   return triggers_.size() - 1u;
@@ -82,8 +81,6 @@ void ChunkBase::leave() {
   {
     std::unique_lock<std::mutex> lock(trigger_mutex_);
     triggers_.clear();
-    // Need to unlock, otherwise we could get into deadlocks, as
-    // distributedUnlock() below calls triggers on other peers.
   }
   waitForTriggerCompletion();
   leaveImpl();
