@@ -73,7 +73,9 @@ bool LegacyChunk::init(const common::Id& id,
     data_container_.reset(new ChunkDataRamContainer);
   }
   CHECK(data_container_->init(descriptor));
-  initialized_ = initialize;
+  if (initialize) {
+    initialized_.notify();
+  }
   return true;
 }
 
@@ -111,7 +113,7 @@ bool LegacyChunk::init(const common::Id& id,
   lock_.preempted_state = DistributedRWLock::State::UNLOCKED;
   lock_.state = DistributedRWLock::State::WRITE_LOCKED;
   lock_.holder = sender;
-  initialized_ = true;
+  initialized_.notify();
   // Because it would be wasteful to iterate over all entries to find the
   // actual latest time:
   return true;
@@ -884,11 +886,7 @@ void LegacyChunk::handleUpdateRequest(const std::shared_ptr<Revision>& item,
   handleCommitUpdate(id);
 }
 
-void LegacyChunk::awaitInitialized() const {
-  while (!initialized_) {
-    usleep(1000);
-  }
-}
+void LegacyChunk::awaitInitialized() const { initialized_.wait(); }
 
 void LegacyChunk::startState(LockState new_state) const {
   // only log main thread

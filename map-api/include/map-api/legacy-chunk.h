@@ -9,6 +9,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include <multiagent-mapping-common/condition.h>
 #include <multiagent-mapping-common/unique-id.h>
 
 #include "map-api/chunk-base.h"
@@ -228,7 +229,7 @@ class LegacyChunk : public ChunkBase {
   mutable DistributedRWLock lock_;
   mutable std::mutex add_peer_mutex_;
   ReaderWriterMutex leave_lock_;
-  volatile bool initialized_ = false;
+  common::Condition initialized_;
   volatile bool relinquished_ = false;
   bool log_locking_ = false;
   size_t self_rank_;
