@@ -1,7 +1,7 @@
 #include <map-api/net-table.h>
 #include <glog/logging.h>
-#include <map-api/chunk-data-ram-container.h>
-#include <map-api/chunk-data-stxxl-container.h>
+#include <map-api/legacy-chunk-data-ram-container.h>
+#include <map-api/legacy-chunk-data-stxxl-container.h>
 
 #include <multiagent-mapping-common/backtrace.h>
 #include <statistics/statistics.h>
