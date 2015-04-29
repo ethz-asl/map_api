@@ -74,7 +74,6 @@ class ChunkBase {
   virtual int requestParticipation(const PeerId& peer) = 0;
 
   // Update: First locks chunk, then sends update to all peers for patching.
-  // TODO(tcies) remove, as this should happen through transactions.
   virtual void update(const std::shared_ptr<Revision>& item) = 0;
 
   typedef std::function<void(const common::IdSet insertions,
