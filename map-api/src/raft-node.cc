@@ -22,7 +22,8 @@ constexpr int kJoinResponseTimeoutMs = 1000;
 constexpr int kMaxLogQueueLength = 50;
 
 // Defined message strings again for raft chunk.
-// TODO(aqurai): Will have to be removed once RaftChunk Implementation is complete.
+// TODO(aqurai): Some will have to be removed once RaftChunk Implementation
+// is complete.
 const char RaftNode::kAppendEntries[] = "raft_node_append_entries";
 const char RaftNode::kAppendEntriesResponse[] = "raft_node_append_response";
 const char RaftNode::kInsertRequest[] = "raft_node_insert_request";
@@ -36,8 +37,6 @@ const char RaftNode::kConnectResponse[] = "raft_node_connect_response";
 const char RaftNode::kInitRequest[] = "raft_node_init_response";
 const char RaftNode::kQueryState[] = "raft_node_query_state";
 const char RaftNode::kQueryStateResponse[] = "raft_node_query_state_response";
-
-// TODO(aqurai): To be removed?
 const char RaftNode::kNotifyJoinQuitSuccess[] = "raft_node_notify_join_success";
 
 MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntries, proto::AppendEntriesRequest);
@@ -149,12 +148,8 @@ void RaftNode::handleConnectRequest(const PeerId& sender, Message* response) {
     } else {
       ScopedWriteLock log_lock(&log_mutex_);
       std::lock_guard<std::mutex> tracker_lock(follower_tracker_mutex_);
-      if (follower_tracker_map_.count(sender) == 1) {
-        // Re-joining after disconnect.
-        // TODO(aqurai): Handle the new version of this.
-        // TrackerMap::iterator it = follower_tracker_map_.find(sender);
-        // it->second->status = PeerStatus::JOINING;
-      }
+      // TODO(aqurai): If the peer is already present, it could be re-joining.
+      // In that case, avoid sending all revisions during connect.
       current_term = current_term_;
       entry_index = leaderAddEntryToLog(0, current_term_, sender,
                                         proto::PeerRequestType::ADD_PEER);
