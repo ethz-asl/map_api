@@ -66,8 +66,13 @@ void NetTableManager::registerHandlers() {
                                   handleUpdateRequest);
 
   // RaftChunk requests.
+  Hub::instance().registerHandler(RaftNode::kConnectRequest,
+                                  handleRaftConnectRequest);
+  Hub::instance().registerHandler(RaftNode::kInitRequest, 
+                                   handleRaftInitRequest);
   Hub::instance().registerHandler(RaftNode::kAppendEntries,
                                   handleRaftAppendRequest);
+  Hub::instance().registerHandler(RaftNode::kInsertRequest, handleRaftInsertRequest);
   Hub::instance().registerHandler(RaftNode::kVoteRequest,
                                   handleRaftRequestVote);
   Hub::instance().registerHandler(RaftNode::kJoinQuitRequest,
@@ -490,6 +495,40 @@ void NetTableManager::handleRoutedSpatialChordRequests(const Message& request,
   table->second->handleRoutedSpatialChordRequests(request, response);
 }
 
+void NetTableManager::handleRaftConnectRequest(const Message& request, Message* response) {
+  proto::ChunkRequestMetadata metadata;
+  request.extract<RaftNode::kConnectRequest>(&metadata);
+  const std::string& table = metadata.table();
+  common::Id chunk_id(metadata.chunk_id());
+  // CHECK_NOTNULL(Core::instance());
+  ScopedReadLock lock(&instance().tables_lock_);
+  std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
+  found = instance().tables_.find(table);
+  if (found == instance().tables_.end()) {
+    response->impose<Message::kDecline>();
+    return;
+  }
+  found->second->handleRaftConnectRequest(chunk_id, request.sender(), response);
+}
+
+void NetTableManager::handleRaftInitRequest(const Message& request, Message* response) {
+  proto::InitRequest init_request;
+  request.extract<RaftNode::kInitRequest>(&init_request);
+  const proto::ChunkRequestMetadata metadata = init_request.metadata();
+  const std::string& table = metadata.table();
+  common::Id chunk_id(metadata.chunk_id());
+  // CHECK_NOTNULL(Core::instance());
+  ScopedReadLock lock(&instance().tables_lock_);
+  std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
+  found = instance().tables_.find(table);
+  if (found == instance().tables_.end()) {
+    response->impose<Message::kDecline>();
+    return;
+  }
+  found->second->handleRaftInitRequest(chunk_id, init_request, 
+                                       request.sender(), response);
+}
+
 void NetTableManager::handleRaftAppendRequest(const Message& request, Message* response) {
   proto::AppendEntriesRequest append_request;
   request.extract<RaftNode::kAppendEntries>(&append_request);
@@ -505,6 +544,24 @@ void NetTableManager::handleRaftAppendRequest(const Message& request, Message* r
     return;
   }
   found->second->handleRaftAppendRequest(chunk_id, append_request,
+                                         request.sender(), response);
+}
+
+void NetTableManager::handleRaftInsertRequest(const Message& request, Message* response) {
+  proto::InsertRequest insert_request;
+  request.extract<RaftNode::kInsertRequest>(&insert_request);
+  const proto::ChunkRequestMetadata metadata = insert_request.metadata();
+  const std::string& table = metadata.table();
+  common::Id chunk_id(metadata.chunk_id());
+  // CHECK_NOTNULL(Core::instance());
+  ScopedReadLock lock(&instance().tables_lock_);
+  std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
+  found = instance().tables_.find(table);
+  if (found == instance().tables_.end()) {
+    response->impose<Message::kDecline>();
+    return;
+  }
+  found->second->handleRaftInsertRequest(chunk_id, insert_request,
                                          request.sender(), response);
 }
 

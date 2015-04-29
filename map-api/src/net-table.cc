@@ -117,7 +117,6 @@ ChunkBase* NetTable::newChunk() {
 ChunkBase* NetTable::newChunk(const common::Id& chunk_id) {
   std::unique_ptr<ChunkBase> chunk;
   if (FLAGS_use_raft) {
-    LOG(WARNING) << "TODO(aqurai): Implement raft chunk";
     chunk.reset(new RaftChunk);
   } else {
     chunk.reset(new LegacyChunk);
@@ -403,7 +402,7 @@ ChunkBase* NetTable::connectTo(const common::Id& chunk_id, const PeerId& peer) {
     CHECK(response.isType<Message::kAck>()) << response.type();
   }
 
-  // wait for connect handle thread of other peer to succeed
+  // Wait for connect handle thread of other peer to succeed.
   ChunkMap::iterator found;
   while (true) {
     active_chunks_lock_.acquireReadLock();
@@ -574,17 +573,9 @@ void NetTable::handleConnectRequest(const common::Id& chunk_id,
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
   if (routingBasics(chunk_id, response, &found)) {
-    if (FLAGS_use_raft) {
-      RaftChunk* chunk = CHECK_NOTNULL(
-          dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
-      // chunk->handleConnectRequest(peer, response);
-      LOG(WARNING) << "aqurai: Impl this";
-      response->ack();
-    } else {
       LegacyChunk* chunk = CHECK_NOTNULL(
           dynamic_cast<LegacyChunk*>(found->second.get()));  // NOLINT
       chunk->handleConnectRequest(peer, response);
-    }
   }
   active_chunks_lock_.releaseReadLock();
 }
@@ -707,6 +698,32 @@ void NetTable::handleSpatialIndexTrigger(
   }
 }
 
+void NetTable::handleRaftConnectRequest(const common::Id& chunk_id, 
+                                        const PeerId& sender, 
+                                        Message* response) {
+  ChunkMap::iterator found;
+  active_chunks_lock_.acquireReadLock();
+  if (routingBasics(chunk_id, response, &found)) {
+    RaftChunk* chunk = CHECK_NOTNULL(
+        dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
+    chunk->handleRaftConnectRequest(sender, response);
+  }
+  active_chunks_lock_.releaseReadLock();
+}
+
+void NetTable::handleRaftInitRequest(const common::Id& chunk_id, 
+                                      const proto::InitRequest& init_request, 
+                                      const PeerId& sender, Message* response) {
+  CHECK_NOTNULL(response);
+  std::unique_ptr<RaftChunk> chunk =
+      std::unique_ptr<RaftChunk>(new RaftChunk);
+  CHECK(chunk->init(chunk_id, init_request, descriptor_));
+  addInitializedChunk(std::move(chunk));
+  response->ack();
+  std::thread(&NetTable::joinChunkHolders, this, chunk_id).detach();
+}
+
+
 void NetTable::handleRaftAppendRequest(const common::Id& chunk_id,
                                        proto::AppendEntriesRequest& request,
                                        const PeerId& sender,
@@ -720,7 +737,7 @@ void NetTable::handleRaftAppendRequest(const common::Id& chunk_id,
   }
   active_chunks_lock_.releaseReadLock();
 
-  if (found == active_chunks_.end()) {
+  /*if (found == active_chunks_.end()) {
     // First time append request for a chunk is in response to a connect
     // request.
     std::unique_ptr<RaftChunk> chunk =
@@ -729,7 +746,18 @@ void NetTable::handleRaftAppendRequest(const common::Id& chunk_id,
     chunk->handleRaftAppendRequest(request, sender, response);
     addInitializedChunk(std::move(chunk));
     std::thread(&NetTable::joinChunkHolders, this, chunk_id).detach();
+  }*/
+}
+
+void NetTable::handleRaftInsertRequest(const common::Id& chunk_id, const proto::InsertRequest& request, const PeerId& sender, Message* response) {
+  ChunkMap::iterator found;
+  active_chunks_lock_.acquireReadLock();
+  if (routingBasics(chunk_id, response, &found)) {
+    RaftChunk* chunk = CHECK_NOTNULL(
+        dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
+    chunk->handleRaftInsertRequest(request, sender, response);
   }
+  active_chunks_lock_.releaseReadLock();
 }
 
 void NetTable::handleRaftRequestVote(const common::Id& chunk_id,

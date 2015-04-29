@@ -70,11 +70,6 @@ class RaftNode {
     STOPPED
   };
 
-//  static RaftNode& instance();
-  void kill();
-
-  void registerHandlers();
-
   void start();
   void stop();
   void quitRaft();
@@ -87,18 +82,14 @@ class RaftNode {
   // Returns index of the appended entry if append succeeds, or zero otherwise
   uint64_t leaderAppendLogEntry(uint32_t entry);
 
-//  static void staticHandleAppendRequest(const Message& request,
-//                                        Message* response);
-//  static void staticHandleRequestVote(const Message& request,
-//                                      Message* response);
-//  static void staticHandleQueryState(const Message& request, Message* response);
-//  static void staticHandleJoinQuitRequest(const Message& request,
-//                                        Message* response);
-//  static void staticHandleNotifyJoinQuitSuccess(const Message& request,
-//                                                Message* response);
+  // Waits for the entry to be committed. Returns failure if the leader fails
+  // before the new entry is committed.
+  uint64_t leaderSafelyAppendLogEntry(uint32_t entry);
 
   static const char kAppendEntries[];
   static const char kAppendEntriesResponse[];
+  static const char kInsertRequest[];
+  static const char kInsertResponse[];
   static const char kVoteRequest[];
   static const char kVoteResponse[];
   static const char kJoinQuitRequest[];
@@ -106,6 +97,10 @@ class RaftNode {
   static const char kNotifyJoinQuitSuccess[];
   static const char kQueryState[];
   static const char kQueryStateResponse[];
+  static const char kConnectRequest[];
+  static const char kConnectResponse[];
+  static const char kInitRequest[];
+  
 
  private:
   friend class ConsensusFixture;
@@ -126,8 +121,10 @@ class RaftNode {
   // ========
   // Handlers
   // ========
-  void handleConnectRequest(const Message& request, Message* response);
+  void handleConnectRequest(const PeerId& sender, Message* response);
   void handleAppendRequest(proto::AppendEntriesRequest& request,
+                           const PeerId& sender, Message* response);
+  void handleInsertRequest(const proto::InsertRequest& request,
                            const PeerId& sender, Message* response);
   void handleRequestVote(const proto::VoteRequest& request,
                          const PeerId& sender, Message* response);
@@ -154,6 +151,8 @@ class RaftNode {
   proto::JoinQuitResponse sendJoinQuitRequest(const PeerId& peer,
                                               proto::PeerRequestType type);
   void sendNotifyJoinQuitSuccess(const PeerId& peer);
+  
+  bool sendInitRequest(const PeerId& peer);
 
   // ================
   // State Management
@@ -256,6 +255,10 @@ class RaftNode {
   // =====================
   // Log entries/revisions
   // =====================
+  
+  // New revision request.
+  uint64_t sendInsertRequest(uint64_t entry);
+  
   // Index will always be sequential, unique.
   // Leader will overwrite follower logs where index+term doesn't match.
 

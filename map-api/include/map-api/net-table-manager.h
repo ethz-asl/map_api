@@ -105,7 +105,13 @@ class NetTableManager {
   /**
    * RaftChunk requests.
    */
+  static void handleRaftConnectRequest(const Message& request,
+                                        Message* response);
+  static void handleRaftInitRequest(const Message& request,
+                                        Message* response);
   static void handleRaftAppendRequest(const Message& request,
+                                        Message* response);
+  static void handleRaftInsertRequest(const Message& request,
                                         Message* response);
   static void handleRaftRequestVote(const Message& request,
                                       Message* response);
