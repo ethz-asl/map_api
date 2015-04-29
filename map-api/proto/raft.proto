@@ -14,6 +14,11 @@ message JoinQuitRequest {
   optional PeerRequestType type = 2;
 }
 
+message ConnectResponse {
+  optional uint64 index = 1;
+  optional string leader_id = 2;
+}
+
 message JoinQuitResponse {
   optional bool response = 1;
   optional string leader_id = 3;
@@ -35,7 +40,7 @@ message RaftRevision {
 }
 
 message AppendEntriesRequest {
-optional ChunkRequestMetadata metadata = 1;
+  optional ChunkRequestMetadata metadata = 1;
   optional uint64 term = 2;
   optional uint64 last_log_index = 3;
   optional uint64 last_log_term = 4;
@@ -58,6 +63,15 @@ message AppendEntriesResponse {
   optional uint64 last_log_term = 3;
   optional uint64 commit_index = 4;
   optional AppendResponseStatus response = 5;
+}
+
+message InsertRequest {
+  optional ChunkRequestMetadata metadata = 1;
+  optional uint64 entry = 2;
+}
+
+message InsertResponse {
+  optional uint64 index = 2;
 }
 
 message VoteRequest {

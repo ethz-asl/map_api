@@ -27,28 +27,25 @@ class RaftChunk : public ChunkBase {
   virtual void initializeNewImpl(
       const common::Id& id,
       const std::shared_ptr<TableDescriptor>& descriptor) override;
-  bool init(const common::Id& id, const PeerId& peer,
-            std::shared_ptr<TableDescriptor> descriptor);
   bool init(const common::Id& id, std::shared_ptr<TableDescriptor> descriptor);
+  bool init(const common::Id& id, const proto::InitRequest& init_request,
+            std::shared_ptr<TableDescriptor> descriptor);
   virtual void dumpItems(const LogicalTime& time, ConstRevisionMap* items) const
       override;
 
-  void setStateFollowerAndStart() {
+  void setStateFollowerAndStartRaft() {
     raft_node_.state_ = RaftNode::State::FOLLOWER;
     VLOG(1) << PeerId::self() << ": Starting Raft node as follower for chunk "
             << id_.printString();
     raft_node_.start();
   }
-  void setStateJoiningAndStart(const PeerId& peer) {
+  void setStateJoiningAndStartRaft(const PeerId& peer) {
     raft_node_.state_ = RaftNode::State::JOINING;
     VLOG(1) << PeerId::self() << ": Starting Raft node as joining for chunk "
             << id_.printString();
     raft_node_.join_request_peer_ = peer;
     raft_node_.start();
   }
-
-  static bool sendConnectRequest(const PeerId& peer,
-                                 proto::ChunkRequestMetadata& metadata);
 
   // -------------------------- Functions from the base class to be impl here.
 
@@ -67,13 +64,11 @@ class RaftChunk : public ChunkBase {
   virtual int peerSize() const override { return raft_node_.num_peers_; }
 
   // Non-const intended to avoid accidental write-lock while reading.
+  // Read lock is definitely not needed for RaftChunk. Write lock has to be 
+  // decided depending on the multi chunk commit issue.
   virtual void writeLock() override {}
-  // Doesn't need to be implemented if race conditions with committing can be
-  // avoided otherwise.
   virtual void readLock() const override {}
-
   virtual bool isWriteLocked() override { return true; }
-
   virtual void unlock() const override {}
 
   virtual int requestParticipation() override {return 1;}
@@ -91,6 +86,9 @@ class RaftChunk : public ChunkBase {
 
   // --------------------------------------------------------------------
 
+  static bool sendConnectRequest(const PeerId& peer,
+                                 proto::ChunkRequestMetadata& metadata);
+
  private:
   volatile bool initialized_ = false;
   volatile bool relinquished_ = false;
@@ -99,8 +97,9 @@ class RaftChunk : public ChunkBase {
   // for peer join shall happen between chunk holder peers outside of raft.
   RaftNode raft_node_;
 
-  template <typename RequestType>
-  void fillMetadata(RequestType* destination) const;
+  // TODO(aqurai): Replace arg with proto::Revision when implementing transactions.
+  // Also add logical time.
+  uint64_t insertRequest(uint64_t revision_entry);
 
   /**
    * ==========================================
@@ -109,9 +108,10 @@ class RaftChunk : public ChunkBase {
    */
   friend class NetTable;
 
-  void handleConnectRequest(const Message& request, Message* response);
-  // TODO(aqurai): Pass only relevant objects as arguments.
+  void handleRaftConnectRequest(const PeerId& sender, Message* response);
   void handleRaftAppendRequest(proto::AppendEntriesRequest& request,
+                               const PeerId& sender, Message* response);
+  void handleRaftInsertRequest(const proto::InsertRequest& request,
                                const PeerId& sender, Message* response);
   void handleRaftRequestVote(const proto::VoteRequest& request,
                              const PeerId& sender, Message* response);
