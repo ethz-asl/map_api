@@ -11,6 +11,7 @@
 
 #include "map-api/logical-time.h"
 #include "map-api/net-table-transaction.h"
+#include "map-api/workspace.h"
 
 namespace map_api {
 class CacheBase;
@@ -29,7 +30,11 @@ class Transaction {
   friend class Cache;
 
  public:
+  Transaction(const std::shared_ptr<Workspace>& workspace,
+              const LogicalTime& begin_time);
+  // Defaults: Full workspace, current time.
   Transaction();
+  explicit Transaction(const std::shared_ptr<Workspace>& workspace);
   explicit Transaction(const LogicalTime& begin_time);
 
   // READ
@@ -134,6 +139,7 @@ class Transaction {
       NetTableOrdering> TransactionMap;
   typedef TransactionMap::value_type TransactionPair;
   mutable TransactionMap net_table_transactions_;
+  std::shared_ptr<Workspace> workspace_;
   LogicalTime begin_time_, commit_time_;
 
   // direct access vs. caching

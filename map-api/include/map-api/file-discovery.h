@@ -14,6 +14,8 @@ class PeerId;
  * Regulates discovery through /tmp/mapapi-discovery.txt .
  */
 class FileDiscovery final : public Discovery {
+  friend class FileDiscoveryTest;
+
  public:
   static const char kFileName[];
 
