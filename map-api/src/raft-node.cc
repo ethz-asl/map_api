@@ -18,6 +18,7 @@ namespace map_api {
 constexpr int kHeartbeatTimeoutMs = 150;
 constexpr int kHeartbeatSendPeriodMs = 50;
 constexpr int kJoinResponseTimeoutMs = 1000;
+// Maximum number of yet-to-be-committed entries allowed in the log.
 constexpr int kMaxLogQueueLength = 50;
 
 const char RaftNode::kAppendEntries[] = "raft_node_append_entries";
