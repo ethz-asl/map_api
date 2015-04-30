@@ -58,45 +58,6 @@ std::shared_ptr<const Revision> ChunkDataContainerBase::findUnique(
   }
 }
 
-ChunkDataContainerBase::History::const_iterator
-ChunkDataContainerBase::History::latestAt(const LogicalTime& time) const {
-  for (const_iterator it = cbegin(); it != cend(); ++it) {
-    if ((*it)->getUpdateTime() <= time) {
-      return it;
-    }
-  }
-  return cend();
-}
-
-template <typename IdType>
-void ChunkDataContainerBase::itemHistory(const IdType& id,
-                                         const LogicalTime& time,
-                                         History* dest) const {
-  common::Id map_api_id;
-  aslam::HashId hash_id;
-  id.toHashId(&hash_id);
-  map_api_id.fromHashId(hash_id);
-  itemHistoryImpl(map_api_id, time, dest);
-}
-
-template <typename ValueType>
-void ChunkDataContainerBase::findHistory(int key, const ValueType& value,
-                                         const LogicalTime& time,
-                                         HistoryMap* dest) const {
-  std::shared_ptr<Revision> valueHolder = this->getTemplate();
-  if (key >= 0) {
-    valueHolder->set(key, value);
-  }
-  return this->findHistoryByRevision(key, *valueHolder, time, dest);
-}
-
-template <typename IdType>
-void ChunkDataContainerBase::remove(const LogicalTime& time, const IdType& id) {
-  std::shared_ptr<Revision> latest =
-      std::make_shared<Revision>(*getById(id, time));
-  remove(time, latest);
-}
-
 template <typename IdType>
 void ChunkDataContainerBase::getAvailableIds(const LogicalTime& time,
                                              std::vector<IdType>* ids) const {

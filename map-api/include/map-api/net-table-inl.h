@@ -21,7 +21,7 @@ void NetTable::lockFind(int key, const ValueType& value,
                         const LogicalTime& time,
                         ConstRevisionMap* result) const {
   CHECK_NOTNULL(result)->clear();
-  forEachActiveChunk([&](const Chunk& chunk) {
+  forEachActiveChunk([&](const ChunkBase& chunk) {
     ConstRevisionMap chunk_result;
     chunk.constData()->find(key, value, time, &chunk_result);
     result->insert(chunk_result.begin(), chunk_result.end());
@@ -32,7 +32,7 @@ template <typename IdType>
 std::shared_ptr<const Revision> NetTable::getById(const IdType& id,
                                                   const LogicalTime& time) {
   std::shared_ptr<const Revision> result;
-  forEachActiveChunkUntil([&](const Chunk& chunk) {
+  forEachActiveChunkUntil([&](const ChunkBase& chunk) {
     result = chunk.constData()->getById(id, time);
     return static_cast<bool>(result);
   });
@@ -43,7 +43,7 @@ template <typename IdType>
 void NetTable::getAvailableIds(const LogicalTime& time,
                                std::vector<IdType>* ids) {
   CHECK_NOTNULL(ids)->clear();
-  forEachActiveChunk([&](const Chunk& chunk) {
+  forEachActiveChunk([&](const ChunkBase& chunk) {
     std::vector<IdType> chunk_result;
     chunk.constData()->getAvailableIds(time, &chunk_result);
     ids->insert(ids->end(), chunk_result.begin(), chunk_result.end());
@@ -72,11 +72,11 @@ void NetTable::pushNewChunkIdsToTracker() {
 
 template <>
 void NetTable::followTrackedChunksOfItem(const common::Id& item_id,
-                                         Chunk* tracker_chunk);
+                                         ChunkBase* tracker_chunk);
 
 template <typename IdType>
 void NetTable::followTrackedChunksOfItem(const IdType& item_id,
-                                         Chunk* tracker_chunk) {
+                                         ChunkBase* tracker_chunk) {
   common::Id common_id;
   common_id.fromHashId(item_id.toHashId());
   followTrackedChunksOfItem(item_id, tracker_chunk);
