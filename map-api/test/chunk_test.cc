@@ -11,7 +11,7 @@
 namespace map_api {
 
 TEST_F(NetTableFixture, NetInsert) {
-  Chunk* chunk = table_->newChunk();
+  ChunkBase* chunk = table_->newChunk();
   ASSERT_TRUE(chunk);
   insert(42, chunk);
 }
@@ -27,7 +27,7 @@ TEST_F(NetTableFixture, ParticipationRequest) {
   };
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
-    Chunk* chunk = table_->newChunk();
+    ChunkBase* chunk = table_->newChunk();
     ASSERT_TRUE(chunk);
 
     IPC::barrier(INIT, 1);
@@ -58,7 +58,7 @@ TEST_F(NetTableFixture, FullJoinTwice) {
   };
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
-    Chunk* chunk = table_->newChunk();
+    ChunkBase* chunk = table_->newChunk();
     ASSERT_TRUE(chunk);
     insert(42, chunk);
 
@@ -109,7 +109,7 @@ TEST_F(NetTableFixture, RemoteInsert) {
   };
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
-    Chunk* chunk = table_->newChunk();
+    ChunkBase* chunk = table_->newChunk();
     ASSERT_TRUE(chunk);
     IPC::barrier(INIT, 1);
 
@@ -182,7 +182,7 @@ TEST_F(NetTableFixture, RemoteUpdate) {
   ConstRevisionMap results;
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
-    Chunk* chunk = table_->newChunk();
+    ChunkBase* chunk = table_->newChunk();
     ASSERT_TRUE(chunk);
     insert(42, chunk);
     table_->dumpActiveChunksAtCurrentTime(&results);
@@ -232,7 +232,7 @@ TEST_F(NetTableFixture, Grind) {
     for (uint64_t i = 1u; i < kProcesses; ++i) {
       launchSubprocess(i);
     }
-    Chunk* chunk = table_->newChunk();
+    ChunkBase* chunk = table_->newChunk();
     ASSERT_TRUE(chunk);
     IPC::barrier(INIT, kProcesses - 1);
     chunk->requestParticipation();
@@ -244,7 +244,7 @@ TEST_F(NetTableFixture, Grind) {
     IPC::barrier(INIT, kProcesses - 1);
     IPC::barrier(ID_SHARED, kProcesses - 1);
     common::Id chunk_id = IPC::pop<common::Id>();
-    Chunk* chunk = table_->getChunk(chunk_id);
+    ChunkBase* chunk = table_->getChunk(chunk_id);
     for (int i = 0; i < kInsertUpdateCycles; ++i) {
       // insert
       insert(42, chunk);
@@ -274,7 +274,7 @@ TEST_F(NetTableFixture, ChunkTransactions) {
     for (uint64_t i = 1u; i < kProcesses; ++i) {
       launchSubprocess(i, extra_flags_ss.str());
     }
-    Chunk* chunk = table_->newChunk();
+    ChunkBase* chunk = table_->newChunk();
     ASSERT_TRUE(chunk);
     common::Id insert_id = insert(1, chunk);
     IPC::barrier(INIT, kProcesses - 1);
@@ -302,7 +302,7 @@ TEST_F(NetTableFixture, ChunkTransactions) {
     IPC::barrier(IDS_SHARED, kProcesses - 1);
     common::Id chunk_id = IPC::pop<common::Id>();
     common::Id item_id = IPC::pop<common::Id>();
-    Chunk* chunk = table_->getChunk(chunk_id);
+    ChunkBase* chunk = table_->getChunk(chunk_id);
     ASSERT_TRUE(chunk);
     while (true) {
       ChunkTransaction transaction(chunk, table_);
@@ -338,7 +338,7 @@ TEST_F(NetTableFixture, ChunkTransactionsConflictConditions) {
     for (uint64_t i = 1u; i < kProcesses; ++i) {
       launchSubprocess(i);
     }
-    Chunk* chunk = table_->newChunk();
+    ChunkBase* chunk = table_->newChunk();
     ASSERT_TRUE(chunk);
     IPC::barrier(INIT, kProcesses - 1);
 
@@ -365,7 +365,7 @@ TEST_F(NetTableFixture, ChunkTransactionsConflictConditions) {
     IPC::barrier(INIT, kProcesses - 1);
     IPC::barrier(ID_SHARED, kProcesses - 1);
     common::Id chunk_id = IPC::pop<common::Id>();
-    Chunk* chunk = table_->getChunk(chunk_id);
+    ChunkBase* chunk = table_->getChunk(chunk_id);
     ASSERT_TRUE(chunk);
     for (int i = 0; i < kUniqueItems; ++i) {
       ChunkTransaction transaction(chunk, table_);

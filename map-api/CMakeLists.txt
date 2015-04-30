@@ -27,16 +27,18 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 SET(CORE_SOURCE  src/internal/trackee-multimap.cc
                  src/cache-base.cc
                  src/chord-index.cc
-                 src/chunk.cc
+                 src/chunk-base.cc
                  src/chunk-data-container-base.cc
-                 src/chunk-data-ram-container.cc
-                 src/chunk-data-stxxl-container.cc
                  src/chunk-manager.cc
                  src/chunk-transaction.cc
                  src/core.cc
                  src/file-discovery.cc
                  src/hub.cc
                  src/ipc.cc
+                 src/legacy-chunk.cc
+                 src/legacy-chunk-data-container-base.cc
+                 src/legacy-chunk-data-ram-container.cc
+                 src/legacy-chunk-data-stxxl-container.cc
                  src/logical-time.cc
                  src/message.cc
                  src/net-table.cc
