@@ -52,8 +52,11 @@
 #include "./raft.pb.h"
 #include "map-api/peer-id.h"
 #include "map-api/reader-writer-lock.h"
+#include "map-api/legacy-chunk-data-container-base.h"
+#include "map-api/raft-chunk-data-ram-container.h"
 
 namespace map_api {
+// class RaftChunkDataRamContainer;
 class Message;
 class RaftChunk;
 
@@ -263,11 +266,14 @@ class RaftNode {
 
   // In Follower state, only handleAppendRequest writes to log_entries.
   // In Leader state, only appendLogEntry writes to log entries.
-  std::vector<std::shared_ptr<proto::RaftRevision>> log_entries_;
+  // std::vector<std::shared_ptr<proto::RaftRevision>> log_entries_;
+  RaftChunkDataRamContainer::RaftLog log_entries_;
+
   std::condition_variable new_entries_signal_;
   ReaderWriterMutex log_mutex_;
-  typedef std::vector<std::shared_ptr<proto::RaftRevision>>::iterator
-      LogIterator;
+  // typedef std::vector<std::shared_ptr<proto::RaftRevision>>::iterator
+  //  LogIterator;
+  typedef RaftChunkDataRamContainer::RaftLog::iterator LogIterator;
 
   // Assumes at least read lock is acquired for log_mutex_.
   LogIterator getLogIteratorByIndex(uint64_t index);
@@ -299,6 +305,7 @@ class RaftNode {
   // Owner chunk information.
   // ========================
 
+  // std::unique_ptr<RaftChunkDataRamContainer>* raft_data_container_;
   // Todo(aqurai): Refactor this.
   std::string table_name_;
   common::Id chunk_id_;
