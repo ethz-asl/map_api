@@ -10,7 +10,7 @@
 #include "./net-table.pb.h"
 
 namespace map_api {
-class Chunk;
+class ChunkBase;
 class NetTable;
 class Revision;
 
@@ -22,7 +22,7 @@ class ChunkManagerBase {
   virtual ~ChunkManagerBase() {}
 
   // Returns the chunk in which the given item can be placed.
-  virtual Chunk* getChunkForItem(const Revision& revision) = 0;
+  virtual ChunkBase* getChunkForItem(const Revision& revision) = 0;
 
   inline map_api::NetTable* getUnderlyingTable() {
     return underlying_table_;
@@ -33,7 +33,7 @@ class ChunkManagerBase {
   inline void getChunkIds(std::set<common::Id>* chunk_ids) const {
     CHECK_NOTNULL(chunk_ids);
     chunk_ids->clear();
-    for (const std::pair<const common::Id, Chunk*>& pair : active_chunks_) {
+    for (const std::pair<const common::Id, ChunkBase*>& pair : active_chunks_) {
       chunk_ids->emplace(pair.first);
     }
   }
@@ -41,14 +41,14 @@ class ChunkManagerBase {
     CHECK_NOTNULL(chunk_ids);
     chunk_ids->clear();
     chunk_ids->rehash(active_chunks_.size());
-    for (const std::pair<const common::Id, Chunk*>& pair : active_chunks_) {
+    for (const std::pair<const common::Id, ChunkBase*>& pair : active_chunks_) {
       chunk_ids->emplace(pair.first);
     }
   }
   inline void getChunkIds(proto::ChunkIdList* chunk_id_list) const {
     CHECK_NOTNULL(chunk_id_list);
     chunk_id_list->clear_chunk_ids();
-    for (const std::pair<const common::Id, Chunk*>& pair : active_chunks_) {
+    for (const std::pair<const common::Id, ChunkBase*>& pair : active_chunks_) {
       pair.first.serialize(chunk_id_list->add_chunk_ids());
     }
   }
@@ -57,10 +57,10 @@ class ChunkManagerBase {
 
  protected:
   map_api::NetTable* underlying_table_;
-  std::unordered_map<common::Id, Chunk*> active_chunks_;
+  std::unordered_map<common::Id, ChunkBase*> active_chunks_;
 };
 
-static constexpr int kDefaultChunkSizeBytes = 2 * 1024 * 1024;
+static constexpr int kDefaultChunkSizeBytes = 10 * 1024 * 1024;
 // A Chunk manager that splits chunks based on their size.
 class ChunkManagerChunkSize : public ChunkManagerBase {
  public:
@@ -72,11 +72,11 @@ class ChunkManagerChunkSize : public ChunkManagerBase {
         current_chunk_size_bytes_(0) {}
   ~ChunkManagerChunkSize() {}
 
-  virtual Chunk* getChunkForItem(const Revision& revision);
+  virtual ChunkBase* getChunkForItem(const Revision& revision);
 
  private:
   int max_chunk_size_bytes_;
-  Chunk* current_chunk_;
+  ChunkBase* current_chunk_;
   int current_chunk_size_bytes_;
 };
 

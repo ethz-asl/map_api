@@ -1,3 +1,4 @@
+#include <map-api/legacy-chunk.h>
 #include "map-api/transaction.h"
 
 #include <algorithm>
@@ -6,7 +7,6 @@
 #include <timing/timer.h>
 
 #include "map-api/cache-base.h"
-#include "map-api/chunk.h"
 #include "map-api/chunk-manager.h"
 #include "map-api/net-table.h"
 #include "map-api/net-table-manager.h"
@@ -36,7 +36,7 @@ Transaction::Transaction(const std::shared_ptr<Workspace>& workspace)
 Transaction::Transaction(const LogicalTime& begin_time)
     : Transaction(std::shared_ptr<Workspace>(new Workspace), begin_time) {}
 
-void Transaction::dumpChunk(NetTable* table, Chunk* chunk,
+void Transaction::dumpChunk(NetTable* table, ChunkBase* chunk,
                             ConstRevisionMap* result) {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(chunk);
@@ -58,8 +58,8 @@ void Transaction::dumpActiveChunks(NetTable* table, ConstRevisionMap* result) {
   }
 }
 
-void Transaction::insert(
-    NetTable* table, Chunk* chunk, std::shared_ptr<Revision> revision) {
+void Transaction::insert(NetTable* table, ChunkBase* chunk,
+                         std::shared_ptr<Revision> revision) {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(chunk);
   transactionOf(table)->insert(chunk, revision);
@@ -71,7 +71,7 @@ void Transaction::insert(ChunkManagerBase* chunk_manager,
   CHECK(revision != nullptr);
   NetTable* table = chunk_manager->getUnderlyingTable();
   CHECK_NOTNULL(table);
-  Chunk* chunk = chunk_manager->getChunkForItem(*revision);
+  ChunkBase* chunk = chunk_manager->getChunkForItem(*revision);
   CHECK_NOTNULL(chunk);
   insert(table, chunk, revision);
 }
