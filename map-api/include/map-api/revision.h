@@ -23,8 +23,9 @@ class ProtoAutoSerializationWorks;
 }  // gtest_case_ProtoSTLStream_
 
 class Revision {
-  friend class Chunk;
+  friend class LegacyChunk;
   friend class ChunkDataContainerBase;
+  friend class LegacyChunkDataContainerBase;
   template<int BlockSize>
   friend class STXXLRevisionStore;
   friend class TrackeeMultimap;

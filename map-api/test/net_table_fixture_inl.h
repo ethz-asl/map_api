@@ -28,7 +28,7 @@ size_t NetTableFixture::count() {
   return results.size();
 }
 
-void NetTableFixture::increment(const common::Id& id, Chunk* chunk,
+void NetTableFixture::increment(const common::Id& id, ChunkBase* chunk,
                                 NetTableTransaction* transaction) {
   CHECK_NOTNULL(chunk);
   CHECK_NOTNULL(transaction);
@@ -44,7 +44,7 @@ void NetTableFixture::increment(const common::Id& id, Chunk* chunk,
 }
 
 void NetTableFixture::increment(NetTable* table, const common::Id& id,
-                                Chunk* chunk, Transaction* transaction) {
+                                ChunkBase* chunk, Transaction* transaction) {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(chunk);
   CHECK_NOTNULL(transaction);
@@ -59,7 +59,7 @@ void NetTableFixture::increment(NetTable* table, const common::Id& id,
   transaction->update(table, to_update);
 }
 
-common::Id NetTableFixture::insert(int n, Chunk* chunk) {
+common::Id NetTableFixture::insert(int n, ChunkBase* chunk) {
   common::Id insert_id;
   generateId(&insert_id);
   std::shared_ptr<Revision> to_insert = table_->getTemplate();

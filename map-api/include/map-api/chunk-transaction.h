@@ -14,7 +14,7 @@
 #include "map-api/revision-map.h"
 
 namespace map_api {
-class Chunk;
+class ChunkBase;
 
 /**
  * This class is somewhat weaker than the first transaction draft
@@ -30,8 +30,8 @@ class ChunkTransaction {
   FRIEND_TEST(NetTableFixture, ChunkTransactionsConflictConditions);
 
  private:
-  ChunkTransaction(Chunk* chunk, NetTable* table);
-  ChunkTransaction(const LogicalTime& begin_time, Chunk* chunk,
+  ChunkTransaction(ChunkBase* chunk, NetTable* table);
+  ChunkTransaction(const LogicalTime& begin_time, ChunkBase* chunk,
                    NetTable* table);
 
   // READ
@@ -93,7 +93,7 @@ class ChunkTransaction {
   RemoveMap removes_;
   ConflictVector conflict_conditions_;
   LogicalTime begin_time_;
-  Chunk* chunk_;
+  ChunkBase* chunk_;
   NetTable* table_;
   std::shared_ptr<const Revision> structure_reference_;
 };
