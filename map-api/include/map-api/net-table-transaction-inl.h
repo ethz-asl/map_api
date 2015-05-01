@@ -104,7 +104,7 @@ void NetTableTransaction::overrideTrackerIdentificationMethod(
         how_to_determine_tracker) {
   CHECK_NOTNULL(tracker_table);
   CHECK(how_to_determine_tracker);
-  CHECK_GT(table_->new_chunk_trackers().count(tracker_table), 0)
+  CHECK_GT(table_->new_chunk_trackers().count(tracker_table), 0u)
       << "Attempted to override a tracker identification method which is "
       << "however not used for pushing new chunk ids.";
   auto determine_map_api_tracker_id = [how_to_determine_tracker](
