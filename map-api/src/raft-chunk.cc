@@ -53,17 +53,7 @@ bool RaftChunk::init(const common::Id& id,
   VLOG(1) << " INIT chunk at peer " << PeerId::self() << " in table "
           << raft_node_.table_name_;
 
-  raft_node_.peer_list_.clear();
-  raft_node_.log_entries_.clear();
-  for (int i = 0; i < init_request.peer_address_size(); ++i) {
-    raft_node_.peer_list_.insert(PeerId(init_request.peer_address(i)));
-  }
-  raft_node_.num_peers_ = raft_node_.peer_list_.size();
-  for (int i = 0; i < init_request.serialized_items_size(); ++i) {
-    std::shared_ptr<proto::RaftRevision> revision(new proto::RaftRevision);
-    revision->ParseFromString(init_request.serialized_items(i));
-    raft_node_.log_entries_.push_back(revision);
-  }
+  raft_node_.initChunkData(init_request);
   setStateFollowerAndStartRaft();
   return true;
 }

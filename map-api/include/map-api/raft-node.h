@@ -257,6 +257,8 @@ class RaftNode {
   // =====================
   // Log entries/revisions
   // =====================
+  RaftChunkDataRamContainer* data_;
+  void initChunkData(const proto::InitRequest& init_request);
 
   // Index will always be sequential, unique.
   // Leader will overwrite follower logs where index+term doesn't match.
@@ -266,17 +268,9 @@ class RaftNode {
 
   // In Follower state, only handleAppendRequest writes to log_entries.
   // In Leader state, only appendLogEntry writes to log entries.
-  // std::vector<std::shared_ptr<proto::RaftRevision>> log_entries_;
-  RaftChunkDataRamContainer::RaftLog log_entries_;
 
   std::condition_variable new_entries_signal_;
-  ReaderWriterMutex log_mutex_;
-  // typedef std::vector<std::shared_ptr<proto::RaftRevision>>::iterator
-  //  LogIterator;
   typedef RaftChunkDataRamContainer::RaftLog::iterator LogIterator;
-
-  // Assumes at least read lock is acquired for log_mutex_.
-  LogIterator getLogIteratorByIndex(uint64_t index);
 
   // Expects write lock for log_mutex to be acquired.
   uint64_t leaderAddEntryToLog(uint32_t entry, uint32_t current_term,
