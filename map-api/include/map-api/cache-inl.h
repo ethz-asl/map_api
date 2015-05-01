@@ -28,7 +28,7 @@ template <typename IdType, typename Value, typename DerivedValue>
 Cache<IdType, Value, DerivedValue>::~Cache() {}
 
 template <typename IdType, typename Value, typename DerivedValue>
-Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) {
+Value& Cache<IdType, Value, DerivedValue>::getMutable(const IdType& id) {
   LockGuard lock(mutex_);
   typename CacheMap::iterator found = this->cache_.find(id);
   if (found == this->cache_.end()) {
@@ -49,7 +49,8 @@ Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) {
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
-const Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) const {
+typename Cache<IdType, Value, DerivedValue>::ConstRefReturnType
+Cache<IdType, Value, DerivedValue>::get(const IdType& id) const {
   LockGuard lock(mutex_);
   typename CacheMap::iterator found = this->cache_.find(id);
   if (found == this->cache_.end()) {
