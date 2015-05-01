@@ -15,8 +15,26 @@ class ReaderWriterMutex;
 class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   virtual ~RaftChunkDataRamContainer();
 
+ public:
+  // Check before commit. There are no checked commits here.
+  //
+
  private:
   friend class RaftNode;
+
+  // READ OPERATIONS INHERITED FROM PARENT
+  virtual bool initImpl();
+  virtual std::shared_ptr<const Revision> getByIdImpl(
+      const common::Id& id, const LogicalTime& time) const;
+  // If key is -1, this should return all the data in the table.
+  virtual void findByRevisionImpl(int key, const Revision& valueHolder,
+                                  const LogicalTime& time,
+                                  ConstRevisionMap* dest) const;
+  virtual void getAvailableIdsImpl(const LogicalTime& time,
+                                   std::vector<common::Id>* ids) const;
+  // If key is -1, this should return all the data in the table.
+  virtual int countByRevisionImpl(int key, const Revision& valueHolder,
+                                  const LogicalTime& time) const;
 
   // =================
   // HISTORY CONTAINER
@@ -34,41 +52,11 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   typedef std::unordered_map<common::Id, History> HistoryMap;
   HistoryMap data_;
 
-  // READ OPERATIONS INHERITED FROM PARENT
-  virtual bool initImpl();
-  virtual std::shared_ptr<const Revision> getByIdImpl(
-      const common::Id& id, const LogicalTime& time) const;
-  // If key is -1, this should return all the data in the table.
-  virtual void findByRevisionImpl(int key, const Revision& valueHolder,
-                                  const LogicalTime& time,
-                                  ConstRevisionMap* dest) const;
-  virtual void getAvailableIdsImpl(const LogicalTime& time,
-                                   std::vector<common::Id>* ids) const;
-  // If key is -1, this should return all the data in the table.
-  virtual int countByRevisionImpl(int key, const Revision& valueHolder,
-                                  const LogicalTime& time) const;
+  // Read access
+  // Access to revisions etc
 
-  // READ
-  /*template <typename IdType>
-  void itemHistory(const IdType& id, const LogicalTime& time,
-                   History* dest) const;
-
-  template <typename ValueType>
-  void findHistory(int key, const ValueType& value, const LogicalTime& time,
-                   HistoryMap* dest) const;
-  virtual void findHistoryByRevision(int key, const Revision& valueHolder,
-                                     const LogicalTime& time,
-                                     HistoryMap* dest) const final;
-
-  // WRITE - Should only be accessed from the raft log.
-  void update(const LogicalTime& time, const std::shared_ptr<Revision>& query);
-
-  void remove(const LogicalTime& time, const std::shared_ptr<Revision>& query);
-  // avoid if possible - this is slower
-  template <typename IdType>
-  void remove(const LogicalTime& time, const IdType& id);
-  void clear();*/
-
+  // Write accfess
+  // only from raft log. insert and update
   // ========
   // RAFT-LOG
   // ========
