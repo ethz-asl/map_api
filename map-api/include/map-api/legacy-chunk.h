@@ -10,13 +10,13 @@
 #include <vector>
 
 #include <multiagent-mapping-common/condition.h>
+#include <multiagent-mapping-common/reader-writer-lock.h>
 #include <multiagent-mapping-common/unique-id.h>
 
 #include "map-api/chunk-base.h"
 #include "map-api/chunk-data-container-base.h"
 #include "map-api/logical-time.h"
 #include "map-api/peer-handler.h"
-#include "map-api/reader-writer-lock.h"
 #include "./chunk.pb.h"
 
 namespace map_api {
@@ -228,7 +228,7 @@ class LegacyChunk : public ChunkBase {
   PeerHandler peers_;
   mutable DistributedRWLock lock_;
   mutable std::mutex add_peer_mutex_;
-  ReaderWriterMutex leave_lock_;
+  common::ReaderWriterMutex leave_lock_;
   common::Condition initialized_;
   volatile bool relinquished_ = false;
   bool log_locking_ = false;

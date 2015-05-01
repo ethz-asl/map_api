@@ -49,7 +49,7 @@ size_t ChunkBase::attachTrigger(const TriggerCallback& callback) {
 }
 
 void ChunkBase::waitForTriggerCompletion() {
-  ScopedWriteLock lock(&triggers_are_active_while_has_readers_);
+  common::ScopedWriteLock lock(&triggers_are_active_while_has_readers_);
 }
 
 void ChunkBase::handleCommitInsert(const common::Id& inserted_id) {

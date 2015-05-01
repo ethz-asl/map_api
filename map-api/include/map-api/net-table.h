@@ -8,12 +8,12 @@
 #include <vector>
 
 #include <gtest/gtest_prod.h>
+#include <multiagent-mapping-common/reader-writer-lock.h>
 
 #include "map-api/chunk-data-container-base.h"
 #include "map-api/app-templates.h"
 #include "map-api/chunk-base.h"
 #include "map-api/net-table-index.h"
-#include "map-api/reader-writer-lock.h"
 #include "map-api/spatial-index.h"
 #include "./chunk.pb.h"
 
@@ -267,12 +267,12 @@ class NetTable {
 
   std::shared_ptr<TableDescriptor> descriptor_;
   ChunkMap active_chunks_;
-  mutable ReaderWriterMutex active_chunks_lock_;
+  mutable common::ReaderWriterMutex active_chunks_lock_;
 
   // DO NOT USE FROM HANDLER THREAD (else TODO(tcies) mutex)
   std::unique_ptr<NetTableIndex> index_;
   std::unique_ptr<SpatialIndex> spatial_index_;
-  ReaderWriterMutex index_lock_;
+  common::ReaderWriterMutex index_lock_;
 
   std::vector<TriggerCallbackWithChunkPointer>
       triggers_to_attach_to_future_chunks_;
