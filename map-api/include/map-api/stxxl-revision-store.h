@@ -73,8 +73,8 @@ class STXXLRevisionStore {
   }
 
  private:
-  template<typename ValueType, unsigned PageSize = 2, unsigned CachePages = 4,
-      unsigned BlockSizeStxxl = 1024 * 1024,
+  template<typename ValueType, unsigned PageSize = 1, unsigned CachePages = 1,
+      unsigned BlockSizeStxxl = 512 * 1024,
       typename AllocStr = STXXL_DEFAULT_ALLOC_STRATEGY,
       stxxl::pager_type Pager = stxxl::lru>
   struct VectorGenerator {
