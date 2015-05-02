@@ -120,7 +120,7 @@ class ChunkBase {
 
   std::vector<TriggerCallback> triggers_;
   mutable std::mutex trigger_mutex_;
-  mutable ReaderWriterMutex triggers_are_active_while_has_readers_;
+  mutable common::ReaderWriterMutex triggers_are_active_while_has_readers_;
   std::unordered_set<common::Id> trigger_insertions_, trigger_updates_;
 };
 
