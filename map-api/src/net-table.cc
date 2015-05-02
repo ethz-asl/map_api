@@ -735,17 +735,6 @@ void NetTable::handleRaftAppendRequest(const common::Id& chunk_id,
     chunk->handleRaftAppendRequest(request, sender, response);
   }
   active_chunks_lock_.releaseReadLock();
-
-  /*if (found == active_chunks_.end()) {
-    // First time append request for a chunk is in response to a connect
-    // request.
-    std::unique_ptr<RaftChunk> chunk =
-        std::unique_ptr<RaftChunk>(new RaftChunk);
-    CHECK(chunk->init(chunk_id, descriptor_));
-    chunk->handleRaftAppendRequest(request, sender, response);
-    addInitializedChunk(std::move(chunk));
-    std::thread(&NetTable::joinChunkHolders, this, chunk_id).detach();
-  }*/
 }
 
 void NetTable::handleRaftInsertRequest(const common::Id& chunk_id,
