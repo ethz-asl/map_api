@@ -2,7 +2,6 @@
 
 #include <sstream>  // NOLINT
 
-#include "map-api/chunk.h"
 #include "map-api/net-table.h"
 
 namespace map_api {
@@ -87,7 +86,7 @@ bool Workspace::TableInterface::contains(const common::Id& chunk_id) const {
 }
 
 void Workspace::TableInterface::forEachChunk(
-    const std::function<void(const Chunk& chunk)>& action) const {
+    const std::function<void(const ChunkBase& chunk)>& action) const {
   // Check if table is blacklisted.
   if (!workspace_.contains(table_)) {
     return;
@@ -100,14 +99,14 @@ void Workspace::TableInterface::forEachChunk(
   bool black_found = black_submap != workspace_.chunk_blacklist_.end();
   bool white_found = white_submap != workspace_.chunk_whitelist_.end();
 
-  std::function<void(const Chunk & chunk)> chunk_functional;
+  std::function<void(const ChunkBase & chunk)> chunk_functional;
   // Use a faster functional if the blacklist is empty.
   if (!black_found || black_submap->second.empty()) {
-    chunk_functional = [action](const Chunk& chunk) {
+    chunk_functional = [action](const ChunkBase& chunk) {
       action(chunk);
     };      // NOLINT
   } else {  // Otherwise we need to filter using the blacklist.
-    chunk_functional = [&, this](const Chunk& chunk) {
+    chunk_functional = [&, this](const ChunkBase& chunk) {
       if (black_submap->second.find(chunk.id()) == black_submap->second.end()) {
         action(chunk);
       }

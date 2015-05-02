@@ -9,9 +9,9 @@
 #include <unordered_map>
 
 #include <gtest/gtest_prod.h>
+#include <multiagent-mapping-common/reader-writer-lock.h>
 
 #include "map-api/peer-id.h"
-#include "map-api/reader-writer-lock.h"
 
 namespace map_api {
 
@@ -207,7 +207,7 @@ class ChordIndex {
   SuccessorListItem successor_;
   std::shared_ptr<ChordPeer> predecessor_;
 
-  ReaderWriterMutex peer_lock_;
+  common::ReaderWriterMutex peer_lock_;
 
   FRIEND_TEST(ChordIndexTestInitialized, onePeerJoin);
   friend class ChordIndexTestInitialized;
@@ -230,7 +230,7 @@ class ChordIndex {
 
   // TODO(tcies) data stats: Has it already been requested?
   DataMap data_;
-  ReaderWriterMutex data_lock_;
+  common::ReaderWriterMutex data_lock_;
 
   std::mutex node_lock_;
   bool node_locked_ = false;

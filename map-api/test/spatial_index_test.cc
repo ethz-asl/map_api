@@ -130,7 +130,7 @@ class SpatialIndexTest : public MapApiFixture {
   }
 
   NetTable* table_;
-  Chunk* chunk_a_, *chunk_b_, *chunk_c_, *chunk_d_;
+  ChunkBase* chunk_a_, *chunk_b_, *chunk_c_, *chunk_d_;
   common::Id chunk_a_id_, chunk_b_id_, chunk_c_id_, chunk_d_id_;
   std::unordered_set<common::Id> expected_a_, expected_b_, expected_c_,
       expected_d_;
@@ -227,7 +227,7 @@ class SpatialIndexRegisterSeekTest : public SpatialIndexTwoPeerTest {
   }
 
   virtual void afterSlaveTask() {
-    std::unordered_set<Chunk*> result;
+    std::unordered_set<ChunkBase*> result;
     table_->getChunksInBoundingBox(box(kABox), &result);
     EXPECT_TRUE(checkExpectedActive(expected_a_));
     table_->leaveAllChunks();
