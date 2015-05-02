@@ -573,9 +573,9 @@ void NetTable::handleConnectRequest(const common::Id& chunk_id,
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
   if (routingBasics(chunk_id, response, &found)) {
-      LegacyChunk* chunk = CHECK_NOTNULL(
-          dynamic_cast<LegacyChunk*>(found->second.get()));  // NOLINT
-      chunk->handleConnectRequest(peer, response);
+    LegacyChunk* chunk = CHECK_NOTNULL(
+        dynamic_cast<LegacyChunk*>(found->second.get()));  // NOLINT
+    chunk->handleConnectRequest(peer, response);
   }
   active_chunks_lock_.releaseReadLock();
 }

@@ -40,7 +40,6 @@
 #include <condition_variable>
 #include <mutex>
 #include <set>
-#include <string>
 #include <thread>
 #include <unordered_map>
 #include <utility>
@@ -136,7 +135,7 @@ class RaftNode {
   // RPCs for heartbeat, leader election, log replication
   // ====================================================
   bool sendAppendEntries(const PeerId& peer,
-                         proto::AppendEntriesRequest& append_entries,
+                         proto::AppendEntriesRequest* append_entries,
                          proto::AppendEntriesResponse* append_response);
   enum class VoteResponse {
     VOTE_GRANTED,

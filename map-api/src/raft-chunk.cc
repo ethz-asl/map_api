@@ -14,10 +14,11 @@ namespace map_api {
 
 RaftChunk::~RaftChunk() {}
 
-bool RaftChunk::init(const common::Id& id, std::shared_ptr<TableDescriptor> descriptor,
-            bool initialize) {
+bool RaftChunk::init(const common::Id& id,
+                     std::shared_ptr<TableDescriptor> descriptor,
+                     bool initialize) {
   id_ = id;
-  // TODO(aqurai): init data container.
+  // TODO(aqurai): init new data container here.
   data_container_.reset(new LegacyChunkDataRamContainer);
   CHECK(data_container_->init(descriptor));
   initialized_ = true;
@@ -137,8 +138,5 @@ void RaftChunk::handleRaftNotifyJoinQuitSuccess(
     const proto::NotifyJoinQuitSuccess& request, Message* response) {
   raft_node_.handleNotifyJoinQuitSuccess(request, response);
 }
-
-
-
 
 }  // namespace map_api

@@ -22,9 +22,8 @@ constexpr int kJoinResponseTimeoutMs = 1000;
 // Maximum number of yet-to-be-committed entries allowed in the log.
 constexpr int kMaxLogQueueLength = 50;
 
-// Defined message strings again for raft chunk.
-// TODO(aqurai): Some will have to be removed once RaftChunk Implementation
-// is complete.
+// TODO(aqurai): Defined new message strings for raft chunk. Some will have to 
+// removed once the raft chunk implementation is complete.
 const char RaftNode::kAppendEntries[] = "raft_node_append_entries";
 const char RaftNode::kAppendEntriesResponse[] = "raft_node_append_response";
 const char RaftNode::kInsertRequest[] = "raft_node_insert_request";
@@ -55,7 +54,6 @@ MAP_API_PROTO_MESSAGE(RaftNode::kQueryStateResponse, proto::QueryStateResponse);
 MAP_API_PROTO_MESSAGE(RaftNode::kConnectRequest, proto::ChunkRequestMetadata);
 MAP_API_PROTO_MESSAGE(RaftNode::kConnectResponse, proto::ConnectResponse);
 MAP_API_PROTO_MESSAGE(RaftNode::kInitRequest, proto::InitRequest);
-
 
 const PeerId kInvalidId = PeerId();
 
@@ -331,8 +329,8 @@ void RaftNode::handleJoinQuitRequest(
       TrackerMap::iterator it = follower_tracker_map_.find(sender);
       it->second->status = PeerStatus::JOINING;
     }
-    uint64_t entry_index =
-        leaderAddEntryToLog(0, current_term_, sender, join_quit_request.type());
+    uint64_t entry_index = leaderAddEntryToLog(
+        0, current_term_, sender, join_quit_request.type());
     if (entry_index > 0) {
       join_quit_response.set_response(true);
       if (join_quit_request.type() == proto::PeerRequestType::ADD_PEER) {
@@ -377,11 +375,11 @@ void RaftNode::handleQueryState(const proto::QueryState& request,
 }
 
 bool RaftNode::sendAppendEntries(
-    const PeerId& peer, proto::AppendEntriesRequest& append_entries,
+    const PeerId& peer, proto::AppendEntriesRequest* append_entries,
     proto::AppendEntriesResponse* append_response) {
   Message request, response;
-  fillMetadata(&append_entries);
-  request.impose<kAppendEntries>(append_entries);
+  fillMetadata(append_entries);
+  request.impose<kAppendEntries>(*append_entries);
   if (Hub::instance().try_request(peer, &request, &response)) {
     response.extract<kAppendEntriesResponse>(append_response);
     return true;
@@ -813,7 +811,7 @@ void RaftNode::followerTrackerThread(
       }
       log_mutex_.releaseReadLock();
 
-      if (!sendAppendEntries(peer, append_entries, &append_response)) {
+      if (!sendAppendEntries(peer, &append_entries, &append_response)) {
         if (this_tracker->status == PeerStatus::AVAILABLE) {
           this_tracker->status = PeerStatus::OFFLINE;
           VLOG(1) << PeerId::self() << ": Failed sendAppendEntries to " << peer;
