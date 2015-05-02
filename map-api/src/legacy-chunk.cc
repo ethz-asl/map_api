@@ -8,8 +8,8 @@
 
 #include "./core.pb.h"
 #include "./chunk.pb.h"
-#include "map-api/chunk-data-ram-container.h"
-#include "map-api/chunk-data-stxxl-container.h"
+#include "../include/map-api/legacy-chunk-data-ram-container.h"
+#include "../include/map-api/legacy-chunk-data-stxxl-container.h"
 #include "map-api/hub.h"
 #include "map-api/message.h"
 #include "map-api/net-table-manager.h"
@@ -68,9 +68,9 @@ bool LegacyChunk::init(const common::Id& id,
   CHECK(descriptor);
   id_ = id;
   if (FLAGS_use_external_memory) {
-    data_container_.reset(new ChunkDataStxxlContainer);
+    data_container_.reset(new LegacyChunkDataStxxlContainer);
   } else {
-    data_container_.reset(new ChunkDataRamContainer);
+    data_container_.reset(new LegacyChunkDataRamContainer);
   }
   CHECK(data_container_->init(descriptor));
   if (initialize) {
@@ -104,7 +104,8 @@ bool LegacyChunk::init(const common::Id& id,
       std::shared_ptr<Revision> data =
           Revision::fromProto(std::unique_ptr<proto::Revision>(
               history_proto.mutable_revisions()->ReleaseLast()));
-      CHECK(data_container_->patch(data));
+      CHECK(static_cast<LegacyChunkDataContainerBase*>(data_container_.get())
+                ->patch(data));
       // TODO(tcies) guarantee order, then only sync latest time
       syncLatestCommitTime(*data);
     }
@@ -159,11 +160,12 @@ void LegacyChunk::getCommitTimes(const LogicalTime& sample_time,
   //  so this should be worth it.
   std::unordered_set<LogicalTime> unordered_commit_times;
   ConstRevisionMap items;
-  ChunkDataContainerBase::HistoryMap histories;
+  LegacyChunkDataContainerBase::HistoryMap histories;
   distributedReadLock();
-  data_container_->chunkHistory(id(), sample_time, &histories);
+  static_cast<LegacyChunkDataContainerBase*>(data_container_.get())
+      ->chunkHistory(id(), sample_time, &histories);
   distributedUnlock();
-  for (const ChunkDataContainerBase::HistoryMap::value_type& history :
+  for (const LegacyChunkDataContainerBase::HistoryMap::value_type& history :
        histories) {
     for (const std::shared_ptr<const Revision>& revision : history.second) {
       unordered_commit_times.insert(revision->getUpdateTime());
@@ -181,7 +183,8 @@ bool LegacyChunk::insert(const LogicalTime& time,
   fillMetadata(&insert_request);
   Message request;
   distributedReadLock();  // avoid adding of new peers while inserting
-  data_container_->insert(time, item);
+  static_cast<LegacyChunkDataContainerBase*>(data_container_.get())
+      ->insert(time, item);
   // at this point, insert() has modified the revision such that all default
   // fields are also set, which allows remote peers to just patch the revision
   // into their table.
@@ -214,7 +217,7 @@ void LegacyChunk::leaveImpl() {
   // this must happen after acquring the write lock to avoid deadlocks, should
   // two peers try to leave at the same time.
   {
-    ScopedWriteLock lock(&leave_lock_);
+    common::ScopedWriteLock lock(&leave_lock_);
     CHECK(peers_.undisputableBroadcast(&request));
     relinquished_ = true;
   }
@@ -275,7 +278,8 @@ void LegacyChunk::update(const std::shared_ptr<Revision>& item) {
   fillMetadata(&update_request);
   Message request;
   distributedWriteLock();  // avoid adding of new peers while inserting
-  data_container_->update(LogicalTime::sample(), item);
+  static_cast<LegacyChunkDataContainerBase*>(data_container_.get())
+      ->update(LogicalTime::sample(), item);
   // at this point, update() has modified the revision such that all default
   // fields are also set, which allows remote peers to just patch the revision
   // into their table.
@@ -305,7 +309,8 @@ void LegacyChunk::bulkInsertLocked(const MutableRevisionMap& items,
     ++i;
   }
   Message request;
-  data_container_->bulkInsert(time, items);
+  static_cast<LegacyChunkDataContainerBase*>(data_container_.get())
+      ->bulkInsert(time, items);
   // at this point, insert() has modified the revisions such that all default
   // fields are also set, which allows remote peers to just patch the revision
   // into their table.
@@ -327,7 +332,8 @@ void LegacyChunk::updateLocked(const LogicalTime& time,
   proto::PatchRequest update_request;
   fillMetadata(&update_request);
   Message request;
-  data_container_->update(time, item);
+  static_cast<LegacyChunkDataContainerBase*>(data_container_.get())
+      ->update(time, item);
   // at this point, update() has modified the revision such that all default
   // fields are also set, which allows remote peers to just patch the revision
   // into their table.
@@ -343,7 +349,8 @@ void LegacyChunk::removeLocked(const LogicalTime& time,
   proto::PatchRequest remove_request;
   fillMetadata(&remove_request);
   Message request;
-  data_container_->remove(time, item);
+  static_cast<LegacyChunkDataContainerBase*>(data_container_.get())
+      ->remove(time, item);
   // at this point, update() has modified the revision such that all default
   // fields are also set, which allows remote peers to just patch the revision
   // into their table.
@@ -656,9 +663,11 @@ bool LegacyChunk::isWriter(const PeerId& peer) const {
 
 void LegacyChunk::initRequestSetData(proto::InitRequest* request) {
   CHECK_NOTNULL(request);
-  ChunkDataContainerBase::HistoryMap data;
-  data_container_->chunkHistory(id(), LogicalTime::sample(), &data);
-  for (const ChunkDataContainerBase::HistoryMap::value_type& data_pair : data) {
+  LegacyChunkDataContainerBase::HistoryMap data;
+  static_cast<LegacyChunkDataContainerBase*>(data_container_.get())
+      ->chunkHistory(id(), LogicalTime::sample(), &data);
+  for (const LegacyChunkDataContainerBase::HistoryMap::value_type& data_pair :
+       data) {
     proto::History history_proto;
     for (const std::shared_ptr<const Revision>& revision : data_pair.second) {
       history_proto.mutable_revisions()->AddAllocated(
@@ -755,7 +764,8 @@ void LegacyChunk::handleInsertRequest(const std::shared_ptr<Revision>& item,
     std::lock_guard<std::mutex> metalock(lock_.mutex);
     CHECK(!isWriter(PeerId::self()));
   }
-  data_container_->patch(item);
+  static_cast<LegacyChunkDataContainerBase*>(data_container_.get())
+      ->patch(item);
   syncLatestCommitTime(*item);
   response->ack();
   leave_lock_.releaseReadLock();
@@ -877,7 +887,8 @@ void LegacyChunk::handleUpdateRequest(const std::shared_ptr<Revision>& item,
     std::lock_guard<std::mutex> metalock(lock_.mutex);
     CHECK(isWriter(sender));
   }
-  data_container_->patch(item);
+  static_cast<LegacyChunkDataContainerBase*>(data_container_.get())
+      ->patch(item);
   syncLatestCommitTime(*item);
   response->ack();
 

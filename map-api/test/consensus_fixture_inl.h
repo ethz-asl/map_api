@@ -73,7 +73,7 @@ void ConsensusFixture::appendEntriesForMs(uint16_t duration_ms,
   uint16_t total_duration_ms = 0;
   while (total_duration_ms < duration_ms) {
     TimePoint now = std::chrono::system_clock::now();
-    uint16_t append_duration_ms = static_cast<uint16_t>(
+    const uint16_t append_duration_ms = static_cast<uint16_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(now - append_time)
             .count());
 
@@ -102,7 +102,7 @@ void ConsensusFixture::appendEntriesWithLeaderChangesForMs(uint16_t duration_ms,
   uint16_t total_duration_ms = 0;
   while (total_duration_ms < duration_ms) {
     TimePoint now = std::chrono::system_clock::now();
-    uint16_t append_duration_ms = static_cast<uint16_t>(
+    const uint16_t append_duration_ms = static_cast<uint16_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(now - append_time)
             .count());
 

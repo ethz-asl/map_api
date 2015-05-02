@@ -11,7 +11,7 @@
 #include "map-api/hub.h"
 #include "map-api/logical-time.h"
 #include "map-api/message.h"
-#include "map-api/reader-writer-lock.h"
+#include "multiagent-mapping-common/reader-writer-lock.h"
 
 namespace map_api {
 
@@ -19,6 +19,7 @@ namespace map_api {
 constexpr int kHeartbeatTimeoutMs = 150;
 constexpr int kHeartbeatSendPeriodMs = 50;
 constexpr int kJoinResponseTimeoutMs = 1000;
+// Maximum number of yet-to-be-committed entries allowed in the log.
 constexpr int kMaxLogQueueLength = 50;
 
 // Defined message strings again for raft chunk.
@@ -103,12 +104,6 @@ void RaftNode::stop() {
   }
 }
 
-void RaftNode::quitRaft() {
-  std::lock_guard<std::mutex> state_lock(state_mutex_);
-  sendJoinQuitRequest(leader_id_, proto::PeerRequestType::REMOVE_PEER);
-  stop();
-}
-
 uint64_t RaftNode::term() const {
   std::lock_guard<std::mutex> lock(state_mutex_);
   return current_term_;
@@ -126,7 +121,7 @@ RaftNode::State RaftNode::state() const {
 
 inline void RaftNode::setAppendEntriesResponse(
     proto::AppendResponseStatus status,
-    proto::AppendEntriesResponse* response) {
+    proto::AppendEntriesResponse* response) const {
   response->set_term(current_term_);
   response->set_response(status);
   response->set_last_log_index(log_entries_.back()->index());
@@ -146,7 +141,7 @@ void RaftNode::handleConnectRequest(const PeerId& sender, Message* response) {
         connect_response.set_leader_id(leader_id_.ipPort());
       }
     } else {
-      ScopedWriteLock log_lock(&log_mutex_);
+      common::ScopedWriteLock log_lock(&log_mutex_);
       std::lock_guard<std::mutex> tracker_lock(follower_tracker_mutex_);
       // TODO(aqurai): If the peer is already present, it could be re-joining.
       // In that case, avoid sending all revisions during connect.
@@ -328,7 +323,7 @@ void RaftNode::handleJoinQuitRequest(
       join_quit_response.set_leader_id(leader_id_.ipPort());
     }
   } else {
-    ScopedWriteLock log_lock(&log_mutex_);
+    common::ScopedWriteLock log_lock(&log_mutex_);
     std::lock_guard<std::mutex> tracker_lock(follower_tracker_mutex_);
     if (join_quit_request.type() == proto::PeerRequestType::ADD_PEER &&
         follower_tracker_map_.count(sender) == 1) {
@@ -371,7 +366,7 @@ void RaftNode::handleQueryState(const proto::QueryState& request,
   std::lock_guard<std::mutex> state_lock(state_mutex_);
   state_response.set_leader_id_(leader_id_.ipPort());
 
-  ScopedReadLock log_lock(&log_mutex_);
+  common::ScopedReadLock log_lock(&log_mutex_);
   state_response.set_last_log_index(log_entries_.back()->index());
   state_response.set_last_log_term(log_entries_.back()->term());
 
@@ -418,8 +413,10 @@ uint64_t RaftNode::sendInsertRequest(uint64_t entry) {
   return 0;
 }
 
-RaftNode::VoteResponse RaftNode::sendRequestVote(const PeerId& peer, uint64_t term,
-                              uint64_t last_log_index, uint64_t last_log_term) {
+RaftNode::VoteResponse RaftNode::sendRequestVote(const PeerId& peer,
+                                                 uint64_t term,
+                                                 uint64_t last_log_index,
+                                                 uint64_t last_log_term) const {
   Message request, response;
   proto::VoteRequest vote_request;
   vote_request.set_term(term);
@@ -444,7 +441,7 @@ RaftNode::VoteResponse RaftNode::sendRequestVote(const PeerId& peer, uint64_t te
 }
 
 proto::JoinQuitResponse RaftNode::sendJoinQuitRequest(
-    const PeerId& peer, proto::PeerRequestType type) {
+    const PeerId& peer, proto::PeerRequestType type) const {
   Message request, response;
   proto::JoinQuitRequest join_quit_request;
   join_quit_request.set_type(type);
@@ -460,7 +457,7 @@ proto::JoinQuitResponse RaftNode::sendJoinQuitRequest(
   return join_response;
 }
 
-void RaftNode::sendNotifyJoinQuitSuccess(const PeerId& peer) {
+void RaftNode::sendNotifyJoinQuitSuccess(const PeerId& peer) const {
   Message request, response;
   proto::NotifyJoinQuitSuccess notification;
   fillMetadata(&notification);
@@ -998,7 +995,7 @@ uint64_t RaftNode::leaderAppendLogEntry(uint32_t entry) {
     }
     current_term = current_term_;
   }
-  ScopedWriteLock log_lock(&log_mutex_);
+  common::ScopedWriteLock log_lock(&log_mutex_);
   if (log_entries_.back()->index() - commit_index() > kMaxLogQueueLength) {
     return 0;
   }
@@ -1048,7 +1045,7 @@ uint64_t RaftNode::leaderAddEntryToLog(uint32_t entry, uint32_t current_term,
 }
 
 void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
-  ScopedReadLock log_lock(&log_mutex_);
+  common::ScopedReadLock log_lock(&log_mutex_);
   std::lock_guard<std::mutex> commit_lock(commit_mutex_);
 
   uint replication_count = 0;

@@ -116,14 +116,16 @@ template <typename IdType, typename Value, typename DerivedValue = Value>
 class Cache : public CacheBase,
               public common::MappedContainerBase<IdType, Value> {
  public:
+  typedef typename common::IsPointerType<Value>::const_ref_type
+      ConstRefReturnType;
   typedef std::shared_ptr<Cache<IdType, Value, DerivedValue> > Ptr;
   typedef std::shared_ptr<const Cache<IdType, Value, DerivedValue> > ConstPtr;
 
   Cache(const std::shared_ptr<Transaction>& transaction, NetTable* const table,
         const std::shared_ptr<ChunkManagerBase>& chunk_manager);
   virtual ~Cache();
-  Value& get(const IdType& id);
-  const Value& get(const IdType& id) const;
+  Value& getMutable(const IdType& id);
+  ConstRefReturnType get(const IdType& id) const;
   std::shared_ptr<const Revision> getRevision(const IdType& id) const;
   /**
    * Inserted objects will live in cache_, but not in revisions_.

@@ -4,7 +4,7 @@
 
 #include "./core.pb.h"
 #include "./chunk.pb.h"
-#include "map-api/chunk-data-ram-container.h"
+#include "map-api/legacy-chunk-data-ram-container.h"
 #include "map-api/raft-node.h"
 #include "map-api/hub.h"
 #include "map-api/message.h"
@@ -18,7 +18,7 @@ bool RaftChunk::init(const common::Id& id, std::shared_ptr<TableDescriptor> desc
             bool initialize) {
   id_ = id;
   // TODO(aqurai): init data container.
-  data_container_.reset(new ChunkDataRamContainer);
+  data_container_.reset(new LegacyChunkDataRamContainer);
   CHECK(data_container_->init(descriptor));
   initialized_ = true;
   raft_node_.chunk_id_ = id_;

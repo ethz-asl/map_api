@@ -30,8 +30,6 @@ SET(CORE_SOURCE  src/internal/trackee-multimap.cc
                  src/chord-index.cc
                  src/chunk-base.cc
                  src/chunk-data-container-base.cc
-                 src/chunk-data-ram-container.cc
-                 src/chunk-data-stxxl-container.cc
                  src/chunk-manager.cc
                  src/chunk-transaction.cc
                  src/core.cc
@@ -39,6 +37,9 @@ SET(CORE_SOURCE  src/internal/trackee-multimap.cc
                  src/hub.cc
                  src/ipc.cc
                  src/legacy-chunk.cc
+                 src/legacy-chunk-data-container-base.cc
+                 src/legacy-chunk-data-ram-container.cc
+                 src/legacy-chunk-data-stxxl-container.cc
                  src/logical-time.cc
                  src/message.cc
                  src/net-table.cc
@@ -113,9 +114,6 @@ target_link_libraries(test_proto_table_file_io_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_proto_stl_stream_test test/proto_stl_stream_test.cc)
 target_link_libraries(test_proto_stl_stream_test ${PROJECT_NAME})
-
-catkin_add_gtest(test_reader_writer_lock_test test/reader_writer_lock_test.cc)
-target_link_libraries(test_reader_writer_lock_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_workspace_test test/workspace_test.cc)
 target_link_libraries(test_workspace_test ${PROJECT_NAME})
