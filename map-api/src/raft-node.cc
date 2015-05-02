@@ -10,7 +10,7 @@
 #include "map-api/hub.h"
 #include "map-api/logical-time.h"
 #include "map-api/message.h"
-#include "map-api/reader-writer-lock.h"
+#include "multiagent-mapping-common/reader-writer-lock.h"
 
 namespace map_api {
 
@@ -896,7 +896,7 @@ uint64_t RaftNode::leaderAppendLogEntry(uint32_t entry) {
     }
     current_term = current_term_;
   }
-  ScopedWriteLock log_lock(&log_mutex_);
+  common::ScopedWriteLock log_lock(&log_mutex_);
   if (log_entries_.back()->index() - commit_index() > kMaxLogQueueLength) {
     return 0;
   }
@@ -925,8 +925,9 @@ uint64_t RaftNode::leaderAddEntryToLog(uint32_t entry, uint32_t current_term,
   return new_revision->index();
 }
 
-void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
-  ScopedReadLock log_lock(&log_mutex_);
+void RaftNode::leaderCommitReplicatedEntries() {
+  const uint64_t current_term = term();
+  common::ScopedReadLock log_lock(&log_mutex_);
   std::lock_guard<std::mutex> commit_lock(commit_mutex_);
 
   uint replication_count = 0;
