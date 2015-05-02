@@ -59,10 +59,10 @@ class Message;
 class RaftNode {
  public:
   enum class State {
+    JOINING,
     LEADER,
     FOLLOWER,
     CANDIDATE,
-    JOINING,
     DISCONNECTING
   };
 
@@ -94,16 +94,12 @@ class RaftNode {
   static const char kAppendEntriesResponse[];
   static const char kVoteRequest[];
   static const char kVoteResponse[];
-  static const char kAddRemovePeer[];
   static const char kJoinQuitRequest[];
   static const char kJoinQuitResponse[];
   static const char kNotifyJoinQuitSuccess[];
 
  private:
-  FRIEND_TEST(ConsensusFixture, LeaderElection);
-  FRIEND_TEST(ConsensusFixture, PeerJoin);
-  FRIEND_TEST(ConsensusFixture, PeerAnnouncedQuit);
-  friend class ConsensusFixture;
+  FRIEND_TEST(ConsensusFixture, DISABLED_LeaderElection);
   // TODO(aqurai) Only for test, will be removed later.
   inline void addPeerBeforeStart(PeerId peer) {
     peer_list_.insert(peer);
@@ -134,13 +130,14 @@ class RaftNode {
   enum class VoteResponse {
     VOTE_GRANTED,
     VOTE_DECLINED,
+    VOTER_NOT_ELIGIBLE,
     FAILED_REQUEST
   };
   VoteResponse sendRequestVote(const PeerId& peer, uint64_t term,
                       uint64_t last_log_index, uint64_t last_log_term);
   proto::JoinQuitResponse sendJoinQuitRequest(const PeerId& peer,
                                               proto::PeerRequestType type);
-  void sendNotificationJoinQuitSuccess(const PeerId& peer);
+  void sendNotifyJoinQuitSuccess(const PeerId& peer);
 
   // ================
   // State Management
@@ -159,6 +156,14 @@ class RaftNode {
   inline void updateHeartbeatTime() {
     std::lock_guard<std::mutex> heartbeat_lock(last_heartbeat_mutex_);
     last_heartbeat_ = std::chrono::system_clock::now();
+  }
+  inline double getTimeSinceHeartbeatMs() {
+    std::lock_guard<std::mutex> lock(last_heartbeat_mutex_);
+    TimePoint last_hb_time = last_heartbeat_;
+    TimePoint now = std::chrono::system_clock::now();
+    return static_cast<double>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            now - last_hb_time).count());
   }
 
   std::thread state_manager_thread_;  // Gets joined in destructor.
@@ -191,7 +196,7 @@ class RaftNode {
   TrackerMap follower_tracker_map_;
 
   // Available peers. Modified ONLY in followerCommitNewEntries() or
-  // leaderCommitReplicatedEntries()
+  // leaderCommitReplicatedEntries() or leaderMonitorFollowerStatus()
   std::set<PeerId> peer_list_;
   std::atomic<uint> num_peers_;
   std::mutex peer_mutex_;
@@ -204,13 +209,14 @@ class RaftNode {
 
   // Expects no lock to be taken.
   void leaderMonitorFollowerStatus(uint64_t current_term);
-  void leaderAddRemovePeer(const PeerId& peer, proto::PeerRequestType request, 
+  void leaderAddRemovePeer(const PeerId& peer, proto::PeerRequestType request,
                            uint64_t current_term);
   void followerAddRemovePeer(const proto::AddRemovePeer& add_remove_peer);
 
   // First time join.
-  bool joined_before_;
-  PeerId initial_join_request_peer_;
+  std::atomic<bool> is_join_notified_;
+  std::atomic<uint64_t> join_log_index_;
+  PeerId join_request_peer_;
   void joinRaft();
 
   // ===============
@@ -257,7 +263,8 @@ class RaftNode {
   // The two following methods assume write lock is acquired for log_mutex_.
   proto::AppendResponseStatus followerAppendNewEntries(
       proto::AppendEntriesRequest& request);
-  void followerCommitNewEntries(const proto::AppendEntriesRequest& request);
+  void followerCommitNewEntries(const proto::AppendEntriesRequest& request,
+                                State state);
   void setAppendEntriesResponse(proto::AppendResponseStatus status,
                                 proto::AppendEntriesResponse* response);
 
