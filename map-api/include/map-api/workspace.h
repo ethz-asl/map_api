@@ -8,7 +8,7 @@
 #include "map-api/trackee-multimap.h"
 
 namespace map_api {
-class Chunk;
+class ChunkBase;
 class Revision;
 
 // See contains() implementation for precedence details.
@@ -35,7 +35,7 @@ class Workspace {
    public:
     TableInterface(const Workspace& workspace, NetTable* table);
     bool contains(const common::Id& chunk_id) const;
-    void forEachChunk(const std::function<void(const Chunk& chunk)>& action)
+    void forEachChunk(const std::function<void(const ChunkBase& chunk)>& action)
         const;
 
    private:
