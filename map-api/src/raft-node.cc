@@ -288,7 +288,7 @@ void RaftNode::handleJoinQuitRequest(const Message& request, Message* response) 
       join_quit_response.set_leader_id(leader_id_.ipPort());
     }
   } else {
-    ScopedWriteLock log_lock(&log_mutex_);
+    common::ScopedWriteLock log_lock(&log_mutex_);
     std::lock_guard<std::mutex> tracker_lock(follower_tracker_mutex_);
     if (follower_tracker_map_.count(request.sender()) == 1) {
       // Re-joining after disconnect.
@@ -925,8 +925,7 @@ uint64_t RaftNode::leaderAddEntryToLog(uint32_t entry, uint32_t current_term,
   return new_revision->index();
 }
 
-void RaftNode::leaderCommitReplicatedEntries() {
-  const uint64_t current_term = term();
+void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
   common::ScopedReadLock log_lock(&log_mutex_);
   std::lock_guard<std::mutex> commit_lock(commit_mutex_);
 
