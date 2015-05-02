@@ -48,7 +48,8 @@ class ProtoTableFileIO {
   bool restoreTableContents();
   bool restoreTableContents(
       map_api::Transaction* transaction,
-      std::unordered_map<common::Id, ChunkBase*>* existing_chunks);
+      std::unordered_map<common::Id, ChunkBase*>* existing_chunks,
+      std::mutex* existing_chunks_mutex);
   void truncFile();
 
  private:
