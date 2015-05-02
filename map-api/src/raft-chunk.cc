@@ -63,6 +63,65 @@ void RaftChunk::dumpItems(const LogicalTime& time, ConstRevisionMap* items) cons
   data_container_->dump(time, items);
 }
 
+size_t RaftChunk::numItems(const LogicalTime& time) const {
+  return data_container_->numAvailableIds(time);
+}
+
+size_t RaftChunk::itemsSizeBytes(const LogicalTime& time) const {
+  ConstRevisionMap items;
+  data_container_->dump(time, &items);
+  size_t num_bytes = 0;
+  for (const std::pair<common::Id, std::shared_ptr<const Revision> >& item :
+       items) {
+    CHECK(item.second != nullptr);
+    const Revision& revision = *item.second;
+    num_bytes += revision.byteSize();
+  }
+  return num_bytes;
+}
+
+void RaftChunk::getCommitTimes(const LogicalTime& sample_time, std::set<LogicalTime>* commit_times) const {
+  // TODO(aqurai): Implement this after data container implementation.
+}
+
+void RaftChunk::writeLock() {
+  std::lock_guard<std::mutex> lock_mutex(write_lock_mutex_);
+  if (is_raft_write_locked_) {
+    ++write_lock_depth_;
+  } else {
+    // Send lock request via safe insert log entry.
+    if (true /* Success */) {
+      is_raft_write_locked_ = true;
+    }
+  }
+}
+
+bool RaftChunk::isWriteLocked() {
+  std::lock_guard<std::mutex> lock(write_lock_mutex_);
+  return is_raft_write_locked_;
+}
+
+void RaftChunk::unlock() const {
+  std::lock_guard<std::mutex> lock(write_lock_mutex_);
+  if (write_lock_depth_ > 0) {
+    --write_lock_depth_;
+  }
+  if (write_lock_depth_ == 0) {
+    // Send unlock request to leader.
+    // There is no reason for this request to fail.
+    CHECK(true /* unlock request success */);
+    is_raft_write_locked_ = false;
+  }
+}
+
+
+
+
+
+
+
+
+
 bool RaftChunk::sendConnectRequest(const PeerId& peer,
                                    proto::ChunkRequestMetadata& metadata) {
   Message request, response;
@@ -109,7 +168,6 @@ void RaftChunk::handleRaftInsertRequest(const proto::InsertRequest& request,
   raft_node_.handleInsertRequest(request, sender, response);
 }
 
-
 void RaftChunk::handleRaftRequestVote(const proto::VoteRequest& request,
                                       const PeerId& sender, Message* response) {
   raft_node_.handleRequestVote(request, sender, response);
@@ -130,8 +188,5 @@ void RaftChunk::handleRaftNotifyJoinQuitSuccess(
     const proto::NotifyJoinQuitSuccess& request, Message* response) {
   raft_node_.handleNotifyJoinQuitSuccess(request, response);
 }
-
-
-
 
 }  // namespace map_api

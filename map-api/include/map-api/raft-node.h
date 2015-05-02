@@ -264,6 +264,7 @@ class RaftNode {
   // Leader will overwrite follower logs where index+term doesn't match.
 
   // New revision request.
+  // Returns only after entry is committed in raft log, or on failure.
   uint64_t sendInsertRequest(uint64_t entry);
 
   // In Follower state, only handleAppendRequest writes to log_entries.

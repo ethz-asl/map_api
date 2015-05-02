@@ -1,5 +1,6 @@
 package map_api.proto;
 import "chunk.proto";
+import "core.proto";
 
 enum PeerRequestType {ADD_PEER = 1; REMOVE_PEER = 2;}
 
@@ -34,9 +35,10 @@ message NewPeerInit {
 
 message RaftRevision {
   optional uint64 index = 1;
-  optional uint64 entry = 2; // TODO(aqurai): Replace with core.Revision.
+  optional uint64 entry = 2; // TODO(aqurai): Remove.
   optional uint64 term = 3;
-  optional AddRemovePeer add_remove_peer = 4;
+  optional Revision revision_entry = 4;
+  optional AddRemovePeer add_remove_peer = 5;
 }
 
 message AppendEntriesRequest {

@@ -55,7 +55,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   // Read access
   // Access to revisions etc
 
-  // Write accfess
+  // Write access
   // only from raft log. insert and update
   // ========
   // RAFT-LOG
