@@ -150,6 +150,7 @@ class Cache : public CacheBase,
 
   size_t size() const;
   bool empty() const;
+  size_t numCachedItems() const;
 
  private:
   static constexpr bool kIsPointer = common::IsPointerType<Value>::value;

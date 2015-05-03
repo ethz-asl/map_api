@@ -165,7 +165,7 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
       if (cached_pair.second.dirty == ValueHolder::DirtyState::kDirty) {
         // Convert the object to the revision and then compare if it has changed.
         std::shared_ptr<map_api::Revision> update_revision =
-            underlying_table_->getTemplate();
+            corresponding_revision->second->copyForWrite();
         objectToRevision(cached_pair.first,
                          Factory::getReferenceToDerived(
                              cached_pair.second.value),
@@ -178,7 +178,7 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
               objectFromRevision<typename Factory::ElementType>(
                   *corresponding_revision->second);
           std::shared_ptr<map_api::Revision> reserialized_revision =
-              underlying_table_->getTemplate();
+              corresponding_revision->second->copyForWrite();
           objectToRevision(cached_pair.first,
                            *value, reserialized_revision.get());
 
