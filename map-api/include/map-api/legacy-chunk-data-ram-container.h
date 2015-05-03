@@ -41,13 +41,16 @@ class LegacyChunkDataRamContainer : public LegacyChunkDataContainerBase {
   virtual void clearImpl() final override;
 
   inline void forEachItemFoundAtTime(
-      int key, const Revision& value_holder, const LogicalTime& time,
-      const std::function<void(const common::Id& id, const Revision& item)>&
-          action) const;
+      int key, const Revision& value_holder,
+      const LogicalTime& time,
+      const std::function<void(
+          const common::Id& id,
+          const std::shared_ptr<const Revision>& item)>& action) const;
   inline void forChunkItemsAtTime(
       const common::Id& chunk_id, const LogicalTime& time,
-      const std::function<void(const common::Id& id, const Revision& item)>&
-          action) const;
+      const std::function<void(
+          const common::Id& id,
+          const std::shared_ptr<const Revision>& item)>& action) const;
   inline void trimToTime(const LogicalTime& time, HistoryMap* subject) const;
 
   HistoryMap data_;
