@@ -13,6 +13,7 @@ class ReaderWriterMutex;
 // TODO(aqurai): When implementing STXXL container, split into a base class,
 // and derived classes for RAM and STXXL containers
 class RaftChunkDataRamContainer : public ChunkDataContainerBase {
+  
   virtual ~RaftChunkDataRamContainer();
 
  public:
@@ -20,6 +21,8 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   //
 
  private:
+  friend class LogReadAccess;
+  // remove friendship.
   friend class RaftNode;
 
   // READ OPERATIONS INHERITED FROM PARENT
@@ -67,6 +70,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
    public:
     virtual ~RaftLog() {}
     iterator getLogIteratorByIndex(uint64_t index);
+    const_iterator getConstLogIteratorByIndex(uint64_t index);
     uint64_t eraseAfter(iterator it);
     inline uint64_t lastLogIndex() const { return back()->index(); }
     inline uint64_t lastLogTerm() const { return back()->term(); }
@@ -84,6 +88,34 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     uint64_t commit_index_;
   };
   RaftLog log_;
+  
+  class LogReadAccess {
+  public:
+    explicit LogReadAccess(const RaftChunkDataRamContainer*);
+    ~LogReadAccess();
+    const RaftLog* operator->() const;
+    LogReadAccess() = delete;
+    LogReadAccess(const LogReadAccess&) = delete;
+    LogReadAccess& operator=(const LogReadAccess&) = delete;
+    LogReadAccess(LogReadAccess&&) = delete;
+    LogReadAccess& operator=(LogReadAccess&&) = delete;
+  private:
+    const RaftLog* read_log_;
+  };
+  
+  class LogWriteAccess {
+  public:
+    explicit LogWriteAccess(RaftChunkDataRamContainer*);
+    ~LogWriteAccess();
+    RaftLog* operator->() const;
+    LogWriteAccess() = delete;
+    LogWriteAccess(const LogWriteAccess&) = delete;
+    LogWriteAccess& operator=(const LogWriteAccess&) = delete;
+    LogWriteAccess(LogWriteAccess&&) = delete;
+    LogWriteAccess& operator=(LogWriteAccess&&) = delete;
+  private:
+    RaftLog* write_log_;
+  };
 
   inline void forEachItemFoundAtTime(
       int key, const Revision& value_holder, const LogicalTime& time,

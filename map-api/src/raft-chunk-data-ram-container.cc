@@ -2,23 +2,6 @@
 
 namespace map_api {
 
-RaftChunkDataRamContainer::~RaftChunkDataRamContainer() {}
-
-bool RaftChunkDataRamContainer::initImpl() { return true; }
-
-RaftChunkDataRamContainer::RaftLog::iterator
-RaftChunkDataRamContainer::RaftLog::getLogIteratorByIndex(uint64_t index) {
-  iterator it = end();
-  if (index < front()->index() || index > back()->index()) {
-    return it;
-  } else {
-    // The log indices are always sequential.
-    it = begin() + (index - front()->index());
-    CHECK_EQ((*it)->index(), index) << " Log entries size = " << size();
-    return it;
-  }
-}
-
 std::shared_ptr<const Revision> RaftChunkDataRamContainer::getByIdImpl(
     const common::Id& id, const LogicalTime& time) const {
   HistoryMap::const_iterator found = data_.find(id);
@@ -104,10 +87,70 @@ void RaftChunkDataRamContainer::itemHistory(const IdType& id,
   });
 }*/
 
+RaftChunkDataRamContainer::~RaftChunkDataRamContainer() {}
+
+bool RaftChunkDataRamContainer::initImpl() { return true; }
+
+RaftChunkDataRamContainer::RaftLog::iterator
+RaftChunkDataRamContainer::RaftLog::getLogIteratorByIndex(uint64_t index) {
+  iterator it = end();
+  if (index < front()->index() || index > back()->index()) {
+    return it;
+  } else {
+    // The log indices are always sequential.
+    it = begin() + (index - front()->index());
+    CHECK_EQ((*it)->index(), index) << " Log entries size = " << size();
+    return it;
+  }
+}
+
+RaftChunkDataRamContainer::RaftLog::const_iterator
+RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) {
+  const_iterator it = cend();
+  if (index < front()->index() || index > back()->index()) {
+    return it;
+  } else {
+    // The log indices are always sequential.
+    it = cbegin() + (index - front()->index());
+    CHECK_EQ((*it)->index(), index) << " Log entries size = " << size();
+    return it;
+  }
+}
+
 uint64_t RaftChunkDataRamContainer::RaftLog::eraseAfter(iterator it) {
   CHECK(it + 1 != begin());
   resize(std::distance(begin(), it + 1));
   return lastLogIndex();
+}
+
+RaftChunkDataRamContainer::LogReadAccess::LogReadAccess(
+    const RaftChunkDataRamContainer* container)
+    : read_log_(&container->log_) {
+  read_log_->mutex()->acquireReadLock();
+}
+
+const RaftChunkDataRamContainer::RaftLog* 
+RaftChunkDataRamContainer::LogReadAccess::operator ->() const {
+  return read_log_;
+}
+
+RaftChunkDataRamContainer::LogReadAccess::~LogReadAccess() {
+  read_log_->mutex()->releaseReadLock();
+}
+
+RaftChunkDataRamContainer::LogWriteAccess::LogWriteAccess(
+    RaftChunkDataRamContainer* container)
+    : write_log_(&container->log_) {
+  write_log_->mutex()->acquireWriteLock();
+}
+
+RaftChunkDataRamContainer::RaftLog* 
+RaftChunkDataRamContainer::LogWriteAccess::operator ->() const {
+  return write_log_;
+}
+
+RaftChunkDataRamContainer::LogWriteAccess::~LogWriteAccess() {
+  write_log_->mutex()->releaseWriteLock();
 }
 
 }  // namespace map_api
