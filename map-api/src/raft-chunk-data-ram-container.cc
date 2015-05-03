@@ -68,25 +68,6 @@ inline void RaftChunkDataRamContainer::forEachItemFoundAtTime(
   }
 }
 
-/*template <typename IdType>
-void RaftChunkDataRamContainer::itemHistory(const IdType& id,
-                                            const LogicalTime& time,
-                                            History* dest) const {
-  common::Id map_api_id;
-  aslam::HashId hash_id;
-  id.toHashId(&hash_id);
-  map_api_id.fromHashId(hash_id);
-  itemHistoryImpl(map_api_id, time, dest);
-
-  CHECK_NOTNULL(dest)->clear();
-  HistoryMap::const_iterator found = data_.find(map_api_id);
-  CHECK(found != data_.end());
-  *dest = History(found->second);
-  dest->remove_if([&time](const std::shared_ptr<const Revision>& item) {
-    return item->getUpdateTime() > time;
-  });
-}*/
-
 RaftChunkDataRamContainer::~RaftChunkDataRamContainer() {}
 
 bool RaftChunkDataRamContainer::initImpl() { return true; }
@@ -147,7 +128,6 @@ void RaftChunkDataRamContainer::LogReadAccess::unlockAndDisable() {
     LOG(FATAL) << "Tried to unlock/disable an already disabled LogReadAccess object";
   }
 }
-
 
 RaftChunkDataRamContainer::LogReadAccess::~LogReadAccess() {
   if (is_enabled_) {

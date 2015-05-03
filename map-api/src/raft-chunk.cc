@@ -119,14 +119,6 @@ void RaftChunk::unlock() const {
   }
 }
 
-
-
-
-
-
-
-
-
 bool RaftChunk::sendConnectRequest(const PeerId& peer,
                                    proto::ChunkRequestMetadata& metadata) {
   Message request, response;
