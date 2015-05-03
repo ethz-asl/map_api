@@ -63,14 +63,14 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
 
   // TODO(aqurai): const proto::RaftRevision?
   // template <>
-  class RaftLog : public std::vector<std::shared_ptr<proto::RaftRevision>> {
+  class RaftLog : public std::vector<std::shared_ptr<proto::RaftLogEntry>> {
    public:
     virtual ~RaftLog() {}
     iterator getLogIteratorByIndex(uint64_t index);
     uint64_t eraseAfter(iterator it);
     inline uint64_t lastLogIndex() const { return back()->index(); }
     inline uint64_t lastLogTerm() const { return back()->term(); }
-    inline ReaderWriterMutex* mutex() const { return &log_mutex_; }
+    inline common::ReaderWriterMutex* mutex() const { return &log_mutex_; }
 
     // void commitNextEnty() {}
     // void commitUntilIndex(uint64_t index) {}
@@ -79,7 +79,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     // commit_actions;
 
    private:
-    mutable ReaderWriterMutex log_mutex_;
+    mutable common::ReaderWriterMutex log_mutex_;
     mutable std::mutex commit_mutex_;
     uint64_t commit_index_;
   };

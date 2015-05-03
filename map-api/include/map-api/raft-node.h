@@ -58,6 +58,7 @@ namespace map_api {
 // class RaftChunkDataRamContainer;
 class Message;
 class RaftChunk;
+class Revision;
 
 // Implementation of Raft consensus algorithm presented here:
 // https://raftconsensus.github.io, http://ramcloud.stanford.edu/raft.pdf
@@ -81,11 +82,13 @@ class RaftNode {
   inline PeerId self_id() const { return PeerId::self(); }
 
   // Returns index of the appended entry if append succeeds, or zero otherwise
-  uint64_t leaderAppendLogEntry(uint32_t entry);
+  uint64_t leaderAppendLogEntry(
+      const std::shared_ptr<proto::RaftLogEntry>& new_entry);
 
   // Waits for the entry to be committed. Returns failure if the leader fails
   // before the new entry is committed.
-  uint64_t leaderSafelyAppendLogEntry(uint32_t entry);
+  uint64_t leaderSafelyAppendLogEntry(
+      const std::shared_ptr<proto::RaftLogEntry>& new_entry);
 
   static const char kAppendEntries[];
   static const char kAppendEntriesResponse[];
@@ -225,9 +228,11 @@ class RaftNode {
 
   // Expects no lock to be taken.
   void leaderMonitorFollowerStatus(uint64_t current_term);
-  void leaderAddRemovePeer(const PeerId& peer, proto::PeerRequestType request,
-                           uint64_t current_term);
-  void followerAddRemovePeer(const proto::AddRemovePeer& add_remove_peer);
+  void leaderAddPeer(const PeerId& peer, uint64_t current_term);
+  void leaderRemovePeer(const PeerId& peer);
+
+  void followerAddPeer(const PeerId& peer);
+  void followerRemovePeer(const PeerId& peer);
 
   // First time join.
   std::atomic<bool> is_join_notified_;
@@ -264,19 +269,15 @@ class RaftNode {
 
   // New revision request.
   // Returns only after entry is committed in raft log, or on failure.
-  uint64_t sendInsertRequest(uint64_t entry);
-
-  // In Follower state, only handleAppendRequest writes to log_entries.
-  // In Leader state, only appendLogEntry writes to log entries.
+  uint64_t sendInsertRequest(const std::shared_ptr<Revision>& item);
 
   std::condition_variable new_entries_signal_;
   typedef RaftChunkDataRamContainer::RaftLog::iterator LogIterator;
 
   // Expects write lock for log_mutex to be acquired.
-  uint64_t leaderAddEntryToLog(uint32_t entry, uint32_t current_term,
-                               const PeerId& peer_id,
-                               proto::PeerRequestType request_type =
-                                   proto::PeerRequestType::ADD_PEER);
+  uint64_t leaderAppendLogEntryLocked(
+      const std::shared_ptr<proto::RaftLogEntry>& new_entry,
+      uint64_t current_term);
 
   // The two following methods assume write lock is acquired for log_mutex_.
   proto::AppendResponseStatus followerAppendNewEntries(

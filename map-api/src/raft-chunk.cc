@@ -13,7 +13,9 @@
 
 namespace map_api {
 
-RaftChunk::~RaftChunk() {}
+RaftChunk::~RaftChunk() {
+  raft_node_.stop();
+}
 
 bool RaftChunk::init(const common::Id& id,
                      std::shared_ptr<TableDescriptor> descriptor,
@@ -53,6 +55,7 @@ bool RaftChunk::init(const common::Id& id,
 
   VLOG(1) << " INIT chunk at peer " << PeerId::self() << " in table "
           << raft_node_.table_name_;
+
 
   raft_node_.initChunkData(init_request);
   setStateFollowerAndStartRaft();
@@ -99,7 +102,8 @@ void RaftChunk::writeLock() {
 
 bool RaftChunk::isWriteLocked() {
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
-  return is_raft_write_locked_;
+  // return is_raft_write_locked_;
+  return true;
 }
 
 void RaftChunk::unlock() const {
@@ -148,9 +152,9 @@ bool RaftChunk::sendConnectRequest(const PeerId& peer,
   return false;
 }
 
-uint64_t RaftChunk::insertRequest(uint64_t revision_entry) {
+uint64_t RaftChunk::insertRequest(const std::shared_ptr<Revision>& item) {
   CHECK(raft_node_.isRunning());
-  return raft_node_.sendInsertRequest(revision_entry);
+  return raft_node_.sendInsertRequest(item);
 }
 
 void RaftChunk::handleRaftConnectRequest(const PeerId& sender, Message* response) {

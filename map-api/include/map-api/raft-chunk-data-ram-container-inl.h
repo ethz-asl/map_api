@@ -1,7 +1,7 @@
 #ifndef MAP_API_RAFT_CHUNK_DATA_RAM_CONTAINER_INL_H_
 #define MAP_API_RAFT_CHUNK_DATA_RAM_CONTAINER_INL_H_
 
-#include "map-api/reader-writer-lock.h"
+#include "multiagent-mapping-common/reader-writer-lock.h"
 
 namespace map_api {
 
