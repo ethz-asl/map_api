@@ -228,7 +228,7 @@ NetTable* NetTableManager::addTable(
 
 NetTable& NetTableManager::getTable(const std::string& name) {
   CHECK(Core::instance() != nullptr) << "Map API not initialized!";
-  ScopedReadLock lock(&tables_lock_);
+  common::ScopedReadLock lock(&tables_lock_);
   TableMap::iterator found = tables_.find(name);
   // TODO(tcies) load table schema from metatable if not active
   CHECK(found != tables_.end()) << "Table not found: " << name;
@@ -257,7 +257,7 @@ bool NetTableManager::hasTable(const std::string& name) const {
 void NetTableManager::tableList(std::vector<std::string>* tables) const {
   CHECK_NOTNULL(tables);
   tables->clear();
-  ScopedReadLock lock(&tables_lock_);
+  common::ScopedReadLock lock(&tables_lock_);
   for (const std::pair<const std::string, std::unique_ptr<NetTable> >& pair :
        tables_) {
     tables->push_back(pair.first);
@@ -341,7 +341,7 @@ void NetTableManager::handleConnectRequest(const Message& request,
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
   CHECK_NOTNULL(Core::instance());
-  ScopedReadLock lock(&instance().tables_lock_);
+  common::ScopedReadLock lock(&instance().tables_lock_);
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = instance().tables_.find(table);
   if (found == instance().tables_.end()) {
@@ -500,8 +500,8 @@ void NetTableManager::handleRaftConnectRequest(const Message& request, Message* 
   request.extract<RaftNode::kConnectRequest>(&metadata);
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
-  // CHECK_NOTNULL(Core::instance());
-  ScopedReadLock lock(&instance().tables_lock_);
+  // TODO(aqurai): CHECK_NOTNULL(Core::instance()) needed here?
+  common::ScopedReadLock lock(&instance().tables_lock_);
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = instance().tables_.find(table);
   if (found == instance().tables_.end()) {
@@ -517,8 +517,7 @@ void NetTableManager::handleRaftInitRequest(const Message& request, Message* res
   const proto::ChunkRequestMetadata metadata = init_request.metadata();
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
-  // CHECK_NOTNULL(Core::instance());
-  ScopedReadLock lock(&instance().tables_lock_);
+  common::ScopedReadLock lock(&instance().tables_lock_);
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = instance().tables_.find(table);
   if (found == instance().tables_.end()) {
@@ -535,8 +534,7 @@ void NetTableManager::handleRaftAppendRequest(const Message& request, Message* r
   const proto::ChunkRequestMetadata metadata = append_request.metadata();
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
-  // CHECK_NOTNULL(Core::instance());
-  ScopedReadLock lock(&instance().tables_lock_);
+  common::ScopedReadLock lock(&instance().tables_lock_);
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = instance().tables_.find(table);
   if (found == instance().tables_.end()) {
@@ -553,8 +551,7 @@ void NetTableManager::handleRaftInsertRequest(const Message& request, Message* r
   const proto::ChunkRequestMetadata metadata = insert_request.metadata();
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
-  // CHECK_NOTNULL(Core::instance());
-  ScopedReadLock lock(&instance().tables_lock_);
+  common::ScopedReadLock lock(&instance().tables_lock_);
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = instance().tables_.find(table);
   if (found == instance().tables_.end()) {
@@ -571,8 +568,7 @@ void NetTableManager::handleRaftRequestVote(const Message& request, Message* res
   const proto::ChunkRequestMetadata metadata = vote_request.metadata();
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
-  // CHECK_NOTNULL(Core::instance());
-  ScopedReadLock lock(&instance().tables_lock_);
+  common::ScopedReadLock lock(&instance().tables_lock_);
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = instance().tables_.find(table);
   if (found == instance().tables_.end()) {
@@ -590,8 +586,7 @@ void NetTableManager::handleRaftJoinQuitRequest(const Message& request,
   const proto::ChunkRequestMetadata metadata = join_quit_request.metadata();
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
-  // CHECK_NOTNULL(Core::instance());
-  ScopedReadLock lock(&instance().tables_lock_);
+  common::ScopedReadLock lock(&instance().tables_lock_);
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = instance().tables_.find(table);
   if (found == instance().tables_.end()) {
@@ -609,8 +604,7 @@ void NetTableManager::handleRaftNotifyJoinQuitSuccess(const Message& request,
   const proto::ChunkRequestMetadata metadata = notification.metadata();
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
-  // CHECK_NOTNULL(Core::instance());
-  ScopedReadLock lock(&instance().tables_lock_);
+  common::ScopedReadLock lock(&instance().tables_lock_);
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = instance().tables_.find(table);
   if (found == instance().tables_.end()) {
@@ -628,8 +622,7 @@ void NetTableManager::handleRaftQueryState(const Message& request,
   const proto::ChunkRequestMetadata metadata = query_state.metadata();
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
-  // CHECK_NOTNULL(Core::instance());
-  ScopedReadLock lock(&instance().tables_lock_);
+  common::ScopedReadLock lock(&instance().tables_lock_);
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = instance().tables_.find(table);
   if (found == instance().tables_.end()) {
@@ -704,7 +697,7 @@ bool NetTableManager::syncTableDefinition(const TableDescriptor& descriptor,
 bool NetTableManager::findTable(const std::string& table_name,
                                 TableMap::iterator* found) {
   CHECK_NOTNULL(found);
-  ScopedReadLock lock(&instance().tables_lock_);
+  common::ScopedReadLock lock(&instance().tables_lock_);
   *found = instance().tables_.find(table_name);
   if (*found == instance().tables_.end()) {
     return false;

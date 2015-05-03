@@ -15,8 +15,9 @@ namespace map_api {
 
 RaftChunk::~RaftChunk() {}
 
-bool RaftChunk::init(const common::Id& id, std::shared_ptr<TableDescriptor> descriptor,
-            bool initialize) {
+bool RaftChunk::init(const common::Id& id,
+                     std::shared_ptr<TableDescriptor> descriptor,
+                     bool initialize) {
   id_ = id;
   data_container_.reset(new LegacyChunkDataRamContainer);
   CHECK(data_container_->init(descriptor));
