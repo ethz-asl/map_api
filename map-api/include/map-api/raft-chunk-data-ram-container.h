@@ -70,7 +70,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
    public:
     virtual ~RaftLog() {}
     iterator getLogIteratorByIndex(uint64_t index);
-    const_iterator getConstLogIteratorByIndex(uint64_t index);
+    const_iterator getConstLogIteratorByIndex(uint64_t index) const;
     uint64_t eraseAfter(iterator it);
     inline uint64_t lastLogIndex() const { return back()->index(); }
     inline uint64_t lastLogTerm() const { return back()->term(); }
@@ -94,6 +94,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     explicit LogReadAccess(const RaftChunkDataRamContainer*);
     ~LogReadAccess();
     const RaftLog* operator->() const;
+    void unlockAndDisable();
     LogReadAccess() = delete;
     LogReadAccess(const LogReadAccess&) = delete;
     LogReadAccess& operator=(const LogReadAccess&) = delete;
@@ -101,6 +102,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     LogReadAccess& operator=(LogReadAccess&&) = delete;
   private:
     const RaftLog* read_log_;
+    bool is_enabled_;
   };
   
   class LogWriteAccess {
@@ -108,6 +110,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     explicit LogWriteAccess(RaftChunkDataRamContainer*);
     ~LogWriteAccess();
     RaftLog* operator->() const;
+    void unlockAndDisable();
     LogWriteAccess() = delete;
     LogWriteAccess(const LogWriteAccess&) = delete;
     LogWriteAccess& operator=(const LogWriteAccess&) = delete;
@@ -115,6 +118,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     LogWriteAccess& operator=(LogWriteAccess&&) = delete;
   private:
     RaftLog* write_log_;
+    bool is_enabled_;
   };
 
   inline void forEachItemFoundAtTime(

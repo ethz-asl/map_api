@@ -120,6 +120,11 @@ class RaftNode {
   RaftNode();
   RaftNode(const RaftNode&) = delete;
   RaftNode& operator=(const RaftNode&) = delete;
+  
+  typedef RaftChunkDataRamContainer::RaftLog::iterator LogIterator;
+  typedef RaftChunkDataRamContainer::RaftLog::const_iterator ConstLogIterator;
+  typedef RaftChunkDataRamContainer::LogReadAccess LogReadAccess;
+  typedef RaftChunkDataRamContainer::LogWriteAccess LogWriteAccess;
 
   // ========
   // Handlers
@@ -156,7 +161,7 @@ class RaftNode {
       const PeerId& peer, proto::PeerRequestType type) const;
   void sendNotifyJoinQuitSuccess(const PeerId& peer) const;
 
-  bool sendInitRequest(const PeerId& peer);
+  bool sendInitRequest(const PeerId& peer, const LogReadAccess& log_reader);
 
   // ================
   // State Management
@@ -228,9 +233,10 @@ class RaftNode {
 
   // Expects no lock to be taken.
   void leaderMonitorFollowerStatus(uint64_t current_term);
-  void leaderAddPeer(const PeerId& peer, uint64_t current_term);
+  void leaderAddPeer(const PeerId& peer, const LogReadAccess& log_reader,
+                     uint64_t current_term);
   void leaderRemovePeer(const PeerId& peer);
-
+  
   void followerAddPeer(const PeerId& peer);
   void followerRemovePeer(const PeerId& peer);
 
@@ -272,20 +278,25 @@ class RaftNode {
   uint64_t sendInsertRequest(const std::shared_ptr<Revision>& item);
 
   std::condition_variable new_entries_signal_;
-  typedef RaftChunkDataRamContainer::RaftLog::iterator LogIterator;
-
   // Expects write lock for log_mutex to be acquired.
   uint64_t leaderAppendLogEntryLocked(
+      const LogWriteAccess& log_writer,
       const std::shared_ptr<proto::RaftLogEntry>& new_entry,
       uint64_t current_term);
 
   // The two following methods assume write lock is acquired for log_mutex_.
   proto::AppendResponseStatus followerAppendNewEntries(
+      const LogWriteAccess& log_writer,
       proto::AppendEntriesRequest* request);
-  void followerCommitNewEntries(const proto::AppendEntriesRequest* request,
+  void followerCommitNewEntries(const LogWriteAccess& log_writer,
+                                const proto::AppendEntriesRequest* request,
                                 State state);
-  void setAppendEntriesResponse(proto::AppendResponseStatus status,
-                                proto::AppendEntriesResponse* response) const;
+  void setAppendEntriesResponse(proto::AppendEntriesResponse* response,
+                                proto::AppendResponseStatus status,
+                                uint64_t current_commit_index,
+                                uint64_t current_term,
+                                uint64_t last_log_index,
+                                uint64_t last_log_term) const;
 
   // Expects locks for commit_mutex_ and log_mutex_to NOT have been acquired.
   void leaderCommitReplicatedEntries(uint64_t current_term);

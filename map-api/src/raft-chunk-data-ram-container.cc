@@ -105,7 +105,7 @@ RaftChunkDataRamContainer::RaftLog::getLogIteratorByIndex(uint64_t index) {
 }
 
 RaftChunkDataRamContainer::RaftLog::const_iterator
-RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) {
+RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) const {
   const_iterator it = cend();
   if (index < front()->index() || index > back()->index()) {
     return it;
@@ -125,32 +125,65 @@ uint64_t RaftChunkDataRamContainer::RaftLog::eraseAfter(iterator it) {
 
 RaftChunkDataRamContainer::LogReadAccess::LogReadAccess(
     const RaftChunkDataRamContainer* container)
-    : read_log_(&container->log_) {
+    : read_log_(&container->log_),
+      is_enabled_(true) {
   read_log_->mutex()->acquireReadLock();
 }
 
 const RaftChunkDataRamContainer::RaftLog* 
 RaftChunkDataRamContainer::LogReadAccess::operator ->() const {
-  return read_log_;
+  if (is_enabled_) {
+    return read_log_;
+  } else {
+    LOG(FATAL) << "Tried to access raft log using a disabled LogReadAccess object";
+  }
 }
 
+void RaftChunkDataRamContainer::LogReadAccess::unlockAndDisable() {
+  if (is_enabled_) {
+    is_enabled_ = false;
+    read_log_->mutex()->releaseReadLock();
+  } else {
+    LOG(FATAL) << "Tried to unlock/disable an already disabled LogReadAccess object";
+  }
+}
+
+
 RaftChunkDataRamContainer::LogReadAccess::~LogReadAccess() {
-  read_log_->mutex()->releaseReadLock();
+  if (is_enabled_) {
+    read_log_->mutex()->releaseReadLock();
+  }
 }
 
 RaftChunkDataRamContainer::LogWriteAccess::LogWriteAccess(
     RaftChunkDataRamContainer* container)
-    : write_log_(&container->log_) {
+    : write_log_(&container->log_),
+      is_enabled_(true) {
   write_log_->mutex()->acquireWriteLock();
 }
 
 RaftChunkDataRamContainer::RaftLog* 
 RaftChunkDataRamContainer::LogWriteAccess::operator ->() const {
-  return write_log_;
+  if (is_enabled_) {
+    return write_log_;
+  } else {
+    LOG(FATAL) << "Tried to access raft log using a disabled LogWriteAccess object";
+  }
+}
+
+void RaftChunkDataRamContainer::LogWriteAccess::unlockAndDisable() {
+  if (is_enabled_) {
+    is_enabled_ = false;
+    write_log_->mutex()->releaseWriteLock();
+  } else {
+    LOG(FATAL) << "Tried to unlock/disable an already disabled LogWriteAccess object";
+  }
 }
 
 RaftChunkDataRamContainer::LogWriteAccess::~LogWriteAccess() {
-  write_log_->mutex()->releaseWriteLock();
+  if (is_enabled_) {
+    write_log_->mutex()->releaseWriteLock();
+  }
 }
 
 }  // namespace map_api
