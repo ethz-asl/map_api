@@ -1,15 +1,15 @@
-#include <map-api/chunk-data-stxxl-container.h>
+#include "../include/map-api/legacy-chunk-data-stxxl-container.h"
 
 namespace map_api {
 
-ChunkDataStxxlContainer::ChunkDataStxxlContainer()
+LegacyChunkDataStxxlContainer::LegacyChunkDataStxxlContainer()
     : revision_store_(new STXXLRevisionStore<kBlockSize>()) {}
 
-ChunkDataStxxlContainer::~ChunkDataStxxlContainer() {}
+LegacyChunkDataStxxlContainer::~LegacyChunkDataStxxlContainer() {}
 
-bool ChunkDataStxxlContainer::initImpl() { return true; }
+bool LegacyChunkDataStxxlContainer::initImpl() { return true; }
 
-bool ChunkDataStxxlContainer::insertImpl(
+bool LegacyChunkDataStxxlContainer::insertImpl(
     const std::shared_ptr<const Revision>& query) {
   CHECK(query != nullptr);
   common::Id id = query->getId<common::Id>();
@@ -23,7 +23,8 @@ bool ChunkDataStxxlContainer::insertImpl(
   return true;
 }
 
-bool ChunkDataStxxlContainer::bulkInsertImpl(const MutableRevisionMap& query) {
+bool LegacyChunkDataStxxlContainer::bulkInsertImpl(
+    const MutableRevisionMap& query) {
   for (const MutableRevisionMap::value_type& pair : query) {
     if (data_.find(pair.first) != data_.end()) {
       return false;
@@ -37,7 +38,7 @@ bool ChunkDataStxxlContainer::bulkInsertImpl(const MutableRevisionMap& query) {
   return true;
 }
 
-bool ChunkDataStxxlContainer::patchImpl(
+bool LegacyChunkDataStxxlContainer::patchImpl(
     const std::shared_ptr<const Revision>& query) {
   CHECK(query != nullptr);
   common::Id id = query->getId<common::Id>();
@@ -61,7 +62,7 @@ bool ChunkDataStxxlContainer::patchImpl(
   return true;
 }
 
-std::shared_ptr<const Revision> ChunkDataStxxlContainer::getByIdImpl(
+std::shared_ptr<const Revision> LegacyChunkDataStxxlContainer::getByIdImpl(
     const common::Id& id, const LogicalTime& time) const {
   STXXLHistoryMap::const_iterator found = data_.find(id);
   if (found == data_.end()) {
@@ -76,10 +77,9 @@ std::shared_ptr<const Revision> ChunkDataStxxlContainer::getByIdImpl(
   return revision;
 }
 
-void ChunkDataStxxlContainer::findByRevisionImpl(int key,
-                                                 const Revision& value_holder,
-                                                 const LogicalTime& time,
-                                                 ConstRevisionMap* dest) const {
+void LegacyChunkDataStxxlContainer::findByRevisionImpl(
+    int key, const Revision& value_holder, const LogicalTime& time,
+    ConstRevisionMap* dest) const {
   CHECK_NOTNULL(dest);
   dest->clear();
   // TODO(tcies) Zero-copy const RevisionMap instead of copyForWrite?
@@ -90,7 +90,7 @@ void ChunkDataStxxlContainer::findByRevisionImpl(int key,
   });
 }
 
-void ChunkDataStxxlContainer::getAvailableIdsImpl(
+void LegacyChunkDataStxxlContainer::getAvailableIdsImpl(
     const LogicalTime& time, std::vector<common::Id>* ids) const {
   CHECK_NOTNULL(ids);
   ids->clear();
@@ -116,7 +116,7 @@ void ChunkDataStxxlContainer::getAvailableIdsImpl(
   }
 }
 
-int ChunkDataStxxlContainer::countByRevisionImpl(
+int LegacyChunkDataStxxlContainer::countByRevisionImpl(
     int key, const Revision& value_holder, const LogicalTime& time) const {
   int count = 0;
   forEachItemFoundAtTime(key, value_holder, time,
@@ -125,12 +125,12 @@ int ChunkDataStxxlContainer::countByRevisionImpl(
   return count;
 }
 
-bool ChunkDataStxxlContainer::insertUpdatedImpl(
+bool LegacyChunkDataStxxlContainer::insertUpdatedImpl(
     const std::shared_ptr<Revision>& query) {
   return patchImpl(query);
 }
 
-void ChunkDataStxxlContainer::findHistoryByRevisionImpl(
+void LegacyChunkDataStxxlContainer::findHistoryByRevisionImpl(
     int key, const Revision& valueHolder, const LogicalTime& time,
     HistoryMap* dest) const {
   CHECK_NOTNULL(dest);
@@ -153,9 +153,9 @@ void ChunkDataStxxlContainer::findHistoryByRevisionImpl(
   trimToTime(time, dest);
 }
 
-void ChunkDataStxxlContainer::chunkHistory(const common::Id& chunk_id,
-                                           const LogicalTime& time,
-                                           HistoryMap* dest) const {
+void LegacyChunkDataStxxlContainer::chunkHistory(const common::Id& chunk_id,
+                                                 const LogicalTime& time,
+                                                 HistoryMap* dest) const {
   CHECK_NOTNULL(dest)->clear();
   for (const STXXLHistoryMap::value_type& pair : data_) {
     if (pair.second.begin()->chunk_id_ == chunk_id) {
@@ -172,9 +172,9 @@ void ChunkDataStxxlContainer::chunkHistory(const common::Id& chunk_id,
   trimToTime(time, dest);
 }
 
-void ChunkDataStxxlContainer::itemHistoryImpl(const common::Id& id,
-                                              const LogicalTime& time,
-                                              History* dest) const {
+void LegacyChunkDataStxxlContainer::itemHistoryImpl(const common::Id& id,
+                                                    const LogicalTime& time,
+                                                    History* dest) const {
   CHECK_NOTNULL(dest)->clear();
   STXXLHistoryMap::const_iterator found = data_.find(id);
   CHECK(found != data_.end());
@@ -190,12 +190,12 @@ void ChunkDataStxxlContainer::itemHistoryImpl(const common::Id& id,
   });
 }
 
-void ChunkDataStxxlContainer::clearImpl() {
+void LegacyChunkDataStxxlContainer::clearImpl() {
   data_.clear();
   revision_store_.reset(new STXXLRevisionStore<kBlockSize>());
 }
 
-inline void ChunkDataStxxlContainer::forEachItemFoundAtTime(
+inline void LegacyChunkDataStxxlContainer::forEachItemFoundAtTime(
     int key, const Revision& value_holder, const LogicalTime& time,
     const std::function<void(const common::Id& id, const Revision& item)>&
         action) const {
@@ -213,7 +213,7 @@ inline void ChunkDataStxxlContainer::forEachItemFoundAtTime(
   }
 }
 
-inline void ChunkDataStxxlContainer::forChunkItemsAtTime(
+inline void LegacyChunkDataStxxlContainer::forChunkItemsAtTime(
     const common::Id& chunk_id, const LogicalTime& time,
     const std::function<void(const common::Id& id, const Revision& item)>&
         action) const {
@@ -232,8 +232,8 @@ inline void ChunkDataStxxlContainer::forChunkItemsAtTime(
   }
 }
 
-inline void ChunkDataStxxlContainer::trimToTime(const LogicalTime& time,
-                                                HistoryMap* subject) const {
+inline void LegacyChunkDataStxxlContainer::trimToTime(
+    const LogicalTime& time, HistoryMap* subject) const {
   CHECK_NOTNULL(subject);
   for (HistoryMap::value_type& pair : *subject) {
     pair.second.remove_if([&time](const std::shared_ptr<const Revision>& item) {

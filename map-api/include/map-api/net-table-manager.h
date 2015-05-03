@@ -5,8 +5,9 @@
 #include <string>
 #include <vector>
 
+#include <multiagent-mapping-common/reader-writer-lock.h>
+
 #include "map-api/net-table.h"
-#include "map-api/reader-writer-lock.h"
 #include "map-api/table-descriptor.h"
 
 namespace map_api {
@@ -138,10 +139,10 @@ class NetTableManager {
   static bool findTable(const std::string& table_name,
                         TableMap::iterator* found);
 
-  Chunk* metatable_chunk_;
+  ChunkBase* metatable_chunk_;
 
   TableMap tables_;
-  mutable ReaderWriterMutex tables_lock_;
+  mutable common::ReaderWriterMutex tables_lock_;
 
   NetTable* metatable_;
 };

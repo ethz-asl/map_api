@@ -15,7 +15,7 @@ TEST_F(NetTableFixture, TransactionMerge) {
     CHECKOUT,
     A_COMMITTED
   };
-  Chunk* chunk;
+  ChunkBase* chunk;
   common::Id chunk_id, a_id, b_id;
   chunk_id.fromHexString("00000000000000000000000000000042");
   if (getSubprocessId() == ROOT) {

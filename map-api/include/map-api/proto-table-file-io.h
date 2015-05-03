@@ -14,7 +14,7 @@
 #include "map-api/logical-time.h"
 
 namespace map_api {
-class Chunk;
+class ChunkBase;
 class ConstRevisionMap;
 class NetTable;
 class Transaction;
@@ -46,9 +46,9 @@ class ProtoTableFileIO {
   bool storeTableContents(const ConstRevisionMap& revisions,
                           const std::vector<common::Id>& ids_to_store);
   bool restoreTableContents();
-  bool restoreTableContents(map_api::Transaction* transaction,
-                            std::unordered_map<common::Id, Chunk*>*
-                                existing_chunks);
+  bool restoreTableContents(
+      map_api::Transaction* transaction,
+      std::unordered_map<common::Id, ChunkBase*>* existing_chunks);
   void truncFile();
 
  private:
