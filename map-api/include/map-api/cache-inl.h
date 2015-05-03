@@ -1,6 +1,6 @@
 #ifndef MAP_API_CACHE_INL_H_
 #define MAP_API_CACHE_INL_H_
-
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -109,6 +109,18 @@ void Cache<IdType, Value, DerivedValue>::getAllAvailableIds(
   LockGuard lock(mutex_);
   CHECK_NOTNULL(available_ids);
   *available_ids = available_ids_.getAllIds();
+}
+
+template <typename IdType, typename Value, typename DerivedValue>
+std::string Cache<IdType, Value, DerivedValue>::underlyingTableName() const {
+  LockGuard lock(mutex_);
+  return underlying_table_->name();
+}
+
+template <typename IdType, typename Value, typename DerivedValue>
+size_t Cache<IdType, Value, DerivedValue>::numCachedItems() const {
+  LockGuard lock(mutex_);
+  return cache_.size();
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
