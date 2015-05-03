@@ -200,7 +200,7 @@ bool ProtoTableFileIO::restoreTableContents(
     common::Id chunk_id = revision->getChunkId();
     ChunkBase* chunk = nullptr;
     {
-      std::unique_lock < std::mutex > lock(*existing_chunks_mutex);
+      std::unique_lock<std::mutex> lock(*existing_chunks_mutex);
       std::unordered_map<common::Id, ChunkBase*>::iterator it =
           existing_chunks->find(chunk_id);
       if (it == existing_chunks->end()) {
@@ -209,11 +209,11 @@ bool ProtoTableFileIO::restoreTableContents(
       } else {
         chunk = it->second;
       }
-    }
-    CHECK_NOTNULL(chunk);
+      CHECK_NOTNULL(chunk);
 
-    transaction->insert(table_, chunk, revision);
-    transaction->disableChunkTracking();
+      transaction->insert(table_, chunk, revision);
+      transaction->disableChunkTracking();
+    }
   }
   return true;
 }
