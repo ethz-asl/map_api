@@ -51,7 +51,6 @@ class LegacyChunkDataRamContainer : public LegacyChunkDataContainerBase {
   inline void trimToTime(const LogicalTime& time, HistoryMap* subject) const;
 
   HistoryMap data_;
-  History d;
 };
 
 }  // namespace map_api

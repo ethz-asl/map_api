@@ -21,11 +21,11 @@ void RaftChunkDataRamContainer::findByRevisionImpl(
   CHECK_NOTNULL(dest);
   dest->clear();
   // TODO(tcies) Zero-copy const RevisionMap instead of copyForWrite?
-  forEachItemFoundAtTime(key, value_holder, time,
-                         [&dest](const common::Id& id, const Revision& item) {
-    CHECK(dest->find(id) == dest->end());
-    CHECK(dest->emplace(id, item.copyForWrite()).second);
-  });
+//  forEachItemFoundAtTime(key, value_holder, time,
+//                         [&dest](const common::Id& id, const Revision& item) {
+//    CHECK(dest->find(id) == dest->end());
+//    CHECK(dest->emplace(id, item.copyForWrite()).second);
+//  });
 }
 
 void RaftChunkDataRamContainer::getAvailableIdsImpl(
@@ -46,26 +46,10 @@ void RaftChunkDataRamContainer::getAvailableIdsImpl(
 int RaftChunkDataRamContainer::countByRevisionImpl(
     int key, const Revision& value_holder, const LogicalTime& time) const {
   int count = 0;
-  forEachItemFoundAtTime(key, value_holder, time,
-                         [&count](const common::Id& /*id*/,
-                                  const Revision& /*item*/) { ++count; });
+//  forEachItemFoundAtTime(key, value_holder, time,
+//                         [&count](const common::Id& /*id*/,
+//                                  const Revision& /*item*/) { ++count; });
   return count;
-}
-
-inline void RaftChunkDataRamContainer::forEachItemFoundAtTime(
-    int key, const Revision& value_holder, const LogicalTime& time,
-    const std::function<void(const common::Id& id, const Revision& item)>&
-        action) const {
-  for (const HistoryMap::value_type& pair : data_) {
-    History::const_iterator latest = pair.second.latestAt(time);
-    if (latest != pair.second.cend()) {
-      if (key < 0 || value_holder.fieldMatch(**latest, key)) {
-        if (!(*latest)->isRemoved()) {
-          action(pair.first, **latest);
-        }
-      }
-    }
-  }
 }
 
 RaftChunkDataRamContainer::~RaftChunkDataRamContainer() {}

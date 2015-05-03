@@ -1,29 +1,23 @@
 #ifndef MAP_API_RAFT_CHUNK_DATA_RAM_CONTAINER_H_
 #define MAP_API_RAFT_CHUNK_DATA_RAM_CONTAINER_H_
 
-#include <list>
 #include <vector>
 
-#include "map-api/chunk-data-container-base.h"
 #include "./raft.pb.h"
+#include "map-api/chunk-data-container-base.h"
 
 namespace map_api {
 class ReaderWriterMutex;
 
 // TODO(aqurai): When implementing STXXL container, split into a base class,
 // and derived classes for RAM and STXXL containers
-class RaftChunkDataRamContainer : public ChunkDataContainerBase {
-  
-  virtual ~RaftChunkDataRamContainer();
-
+class RaftChunkDataRamContainer : public ChunkDataContainerBase {  
  public:
-  // Check before commit. There are no checked commits here.
-  //
+  virtual ~RaftChunkDataRamContainer();
 
  private:
   friend class LogReadAccess;
-  // remove friendship.
-  friend class RaftNode;
+  friend class RaftNode; // TODO(aqurai): Remove friendship?
 
   // READ OPERATIONS INHERITED FROM PARENT
   virtual bool initImpl();
@@ -38,34 +32,29 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   // If key is -1, this should return all the data in the table.
   virtual int countByRevisionImpl(int key, const Revision& valueHolder,
                                   const LogicalTime& time) const;
-
   // =================
   // HISTORY CONTAINER
   // =================
-  // TODO(aqurai): We are storing the same shared_ptr twice: in raft log and
-  // here. Either remove from raft log (which means log is modified on commit)
-  // or store reference to raft log (indices) here, which requires revisions
-  // to be stored in log, and the log will need a completely different impl for
-  // STXXL container.
+  // TODO(aqurai): Implement history container here.
+  // This is an incomplete implementation.
   class History : public std::list<std::shared_ptr<const Revision>> {
    public:
     virtual ~History() {}
-    inline const_iterator latestAt(const LogicalTime& time) const;
+    inline const_iterator latestAt(const LogicalTime & time) const {
+      for (const_iterator it = cbegin(); it != cend(); ++it) {
+        if ((*it)->getUpdateTime() <= time)
+          return it;
+      }
+      return cend();
+    }
   };
   typedef std::unordered_map<common::Id, History> HistoryMap;
   HistoryMap data_;
 
-  // Read access
-  // Access to revisions etc
-
-  // Write access
-  // only from raft log. insert and update
   // ========
   // RAFT-LOG
   // ========
 
-  // TODO(aqurai): const proto::RaftRevision?
-  // template <>
   class RaftLog : public std::vector<std::shared_ptr<proto::RaftLogEntry>> {
    public:
     virtual ~RaftLog() {}
@@ -76,10 +65,11 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     inline uint64_t lastLogTerm() const { return back()->term(); }
     inline common::ReaderWriterMutex* mutex() const { return &log_mutex_; }
 
+    // Yet to be implemented:
     // void commitNextEnty() {}
     // void commitUntilIndex(uint64_t index) {}
     // uint64_t commit_index();
-    // std::unordered_map<int, std::function<void(const proto::RaftRevision*)>&>
+    // std::unordered_map<int, std::function<void(const proto::RaftLogEntry*)>&>
     // commit_actions;
 
    private:
@@ -88,7 +78,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     uint64_t commit_index_;
   };
   RaftLog log_;
-  
+
   class LogReadAccess {
   public:
     explicit LogReadAccess(const RaftChunkDataRamContainer*);
@@ -104,7 +94,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     const RaftLog* read_log_;
     bool is_enabled_;
   };
-  
+
   class LogWriteAccess {
   public:
     explicit LogWriteAccess(RaftChunkDataRamContainer*);
@@ -121,14 +111,8 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     bool is_enabled_;
   };
 
-  inline void forEachItemFoundAtTime(
-      int key, const Revision& value_holder, const LogicalTime& time,
-      const std::function<void(const common::Id& id, const Revision& item)>&
-          action) const;
 };
 
 }  // namespace map_api
-
-#include "map-api/raft-chunk-data-ram-container-inl.h"
 
 #endif  // MAP_API_RAFT_CHUNK_DATA_RAM_CONTAINER_H_
