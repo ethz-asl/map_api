@@ -12,7 +12,9 @@
 
 namespace map_api {
 
-RaftChunk::~RaftChunk() {}
+RaftChunk::~RaftChunk() {
+  raft_node_.stop();
+}
 
 bool RaftChunk::init(const common::Id& id,
                      std::shared_ptr<TableDescriptor> descriptor,
@@ -58,7 +60,7 @@ bool RaftChunk::init(const common::Id& id,
   }
   raft_node_.num_peers_ = raft_node_.peer_list_.size();
   for (int i = 0; i < init_request.serialized_items_size(); ++i) {
-    std::shared_ptr<proto::RaftRevision> revision(new proto::RaftRevision);
+    std::shared_ptr<proto::RaftLogEntry> revision(new proto::RaftLogEntry);
     revision->ParseFromString(init_request.serialized_items(i));
     raft_node_.log_entries_.push_back(revision);
   }
@@ -96,9 +98,9 @@ bool RaftChunk::sendConnectRequest(const PeerId& peer,
   return false;
 }
 
-uint64_t RaftChunk::insertRequest(uint64_t revision_entry) {
+uint64_t RaftChunk::insertRequest(const std::shared_ptr<Revision>& item) {
   CHECK(raft_node_.isRunning());
-  return raft_node_.sendInsertRequest(revision_entry);
+  return raft_node_.sendInsertRequest(item);
 }
 
 void RaftChunk::handleRaftConnectRequest(const PeerId& sender, Message* response) {
