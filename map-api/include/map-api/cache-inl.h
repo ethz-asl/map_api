@@ -216,7 +216,7 @@ getAvailableIdsLocked() const {
                           ordered_available_ids_.end());
     double total_seconds = timer.Stop();
     ids_fetched_ = true;
-    VLOG(3) << "Got " << available_ids_.size() << " ids for table "
+    VLOG(5) << "Got " << available_ids_.size() << " ids for table "
             << underlying_table_->name() << " in " << total_seconds << "s";
   }
 }
