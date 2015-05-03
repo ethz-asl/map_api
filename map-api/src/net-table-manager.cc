@@ -1,7 +1,9 @@
 #include "map-api/net-table-manager.h"
+
 #include "map-api/chunk-transaction.h"
 #include "map-api/core.h"
 #include "map-api/hub.h"
+#include "map-api/legacy-chunk.h"
 #include "map-api/revision.h"
 #include "./net-table.pb.h"
 
@@ -46,14 +48,20 @@ bool NetTableManager::getTableForRequestWithMetadataOrDecline<
 
 void NetTableManager::registerHandlers() {
   // Chunk requests.
-  Hub::instance().registerHandler(Chunk::kConnectRequest, handleConnectRequest);
-  Hub::instance().registerHandler(Chunk::kInitRequest, handleInitRequest);
-  Hub::instance().registerHandler(Chunk::kInsertRequest, handleInsertRequest);
-  Hub::instance().registerHandler(Chunk::kLeaveRequest, handleLeaveRequest);
-  Hub::instance().registerHandler(Chunk::kLockRequest, handleLockRequest);
-  Hub::instance().registerHandler(Chunk::kNewPeerRequest, handleNewPeerRequest);
-  Hub::instance().registerHandler(Chunk::kUnlockRequest, handleUnlockRequest);
-  Hub::instance().registerHandler(Chunk::kUpdateRequest, handleUpdateRequest);
+  Hub::instance().registerHandler(LegacyChunk::kConnectRequest,
+                                  handleConnectRequest);
+  Hub::instance().registerHandler(LegacyChunk::kInitRequest, handleInitRequest);
+  Hub::instance().registerHandler(LegacyChunk::kInsertRequest,
+                                  handleInsertRequest);
+  Hub::instance().registerHandler(LegacyChunk::kLeaveRequest,
+                                  handleLeaveRequest);
+  Hub::instance().registerHandler(LegacyChunk::kLockRequest, handleLockRequest);
+  Hub::instance().registerHandler(LegacyChunk::kNewPeerRequest,
+                                  handleNewPeerRequest);
+  Hub::instance().registerHandler(LegacyChunk::kUnlockRequest,
+                                  handleUnlockRequest);
+  Hub::instance().registerHandler(LegacyChunk::kUpdateRequest,
+                                  handleUpdateRequest);
 
   // Net table requests.
   Hub::instance().registerHandler(NetTable::kPushNewChunksRequest,
@@ -202,7 +210,7 @@ NetTable* NetTableManager::addTable(
 
 NetTable& NetTableManager::getTable(const std::string& name) {
   CHECK(Core::instance() != nullptr) << "Map API not initialized!";
-  ScopedReadLock lock(&tables_lock_);
+  common::ScopedReadLock lock(&tables_lock_);
   TableMap::iterator found = tables_.find(name);
   // TODO(tcies) load table schema from metatable if not active
   CHECK(found != tables_.end()) << "Table not found: " << name;
@@ -231,7 +239,7 @@ bool NetTableManager::hasTable(const std::string& name) const {
 void NetTableManager::tableList(std::vector<std::string>* tables) const {
   CHECK_NOTNULL(tables);
   tables->clear();
-  ScopedReadLock lock(&tables_lock_);
+  common::ScopedReadLock lock(&tables_lock_);
   for (const std::pair<const std::string, std::unique_ptr<NetTable> >& pair :
        tables_) {
     tables->push_back(pair.first);
@@ -311,11 +319,11 @@ void NetTableManager::handleConnectRequest(const Message& request,
                                            Message* response) {
   CHECK_NOTNULL(response);
   proto::ChunkRequestMetadata metadata;
-  request.extract<Chunk::kConnectRequest>(&metadata);
+  request.extract<LegacyChunk::kConnectRequest>(&metadata);
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
   CHECK_NOTNULL(Core::instance());
-  ScopedReadLock lock(&instance().tables_lock_);
+  common::ScopedReadLock lock(&instance().tables_lock_);
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = instance().tables_.find(table);
   if (found == instance().tables_.end()) {
@@ -329,7 +337,7 @@ void NetTableManager::handleConnectRequest(const Message& request,
 void NetTableManager::handleInitRequest(
     const Message& request, Message* response) {
   proto::InitRequest init_request;
-  request.extract<Chunk::kInitRequest>(&init_request);
+  request.extract<LegacyChunk::kInitRequest>(&init_request);
   TableMap::iterator found;
   if (getTableForRequestWithMetadataOrDecline(init_request, response, &found)) {
     found->second->handleInitRequest(init_request, PeerId(request.sender()),
@@ -340,7 +348,7 @@ void NetTableManager::handleInitRequest(
 void NetTableManager::handleInsertRequest(
     const Message& request, Message* response) {
   proto::PatchRequest patch_request;
-  request.extract<Chunk::kInsertRequest>(&patch_request);
+  request.extract<LegacyChunk::kInsertRequest>(&patch_request);
   TableMap::iterator found;
   if (getTableForRequestWithMetadataOrDecline(patch_request, response,
                                               &found)) {
@@ -356,7 +364,7 @@ void NetTableManager::handleLeaveRequest(
   TableMap::iterator found;
   common::Id chunk_id;
   PeerId peer;
-  if (getTableForMetadataRequestOrDecline<Chunk::kLeaveRequest>(
+  if (getTableForMetadataRequestOrDecline<LegacyChunk::kLeaveRequest>(
           request, response, &found, &chunk_id, &peer)) {
     found->second->handleLeaveRequest(chunk_id, peer, response);
   }
@@ -367,7 +375,7 @@ void NetTableManager::handleLockRequest(
   TableMap::iterator found;
   common::Id chunk_id;
   PeerId peer;
-  if (getTableForMetadataRequestOrDecline<Chunk::kLockRequest>(
+  if (getTableForMetadataRequestOrDecline<LegacyChunk::kLockRequest>(
           request, response, &found, &chunk_id, &peer)) {
     found->second->handleLockRequest(chunk_id, peer, response);
   }
@@ -376,7 +384,7 @@ void NetTableManager::handleLockRequest(
 void NetTableManager::handleNewPeerRequest(
     const Message& request, Message* response) {
   proto::NewPeerRequest new_peer_request;
-  request.extract<Chunk::kNewPeerRequest>(&new_peer_request);
+  request.extract<LegacyChunk::kNewPeerRequest>(&new_peer_request);
   TableMap::iterator found;
   if (getTableForRequestWithMetadataOrDecline(new_peer_request, response,
                                               &found)) {
@@ -391,7 +399,7 @@ void NetTableManager::handleUnlockRequest(
   TableMap::iterator found;
   common::Id chunk_id;
   PeerId peer;
-  if (getTableForMetadataRequestOrDecline<Chunk::kUnlockRequest>(
+  if (getTableForMetadataRequestOrDecline<LegacyChunk::kUnlockRequest>(
           request, response, &found, &chunk_id, &peer)) {
     found->second->handleUnlockRequest(chunk_id, peer, response);
   }
@@ -400,7 +408,7 @@ void NetTableManager::handleUnlockRequest(
 void NetTableManager::handleUpdateRequest(
     const Message& request, Message* response) {
   proto::PatchRequest patch_request;
-  request.extract<Chunk::kUpdateRequest>(&patch_request);
+  request.extract<LegacyChunk::kUpdateRequest>(&patch_request);
   TableMap::iterator found;
   if (getTableForRequestWithMetadataOrDecline(patch_request, response,
                                               &found)) {
@@ -534,7 +542,7 @@ bool NetTableManager::syncTableDefinition(const TableDescriptor& descriptor,
 bool NetTableManager::findTable(const std::string& table_name,
                                 TableMap::iterator* found) {
   CHECK_NOTNULL(found);
-  ScopedReadLock lock(&instance().tables_lock_);
+  common::ScopedReadLock lock(&instance().tables_lock_);
   *found = instance().tables_.find(table_name);
   if (*found == instance().tables_.end()) {
     return false;

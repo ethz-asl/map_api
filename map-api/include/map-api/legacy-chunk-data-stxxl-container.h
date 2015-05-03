@@ -1,15 +1,18 @@
-#ifndef MAP_API_CHUNK_DATA_RAM_CONTAINER_H_
-#define MAP_API_CHUNK_DATA_RAM_CONTAINER_H_
+#ifndef MAP_API_LEGACY_CHUNK_DATA_STXXL_CONTAINER_H_
+#define MAP_API_LEGACY_CHUNK_DATA_STXXL_CONTAINER_H_
 
+#include <list>
 #include <vector>
 
-#include "map-api/chunk-data-container-base.h"
+#include "map-api/legacy-chunk-data-container-base.h"
+#include "map-api/stxxl-revision-store.h"
 
 namespace map_api {
 
-class ChunkDataRamContainer : public ChunkDataContainerBase {
+class LegacyChunkDataStxxlContainer : public LegacyChunkDataContainerBase {
  public:
-  virtual ~ChunkDataRamContainer();
+  LegacyChunkDataStxxlContainer();
+  virtual ~LegacyChunkDataStxxlContainer();
 
  private:
   virtual bool initImpl() final override;
@@ -28,7 +31,6 @@ class ChunkDataRamContainer : public ChunkDataContainerBase {
   virtual void getAvailableIdsImpl(const LogicalTime& time,
                                    std::vector<common::Id>* ids) const
       final override;
-
   virtual bool insertUpdatedImpl(const std::shared_ptr<Revision>& query)
       final override;
   virtual void findHistoryByRevisionImpl(int key, const Revision& valueHolder,
@@ -50,9 +52,26 @@ class ChunkDataRamContainer : public ChunkDataContainerBase {
           action) const;
   inline void trimToTime(const LogicalTime& time, HistoryMap* subject) const;
 
-  HistoryMap data_;
+  class STXXLHistory : public std::list<CRURevisionInformation> {
+   public:
+    inline const_iterator latestAt(const LogicalTime& time) const {
+      for (const_iterator it = cbegin(); it != cend(); ++it) {
+        if (it->update_time_ <= time) {
+          return it;
+        }
+      }
+      return cend();
+    }
+  };
+  typedef std::unordered_map<common::Id, STXXLHistory> STXXLHistoryMap;
+  STXXLHistoryMap data_;
+
+  static constexpr int kBlockSize = kSTXXLDefaultBlockSize;
+  std::unique_ptr<STXXLRevisionStore<kBlockSize>> revision_store_;
 };
 
 }  // namespace map_api
 
-#endif  // MAP_API_CHUNK_DATA_RAM_CONTAINER_H_
+#include "map-api/legacy-chunk-data-container-base-inl.h"
+
+#endif  // MAP_API_LEGACY_CHUNK_DATA_STXXL_CONTAINER_H_

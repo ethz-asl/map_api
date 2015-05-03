@@ -1,16 +1,19 @@
-#include <map-api/file-discovery.h>
+#include "map-api/file-discovery.h"
+
+#include <chrono>
 #include <fstream>  // NOLINT
 #include <sstream>  // NOLINT
 #include <string>
-
 #include <sys/file.h>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <multiagent-mapping-common/delayed-notification.h>
 
-#include <map-api/hub.h>
+#include "map-api/hub.h"
 
 DEFINE_bool(clear_discovery, false, "Will clear file discovery at startup.");
+DEFINE_double(discovery_timeout_seconds, 0.5, "Timeout for file discovery.");
 
 namespace map_api {
 
@@ -65,6 +68,8 @@ void FileDiscovery::getFileContents(std::string* result) const {
 
 void FileDiscovery::lock() {
   mutex_.lock();
+  using std::chrono::steady_clock;
+  steady_clock::time_point start = steady_clock::now();
   while (true) {
     {
       bool status =
@@ -75,7 +80,15 @@ void FileDiscovery::lock() {
         break;
       }
     }
-    usleep(100);
+    usleep(1e4);
+    steady_clock::time_point end = steady_clock::now();
+    using std::chrono::duration_cast;
+    double time_ms =
+        duration_cast<std::chrono::milliseconds>(end - start).count();
+    if (time_ms > FLAGS_discovery_timeout_seconds * 1e3) {
+      LOG(FATAL) << "File discovery lock timed out! "
+        << "Need to remove " << kLockFileName;
+    }
   }
 }
 

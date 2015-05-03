@@ -14,7 +14,7 @@
 using namespace map_api;  // NOLINT
 
 TEST_F(NetTableFixture, SaveAndRestoreFromFile) {
-  Chunk* chunk = table_->newChunk();
+  ChunkBase* chunk = table_->newChunk();
   CHECK_NOTNULL(chunk);
   common::Id chunk_id = chunk->id();
   common::Id item_1_id;

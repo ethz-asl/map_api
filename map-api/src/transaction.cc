@@ -1,3 +1,4 @@
+#include <map-api/legacy-chunk.h>
 #include "map-api/transaction.h"
 
 #include <algorithm>
@@ -6,43 +7,59 @@
 #include <timing/timer.h>
 
 #include "map-api/cache-base.h"
-#include "map-api/chunk.h"
 #include "map-api/chunk-manager.h"
 #include "map-api/net-table.h"
 #include "map-api/net-table-manager.h"
 #include "map-api/net-table-transaction.h"
 #include "map-api/revision.h"
 #include "map-api/trackee-multimap.h"
+#include "map-api/workspace.h"
 #include "./core.pb.h"
 
 DEFINE_bool(blame_commit, false, "Print stack trace for every commit");
 
 namespace map_api {
 
-Transaction::Transaction() : Transaction(LogicalTime::sample()) {}
-Transaction::Transaction(const LogicalTime& begin_time)
-    : begin_time_(begin_time),
+Transaction::Transaction(const std::shared_ptr<Workspace>& workspace,
+                         const LogicalTime& begin_time)
+    : workspace_(workspace),
+      begin_time_(begin_time),
       chunk_tracking_disabled_(false),
       already_committed_(false) {
   CHECK(begin_time < LogicalTime::sample());
 }
+Transaction::Transaction()
+    : Transaction(std::shared_ptr<Workspace>(new Workspace),
+                  LogicalTime::sample()) {}
+Transaction::Transaction(const std::shared_ptr<Workspace>& workspace)
+    : Transaction(workspace, LogicalTime::sample()) {}
+Transaction::Transaction(const LogicalTime& begin_time)
+    : Transaction(std::shared_ptr<Workspace>(new Workspace), begin_time) {}
 
-void Transaction::dumpChunk(NetTable* table, Chunk* chunk,
+void Transaction::dumpChunk(NetTable* table, ChunkBase* chunk,
                             ConstRevisionMap* result) {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(chunk);
   CHECK_NOTNULL(result);
-  return transactionOf(table)->dumpChunk(chunk, result);
+  if (!workspace_->contains(table, chunk->id())) {
+    result->clear();
+  } else {
+    transactionOf(table)->dumpChunk(chunk, result);
+  }
 }
 
 void Transaction::dumpActiveChunks(NetTable* table, ConstRevisionMap* result) {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(result);
-  return transactionOf(table)->dumpActiveChunks(result);
+  if (!workspace_->contains(table)) {
+    result->clear();
+  } else {
+    transactionOf(table)->dumpActiveChunks(result);
+  }
 }
 
-void Transaction::insert(
-    NetTable* table, Chunk* chunk, std::shared_ptr<Revision> revision) {
+void Transaction::insert(NetTable* table, ChunkBase* chunk,
+                         std::shared_ptr<Revision> revision) {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(chunk);
   transactionOf(table)->insert(chunk, revision);
@@ -54,7 +71,7 @@ void Transaction::insert(ChunkManagerBase* chunk_manager,
   CHECK(revision != nullptr);
   NetTable* table = chunk_manager->getUnderlyingTable();
   CHECK_NOTNULL(table);
-  Chunk* chunk = chunk_manager->getChunkForItem(*revision);
+  ChunkBase* chunk = chunk_manager->getChunkForItem(*revision);
   CHECK_NOTNULL(chunk);
   insert(table, chunk, revision);
 }
@@ -115,7 +132,7 @@ void Transaction::merge(const std::shared_ptr<Transaction>& merge_transaction,
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     std::shared_ptr<NetTableTransaction> merge_net_table_transaction(
         new NetTableTransaction(merge_transaction->begin_time_,
-                                net_table_transaction.first));
+                                net_table_transaction.first, *workspace_));
     ChunkTransaction::Conflicts sub_conflicts;
     net_table_transaction.second->merge(merge_net_table_transaction,
                                         &sub_conflicts);
@@ -169,7 +186,7 @@ NetTableTransaction* Transaction::transactionOf(NetTable* table) const {
       net_table_transactions_.find(table);
   if (net_table_transaction == net_table_transactions_.end()) {
     std::shared_ptr<NetTableTransaction> transaction(
-        new NetTableTransaction(begin_time_, table));
+        new NetTableTransaction(begin_time_, table, *workspace_));
     std::pair<TransactionMap::iterator, bool> inserted =
         net_table_transactions_.insert(std::make_pair(table, transaction));
     CHECK(inserted.second);
