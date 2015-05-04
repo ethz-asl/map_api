@@ -13,16 +13,11 @@ Core Core::instance_;
 MAP_API_REVISION_PROTOBUF(TableDescriptor);
 
 Core* Core::instance() {
-  if (!instance_.initialized_mutex_.try_lock()) {
-    return nullptr;
+  std::unique_lock<std::mutex> lock(instance_.initialized_mutex_);
+  if (instance_.initialized_) {
+    return &instance_;
   } else {
-    if (instance_.initialized_) {
-      instance_.initialized_mutex_.unlock();
-      return &instance_;
-    } else {
-      instance_.initialized_mutex_.unlock();
-      return nullptr;
-    }
+    return nullptr;
   }
 }
 
