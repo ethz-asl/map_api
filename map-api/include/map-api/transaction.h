@@ -104,6 +104,7 @@ class Transaction {
 
   // STATISTICS
   size_t numChangedItems() const;
+  std::string printCacheStatistics() const;
 
   // MISCELLANEOUS
   template <typename TrackerIdType>
