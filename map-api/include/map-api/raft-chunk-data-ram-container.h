@@ -1,6 +1,7 @@
 #ifndef MAP_API_RAFT_CHUNK_DATA_RAM_CONTAINER_H_
 #define MAP_API_RAFT_CHUNK_DATA_RAM_CONTAINER_H_
 
+#include <list>
 #include <vector>
 
 #include "./raft.pb.h"
@@ -11,7 +12,7 @@ class ReaderWriterMutex;
 
 // TODO(aqurai): When implementing STXXL container, split into a base class,
 // and derived classes for RAM and STXXL containers
-class RaftChunkDataRamContainer : public ChunkDataContainerBase {  
+class RaftChunkDataRamContainer : public ChunkDataContainerBase {
  public:
   virtual ~RaftChunkDataRamContainer();
 
@@ -46,7 +47,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
 
   class LogReadAccess {
   public:
-    explicit LogReadAccess(const RaftChunkDataRamContainer*);
+   explicit LogReadAccess(const RaftChunkDataRamContainer* container);
     ~LogReadAccess();
     const RaftLog* operator->() const;
     void unlockAndDisable();
@@ -62,7 +63,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
 
   class LogWriteAccess {
    public:
-    explicit LogWriteAccess(RaftChunkDataRamContainer*);
+    explicit LogWriteAccess(RaftChunkDataRamContainer* container);
     ~LogWriteAccess();
     RaftLog* operator->() const;
     void unlockAndDisable();
