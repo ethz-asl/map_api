@@ -86,7 +86,7 @@ class RaftNode {
   static void staticHandleRequestVote(const Message& request,
                                       Message* response);
   static void staticHandleJoinQuitRequest(const Message& request,
-                                        Message* response);
+                                          Message* response);
   static void staticHandleNotifyJoinQuitSuccess(const Message& request,
                                                 Message* response);
 
@@ -158,8 +158,11 @@ class RaftNode {
     last_heartbeat_ = std::chrono::system_clock::now();
   }
   inline double getTimeSinceHeartbeatMs() {
-    std::lock_guard<std::mutex> lock(last_heartbeat_mutex_);
-    TimePoint last_hb_time = last_heartbeat_;
+    TimePoint last_hb_time;
+    {
+      std::lock_guard<std::mutex> lock(last_heartbeat_mutex_);
+      last_hb_time = last_heartbeat_;
+    }
     TimePoint now = std::chrono::system_clock::now();
     return static_cast<double>(
         std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -175,7 +178,7 @@ class RaftNode {
   // Peer management
   // ===============
 
-  enum PeerStatus {
+  enum class PeerStatus {
     JOINING,
     AVAILABLE,
     NOT_RESPONDING,
@@ -223,11 +226,6 @@ class RaftNode {
   // Leader election
   // ===============
 
-  enum {
-    VOTE_GRANTED,
-    VOTE_DECLINED,
-    FAILED_REQUEST
-  };
   std::atomic<int> election_timeout_ms_;  // A random value between 50 and 150 ms.
   static int setElectionTimeout();     // Set a random election timeout value.
   void conductElection();
