@@ -44,12 +44,12 @@ class LegacyChunkDataStxxlContainer : public LegacyChunkDataContainerBase {
 
   inline void forEachItemFoundAtTime(
       int key, const Revision& value_holder, const LogicalTime& time,
-      const std::function<void(const common::Id& id, const Revision& item)>&
-          action) const;
+      const std::function<void(const common::Id& id,
+                               const Revision::ConstPtr& item)>& action) const;
   inline void forChunkItemsAtTime(
       const common::Id& chunk_id, const LogicalTime& time,
-      const std::function<void(const common::Id& id, const Revision& item)>&
-          action) const;
+      const std::function<void(const common::Id& id,
+                               const Revision::ConstPtr& item)>& action) const;
   inline void trimToTime(const LogicalTime& time, HistoryMap* subject) const;
 
   class STXXLHistory : public std::list<CRURevisionInformation> {
