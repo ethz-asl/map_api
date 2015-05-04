@@ -80,21 +80,9 @@ class RaftNode {
   // Returns index of the appended entry if append succeeds, or zero otherwise
   uint64_t leaderAppendLogEntry(uint32_t entry);
 
-<<<<<<< HEAD
   // Waits for the entry to be committed. Returns failure if the leader fails
   // before the new entry is committed.
   uint64_t leaderSafelyAppendLogEntry(uint32_t entry);
-=======
-  static void staticHandleAppendRequest(const Message& request,
-                                        Message* response);
-  static void staticHandleRequestVote(const Message& request,
-                                      Message* response);
-  static void staticHandleQueryState(const Message& request, Message* response);
-  static void staticHandleJoinQuitRequest(const Message& request,
-                                          Message* response);
-  static void staticHandleNotifyJoinQuitSuccess(const Message& request,
-                                                Message* response);
->>>>>>> devel/raft
 
   static const char kAppendEntries[];
   static const char kAppendEntriesResponse[];
