@@ -1,6 +1,6 @@
 #ifndef MAP_API_CACHE_INL_H_
 #define MAP_API_CACHE_INL_H_
-
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -28,7 +28,7 @@ template <typename IdType, typename Value, typename DerivedValue>
 Cache<IdType, Value, DerivedValue>::~Cache() {}
 
 template <typename IdType, typename Value, typename DerivedValue>
-Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) {
+Value& Cache<IdType, Value, DerivedValue>::getMutable(const IdType& id) {
   LockGuard lock(mutex_);
   typename CacheMap::iterator found = this->cache_.find(id);
   if (found == this->cache_.end()) {
@@ -49,7 +49,8 @@ Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) {
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
-const Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) const {
+typename Cache<IdType, Value, DerivedValue>::ConstRefReturnType
+Cache<IdType, Value, DerivedValue>::get(const IdType& id) const {
   LockGuard lock(mutex_);
   typename CacheMap::iterator found = this->cache_.find(id);
   if (found == this->cache_.end()) {
@@ -108,6 +109,18 @@ void Cache<IdType, Value, DerivedValue>::getAllAvailableIds(
   LockGuard lock(mutex_);
   CHECK_NOTNULL(available_ids);
   *available_ids = available_ids_.getAllIds();
+}
+
+template <typename IdType, typename Value, typename DerivedValue>
+std::string Cache<IdType, Value, DerivedValue>::underlyingTableName() const {
+  LockGuard lock(mutex_);
+  return underlying_table_->name();
+}
+
+template <typename IdType, typename Value, typename DerivedValue>
+size_t Cache<IdType, Value, DerivedValue>::numCachedItems() const {
+  LockGuard lock(mutex_);
+  return cache_.size();
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
@@ -215,7 +228,7 @@ getAvailableIdsLocked() const {
                           ordered_available_ids_.end());
     double total_seconds = timer.Stop();
     ids_fetched_ = true;
-    VLOG(3) << "Got " << available_ids_.size() << " ids for table "
+    VLOG(5) << "Got " << available_ids_.size() << " ids for table "
             << underlying_table_->name() << " in " << total_seconds << "s";
   }
 }
