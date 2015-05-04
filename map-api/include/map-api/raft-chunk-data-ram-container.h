@@ -46,8 +46,8 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   };
 
   class LogReadAccess {
-  public:
-   explicit LogReadAccess(const RaftChunkDataRamContainer* container);
+   public:
+    explicit LogReadAccess(const RaftChunkDataRamContainer* container);
     ~LogReadAccess();
     const RaftLog* operator->() const;
     void unlockAndDisable();
