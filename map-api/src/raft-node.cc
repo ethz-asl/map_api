@@ -1018,6 +1018,13 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
                           current_term);
       // TODO(aqurai): Send notification to quitting peers after zerommq crash
       // issue is resolved.
+      // There is a crash if one attempts to send message to a peer after a
+      // previous message to the same peer timed out. So if a peer is removed
+      // because it was not responding, sending a notification will cause a
+      // crash. Otherwise, here I have to make a distinction between announced
+      // and unannounced peer removal. Also, There could be other
+      // threads/methods (eg: vote request) attempting to send message to the
+      // non responsive peer, which causes a problem.
       if ((*it)->add_remove_peer().request_type() ==
           proto::PeerRequestType::ADD_PEER)
         sendNotifyJoinQuitSuccess(PeerId((*it)->add_remove_peer().peer_id()));
