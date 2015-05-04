@@ -15,46 +15,12 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
  public:
   virtual ~RaftChunkDataRamContainer();
 
- private:
-  friend class LogReadAccess;
-  friend class RaftNode; // TODO(aqurai): Remove friendship?
-
-  // READ OPERATIONS INHERITED FROM PARENT
-  virtual bool initImpl();
-  virtual std::shared_ptr<const Revision> getByIdImpl(
-      const common::Id& id, const LogicalTime& time) const;
-  // If key is -1, this should return all the data in the table.
-  virtual void findByRevisionImpl(int key, const Revision& valueHolder,
-                                  const LogicalTime& time,
-                                  ConstRevisionMap* dest) const;
-  virtual void getAvailableIdsImpl(const LogicalTime& time,
-                                   std::vector<common::Id>* ids) const;
-  // If key is -1, this should return all the data in the table.
-  virtual int countByRevisionImpl(int key, const Revision& valueHolder,
-                                  const LogicalTime& time) const;
-  // =================
-  // HISTORY CONTAINER
-  // =================
-  // TODO(aqurai): Implement history container here.
-  // This is an incomplete implementation.
-  class History : public std::list<std::shared_ptr<const Revision>> {
-   public:
-    virtual ~History() {}
-    inline const_iterator latestAt(const LogicalTime & time) const {
-      for (const_iterator it = cbegin(); it != cend(); ++it) {
-        if ((*it)->getUpdateTime() <= time)
-          return it;
-      }
-      return cend();
-    }
-  };
-  typedef std::unordered_map<common::Id, History> HistoryMap;
-  HistoryMap data_;
-
   // ========
   // RAFT-LOG
   // ========
 
+  // TODO(aqurai): Make this class private. The prolem is iterator and
+  // const_iterator are not defined within RaftNode.
   class RaftLog : public std::vector<std::shared_ptr<proto::RaftLogEntry>> {
    public:
     virtual ~RaftLog() {}
@@ -77,7 +43,6 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     mutable std::mutex commit_mutex_;
     uint64_t commit_index_;
   };
-  RaftLog log_;
 
   class LogReadAccess {
   public:
@@ -96,7 +61,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   };
 
   class LogWriteAccess {
-  public:
+   public:
     explicit LogWriteAccess(RaftChunkDataRamContainer*);
     ~LogWriteAccess();
     RaftLog* operator->() const;
@@ -106,11 +71,49 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     LogWriteAccess& operator=(const LogWriteAccess&) = delete;
     LogWriteAccess(LogWriteAccess&&) = delete;
     LogWriteAccess& operator=(LogWriteAccess&&) = delete;
-  private:
+
+   private:
     RaftLog* write_log_;
     bool is_enabled_;
   };
 
+ private:
+  friend class LogReadAccess;
+  // friend class RaftNode; // TODO(aqurai): Remove friendship?
+
+  // READ OPERATIONS INHERITED FROM PARENT
+  virtual bool initImpl();
+  virtual std::shared_ptr<const Revision> getByIdImpl(
+      const common::Id& id, const LogicalTime& time) const;
+  // If key is -1, this should return all the data in the table.
+  virtual void findByRevisionImpl(int key, const Revision& valueHolder,
+                                  const LogicalTime& time,
+                                  ConstRevisionMap* dest) const;
+  virtual void getAvailableIdsImpl(const LogicalTime& time,
+                                   std::vector<common::Id>* ids) const;
+  // If key is -1, this should return all the data in the table.
+  virtual int countByRevisionImpl(int key, const Revision& valueHolder,
+                                  const LogicalTime& time) const;
+  // =================
+  // HISTORY CONTAINER
+  // =================
+  // TODO(aqurai): Implement history container here.
+  // This is an incomplete implementation.
+  class History : public std::list<std::shared_ptr<const Revision>> {
+   public:
+    virtual ~History() {}
+    inline const_iterator latestAt(const LogicalTime& time) const {
+      for (const_iterator it = cbegin(); it != cend(); ++it) {
+        if ((*it)->getUpdateTime() <= time) return it;
+      }
+      return cend();
+    }
+  };
+  typedef std::unordered_map<common::Id, History> HistoryMap;
+  HistoryMap data_;
+
+ private:
+  RaftLog log_;
 };
 
 }  // namespace map_api
