@@ -491,7 +491,7 @@ void RaftNode::leaderLaunchTracker(const PeerId& peer, uint64_t current_term) {
   tracker->tracker_run = true;
   tracker->replication_index = 0;
   tracker->tracker_thread = std::thread(&RaftNode::followerTrackerThread, this,
-                                        peer, current_term, tracker);
+                                        peer, current_term, tracker.get());
 }
 
 void RaftNode::leaderMonitorFollowerStatus(uint64_t current_term) {
@@ -675,9 +675,8 @@ void RaftNode::conductElection() {
   updateHeartbeatTime();
 }
 
-void RaftNode::followerTrackerThread(
-    const PeerId& peer, uint64_t term,
-    const std::shared_ptr<FollowerTracker> this_tracker) {
+void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
+                                     FollowerTracker* const this_tracker) {
   uint64_t follower_next_index = commit_index() + 1;  // This is at least 1.
   uint64_t follower_commit_index = 0;
   proto::AppendEntriesRequest append_entries;
