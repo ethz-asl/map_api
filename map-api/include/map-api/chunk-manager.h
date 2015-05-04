@@ -60,7 +60,7 @@ class ChunkManagerBase {
   std::unordered_map<common::Id, ChunkBase*> active_chunks_;
 };
 
-static constexpr int kDefaultChunkSizeBytes = 10 * 1024 * 1024;
+static constexpr int kDefaultChunkSizeBytes = 20 * 1024 * 1024;
 // A Chunk manager that splits chunks based on their size.
 class ChunkManagerChunkSize : public ChunkManagerBase {
  public:
