@@ -38,6 +38,8 @@ class Revision {
 
  public:
   typedef std::vector<char> Blob;
+  typedef std::shared_ptr<Revision> Ptr;
+  typedef std::shared_ptr<const Revision> ConstPtr;
 
   Revision& operator=(const Revision& other) = delete;
 
