@@ -387,13 +387,16 @@ RaftNode::VoteResponse RaftNode::sendRequestVote(const PeerId& peer,
   if (Hub::instance().try_request(peer, &request, &response)) {
     proto::VoteResponse vote_response;
     response.extract<kVoteResponse>(&vote_response);
-    if (vote_response.vote() == proto::VoteResponseType::GRANTED)
-      return VoteResponse::VOTE_GRANTED;
-    else if (vote_response.vote() ==
-             proto::VoteResponseType::VOTER_NOT_ELIGIBLE)
-      return VoteResponse::VOTER_NOT_ELIGIBLE;
-    else
-      return VoteResponse::VOTE_DECLINED;
+    switch (vote_response.vote()) {
+      case proto::VoteResponseType::GRANTED:
+        return VoteResponse::VOTE_GRANTED;
+      case proto::VoteResponseType::VOTER_NOT_ELIGIBLE:
+        return VoteResponse::VOTER_NOT_ELIGIBLE;
+      case proto::VoteResponseType::DECLINED:
+        return VoteResponse::VOTE_DECLINED;
+      default:
+        return VoteResponse::VOTE_DECLINED;
+    }
   } else {
     return VoteResponse::FAILED_REQUEST;
   }
@@ -527,7 +530,7 @@ void RaftNode::leaderLaunchTracker(const PeerId& peer, uint64_t current_term) {
   tracker->tracker_run = true;
   tracker->replication_index = 0;
   tracker->tracker_thread = std::thread(&RaftNode::followerTrackerThread, this,
-                                        peer, current_term, tracker);
+                                        peer, current_term, tracker.get());
 }
 
 void RaftNode::leaderMonitorFollowerStatus(uint64_t current_term) {
@@ -605,8 +608,9 @@ void RaftNode::joinRaft() {
     peer = join_request_peer_;
     join_request_peer_ = PeerId();
   } else if (num_peers_ > 0) {
-    // TODO(aqurai): lock peers here?
+    std::lock_guard<std::mutex> peer_lock(peer_mutex_);
     // TODO(aqurai): Choose a random peer?
+    CHECK(!peer_list_.empty());
     std::set<PeerId>::iterator it = peer_list_.begin();
     peer = *it;
     CHECK(peer.isValid());
@@ -629,10 +633,10 @@ void RaftNode::joinRaft() {
 
   if (join_response.response()) {
     join_log_index_ = join_response.index();
-    peer_list_.clear();
-    peer_list_.insert(peer);
     uint num_response_peers = join_response.peer_id_size();
     std::lock_guard<std::mutex> peer_lock(peer_mutex_);
+    peer_list_.clear();
+    peer_list_.insert(peer);
     for (uint i = 0; i < num_response_peers; ++i) {
       PeerId insert_peer = PeerId(join_response.peer_id(i));
       if (insert_peer != PeerId::self()) {
@@ -663,23 +667,25 @@ void RaftNode::conductElection() {
 
   std::vector<std::future<VoteResponse>> responses;
 
-  std::unique_lock<std::mutex> peer_lock(peer_mutex_);
-  for (const PeerId& peer : peer_list_) {
-    std::future<VoteResponse> vote_response =
-        std::async(std::launch::async, &RaftNode::sendRequestVote, this, peer,
-                   term, last_log_index, last_log_term);
-    responses.push_back(std::move(vote_response));
+  {
+    std::lock_guard<std::mutex> peer_lock(peer_mutex_);
+    for (const PeerId& peer : peer_list_) {
+      std::future<VoteResponse> vote_response =
+          std::async(std::launch::async, &RaftNode::sendRequestVote, this, peer,
+                     term, last_log_index, last_log_term);
+      responses.push_back(std::move(vote_response));
+    }
   }
-  peer_lock.unlock();
 
   for (std::future<VoteResponse>& response : responses) {
     VoteResponse vote_response = response.get();
-    if (vote_response == VoteResponse::VOTE_GRANTED)
+    if (vote_response == VoteResponse::VOTE_GRANTED) {
       ++num_votes;
-    else if (vote_response == VoteResponse::VOTE_GRANTED)
+    } else if (vote_response == VoteResponse::VOTE_GRANTED) {
       ++num_ineligible;
-    else if (vote_response == VoteResponse::FAILED_REQUEST)
+    } else if (vote_response == VoteResponse::FAILED_REQUEST) {
       ++num_failed;
+    }
   }
 
   state_lock.lock();
@@ -710,9 +716,8 @@ void RaftNode::conductElection() {
   updateHeartbeatTime();
 }
 
-void RaftNode::followerTrackerThread(
-    const PeerId& peer, uint64_t term,
-    const std::shared_ptr<FollowerTracker> this_tracker) {
+void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
+                                     FollowerTracker* const this_tracker) {
   uint64_t follower_next_index = commit_index() + 1;  // This is at least 1.
   uint64_t follower_commit_index = 0;
   proto::AppendEntriesRequest append_entries;
@@ -724,8 +729,8 @@ void RaftNode::followerTrackerThread(
   std::unique_lock<std::mutex> wait_lock(wait_mutex);
 
   while (follower_trackers_run_ && this_tracker->tracker_run) {
-    bool append_successs = false;
-    while (!append_successs && follower_trackers_run_ &&
+    bool append_success = false;
+    while (!append_success && follower_trackers_run_ &&
            this_tracker->tracker_run) {
       if (this_tracker->status == PeerStatus::OFFLINE) {
         VLOG_EVERY_N(1, 10)
@@ -780,7 +785,7 @@ void RaftNode::followerTrackerThread(
           // The response is from an append entry RPC, not a regular heartbeat.
           this_tracker->replication_index.store(follower_next_index);
           ++follower_next_index;
-          append_successs = (follower_next_index > last_log_index);
+          append_success = (follower_next_index > last_log_index);
         }
       } else if (append_response.response() ==
                  proto::AppendResponseStatus::REJECTED) {

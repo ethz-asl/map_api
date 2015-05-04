@@ -1,6 +1,6 @@
 package map_api.proto;
 
-enum PeerRequestType {ADD_PEER = 1; REMOVE_PEER = 2;}
+enum PeerRequestType {ADD_PEER = 0; REMOVE_PEER = 1;}
 
 message AddRemovePeer {
   optional string peer_id = 1;
@@ -57,7 +57,7 @@ message VoteRequest {
   optional uint64 commit_index = 4;
 }
 
-enum VoteResponseType {GRANTED = 1; DECLINED = 2; VOTER_NOT_ELIGIBLE = 3;}
+enum VoteResponseType {GRANTED = 0; DECLINED = 1; VOTER_NOT_ELIGIBLE = 2;}
 
 message VoteResponse {
   optional VoteResponseType vote = 1;
