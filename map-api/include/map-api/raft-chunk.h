@@ -33,6 +33,7 @@ class RaftChunk : public ChunkBase {
   virtual void dumpItems(const LogicalTime& time, ConstRevisionMap* items) const
       override;
   inline void setStateFollowerAndStartRaft();
+  inline void setStateLeaderAndStartRaft();
 
   // ====================
   // Not implemented yet.
@@ -56,7 +57,7 @@ class RaftChunk : public ChunkBase {
   virtual bool isWriteLocked() override;
   virtual void unlock() const override;
 
-  virtual int requestParticipation() override {return 1;}
+  virtual int requestParticipation() override;
   virtual int requestParticipation(const PeerId& peer) override;
   virtual void update(const std::shared_ptr<Revision>& item) override {}
   virtual LogicalTime getLatestCommitTime() const override {return LogicalTime::sample();}

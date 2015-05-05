@@ -41,13 +41,7 @@ TEST_F(ConsensusFixture, RaftChunkTest) {
     CHECK_NOTNULL(chunk);
     IPC::push(chunk->id());
     IPC::barrier(PUSH_CHUNK_ID, kProcesses - 1);
-    usleep(5000000);
-    // chunk->raft_node_.start();
-    std::set<PeerId> peers;
-    Hub::instance().getPeers(&peers);
-    for (const PeerId& peer : peers) {
-      chunk->requestParticipation(peer);
-    }
+    chunk->requestParticipation();
     IPC::barrier(RAFT_START, kProcesses - 1);
     usleep(100000 * kMillisecondsToMicroseconds);
 
@@ -56,10 +50,6 @@ TEST_F(ConsensusFixture, RaftChunkTest) {
     IPC::barrier(INIT_PEERS, kProcesses - 1);
     IPC::barrier(PUSH_CHUNK_ID, kProcesses - 1);
     common::Id chunk_id = IPC::pop<common::Id>();
-    // ChunkBase* base_chunk = table_->getChunk(chunk_id);
-    // RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);
-    // CHECK_NOTNULL(chunk);
-    // chunk->raft_node_.start();
     IPC::barrier(RAFT_START, kProcesses - 1);
 
     usleep(100000 * kMillisecondsToMicroseconds);

@@ -36,7 +36,7 @@ void RaftChunk::initializeNewImpl(
 
   VLOG(1) << " INIT chunk at peer " << PeerId::self() << " in table "
           << raft_node_.table_name_;
-  setStateFollowerAndStartRaft();
+  setStateLeaderAndStartRaft();
 }
 
 bool RaftChunk::init(const common::Id& id,
@@ -118,17 +118,33 @@ void RaftChunk::unlock() const {
   }
 }
 
+int RaftChunk::requestParticipation() {
+  // TODO(aqurai): Handle failure/leader change.
+  std::set<PeerId> peers;
+  Hub::instance().getPeers(&peers);
+  int num_success = 0;
+  for (const PeerId& peer : peers) {
+    if (requestParticipation(peer)) {
+      ++num_success;
+    }
+  }
+  if (num_success > 0) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
 int RaftChunk::requestParticipation(const PeerId& peer) {
-  LOG(WARNING) << " Requesting participation from" << peer;
+  // TODO(aqurai): Handle failure/leader change.
   if (raft_node_.state() == RaftNode::State::LEADER) {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
     entry->set_add_peer(peer.ipPort());
-    raft_node_.leaderSafelyAppendLogEntry(entry);
-    LOG(WARNING) << " appended entry for peer " << peer;
-  } else {
-    LOG(WARNING) << " I'm not leader. return. ";
-    return 0;
+    if (raft_node_.leaderSafelyAppendLogEntry(entry) > 0) {
+      return 1;
+    }  
   }
+  return 0;
 }
 
 bool RaftChunk::sendConnectRequest(const PeerId& peer,

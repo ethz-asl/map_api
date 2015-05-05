@@ -2,33 +2,61 @@
 
 namespace map_api {
 
+RaftChunkDataRamContainer::~RaftChunkDataRamContainer() {}
+
+bool RaftChunkDataRamContainer::initImpl() { return true; }
+
 std::shared_ptr<const Revision> RaftChunkDataRamContainer::getByIdImpl(
     const common::Id& id, const LogicalTime& time) const {
-  // TODO(aqurai)
-  return std::shared_ptr<Revision>();
+  HistoryMap::const_iterator found = data_.find(id);
+  if (found == data_.end()) {
+    return std::shared_ptr<Revision>();
+  }
+  History::const_iterator latest = found->second.latestAt(time);
+  if (latest == found->second.end()) {
+    return Revision::ConstPtr();
+  }
+  return *latest;
 }
 
 void RaftChunkDataRamContainer::findByRevisionImpl(
     int key, const Revision& value_holder, const LogicalTime& time,
     ConstRevisionMap* dest) const {
-  // TODO(aqurai)
+  CHECK_NOTNULL(dest);
+  dest->clear();
+  forEachItemFoundAtTime(key, value_holder, time,
+                         [&dest](const common::Id& id,
+                                 const Revision::ConstPtr& item) {
+    CHECK(dest->find(id) == dest->end());
+    CHECK(dest->emplace(id, item).second);
+  });
 }
 
 void RaftChunkDataRamContainer::getAvailableIdsImpl(
     const LogicalTime& time, std::vector<common::Id>* ids) const {
-  // TODO(aqurai)
+  CHECK_NOTNULL(ids);
+  ids->clear();
+  ids->reserve(data_.size());
+  for (const HistoryMap::value_type& pair : data_) {
+    History::const_iterator latest = pair.second.latestAt(time);
+    if (latest != pair.second.cend()) {
+      if (!(*latest)->isRemoved()) {
+        ids->emplace_back(pair.first);
+      }
+    }
+  }
 }
 
 int RaftChunkDataRamContainer::countByRevisionImpl(
     int key, const Revision& value_holder, const LogicalTime& time) const {
   int count = 0;
-  // TODO(aqurai)
+  forEachItemFoundAtTime(key, value_holder, time,
+                         [&count](const common::Id& /*id*/,
+                                  const Revision::ConstPtr& /*item*/) {
+    ++count;
+  });
   return count;
 }
-
-RaftChunkDataRamContainer::~RaftChunkDataRamContainer() {}
-
-bool RaftChunkDataRamContainer::initImpl() { return true; }
 
 RaftChunkDataRamContainer::RaftLog::iterator
 RaftChunkDataRamContainer::RaftLog::getLogIteratorByIndex(uint64_t index) {
