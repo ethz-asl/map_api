@@ -20,12 +20,7 @@ namespace map_api {
 void ConsensusFixture::SetUpImpl() {
   map_api::Core::initializeInstance();  // Core init.
   ASSERT_TRUE(map_api::Core::instance() != nullptr);
-
-  // Create a table
-  std::shared_ptr<map_api::TableDescriptor> descriptor(new TableDescriptor);
-  descriptor->setName("Table0");
-  descriptor->addField<int>(kTableFieldId);
-  table_ = map_api::NetTableManager::instance().addTable(descriptor);
+  RaftNode::instance().registerHandlers();
 }
 
 void ConsensusFixture::setupRaftSupervisor(uint64_t num_processes) {
@@ -64,7 +59,7 @@ void ConsensusFixture::setupRaftPeers(uint64_t num_processes) {
 }
 
 void ConsensusFixture::addRaftPeer(const PeerId& peer) {
-  //RaftNode::instance().addPeerBeforeStart(peer);
+  RaftNode::instance().addPeerBeforeStart(peer);
 }
 
 void ConsensusFixture::appendEntriesForMs(uint16_t duration_ms,
@@ -75,20 +70,19 @@ void ConsensusFixture::appendEntriesForMs(uint16_t duration_ms,
   while (total_duration_ms < duration_ms) {
     TimePoint now = std::chrono::system_clock::now();
     const uint16_t append_duration_ms = static_cast<uint16_t>(
-       duration_cast<milliseconds>(now - append_time).count());
-
+        duration_cast<milliseconds>(now - append_time).count());
     // Append new entries if leader.
-//    if (RaftNode::instance().state() == RaftNode::State::LEADER) {
-//      if (append_duration_ms > delay_ms) {
-//        appendEntry();
-//        append_time = std::chrono::system_clock::now();
-//      }
-//      usleep(delay_ms * kMillisecondsToMicroseconds);
-//    } else {
-//      append_time = std::chrono::system_clock::now();
-//    }
+    if (RaftNode::instance().state() == RaftNode::State::LEADER) {
+      if (append_duration_ms > delay_ms) {
+        appendEntry();
+        append_time = std::chrono::system_clock::now();
+      }
+      usleep(delay_ms * kMillisecondsToMicroseconds);
+    } else {
+      append_time = std::chrono::system_clock::now();
+    }
 
-     total_duration_ms =
+    total_duration_ms =
         static_cast<uint16_t>(duration_cast<milliseconds>(now - begin).count());
   }
 }
@@ -106,32 +100,32 @@ void ConsensusFixture::appendEntriesWithLeaderChangesForMs(uint16_t duration_ms,
     total_duration_ms =
         static_cast<uint16_t>(duration_cast<milliseconds>(now - begin).count());
     // Append new entries if leader.
-//    if (RaftNode::instance().state() == RaftNode::State::LEADER) {
-//      if (append_duration_ms > delay_ms) {
-//        appendEntry();
-//        ++num_appends;
-//        append_time = std::chrono::system_clock::now();
-//      }
-//
-//      if (num_appends > 100) {
-//        giveUpLeadership();
-//        num_appends = 0;
-//        append_time = std::chrono::system_clock::now();
-//      }
-//      usleep(delay_ms * kMillisecondsToMicroseconds);
-//    } else {
-//      append_time = std::chrono::system_clock::now();
-//    }
+    if (RaftNode::instance().state() == RaftNode::State::LEADER) {
+      if (append_duration_ms > delay_ms) {
+        appendEntry();
+        ++num_appends;
+        append_time = std::chrono::system_clock::now();
+      }
+
+      if (num_appends > 100) {
+        giveUpLeadership();
+        num_appends = 0;
+        append_time = std::chrono::system_clock::now();
+      }
+      usleep(delay_ms * kMillisecondsToMicroseconds);
+    } else {
+      append_time = std::chrono::system_clock::now();
+    }
   }
 }
 
 void ConsensusFixture::appendEntriesBurst(uint16_t num_entries) {
-//  if (RaftNode::instance().state() != RaftNode::State::LEADER) {
-//    return;
-//  }
-//  for (uint16_t k = 0; k < num_entries; ++k) {
-//    appendEntry();
-//  }
+  if (RaftNode::instance().state() != RaftNode::State::LEADER) {
+    return;
+  }
+  for (uint16_t k = 0; k < num_entries; ++k) {
+    appendEntry();
+  }
 }
 
 proto::QueryStateResponse ConsensusFixture::queryState(const PeerId& peer) {
