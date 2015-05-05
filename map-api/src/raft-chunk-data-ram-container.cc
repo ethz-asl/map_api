@@ -4,51 +4,25 @@ namespace map_api {
 
 std::shared_ptr<const Revision> RaftChunkDataRamContainer::getByIdImpl(
     const common::Id& id, const LogicalTime& time) const {
-  HistoryMap::const_iterator found = data_.find(id);
-  if (found == data_.end()) {
-    return std::shared_ptr<Revision>();
-  }
-  History::const_iterator latest = found->second.latestAt(time);
-  if (latest == found->second.end()) {
-    return std::shared_ptr<Revision>();
-  }
-  return *latest;
+  // TODO(aqurai)
+  return std::shared_ptr<Revision>();
 }
 
 void RaftChunkDataRamContainer::findByRevisionImpl(
     int key, const Revision& value_holder, const LogicalTime& time,
     ConstRevisionMap* dest) const {
-  CHECK_NOTNULL(dest);
-  dest->clear();
-  // TODO(tcies) Zero-copy const RevisionMap instead of copyForWrite?
-//  forEachItemFoundAtTime(key, value_holder, time,
-//                         [&dest](const common::Id& id, const Revision& item) {
-//    CHECK(dest->find(id) == dest->end());
-//    CHECK(dest->emplace(id, item.copyForWrite()).second);
-//  });
+  // TODO(aqurai)
 }
 
 void RaftChunkDataRamContainer::getAvailableIdsImpl(
     const LogicalTime& time, std::vector<common::Id>* ids) const {
-  CHECK_NOTNULL(ids);
-  ids->clear();
-  ids->reserve(data_.size());
-  for (const HistoryMap::value_type& pair : data_) {
-    History::const_iterator latest = pair.second.latestAt(time);
-    if (latest != pair.second.cend()) {
-      if (!(*latest)->isRemoved()) {
-        ids->emplace_back(pair.first);
-      }
-    }
-  }
+  // TODO(aqurai)
 }
 
 int RaftChunkDataRamContainer::countByRevisionImpl(
     int key, const Revision& value_holder, const LogicalTime& time) const {
   int count = 0;
-//  forEachItemFoundAtTime(key, value_holder, time,
-//                         [&count](const common::Id& /*id*/,
-//                                  const Revision& /*item*/) { ++count; });
+  // TODO(aqurai)
   return count;
 }
 
@@ -95,8 +69,9 @@ RaftChunkDataRamContainer::LogReadAccess::LogReadAccess(
   read_log_->mutex()->acquireReadLock();
 }
 
-const RaftChunkDataRamContainer::RaftLog* 
-RaftChunkDataRamContainer::LogReadAccess::operator ->() const {
+const RaftChunkDataRamContainer::RaftLog*
+RaftChunkDataRamContainer::LogReadAccess::
+operator->() const {
   if (is_enabled_) {
     return read_log_;
   } else {
@@ -126,8 +101,8 @@ RaftChunkDataRamContainer::LogWriteAccess::LogWriteAccess(
   write_log_->mutex()->acquireWriteLock();
 }
 
-RaftChunkDataRamContainer::RaftLog* 
-RaftChunkDataRamContainer::LogWriteAccess::operator ->() const {
+RaftChunkDataRamContainer::RaftLog* RaftChunkDataRamContainer::LogWriteAccess::
+operator->() const {
   if (is_enabled_) {
     return write_log_;
   } else {

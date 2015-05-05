@@ -21,14 +21,12 @@ bool RaftChunk::init(const common::Id& id,
                      std::shared_ptr<TableDescriptor> descriptor,
                      bool initialize) {
   id_ = id;
+  // TODO(aqurai): init new data container here.
   data_container_.reset(new LegacyChunkDataRamContainer);
   CHECK(data_container_->init(descriptor));
   initialized_ = true;
   raft_node_.chunk_id_ = id_;
   raft_node_.table_name_ = descriptor->name();
-  // TODO(aqurai) : This defeats the purpose of unique_ptr! Refactor:
-  // Move data_container_ member of ChunkBase to le
-  // raft_node_.data_container_ = data_container_.get();
   return true;
 }
 
@@ -84,7 +82,8 @@ size_t RaftChunk::itemsSizeBytes(const LogicalTime& time) const {
   return num_bytes;
 }
 
-void RaftChunk::getCommitTimes(const LogicalTime& sample_time, std::set<LogicalTime>* commit_times) const {
+void RaftChunk::getCommitTimes(const LogicalTime& sample_time,
+                               std::set<LogicalTime>* commit_times) const {
   // TODO(aqurai): Implement this after data container implementation.
 }
 
