@@ -21,8 +21,8 @@ message ConnectResponse {
 
 message JoinQuitResponse {
   optional bool response = 1;
-  optional string leader_id = 3;
-  optional uint64 index = 4;
+  optional string leader_id = 2;
+  optional uint64 index = 3;
 }
 
 message NewPeerInit {
@@ -71,7 +71,7 @@ message InsertRequest {
 }
 
 message InsertResponse {
-  optional uint64 index = 2;
+  optional uint64 index = 1;
 }
 
 message VoteRequest {
