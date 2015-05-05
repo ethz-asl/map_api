@@ -208,7 +208,7 @@ void NetTable::followTrackedChunksOfItem(const common::Id& item_id,
 }
 
 void NetTable::autoFollowTrackedChunks() {
-  VLOG(3) << "Auto-following " << name();
+  VLOG(5) << "Auto-following " << name();
   // First make sure that all chunks will be followed.
   attachTriggerToCurrentAndFutureChunks([this](
       const common::IdSet& insertions, const common::IdSet& updates,
@@ -280,7 +280,7 @@ void NetTable::getChunksInBoundingBox(
     CHECK_NOTNULL(chunk);
     chunks->insert(chunk);
   }
-  VLOG(3) << "Got " << chunk_ids.size() << " chunks";
+  VLOG(5) << "Got " << chunk_ids.size() << " chunks";
 }
 
 void NetTable::attachTriggerToCurrentAndFutureChunks(
@@ -397,7 +397,7 @@ ChunkBase* NetTable::connectTo(const common::Id& chunk_id, const PeerId& peer) {
   } else {
     request.impose<LegacyChunk::kConnectRequest>(metadata);
     // TODO(tcies) add to local peer subset as well?
-    VLOG(3) << "Connecting to " << peer << " for chunk " << chunk_id;
+    VLOG(5) << "Connecting to " << peer << " for chunk " << chunk_id;
     Hub::instance().request(peer, &request, &response);
     CHECK(response.isType<Message::kAck>()) << response.type();
   }
@@ -689,7 +689,7 @@ void NetTable::handleAnnounceToListeners(const PeerId& announcer,
 
 void NetTable::handleSpatialIndexTrigger(
     const proto::SpatialIndexTrigger& trigger) {
-  VLOG(3) << "Received spatial index trigger with " << trigger.new_chunks_size()
+  VLOG(5) << "Received spatial index trigger with " << trigger.new_chunks_size()
           << " new chunks";
   for (int i = 0; i < trigger.new_chunks_size(); ++i) {
     common::Id chunk_id(trigger.new_chunks(i));
@@ -838,7 +838,7 @@ void NetTable::attachTriggers(ChunkBase* chunk) {
 void NetTable::fetchAllCallback(const common::IdSet& insertions,
                                 const common::IdSet& updates,
                                 ChunkBase* chunk) {
-  VLOG(3) << "Fetch callback called!";
+  VLOG(5) << "Fetch callback called!";
   common::IdSet changes(insertions.begin(), insertions.end());
   changes.insert(updates.begin(), updates.end());
   for (const common::Id& item_id : changes) {
@@ -847,7 +847,7 @@ void NetTable::fetchAllCallback(const common::IdSet& insertions,
         transaction.getById(item_id, this, chunk);
     revision->fetchTrackedChunks();
   }
-  VLOG(3) << "Fetch callback complete!";
+  VLOG(5) << "Fetch callback complete!";
 }
 
 void NetTable::leaveIndices() {
@@ -882,14 +882,14 @@ void NetTable::getChunkHolders(const common::Id& chunk_id,
 void NetTable::joinChunkHolders(const common::Id& chunk_id) {
   common::ScopedReadLock lock(&index_lock_);
   CHECK_NOTNULL(index_.get());
-  VLOG(3) << "Joining " << chunk_id.hexString() << " holders";
+  VLOG(5) << "Joining " << chunk_id.hexString() << " holders";
   index_->announcePosession(chunk_id);
 }
 
 void NetTable::leaveChunkHolders(const common::Id& chunk_id) {
   common::ScopedReadLock lock(&index_lock_);
   CHECK_NOTNULL(index_.get());
-  VLOG(3) << "Leaving " << chunk_id.hexString() << " holders";
+  VLOG(5) << "Leaving " << chunk_id.hexString() << " holders";
   index_->renouncePosession(chunk_id);
 }
 

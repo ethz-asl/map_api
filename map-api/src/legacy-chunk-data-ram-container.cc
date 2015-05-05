@@ -6,8 +6,7 @@ LegacyChunkDataRamContainer::~LegacyChunkDataRamContainer() {}
 
 bool LegacyChunkDataRamContainer::initImpl() { return true; }
 
-bool LegacyChunkDataRamContainer::insertImpl(
-    const std::shared_ptr<const Revision>& query) {
+bool LegacyChunkDataRamContainer::insertImpl(const Revision::ConstPtr& query) {
   CHECK(query != nullptr);
   common::Id id = query->getId<common::Id>();
   HistoryMap::iterator found = data_.find(id);
@@ -31,8 +30,7 @@ bool LegacyChunkDataRamContainer::bulkInsertImpl(
   return true;
 }
 
-bool LegacyChunkDataRamContainer::patchImpl(
-    const std::shared_ptr<const Revision>& query) {
+bool LegacyChunkDataRamContainer::patchImpl(const Revision::ConstPtr& query) {
   CHECK(query != nullptr);
   common::Id id = query->getId<common::Id>();
   LogicalTime time = query->getUpdateTime();
@@ -53,7 +51,7 @@ bool LegacyChunkDataRamContainer::patchImpl(
   return true;
 }
 
-std::shared_ptr<const Revision> LegacyChunkDataRamContainer::getByIdImpl(
+Revision::ConstPtr LegacyChunkDataRamContainer::getByIdImpl(
     const common::Id& id, const LogicalTime& time) const {
   HistoryMap::const_iterator found = data_.find(id);
   if (found == data_.end()) {
@@ -61,7 +59,7 @@ std::shared_ptr<const Revision> LegacyChunkDataRamContainer::getByIdImpl(
   }
   History::const_iterator latest = found->second.latestAt(time);
   if (latest == found->second.end()) {
-    return std::shared_ptr<Revision>();
+    return Revision::ConstPtr();
   }
   return *latest;
 }
@@ -71,12 +69,12 @@ void LegacyChunkDataRamContainer::findByRevisionImpl(
     ConstRevisionMap* dest) const {
   CHECK_NOTNULL(dest);
   dest->clear();
-  // TODO(tcies) Zero-copy const RevisionMap instead of copyForWrite?
-  forEachItemFoundAtTime(key, value_holder, time,
-                         [&dest](const common::Id& id, const Revision& item) {
+  forEachItemFoundAtTime(
+      key, value_holder, time,
+      [&dest](const common::Id& id, const Revision::ConstPtr& item) {
     CHECK(dest->find(id) == dest->end());
-    CHECK(dest->emplace(id, item.copyForWrite()).second);
-  });
+    CHECK(dest->emplace(id, item).second);
+      });
 }
 
 void LegacyChunkDataRamContainer::getAvailableIdsImpl(
@@ -97,9 +95,10 @@ void LegacyChunkDataRamContainer::getAvailableIdsImpl(
 int LegacyChunkDataRamContainer::countByRevisionImpl(
     int key, const Revision& value_holder, const LogicalTime& time) const {
   int count = 0;
-  forEachItemFoundAtTime(key, value_holder, time,
-                         [&count](const common::Id& /*id*/,
-                                  const Revision& /*item*/) { ++count; });
+  forEachItemFoundAtTime(
+      key, value_holder, time,
+      [&count](const common::Id& /*id*/,
+               const Revision::ConstPtr& /*item*/) { ++count; });
   return count;
 }
 
@@ -141,7 +140,7 @@ void LegacyChunkDataRamContainer::itemHistoryImpl(const common::Id& id,
   HistoryMap::const_iterator found = data_.find(id);
   CHECK(found != data_.end());
   *dest = History(found->second);
-  dest->remove_if([&time](const std::shared_ptr<const Revision>& item) {
+  dest->remove_if([&time](const Revision::ConstPtr& item) {
     return item->getUpdateTime() > time;
   });
 }
@@ -150,14 +149,14 @@ void LegacyChunkDataRamContainer::clearImpl() { data_.clear(); }
 
 inline void LegacyChunkDataRamContainer::forEachItemFoundAtTime(
     int key, const Revision& value_holder, const LogicalTime& time,
-    const std::function<void(const common::Id& id, const Revision& item)>&
-        action) const {
+    const std::function<void(const common::Id& id,
+                             const Revision::ConstPtr& item)>& action) const {
   for (const HistoryMap::value_type& pair : data_) {
     History::const_iterator latest = pair.second.latestAt(time);
     if (latest != pair.second.cend()) {
       if (key < 0 || value_holder.fieldMatch(**latest, key)) {
         if (!(*latest)->isRemoved()) {
-          action(pair.first, **latest);
+          action(pair.first, *latest);
         }
       }
     }
@@ -166,14 +165,14 @@ inline void LegacyChunkDataRamContainer::forEachItemFoundAtTime(
 
 inline void LegacyChunkDataRamContainer::forChunkItemsAtTime(
     const common::Id& chunk_id, const LogicalTime& time,
-    const std::function<void(const common::Id& id, const Revision& item)>&
-        action) const {
+    const std::function<void(const common::Id& id,
+                             const Revision::ConstPtr& item)>& action) const {
   for (const HistoryMap::value_type& pair : data_) {
     if ((*pair.second.begin())->getChunkId() == chunk_id) {
       History::const_iterator latest = pair.second.latestAt(time);
       if (latest != pair.second.cend()) {
         if (!(*latest)->isRemoved()) {
-          action(pair.first, **latest);
+          action(pair.first, *latest);
         }
       }
     }
@@ -184,7 +183,7 @@ inline void LegacyChunkDataRamContainer::trimToTime(const LogicalTime& time,
                                                     HistoryMap* subject) const {
   CHECK_NOTNULL(subject);
   for (HistoryMap::value_type& pair : *subject) {
-    pair.second.remove_if([&time](const std::shared_ptr<const Revision>& item) {
+    pair.second.remove_if([&time](const Revision::ConstPtr& item) {
       return item->getUpdateTime() > time;
     });
   }

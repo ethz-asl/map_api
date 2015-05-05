@@ -85,6 +85,17 @@ void Transaction::remove(NetTable* table, std::shared_ptr<Revision> revision) {
   transactionOf(CHECK_NOTNULL(table))->remove(revision);
 }
 
+std::string Transaction::printCacheStatistics() const {
+  std::stringstream ss;
+  ss << "Transaction cache statistics:" << std::endl;
+  for (const CacheMap::value_type& cache_pair : attached_caches_) {
+    ss << "\t " << cache_pair.second->underlyingTableName()
+       << " cached: " << cache_pair.second->numCachedItems() << "/"
+       << cache_pair.second->size() << std::endl;
+  }
+  return ss.str();
+}
+
 // Deadlocks are prevented by imposing a global ordering on
 // net_table_transactions_, and have the locks acquired in that order
 // (resource hierarchy solution)
@@ -262,7 +273,8 @@ void Transaction::pushNewChunkIdsToTrackers() {
          table_chunks_to_push.second) {
       // TODO(tcies) keeping track of tracker chunks could optimize this, as
       // the faster getById() overload could be used.
-      CHECK(item_chunks_to_push.first.isValid()) << "Invalid tracker ID for trackee from "
+      CHECK(item_chunks_to_push.first.isValid())
+          << "Invalid tracker ID for trackee from "
           << "table " << table_chunks_to_push.first->name();
       std::shared_ptr<const Revision> original_tracker =
           getById(item_chunks_to_push.first, table_chunks_to_push.first);

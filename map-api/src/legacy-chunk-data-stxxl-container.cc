@@ -10,7 +10,7 @@ LegacyChunkDataStxxlContainer::~LegacyChunkDataStxxlContainer() {}
 bool LegacyChunkDataStxxlContainer::initImpl() { return true; }
 
 bool LegacyChunkDataStxxlContainer::insertImpl(
-    const std::shared_ptr<const Revision>& query) {
+    const Revision::ConstPtr& query) {
   CHECK(query != nullptr);
   common::Id id = query->getId<common::Id>();
   STXXLHistoryMap::iterator found = data_.find(id);
@@ -38,8 +38,7 @@ bool LegacyChunkDataStxxlContainer::bulkInsertImpl(
   return true;
 }
 
-bool LegacyChunkDataStxxlContainer::patchImpl(
-    const std::shared_ptr<const Revision>& query) {
+bool LegacyChunkDataStxxlContainer::patchImpl(const Revision::ConstPtr& query) {
   CHECK(query != nullptr);
   common::Id id = query->getId<common::Id>();
   LogicalTime time = query->getUpdateTime();
@@ -62,7 +61,7 @@ bool LegacyChunkDataStxxlContainer::patchImpl(
   return true;
 }
 
-std::shared_ptr<const Revision> LegacyChunkDataStxxlContainer::getByIdImpl(
+Revision::ConstPtr LegacyChunkDataStxxlContainer::getByIdImpl(
     const common::Id& id, const LogicalTime& time) const {
   STXXLHistoryMap::const_iterator found = data_.find(id);
   if (found == data_.end()) {
@@ -72,7 +71,7 @@ std::shared_ptr<const Revision> LegacyChunkDataStxxlContainer::getByIdImpl(
   if (latest == found->second.end()) {
     return std::shared_ptr<Revision>();
   }
-  std::shared_ptr<const Revision> revision;
+  Revision::ConstPtr revision;
   CHECK(revision_store_->retrieveRevision(*latest, &revision));
   return revision;
 }
@@ -82,12 +81,12 @@ void LegacyChunkDataStxxlContainer::findByRevisionImpl(
     ConstRevisionMap* dest) const {
   CHECK_NOTNULL(dest);
   dest->clear();
-  // TODO(tcies) Zero-copy const RevisionMap instead of copyForWrite?
-  forEachItemFoundAtTime(key, value_holder, time,
-                         [&dest](const common::Id& id, const Revision& item) {
+  forEachItemFoundAtTime(
+      key, value_holder, time,
+      [&dest](const common::Id& id, const Revision::ConstPtr& item) {
     CHECK(dest->find(id) == dest->end());
-    CHECK(dest->emplace(id, item.copyForWrite()).second);
-  });
+    CHECK(dest->emplace(id, item).second);
+      });
 }
 
 void LegacyChunkDataStxxlContainer::getAvailableIdsImpl(
@@ -119,9 +118,10 @@ void LegacyChunkDataStxxlContainer::getAvailableIdsImpl(
 int LegacyChunkDataStxxlContainer::countByRevisionImpl(
     int key, const Revision& value_holder, const LogicalTime& time) const {
   int count = 0;
-  forEachItemFoundAtTime(key, value_holder, time,
-                         [&count](const common::Id& /*id*/,
-                                  const Revision& /*item*/) { ++count; });
+  forEachItemFoundAtTime(
+      key, value_holder, time,
+      [&count](const common::Id& /*id*/,
+               const Revision::ConstPtr& /*item*/) { ++count; });
   return count;
 }
 
@@ -137,12 +137,12 @@ void LegacyChunkDataStxxlContainer::findHistoryByRevisionImpl(
   dest->clear();
   for (const STXXLHistoryMap::value_type& pair : data_) {
     // using current state for filter
-    std::shared_ptr<const Revision> revision;
+    Revision::ConstPtr revision;
     CHECK(revision_store_->retrieveRevision(*pair.second.begin(), &revision));
     if (key < 0 || valueHolder.fieldMatch(*revision, key)) {
       History history;
       for (const CRURevisionInformation& revision_information : pair.second) {
-        std::shared_ptr<const Revision> history_entry;
+        Revision::ConstPtr history_entry;
         CHECK(revision_store_->retrieveRevision(revision_information,
                                                 &history_entry));
         history.emplace_back(history_entry);
@@ -161,7 +161,7 @@ void LegacyChunkDataStxxlContainer::chunkHistory(const common::Id& chunk_id,
     if (pair.second.begin()->chunk_id_ == chunk_id) {
       History history;
       for (const CRURevisionInformation& revision_information : pair.second) {
-        std::shared_ptr<const Revision> history_entry;
+        Revision::ConstPtr history_entry;
         CHECK(revision_store_->retrieveRevision(revision_information,
                                                 &history_entry));
         history.emplace_back(history_entry);
@@ -180,12 +180,12 @@ void LegacyChunkDataStxxlContainer::itemHistoryImpl(const common::Id& id,
   CHECK(found != data_.end());
   History& history = *dest;
   for (const CRURevisionInformation& revision_information : found->second) {
-    std::shared_ptr<const Revision> history_entry;
+    Revision::ConstPtr history_entry;
     CHECK(revision_store_->retrieveRevision(revision_information,
                                             &history_entry));
     history.emplace_back(history_entry);
   }
-  dest->remove_if([&time](const std::shared_ptr<const Revision>& item) {
+  dest->remove_if([&time](const Revision::ConstPtr& item) {
     return item->getUpdateTime() > time;
   });
 }
@@ -197,16 +197,16 @@ void LegacyChunkDataStxxlContainer::clearImpl() {
 
 inline void LegacyChunkDataStxxlContainer::forEachItemFoundAtTime(
     int key, const Revision& value_holder, const LogicalTime& time,
-    const std::function<void(const common::Id& id, const Revision& item)>&
-        action) const {
+    const std::function<void(const common::Id& id,
+                             const Revision::ConstPtr& item)>& action) const {
   for (const STXXLHistoryMap::value_type& pair : data_) {
     STXXLHistory::const_iterator latest = pair.second.latestAt(time);
     if (latest != pair.second.cend()) {
-      std::shared_ptr<const Revision> revision;
+      Revision::ConstPtr revision;
       CHECK(revision_store_->retrieveRevision(*latest, &revision));
       if (key < 0 || value_holder.fieldMatch(*revision, key)) {
         if (!revision->isRemoved()) {
-          action(pair.first, *revision);
+          action(pair.first, revision);
         }
       }
     }
@@ -215,17 +215,17 @@ inline void LegacyChunkDataStxxlContainer::forEachItemFoundAtTime(
 
 inline void LegacyChunkDataStxxlContainer::forChunkItemsAtTime(
     const common::Id& chunk_id, const LogicalTime& time,
-    const std::function<void(const common::Id& id, const Revision& item)>&
-        action) const {
+    const std::function<void(const common::Id& id,
+                             const Revision::ConstPtr& item)>& action) const {
   for (const STXXLHistoryMap::value_type& pair : data_) {
     if (pair.second.begin()->chunk_id_ == chunk_id) {
       STXXLHistory::const_iterator latest = pair.second.latestAt(time);
       if (latest != pair.second.cend()) {
-        std::shared_ptr<const Revision> revision;
+        Revision::ConstPtr revision;
         CHECK(
             revision_store_->retrieveRevision(*pair.second.begin(), &revision));
         if (!revision->isRemoved()) {
-          action(pair.first, *revision);
+          action(pair.first, revision);
         }
       }
     }
@@ -236,7 +236,7 @@ inline void LegacyChunkDataStxxlContainer::trimToTime(
     const LogicalTime& time, HistoryMap* subject) const {
   CHECK_NOTNULL(subject);
   for (HistoryMap::value_type& pair : *subject) {
-    pair.second.remove_if([&time](const std::shared_ptr<const Revision>& item) {
+    pair.second.remove_if([&time](const Revision::ConstPtr& item) {
       return item->getUpdateTime() > time;
     });
   }
