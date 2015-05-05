@@ -57,7 +57,7 @@ class RaftChunk : public ChunkBase {
   virtual void unlock() const override;
 
   virtual int requestParticipation() override {return 1;}
-  virtual int requestParticipation(const PeerId& peer) override {return 1;}
+  virtual int requestParticipation(const PeerId& peer) override;
   virtual void update(const std::shared_ptr<Revision>& item) override {}
   virtual LogicalTime getLatestCommitTime() const override {return LogicalTime::sample();}
   virtual void bulkInsertLocked(const MutableRevisionMap& items,

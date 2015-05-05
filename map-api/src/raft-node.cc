@@ -413,6 +413,7 @@ uint64_t RaftNode::sendInsertRequest(const std::shared_ptr<Revision>& item) {
   if (state() == State::LEADER) {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
     // TODO(aqurai): Store as Revision proto instead of serialized string?
+    // We probably need to do a copy here in any case.
     entry->set_serialized_revision(item->serializeUnderlying());
     leaderSafelyAppendLogEntry(entry);
   } else if (state() == State::FOLLOWER) {

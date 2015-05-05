@@ -118,6 +118,19 @@ void RaftChunk::unlock() const {
   }
 }
 
+int RaftChunk::requestParticipation(const PeerId& peer) {
+  LOG(WARNING) << " Requesting participation from" << peer;
+  if (raft_node_.state() == RaftNode::State::LEADER) {
+    std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
+    entry->set_add_peer(peer.ipPort());
+    raft_node_.leaderSafelyAppendLogEntry(entry);
+    LOG(WARNING) << " appended entry for peer " << peer;
+  } else {
+    LOG(WARNING) << " I'm not leader. return. ";
+    return 0;
+  }
+}
+
 bool RaftChunk::sendConnectRequest(const PeerId& peer,
                                    proto::ChunkRequestMetadata& metadata) {
   Message request, response;
