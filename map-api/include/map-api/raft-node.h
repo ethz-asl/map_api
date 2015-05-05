@@ -121,7 +121,7 @@ class RaftNode {
   RaftNode();
   RaftNode(const RaftNode&) = delete;
   RaftNode& operator=(const RaftNode&) = delete;
-  
+
   typedef RaftChunkDataRamContainer::RaftLog::iterator LogIterator;
   typedef RaftChunkDataRamContainer::RaftLog::const_iterator ConstLogIterator;
   typedef RaftChunkDataRamContainer::LogReadAccess LogReadAccess;
@@ -240,7 +240,7 @@ class RaftNode {
   void leaderAddPeer(const PeerId& peer, const LogReadAccess& log_reader,
                      uint64_t current_term);
   void leaderRemovePeer(const PeerId& peer);
-  
+
   void followerAddPeer(const PeerId& peer);
   void followerRemovePeer(const PeerId& peer);
 
