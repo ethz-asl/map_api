@@ -14,6 +14,10 @@ std::shared_ptr<Revision> Revision::copyForWrite() const {
   return fromProto(std::move(copy));
 }
 
+proto::Revision* Revision::copyToProtoPtr() const {
+  return new proto::Revision(*underlying_revision_);
+}
+
 std::shared_ptr<Revision> Revision::fromProto(
     std::unique_ptr<proto::Revision>&& revision_proto) {
   std::shared_ptr<Revision> result(new Revision);
@@ -28,11 +32,6 @@ std::shared_ptr<Revision> Revision::fromProtoString(
   CHECK(result->underlying_revision_->ParseFromString(revision_proto_string));
   return std::move(result);
 }
-
-proto::Revision* Revision::copyToProtoPtr() const {
-  return new proto::Revision(*underlying_revision_);
-}
-
 
 void Revision::addField(int index, proto::Type type) {
   CHECK_EQ(underlying_revision_->custom_field_values_size(), index)
