@@ -20,7 +20,6 @@ class RaftChunk : public ChunkBase {
   FRIEND_TEST(ConsensusFixture, RaftChunkTest);
 
  public:
-  //RaftChunk()
   virtual ~RaftChunk();
 
   bool init(const common::Id& id, std::shared_ptr<TableDescriptor> descriptor,
@@ -31,25 +30,21 @@ class RaftChunk : public ChunkBase {
   bool init(const common::Id& id, std::shared_ptr<TableDescriptor> descriptor);
   bool init(const common::Id& id, const proto::InitRequest& init_request,
             std::shared_ptr<TableDescriptor> descriptor);
-  inline void setStateFollowerAndStartRaft();
-  
   virtual void dumpItems(const LogicalTime& time, ConstRevisionMap* items) const
       override;
-  virtual size_t numItems(const LogicalTime& time) const override;
-  virtual size_t itemsSizeBytes(const LogicalTime& time) const override;
-  //virtual void getCommitTimes(const LogicalTime& sample_time,
-    //                          std::set<LogicalTime>* commit_times) const override;
+  inline void setStateFollowerAndStartRaft();
 
   // ====================
   // Not implemented yet.
   // ====================
-  
+  virtual size_t numItems(const LogicalTime& time) const override;
+  virtual size_t itemsSizeBytes(const LogicalTime& time) const override;
   virtual void getCommitTimes(const LogicalTime& sample_time,
                               std::set<LogicalTime>* commit_times) const override;
   virtual bool insert(const LogicalTime& time,
                       const std::shared_ptr<Revision>& item) override {
     return true;
-  };
+  }
   inline virtual int peerSize() const override;
 
   // Mutable because the method declarations in base class are const.
@@ -112,7 +107,7 @@ class RaftChunk : public ChunkBase {
       const proto::NotifyJoinQuitSuccess& request, Message* response);
 };
 
-#include "raft-chunk-inl.h"
+#include "./raft-chunk-inl.h"
 
 }  // namespace map_api
 
