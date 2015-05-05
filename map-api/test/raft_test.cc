@@ -507,7 +507,6 @@ TEST_F(ConsensusFixture, ManyPeerJoin) {
 //    RaftNode::instance().stop();
 //  }
 // }
-
 }  // namespace map_api
 
 MAP_API_UNITTEST_ENTRYPOINT

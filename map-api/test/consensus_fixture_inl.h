@@ -12,14 +12,15 @@
 
 constexpr int kTableFieldId = 0;
 
+using std::chrono::milliseconds;
+using std::chrono::duration_cast;
+
 namespace map_api {
 
 void ConsensusFixture::SetUpImpl() {
   map_api::Core::initializeInstance();  // Core init.
   ASSERT_TRUE(map_api::Core::instance() != nullptr);
-  //RaftNode::instance().registerHandlers();
-  
-  
+
   // Create a table
   std::shared_ptr<map_api::TableDescriptor> descriptor(new TableDescriptor);
   descriptor->setName("Table0");
@@ -74,8 +75,7 @@ void ConsensusFixture::appendEntriesForMs(uint16_t duration_ms,
   while (total_duration_ms < duration_ms) {
     TimePoint now = std::chrono::system_clock::now();
     const uint16_t append_duration_ms = static_cast<uint16_t>(
-        std::chrono::duration_cast<std::chrono::milliseconds>(now - append_time)
-            .count());
+       duration_cast<milliseconds>(now - append_time).count());
 
     // Append new entries if leader.
 //    if (RaftNode::instance().state() == RaftNode::State::LEADER) {
@@ -88,9 +88,8 @@ void ConsensusFixture::appendEntriesForMs(uint16_t duration_ms,
 //      append_time = std::chrono::system_clock::now();
 //    }
 
-    total_duration_ms = static_cast<uint16_t>(
-        std::chrono::duration_cast<std::chrono::milliseconds>(now - begin)
-            .count());
+     total_duration_ms =
+        static_cast<uint16_t>(duration_cast<milliseconds>(now - begin).count());
   }
 }
 
@@ -103,12 +102,9 @@ void ConsensusFixture::appendEntriesWithLeaderChangesForMs(uint16_t duration_ms,
   while (total_duration_ms < duration_ms) {
     TimePoint now = std::chrono::system_clock::now();
     const uint16_t append_duration_ms = static_cast<uint16_t>(
-        std::chrono::duration_cast<std::chrono::milliseconds>(now - append_time)
-            .count());
-
-    total_duration_ms = static_cast<uint16_t>(
-        std::chrono::duration_cast<std::chrono::milliseconds>(now - begin)
-            .count());
+        duration_cast<milliseconds>(now - append_time).count());
+    total_duration_ms =
+        static_cast<uint16_t>(duration_cast<milliseconds>(now - begin).count());
     // Append new entries if leader.
 //    if (RaftNode::instance().state() == RaftNode::State::LEADER) {
 //      if (append_duration_ms > delay_ms) {
