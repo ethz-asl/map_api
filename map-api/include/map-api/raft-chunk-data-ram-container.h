@@ -54,8 +54,6 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     LogReadAccess() = delete;
     LogReadAccess(const LogReadAccess&) = delete;
     LogReadAccess& operator=(const LogReadAccess&) = delete;
-    LogReadAccess(LogReadAccess&&) = delete;
-    LogReadAccess& operator=(LogReadAccess&&) = delete;
   private:
     const RaftLog* read_log_;
     bool is_enabled_;
@@ -70,9 +68,6 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     LogWriteAccess() = delete;
     LogWriteAccess(const LogWriteAccess&) = delete;
     LogWriteAccess& operator=(const LogWriteAccess&) = delete;
-    LogWriteAccess(LogWriteAccess&&) = delete;
-    LogWriteAccess& operator=(LogWriteAccess&&) = delete;
-
    private:
     RaftLog* write_log_;
     bool is_enabled_;
