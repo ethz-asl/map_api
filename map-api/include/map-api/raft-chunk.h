@@ -39,16 +39,18 @@ class RaftChunk : public ChunkBase {
   virtual size_t itemsSizeBytes(const LogicalTime& time) const override;
   //virtual void getCommitTimes(const LogicalTime& sample_time,
     //                          std::set<LogicalTime>* commit_times) const override;
-  inline virtual int peerSize() const override;
-  
-  
-  
+
   // ====================
   // Not implemented yet.
   // ====================
   
   virtual void getCommitTimes(const LogicalTime& sample_time,
                               std::set<LogicalTime>* commit_times) const override;
+  virtual bool insert(const LogicalTime& time,
+                      const std::shared_ptr<Revision>& item) override {
+    return true;
+  };
+  inline virtual int peerSize() const override;
 
   // Mutable because the method declarations in base class are const.
   mutable bool is_raft_write_locked_;
@@ -58,19 +60,6 @@ class RaftChunk : public ChunkBase {
   virtual void readLock() const override {}  // No read lock for raft chunks.
   virtual bool isWriteLocked() override;
   virtual void unlock() const override;
-  
-  
-  virtual bool insert(const LogicalTime& time,
-                      const std::shared_ptr<Revision>& item) override {return true;};
-
-  
-
-  
-
-  // Non-const intended to avoid accidental write-lock while reading.
-  // Read lock is definitely not needed for RaftChunk. Write lock has to be
-  // decided depending on the multi chunk commit issue.
-  
 
   virtual int requestParticipation() override {return 1;}
   virtual int requestParticipation(const PeerId& peer) override {return 1;}
