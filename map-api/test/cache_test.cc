@@ -93,7 +93,7 @@ TEST_F(NetTableFixture, Cache) {
     cache.reset(
         new Cache<IntId, std::shared_ptr<int>>(transaction, table_, manager));
     CHECK(cache->has(kId[0]));
-    *cache->get(kId[0]) = *kVal[2];
+    *cache->getMutable(kId[0]) = *kVal[2];
     CHECK(cache->insert(kId[1], kVal[1]));
     CHECK(transaction->commit());
     manager->requestParticipationAllChunks();

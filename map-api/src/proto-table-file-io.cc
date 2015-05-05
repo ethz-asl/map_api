@@ -120,8 +120,10 @@ bool ProtoTableFileIO::storeTableContents(
 
 bool ProtoTableFileIO::restoreTableContents() {
   Transaction transaction(LogicalTime::sample());
-  std::unordered_map<common::Id, Chunk*> existing_chunks;
-  restoreTableContents(&transaction, &existing_chunks);
+  std::unordered_map<common::Id, ChunkBase*> existing_chunks;
+  std::mutex existing_chunks_mutex;
+  restoreTableContents(&transaction, &existing_chunks,
+                       &existing_chunks_mutex);
   bool ok = transaction.commit();
   LOG_IF(WARNING, !ok) << "Transaction commit failed to load data";
   return ok;
@@ -129,9 +131,11 @@ bool ProtoTableFileIO::restoreTableContents() {
 
 bool ProtoTableFileIO::restoreTableContents(
     map_api::Transaction* transaction,
-    std::unordered_map<common::Id, Chunk*>* existing_chunks) {
+    std::unordered_map<common::Id, ChunkBase*>* existing_chunks,
+    std::mutex* existing_chunks_mutex) {
   CHECK_NOTNULL(transaction);
   CHECK_NOTNULL(existing_chunks);
+  CHECK_NOTNULL(existing_chunks_mutex);
   CHECK(file_.is_open());
 
   file_.clear();
@@ -194,19 +198,22 @@ bool ProtoTableFileIO::restoreTableContents(
         Revision::fromProtoString(input_string);
 
     common::Id chunk_id = revision->getChunkId();
-    Chunk* chunk = nullptr;
-    std::unordered_map<common::Id, Chunk*>::iterator it =
-        existing_chunks->find(chunk_id);
-    if (it == existing_chunks->end()) {
-      chunk = table_->newChunk(chunk_id);
-      existing_chunks->insert(std::make_pair(chunk_id, chunk));
-    } else {
-      chunk = it->second;
-    }
-    CHECK_NOTNULL(chunk);
+    ChunkBase* chunk = nullptr;
+    {
+      std::unique_lock<std::mutex> lock(*existing_chunks_mutex);
+      std::unordered_map<common::Id, ChunkBase*>::iterator it =
+          existing_chunks->find(chunk_id);
+      if (it == existing_chunks->end()) {
+        chunk = table_->newChunk(chunk_id);
+        existing_chunks->insert(std::make_pair(chunk_id, chunk));
+      } else {
+        chunk = it->second;
+      }
+      CHECK_NOTNULL(chunk);
 
-    transaction->insert(table_, chunk, revision);
-    transaction->disableChunkTracking();
+      transaction->insert(table_, chunk, revision);
+      transaction->disableChunkTracking();
+    }
   }
   return true;
 }

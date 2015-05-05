@@ -1,15 +1,15 @@
-#ifndef MAP_API_CHUNK_DATA_RAM_CONTAINER_H_
-#define MAP_API_CHUNK_DATA_RAM_CONTAINER_H_
+#ifndef MAP_API_LEGACY_CHUNK_DATA_RAM_CONTAINER_H_
+#define MAP_API_LEGACY_CHUNK_DATA_RAM_CONTAINER_H_
 
 #include <vector>
 
-#include "map-api/chunk-data-container-base.h"
+#include "map-api/legacy-chunk-data-container-base.h"
 
 namespace map_api {
 
-class ChunkDataRamContainer : public ChunkDataContainerBase {
+class LegacyChunkDataRamContainer : public LegacyChunkDataContainerBase {
  public:
-  virtual ~ChunkDataRamContainer();
+  virtual ~LegacyChunkDataRamContainer();
 
  private:
   virtual bool initImpl() final override;
@@ -41,13 +41,16 @@ class ChunkDataRamContainer : public ChunkDataContainerBase {
   virtual void clearImpl() final override;
 
   inline void forEachItemFoundAtTime(
-      int key, const Revision& value_holder, const LogicalTime& time,
-      const std::function<void(const common::Id& id, const Revision& item)>&
-          action) const;
+      int key, const Revision& value_holder,
+      const LogicalTime& time,
+      const std::function<void(
+          const common::Id& id,
+          const std::shared_ptr<const Revision>& item)>& action) const;
   inline void forChunkItemsAtTime(
       const common::Id& chunk_id, const LogicalTime& time,
-      const std::function<void(const common::Id& id, const Revision& item)>&
-          action) const;
+      const std::function<void(
+          const common::Id& id,
+          const std::shared_ptr<const Revision>& item)>& action) const;
   inline void trimToTime(const LogicalTime& time, HistoryMap* subject) const;
 
   HistoryMap data_;
@@ -55,4 +58,4 @@ class ChunkDataRamContainer : public ChunkDataContainerBase {
 
 }  // namespace map_api
 
-#endif  // MAP_API_CHUNK_DATA_RAM_CONTAINER_H_
+#endif  // MAP_API_LEGACY_CHUNK_DATA_RAM_CONTAINER_H_

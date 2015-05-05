@@ -15,7 +15,7 @@
 
 namespace map_api {
 class CacheBase;
-class Chunk;
+class ChunkBase;
 class ChunkManagerBase;
 class NetTable;
 class Revision;
@@ -49,8 +49,8 @@ class Transaction {
                                           NetTable* table) const;
   template <typename IdType>
   std::shared_ptr<const Revision> getById(const IdType& id, NetTable* table,
-                                          Chunk* chunk) const;
-  void dumpChunk(NetTable* table, Chunk* chunk, ConstRevisionMap* result);
+                                          ChunkBase* chunk) const;
+  void dumpChunk(NetTable* table, ChunkBase* chunk, ConstRevisionMap* result);
   void dumpActiveChunks(NetTable* table, ConstRevisionMap* result);
   template <typename IdType>
   void getAvailableIds(NetTable* table, std::vector<IdType>* ids);
@@ -63,8 +63,8 @@ class Transaction {
             ConstRevisionMap* result);
 
   // WRITE
-  void insert(
-      NetTable* table, Chunk* chunk, std::shared_ptr<Revision> revision);
+  void insert(NetTable* table, ChunkBase* chunk,
+              std::shared_ptr<Revision> revision);
   /**
    * Uses ChunkManager to auto-size chunks.
    */
@@ -104,6 +104,7 @@ class Transaction {
 
   // STATISTICS
   size_t numChangedItems() const;
+  std::string printCacheStatistics() const;
 
   // MISCELLANEOUS
   template <typename TrackerIdType>

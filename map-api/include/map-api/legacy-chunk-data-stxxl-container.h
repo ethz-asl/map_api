@@ -1,18 +1,18 @@
-#ifndef MAP_API_CHUNK_DATA_STXXL_CONTAINER_H_
-#define MAP_API_CHUNK_DATA_STXXL_CONTAINER_H_
+#ifndef MAP_API_LEGACY_CHUNK_DATA_STXXL_CONTAINER_H_
+#define MAP_API_LEGACY_CHUNK_DATA_STXXL_CONTAINER_H_
 
 #include <list>
 #include <vector>
 
-#include "map-api/chunk-data-container-base.h"
+#include "map-api/legacy-chunk-data-container-base.h"
 #include "map-api/stxxl-revision-store.h"
 
 namespace map_api {
 
-class ChunkDataStxxlContainer : public ChunkDataContainerBase {
+class LegacyChunkDataStxxlContainer : public LegacyChunkDataContainerBase {
  public:
-  ChunkDataStxxlContainer();
-  virtual ~ChunkDataStxxlContainer();
+  LegacyChunkDataStxxlContainer();
+  virtual ~LegacyChunkDataStxxlContainer();
 
  private:
   virtual bool initImpl() final override;
@@ -44,12 +44,12 @@ class ChunkDataStxxlContainer : public ChunkDataContainerBase {
 
   inline void forEachItemFoundAtTime(
       int key, const Revision& value_holder, const LogicalTime& time,
-      const std::function<void(const common::Id& id, const Revision& item)>&
-          action) const;
+      const std::function<void(const common::Id& id,
+                               const Revision::ConstPtr& item)>& action) const;
   inline void forChunkItemsAtTime(
       const common::Id& chunk_id, const LogicalTime& time,
-      const std::function<void(const common::Id& id, const Revision& item)>&
-          action) const;
+      const std::function<void(const common::Id& id,
+                               const Revision::ConstPtr& item)>& action) const;
   inline void trimToTime(const LogicalTime& time, HistoryMap* subject) const;
 
   class STXXLHistory : public std::list<CRURevisionInformation> {
@@ -72,4 +72,6 @@ class ChunkDataStxxlContainer : public ChunkDataContainerBase {
 
 }  // namespace map_api
 
-#endif  // MAP_API_CHUNK_DATA_STXXL_CONTAINER_H_
+#include "map-api/legacy-chunk-data-container-base-inl.h"
+
+#endif  // MAP_API_LEGACY_CHUNK_DATA_STXXL_CONTAINER_H_

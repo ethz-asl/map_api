@@ -1,13 +1,13 @@
-#include "../include/map-api/chunk-data-ram-container.h"
+#include "../include/map-api/legacy-chunk-data-ram-container.h"
 
 namespace map_api {
 
-ChunkDataRamContainer::~ChunkDataRamContainer() {}
+LegacyChunkDataRamContainer::~LegacyChunkDataRamContainer() {}
 
-bool ChunkDataRamContainer::initImpl() { return true; }
+bool LegacyChunkDataRamContainer::initImpl() { return true; }
 
-bool ChunkDataRamContainer::insertImpl(
-    const std::shared_ptr<const Revision>& query) {
+bool LegacyChunkDataRamContainer::insertImpl(
+    const Revision::ConstPtr& query) {
   CHECK(query != nullptr);
   common::Id id = query->getId<common::Id>();
   HistoryMap::iterator found = data_.find(id);
@@ -18,7 +18,8 @@ bool ChunkDataRamContainer::insertImpl(
   return true;
 }
 
-bool ChunkDataRamContainer::bulkInsertImpl(const MutableRevisionMap& query) {
+bool LegacyChunkDataRamContainer::bulkInsertImpl(
+    const MutableRevisionMap& query) {
   for (const MutableRevisionMap::value_type& pair : query) {
     if (data_.find(pair.first) != data_.end()) {
       return false;
@@ -30,8 +31,8 @@ bool ChunkDataRamContainer::bulkInsertImpl(const MutableRevisionMap& query) {
   return true;
 }
 
-bool ChunkDataRamContainer::patchImpl(
-    const std::shared_ptr<const Revision>& query) {
+bool LegacyChunkDataRamContainer::patchImpl(
+    const Revision::ConstPtr& query) {
   CHECK(query != nullptr);
   common::Id id = query->getId<common::Id>();
   LogicalTime time = query->getUpdateTime();
@@ -52,7 +53,7 @@ bool ChunkDataRamContainer::patchImpl(
   return true;
 }
 
-std::shared_ptr<const Revision> ChunkDataRamContainer::getByIdImpl(
+Revision::ConstPtr LegacyChunkDataRamContainer::getByIdImpl(
     const common::Id& id, const LogicalTime& time) const {
   HistoryMap::const_iterator found = data_.find(id);
   if (found == data_.end()) {
@@ -60,26 +61,25 @@ std::shared_ptr<const Revision> ChunkDataRamContainer::getByIdImpl(
   }
   History::const_iterator latest = found->second.latestAt(time);
   if (latest == found->second.end()) {
-    return std::shared_ptr<Revision>();
+    return Revision::ConstPtr();
   }
   return *latest;
 }
 
-void ChunkDataRamContainer::findByRevisionImpl(int key,
-                                               const Revision& value_holder,
-                                               const LogicalTime& time,
-                                               ConstRevisionMap* dest) const {
+void LegacyChunkDataRamContainer::findByRevisionImpl(
+    int key, const Revision& value_holder, const LogicalTime& time,
+    ConstRevisionMap* dest) const {
   CHECK_NOTNULL(dest);
   dest->clear();
-  // TODO(tcies) Zero-copy const RevisionMap instead of copyForWrite?
   forEachItemFoundAtTime(key, value_holder, time,
-                         [&dest](const common::Id& id, const Revision& item) {
+                         [&dest](const common::Id& id,
+                                 const Revision::ConstPtr& item) {
     CHECK(dest->find(id) == dest->end());
-    CHECK(dest->emplace(id, item.copyForWrite()).second);
+    CHECK(dest->emplace(id, item).second);
   });
 }
 
-void ChunkDataRamContainer::getAvailableIdsImpl(
+void LegacyChunkDataRamContainer::getAvailableIdsImpl(
     const LogicalTime& time, std::vector<common::Id>* ids) const {
   CHECK_NOTNULL(ids);
   ids->clear();
@@ -94,22 +94,23 @@ void ChunkDataRamContainer::getAvailableIdsImpl(
   }
 }
 
-int ChunkDataRamContainer::countByRevisionImpl(int key,
-                                               const Revision& value_holder,
-                                               const LogicalTime& time) const {
+int LegacyChunkDataRamContainer::countByRevisionImpl(
+    int key, const Revision& value_holder, const LogicalTime& time) const {
   int count = 0;
   forEachItemFoundAtTime(key, value_holder, time,
                          [&count](const common::Id& /*id*/,
-                                  const Revision& /*item*/) { ++count; });
+                                  const Revision::ConstPtr& /*item*/) {
+    ++count;
+  });
   return count;
 }
 
-bool ChunkDataRamContainer::insertUpdatedImpl(
+bool LegacyChunkDataRamContainer::insertUpdatedImpl(
     const std::shared_ptr<Revision>& query) {
   return patchImpl(query);
 }
 
-void ChunkDataRamContainer::findHistoryByRevisionImpl(
+void LegacyChunkDataRamContainer::findHistoryByRevisionImpl(
     int key, const Revision& valueHolder, const LogicalTime& time,
     HistoryMap* dest) const {
   CHECK_NOTNULL(dest);
@@ -123,9 +124,9 @@ void ChunkDataRamContainer::findHistoryByRevisionImpl(
   trimToTime(time, dest);
 }
 
-void ChunkDataRamContainer::chunkHistory(const common::Id& chunk_id,
-                                         const LogicalTime& time,
-                                         HistoryMap* dest) const {
+void LegacyChunkDataRamContainer::chunkHistory(const common::Id& chunk_id,
+                                               const LogicalTime& time,
+                                               HistoryMap* dest) const {
   CHECK_NOTNULL(dest)->clear();
   for (const HistoryMap::value_type& pair : data_) {
     if ((*pair.second.begin())->getChunkId() == chunk_id) {
@@ -135,57 +136,58 @@ void ChunkDataRamContainer::chunkHistory(const common::Id& chunk_id,
   trimToTime(time, dest);
 }
 
-void ChunkDataRamContainer::itemHistoryImpl(const common::Id& id,
-                                            const LogicalTime& time,
-                                            History* dest) const {
+void LegacyChunkDataRamContainer::itemHistoryImpl(const common::Id& id,
+                                                  const LogicalTime& time,
+                                                  History* dest) const {
   CHECK_NOTNULL(dest)->clear();
   HistoryMap::const_iterator found = data_.find(id);
   CHECK(found != data_.end());
   *dest = History(found->second);
-  dest->remove_if([&time](const std::shared_ptr<const Revision>& item) {
+  dest->remove_if([&time](const Revision::ConstPtr& item) {
     return item->getUpdateTime() > time;
   });
 }
 
-void ChunkDataRamContainer::clearImpl() { data_.clear(); }
+void LegacyChunkDataRamContainer::clearImpl() { data_.clear(); }
 
-inline void ChunkDataRamContainer::forEachItemFoundAtTime(
+inline void LegacyChunkDataRamContainer::forEachItemFoundAtTime(
     int key, const Revision& value_holder, const LogicalTime& time,
-    const std::function<void(const common::Id& id, const Revision& item)>&
-        action) const {
+    const std::function<void(const common::Id& id,
+                             const Revision::ConstPtr& item)>& action) const {
   for (const HistoryMap::value_type& pair : data_) {
     History::const_iterator latest = pair.second.latestAt(time);
     if (latest != pair.second.cend()) {
       if (key < 0 || value_holder.fieldMatch(**latest, key)) {
         if (!(*latest)->isRemoved()) {
-          action(pair.first, **latest);
+          action(pair.first, *latest);
         }
       }
     }
   }
 }
 
-inline void ChunkDataRamContainer::forChunkItemsAtTime(
+inline void LegacyChunkDataRamContainer::forChunkItemsAtTime(
     const common::Id& chunk_id, const LogicalTime& time,
-    const std::function<void(const common::Id& id, const Revision& item)>&
-        action) const {
+    const std::function<void(
+        const common::Id& id,
+        const Revision::ConstPtr& item)>& action) const {
   for (const HistoryMap::value_type& pair : data_) {
     if ((*pair.second.begin())->getChunkId() == chunk_id) {
       History::const_iterator latest = pair.second.latestAt(time);
       if (latest != pair.second.cend()) {
         if (!(*latest)->isRemoved()) {
-          action(pair.first, **latest);
+          action(pair.first, *latest);
         }
       }
     }
   }
 }
 
-inline void ChunkDataRamContainer::trimToTime(const LogicalTime& time,
-                                              HistoryMap* subject) const {
+inline void LegacyChunkDataRamContainer::trimToTime(const LogicalTime& time,
+                                                    HistoryMap* subject) const {
   CHECK_NOTNULL(subject);
   for (HistoryMap::value_type& pair : *subject) {
-    pair.second.remove_if([&time](const std::shared_ptr<const Revision>& item) {
+    pair.second.remove_if([&time](const Revision::ConstPtr& item) {
       return item->getUpdateTime() > time;
     });
   }

@@ -10,8 +10,8 @@
 #include "map-api/logical-time.h"
 #include "map-api/test/testing-entrypoint.h"
 #include "./test_table.cc"
-#include "../include/map-api/chunk-data-ram-container.h"
-#include "../include/map-api/chunk-data-stxxl-container.h"
+#include "../include/map-api/legacy-chunk-data-ram-container.h"
+#include "../include/map-api/legacy-chunk-data-stxxl-container.h"
 
 namespace map_api {
 
@@ -25,8 +25,8 @@ class TableDataContainerTest : public ::testing::Test {
   virtual void TearDown() final override { Core::instance()->kill(); }
 };
 
-typedef ::testing::Types<ChunkDataRamContainer, ChunkDataStxxlContainer>
-    TableTypes;
+typedef ::testing::Types<LegacyChunkDataRamContainer,
+                         LegacyChunkDataStxxlContainer> TableTypes;
 TYPED_TEST_CASE(TableDataContainerTest, TableTypes);
 
 TYPED_TEST(TableDataContainerTest, initEmpty) {
@@ -229,7 +229,7 @@ class IntTestWithInit
 template <typename TableType>
 class CruMapIntTestWithInit
     : public UpdateFieldTestWithInit<
-          TableDataTypes<ChunkDataRamContainer, int64_t>> {};  // NOLINT
+          TableDataTypes<LegacyChunkDataRamContainer, int64_t>> {};  // NOLINT
 
 /**
  *************************
@@ -245,8 +245,9 @@ class CruMapIntTestWithInit
       TableDataTypes<table_type, int64_t>,                                     \
       TableDataTypes<table_type, map_api::LogicalTime>
 
-typedef ::testing::Types<ALL_DATA_TYPES(ChunkDataRamContainer),
-                         ALL_DATA_TYPES(ChunkDataStxxlContainer)> AllTypes;
+typedef ::testing::Types<ALL_DATA_TYPES(LegacyChunkDataRamContainer),
+                         ALL_DATA_TYPES(LegacyChunkDataStxxlContainer)>
+    AllTypes;
 
 TYPED_TEST_CASE(FieldTestWithoutInit, AllTypes);
 TYPED_TEST_CASE(FieldTestWithInit, AllTypes);
@@ -370,11 +371,11 @@ TYPED_TEST(CruMapIntTestWithInit, HistoryAtTime) {
   this->query_->set(FieldTestTableType::kTestField, kThird);
   ASSERT_TRUE(this->updateRevision());
 
-  ChunkDataContainerBase::History old_history;
+  LegacyChunkDataContainerBase::History old_history;
   this->table_->itemHistory(id, before_third, &old_history);
   EXPECT_EQ(2u, old_history.size());
 
-  ChunkDataContainerBase::History new_history;
+  LegacyChunkDataContainerBase::History new_history;
   this->table_->itemHistory(id, LogicalTime::sample(), &new_history);
   EXPECT_EQ(3u, new_history.size());
 }
