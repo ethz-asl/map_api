@@ -23,7 +23,7 @@ constexpr int kJoinResponseTimeoutMs = 1000;
 // Maximum number of yet-to-be-committed entries allowed in the log.
 constexpr int kMaxLogQueueLength = 50;
 
-// TODO(aqurai): Defined new message strings for raft chunk. Some will have to 
+// TODO(aqurai): Defined new message strings for raft chunk. Some will have to
 // removed once the raft chunk implementation is complete.
 const char RaftNode::kAppendEntries[] = "raft_node_append_entries";
 const char RaftNode::kAppendEntriesResponse[] = "raft_node_append_response";
@@ -349,9 +349,6 @@ void RaftNode::handleJoinQuitRequest(
     } else {
       join_quit_response.set_response(false);
     }
-    //if (join_quit_request.type() == proto::PeerRequestType::ADD_PEER) {
-      // leaderLaunchTracker(sender, current_term_);
-    //}
   }
 
   response->impose<kJoinQuitResponse>(join_quit_response);
