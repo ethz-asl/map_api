@@ -38,7 +38,8 @@ bool LegacyChunkDataStxxlContainer::bulkInsertImpl(
   return true;
 }
 
-bool LegacyChunkDataStxxlContainer::patchImpl(const Revision::ConstPtr& query) {
+bool LegacyChunkDataStxxlContainer::patchImpl(
+    const Revision::ConstPtr& query) {
   CHECK(query != nullptr);
   common::Id id = query->getId<common::Id>();
   LogicalTime time = query->getUpdateTime();
@@ -81,12 +82,12 @@ void LegacyChunkDataStxxlContainer::findByRevisionImpl(
     ConstRevisionMap* dest) const {
   CHECK_NOTNULL(dest);
   dest->clear();
-  forEachItemFoundAtTime(
-      key, value_holder, time,
-      [&dest](const common::Id& id, const Revision::ConstPtr& item) {
+  forEachItemFoundAtTime(key, value_holder, time,
+                         [&dest](const common::Id& id,
+                                 const Revision::ConstPtr& item) {
     CHECK(dest->find(id) == dest->end());
     CHECK(dest->emplace(id, item).second);
-      });
+  });
 }
 
 void LegacyChunkDataStxxlContainer::getAvailableIdsImpl(
@@ -118,10 +119,11 @@ void LegacyChunkDataStxxlContainer::getAvailableIdsImpl(
 int LegacyChunkDataStxxlContainer::countByRevisionImpl(
     int key, const Revision& value_holder, const LogicalTime& time) const {
   int count = 0;
-  forEachItemFoundAtTime(
-      key, value_holder, time,
-      [&count](const common::Id& /*id*/,
-               const Revision::ConstPtr& /*item*/) { ++count; });
+  forEachItemFoundAtTime(key, value_holder, time,
+                         [&count](const common::Id& /*id*/,
+                                  const Revision::ConstPtr& /*item*/) {
+    ++count;
+  });
   return count;
 }
 

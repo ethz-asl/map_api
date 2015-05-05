@@ -40,6 +40,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <set>
+#include <string>
 #include <thread>
 #include <unordered_map>
 #include <utility>
@@ -181,9 +182,12 @@ class RaftNode {
     std::lock_guard<std::mutex> heartbeat_lock(last_heartbeat_mutex_);
     last_heartbeat_ = std::chrono::system_clock::now();
   }
-  inline double getTimeSinceHeartbeatMs() const {
-    std::lock_guard<std::mutex> lock(last_heartbeat_mutex_);
-    TimePoint last_hb_time = last_heartbeat_;
+  inline double getTimeSinceHeartbeatMs() {
+    TimePoint last_hb_time;
+    {
+      std::lock_guard<std::mutex> lock(last_heartbeat_mutex_);
+      last_hb_time = last_heartbeat_;
+    }
     TimePoint now = std::chrono::system_clock::now();
     return static_cast<double>(
         std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -199,7 +203,7 @@ class RaftNode {
   // Peer management
   // ===============
 
-  enum PeerStatus {
+  enum class PeerStatus {
     JOINING,
     AVAILABLE,
     NOT_RESPONDING,
@@ -250,11 +254,6 @@ class RaftNode {
   // Leader election
   // ===============
 
-  enum {
-    VOTE_GRANTED,
-    VOTE_DECLINED,
-    FAILED_REQUEST
-  };
   std::atomic<int> election_timeout_ms_;  // A random value between 50 and 150 ms.
   static int setElectionTimeout();     // Set a random election timeout value.
   void conductElection();
@@ -262,7 +261,7 @@ class RaftNode {
   std::atomic<bool> follower_trackers_run_;
   std::atomic<uint64_t> last_vote_request_term_;
   void followerTrackerThread(const PeerId& peer, uint64_t term,
-                             const std::shared_ptr<FollowerTracker> my_tracker);
+                             FollowerTracker* const my_tracker);
 
   // =====================
   // Log entries/revisions

@@ -89,8 +89,8 @@ std::string Transaction::printCacheStatistics() const {
   std::stringstream ss;
   ss << "Transaction cache statistics:" << std::endl;
   for (const CacheMap::value_type& cache_pair : attached_caches_) {
-    ss << "\t " << cache_pair.second->underlyingTableName()
-       << " cached: " << cache_pair.second->numCachedItems() << "/"
+    ss << "\t " << cache_pair.second->underlyingTableName() << " cached: "
+       << cache_pair.second->numCachedItems() << "/"
        << cache_pair.second->size() << std::endl;
   }
   return ss.str();

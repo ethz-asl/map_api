@@ -122,7 +122,8 @@ bool ProtoTableFileIO::restoreTableContents() {
   Transaction transaction(LogicalTime::sample());
   std::unordered_map<common::Id, ChunkBase*> existing_chunks;
   std::mutex existing_chunks_mutex;
-  restoreTableContents(&transaction, &existing_chunks, &existing_chunks_mutex);
+  restoreTableContents(&transaction, &existing_chunks,
+                       &existing_chunks_mutex);
   bool ok = transaction.commit();
   LOG_IF(WARNING, !ok) << "Transaction commit failed to load data";
   return ok;
