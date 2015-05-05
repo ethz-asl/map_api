@@ -50,6 +50,8 @@ class Revision {
       std::unique_ptr<proto::Revision>&& revision_proto);
   static std::shared_ptr<Revision> fromProtoString(
       const std::string& revision_proto_string);
+  
+  proto::Revision* copyToProtoPtr() const;
 
   template <typename FieldType>
   static proto::Type getProtobufTypeEnum();

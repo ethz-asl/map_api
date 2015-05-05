@@ -29,6 +29,11 @@ std::shared_ptr<Revision> Revision::fromProtoString(
   return std::move(result);
 }
 
+proto::Revision* Revision::copyToProtoPtr() const {
+  return new proto::Revision(*underlying_revision_);
+}
+
+
 void Revision::addField(int index, proto::Type type) {
   CHECK_EQ(underlying_revision_->custom_field_values_size(), index)
       << "Custom fields must be added in-order!";
