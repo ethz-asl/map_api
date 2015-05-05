@@ -769,7 +769,7 @@ void NetTable::handleRaftQueryState(const common::Id& chunk_id,
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
   if (routingBasics(chunk_id, response, &found)) {
-   RaftChunk* chunk = CHECK_NOTNULL(
+    RaftChunk* chunk = CHECK_NOTNULL(
         dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
     chunk->handleRaftQueryState(request, response);
   }
