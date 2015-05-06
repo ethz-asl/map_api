@@ -558,7 +558,7 @@ void NetTableManager::handleRaftInsertRequest(const Message& request, Message* r
     response->impose<Message::kDecline>();
     return;
   }
-  found->second->handleRaftInsertRequest(chunk_id, insert_request,
+  found->second->handleRaftInsertRequest(chunk_id, &insert_request,
                                          request.sender(), response);
 }
 

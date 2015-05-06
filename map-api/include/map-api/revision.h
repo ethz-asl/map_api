@@ -47,6 +47,7 @@ class Revision {
 
   // Constructor and assignment replacements.
   std::shared_ptr<Revision> copyForWrite() const;
+  proto::Revision* copyToProtoPtr() const;
   // You need to use std::move() for the unique_ptr of the following.
   static std::shared_ptr<Revision> fromProto(
       std::unique_ptr<proto::Revision>&& revision_proto);

@@ -51,6 +51,7 @@
 
 #include "./raft.pb.h"
 #include "map-api/peer-id.h"
+#include "map-api/revision.h"
 #include "multiagent-mapping-common/reader-writer-lock.h"
 #include "map-api/legacy-chunk-data-container-base.h"
 #include "map-api/raft-chunk-data-ram-container.h"
@@ -59,7 +60,6 @@ namespace map_api {
 // class RaftChunkDataRamContainer;
 class Message;
 class RaftChunk;
-class Revision;
 
 // Implementation of Raft consensus algorithm presented here:
 // https://raftconsensus.github.io, http://ramcloud.stanford.edu/raft.pdf
@@ -133,7 +133,7 @@ class RaftNode {
   void handleConnectRequest(const PeerId& sender, Message* response);
   void handleAppendRequest(proto::AppendEntriesRequest* request,
                            const PeerId& sender, Message* response);
-  void handleInsertRequest(const proto::InsertRequest& request,
+  void handleInsertRequest(proto::InsertRequest* request,
                            const PeerId& sender, Message* response);
   void handleRequestVote(const proto::VoteRequest& request,
                          const PeerId& sender, Message* response);
@@ -273,8 +273,7 @@ class RaftNode {
   // Leader will overwrite follower logs where index+term doesn't match.
 
   // New revision request.
-  // Returns only after entry is committed in raft log, or on failure.
-  uint64_t sendInsertRequest(const std::shared_ptr<Revision>& item);
+  uint64_t sendInsertRequest(const Revision::ConstPtr& item);
 
   std::condition_variable new_entries_signal_;
   // Expects write lock for log_mutex to be acquired.
