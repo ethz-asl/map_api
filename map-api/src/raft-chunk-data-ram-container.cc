@@ -104,6 +104,7 @@ bool RaftChunkDataRamContainer::checkAndPrepareBulkInsert(
     id_revision.second->setInsertTime(time);
     id_revision.second->setUpdateTime(time);
   }
+  return true;
 }
 
 RaftChunkDataRamContainer::RaftLog::iterator

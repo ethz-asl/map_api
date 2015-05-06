@@ -42,21 +42,12 @@ void RaftChunk::initializeNewImpl(
 }
 
 bool RaftChunk::init(const common::Id& id,
-                     std::shared_ptr<TableDescriptor> descriptor) {
-  CHECK(init(id, descriptor, true));
-  setStateFollowerAndStartRaft();
-  return true;
-}
-
-bool RaftChunk::init(const common::Id& id,
                      const proto::InitRequest& init_request,
                      std::shared_ptr<TableDescriptor> descriptor) {
   CHECK(init(id, descriptor, true));
 
   VLOG(1) << " INIT chunk at peer " << PeerId::self() << " in table "
           << raft_node_.table_name_;
-
-
   raft_node_.initChunkData(init_request);
   setStateFollowerAndStartRaft();
   return true;

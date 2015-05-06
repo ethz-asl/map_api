@@ -27,7 +27,6 @@ class RaftChunk : public ChunkBase {
   virtual void initializeNewImpl(
       const common::Id& id,
       const std::shared_ptr<TableDescriptor>& descriptor) override;
-  bool init(const common::Id& id, std::shared_ptr<TableDescriptor> descriptor);
   bool init(const common::Id& id, const proto::InitRequest& init_request,
             std::shared_ptr<TableDescriptor> descriptor);
   virtual void dumpItems(const LogicalTime& time, ConstRevisionMap* items) const
@@ -35,13 +34,11 @@ class RaftChunk : public ChunkBase {
   inline void setStateFollowerAndStartRaft();
   inline void setStateLeaderAndStartRaft();
 
-  // ====================
-  // Not implemented yet.
-  // ====================
   virtual size_t numItems(const LogicalTime& time) const override;
   virtual size_t itemsSizeBytes(const LogicalTime& time) const override;
   virtual void getCommitTimes(const LogicalTime& sample_time,
                               std::set<LogicalTime>* commit_times) const override;
+
   virtual bool insert(const LogicalTime& time,
                       const std::shared_ptr<Revision>& item) override;
   inline virtual int peerSize() const override;
@@ -57,10 +54,9 @@ class RaftChunk : public ChunkBase {
 
   virtual int requestParticipation() override;
   virtual int requestParticipation(const PeerId& peer) override;
+
   virtual void update(const std::shared_ptr<Revision>& item) override;
   virtual LogicalTime getLatestCommitTime() const override {return LogicalTime::sample();}
-
-  // ========================================================================
 
   static bool sendConnectRequest(const PeerId& peer,
                                  proto::ChunkRequestMetadata& metadata);
