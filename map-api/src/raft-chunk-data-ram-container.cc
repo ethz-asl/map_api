@@ -117,7 +117,7 @@ bool RaftChunkDataRamContainer::checkAndPatch(
   CHECK(query->getId<common::Id>().isValid())
       << "Attempted to insert element with invalid ID";
 
-  patch(query);
+  return patch(query);
 }
 
 bool RaftChunkDataRamContainer::patch(const Revision::ConstPtr& query) {
@@ -181,12 +181,12 @@ RaftChunkDataRamContainer::LogReadAccess::LogReadAccess(
 }
 
 const RaftChunkDataRamContainer::RaftLog*
-RaftChunkDataRamContainer::LogReadAccess::
-operator->() const {
+RaftChunkDataRamContainer::LogReadAccess::operator->() const {
   if (is_enabled_) {
     return read_log_;
   } else {
     LOG(FATAL) << "Tried to access raft log using a disabled LogReadAccess object";
+    return NULL;
   }
 }
 
@@ -212,12 +212,13 @@ RaftChunkDataRamContainer::LogWriteAccess::LogWriteAccess(
   write_log_->mutex()->acquireWriteLock();
 }
 
-RaftChunkDataRamContainer::RaftLog* RaftChunkDataRamContainer::LogWriteAccess::
-operator->() const {
+RaftChunkDataRamContainer::RaftLog* 
+RaftChunkDataRamContainer::LogWriteAccess::operator->() const {
   if (is_enabled_) {
     return write_log_;
   } else {
     LOG(FATAL) << "Tried to access raft log using a disabled LogWriteAccess object";
+    return NULL;
   }
 }
 
