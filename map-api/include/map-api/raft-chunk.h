@@ -76,6 +76,7 @@ class RaftChunk : public ChunkBase {
   inline void syncLatestCommitTime(const Revision& item);
 
   uint64_t raftInsertRequest(const Revision::ConstPtr& item);
+  uint64_t raftUpdateRequest(const Revision::ConstPtr& item);
 
   /**
    * ==========================================

@@ -102,7 +102,7 @@ class NetTableManager {
                                                 Message* response);
   static void handleRoutedSpatialChordRequests(const Message& request,
                                                Message* response);
-  
+
   /**
    * RaftChunk requests.
    */

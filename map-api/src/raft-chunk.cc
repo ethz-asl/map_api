@@ -176,12 +176,12 @@ void RaftChunk::update(const std::shared_ptr<Revision>& item) {
   // at this point, update() has modified the revision such that all default
   // fields are also set, which allows remote peers to just patch the revision
   // into their table.
-  /*if (RAFTUPDATEREQ(item) > 0) {
+  if (raft(item) > 0) {
     syncLatestCommitTime(*item);
     return true;
   } else {
     return false;
-  }*/
+  }
 }
 
 bool RaftChunk::sendConnectRequest(const PeerId& peer,
@@ -212,6 +212,11 @@ bool RaftChunk::sendConnectRequest(const PeerId& peer,
 uint64_t RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
   CHECK(raft_node_.isRunning());
   return raft_node_.sendInsertRequest(item);
+}
+
+uint64_t RaftChunk::raftUpdateRequest(const Revision::ConstPtr& item) {
+  CHECK(raft_node_.isRunning());
+  return raft_node_.sendUpdateRequest(item);
 }
 
 }  // namespace map_api
