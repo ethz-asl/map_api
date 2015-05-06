@@ -23,10 +23,12 @@ class ProtoAutoSerializationWorks;
 }  // gtest_case_ProtoSTLStream_
 
 class Revision {
-  friend class Chunk;
+  friend class LegacyChunk;
   friend class ChunkDataContainerBase;
+  friend class LegacyChunkDataContainerBase;
   template<int BlockSize>
   friend class STXXLRevisionStore;
+  friend class TrackeeMultimap;
   friend class Transaction;
 
   // Friending parametrized templated test cases seems to miss from
@@ -36,6 +38,8 @@ class Revision {
 
  public:
   typedef std::vector<char> Blob;
+  typedef std::shared_ptr<Revision> Ptr;
+  typedef std::shared_ptr<const Revision> ConstPtr;
 
   Revision& operator=(const Revision& other) = delete;
 
