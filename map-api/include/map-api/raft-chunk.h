@@ -67,11 +67,11 @@ class RaftChunk : public ChunkBase {
 
  private:
   virtual void bulkInsertLocked(const MutableRevisionMap& items,
-                                const LogicalTime& time) override {}
+                                const LogicalTime& time) override;
   virtual void updateLocked(const LogicalTime& time,
-                            const std::shared_ptr<Revision>& item) override {}
+                            const std::shared_ptr<Revision>& item) override;
   virtual void removeLocked(const LogicalTime& time,
-                            const std::shared_ptr<Revision>& item) override {}
+                            const std::shared_ptr<Revision>& item) override;
 
   inline void syncLatestCommitTime(const Revision& item);
 

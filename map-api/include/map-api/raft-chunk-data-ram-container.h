@@ -41,7 +41,8 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
                              const std::shared_ptr<Revision>& query);
   bool checkAndPrepareUpdate(const LogicalTime& time,
                              const std::shared_ptr<Revision>& query);
-
+  bool checkAndPrepareBulkInsert(const LogicalTime& time,
+                                 const MutableRevisionMap& query);
   // =================
   // HISTORY CONTAINER
   // =================
