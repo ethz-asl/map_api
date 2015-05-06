@@ -19,4 +19,11 @@ int RaftChunk::peerSize() const {
   return raft_node_.num_peers_;
 }
 
+inline void RaftChunk::syncLatestCommitTime(const Revision& item) {
+  LogicalTime commit_time = item.getModificationTime();
+  if (commit_time > latest_commit_time_) {
+    latest_commit_time_ = commit_time;
+  }
+}
+
 #endif  // MAP_API_RAFT_CHUNK_INL_H_

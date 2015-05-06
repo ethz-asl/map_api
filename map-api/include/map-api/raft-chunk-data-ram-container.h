@@ -15,6 +15,7 @@ class ReaderWriterMutex;
 class RaftChunkDataRamContainer : public ChunkDataContainerBase {
  public:
   friend class RaftNode;
+  friend class RaftChunk;
   virtual ~RaftChunkDataRamContainer();
 
  private:
@@ -34,6 +35,13 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   // If key is -1, this should return all the data in the table.
   virtual int countByRevisionImpl(int key, const Revision& valueHolder,
                                   const LogicalTime& time) const;
+
+  // INSERT AND UPDATE
+  bool checkAndPrepareInsert(const LogicalTime& time,
+                             const std::shared_ptr<Revision>& query);
+  bool checkAndPrepareUpdate(const LogicalTime& time,
+                             const std::shared_ptr<Revision>& query);
+
   // =================
   // HISTORY CONTAINER
   // =================
@@ -46,7 +54,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   };
   typedef std::unordered_map<common::Id, History> HistoryMap;
   HistoryMap data_;
-  
+
   inline void forEachItemFoundAtTime(
       int key, const Revision& value_holder,
       const LogicalTime& time,

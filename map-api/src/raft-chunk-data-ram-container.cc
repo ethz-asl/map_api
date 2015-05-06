@@ -58,6 +58,36 @@ int RaftChunkDataRamContainer::countByRevisionImpl(
   return count;
 }
 
+bool RaftChunkDataRamContainer::checkAndPrepareInsert(
+    const LogicalTime& time, const std::shared_ptr<Revision>& query) {
+  // TODO(aqurai): See if this mutex is needed here.
+  std::lock_guard<std::mutex> lock(access_mutex_);
+  CHECK(query.get() != nullptr);
+  CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
+  std::shared_ptr<Revision> reference = getTemplate();
+  CHECK(query->structureMatch(*reference))
+      << "Bad structure of insert revision";
+  CHECK(query->getId<common::Id>().isValid())
+      << "Attempted to insert element with invalid ID";
+  query->setInsertTime(time);
+  query->setUpdateTime(time);
+  return true;
+}
+
+bool RaftChunkDataRamContainer::checkAndPrepareUpdate(
+    const LogicalTime& time, const std::shared_ptr<Revision>& query) {
+  CHECK(query != nullptr);
+  CHECK(isInitialized()) << "Attempted to update in non-initialized table";
+  std::shared_ptr<Revision> reference = getTemplate();
+  CHECK(query->structureMatch(*reference))
+      << "Bad structure of update revision";
+  CHECK(query->getId<common::Id>().isValid())
+      << "Attempted to update element with invalid ID";
+  LogicalTime update_time = time;
+  query->setUpdateTime(update_time);
+  return true;
+}
+
 RaftChunkDataRamContainer::RaftLog::iterator
 RaftChunkDataRamContainer::RaftLog::getLogIteratorByIndex(uint64_t index) {
   iterator it = end();

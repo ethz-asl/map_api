@@ -43,9 +43,7 @@ class RaftChunk : public ChunkBase {
   virtual void getCommitTimes(const LogicalTime& sample_time,
                               std::set<LogicalTime>* commit_times) const override;
   virtual bool insert(const LogicalTime& time,
-                      const std::shared_ptr<Revision>& item) override {
-    return true;
-  }
+                      const std::shared_ptr<Revision>& item) override;
   inline virtual int peerSize() const override;
 
   // Mutable because the method declarations in base class are const.
@@ -59,32 +57,27 @@ class RaftChunk : public ChunkBase {
 
   virtual int requestParticipation() override;
   virtual int requestParticipation(const PeerId& peer) override;
-  virtual void update(const std::shared_ptr<Revision>& item) override {}
+  virtual void update(const std::shared_ptr<Revision>& item) override;
   virtual LogicalTime getLatestCommitTime() const override {return LogicalTime::sample();}
-  virtual void bulkInsertLocked(const MutableRevisionMap& items,
-                                const LogicalTime& time) override {}
-  virtual void updateLocked(const LogicalTime& time,
-                            const std::shared_ptr<Revision>& item) override {}
-  virtual void removeLocked(const LogicalTime& time,
-                            const std::shared_ptr<Revision>& item) override {}
-  virtual void leaveImpl() override {}
-  virtual void awaitShared() override {}
+
   // ========================================================================
 
   static bool sendConnectRequest(const PeerId& peer,
                                  proto::ChunkRequestMetadata& metadata);
 
  private:
-  volatile bool initialized_ = false;
-  volatile bool relinquished_ = false;
+  virtual void bulkInsertLocked(const MutableRevisionMap& items,
+                                const LogicalTime& time) override {}
+  virtual void updateLocked(const LogicalTime& time,
+                            const std::shared_ptr<Revision>& item) override {}
+  virtual void removeLocked(const LogicalTime& time,
+                            const std::shared_ptr<Revision>& item) override {}
 
-  // Handles all communication with other chunk holders. No communication except
-  // for peer join shall happen between chunk holder peers outside of raft.
-  RaftNode raft_node_;
+  inline void syncLatestCommitTime(const Revision& item);
 
   // TODO(aqurai): Replace arg with proto::Revision when implementing
   // transactions. Also add logical time.
-  uint64_t insertRequest(const std::shared_ptr<Revision>& item);
+  uint64_t raftInsertRequest(const std::shared_ptr<Revision>& item);
 
   /**
    * ==========================================
@@ -106,6 +99,19 @@ class RaftChunk : public ChunkBase {
                                  const PeerId& sender, Message* response);
   void handleRaftNotifyJoinQuitSuccess(
       const proto::NotifyJoinQuitSuccess& request, Message* response);
+
+  virtual void leaveImpl() override {}
+  virtual void awaitShared() override {}
+
+ private:
+  // Handles all communication with other chunk holders. No communication except
+  // for peer join shall happen between chunk holder peers outside of raft.
+  RaftNode raft_node_;
+  volatile bool initialized_ = false;
+  volatile bool relinquished_ = false;
+  LogicalTime latest_commit_time_;
+  uint64_t latest_commit_log_index_;
+  std::unique_ptr<RaftChunkDataRamContainer> data_container2_;
 };
 
 #include "./raft-chunk-inl.h"

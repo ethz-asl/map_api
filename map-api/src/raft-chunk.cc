@@ -87,7 +87,26 @@ void RaftChunk::getCommitTimes(const LogicalTime& sample_time,
   // TODO(aqurai): Implement this after data container implementation.
 }
 
+bool RaftChunk::insert(const LogicalTime& time,
+                       const std::shared_ptr<Revision>& item) {
+  CHECK(item != nullptr);
+  item->setChunkId(id());
+  static_cast<RaftChunkDataRamContainer*>(data_container2_.get())
+      ->checkAndPrepareInsert(time, item);
+  // at this point, checkAndPrepareInsert() has modified the revision such that
+  // all default
+  // fields are also set, which allows remote peers to just patch the revision
+  // into their table.
+  if (raftInsertRequest(item) > 0) {
+    syncLatestCommitTime(*item);
+    return true;
+  } else {
+    return false;
+  }
+}
+
 void RaftChunk::writeLock() {
+  // TODO(aqurai): Implement this.
   std::lock_guard<std::mutex> lock_mutex(write_lock_mutex_);
   if (is_raft_write_locked_) {
     ++write_lock_depth_;
@@ -100,12 +119,14 @@ void RaftChunk::writeLock() {
 }
 
 bool RaftChunk::isWriteLocked() {
+  // TODO(aqurai): Implement this.
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
   // return is_raft_write_locked_;
   return true;
 }
 
 void RaftChunk::unlock() const {
+  // TODO(aqurai): Implement this.
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
   if (write_lock_depth_ > 0) {
     --write_lock_depth_;
@@ -142,9 +163,25 @@ int RaftChunk::requestParticipation(const PeerId& peer) {
     entry->set_add_peer(peer.ipPort());
     if (raft_node_.leaderSafelyAppendLogEntry(entry) > 0) {
       return 1;
-    }  
+    }
   }
   return 0;
+}
+
+void RaftChunk::update(const std::shared_ptr<Revision>& item) {
+  CHECK(item != nullptr);
+  CHECK_EQ(id(), item->getChunkId());
+  static_cast<RaftChunkDataRamContainer*>(data_container2_.get())
+      ->checkAndPrepareUpdate(LogicalTime::sample(), item);
+  // at this point, update() has modified the revision such that all default
+  // fields are also set, which allows remote peers to just patch the revision
+  // into their table.
+  /*if (RAFTUPDATEREQ(item) > 0) {
+    syncLatestCommitTime(*item);
+    return true;
+  } else {
+    return false;
+  }*/
 }
 
 bool RaftChunk::sendConnectRequest(const PeerId& peer,
@@ -172,7 +209,7 @@ bool RaftChunk::sendConnectRequest(const PeerId& peer,
   return false;
 }
 
-uint64_t RaftChunk::insertRequest(const std::shared_ptr<Revision>& item) {
+uint64_t RaftChunk::raftInsertRequest(const std::shared_ptr<Revision>& item) {
   CHECK(raft_node_.isRunning());
   return raft_node_.sendInsertRequest(item);
 }
