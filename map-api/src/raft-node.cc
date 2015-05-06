@@ -1033,11 +1033,6 @@ const uint64_t& RaftNode::commit_index() const {
   return commit_index_;
 }
 
-const uint64_t& RaftNode::committed_result() const {
-  std::lock_guard<std::mutex> lock(commit_mutex_);
-  return committed_result_;
-}
-
 uint64_t RaftNode::leaderAppendLogEntry(
     const std::shared_ptr<proto::RaftLogEntry>& entry) {
   uint64_t current_term;

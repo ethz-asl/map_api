@@ -84,18 +84,19 @@ class RaftChunk : public ChunkBase {
    */
   friend class NetTable;
 
-  void handleRaftConnectRequest(const PeerId& sender, Message* response);
-  void handleRaftAppendRequest(proto::AppendEntriesRequest* request,
-                               const PeerId& sender, Message* response);
-  void handleRaftInsertRequest(proto::InsertRequest* request,
-                               const PeerId& sender, Message* response);
-  void handleRaftRequestVote(const proto::VoteRequest& request,
-                             const PeerId& sender, Message* response);
-  void handleRaftQueryState(const proto::QueryState& request,
-                            Message* response);
-  void handleRaftJoinQuitRequest(const proto::JoinQuitRequest& request,
-                                 const PeerId& sender, Message* response);
-  void handleRaftNotifyJoinQuitSuccess(
+  inline void handleRaftConnectRequest(const PeerId& sender, Message* response);
+  inline void handleRaftAppendRequest(proto::AppendEntriesRequest* request,
+                                      const PeerId& sender, Message* response);
+  inline void handleRaftInsertRequest(proto::InsertRequest* request,
+                                      const PeerId& sender, Message* response);
+  inline void handleRaftRequestVote(const proto::VoteRequest& request,
+                                    const PeerId& sender, Message* response);
+  inline void handleRaftQueryState(const proto::QueryState& request,
+                                   Message* response);
+  inline void handleRaftJoinQuitRequest(const proto::JoinQuitRequest& request,
+                                        const PeerId& sender,
+                                        Message* response);
+  inline void handleRaftNotifyJoinQuitSuccess(
       const proto::NotifyJoinQuitSuccess& request, Message* response);
 
   virtual void leaveImpl() override {}

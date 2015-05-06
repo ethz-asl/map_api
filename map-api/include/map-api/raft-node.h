@@ -274,6 +274,7 @@ class RaftNode {
 
   // New revision request.
   uint64_t sendInsertRequest(const Revision::ConstPtr& item);
+  uint64_t sendUpdateRequest(const Revision::ConstPtr& item);
 
   std::condition_variable new_entries_signal_;
   // Expects write lock for log_mutex to be acquired.
@@ -303,7 +304,6 @@ class RaftNode {
   uint64_t committed_result_;
   mutable std::mutex commit_mutex_;
   const uint64_t& commit_index() const;
-  const uint64_t& committed_result() const;
 
   // ========================
   // Owner chunk information.

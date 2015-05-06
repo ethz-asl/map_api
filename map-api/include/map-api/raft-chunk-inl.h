@@ -26,4 +26,43 @@ inline void RaftChunk::syncLatestCommitTime(const Revision& item) {
   }
 }
 
+inline void RaftChunk::handleRaftConnectRequest(const PeerId& sender,
+                                                Message* response) {
+  raft_node_.handleConnectRequest(sender, response);
+}
+
+inline void RaftChunk::handleRaftAppendRequest(
+    proto::AppendEntriesRequest* request, const PeerId& sender,
+    Message* response) {
+  raft_node_.handleAppendRequest(request, sender, response);
+}
+
+inline void RaftChunk::handleRaftInsertRequest(proto::InsertRequest* request,
+                                               const PeerId& sender,
+                                               Message* response) {
+  raft_node_.handleInsertRequest(request, sender, response);
+}
+
+inline void RaftChunk::handleRaftRequestVote(const proto::VoteRequest& request,
+                                             const PeerId& sender,
+                                             Message* response) {
+  raft_node_.handleRequestVote(request, sender, response);
+}
+
+inline void RaftChunk::handleRaftQueryState(const proto::QueryState& request,
+                                            Message* response) {
+  raft_node_.handleQueryState(request, response);
+}
+
+inline void RaftChunk::handleRaftJoinQuitRequest(
+    const proto::JoinQuitRequest& request, const PeerId& sender,
+    Message* response) {
+  raft_node_.handleJoinQuitRequest(request, sender, response);
+}
+
+inline void RaftChunk::handleRaftNotifyJoinQuitSuccess(
+    const proto::NotifyJoinQuitSuccess& request, Message* response) {
+  raft_node_.handleNotifyJoinQuitSuccess(request, response);
+}
+
 #endif  // MAP_API_RAFT_CHUNK_INL_H_
