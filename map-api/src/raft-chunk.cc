@@ -143,7 +143,7 @@ bool RaftChunk::sendConnectRequest(const PeerId& peer,
   return false;
 }
 
-uint64_t RaftChunk::insertRequest(const std::shared_ptr<Revision>& item) {
+uint64_t RaftChunk::insertRequest(const Revision::ConstPtr& item) {
   CHECK(raft_node_.isRunning());
   return raft_node_.sendInsertRequest(item);
 }
@@ -158,7 +158,7 @@ void RaftChunk::handleRaftAppendRequest(proto::AppendEntriesRequest* request,
   raft_node_.handleAppendRequest(request, sender, response);
 }
 
-void RaftChunk::handleRaftInsertRequest(const proto::InsertRequest& request,
+void RaftChunk::handleRaftInsertRequest(proto::InsertRequest* request,
                                         const PeerId& sender,
                                         Message* response) {
   raft_node_.handleInsertRequest(request, sender, response);

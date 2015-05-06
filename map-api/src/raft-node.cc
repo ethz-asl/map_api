@@ -268,10 +268,10 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
   response->impose<kAppendEntriesResponse>(append_response);
 }
 
-void RaftNode::handleInsertRequest(const proto::InsertRequest& request,
+void RaftNode::handleInsertRequest(proto::InsertRequest* request,
                                    const PeerId& sender, Message* response) {
   std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
-  entry->set_serialized_revision(request.serialized_revision());
+  entry->set_allocated_revision(request->release_revision());
   uint64_t index = leaderSafelyAppendLogEntry(entry);
   proto::InsertResponse insert_response;
   insert_response.set_index(index);
@@ -409,18 +409,17 @@ bool RaftNode::sendAppendEntries(
   }
 }
 
-uint64_t RaftNode::sendInsertRequest(const std::shared_ptr<Revision>& item) {
+uint64_t RaftNode::sendInsertRequest(const Revision::ConstPtr& item) {
   if (state() == State::LEADER) {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
-    // TODO(aqurai): Store as Revision proto instead of serialized string?
-    entry->set_serialized_revision(item->serializeUnderlying());
+    entry->set_allocated_revision(item->copyToProtoPtr());
     leaderSafelyAppendLogEntry(entry);
   } else if (state() == State::FOLLOWER) {
     Message request, response;
     proto::InsertRequest insert_request;
     proto::InsertResponse insert_response;
     fillMetadata(&insert_request);
-    insert_request.set_serialized_revision(item->serializeUnderlying());
+    insert_request.set_allocated_revision(item->copyToProtoPtr());
     request.impose<kInsertRequest>(insert_request);
     if (!Hub::instance().try_request(leader(), &request, &response)) {
       VLOG(1) << "Insert request failed.";
