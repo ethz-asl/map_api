@@ -277,7 +277,6 @@ class RaftNode {
 
   // New revision request.
   uint64_t sendInsertRequest(const Revision::ConstPtr& item);
-  uint64_t sendUpdateRequest(const Revision::ConstPtr& item);
 
   std::condition_variable new_entries_signal_;
   // Expects write lock for log_mutex to be acquired.
