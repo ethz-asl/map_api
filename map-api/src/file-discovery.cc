@@ -17,7 +17,8 @@ DEFINE_double(discovery_timeout_seconds, 0.5, "Timeout for file discovery.");
 
 namespace map_api {
 
-FileDiscovery::FileDiscovery() {
+FileDiscovery::FileDiscovery()
+    : lock_forced_count_(0) {
   if (FLAGS_clear_discovery) {
     LOG(WARNING) << "Beware, discovery file is manually removed!";
     if (unlink(kFileName) == -1) {
@@ -86,10 +87,17 @@ void FileDiscovery::lock() {
     double time_ms =
         duration_cast<std::chrono::milliseconds>(end - start).count();
     if (time_ms > FLAGS_discovery_timeout_seconds * 1e3) {
-      LOG(ERROR) << "File discovery lock timed out! "
-        << "Probably there was an outdated lock file present:" << kLockFileName << ". "
-        << "The lock file has been deleted and ownership of the lock will be forced.";
-      CHECK_NE(unlink(kLockFileName), -1);
+      // Allow to force unlock the file once, in case there is still a lock file present from
+      // a previous unclean shutdown.
+      if (lock_forced_count_ < 1) {
+        LOG(ERROR) << "File discovery lock timed out! "
+            << "Probably there was an outdated lock file present: " << kLockFileName << ". "
+            << "The lock file has been deleted and ownership of the lock will be forced.";
+        CHECK_NE(unlink(kLockFileName), -1);
+        ++lock_forced_count_;
+      } else {
+        LOG(FATAL) << "File discovery lock timed out! ";
+      }
     }
   }
 }
