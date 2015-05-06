@@ -43,7 +43,7 @@ class FileDiscovery final : public Discovery {
   FileDiscovery& operator=(const FileDiscovery&) = delete;
   friend class Hub;
 
-  size_t lock_forced_count_;
+  bool force_unlocked_once_;
 };
 
 }  // namespace map_api
