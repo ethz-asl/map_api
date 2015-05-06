@@ -36,13 +36,21 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   virtual int countByRevisionImpl(int key, const Revision& valueHolder,
                                   const LogicalTime& time) const;
 
-  // INSERT AND UPDATE
+  // CHECK/PREPARE INSERT AND UPDATE
   bool checkAndPrepareInsert(const LogicalTime& time,
                              const std::shared_ptr<Revision>& query);
   bool checkAndPrepareUpdate(const LogicalTime& time,
                              const std::shared_ptr<Revision>& query);
   bool checkAndPrepareBulkInsert(const LogicalTime& time,
                                  const MutableRevisionMap& query);
+
+  // INSERT
+  bool checkAndPatch(const std::shared_ptr<const Revision>& query);
+
+  // TODO(aqurai): This is a separate function because this becomes a virtual
+  // method in base class to be impl by RAM and STXXL derived classes.
+  bool patch(const Revision::ConstPtr& query);
+
   // =================
   // HISTORY CONTAINER
   // =================
