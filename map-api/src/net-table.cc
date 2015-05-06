@@ -737,7 +737,7 @@ void NetTable::handleRaftAppendRequest(const common::Id& chunk_id,
 }
 
 void NetTable::handleRaftInsertRequest(const common::Id& chunk_id,
-                                       const proto::InsertRequest& request,
+                                       proto::InsertRequest* request,
                                        const PeerId& sender,
                                        Message* response) {
   ChunkMap::iterator found;
