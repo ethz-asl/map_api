@@ -94,6 +94,7 @@ class RaftNode {
   static const char kAppendEntries[];
   static const char kAppendEntriesResponse[];
   static const char kInsertRequest[];
+  static const char kUpdateRequest[];
   static const char kInsertResponse[];
   static const char kVoteRequest[];
   static const char kVoteResponse[];
@@ -135,6 +136,8 @@ class RaftNode {
                            const PeerId& sender, Message* response);
   void handleInsertRequest(proto::InsertRequest* request,
                            const PeerId& sender, Message* response);
+  void handleUpdateRequest(proto::InsertRequest* request, const PeerId& sender,
+                           Message* response);
   void handleRequestVote(const proto::VoteRequest& request,
                          const PeerId& sender, Message* response);
   void handleJoinQuitRequest(const proto::JoinQuitRequest& request,

@@ -89,6 +89,8 @@ class RaftChunk : public ChunkBase {
                                       const PeerId& sender, Message* response);
   inline void handleRaftInsertRequest(proto::InsertRequest* request,
                                       const PeerId& sender, Message* response);
+  inline void handleRaftUpdateRequest(proto::InsertRequest* request,
+                                      const PeerId& sender, Message* response);
   inline void handleRaftRequestVote(const proto::VoteRequest& request,
                                     const PeerId& sender, Message* response);
   inline void handleRaftQueryState(const proto::QueryState& request,

@@ -28,6 +28,7 @@ constexpr int kMaxLogQueueLength = 50;
 const char RaftNode::kAppendEntries[] = "raft_node_append_entries";
 const char RaftNode::kAppendEntriesResponse[] = "raft_node_append_response";
 const char RaftNode::kInsertRequest[] = "raft_node_insert_request";
+const char RaftNode::kUpdateRequest[] = "raft_node_update_request";
 const char RaftNode::kInsertResponse[] = "raft_node_insert_response";
 const char RaftNode::kVoteRequest[] = "raft_node_vote_request";
 const char RaftNode::kVoteResponse[] = "raft_node_vote_response";
@@ -44,6 +45,7 @@ MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntries, proto::AppendEntriesRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntriesResponse,
                       proto::AppendEntriesResponse);
 MAP_API_PROTO_MESSAGE(RaftNode::kInsertRequest, proto::InsertRequest);
+MAP_API_PROTO_MESSAGE(RaftNode::kUpdateRequest, proto::InsertRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kInsertResponse, proto::InsertResponse);
 MAP_API_PROTO_MESSAGE(RaftNode::kVoteRequest, proto::VoteRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kVoteResponse, proto::VoteResponse);
@@ -271,7 +273,17 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
 void RaftNode::handleInsertRequest(proto::InsertRequest* request,
                                    const PeerId& sender, Message* response) {
   std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
-  entry->set_allocated_revision(request->release_revision());
+  entry->set_allocated_insert_revision(request->release_revision());
+  uint64_t index = leaderSafelyAppendLogEntry(entry);
+  proto::InsertResponse insert_response;
+  insert_response.set_index(index);
+  response->impose<kInsertResponse>(insert_response);
+}
+
+void RaftNode::handleUpdateRequest(proto::InsertRequest* request,
+                                   const PeerId& sender, Message* response) {
+  std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
+  entry->set_allocated_update_revision(request->release_revision());
   uint64_t index = leaderSafelyAppendLogEntry(entry);
   proto::InsertResponse insert_response;
   insert_response.set_index(index);
@@ -412,7 +424,7 @@ bool RaftNode::sendAppendEntries(
 uint64_t RaftNode::sendInsertRequest(const Revision::ConstPtr& item) {
   if (state() == State::LEADER) {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
-    entry->set_allocated_revision(item->copyToProtoPtr());
+    entry->set_allocated_insert_revision(item->copyToProtoPtr());
     leaderSafelyAppendLogEntry(entry);
   } else if (state() == State::FOLLOWER) {
     Message request, response;
@@ -423,6 +435,30 @@ uint64_t RaftNode::sendInsertRequest(const Revision::ConstPtr& item) {
     request.impose<kInsertRequest>(insert_request);
     if (!Hub::instance().try_request(leader(), &request, &response)) {
       VLOG(1) << "Insert request failed.";
+      return 0;
+    }
+    response.extract<kInsertResponse>(&insert_response);
+    return insert_response.index();
+  }
+  // Failure. Can't add new revision right now because the leader is currently
+  // unknown or there is an election underway.
+  return 0;
+}
+
+uint64_t RaftNode::sendUpdateRequest(const Revision::ConstPtr& item) {
+  if (state() == State::LEADER) {
+    std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
+    entry->set_allocated_update_revision(item->copyToProtoPtr());
+    leaderSafelyAppendLogEntry(entry);
+  } else if (state() == State::FOLLOWER) {
+    Message request, response;
+    proto::InsertRequest insert_request;
+    proto::InsertResponse insert_response;
+    fillMetadata(&insert_request);
+    insert_request.set_allocated_revision(item->copyToProtoPtr());
+    request.impose<kUpdateRequest>(insert_request);
+    if (!Hub::instance().try_request(leader(), &request, &response)) {
+      VLOG(1) << "Update request failed.";
       return 0;
     }
     response.extract<kInsertResponse>(&insert_response);

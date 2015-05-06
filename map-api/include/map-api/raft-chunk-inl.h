@@ -43,6 +43,12 @@ inline void RaftChunk::handleRaftInsertRequest(proto::InsertRequest* request,
   raft_node_.handleInsertRequest(request, sender, response);
 }
 
+inline void RaftChunk::handleRaftUpdateRequest(proto::InsertRequest* request,
+                                               const PeerId& sender,
+                                               Message* response) {
+  raft_node_.handleUpdateRequest(request, sender, response);
+}
+
 inline void RaftChunk::handleRaftRequestVote(const proto::VoteRequest& request,
                                              const PeerId& sender,
                                              Message* response) {
