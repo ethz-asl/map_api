@@ -43,7 +43,7 @@ TEST_F(ConsensusFixture, RaftChunkTest) {
     IPC::barrier(PUSH_CHUNK_ID, kProcesses - 1);
     chunk->requestParticipation();
     IPC::barrier(RAFT_START, kProcesses - 1);
-    usleep(100000 * kMillisecondsToMicroseconds);
+    usleep(5000 * kMillisecondsToMicroseconds);
 
     IPC::barrier(DIE, kProcesses - 1);
   } else {
@@ -52,7 +52,7 @@ TEST_F(ConsensusFixture, RaftChunkTest) {
     common::Id chunk_id = IPC::pop<common::Id>();
     IPC::barrier(RAFT_START, kProcesses - 1);
 
-    usleep(100000 * kMillisecondsToMicroseconds);
+    usleep(5000 * kMillisecondsToMicroseconds);
 
     IPC::barrier(DIE, kProcesses - 1);
   }

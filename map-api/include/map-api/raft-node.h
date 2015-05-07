@@ -291,8 +291,7 @@ class RaftNode {
       const LogWriteAccess& log_writer,
       proto::AppendEntriesRequest* request);
   void followerCommitNewEntries(const LogWriteAccess& log_writer,
-                                const proto::AppendEntriesRequest* request,
-                                State state);
+                                uint64_t request_commit_index, State state);
   void setAppendEntriesResponse(proto::AppendEntriesResponse* response,
                                 proto::AppendResponseStatus status,
                                 uint64_t current_commit_index,

@@ -246,7 +246,8 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
 
   // Check if new entries are committed.
   if (response_status == proto::AppendResponseStatus::SUCCESS) {
-    followerCommitNewEntries(log_writer, append_request, state_);
+    followerCommitNewEntries(log_writer, append_request->commit_index(),
+                             state_);
   }
 
   // ==========================================
@@ -533,6 +534,13 @@ bool RaftNode::sendInitRequest(const PeerId& peer,
   for (ConstLogIterator it = log_writer->cbegin(); it != log_writer->cend();
        ++it) {
     // TODO(aqurai): Use proto::NewPeerInit, use set_allocated() and release().
+    // This is doing double copy!
+    if ((*it)->has_revision_id()) {
+      (*it)->set_allocated_insert_revision(CHECK_NOTNULL(
+          data_->getByIdImpl(common::Id((*it)->revision_id()),
+                             LogicalTime((*it)->logical_time())).get())
+                                               ->copyToProtoPtr());
+    }
     init_request.add_serialized_items((*it)->SerializeAsString());
   }
   request.impose<kInitRequest>(init_request);
@@ -852,7 +860,11 @@ void RaftNode::initChunkData(const proto::InitRequest& init_request) {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
     entry->ParseFromString(init_request.serialized_items(i));
     log_writer->push_back(entry);
+    followerCommitNewEntries(log_writer, log_writer->lastLogIndex(),
+                             State::JOINING);
   }
+  VLOG(3) << PeerId::self() << ": Initialized data and ready to join chunk "
+          << chunk_id_.printString();
 }
 
 void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
@@ -1026,16 +1038,16 @@ proto::AppendResponseStatus RaftNode::followerAppendNewEntries(
   return proto::AppendResponseStatus::FAILED;
 }
 
-void RaftNode::followerCommitNewEntries(
-    const LogWriteAccess& log_writer,
-    const proto::AppendEntriesRequest* request, State state) {
+void RaftNode::followerCommitNewEntries(const LogWriteAccess& log_writer,
+                                        uint64_t request_commit_index,
+                                        State state) {
   CHECK_LE(log_writer->commitIndex(), log_writer->lastLogIndex());
-  if (log_writer->commitIndex() < request->commit_index() &&
+  if (log_writer->commitIndex() < request_commit_index &&
       log_writer->commitIndex() < log_writer->lastLogIndex()) {
     LogIterator old_commit =
         log_writer->getLogIteratorByIndex(log_writer->commitIndex());
     log_writer->setCommitIndex(
-        std::min(log_writer->lastLogIndex(), request->commit_index()));
+        std::min(log_writer->lastLogIndex(), request_commit_index));
 
     LogIterator new_commit =
         log_writer->getLogIteratorByIndex(log_writer->commitIndex());
@@ -1045,11 +1057,17 @@ void RaftNode::followerCommitNewEntries(
       if (e->has_insert_revision()) {
         const std::shared_ptr<Revision> insert_revision = Revision::fromProto(
             std::unique_ptr<proto::Revision>(e->release_insert_revision()));
+        insert_revision->getId<common::Id>().serialize(
+            e->mutable_revision_id());
+        e->set_logical_time(insert_revision->getInsertTime().serialize());
         data_->checkAndPatch(insert_revision);
       }
       if (e->has_update_revision()) {
         const std::shared_ptr<Revision> update_revision = Revision::fromProto(
             std::unique_ptr<proto::Revision>(e->release_update_revision()));
+        update_revision->getId<common::Id>().serialize(
+            e->mutable_revision_id());
+        e->set_logical_time(update_revision->getUpdateTime().serialize());
         data_->checkAndPatch(update_revision);
       }
       // Joining peers don't act on add/remove peer entries.
@@ -1159,15 +1177,20 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
 
   if (ready_to_commit) {
     log_writer->setCommitIndex(log_writer->commitIndex() + 1);
-    // TODO(aqurai): Remove later
     if ((*it)->has_insert_revision()) {
       const std::shared_ptr<Revision> insert_revision = Revision::fromProto(
           std::unique_ptr<proto::Revision>((*it)->release_insert_revision()));
+      insert_revision->getId<common::Id>().serialize(
+          (*it)->mutable_revision_id());
+      (*it)->set_logical_time(insert_revision->getInsertTime().serialize());
       data_->checkAndPatch(insert_revision);
     }
     if ((*it)->has_update_revision()) {
       const std::shared_ptr<Revision> update_revision = Revision::fromProto(
           std::unique_ptr<proto::Revision>((*it)->release_update_revision()));
+      update_revision->getId<common::Id>().serialize(
+          (*it)->mutable_revision_id());
+      (*it)->set_logical_time(update_revision->getUpdateTime().serialize());
       data_->checkAndPatch(update_revision);
     }
     if ((*it)->has_add_peer()) {
