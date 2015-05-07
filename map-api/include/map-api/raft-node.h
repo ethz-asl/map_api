@@ -165,7 +165,7 @@ class RaftNode {
       const PeerId& peer, proto::PeerRequestType type) const;
   void sendNotifyJoinQuitSuccess(const PeerId& peer) const;
 
-  bool sendInitRequest(const PeerId& peer, const LogReadAccess& log_reader);
+  bool sendInitRequest(const PeerId& peer, const LogWriteAccess& log_writer);
 
   // ================
   // State Management
@@ -240,7 +240,7 @@ class RaftNode {
 
   // Expects no lock to be taken.
   void leaderMonitorFollowerStatus(uint64_t current_term);
-  void leaderAddPeer(const PeerId& peer, const LogReadAccess& log_reader,
+  void leaderAddPeer(const PeerId& peer, const LogWriteAccess& log_writer,
                      uint64_t current_term);
   void leaderRemovePeer(const PeerId& peer);
 

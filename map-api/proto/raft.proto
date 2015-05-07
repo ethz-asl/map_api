@@ -34,12 +34,11 @@ message NewPeerInit {
 
 message RaftLogEntry {
   optional uint64 index = 1;
-  optional uint64 entry = 2;  // TODO(aqurai): To be removed.
-  optional uint64 term = 3;
-  optional Revision insert_revision = 4;
-  optional Revision update_revision = 5;
-  optional string add_peer = 6;
-  optional string remove_peer = 7;
+  optional uint64 term = 2;
+  optional Revision insert_revision = 3;
+  optional Revision update_revision = 4;
+  optional string add_peer = 5;
+  optional string remove_peer = 6;
 }
 
 message AppendEntriesRequest {

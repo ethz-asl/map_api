@@ -96,18 +96,13 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     inline common::ReaderWriterMutex* mutex() const { return &log_mutex_; }
 
     // To be removed
-    inline void setCommitIndex(uint64_t value) const { commit_index_ = value; }
-
-    // Yet to be implemented:
-    // void commitNextEnty() {}
-    // void commitUntilIndex(uint64_t index) {}
-    // std::unordered_map<int, std::function<void(const proto::RaftLogEntry*)>&>
-    // commit_actions;
+    inline void setCommitIndex(uint64_t value) { commit_index_ = value; }
+    uint64_t setEntryCommitted(iterator it);
 
    private:
     friend class RaftChunkDataRamContainer;
     mutable common::ReaderWriterMutex log_mutex_;
-    mutable uint64_t commit_index_;
+    uint64_t commit_index_;
   };
   RaftLog log_;
   inline uint64_t logCommitIndex() const;

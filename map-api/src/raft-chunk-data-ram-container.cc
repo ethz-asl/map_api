@@ -116,7 +116,6 @@ bool RaftChunkDataRamContainer::checkAndPatch(
   CHECK(query->structureMatch(*reference)) << "Bad structure of patch revision";
   CHECK(query->getId<common::Id>().isValid())
       << "Attempted to insert element with invalid ID";
-
   return patch(query);
 }
 
@@ -146,6 +145,9 @@ RaftChunkDataRamContainer::RaftLog::RaftLog() : commit_index_(0) {}
 RaftChunkDataRamContainer::RaftLog::iterator
 RaftChunkDataRamContainer::RaftLog::getLogIteratorByIndex(uint64_t index) {
   iterator it = end();
+  if (empty()) {
+    return it;
+  }
   if (index < front()->index() || index > back()->index()) {
     return it;
   } else {
@@ -159,6 +161,9 @@ RaftChunkDataRamContainer::RaftLog::getLogIteratorByIndex(uint64_t index) {
 RaftChunkDataRamContainer::RaftLog::const_iterator
 RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) const {
   const_iterator it = cend();
+  if (empty()) {
+    return it;
+  }
   if (index < front()->index() || index > back()->index()) {
     return it;
   } else {
@@ -173,6 +178,11 @@ uint64_t RaftChunkDataRamContainer::RaftLog::eraseAfter(iterator it) {
   CHECK(it + 1 != begin());
   resize(std::distance(begin(), it + 1));
   return lastLogIndex();
+}
+
+uint64_t RaftChunkDataRamContainer::RaftLog::setEntryCommitted(iterator it) {
+  CHECK_EQ(commit_index_ + 1, (*it)->index());
+  return ++commit_index_;
 }
 
 RaftChunkDataRamContainer::LogReadAccess::LogReadAccess(

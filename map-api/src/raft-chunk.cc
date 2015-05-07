@@ -21,11 +21,9 @@ bool RaftChunk::init(const common::Id& id,
                      std::shared_ptr<TableDescriptor> descriptor,
                      bool initialize) {
   id_ = id;
-  // TODO(aqurai): init new data container here.
-  data_container_.reset(new LegacyChunkDataRamContainer);
+  // TODO(aqurai): No, this is not a good way of doing things.
+  data_container_.reset(raft_node_.data_);
   CHECK(data_container_->init(descriptor));
-  data_container2_.reset(new RaftChunkDataRamContainer);
-  CHECK(data_container2_->init(descriptor));
   initialized_ = true;
   raft_node_.chunk_id_ = id_;
   raft_node_.table_name_ = descriptor->name();
@@ -86,7 +84,7 @@ bool RaftChunk::insert(const LogicalTime& time,
   item->setChunkId(id());
   // TODO(aqurai): See if a lock actually needed for insert.
   writeLock();
-  static_cast<RaftChunkDataRamContainer*>(data_container2_.get())
+  static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareInsert(time, item);
   // at this point, checkAndPrepareInsert() has modified the revision such that
   // all default
@@ -169,7 +167,7 @@ void RaftChunk::update(const std::shared_ptr<Revision>& item) {
   CHECK(item != nullptr);
   CHECK_EQ(id(), item->getChunkId());
   writeLock();
-  static_cast<RaftChunkDataRamContainer*>(data_container2_.get())
+  static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareUpdate(LogicalTime::sample(), item);
   if (raftUpdateRequest(item) > 0) {
     syncLatestCommitTime(*item);
@@ -210,7 +208,7 @@ void RaftChunk::bulkInsertLocked(const MutableRevisionMap& items,
     CHECK_NOTNULL(item.second.get());
     item.second->setChunkId(id());
   }
-  static_cast<RaftChunkDataRamContainer*>(data_container2_.get())
+  static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareBulkInsert(time, items);
   for (const ConstRevisionMap::value_type& item : items) {
     // TODO(aqurai): Handle partial failure?
@@ -222,7 +220,7 @@ void RaftChunk::updateLocked(const LogicalTime& time,
                              const std::shared_ptr<Revision>& item) {
   CHECK(item != nullptr);
   CHECK_EQ(id(), item->getChunkId());
-  static_cast<RaftChunkDataRamContainer*>(data_container2_.get())
+  static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareUpdate(LogicalTime::sample(), item);
   // TODO(aqurai): No return value? What to do on fail?
   raftUpdateRequest(item);
@@ -233,7 +231,7 @@ void RaftChunk::removeLocked(const LogicalTime& time,
   // TODO(aqurai): How is this different from Update???
   CHECK(item != nullptr);
   CHECK_EQ(id(), item->getChunkId());
-  static_cast<RaftChunkDataRamContainer*>(data_container2_.get())
+  static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareUpdate(LogicalTime::sample(), item);
   // TODO(aqurai): No return? What to do on fail?
   raftUpdateRequest(item);

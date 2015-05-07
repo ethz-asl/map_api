@@ -109,7 +109,6 @@ class RaftChunk : public ChunkBase {
   volatile bool relinquished_ = false;
   LogicalTime latest_commit_time_;
   uint64_t latest_commit_log_index_;
-  std::unique_ptr<RaftChunkDataRamContainer> data_container2_;
 };
 
 #include "./raft-chunk-inl.h"
