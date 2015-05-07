@@ -85,6 +85,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   // const_iterator are not defined within RaftNode.
   class RaftLog : public std::vector<std::shared_ptr<proto::RaftLogEntry>> {
    public:
+    RaftLog();
     virtual ~RaftLog() {}
     iterator getLogIteratorByIndex(uint64_t index);
     const_iterator getConstLogIteratorByIndex(uint64_t index) const;
@@ -100,7 +101,6 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     // Yet to be implemented:
     // void commitNextEnty() {}
     // void commitUntilIndex(uint64_t index) {}
-    // uint64_t commit_index();
     // std::unordered_map<int, std::function<void(const proto::RaftLogEntry*)>&>
     // commit_actions;
 

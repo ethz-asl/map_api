@@ -141,6 +141,8 @@ bool RaftChunkDataRamContainer::patch(const Revision::ConstPtr& query) {
   return true;
 }
 
+RaftChunkDataRamContainer::RaftLog::RaftLog() : commit_index_(0) {}
+
 RaftChunkDataRamContainer::RaftLog::iterator
 RaftChunkDataRamContainer::RaftLog::getLogIteratorByIndex(uint64_t index) {
   iterator it = end();
@@ -212,8 +214,8 @@ RaftChunkDataRamContainer::LogWriteAccess::LogWriteAccess(
   write_log_->mutex()->acquireWriteLock();
 }
 
-RaftChunkDataRamContainer::RaftLog* 
-RaftChunkDataRamContainer::LogWriteAccess::operator->() const {
+RaftChunkDataRamContainer::RaftLog* RaftChunkDataRamContainer::LogWriteAccess::
+operator->() const {
   if (is_enabled_) {
     return write_log_;
   } else {
