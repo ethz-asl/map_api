@@ -567,7 +567,7 @@ void NetTableManager::handleRaftInsertRequest(const Message& request, Message* r
 void NetTableManager::handleRaftUpdateRequest(const Message& request,
                                               Message* response) {
   proto::InsertRequest insert_request;
-  request.extract<RaftNode::kInsertRequest>(&insert_request);
+  request.extract<RaftNode::kUpdateRequest>(&insert_request);
   const proto::ChunkRequestMetadata metadata = insert_request.metadata();
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());

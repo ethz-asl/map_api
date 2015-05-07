@@ -153,7 +153,8 @@ int RaftChunk::requestParticipation() {
 
 int RaftChunk::requestParticipation(const PeerId& peer) {
   // TODO(aqurai): Handle failure/leader change.
-  if (raft_node_.state() == RaftNode::State::LEADER) {
+  if (raft_node_.state() == RaftNode::State::LEADER &&
+      !raft_node_.hasPeer(peer)) {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
     entry->set_add_peer(peer.ipPort());
     if (raft_node_.leaderSafelyAppendLogEntry(entry) > 0) {
@@ -238,7 +239,7 @@ void RaftChunk::removeLocked(const LogicalTime& time,
 }
 
 uint64_t RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
-  CHECK(raft_node_.isRunning());
+  CHECK(raft_node_.isRunning()) << PeerId::self();
   return raft_node_.sendInsertRequest(item);
 }
 

@@ -95,6 +95,10 @@ void RaftNode::start() {
   }
   if (!is_exiting_) {
     state_manager_thread_ = std::thread(&RaftNode::stateManagerThread, this);
+    // Avoid race conditions by waiting for the state thread to start.
+    while(!state_thread_running_) {
+      usleep(2000);
+    }
   }
 }
 
@@ -421,7 +425,7 @@ uint64_t RaftNode::sendInsertRequest(const Revision::ConstPtr& item) {
   if (state() == State::LEADER) {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
     entry->set_allocated_insert_revision(item->copyToProtoPtr());
-    leaderSafelyAppendLogEntry(entry);
+    return leaderSafelyAppendLogEntry(entry);
   } else if (state() == State::FOLLOWER) {
     Message request, response;
     proto::InsertRequest insert_request;
@@ -610,6 +614,11 @@ void RaftNode::stateManagerThread() {
   state_thread_running_ = false;
 }
 
+bool RaftNode::hasPeer(const PeerId& peer) {
+  std::lock_guard<std::mutex> peer_lock(peer_mutex_);
+  return peer_list_.count(peer);
+}
+
 // Expects follower_tracker_mutex_ locked.
 void RaftNode::leaderShutDownTracker(const PeerId& peer) {
   TrackerMap::iterator found = follower_tracker_map_.find(peer);
@@ -709,7 +718,7 @@ void RaftNode::leaderAddPeer(const PeerId& peer,
   std::lock_guard<std::mutex> peer_lock(peer_mutex_);
   std::lock_guard<std::mutex> tracker_lock(follower_tracker_mutex_);
 
-  if (peer != PeerId::self()) {  // Add new peer.
+  if (peer != PeerId::self() && peer_list_.count(peer) == 0) {  // Add new peer.
     sendInitRequest(peer, log_writer);
     peer_list_.insert(peer);
     num_peers_ = peer_list_.size();
@@ -1106,7 +1115,6 @@ uint64_t RaftNode::leaderAppendLogEntry(
       kMaxLogQueueLength) {
     return 0;
   }
-  PeerId invalid_id;
   return leaderAppendLogEntryLocked(log_writer, entry, current_term);
 }
 

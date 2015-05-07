@@ -232,6 +232,7 @@ class RaftNode {
   std::atomic<uint> num_peers_;
   std::mutex peer_mutex_;
   std::mutex follower_tracker_mutex_;
+  bool hasPeer(const PeerId& peer);
 
   // Expects follower_tracker_mutex_ locked.
   void leaderShutDownTracker(const PeerId& peer);
