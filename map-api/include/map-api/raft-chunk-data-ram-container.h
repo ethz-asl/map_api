@@ -91,7 +91,11 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     uint64_t eraseAfter(iterator it);
     inline uint64_t lastLogIndex() const { return back()->index(); }
     inline uint64_t lastLogTerm() const { return back()->term(); }
+    inline uint64_t commitIndex() const { return commit_index_; }
     inline common::ReaderWriterMutex* mutex() const { return &log_mutex_; }
+
+    // To be removed
+    inline void setCommitIndex(uint64_t value) const { commit_index_ = value; }
 
     // Yet to be implemented:
     // void commitNextEnty() {}
@@ -101,11 +105,12 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     // commit_actions;
 
    private:
+    friend class RaftChunkDataRamContainer;
     mutable common::ReaderWriterMutex log_mutex_;
-    mutable std::mutex commit_mutex_;
-    uint64_t commit_index_;
+    mutable uint64_t commit_index_;
   };
   RaftLog log_;
+  inline uint64_t logCommitIndex() const;
 
   class LogReadAccess {
    public:

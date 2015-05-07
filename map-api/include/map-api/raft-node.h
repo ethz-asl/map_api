@@ -159,8 +159,8 @@ class RaftNode {
     FAILED_REQUEST
   };
   VoteResponse sendRequestVote(const PeerId& peer, uint64_t term,
-                               uint64_t last_log_index,
-                               uint64_t last_log_term) const;
+                               uint64_t last_log_index, uint64_t last_log_term,
+                               uint64_t current_commit_index) const;
   proto::JoinQuitResponse sendJoinQuitRequest(
       const PeerId& peer, proto::PeerRequestType type) const;
   void sendNotifyJoinQuitSuccess(const PeerId& peer) const;
@@ -302,11 +302,6 @@ class RaftNode {
 
   // Expects locks for commit_mutex_ and log_mutex_to NOT have been acquired.
   void leaderCommitReplicatedEntries(uint64_t current_term);
-
-  uint64_t commit_index_;
-  uint64_t committed_result_;
-  mutable std::mutex commit_mutex_;
-  const uint64_t& commit_index() const;
 
   // ========================
   // Owner chunk information.
