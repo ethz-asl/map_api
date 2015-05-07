@@ -662,17 +662,22 @@ void RaftNode::leaderMonitorFollowerStatus(uint64_t current_term) {
     LogWriteAccess log_writer(data_);
     std::unique_lock<std::mutex> peer_lock(peer_mutex_);
     std::unique_lock<std::mutex> tracker_lock(follower_tracker_mutex_);
+    std::vector<PeerId> remove_peers;
     for (TrackerMap::value_type& tracker : follower_tracker_map_) {
       if (tracker.second->status == PeerStatus::OFFLINE) {
         ++num_not_responding;
       }
       if (tracker.second->status == PeerStatus::OFFLINE ||
           tracker.second->status == PeerStatus::ANNOUNCED_DISCONNECTING) {
-        VLOG(1) << tracker.first
-                << " is offline. Shutting down the follower tracker.";
         // TODO(aqurai): NOTE: Segfault here, sometimes!
-        // std::__shared_ptr<>::operator->().
-        PeerId remove_peer = tracker.first;
+        // std::__shared_ptr<>::operator->(). Solved?
+        remove_peers.push_back(tracker.first);
+      }
+    }
+    if (!remove_peers.empty()) {
+      for (const PeerId& remove_peer : remove_peers) {
+        VLOG(1) << remove_peer
+                << " is offline. Shutting down the follower tracker.";
         leaderShutDownTracker(remove_peer);
         std::shared_ptr<proto::RaftLogEntry> new_entry(new proto::RaftLogEntry);
         new_entry->set_remove_peer(remove_peer.ipPort());
