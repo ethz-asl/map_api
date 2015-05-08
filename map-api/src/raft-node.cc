@@ -96,7 +96,7 @@ void RaftNode::start() {
   if (!is_exiting_) {
     state_manager_thread_ = std::thread(&RaftNode::stateManagerThread, this);
     // Avoid race conditions by waiting for the state thread to start.
-    while(!state_thread_running_) {
+    while (!state_thread_running_) {
       usleep(2000);
     }
   }
@@ -1067,30 +1067,30 @@ void RaftNode::followerCommitNewEntries(const LogWriteAccess& log_writer,
         log_writer->getLogIteratorByIndex(log_writer->commitIndex());
 
     std::for_each(old_commit + 1, new_commit + 1,
-                  [&](const std::shared_ptr<proto::RaftLogEntry>& e) {
-      if (e->has_insert_revision()) {
+                  [&](const std::shared_ptr<proto::RaftLogEntry>& entry) {
+      if (entry->has_insert_revision()) {
         const std::shared_ptr<Revision> insert_revision = Revision::fromProto(
-            std::unique_ptr<proto::Revision>(e->release_insert_revision()));
+            std::unique_ptr<proto::Revision>(entry->release_insert_revision()));
         insert_revision->getId<common::Id>().serialize(
-            e->mutable_revision_id());
-        e->set_logical_time(insert_revision->getInsertTime().serialize());
+            entry->mutable_revision_id());
+        entry->set_logical_time(insert_revision->getInsertTime().serialize());
         data_->checkAndPatch(insert_revision);
       }
-      if (e->has_update_revision()) {
+      if (entry->has_update_revision()) {
         const std::shared_ptr<Revision> update_revision = Revision::fromProto(
-            std::unique_ptr<proto::Revision>(e->release_update_revision()));
+            std::unique_ptr<proto::Revision>(entry->release_update_revision()));
         update_revision->getId<common::Id>().serialize(
-            e->mutable_revision_id());
-        e->set_logical_time(update_revision->getUpdateTime().serialize());
+            entry->mutable_revision_id());
+        entry->set_logical_time(update_revision->getUpdateTime().serialize());
         data_->checkAndPatch(update_revision);
       }
       // Joining peers don't act on add/remove peer entries.
       // TODO(aqurai): This might change with chunk join process.
-      if (state == State::FOLLOWER && e->has_add_peer()) {
-        followerAddPeer(PeerId(e->add_peer()));
+      if (state == State::FOLLOWER && entry->has_add_peer()) {
+        followerAddPeer(PeerId(entry->add_peer()));
       }
-      if (state == State::FOLLOWER && e->has_remove_peer()) {
-        followerRemovePeer(PeerId(e->remove_peer()));
+      if (state == State::FOLLOWER && entry->has_remove_peer()) {
+        followerRemovePeer(PeerId(entry->remove_peer()));
       }
     });
 

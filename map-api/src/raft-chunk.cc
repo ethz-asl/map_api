@@ -231,6 +231,7 @@ void RaftChunk::bulkInsertLocked(const MutableRevisionMap& items,
     // TODO(aqurai): Handle partial failure?
     raftInsertRequest(item.second);
   }
+  // TODO(aqurai): No return value? What to do on fail?
 }
 
 void RaftChunk::updateLocked(const LogicalTime& time,
@@ -239,7 +240,7 @@ void RaftChunk::updateLocked(const LogicalTime& time,
   CHECK_EQ(id(), item->getChunkId());
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareUpdate(LogicalTime::sample(), item);
-  // TODO(aqurai): No return value? What to do on fail?
+  // TODO(aqurai): No return? What to do on fail?
   raftUpdateRequest(item);
 }
 
