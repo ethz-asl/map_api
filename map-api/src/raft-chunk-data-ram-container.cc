@@ -107,6 +107,40 @@ bool RaftChunkDataRamContainer::checkAndPrepareBulkInsert(
   return true;
 }
 
+bool RaftChunkDataRamContainer::checkAndPatch(
+    const std::shared_ptr<Revision>& query) {
+  std::lock_guard<std::mutex> lock(access_mutex_);
+  CHECK(query != nullptr);
+  CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
+  std::shared_ptr<Revision> reference = getTemplate();
+  CHECK(query->structureMatch(*reference)) << "Bad structure of patch revision";
+  CHECK(query->getId<common::Id>().isValid())
+      << "Attempted to insert element with invalid ID";
+
+  return patch(query);
+}
+
+bool RaftChunkDataRamContainer::patch(const Revision::ConstPtr& query) {
+  CHECK(query != nullptr);
+  common::Id id = query->getId<common::Id>();
+  LogicalTime time = query->getUpdateTime();
+  HistoryMap::iterator found = data_.find(id);
+  if (found == data_.end()) {
+    found = data_.insert(std::make_pair(id, History())).first;
+  }
+  for (History::iterator it = found->second.begin(); it != found->second.end();
+       ++it) {
+    if ((*it)->getUpdateTime() <= time) {
+      CHECK_NE(time, (*it)->getUpdateTime());
+      found->second.insert(it, query);
+      return true;
+    }
+    LOG(WARNING) << "Patching, not in front!";  // shouldn't usually be the case
+  }
+  found->second.push_back(query);
+  return true;
+}
+
 RaftChunkDataRamContainer::RaftLog::iterator
 RaftChunkDataRamContainer::RaftLog::getLogIteratorByIndex(uint64_t index) {
   iterator it = end();
@@ -147,12 +181,12 @@ RaftChunkDataRamContainer::LogReadAccess::LogReadAccess(
 }
 
 const RaftChunkDataRamContainer::RaftLog*
-RaftChunkDataRamContainer::LogReadAccess::
-operator->() const {
+RaftChunkDataRamContainer::LogReadAccess::operator->() const {
   if (is_enabled_) {
     return read_log_;
   } else {
     LOG(FATAL) << "Tried to access raft log using a disabled LogReadAccess object";
+    return NULL;
   }
 }
 
@@ -178,12 +212,13 @@ RaftChunkDataRamContainer::LogWriteAccess::LogWriteAccess(
   write_log_->mutex()->acquireWriteLock();
 }
 
-RaftChunkDataRamContainer::RaftLog* RaftChunkDataRamContainer::LogWriteAccess::
-operator->() const {
+RaftChunkDataRamContainer::RaftLog* 
+RaftChunkDataRamContainer::LogWriteAccess::operator->() const {
   if (is_enabled_) {
     return write_log_;
   } else {
     LOG(FATAL) << "Tried to access raft log using a disabled LogWriteAccess object";
+    return NULL;
   }
 }
 
