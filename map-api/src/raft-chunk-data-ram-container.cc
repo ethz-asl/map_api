@@ -58,6 +58,18 @@ int RaftChunkDataRamContainer::countByRevisionImpl(
   return count;
 }
 
+void RaftChunkDataRamContainer::chunkHistory(const common::Id& chunk_id,
+                                             const LogicalTime& time,
+                                             HistoryMap* dest) const {
+  CHECK_NOTNULL(dest)->clear();
+  for (const HistoryMap::value_type& pair : data_) {
+    if ((*pair.second.begin())->getChunkId() == chunk_id) {
+      CHECK(dest->emplace(pair).second);
+    }
+  }
+  trimToTime(time, dest);
+}
+
 bool RaftChunkDataRamContainer::checkAndPrepareInsert(
     const LogicalTime& time, const std::shared_ptr<Revision>& query) {
   // TODO(aqurai): See if this mutex is needed here.

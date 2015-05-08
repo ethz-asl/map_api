@@ -75,7 +75,23 @@ size_t RaftChunk::itemsSizeBytes(const LogicalTime& time) const {
 
 void RaftChunk::getCommitTimes(const LogicalTime& sample_time,
                                std::set<LogicalTime>* commit_times) const {
-  // TODO(aqurai): Implement this after data container implementation.
+  CHECK_NOTNULL(commit_times);
+  //  Using a temporary unordered map because it should have a faster insertion
+  //  time. The expected amount of commit times << the expected amount of items,
+  //  so this should be worth it.
+  std::unordered_set<LogicalTime> unordered_commit_times;
+  ConstRevisionMap items;
+  RaftChunkDataRamContainer::HistoryMap histories;
+  static_cast<RaftChunkDataRamContainer*>(data_container_.get())
+      ->chunkHistory(id(), sample_time, &histories);
+  for (const RaftChunkDataRamContainer::HistoryMap::value_type& history :
+       histories) {
+    for (const std::shared_ptr<const Revision>& revision : history.second) {
+      unordered_commit_times.insert(revision->getUpdateTime());
+    }
+  }
+  commit_times->insert(unordered_commit_times.begin(),
+                       unordered_commit_times.end());
 }
 
 bool RaftChunk::insert(const LogicalTime& time,

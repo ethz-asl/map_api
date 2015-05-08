@@ -77,6 +77,10 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
           const std::shared_ptr<const Revision>& item)>& action) const;
   inline void trimToTime(const LogicalTime& time, HistoryMap* subject) const;
 
+  // OTHER READ OPERATIONS
+  void chunkHistory(const common::Id& chunk_id, const LogicalTime& time,
+                    HistoryMap* dest) const;
+
   // ========
   // RAFT-LOG
   // ========
