@@ -88,6 +88,7 @@ void RaftNode::start() {
     LOG(FATAL) << "Start failed. State manager thread is already running.";
     return;
   }
+  // TODO(aqurai): To be removed.
   if (state_ == State::JOINING && !join_request_peer_.isValid() &&
       peer_list_.empty()) {
     LOG(WARNING) << "No peer information for sending join request. Exiting.";
@@ -257,6 +258,7 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
   // ==========================================
   // Check if Joining peer can become follower.
   // ==========================================
+  // TODO(aqurai): This is not needed anymore.
   if (state_ == State::JOINING && is_join_notified_ &&
       log_writer->lastLogIndex() >= join_log_index_) {
     VLOG(1) << PeerId::self() << " has joined the raft network.";
@@ -572,7 +574,7 @@ void RaftNode::stateManagerThread() {
       current_term = current_term_;
     }
 
-    if (state == State::JOINING) {
+    if (state == State::LOST_CONNECTION) {
       if (getTimeSinceHeartbeatMs() > kJoinResponseTimeoutMs) {
         VLOG(1) << "Joining peer: " << PeerId::self()
                 << " : Heartbeat timed out. Sending Join request. ";
@@ -706,7 +708,7 @@ void RaftNode::leaderMonitorFollowerStatus(uint64_t current_term) {
     VLOG(1) << PeerId::self()
             << ": Disconnected from network. Shutting down follower trackers. ";
     std::lock_guard<std::mutex> state_lock(state_mutex_);
-    state_ = State::JOINING;
+    state_ = State::LOST_CONNECTION;
     follower_trackers_run_ = false;
     return;
   }
@@ -796,6 +798,7 @@ void RaftNode::conductElection() {
   uint num_ineligible = 0;
   std::unique_lock<std::mutex> state_lock(state_mutex_);
   state_ = State::CANDIDATE;
+  uint64_t old_term = current_term_;
   current_term_ = std::max(current_term_ + 1, last_vote_request_term_ + 1);
   uint64_t term = current_term_;
   leader_id_ = PeerId();
@@ -835,7 +838,8 @@ void RaftNode::conductElection() {
 
   state_lock.lock();
   if (num_failed > num_peers_ / 2) {
-    state_ = State::JOINING;
+    state_ = State::LOST_CONNECTION;
+    current_term_ = old_term;
     return;
   } else if (state_ == State::CANDIDATE &&
              num_votes + 1 >

@@ -17,11 +17,10 @@
  * -------------------------
  * 1. state_mutex_
  * 2. log_mutex_
- * 3. commit_mutex_
- * 4. peer_mutex_
- * 5. follower_tracker_mutex_
- * 6. last_heartbeat_mutex_
- * 
+ * 3. peer_mutex_
+ * 4. follower_tracker_mutex_
+ * 5. last_heartbeat_mutex_
+ *
  * --------------------------------------------------------------
  *  TODO List at this point
  * --------------------------------------------------------------
@@ -70,6 +69,7 @@ class RaftNode {
     LEADER,
     FOLLOWER,
     CANDIDATE,
+    LOST_CONNECTION,
     DISCONNECTING,
     STOPPED
   };
@@ -300,7 +300,7 @@ class RaftNode {
                                 uint64_t last_log_index,
                                 uint64_t last_log_term) const;
 
-  // Expects locks for commit_mutex_ and log_mutex_to NOT have been acquired.
+  // Expects lock for log_mutex_to NOT have been acquired.
   void leaderCommitReplicatedEntries(uint64_t current_term);
 
   // ========================
