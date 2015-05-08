@@ -13,6 +13,11 @@
 
 namespace map_api {
 
+RaftChunk::RaftChunk()
+    : write_lock_attempted_(false),
+      is_raft_write_locked_(false),
+      write_lock_depth_(0) {}
+
 RaftChunk::~RaftChunk() {
   raft_node_.stop();
 }

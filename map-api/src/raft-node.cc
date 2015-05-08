@@ -162,6 +162,7 @@ void RaftNode::handleConnectRequest(const PeerId& sender, Message* response) {
     }
   }
 
+  // TODO(aqurai): Use the logic from leaderSafelyAppendLogEntry() here.
   if (entry_index > 0) {
     // Wait till it is committed, or else return 0.
     while (true) {
@@ -423,52 +424,91 @@ bool RaftNode::sendAppendEntries(
   }
 }
 
-uint64_t RaftNode::sendInsertRequest(const Revision::ConstPtr& item) {
-  if (state() == State::LEADER) {
+bool RaftNode::sendInsertRequest(const Revision::ConstPtr& item) {
+  State append_state;
+  uint64_t append_term;
+  PeerId leader_id;
+  {
+    std::lock_guard<std::mutex> state_lock(state_mutex_);
+    append_state = state_;
+    append_term = current_term_;
+    leader_id = leader_id_;
+  }
+  if (append_state == State::LEADER) {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
     entry->set_allocated_insert_revision(item->copyToProtoPtr());
     return leaderSafelyAppendLogEntry(entry);
-  } else if (state() == State::FOLLOWER) {
+  } else if (append_state == State::FOLLOWER) {
     Message request, response;
     proto::InsertRequest insert_request;
     proto::InsertResponse insert_response;
     fillMetadata(&insert_request);
     insert_request.set_allocated_revision(item->copyToProtoPtr());
     request.impose<kInsertRequest>(insert_request);
-    if (!Hub::instance().try_request(leader(), &request, &response)) {
-      VLOG(1) << "Insert request failed.";
-      return 0;
+    if (!Hub::instance().try_request(leader_id, &request, &response)) {
+      VLOG(1) << "Insert request might have failed.";
+      checkIfCommittedOnLeaderFailure(item, append_term);
     }
     response.extract<kInsertResponse>(&insert_response);
-    return insert_response.index();
+    return (insert_response.index() > 0);
   }
   // Failure. Can't add new revision right now because the leader is currently
   // unknown or there is an election underway.
-  return 0;
+  return false;
 }
 
-uint64_t RaftNode::sendUpdateRequest(const Revision::ConstPtr& item) {
-  if (state() == State::LEADER) {
+bool RaftNode::sendUpdateRequest(const Revision::ConstPtr& item) {
+  State append_state;
+  uint64_t append_term;
+  PeerId leader_id;
+  {
+    std::lock_guard<std::mutex> state_lock(state_mutex_);
+    append_state = state_;
+    append_term = current_term_;
+    leader_id = leader_id_;
+  }
+  if (append_state == State::LEADER) {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
     entry->set_allocated_update_revision(item->copyToProtoPtr());
-    leaderSafelyAppendLogEntry(entry);
-  } else if (state() == State::FOLLOWER) {
+    return leaderSafelyAppendLogEntry(entry);
+  } else if (append_state == State::FOLLOWER) {
     Message request, response;
     proto::InsertRequest insert_request;
     proto::InsertResponse insert_response;
     fillMetadata(&insert_request);
     insert_request.set_allocated_revision(item->copyToProtoPtr());
     request.impose<kUpdateRequest>(insert_request);
-    if (!Hub::instance().try_request(leader(), &request, &response)) {
-      VLOG(1) << "Update request failed.";
-      return 0;
+    if (!Hub::instance().try_request(leader_id, &request, &response)) {
+      VLOG(1) << "Update request might have failed.";
+      checkIfCommittedOnLeaderFailure(item, append_term);
     }
     response.extract<kInsertResponse>(&insert_response);
-    return insert_response.index();
+    return (insert_response.index() > 0);
   }
   // Failure. Can't add new revision right now because the leader is currently
   // unknown or there is an election underway.
-  return 0;
+  return false;
+}
+
+bool RaftNode::checkIfCommittedOnLeaderFailure(const Revision::ConstPtr& item,
+                                               uint64_t append_term) {
+  // Wait for a new term with a new leader.
+  while (true) {
+    if (term() > append_term) {
+      break;
+    }
+    usleep(kHeartbeatSendPeriodMs * kMillisecondsToMicroseconds);
+  }
+  // Wait for 5 heartbeat durations for out entry to be committed.
+  // TODO(aqurai): This is not 100% deterministic
+  for (int i = 0; i < 5; ++i) {
+    if (data_->getByIdImpl(item->getId<common::Id>(), item->getUpdateTime())) {
+      VLOG(1) << "Insert/Update request has not failed.";
+      return true;
+    }
+  }
+  VLOG(1) << "Insert/Update request has failed.";
+  return false;
 }
 
 RaftNode::VoteResponse RaftNode::sendRequestVote(
@@ -1124,7 +1164,7 @@ uint64_t RaftNode::leaderAppendLogEntry(
 
 uint64_t RaftNode::leaderSafelyAppendLogEntry(
     const std::shared_ptr<proto::RaftLogEntry>& entry) {
-  uint64_t current_term = term();
+  uint64_t append_term = term();
   uint64_t index = leaderAppendLogEntry(entry);
   if (index == 0) {
     return 0;
@@ -1132,14 +1172,37 @@ uint64_t RaftNode::leaderSafelyAppendLogEntry(
 
   // TODO(aqurai): Although the state or term is guaranteed to change in case of
   // leader failure thus breaking the loop, still add a time out for safety?
+  bool term_changed = false;
   while (data_->logCommitIndex() < index) {
     std::unique_lock<std::mutex> state_lock(state_mutex_);
-    if (state_ != State::LEADER || current_term_ != current_term) {
-      return 0;
+    if (state_ != State::LEADER || current_term_ != append_term) {
+      term_changed = true;
+      break;
     }
     state_lock.unlock();
     usleep(kHeartbeatSendPeriodMs * kMillisecondsToMicroseconds);
   }
+  if (term_changed) {
+    // The new leader will either commit this entry or delete it eventually.
+    // Wait until one of those happen.
+    while (true) {
+      LogReadAccess log_reader(data_);
+      if (log_reader->lastLogIndex() < index) {
+        // The entry has been deleted.
+        return 0;
+      } else {
+        ConstLogIterator it = log_reader->getConstLogIteratorByIndex(index);
+        if ((*it)->term() != append_term) {
+          // Our entry is replaces by a different entry.
+          return 0;
+        } else if (log_reader->commitIndex() >= index) {
+          // Our entry exists and is committed.
+          return index;
+        }
+      }
+    }
+  }
+
   return index;
 }
 

@@ -42,8 +42,10 @@ message RaftLogEntry {
   optional Revision update_revision = 4;
   optional string add_peer = 5;
   optional string remove_peer = 6;
-  optional common.proto.Id revision_id = 7;
-  optional uint64 logical_time = 8;
+  optional string lock_peer = 7;
+  optional string unlock_peer = 8;
+  optional common.proto.Id revision_id = 9;
+  optional uint64 logical_time = 10;
 }
 
 message AppendEntriesRequest {
@@ -111,4 +113,15 @@ message NotifyJoinQuitSuccess {
 
 message QueryState {
   optional ChunkRequestMetadata metadata = 1;
+}
+
+// Lock request is a blank message.
+message LockResponse {
+  optional uint64 entry_index = 1;
+}
+
+// Unlock response is a blank ack/decline message.
+message UnlockRequest {
+  optional uint64 lock_entry_index = 1;
+  optional bool proceed_commits = 2;
 }

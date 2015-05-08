@@ -110,18 +110,11 @@ class RaftNode {
  private:
   friend class ConsensusFixture;
   friend class RaftChunk;
-  // TODO(aqurai) Only for test, will be removed later.
-  inline void addPeerBeforeStart(PeerId peer) {
-    peer_list_.insert(peer);
-    ++num_peers_;
-  }
-  bool giveUpLeadership();
-
-  // Singleton class. There will be a singleton manager class later,
-  // for managing multiple raft instances per peer.
   RaftNode();
   RaftNode(const RaftNode&) = delete;
   RaftNode& operator=(const RaftNode&) = delete;
+
+  bool giveUpLeadership();
 
   typedef RaftChunkDataRamContainer::RaftLog::iterator LogIterator;
   typedef RaftChunkDataRamContainer::RaftLog::const_iterator ConstLogIterator;
@@ -277,8 +270,10 @@ class RaftNode {
   // Leader will overwrite follower logs where index+term doesn't match.
 
   // New revision request.
-  uint64_t sendInsertRequest(const Revision::ConstPtr& item);
-  uint64_t sendUpdateRequest(const Revision::ConstPtr& item);
+  bool sendInsertRequest(const Revision::ConstPtr& item);
+  bool sendUpdateRequest(const Revision::ConstPtr& item);
+  bool checkIfCommittedOnLeaderFailure(const Revision::ConstPtr& item,
+                                       uint64_t append_term);
 
   std::condition_variable new_entries_signal_;
   // Expects write lock for log_mutex to be acquired.

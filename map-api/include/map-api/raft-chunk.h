@@ -20,6 +20,7 @@ class RaftChunk : public ChunkBase {
   FRIEND_TEST(ConsensusFixture, RaftChunkTest);
 
  public:
+  RaftChunk();
   virtual ~RaftChunk();
 
   bool init(const common::Id& id, std::shared_ptr<TableDescriptor> descriptor,
@@ -44,6 +45,7 @@ class RaftChunk : public ChunkBase {
   inline virtual int peerSize() const override;
 
   // Mutable because the method declarations in base class are const.
+  mutable bool write_lock_attempted_;
   mutable bool is_raft_write_locked_;
   mutable int write_lock_depth_;
   mutable std::mutex write_lock_mutex_;
