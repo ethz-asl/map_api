@@ -97,8 +97,6 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     // void commitNextEnty() {}
     // void commitUntilIndex(uint64_t index) {}
     // uint64_t commit_index();
-    // std::unordered_map<int, std::function<void(const proto::RaftLogEntry*)>&>
-    // commit_actions;
 
    private:
     mutable common::ReaderWriterMutex log_mutex_;
