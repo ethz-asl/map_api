@@ -99,7 +99,6 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     inline uint64_t commitIndex() const { return commit_index_; }
     inline common::ReaderWriterMutex* mutex() const { return &log_mutex_; }
 
-    // To be removed
     inline void setCommitIndex(uint64_t value) { commit_index_ = value; }
     uint64_t setEntryCommitted(iterator it);
 
