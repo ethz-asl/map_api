@@ -111,6 +111,7 @@ bool RaftChunk::insert(const LogicalTime& time,
   // all default
   // fields are also set, which allows remote peers to just patch the revision
   // into their table.
+  CHECK(raft_node_.isRunning());
   if (raftInsertRequest(item) > 0) {
     syncLatestCommitTime(*item);
     unlock();
@@ -122,6 +123,7 @@ bool RaftChunk::insert(const LogicalTime& time,
 }
 
 void RaftChunk::writeLock() {
+  CHECK(raft_node_.isRunning());
   std::lock_guard<std::mutex> lock_mutex(write_lock_mutex_);
   chunk_lock_attempted_ = true;
   if (is_raft_chunk_locked_) {
@@ -136,7 +138,7 @@ void RaftChunk::writeLock() {
       if (lock_log_index_ > 0) {
         break;
       }
-      usleep(150 * kMillisecondsToMicroseconds);
+      usleep(500 * kMillisecondsToMicroseconds);
     }
     if (lock_log_index_ > 0) {
       is_raft_chunk_locked_ = true;
@@ -155,6 +157,7 @@ bool RaftChunk::isWriteLocked() {
 }
 
 void RaftChunk::unlock() const {
+  CHECK(raft_node_.isRunning());
   // TODO(aqurai): Implement this.
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
   if (!is_raft_chunk_locked_) {
@@ -210,6 +213,7 @@ void RaftChunk::update(const std::shared_ptr<Revision>& item) {
   writeLock();
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareUpdate(LogicalTime::sample(), item);
+  CHECK(raft_node_.isRunning());
   if (raftUpdateRequest(item) > 0) {
     syncLatestCommitTime(*item);
   }
@@ -287,6 +291,24 @@ uint64_t RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
 uint64_t RaftChunk::raftUpdateRequest(const Revision::ConstPtr& item) {
   CHECK(raft_node_.isRunning());
   return raft_node_.sendUpdateRequest(item);
+}
+
+void RaftChunk::leaveImpl() {
+  writeLock();
+  LOG(WARNING) << PeerId::self() << " Leaving " << id();
+  CHECK(raft_node_.isRunning());
+  while (true) {
+    LOG(WARNING) << PeerId::self() << " Leaving " << id();
+    if (raft_node_.sendLeaveRequest()) {
+      break;
+    }
+    usleep(500 * kMillisecondsToMicroseconds);
+  }
+  LOG(WARNING) << PeerId::self() << " Leaving done" << id();
+}
+
+void RaftChunk::awaitShared() {
+
 }
 
 }  // namespace map_api

@@ -78,7 +78,9 @@ class RaftChunk : public ChunkBase {
 
   uint64_t raftInsertRequest(const Revision::ConstPtr& item);
   uint64_t raftUpdateRequest(const Revision::ConstPtr& item);
-
+  
+  virtual void leaveImpl() override;
+  virtual void awaitShared() override;
   /**
    * ==========================================
    * Handlers for RPCs addressed to this Chunk.
@@ -100,21 +102,13 @@ class RaftChunk : public ChunkBase {
                                     const PeerId& sender, Message* response);
   inline void handleRaftQueryState(const proto::QueryState& request,
                                    Message* response);
-  inline void handleRaftJoinQuitRequest(const proto::JoinQuitRequest& request,
-                                        const PeerId& sender,
-                                        Message* response);
-  inline void handleRaftNotifyJoinQuitSuccess(
-      const proto::NotifyJoinQuitSuccess& request, Message* response);
+  inline void handleRaftLeaveRequest(const PeerId& sender, Message* response);
 
-  virtual void leaveImpl() override {}
-  virtual void awaitShared() override {}
-
- private:
   // Handles all communication with other chunk holders. No communication except
   // for peer join shall happen between chunk holder peers outside of raft.
   // TODO(aqurai): Making this mutable only because unlock() is const. 
   // Remove const qualifier for unlock() in base chunk and other derived chunks.
-   mutable RaftNode raft_node_;
+  mutable RaftNode raft_node_;
   volatile bool initialized_ = false;
   volatile bool relinquished_ = false;
   LogicalTime latest_commit_time_;

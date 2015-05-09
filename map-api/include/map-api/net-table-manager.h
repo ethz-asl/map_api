@@ -123,11 +123,8 @@ class NetTableManager {
   static void handleRaftRequestVote(const Message& request,
                                       Message* response);
   static void handleRaftQueryState(const Message& request, Message* response);
-  static void handleRaftJoinQuitRequest(const Message& request,
+  static void handleRaftLeaveRequest(const Message& request,
                                         Message* response);
-  static void handleRaftNotifyJoinQuitSuccess(const Message& request,
-                                                Message* response);
-
  private:
   NetTableManager();
   NetTableManager(const NetTableManager&) = delete;

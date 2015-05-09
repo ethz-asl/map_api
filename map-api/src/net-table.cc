@@ -816,29 +816,14 @@ void NetTable::handleRaftQueryState(const common::Id& chunk_id,
   active_chunks_lock_.releaseReadLock();
 }
 
-void NetTable::handleRaftJoinQuitRequest(const common::Id& chunk_id,
-                                         const proto::JoinQuitRequest& request,
-                                         const PeerId& sender,
-                                         Message* response) {
+void NetTable::handleRaftLeaveRequest(const common::Id& chunk_id,
+                                      const PeerId& sender, Message* response) {
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
   if (routingBasics(chunk_id, response, &found)) {
     RaftChunk* chunk = CHECK_NOTNULL(
         dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
-    chunk->handleRaftJoinQuitRequest(request, sender, response);
-  }
-  active_chunks_lock_.releaseReadLock();
-}
-
-void NetTable::handleRaftNotifyJoinQuitSuccess(
-    const common::Id& chunk_id, const proto::NotifyJoinQuitSuccess& request,
-    Message* response) {
-  ChunkMap::iterator found;
-  active_chunks_lock_.acquireReadLock();
-  if (routingBasics(chunk_id, response, &found)) {
-    RaftChunk* chunk = CHECK_NOTNULL(
-        dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
-    chunk->handleRaftNotifyJoinQuitSuccess(request, response);
+    chunk->handleRaftLeaveRequest(sender, response);
   }
   active_chunks_lock_.releaseReadLock();
 }

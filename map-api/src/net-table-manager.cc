@@ -81,10 +81,8 @@ void NetTableManager::registerHandlers() {
                                   handleRaftUpdateRequest);
   Hub::instance().registerHandler(RaftNode::kVoteRequest,
                                   handleRaftRequestVote);
-  Hub::instance().registerHandler(RaftNode::kJoinQuitRequest,
-                                  handleRaftJoinQuitRequest);
-  Hub::instance().registerHandler(RaftNode::kNotifyJoinQuitSuccess,
-                                  handleRaftNotifyJoinQuitSuccess);
+  Hub::instance().registerHandler(RaftNode::kLeaveRequest,
+                                  handleRaftLeaveRequest);
   Hub::instance().registerHandler(RaftNode::kQueryState, handleRaftQueryState);
 
   // Net table requests.
@@ -640,11 +638,11 @@ void NetTableManager::handleRaftRequestVote(const Message& request, Message* res
                                        response);
 }
 
-void NetTableManager::handleRaftJoinQuitRequest(const Message& request,
+void NetTableManager::handleRaftLeaveRequest(const Message& request,
                                                 Message* response) {
-  proto::JoinQuitRequest join_quit_request;
-  request.extract<RaftNode::kJoinQuitRequest>(&join_quit_request);
-  const proto::ChunkRequestMetadata metadata = join_quit_request.metadata();
+  proto::RaftLeaveRequest leave_request;
+  request.extract<RaftNode::kLeaveRequest>(&leave_request);
+  const proto::ChunkRequestMetadata metadata = leave_request.metadata();
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
   common::ScopedReadLock lock(&instance().tables_lock_);
@@ -654,26 +652,7 @@ void NetTableManager::handleRaftJoinQuitRequest(const Message& request,
     response->impose<Message::kDecline>();
     return;
   }
-  found->second->handleRaftJoinQuitRequest(chunk_id, join_quit_request,
-                                           request.sender(), response);
-}
-
-void NetTableManager::handleRaftNotifyJoinQuitSuccess(const Message& request,
-                                                      Message* response) {
-  proto::NotifyJoinQuitSuccess notification;
-  request.extract<RaftNode::kNotifyJoinQuitSuccess>(&notification);
-  const proto::ChunkRequestMetadata metadata = notification.metadata();
-  const std::string& table = metadata.table();
-  common::Id chunk_id(metadata.chunk_id());
-  common::ScopedReadLock lock(&instance().tables_lock_);
-  std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
-  found = instance().tables_.find(table);
-  if (found == instance().tables_.end()) {
-    response->impose<Message::kDecline>();
-    return;
-  }
-  found->second->handleRaftNotifyJoinQuitSuccess(chunk_id, notification,
-                                                 response);
+  found->second->handleRaftLeaveRequest(chunk_id, request.sender(), response);
 }
 
 void NetTableManager::handleRaftQueryState(const Message& request,

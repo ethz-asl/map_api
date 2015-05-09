@@ -221,12 +221,8 @@ class NetTable {
   void handleRaftQueryState(const common::Id& chunk_id,
                             const proto::QueryState& request,
                             Message* response);
-  void handleRaftJoinQuitRequest(const common::Id& chunk_id,
-                                 const proto::JoinQuitRequest& request,
-                                 const PeerId& sender, Message* response);
-  void handleRaftNotifyJoinQuitSuccess(
-      const common::Id& chunk_id, const proto::NotifyJoinQuitSuccess& request,
-      Message* response);
+  void handleRaftLeaveRequest(const common::Id& chunk_id, const PeerId& sender,
+                              Message* response);
 
  private:
   NetTable();

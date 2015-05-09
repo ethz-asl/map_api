@@ -71,15 +71,9 @@ inline void RaftChunk::handleRaftQueryState(const proto::QueryState& request,
   raft_node_.handleQueryState(request, response);
 }
 
-inline void RaftChunk::handleRaftJoinQuitRequest(
-    const proto::JoinQuitRequest& request, const PeerId& sender,
-    Message* response) {
-  raft_node_.handleJoinQuitRequest(request, sender, response);
-}
-
-inline void RaftChunk::handleRaftNotifyJoinQuitSuccess(
-    const proto::NotifyJoinQuitSuccess& request, Message* response) {
-  raft_node_.handleNotifyJoinQuitSuccess(request, response);
+inline void RaftChunk::handleRaftLeaveRequest(const PeerId& sender,
+                                              Message* response) {
+  raft_node_.handleLeaveRequest(sender, response);
 }
 
 #endif  // MAP_API_RAFT_CHUNK_INL_H_

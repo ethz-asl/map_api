@@ -101,9 +101,7 @@ class RaftNode {
   static const char kInsertResponse[];
   static const char kVoteRequest[];
   static const char kVoteResponse[];
-  static const char kJoinQuitRequest[];
-  static const char kJoinQuitResponse[];
-  static const char kNotifyJoinQuitSuccess[];
+  static const char kLeaveRequest[];
   static const char kQueryState[];
   static const char kQueryStateResponse[];
   static const char kConnectRequest[];
@@ -139,10 +137,7 @@ class RaftNode {
                            Message* response);
   void handleRequestVote(const proto::VoteRequest& request,
                          const PeerId& sender, Message* response);
-  void handleJoinQuitRequest(const proto::JoinQuitRequest& request,
-                             const PeerId& sender, Message* response);
-  void handleNotifyJoinQuitSuccess(const proto::NotifyJoinQuitSuccess& request,
-                                   Message* response);
+  void handleLeaveRequest(const PeerId& sender, Message* response);
   void handleQueryState(const proto::QueryState& request, Message* response);
 
   // ====================================================
@@ -160,9 +155,6 @@ class RaftNode {
   VoteResponse sendRequestVote(const PeerId& peer, uint64_t term,
                                uint64_t last_log_index, uint64_t last_log_term,
                                uint64_t current_commit_index) const;
-  proto::JoinQuitResponse sendJoinQuitRequest(
-      const PeerId& peer, proto::PeerRequestType type) const;
-  void sendNotifyJoinQuitSuccess(const PeerId& peer) const;
 
   bool sendInitRequest(const PeerId& peer, const LogWriteAccess& log_writer);
 
@@ -362,12 +354,12 @@ class RaftNode {
   DistributedRaftChunkLock raft_chunk_lock_;
   uint64_t sendChunkLockRequest();
   bool sendChunkUnlockRequest(uint64_t lock_index, bool proceed_commits);
+  
+  bool sendLeaveRequest();
 
   // ========================
   // Owner chunk information.
   // ========================
-
-  // std::unique_ptr<RaftChunkDataRamContainer>* raft_data_container_;
   // Todo(aqurai): Refactor this.
   std::string table_name_;
   common::Id chunk_id_;
