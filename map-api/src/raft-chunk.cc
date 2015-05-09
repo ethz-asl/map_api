@@ -14,9 +14,9 @@
 namespace map_api {
 
 RaftChunk::RaftChunk()
-    : write_lock_attempted_(false),
-      is_raft_write_locked_(false),
-      write_lock_depth_(0) {}
+    : chunk_lock_attempted_(false),
+      is_raft_chunk_locked_(false),
+      chunk_lock_depth_(0) {}
 
 RaftChunk::~RaftChunk() {
   raft_node_.stop();
@@ -103,7 +103,6 @@ bool RaftChunk::insert(const LogicalTime& time,
                        const std::shared_ptr<Revision>& item) {
   CHECK(item != nullptr);
   item->setChunkId(id());
-  // TODO(aqurai): See if a lock actually needed for insert.
   writeLock();
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareInsert(time, item);
@@ -122,14 +121,14 @@ bool RaftChunk::insert(const LogicalTime& time,
 }
 
 void RaftChunk::writeLock() {
-  // TODO(aqurai): Implement this.
   std::lock_guard<std::mutex> lock_mutex(write_lock_mutex_);
-  if (is_raft_write_locked_) {
-    ++write_lock_depth_;
+  chunk_lock_attempted_ = true;
+  if (is_raft_chunk_locked_) {
+    ++chunk_lock_depth_;
   } else {
     // Send lock request via safe insert log entry.
     if (true /* Success */) {
-      is_raft_write_locked_ = true;
+      is_raft_chunk_locked_ = true;
     }
   }
 }
@@ -137,21 +136,22 @@ void RaftChunk::writeLock() {
 bool RaftChunk::isWriteLocked() {
   // TODO(aqurai): Implement this.
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
-  // return is_raft_write_locked_;
-  return true;
+  return is_raft_chunk_locked_;
 }
 
 void RaftChunk::unlock() const {
   // TODO(aqurai): Implement this.
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
-  if (write_lock_depth_ > 0) {
-    --write_lock_depth_;
+  if (chunk_lock_depth_ > 0) {
+    --chunk_lock_depth_;
   }
-  if (write_lock_depth_ == 0) {
+  if (chunk_lock_depth_ == 0) {
+    chunk_lock_attempted_ = false;
     // Send unlock request to leader.
     // There is no reason for this request to fail.
     CHECK(true /* unlock request success */);
-    is_raft_write_locked_ = false;
+    lock_log_index_ = 0;
+    is_raft_chunk_locked_ = false;
   }
 }
 
@@ -174,7 +174,7 @@ int RaftChunk::requestParticipation() {
 
 int RaftChunk::requestParticipation(const PeerId& peer) {
   // TODO(aqurai): Handle failure/leader change.
-  if (raft_node_.state() == RaftNode::State::LEADER &&
+  if (raft_node_.getState() == RaftNode::State::LEADER &&
       !raft_node_.hasPeer(peer)) {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
     entry->set_add_peer(peer.ipPort());

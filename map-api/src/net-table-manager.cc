@@ -547,6 +547,43 @@ void NetTableManager::handleRaftAppendRequest(const Message& request, Message* r
                                          request.sender(), response);
 }
 
+void NetTableManager::handleRaftChunkLockRequest(const Message& request,
+                                                 Message* response) {
+  proto::LockRequest lock_request;
+  request.extract<RaftNode::kChunkLockRequest>(&lock_request);
+  const proto::ChunkRequestMetadata metadata = lock_request.metadata();
+  const std::string& table = metadata.table();
+  common::Id chunk_id(metadata.chunk_id());
+  common::ScopedReadLock lock(&instance().tables_lock_);
+  std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
+  found = instance().tables_.find(table);
+  if (found == instance().tables_.end()) {
+    response->impose<Message::kDecline>();
+    return;
+  }
+  found->second->handleRaftChunkLockRequest(chunk_id, request.sender(), response);
+}
+
+void NetTableManager::handleRaftChunkUnlockRequest(const Message& request,
+                                                   Message* response) {
+  proto::UnlockRequest unlock_request;
+  request.extract<RaftNode::kChunkUnlockRequest>(&unlock_request);
+  const proto::ChunkRequestMetadata metadata = unlock_request.metadata();
+  const std::string& table = metadata.table();
+  common::Id chunk_id(metadata.chunk_id());
+  common::ScopedReadLock lock(&instance().tables_lock_);
+  std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
+  found = instance().tables_.find(table);
+  if (found == instance().tables_.end()) {
+    response->impose<Message::kDecline>();
+    return;
+  }
+  found->second->handleRaftChunkUnlockRequest(chunk_id, request.sender(),
+                                            unlock_request.lock_entry_index(),
+                                            unlock_request.proceed_commits(),
+                                            response);
+}
+
 void NetTableManager::handleRaftInsertRequest(const Message& request, Message* response) {
   proto::InsertRequest insert_request;
   request.extract<RaftNode::kInsertRequest>(&insert_request);

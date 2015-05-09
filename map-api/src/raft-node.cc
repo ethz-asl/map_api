@@ -27,6 +27,10 @@ constexpr int kMaxLogQueueLength = 50;
 // removed once the raft chunk implementation is complete.
 const char RaftNode::kAppendEntries[] = "raft_node_append_entries";
 const char RaftNode::kAppendEntriesResponse[] = "raft_node_append_response";
+const char RaftNode::kChunkLockRequest[] = "raft_node_chunk_lock_request";
+const char RaftNode::kChunkLockResponse[] = "raft_node_chunk_lock_response";
+const char RaftNode::kChunkUnlockRequest[] = "raft_node_chunk_unlock_request";
+const char RaftNode::kChunkUnlockResponse[] = "raft_node_chunk_unlock_response";
 const char RaftNode::kInsertRequest[] = "raft_node_insert_request";
 const char RaftNode::kUpdateRequest[] = "raft_node_update_request";
 const char RaftNode::kInsertResponse[] = "raft_node_insert_response";
@@ -44,6 +48,9 @@ const char RaftNode::kNotifyJoinQuitSuccess[] = "raft_node_notify_join_success";
 MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntries, proto::AppendEntriesRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntriesResponse,
                       proto::AppendEntriesResponse);
+MAP_API_PROTO_MESSAGE(RaftNode::kChunkLockRequest, proto::LockRequest);
+MAP_API_PROTO_MESSAGE(RaftNode::kChunkLockResponse, proto::LockResponse);
+MAP_API_PROTO_MESSAGE(RaftNode::kChunkUnlockRequest, proto::UnlockRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kInsertRequest, proto::InsertRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kUpdateRequest, proto::InsertRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kInsertResponse, proto::InsertResponse);
@@ -111,17 +118,17 @@ void RaftNode::stop() {
   }
 }
 
-uint64_t RaftNode::term() const {
+uint64_t RaftNode::getTerm() const {
   std::lock_guard<std::mutex> lock(state_mutex_);
   return current_term_;
 }
 
-const PeerId& RaftNode::leader() const {
+const PeerId& RaftNode::getLeader() const {
   std::lock_guard<std::mutex> lock(state_mutex_);
   return leader_id_;
 }
 
-RaftNode::State RaftNode::state() const {
+RaftNode::State RaftNode::getState() const {
   std::lock_guard<std::mutex> lock(state_mutex_);
   return state_;
 }
@@ -273,6 +280,42 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
       current_term_, log_writer->lastLogIndex(), log_writer->lastLogTerm());
   state_lock.unlock();
   response->impose<kAppendEntriesResponse>(append_response);
+}
+
+void RaftNode::handleChunkLockRequest(const PeerId& sender, Message* response) {
+  uint64_t index = 0;
+  if (!raft_chunk_lock_.isLocked()) {
+    std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
+    entry->set_lock_peer(sender.ipPort());
+    index = leaderSafelyAppendLogEntry(entry);
+    if (index > 0 && raft_chunk_lock_.holder() != sender) {
+      // Someone else got the lock.
+      index = 0;
+    }
+  }
+  proto::LockResponse lock_response;
+  lock_response.set_entry_index(index);
+  response->impose<kChunkLockResponse>(lock_response);
+}
+
+void RaftNode::handleChunkUnlockRequest(const PeerId& sender,
+    uint64_t lock_index, bool proceed_commits, Message* response) {
+  if (sender != raft_chunk_lock_.holder()) {
+    LOG(ERROR) << "Received unlock request from a non lock holder " << sender;
+    response->decline();
+    return;
+  }
+  std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
+  entry->set_unlock_peer(sender.ipPort());
+  entry->set_unlock_proceed_commits(proceed_commits);
+  entry->set_unlock_lock_index(lock_index);
+  uint64_t index = leaderSafelyAppendLogEntry(entry);
+  if (index > 0) {
+    CHECK(sender != raft_chunk_lock_.holder());
+    response->isOk();
+    return;
+  }
+  response->decline();
 }
 
 void RaftNode::handleInsertRequest(proto::InsertRequest* request,
@@ -437,7 +480,7 @@ bool RaftNode::sendInsertRequest(const Revision::ConstPtr& item) {
   if (append_state == State::LEADER) {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
     entry->set_allocated_insert_revision(item->copyToProtoPtr());
-    return leaderSafelyAppendLogEntry(entry);
+    return (leaderSafelyAppendLogEntry(entry) > 0);
   } else if (append_state == State::FOLLOWER) {
     Message request, response;
     proto::InsertRequest insert_request;
@@ -470,7 +513,7 @@ bool RaftNode::sendUpdateRequest(const Revision::ConstPtr& item) {
   if (append_state == State::LEADER) {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
     entry->set_allocated_update_revision(item->copyToProtoPtr());
-    return leaderSafelyAppendLogEntry(entry);
+    return (leaderSafelyAppendLogEntry(entry) > 0);
   } else if (append_state == State::FOLLOWER) {
     Message request, response;
     proto::InsertRequest insert_request;
@@ -494,7 +537,7 @@ bool RaftNode::checkIfCommittedOnLeaderFailure(const Revision::ConstPtr& item,
                                                uint64_t append_term) {
   // Wait for a new term with a new leader.
   while (true) {
-    if (term() > append_term) {
+    if (getTerm() > append_term) {
       break;
     }
     usleep(kHeartbeatSendPeriodMs * kMillisecondsToMicroseconds);
@@ -1112,22 +1155,6 @@ void RaftNode::followerCommitNewEntries(const LogWriteAccess& log_writer,
 
     std::for_each(old_commit + 1, new_commit + 1,
                   [&](const std::shared_ptr<proto::RaftLogEntry>& entry) {
-      if (entry->has_insert_revision()) {
-        const std::shared_ptr<Revision> insert_revision = Revision::fromProto(
-            std::unique_ptr<proto::Revision>(entry->release_insert_revision()));
-        insert_revision->getId<common::Id>().serialize(
-            entry->mutable_revision_id());
-        entry->set_logical_time(insert_revision->getInsertTime().serialize());
-        data_->checkAndPatch(insert_revision);
-      }
-      if (entry->has_update_revision()) {
-        const std::shared_ptr<Revision> update_revision = Revision::fromProto(
-            std::unique_ptr<proto::Revision>(entry->release_update_revision()));
-        update_revision->getId<common::Id>().serialize(
-            entry->mutable_revision_id());
-        entry->set_logical_time(update_revision->getUpdateTime().serialize());
-        data_->checkAndPatch(update_revision);
-      }
       // Joining peers don't act on add/remove peer entries.
       // TODO(aqurai): This might change with chunk join process.
       if (state == State::FOLLOWER && entry->has_add_peer()) {
@@ -1136,6 +1163,11 @@ void RaftNode::followerCommitNewEntries(const LogWriteAccess& log_writer,
       if (state == State::FOLLOWER && entry->has_remove_peer()) {
         followerRemovePeer(PeerId(entry->remove_peer()));
       }
+      if (!raft_chunk_lock_.isLocked()) {
+        // TODO(aqurai): Ensure all revision commits are locked.
+        applySingleRevisionCommit(entry);
+      }
+      chunkLockEntryCommit(log_writer, entry);
     });
 
     // TODO(aqurai): remove log later. Or increase the verbosity arg.
@@ -1164,7 +1196,7 @@ uint64_t RaftNode::leaderAppendLogEntry(
 
 uint64_t RaftNode::leaderSafelyAppendLogEntry(
     const std::shared_ptr<proto::RaftLogEntry>& entry) {
-  uint64_t append_term = term();
+  uint64_t append_term = getTerm();
   uint64_t index = leaderAppendLogEntry(entry);
   if (index == 0) {
     return 0;
@@ -1188,12 +1220,12 @@ uint64_t RaftNode::leaderSafelyAppendLogEntry(
     while (true) {
       LogReadAccess log_reader(data_);
       if (log_reader->lastLogIndex() < index) {
-        // The entry has been deleted.
+        // Our entry has been deleted.
         return 0;
       } else {
         ConstLogIterator it = log_reader->getConstLogIteratorByIndex(index);
         if ((*it)->term() != append_term) {
-          // Our entry is replaces by a different entry.
+          // Our entry is replaced by a different entry.
           return 0;
         } else if (log_reader->commitIndex() >= index) {
           // Our entry exists and is committed.
@@ -1257,28 +1289,16 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
 
   if (ready_to_commit) {
     log_writer->setCommitIndex(log_writer->commitIndex() + 1);
-    if ((*it)->has_insert_revision()) {
-      const std::shared_ptr<Revision> insert_revision = Revision::fromProto(
-          std::unique_ptr<proto::Revision>((*it)->release_insert_revision()));
-      insert_revision->getId<common::Id>().serialize(
-          (*it)->mutable_revision_id());
-      (*it)->set_logical_time(insert_revision->getInsertTime().serialize());
-      data_->checkAndPatch(insert_revision);
-    }
-    if ((*it)->has_update_revision()) {
-      const std::shared_ptr<Revision> update_revision = Revision::fromProto(
-          std::unique_ptr<proto::Revision>((*it)->release_update_revision()));
-      update_revision->getId<common::Id>().serialize(
-          (*it)->mutable_revision_id());
-      (*it)->set_logical_time(update_revision->getUpdateTime().serialize());
-      data_->checkAndPatch(update_revision);
-    }
     if ((*it)->has_add_peer()) {
       leaderAddPeer(PeerId((*it)->add_peer()), log_writer, current_term);
     }
     if ((*it)->has_remove_peer()) {
       leaderRemovePeer(PeerId((*it)->remove_peer()));
     }
+    if (!raft_chunk_lock_.isLocked()) {
+      applySingleRevisionCommit(*it);
+    }
+    chunkLockEntryCommit(log_writer, *it);
     VLOG_EVERY_N(1, 10) << PeerId::self() << ": Commit index increased to "
                         << log_writer->commitIndex()
                         << " With replication count " << replication_count
@@ -1300,6 +1320,52 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
   }
 }
 
+void RaftNode::applySingleRevisionCommit(
+    const std::shared_ptr<proto::RaftLogEntry>& entry) {
+  // TODO(aqurai): Ensure all revision commits are locked.
+  if (entry->has_insert_revision()) {
+    const std::shared_ptr<Revision> insert_revision = Revision::fromProto(
+        std::unique_ptr<proto::Revision>(entry->release_insert_revision()));
+    insert_revision->getId<common::Id>().serialize(
+        entry->mutable_revision_id());
+    entry->set_logical_time(insert_revision->getInsertTime().serialize());
+    data_->checkAndPatch(insert_revision);
+  }
+  if (entry->has_update_revision()) {
+    const std::shared_ptr<Revision> update_revision = Revision::fromProto(
+        std::unique_ptr<proto::Revision>(entry->release_update_revision()));
+    update_revision->getId<common::Id>().serialize(
+        entry->mutable_revision_id());
+    entry->set_logical_time(update_revision->getUpdateTime().serialize());
+    data_->checkAndPatch(update_revision);
+  }
+}
+
+void RaftNode::chunkLockEntryCommit(const LogWriteAccess& log_writer,
+    const std::shared_ptr<proto::RaftLogEntry>& entry) {
+  if (entry->has_lock_peer()) {
+    raft_chunk_lock_.writeLock(PeerId(entry->lock_peer()), entry->index());
+  }
+  if (entry->has_unlock_peer()) {
+    if (PeerId(entry->unlock_peer()) == raft_chunk_lock_.holder()) {
+      if (entry->unlock_proceed_commits()) {
+        bulkApplyLockedRevisions(log_writer,
+            raft_chunk_lock_.lock_entry_index(), entry->index());
+      }
+      raft_chunk_lock_.unlock();
+    }
+  }
+}
+
+void RaftNode::bulkApplyLockedRevisions(const LogWriteAccess& log_writer,
+    uint64_t lock_index, uint64_t unlock_index) {
+  LogIterator it_end = log_writer->getLogIteratorByIndex(unlock_index);
+  for (LogIterator it = log_writer->getLogIteratorByIndex(lock_index+1);
+       it != log_writer->end() && it != it_end; ++it) {
+    applySingleRevisionCommit(*it);
+  }
+}
+
 bool RaftNode::giveUpLeadership() {
   std::unique_lock<std::mutex> lock(state_mutex_);
   if (state_ == State::LEADER) {
@@ -1314,6 +1380,92 @@ bool RaftNode::giveUpLeadership() {
     lock.unlock();
     return false;
   }
+}
+
+uint64_t RaftNode::sendChunkLockRequest() {
+  State append_state;
+  uint64_t append_term;
+  PeerId leader_id;
+  {
+    std::lock_guard<std::mutex> state_lock(state_mutex_);
+    append_state = state_;
+    append_term = current_term_;
+    leader_id = leader_id_;
+  }
+  if (append_state == State::LEADER) {
+    uint64_t index = 0;
+    if (!raft_chunk_lock_.isLocked()) {
+      std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
+      entry->set_lock_peer(PeerId::self().ipPort());
+      index = leaderSafelyAppendLogEntry(entry);
+      if (index > 0 && raft_chunk_lock_.holder() != PeerId::self()) {
+        // Someone else got the lock.
+        index = 0;
+      }
+    }
+    return index;
+  } else if (append_state == State::FOLLOWER) {
+    Message request, response;
+    proto::LockRequest lock_request;
+    proto::LockResponse lock_response;
+    fillMetadata(&lock_request);
+    request.impose<kChunkLockRequest>(lock_request);
+    if (!Hub::instance().try_request(leader_id, &request, &response)) {
+      VLOG(1) << "Update request might have failed.";
+      return 0;
+      // TODO(aqurai): check commit on leader fail.
+      // checkIfCommittedOnLeaderFailure(item, append_term);
+    }
+    response.extract<kChunkLockResponse>(&lock_response);
+    return lock_response.entry_index();
+  }
+  // Failure. Can't add new revision right now because the leader is currently
+  // unknown or there is an election underway.
+  return 0;
+}
+
+bool RaftNode::sendChunkUnlockRequest(uint64_t lock_index, bool proceed_commits) {
+  State append_state;
+  uint64_t append_term;
+  PeerId leader_id;
+  {
+    std::lock_guard<std::mutex> state_lock(state_mutex_);
+    append_state = state_;
+    append_term = current_term_;
+    leader_id = leader_id_;
+  }
+  if (append_state == State::LEADER) {
+    if (PeerId::self() != raft_chunk_lock_.holder()) {
+      LOG(ERROR) << "Received unlock request from a non lock holder " << PeerId::self();
+      return false;
+    }
+    std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
+    entry->set_unlock_peer(PeerId::self().ipPort());
+    entry->set_unlock_proceed_commits(proceed_commits);
+    entry->set_unlock_lock_index(lock_index);
+    uint64_t index = leaderSafelyAppendLogEntry(entry);
+    if (index > 0) {
+      CHECK(PeerId::self() != raft_chunk_lock_.holder());
+      return true;
+    }
+  } else if (append_state == State::FOLLOWER) {
+    Message request, response;
+    proto::UnlockRequest unlock_request;
+    fillMetadata(&unlock_request);
+    unlock_request.set_lock_entry_index(lock_index);
+    unlock_request.set_proceed_commits(proceed_commits);
+    request.impose<kChunkUnlockRequest>(unlock_request);
+    if (!Hub::instance().try_request(leader_id, &request, &response)) {
+      VLOG(1) << "Update request might have failed.";
+      return false;
+      // TODO(aqurai): check commit on leader fail.
+      // checkIfCommittedOnLeaderFailure(item, append_term);
+    }
+    return response.isOk();
+  }
+  // Failure. Can't add new revision right now because the leader is currently
+  // unknown or there is an election underway.
+  return false;
 }
 
 }  // namespace map_api

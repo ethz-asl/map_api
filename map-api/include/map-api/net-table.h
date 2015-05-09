@@ -201,6 +201,11 @@ class NetTable {
   void handleRaftInitRequest(const common::Id& chunk_id,
                              const proto::InitRequest& init_request,
                              const PeerId& sender, Message* response);
+  void handleRaftChunkLockRequest(const common::Id& chunk_id,
+                                  const PeerId& sender, Message* response);
+  void handleRaftChunkUnlockRequest(const common::Id& chunk_id,
+                                    const PeerId& sender, uint64_t lock_index,
+                                    bool proceed_commits, Message* response);
   void handleRaftAppendRequest(const common::Id& chunk_id,
                                proto::AppendEntriesRequest* request,
                                const PeerId& sender, Message* response);

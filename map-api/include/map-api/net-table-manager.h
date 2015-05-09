@@ -112,6 +112,10 @@ class NetTableManager {
                                         Message* response);
   static void handleRaftAppendRequest(const Message& request,
                                         Message* response);
+  static void handleRaftChunkLockRequest(const Message& request,
+                                         Message* response);
+  static void handleRaftChunkUnlockRequest(const Message& request,
+                                           Message* response);
   static void handleRaftInsertRequest(const Message& request,
                                         Message* response);
   static void handleRaftUpdateRequest(const Message& request,

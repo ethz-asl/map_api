@@ -77,10 +77,9 @@ class RaftNode {
   void start();
   void stop();
   inline bool isRunning() const { return state_thread_running_; }
-  uint64_t term() const;
-  const PeerId& leader() const;
-  State state() const;
-  inline PeerId self_id() const { return PeerId::self(); }
+  uint64_t getTerm() const;
+  const PeerId& getLeader() const;
+  State getState() const;
 
   // Returns index of the appended entry if append succeeds, or zero otherwise
   uint64_t leaderAppendLogEntry(
@@ -93,6 +92,10 @@ class RaftNode {
 
   static const char kAppendEntries[];
   static const char kAppendEntriesResponse[];
+  static const char kChunkLockRequest[];
+  static const char kChunkLockResponse[];
+  static const char kChunkUnlockRequest[];
+  static const char kChunkUnlockResponse[];
   static const char kInsertRequest[];
   static const char kUpdateRequest[];
   static const char kInsertResponse[];
@@ -127,6 +130,9 @@ class RaftNode {
   void handleConnectRequest(const PeerId& sender, Message* response);
   void handleAppendRequest(proto::AppendEntriesRequest* request,
                            const PeerId& sender, Message* response);
+  void handleChunkLockRequest(const PeerId& sender, Message* response);
+  void handleChunkUnlockRequest(const PeerId& sender, uint64_t lock_index,
+                                bool proceed_commits, Message* response);
   void handleInsertRequest(proto::InsertRequest* request,
                            const PeerId& sender, Message* response);
   void handleUpdateRequest(proto::InsertRequest* request, const PeerId& sender,
@@ -288,7 +294,7 @@ class RaftNode {
       proto::AppendEntriesRequest* request);
   void followerCommitNewEntries(const LogWriteAccess& log_writer,
                                 uint64_t request_commit_index, State state);
-  void setAppendEntriesResponse(proto::AppendEntriesResponse* response,
+  inline void setAppendEntriesResponse(proto::AppendEntriesResponse* response,
                                 proto::AppendResponseStatus status,
                                 uint64_t current_commit_index,
                                 uint64_t current_term,
@@ -297,6 +303,59 @@ class RaftNode {
 
   // Expects lock for log_mutex_to NOT have been acquired.
   void leaderCommitReplicatedEntries(uint64_t current_term);
+
+  // All three of the following are called from leader or follower commit.
+  void applySingleRevisionCommit(const std::shared_ptr<proto::RaftLogEntry>& entry);
+  void chunkLockEntryCommit(const LogWriteAccess& log_writer,
+                            const std::shared_ptr<proto::RaftLogEntry>& entry);
+  void bulkApplyLockedRevisions(const LogWriteAccess& log_writer,
+                                uint64_t lock_index, uint64_t unlock_index);
+
+  class DistributedRaftChunkLock {
+   public:
+    DistributedRaftChunkLock()
+        : holder_(PeerId()),
+          is_locked_(false),
+          lock_entry_index_(0) {}
+    bool writeLock(const PeerId& peer, uint64_t index) {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (is_locked_) return false;
+      CHECK(peer.isValid());
+      CHECK(index > 0);
+      is_locked_ = true;
+      holder_ = peer;
+      lock_entry_index_ = index;
+      return true;
+    }
+    bool unlock() {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (!is_locked_) return false;
+      is_locked_ = false;
+      lock_entry_index_ = 0;
+      holder_ = PeerId();
+      return true;
+    }
+    uint64_t lock_entry_index() const {
+      std::lock_guard<std::mutex> lock(mutex_);
+      return lock_entry_index_;
+    }
+    bool isLocked() const {
+      std::lock_guard<std::mutex> lock(mutex_);
+      return is_locked_;
+    }
+    const PeerId& holder() const {
+      std::lock_guard<std::mutex> lock(mutex_);
+      return holder_;
+    }
+   private:
+    PeerId holder_;
+    bool is_locked_;
+    uint64_t lock_entry_index_;
+    mutable std::mutex mutex_;
+  };
+  DistributedRaftChunkLock raft_chunk_lock_;
+  uint64_t sendChunkLockRequest();
+  bool sendChunkUnlockRequest(uint64_t lock_index, bool proceed_commits);
 
   // ========================
   // Owner chunk information.

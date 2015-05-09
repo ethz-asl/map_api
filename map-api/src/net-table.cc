@@ -722,6 +722,32 @@ void NetTable::handleRaftInitRequest(const common::Id& chunk_id,
   std::thread(&NetTable::joinChunkHolders, this, chunk_id).detach();
 }
 
+void NetTable::handleRaftChunkLockRequest(const common::Id& chunk_id,
+    const PeerId& sender, Message* response) {
+  ChunkMap::iterator found;
+  active_chunks_lock_.acquireReadLock();
+  if (routingBasics(chunk_id, response, &found)) {
+    RaftChunk* chunk = CHECK_NOTNULL(
+        dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
+    chunk->handleRaftChunkLockRequest(sender, response);
+  }
+  active_chunks_lock_.releaseReadLock();
+}
+
+void NetTable::handleRaftChunkUnlockRequest(const common::Id& chunk_id,
+    const PeerId& sender, uint64_t lock_index,
+    bool proceed_commits, Message* response) {
+  ChunkMap::iterator found;
+  active_chunks_lock_.acquireReadLock();
+  if (routingBasics(chunk_id, response, &found)) {
+    RaftChunk* chunk = CHECK_NOTNULL(
+        dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
+    chunk->handleRaftChunkUnlockRequest(sender, lock_index, proceed_commits, response);
+  }
+  active_chunks_lock_.releaseReadLock();
+}
+
+
 void NetTable::handleRaftAppendRequest(const common::Id& chunk_id,
                                        proto::AppendEntriesRequest* request,
                                        const PeerId& sender,

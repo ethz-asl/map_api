@@ -37,6 +37,17 @@ inline void RaftChunk::handleRaftAppendRequest(
   raft_node_.handleAppendRequest(request, sender, response);
 }
 
+void RaftChunk::handleRaftChunkLockRequest(const PeerId& sender,
+                                           Message* response) {
+  raft_node_.handleChunkLockRequest(sender, response);
+}
+
+void RaftChunk::handleRaftChunkUnlockRequest(const PeerId& sender,
+    uint64_t lock_index, bool proceed_commits, Message* response) {
+  raft_node_.handleChunkUnlockRequest(sender, lock_index, proceed_commits,
+                                      response);
+}
+
 inline void RaftChunk::handleRaftInsertRequest(proto::InsertRequest* request,
                                                const PeerId& sender,
                                                Message* response) {

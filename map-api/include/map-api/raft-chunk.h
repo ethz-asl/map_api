@@ -45,9 +45,10 @@ class RaftChunk : public ChunkBase {
   inline virtual int peerSize() const override;
 
   // Mutable because the method declarations in base class are const.
-  mutable bool write_lock_attempted_;
-  mutable bool is_raft_write_locked_;
-  mutable int write_lock_depth_;
+  mutable bool chunk_lock_attempted_;
+  mutable bool is_raft_chunk_locked_;
+  mutable uint64_t lock_log_index_;
+  mutable int chunk_lock_depth_;
   mutable std::mutex write_lock_mutex_;
   virtual void writeLock() override;
   virtual void readLock() const override {}  // No read lock for raft chunks.
@@ -86,6 +87,9 @@ class RaftChunk : public ChunkBase {
   inline void handleRaftConnectRequest(const PeerId& sender, Message* response);
   inline void handleRaftAppendRequest(proto::AppendEntriesRequest* request,
                                       const PeerId& sender, Message* response);
+  inline void handleRaftChunkLockRequest(const PeerId& sender, Message* response);
+  inline void handleRaftChunkUnlockRequest(const PeerId& sender,
+      uint64_t lock_index, bool proceed_commits, Message* response);
   inline void handleRaftInsertRequest(proto::InsertRequest* request,
                                       const PeerId& sender, Message* response);
   inline void handleRaftUpdateRequest(proto::InsertRequest* request,
