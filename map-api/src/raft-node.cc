@@ -490,10 +490,12 @@ bool RaftNode::sendInsertRequest(const Revision::ConstPtr& item) {
     request.impose<kInsertRequest>(insert_request);
     if (!Hub::instance().try_request(leader_id, &request, &response)) {
       VLOG(1) << "Insert request might have failed.";
-      checkIfCommittedOnLeaderFailure(item, append_term);
+      return checkIfCommittedOnLeaderFailure(item, append_term);
     }
-    response.extract<kInsertResponse>(&insert_response);
-    return (insert_response.index() > 0);
+    if (response.isType<kInsertResponse>()) {
+      response.extract<kInsertResponse>(&insert_response);
+      return (insert_response.index() > 0);
+    }
   }
   // Failure. Can't add new revision right now because the leader is currently
   // unknown or there is an election underway.
@@ -523,10 +525,12 @@ bool RaftNode::sendUpdateRequest(const Revision::ConstPtr& item) {
     request.impose<kUpdateRequest>(insert_request);
     if (!Hub::instance().try_request(leader_id, &request, &response)) {
       VLOG(1) << "Update request might have failed.";
-      checkIfCommittedOnLeaderFailure(item, append_term);
+      return checkIfCommittedOnLeaderFailure(item, append_term);
     }
-    response.extract<kInsertResponse>(&insert_response);
-    return (insert_response.index() > 0);
+    if (response.isType<kInsertResponse>()) {
+      response.extract<kInsertResponse>(&insert_response);
+      return (insert_response.index() > 0);
+    }
   }
   // Failure. Can't add new revision right now because the leader is currently
   // unknown or there is an election underway.
@@ -567,6 +571,9 @@ RaftNode::VoteResponse RaftNode::sendRequestVote(
   request.impose<kVoteRequest>(vote_request);
   if (Hub::instance().try_request(peer, &request, &response)) {
     proto::VoteResponse vote_response;
+    if (!response.isType<kVoteResponse>()) {
+      return VoteResponse::VOTER_NOT_ELIGIBLE;
+    }
     response.extract<kVoteResponse>(&vote_response);
     switch (vote_response.vote()) {
       case proto::VoteResponseType::GRANTED:
@@ -1416,11 +1423,11 @@ uint64_t RaftNode::sendChunkLockRequest() {
       // TODO(aqurai): check commit on leader fail.
       // checkIfCommittedOnLeaderFailure(item, append_term);
     }
-    response.extract<kChunkLockResponse>(&lock_response);
-    return lock_response.entry_index();
+    if (response.isType<kChunkLockResponse>()) {
+      response.extract<kChunkLockResponse>(&lock_response);
+      return lock_response.entry_index();
+    }
   }
-  // Failure. Can't add new revision right now because the leader is currently
-  // unknown or there is an election underway.
   return 0;
 }
 
@@ -1463,8 +1470,6 @@ bool RaftNode::sendChunkUnlockRequest(uint64_t lock_index, bool proceed_commits)
     }
     return response.isOk();
   }
-  // Failure. Can't add new revision right now because the leader is currently
-  // unknown or there is an election underway.
   return false;
 }
 
