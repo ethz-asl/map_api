@@ -319,7 +319,10 @@ class RaftNode {
           lock_entry_index_(0) {}
     bool writeLock(const PeerId& peer, uint64_t index) {
       std::lock_guard<std::mutex> lock(mutex_);
-      if (is_locked_) return false;
+      if (is_locked_) {
+        LOG(ERROR) << "Lock false for " << peer;
+        return false;
+      }
       CHECK(peer.isValid());
       CHECK(index > 0);
       is_locked_ = true;
@@ -329,7 +332,10 @@ class RaftNode {
     }
     bool unlock() {
       std::lock_guard<std::mutex> lock(mutex_);
-      if (!is_locked_) return false;
+      if (!is_locked_) {
+        LOG(ERROR) << "Unlock false";
+        return false;
+      }
       is_locked_ = false;
       lock_entry_index_ = 0;
       holder_ = PeerId();

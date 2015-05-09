@@ -48,10 +48,12 @@ class RaftChunk : public ChunkBase {
   mutable bool chunk_lock_attempted_;
   mutable bool is_raft_chunk_locked_;
   mutable uint64_t lock_log_index_;
-  mutable int chunk_lock_depth_;
+  mutable int chunk_write_lock_depth_;
+  mutable int self_read_lock_depth_;
+  mutable std::condition_variable chunk_lock_cv_;
   mutable std::mutex write_lock_mutex_;
   virtual void writeLock() override;
-  virtual void readLock() const override {}  // No read lock for raft chunks.
+  virtual void readLock() const override;  // No read lock for raft chunks.
   virtual bool isWriteLocked() override;
   virtual void unlock() const override;
 
@@ -110,7 +112,9 @@ class RaftChunk : public ChunkBase {
  private:
   // Handles all communication with other chunk holders. No communication except
   // for peer join shall happen between chunk holder peers outside of raft.
-  RaftNode raft_node_;
+  // TODO(aqurai): Making this mutable only because unlock() is const. 
+  // Remove const qualifier for unlock() in base chunk and other derived chunks.
+   mutable RaftNode raft_node_;
   volatile bool initialized_ = false;
   volatile bool relinquished_ = false;
   LogicalTime latest_commit_time_;

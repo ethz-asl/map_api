@@ -312,7 +312,7 @@ void RaftNode::handleChunkUnlockRequest(const PeerId& sender,
   uint64_t index = leaderSafelyAppendLogEntry(entry);
   if (index > 0) {
     CHECK(sender != raft_chunk_lock_.holder());
-    response->isOk();
+    response->ack();
     return;
   }
   response->decline();
@@ -1404,7 +1404,7 @@ uint64_t RaftNode::sendChunkLockRequest() {
       }
     }
     return index;
-  } else if (append_state == State::FOLLOWER) {
+  } else if (append_state == State::FOLLOWER && leader_id.isValid()) {
     Message request, response;
     proto::LockRequest lock_request;
     proto::LockResponse lock_response;

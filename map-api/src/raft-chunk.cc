@@ -16,7 +16,8 @@ namespace map_api {
 RaftChunk::RaftChunk()
     : chunk_lock_attempted_(false),
       is_raft_chunk_locked_(false),
-      chunk_lock_depth_(0) {}
+      lock_log_index_(0),
+      chunk_write_lock_depth_(0) {}
 
 RaftChunk::~RaftChunk() {
   raft_node_.stop();
@@ -124,13 +125,27 @@ void RaftChunk::writeLock() {
   std::lock_guard<std::mutex> lock_mutex(write_lock_mutex_);
   chunk_lock_attempted_ = true;
   if (is_raft_chunk_locked_) {
-    ++chunk_lock_depth_;
+    ++chunk_write_lock_depth_;
+    //LOG(WARNING) << PeerId::self() << " Inc lock depth, to " << chunk_write_lock_depth_ << ", chunk " << id();
   } else {
-    // Send lock request via safe insert log entry.
-    if (true /* Success */) {
+    //LOG(WARNING) << PeerId::self() << " Sending Lock req, chunk " << id();
+    CHECK_EQ(lock_log_index_, 0);
+    // TODO(aqurai): make this function return bool instead of loop here.
+    while (lock_log_index_ == 0) {
+      lock_log_index_ = raft_node_.sendChunkLockRequest();
+      if (lock_log_index_ > 0) {
+        break;
+      }
+      usleep(150 * kMillisecondsToMicroseconds);
+    }
+    if (lock_log_index_ > 0) {
       is_raft_chunk_locked_ = true;
     }
   }
+}
+
+void RaftChunk::readLock() const {
+
 }
 
 bool RaftChunk::isWriteLocked() {
@@ -142,16 +157,20 @@ bool RaftChunk::isWriteLocked() {
 void RaftChunk::unlock() const {
   // TODO(aqurai): Implement this.
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
-  if (chunk_lock_depth_ > 0) {
-    --chunk_lock_depth_;
+  if (!is_raft_chunk_locked_) {
+    return;
   }
-  if (chunk_lock_depth_ == 0) {
-    chunk_lock_attempted_ = false;
+  if (chunk_write_lock_depth_ > 0) {
+    --chunk_write_lock_depth_;
+    //LOG(WARNING) << PeerId::self() << " Dec lock depth, to " << chunk_write_lock_depth_ << ", chunk " << id();
+  } else if (chunk_write_lock_depth_ == 0) {
     // Send unlock request to leader.
-    // There is no reason for this request to fail.
-    CHECK(true /* unlock request success */);
-    lock_log_index_ = 0;
-    is_raft_chunk_locked_ = false;
+    //LOG(WARNING) << PeerId::self() << " Sending unlock req, chunk " << id();
+    if (raft_node_.sendChunkUnlockRequest(lock_log_index_, true)) {
+      lock_log_index_ = 0;
+      is_raft_chunk_locked_ = false;
+      chunk_lock_attempted_ = false;
+    }
   }
 }
 
