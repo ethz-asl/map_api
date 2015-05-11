@@ -1,4 +1,6 @@
 #include <map-api/hub.h>
+
+#include <chrono>
 #include <ifaddrs.h>
 #include <iostream>  // NOLINT
 #include <fstream>   // NOLINT
@@ -20,6 +22,7 @@
 #include <map-api/logical-time.h>
 #include <map-api/server-discovery.h>
 #include <multiagent-mapping-common/internal/unique-id.h>
+#include <multiagent-mapping-common/plain-file-logger.h>
 
 const std::string kFileDiscovery = "file";
 const std::string kServerDiscovery = "server";
@@ -36,6 +39,7 @@ DEFINE_string(discovery_server, "127.0.0.1:5050",
               "server-discovery");
 DEFINE_string(announce_ip, "", "IP to use for discovery announcement");
 DEFINE_int32(discovery_timeout_ms, 100, "Timeout specific for first contact.");
+DEFINE_bool(map_api_network_log, false, "Log network activity.");
 DECLARE_int32(simulated_lag_ms);
 
 namespace map_api {
@@ -398,6 +402,16 @@ void Hub::listenThread(Hub* self) {
       zmq::message_t response_message(serialized_response.size());
       memcpy(reinterpret_cast<void*>(response_message.data()),
              serialized_response.c_str(), serialized_response.size());
+
+      if (FLAGS_map_api_network_log) {
+        common::PlainFileLogger network_log_file("net_log_" + PeerId::self().ipPort());
+        std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch());
+        network_log_file << ms.count() << " " << query.type() << " "
+            << request.size() << " "<< serialized_response.size() << std::endl;
+
+        network_log_file.Flush();
+      }
 
       usleep(1e3 * FLAGS_simulated_lag_ms);
       Peer::simulateBandwidth(response_message.size());
