@@ -125,7 +125,10 @@ bool RaftChunk::insert(const LogicalTime& time,
 void RaftChunk::writeLock() {
   CHECK(raft_node_.isRunning());
   std::lock_guard<std::mutex> lock_mutex(write_lock_mutex_);
+  LOG(WARNING) << PeerId::self() << " Attempting lock for chunk " << id()
+               << ". Current depth: " << chunk_write_lock_depth_;
   chunk_lock_attempted_ = true;
+  uint64_t serial_id = 0;
   if (is_raft_chunk_locked_) {
     ++chunk_write_lock_depth_;
     // LOG(WARNING) << PeerId::self() << " Inc lock depth, to " <<
@@ -134,19 +137,28 @@ void RaftChunk::writeLock() {
     // LOG(WARNING) << PeerId::self() << " Sending Lock req, chunk " << id();
     CHECK_EQ(lock_log_index_, 0);
     // TODO(aqurai): make this function return bool instead of loop here.
-    uint64_t serial_id = request_id_.getNewId();
-    while (lock_log_index_ == 0 && raft_node_.isRunning()) {
+    serial_id = request_id_.getNewId();
+    while (raft_node_.isRunning()) {
       lock_log_index_ = raft_node_.sendChunkLockRequest(serial_id);
-      if (lock_log_index_ > 0) {
-        break;
+      if (lock_log_index_ > 0 &&
+          raft_node_.checkIfEntryCommitted(lock_log_index_, serial_id)) {
+        if (raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self())) {
+          break;
+        } else {
+          // Someone else has the lock. Try with a new Id.
+          serial_id = request_id_.getNewId();
+        }
       }
       usleep(500 * kMillisecondsToMicroseconds);
     }
-    raft_node_.waitUnitlCommitIndex(lock_log_index_);
+    CHECK(raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self()));
+
     if (lock_log_index_ > 0) {
       is_raft_chunk_locked_ = true;
     }
   }
+  LOG(WARNING) << PeerId::self() << " acquired lock for chunk " << id()
+               << ". Current depth: " << chunk_write_lock_depth_;
 }
 
 void RaftChunk::readLock() const {}
@@ -161,6 +173,9 @@ void RaftChunk::unlock() const {
   CHECK(raft_node_.isRunning());
   // TODO(aqurai): Implement this.
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
+  LOG(WARNING) << PeerId::self() << " Attempting unlock for chunk " << id()
+               << ". Current depth: " << chunk_write_lock_depth_;
+  uint64_t serial_id = 0;
   if (!is_raft_chunk_locked_) {
     return;
   }
@@ -171,17 +186,19 @@ void RaftChunk::unlock() const {
   } else if (chunk_write_lock_depth_ == 0) {
     // Send unlock request to leader.
     // LOG(WARNING) << PeerId::self() << " Sending unlock req, chunk " << id();
-    uint64_t serial_id = request_id_.getNewId();
+    CHECK(raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self()))
+        << PeerId::self();
+    serial_id = request_id_.getNewId();
     uint64_t index = 0;
     while (index == 0 && raft_node_.isRunning()) {
       index =
           raft_node_.sendChunkUnlockRequest(serial_id, lock_log_index_, true);
-      if (index > 0) {
+      if (index > 0 && raft_node_.checkIfEntryCommitted(index, serial_id)) {
         break;
       }
       usleep(500 * kMillisecondsToMicroseconds);
     }
-    raft_node_.waitUnitlCommitIndex(index);
+    CHECK(!raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self()));
     lock_log_index_ = 0;
     is_raft_chunk_locked_ = false;
     chunk_lock_attempted_ = false;
@@ -211,7 +228,11 @@ int RaftChunk::requestParticipation(const PeerId& peer) {
       !raft_node_.hasPeer(peer)) {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
     entry->set_add_peer(peer.ipPort());
-    if (raft_node_.leaderSafelyAppendLogEntry(entry) > 0) {
+    entry->set_sender(PeerId::self().ipPort());
+    uint64_t serial_id = request_id_.getNewId();
+    entry->set_sender_serial_id(serial_id);
+    uint64_t index = raft_node_.leaderSafelyAppendLogEntry(entry);
+    if (index > 0 && raft_node_.checkIfEntryCommitted(index, serial_id)) {
       return 1;
     }
   }
@@ -302,14 +323,12 @@ uint64_t RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
   // TODO(aqurai): Retry forever?
   while (true && raft_node_.isRunning()) {
     index = raft_node_.sendInsertRequest(item, serial_id, retrying);
-    if (index > 0) {
+    if (index > 0 && raft_node_.checkIfEntryCommitted(index, serial_id)) {
       break;
     }
     retrying = true;
     usleep(150 * kMillisecondsToMicroseconds);
   }
-  // Wait for the entry to be committed on this peer.
-  raft_node_.waitUnitlCommitIndex(index);
   return index;
 }
 
@@ -318,16 +337,15 @@ uint64_t RaftChunk::raftUpdateRequest(const Revision::ConstPtr& item) {
   uint64_t index = 0;
   bool retrying = false;
   uint64_t serial_id = request_id_.getNewId();
-  while (true && raft_node_.isRunning()) {
+  while (raft_node_.isRunning()) {
     index = raft_node_.sendUpdateRequest(item, serial_id, retrying);
-    if (index > 0) {
+    if (index > 0 && raft_node_.checkIfEntryCommitted(index, serial_id)) {
       break;
     }
     retrying = true;
     usleep(150 * kMillisecondsToMicroseconds);
   }
   // Wait for the entry to be committed on this peer.
-  raft_node_.waitUnitlCommitIndex(index);
   return index;
 }
 
@@ -340,6 +358,13 @@ void RaftChunk::leaveImpl() {
       break;
     }
     usleep(500 * kMillisecondsToMicroseconds);
+  }
+  while (raft_node_.isRunning()) {
+    uint64_t index = raft_node_.sendLeaveRequest(serial_id);
+    if (index > 0 && raft_node_.checkIfEntryCommitted(index, serial_id)) {
+      break;
+    }
+    usleep(150 * kMillisecondsToMicroseconds);
   }
   LOG(WARNING) << PeerId::self() << " left chunk " << id();
 }

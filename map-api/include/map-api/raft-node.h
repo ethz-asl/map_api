@@ -102,6 +102,7 @@ class RaftNode {
   static const char kVoteRequest[];
   static const char kVoteResponse[];
   static const char kLeaveRequest[];
+  static const char kRaftChunkRequestResponse[];
   static const char kQueryState[];
   static const char kQueryStateResponse[];
   static const char kConnectRequest[];
@@ -314,7 +315,7 @@ class RaftNode {
     bool writeLock(const PeerId& peer, uint64_t index) {
       std::lock_guard<std::mutex> lock(mutex_);
       if (is_locked_) {
-        LOG(ERROR) << "Lock false for " << peer;
+        // LOG(ERROR) << "Lock false for " << peer << " at log index " << index;
         return false;
       }
       CHECK(peer.isValid());
@@ -365,6 +366,7 @@ class RaftNode {
   // Should only be used by handleChunkLockRequest.
   std::mutex chunk_lock_mutex_;
 
+  // Raft Chunk Requests.
   uint64_t sendChunkLockRequest(uint64_t serial_id);
   uint64_t sendChunkUnlockRequest(uint64_t serial_id, uint64_t lock_index,
                                   bool proceed_commits);
@@ -375,9 +377,22 @@ class RaftNode {
                              bool is_retry_attempt);
   bool checkIfCommittedOnLeaderFailure(const Revision::ConstPtr& item,
                                        uint64_t append_term);
-  void waitUnitlCommitIndex(uint64_t index);
+  bool checkIfEntryCommitted(uint64_t index, uint64_t serial_id);
+  uint64_t sendLeaveRequest(uint64_t serial_id);
 
-  bool sendLeaveRequest(uint64_t serial_id);
+  proto::RaftChunkRequestResponse processChunkLockRequest(
+      const PeerId& sender, uint64_t serial_id, bool is_retry_attempt);
+  proto::RaftChunkRequestResponse processChunkUnlockRequest(
+      const PeerId& sender, uint64_t serial_id, bool is_retry_attempt,
+      uint64_t lock_index, uint64_t proceed_commits);
+  proto::RaftChunkRequestResponse processInsertRequest(
+      const PeerId& sender, uint64_t serial_id, bool is_retry_attempt,
+      proto::Revision* unowned_revision_pointer);
+  proto::RaftChunkRequestResponse processUpdateRequest(
+      const PeerId& sender, uint64_t serial_id, bool is_retry_attempt,
+      proto::Revision* unowned_revision_pointer);
+  // proto::RaftChunkRequestResponse processLeaveRequest(const PeerId& sender,
+  // uint64_t serial_id, bool is_retry_attempt);
 
   // ========================
   // Owner chunk information.

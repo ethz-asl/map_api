@@ -404,6 +404,10 @@ ChunkBase* NetTable::connectTo(const common::Id& chunk_id, const PeerId& peer) {
   // Wait for connect handle thread of other peer to succeed.
   ChunkMap::iterator found;
   while (true) {
+    if (FLAGS_use_raft) {
+      RaftChunk::sendConnectRequest(peer, metadata);
+      usleep(100 * 1000);
+    }
     active_chunks_lock_.acquireReadLock();
     found = active_chunks_.find(chunk_id);
     if (found != active_chunks_.end()) {
@@ -413,6 +417,9 @@ ChunkBase* NetTable::connectTo(const common::Id& chunk_id, const PeerId& peer) {
     active_chunks_lock_.releaseReadLock();
     usleep(1000);
   }
+  // TODO(aqurai): Increase verbosity flag.
+  VLOG(1) << PeerId::self() << " successfully connected to chunk "
+          << chunk_id.printString();
   return found->second.get();
 }
 
