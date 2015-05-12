@@ -125,20 +125,28 @@ class RaftNode {
   // ========
   // Handlers
   // ========
-  void handleConnectRequest(const PeerId& sender, Message* response);
+  // Raft requests.
   void handleAppendRequest(proto::AppendEntriesRequest* request,
                            const PeerId& sender, Message* response);
-  void handleChunkLockRequest(const PeerId& sender, Message* response);
-  void handleChunkUnlockRequest(const PeerId& sender, uint64_t lock_index,
-                                bool proceed_commits, Message* response);
+  void handleRequestVote(const proto::VoteRequest& request,
+                         const PeerId& sender, Message* response);
+  void handleQueryState(const proto::QueryState& request, Message* response);
+
+  // Chunk Requests.
+  void handleConnectRequest(const PeerId& sender, Message* response);
+  void handleLeaveRequest(const PeerId& sender, uint64_t serial_id,
+                          Message* response);
+  void handleChunkLockRequest(const PeerId& sender, uint64_t serial_id,
+                              Message* response);
+  void handleChunkUnlockRequest(const PeerId& sender, uint64_t serial_id,
+                                uint64_t lock_index, bool proceed_commits,
+                                Message* response);
   void handleInsertRequest(proto::InsertRequest* request,
                            const PeerId& sender, Message* response);
   void handleUpdateRequest(proto::InsertRequest* request, const PeerId& sender,
                            Message* response);
-  void handleRequestVote(const proto::VoteRequest& request,
-                         const PeerId& sender, Message* response);
-  void handleLeaveRequest(const PeerId& sender, Message* response);
-  void handleQueryState(const proto::QueryState& request, Message* response);
+
+  inline bool checkReadyToHandleChunkRequests() const;
 
   // ====================================================
   // RPCs for heartbeat, leader election, log replication
@@ -267,12 +275,6 @@ class RaftNode {
   // Index will always be sequential, unique.
   // Leader will overwrite follower logs where index+term doesn't match.
 
-  // New revision request.
-  bool sendInsertRequest(const Revision::ConstPtr& item);
-  bool sendUpdateRequest(const Revision::ConstPtr& item);
-  bool checkIfCommittedOnLeaderFailure(const Revision::ConstPtr& item,
-                                       uint64_t append_term);
-
   std::condition_variable new_entries_signal_;
   // Expects write lock for log_mutex to be acquired.
   uint64_t leaderAppendLogEntryLocked(
@@ -316,7 +318,7 @@ class RaftNode {
         return false;
       }
       CHECK(peer.isValid());
-      CHECK(index > 0);
+      CHECK_GT(index, 0);
       is_locked_ = true;
       holder_ = peer;
       lock_entry_index_ = index;
@@ -345,6 +347,14 @@ class RaftNode {
       std::lock_guard<std::mutex> lock(mutex_);
       return holder_;
     }
+    bool isLockHolder(const PeerId& peer) {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (!holder_.isValid() || !peer.isValid()) {
+        return false;
+      }
+      return (holder_ == peer);
+    }
+
    private:
     PeerId holder_;
     bool is_locked_;
@@ -352,10 +362,22 @@ class RaftNode {
     mutable std::mutex mutex_;
   };
   DistributedRaftChunkLock raft_chunk_lock_;
-  uint64_t sendChunkLockRequest();
-  bool sendChunkUnlockRequest(uint64_t lock_index, bool proceed_commits);
-  
-  bool sendLeaveRequest();
+  // Should only be used by handleChunkLockRequest.
+  std::mutex chunk_lock_mutex_;
+
+  uint64_t sendChunkLockRequest(uint64_t serial_id);
+  uint64_t sendChunkUnlockRequest(uint64_t serial_id, uint64_t lock_index,
+                                  bool proceed_commits);
+  // New revision request.
+  uint64_t sendInsertRequest(const Revision::ConstPtr& item, uint64_t serial_id,
+                             bool is_retry_attempt);
+  uint64_t sendUpdateRequest(const Revision::ConstPtr& item, uint64_t serial_id,
+                             bool is_retry_attempt);
+  bool checkIfCommittedOnLeaderFailure(const Revision::ConstPtr& item,
+                                       uint64_t append_term);
+  void waitUnitlCommitIndex(uint64_t index);
+
+  bool sendLeaveRequest(uint64_t serial_id);
 
   // ========================
   // Owner chunk information.

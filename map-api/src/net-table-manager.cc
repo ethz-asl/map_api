@@ -563,7 +563,9 @@ void NetTableManager::handleRaftChunkLockRequest(const Message& request,
     response->impose<Message::kDecline>();
     return;
   }
-  found->second->handleRaftChunkLockRequest(chunk_id, request.sender(), response);
+  found->second->handleRaftChunkLockRequest(
+      chunk_id, lock_request.raft_metadata().peer_request_id(),
+      request.sender(), response);
 }
 
 void NetTableManager::handleRaftChunkUnlockRequest(const Message& request,
@@ -580,10 +582,10 @@ void NetTableManager::handleRaftChunkUnlockRequest(const Message& request,
     response->impose<Message::kDecline>();
     return;
   }
-  found->second->handleRaftChunkUnlockRequest(chunk_id, request.sender(),
-                                            unlock_request.lock_entry_index(),
-                                            unlock_request.proceed_commits(),
-                                            response);
+  found->second->handleRaftChunkUnlockRequest(
+      chunk_id, unlock_request.raft_metadata().peer_request_id(),
+      request.sender(), unlock_request.lock_entry_index(),
+      unlock_request.proceed_commits(), response);
 }
 
 void NetTableManager::handleRaftInsertRequest(const Message& request, Message* response) {
@@ -652,7 +654,9 @@ void NetTableManager::handleRaftLeaveRequest(const Message& request,
     response->impose<Message::kDecline>();
     return;
   }
-  found->second->handleRaftLeaveRequest(chunk_id, request.sender(), response);
+  found->second->handleRaftLeaveRequest(
+      chunk_id, leave_request.raft_metadata().peer_request_id(),
+      request.sender(), response);
 }
 
 void NetTableManager::handleRaftQueryState(const Message& request,

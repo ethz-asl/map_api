@@ -723,26 +723,29 @@ void NetTable::handleRaftInitRequest(const common::Id& chunk_id,
 }
 
 void NetTable::handleRaftChunkLockRequest(const common::Id& chunk_id,
-    const PeerId& sender, Message* response) {
+                                          uint64_t serial_id,
+                                          const PeerId& sender,
+                                          Message* response) {
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
   if (routingBasics(chunk_id, response, &found)) {
     RaftChunk* chunk = CHECK_NOTNULL(
         dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
-    chunk->handleRaftChunkLockRequest(sender, response);
+    chunk->handleRaftChunkLockRequest(sender, serial_id, response);
   }
   active_chunks_lock_.releaseReadLock();
 }
 
-void NetTable::handleRaftChunkUnlockRequest(const common::Id& chunk_id,
-    const PeerId& sender, uint64_t lock_index,
-    bool proceed_commits, Message* response) {
+void NetTable::handleRaftChunkUnlockRequest(
+    const common::Id& chunk_id, uint64_t serial_id, const PeerId& sender,
+    uint64_t lock_index, bool proceed_commits, Message* response) {
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
   if (routingBasics(chunk_id, response, &found)) {
     RaftChunk* chunk = CHECK_NOTNULL(
         dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
-    chunk->handleRaftChunkUnlockRequest(sender, lock_index, proceed_commits, response);
+    chunk->handleRaftChunkUnlockRequest(sender, serial_id, lock_index,
+                                        proceed_commits, response);
   }
   active_chunks_lock_.releaseReadLock();
 }
@@ -817,13 +820,14 @@ void NetTable::handleRaftQueryState(const common::Id& chunk_id,
 }
 
 void NetTable::handleRaftLeaveRequest(const common::Id& chunk_id,
-                                      const PeerId& sender, Message* response) {
+                                      uint64_t serial_id, const PeerId& sender,
+                                      Message* response) {
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
   if (routingBasics(chunk_id, response, &found)) {
     RaftChunk* chunk = CHECK_NOTNULL(
         dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
-    chunk->handleRaftLeaveRequest(sender, response);
+    chunk->handleRaftLeaveRequest(sender, serial_id, response);
   }
   active_chunks_lock_.releaseReadLock();
 }

@@ -31,21 +31,25 @@ inline void RaftChunk::handleRaftConnectRequest(const PeerId& sender,
   raft_node_.handleConnectRequest(sender, response);
 }
 
-inline void RaftChunk::handleRaftAppendRequest(
-    proto::AppendEntriesRequest* request, const PeerId& sender,
-    Message* response) {
-  raft_node_.handleAppendRequest(request, sender, response);
+inline void RaftChunk::handleRaftLeaveRequest(const PeerId& sender,
+                                              uint64_t serial_id,
+                                              Message* response) {
+  raft_node_.handleLeaveRequest(sender, serial_id, response);
 }
 
 void RaftChunk::handleRaftChunkLockRequest(const PeerId& sender,
+                                           uint64_t serial_id,
                                            Message* response) {
-  raft_node_.handleChunkLockRequest(sender, response);
+  raft_node_.handleChunkLockRequest(sender, serial_id, response);
 }
 
 void RaftChunk::handleRaftChunkUnlockRequest(const PeerId& sender,
-    uint64_t lock_index, bool proceed_commits, Message* response) {
-  raft_node_.handleChunkUnlockRequest(sender, lock_index, proceed_commits,
-                                      response);
+                                             uint64_t serial_id,
+                                             uint64_t lock_index,
+                                             bool proceed_commits,
+                                             Message* response) {
+  raft_node_.handleChunkUnlockRequest(sender, serial_id, lock_index,
+                                      proceed_commits, response);
 }
 
 inline void RaftChunk::handleRaftInsertRequest(proto::InsertRequest* request,
@@ -60,6 +64,12 @@ inline void RaftChunk::handleRaftUpdateRequest(proto::InsertRequest* request,
   raft_node_.handleUpdateRequest(request, sender, response);
 }
 
+inline void RaftChunk::handleRaftAppendRequest(
+    proto::AppendEntriesRequest* request, const PeerId& sender,
+    Message* response) {
+  raft_node_.handleAppendRequest(request, sender, response);
+}
+
 inline void RaftChunk::handleRaftRequestVote(const proto::VoteRequest& request,
                                              const PeerId& sender,
                                              Message* response) {
@@ -69,11 +79,6 @@ inline void RaftChunk::handleRaftRequestVote(const proto::VoteRequest& request,
 inline void RaftChunk::handleRaftQueryState(const proto::QueryState& request,
                                             Message* response) {
   raft_node_.handleQueryState(request, response);
-}
-
-inline void RaftChunk::handleRaftLeaveRequest(const PeerId& sender,
-                                              Message* response) {
-  raft_node_.handleLeaveRequest(sender, response);
 }
 
 #endif  // MAP_API_RAFT_CHUNK_INL_H_

@@ -2,6 +2,7 @@
 #define MAP_API_RAFT_CHUNK_DATA_RAM_CONTAINER_H_
 
 #include <list>
+#include <string>
 #include <vector>
 
 #include "./raft.pb.h"
@@ -93,6 +94,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     virtual ~RaftLog() {}
     iterator getLogIteratorByIndex(uint64_t index);
     const_iterator getConstLogIteratorByIndex(uint64_t index) const;
+    const_iterator getLastRequestEntry(const PeerId& peer) const;
     uint64_t eraseAfter(iterator it);
     inline uint64_t lastLogIndex() const { return back()->index(); }
     inline uint64_t lastLogTerm() const { return back()->term(); }
@@ -101,6 +103,9 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
 
     inline void setCommitIndex(uint64_t value) { commit_index_ = value; }
     uint64_t setEntryCommitted(iterator it);
+
+    // TODO(aqurai): Provide access through a method. Combine with push_back.
+    std::unordered_map<std::string, uint64_t> serial_id_map_;
 
    private:
     friend class RaftChunkDataRamContainer;

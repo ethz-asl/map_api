@@ -202,10 +202,12 @@ class NetTable {
                              const proto::InitRequest& init_request,
                              const PeerId& sender, Message* response);
   void handleRaftChunkLockRequest(const common::Id& chunk_id,
-                                  const PeerId& sender, Message* response);
+                                  uint64_t serial_id, const PeerId& sender,
+                                  Message* response);
   void handleRaftChunkUnlockRequest(const common::Id& chunk_id,
-                                    const PeerId& sender, uint64_t lock_index,
-                                    bool proceed_commits, Message* response);
+                                    uint64_t serial_id, const PeerId& sender,
+                                    uint64_t lock_index, bool proceed_commits,
+                                    Message* response);
   void handleRaftAppendRequest(const common::Id& chunk_id,
                                proto::AppendEntriesRequest* request,
                                const PeerId& sender, Message* response);
@@ -221,8 +223,8 @@ class NetTable {
   void handleRaftQueryState(const common::Id& chunk_id,
                             const proto::QueryState& request,
                             Message* response);
-  void handleRaftLeaveRequest(const common::Id& chunk_id, const PeerId& sender,
-                              Message* response);
+  void handleRaftLeaveRequest(const common::Id& chunk_id, uint64_t serial_id,
+                              const PeerId& sender, Message* response);
 
  private:
   NetTable();

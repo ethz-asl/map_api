@@ -78,9 +78,20 @@ class RaftChunk : public ChunkBase {
 
   uint64_t raftInsertRequest(const Revision::ConstPtr& item);
   uint64_t raftUpdateRequest(const Revision::ConstPtr& item);
-  
+
   virtual void leaveImpl() override;
   virtual void awaitShared() override;
+
+  class ChunkRequestId {
+   public:
+    ChunkRequestId() : serial_id_(0) {}
+    inline uint64_t getNewId() { return ++serial_id_; }
+
+   private:
+    uint64_t serial_id_;
+  };
+  mutable ChunkRequestId request_id_;
+
   /**
    * ==========================================
    * Handlers for RPCs addressed to this Chunk.
@@ -88,25 +99,33 @@ class RaftChunk : public ChunkBase {
    */
   friend class NetTable;
 
+  // Chunk Requests.
   inline void handleRaftConnectRequest(const PeerId& sender, Message* response);
-  inline void handleRaftAppendRequest(proto::AppendEntriesRequest* request,
-                                      const PeerId& sender, Message* response);
-  inline void handleRaftChunkLockRequest(const PeerId& sender, Message* response);
+  inline void handleRaftLeaveRequest(const PeerId& sender, uint64_t serial_id,
+                                     Message* response);
+  inline void handleRaftChunkLockRequest(const PeerId& sender,
+                                         uint64_t serial_id, Message* response);
   inline void handleRaftChunkUnlockRequest(const PeerId& sender,
-      uint64_t lock_index, bool proceed_commits, Message* response);
+                                           uint64_t serial_id,
+                                           uint64_t lock_index,
+                                           bool proceed_commits,
+                                           Message* response);
   inline void handleRaftInsertRequest(proto::InsertRequest* request,
                                       const PeerId& sender, Message* response);
   inline void handleRaftUpdateRequest(proto::InsertRequest* request,
+                                      const PeerId& sender, Message* response);
+
+  // Raft Requests.
+  inline void handleRaftAppendRequest(proto::AppendEntriesRequest* request,
                                       const PeerId& sender, Message* response);
   inline void handleRaftRequestVote(const proto::VoteRequest& request,
                                     const PeerId& sender, Message* response);
   inline void handleRaftQueryState(const proto::QueryState& request,
                                    Message* response);
-  inline void handleRaftLeaveRequest(const PeerId& sender, Message* response);
 
   // Handles all communication with other chunk holders. No communication except
   // for peer join shall happen between chunk holder peers outside of raft.
-  // TODO(aqurai): Making this mutable only because unlock() is const. 
+  // TODO(aqurai): Making this mutable only because unlock() is const.
   // Remove const qualifier for unlock() in base chunk and other derived chunks.
   mutable RaftNode raft_node_;
   volatile bool initialized_ = false;

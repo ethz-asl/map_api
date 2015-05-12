@@ -130,7 +130,7 @@ bool RaftChunkDataRamContainer::checkAndPatch(
   CHECK(query->getId<common::Id>().isValid())
       << "Attempted to insert element with invalid ID";
   // TODO(aqurai): Remove this.
-  // LOG(WARNING) << PeerId::self() << ": Patching in table " << name()
+  //   LOG(WARNING) << PeerId::self() << ": Patching in table " << name()
   //            << ", History size = " << data_.size();
   return patch(query);
 }
@@ -188,6 +188,18 @@ RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) c
     CHECK_EQ((*it)->index(), index) << " Log entries size = " << size();
     return it;
   }
+}
+
+RaftChunkDataRamContainer::RaftLog::const_iterator
+RaftChunkDataRamContainer::RaftLog::getLastRequestEntry(const PeerId& peer)
+    const {
+  for (const_reverse_iterator it = rbegin(); it != rend(); ++it) {
+    if ((*it)->has_sender() && peer.ipPort().compare((*it)->sender()) == 0) {
+      CHECK((*it)->has_sender_serial_id());
+      return getConstLogIteratorByIndex((*it)->index());
+    }
+  }
+  return cend();
 }
 
 uint64_t RaftChunkDataRamContainer::RaftLog::eraseAfter(iterator it) {
