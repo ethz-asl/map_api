@@ -13,7 +13,6 @@
 namespace map_api {
 class Message;
 
-
 class RaftChunk : public ChunkBase {
   friend class ChunkTransaction;
   friend class ConsensusFixture;

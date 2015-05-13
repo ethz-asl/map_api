@@ -8,7 +8,6 @@
 #include "map-api/raft-node.h"
 #include "map-api/hub.h"
 #include "map-api/message.h"
-#include "map-api/net-table-manager.h"
 
 namespace map_api {
 
