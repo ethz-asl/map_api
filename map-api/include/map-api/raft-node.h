@@ -83,7 +83,7 @@ class RaftNode {
 
   // Waits for the entry to be committed. Returns failure if the leader fails
   // before the new entry is committed.
-  uint64_t leaderSafelyAppendLogEntry(uint32_t entry);
+  uint64_t leaderAppendLogEntryAndConfirm(uint32_t entry);
 
   static const char kAppendEntries[];
   static const char kAppendEntriesResponse[];

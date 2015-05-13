@@ -261,7 +261,7 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
 
 void RaftNode::handleInsertRequest(const proto::InsertRequest& request,
                                    const PeerId& sender, Message* response) {
-  uint64_t index = leaderSafelyAppendLogEntry(request.entry());
+  uint64_t index = leaderAppendLogEntryAndConfirm(request.entry());
   proto::InsertResponse insert_response;
   insert_response.set_index(index);
   response->impose<kInsertResponse>(insert_response);
@@ -391,7 +391,7 @@ bool RaftNode::sendAppendEntries(
 
 uint64_t RaftNode::sendInsertRequest(uint64_t entry) {
   if (state() == State::LEADER) {
-    return leaderSafelyAppendLogEntry(entry);
+    return leaderAppendLogEntryAndConfirm(entry);
   } else if (state() == State::FOLLOWER) {
     Message request, response;
     proto::InsertRequest insert_request;
@@ -1006,7 +1006,7 @@ uint64_t RaftNode::leaderAppendLogEntry(uint32_t entry) {
   return leaderAddEntryToLog(entry, current_term, invalid_id);
 }
 
-uint64_t RaftNode::leaderSafelyAppendLogEntry(uint32_t entry) {
+uint64_t RaftNode::leaderAppendLogEntryAndConfirm(uint32_t entry) {
   uint64_t current_term = term();
   uint64_t index = leaderAppendLogEntry(entry);
   if (index == 0) {

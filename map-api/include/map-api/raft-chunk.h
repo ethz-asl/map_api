@@ -32,12 +32,7 @@ class RaftChunk : public ChunkBase {
   virtual void dumpItems(const LogicalTime& time, ConstRevisionMap* items) const
       override;
 
-  void setStateFollowerAndStartRaft() {
-    raft_node_.state_ = RaftNode::State::FOLLOWER;
-    VLOG(1) << PeerId::self() << ": Starting Raft node as follower for chunk "
-            << id_.printString();
-    raft_node_.start();
-  }
+  void setStateFollowerAndStartRaft();
 
   // ====================
   // Not implemented yet.

@@ -70,6 +70,13 @@ void RaftChunk::dumpItems(const LogicalTime& time, ConstRevisionMap* items) cons
   data_container_->dump(time, items);
 }
 
+void RaftChunk::setStateFollowerAndStartRaft() {
+  raft_node_.state_ = RaftNode::State::FOLLOWER;
+  VLOG(1) << PeerId::self() << ": Starting Raft node as follower for chunk "
+          << id_.printString();
+  raft_node_.start();
+}
+
 bool RaftChunk::sendConnectRequest(const PeerId& peer,
                                    proto::ChunkRequestMetadata& metadata) {
   Message request, response;
