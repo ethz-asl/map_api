@@ -94,26 +94,32 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     virtual ~RaftLog() {}
     iterator getLogIteratorByIndex(uint64_t index);
     const_iterator getConstLogIteratorByIndex(uint64_t index) const;
-    const_iterator getLastRequestEntry(const PeerId& peer) const;
+    uint64_t getEntryIndex(const PeerId& peer, uint64_t serial_id) const;
+    uint64_t getPeerLatestSerialId(const PeerId& peer) const;
     uint64_t eraseAfter(iterator it);
     inline uint64_t lastLogIndex() const { return back()->index(); }
     inline uint64_t lastLogTerm() const { return back()->term(); }
     inline uint64_t commitIndex() const { return commit_index_; }
     inline common::ReaderWriterMutex* mutex() const { return &log_mutex_; }
 
+    void appendLogEntry(const std::shared_ptr<proto::RaftLogEntry>& entry);
     inline void setCommitIndex(uint64_t value) { commit_index_ = value; }
     uint64_t setEntryCommitted(iterator it);
 
     // TODO(aqurai): Provide access through a method. Combine with push_back.
-    std::unordered_map<std::string, uint64_t> serial_id_map_;
 
    private:
     friend class RaftChunkDataRamContainer;
+    using std::vector<std::shared_ptr<proto::RaftLogEntry>>::push_back;
+    std::unordered_map<std::string, uint64_t> serial_id_map_;
     mutable common::ReaderWriterMutex log_mutex_;
     uint64_t commit_index_;
   };
   RaftLog log_;
+  // TODO(aqurai): Remove this and instead use LogReadAccess for this info in
+  // the interest of deadlock safety?
   inline uint64_t logCommitIndex() const;
+  inline uint64_t lastLogTerm() const;
 
   class LogReadAccess {
    public:

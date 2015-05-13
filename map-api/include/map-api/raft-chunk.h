@@ -4,6 +4,7 @@
 #include <mutex>
 #include <set>
 
+#include <multiagent-mapping-common/condition.h>
 #include <multiagent-mapping-common/unique-id.h>
 
 #include "./chunk.pb.h"
@@ -103,6 +104,7 @@ class RaftChunk : public ChunkBase {
   inline void handleRaftConnectRequest(const PeerId& sender, Message* response);
   inline void handleRaftLeaveRequest(const PeerId& sender, uint64_t serial_id,
                                      Message* response);
+  void handleRaftLeaveNotification(Message* response);
   inline void handleRaftChunkLockRequest(const PeerId& sender,
                                          uint64_t serial_id, Message* response);
   inline void handleRaftChunkUnlockRequest(const PeerId& sender,
@@ -122,6 +124,10 @@ class RaftChunk : public ChunkBase {
                                     const PeerId& sender, Message* response);
   inline void handleRaftQueryState(const proto::QueryState& request,
                                    Message* response);
+
+  // Leaving the chunk.
+  bool leave_requested_;
+  common::Condition leave_notification_;
 
   // Handles all communication with other chunk holders. No communication except
   // for peer join shall happen between chunk holder peers outside of raft.

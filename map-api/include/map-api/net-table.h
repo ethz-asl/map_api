@@ -225,6 +225,8 @@ class NetTable {
                             Message* response);
   void handleRaftLeaveRequest(const common::Id& chunk_id, uint64_t serial_id,
                               const PeerId& sender, Message* response);
+  void handleRaftLeaveNotification(const common::Id& chunk_id,
+                                   Message* response);
 
  private:
   NetTable();

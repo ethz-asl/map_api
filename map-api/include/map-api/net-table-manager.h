@@ -125,6 +125,9 @@ class NetTableManager {
   static void handleRaftQueryState(const Message& request, Message* response);
   static void handleRaftLeaveRequest(const Message& request,
                                         Message* response);
+  static void handleRaftLeaveNotification(const Message& request,
+                                          Message* response);
+
  private:
   NetTableManager();
   NetTableManager(const NetTableManager&) = delete;

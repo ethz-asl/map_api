@@ -102,6 +102,7 @@ class RaftNode {
   static const char kVoteRequest[];
   static const char kVoteResponse[];
   static const char kLeaveRequest[];
+  static const char kLeaveNotification[];
   static const char kRaftChunkRequestResponse[];
   static const char kQueryState[];
   static const char kQueryStateResponse[];
@@ -375,10 +376,10 @@ class RaftNode {
                              bool is_retry_attempt);
   uint64_t sendUpdateRequest(const Revision::ConstPtr& item, uint64_t serial_id,
                              bool is_retry_attempt);
-  bool checkIfCommittedOnLeaderFailure(const Revision::ConstPtr& item,
-                                       uint64_t append_term);
-  bool checkIfEntryCommitted(uint64_t index, uint64_t serial_id);
-  uint64_t sendLeaveRequest(uint64_t serial_id);
+  bool checkIfEntryCommitted(uint64_t index, uint64_t append_term,
+                             uint64_t serial_id);
+  bool sendLeaveRequest(uint64_t serial_id);
+  void sendLeaveSuccessNotification(const PeerId& peer);
 
   proto::RaftChunkRequestResponse processChunkLockRequest(
       const PeerId& sender, uint64_t serial_id, bool is_retry_attempt);

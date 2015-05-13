@@ -839,6 +839,18 @@ void NetTable::handleRaftLeaveRequest(const common::Id& chunk_id,
   active_chunks_lock_.releaseReadLock();
 }
 
+void NetTable::handleRaftLeaveNotification(const common::Id& chunk_id,
+                                           Message* response) {
+  ChunkMap::iterator found;
+  active_chunks_lock_.acquireReadLock();
+  if (routingBasics(chunk_id, response, &found)) {
+    RaftChunk* chunk =
+        CHECK_NOTNULL(dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
+    chunk->handleRaftLeaveNotification(response);
+  }
+  active_chunks_lock_.releaseReadLock();
+}
+
 bool NetTable::routingBasics(const common::Id& chunk_id, Message* response,
                              ChunkMap::iterator* found) {
   CHECK_NOTNULL(response);

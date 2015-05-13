@@ -190,22 +190,40 @@ RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) c
   }
 }
 
-RaftChunkDataRamContainer::RaftLog::const_iterator
-RaftChunkDataRamContainer::RaftLog::getLastRequestEntry(const PeerId& peer)
-    const {
+uint64_t RaftChunkDataRamContainer::RaftLog::getEntryIndex(
+    const PeerId& peer, uint64_t serial_id) const {
   for (const_reverse_iterator it = rbegin(); it != rend(); ++it) {
     if ((*it)->has_sender() && peer.ipPort().compare((*it)->sender()) == 0) {
       CHECK((*it)->has_sender_serial_id());
-      return getConstLogIteratorByIndex((*it)->index());
+      if ((*it)->sender_serial_id() == serial_id) {
+        return (*it)->index();
+      }
     }
   }
-  return cend();
+  return 0;
+}
+
+uint64_t RaftChunkDataRamContainer::RaftLog::getPeerLatestSerialId(
+    const PeerId& peer) const {
+  if (serial_id_map_.count(peer.ipPort()) == 1) {
+    return serial_id_map_.find(peer.ipPort())->second;
+  }
+  return 0;
 }
 
 uint64_t RaftChunkDataRamContainer::RaftLog::eraseAfter(iterator it) {
   CHECK(it + 1 != begin());
   resize(std::distance(begin(), it + 1));
   return lastLogIndex();
+}
+
+void RaftChunkDataRamContainer::RaftLog::appendLogEntry(
+    const std::shared_ptr<proto::RaftLogEntry>& entry) {
+  push_back(entry);
+  if (entry->has_sender()) {
+    CHECK(entry->has_sender_serial_id());
+    serial_id_map_[entry->sender()] = entry->sender_serial_id();
+  }
 }
 
 uint64_t RaftChunkDataRamContainer::RaftLog::setEntryCommitted(iterator it) {

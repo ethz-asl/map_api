@@ -83,6 +83,8 @@ void NetTableManager::registerHandlers() {
                                   handleRaftRequestVote);
   Hub::instance().registerHandler(RaftNode::kLeaveRequest,
                                   handleRaftLeaveRequest);
+  Hub::instance().registerHandler(RaftNode::kLeaveNotification,
+                                  handleRaftLeaveNotification);
   Hub::instance().registerHandler(RaftNode::kQueryState, handleRaftQueryState);
 
   // Net table requests.
@@ -655,6 +657,22 @@ void NetTableManager::handleRaftLeaveRequest(const Message& request,
   }
   found->second->handleRaftLeaveRequest(chunk_id, leave_request.serial_id(),
                                         request.sender(), response);
+}
+
+void NetTableManager::handleRaftLeaveNotification(const Message& request,
+                                                  Message* response) {
+  proto::ChunkRequestMetadata metadata;
+  request.extract<RaftNode::kLeaveNotification>(&metadata);
+  const std::string& table = metadata.table();
+  common::Id chunk_id(metadata.chunk_id());
+  common::ScopedReadLock lock(&instance().tables_lock_);
+  std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator found =
+      instance().tables_.find(table);
+  if (found == instance().tables_.end()) {
+    response->impose<Message::kDecline>();
+    return;
+  }
+  found->second->handleRaftLeaveNotification(chunk_id, response);
 }
 
 void NetTableManager::handleRaftQueryState(const Message& request,

@@ -17,7 +17,8 @@ RaftChunk::RaftChunk()
     : chunk_lock_attempted_(false),
       is_raft_chunk_locked_(false),
       lock_log_index_(0),
-      chunk_write_lock_depth_(0) {}
+      chunk_write_lock_depth_(0),
+      leave_requested_(false) {}
 
 RaftChunk::~RaftChunk() {
   raft_node_.stop();
@@ -125,8 +126,8 @@ bool RaftChunk::insert(const LogicalTime& time,
 void RaftChunk::writeLock() {
   CHECK(raft_node_.isRunning());
   std::lock_guard<std::mutex> lock_mutex(write_lock_mutex_);
-  LOG(WARNING) << PeerId::self() << " Attempting lock for chunk " << id()
-               << ". Current depth: " << chunk_write_lock_depth_;
+  VLOG(3) << PeerId::self() << " Attempting lock for chunk " << id()
+          << ". Current depth: " << chunk_write_lock_depth_;
   chunk_lock_attempted_ = true;
   uint64_t serial_id = 0;
   if (is_raft_chunk_locked_) {
@@ -140,8 +141,7 @@ void RaftChunk::writeLock() {
     serial_id = request_id_.getNewId();
     while (raft_node_.isRunning()) {
       lock_log_index_ = raft_node_.sendChunkLockRequest(serial_id);
-      if (lock_log_index_ > 0 &&
-          raft_node_.checkIfEntryCommitted(lock_log_index_, serial_id)) {
+      if (lock_log_index_ > 0) {
         if (raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self())) {
           break;
         } else {
@@ -157,8 +157,8 @@ void RaftChunk::writeLock() {
       is_raft_chunk_locked_ = true;
     }
   }
-  LOG(WARNING) << PeerId::self() << " acquired lock for chunk " << id()
-               << ". Current depth: " << chunk_write_lock_depth_;
+  VLOG(3) << PeerId::self() << " acquired lock for chunk " << id()
+          << ". Current depth: " << chunk_write_lock_depth_;
 }
 
 void RaftChunk::readLock() const {}
@@ -173,8 +173,8 @@ void RaftChunk::unlock() const {
   CHECK(raft_node_.isRunning());
   // TODO(aqurai): Implement this.
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
-  LOG(WARNING) << PeerId::self() << " Attempting unlock for chunk " << id()
-               << ". Current depth: " << chunk_write_lock_depth_;
+  VLOG(3) << PeerId::self() << " Attempting unlock for chunk " << id()
+          << ". Current depth: " << chunk_write_lock_depth_;
   uint64_t serial_id = 0;
   if (!is_raft_chunk_locked_) {
     return;
@@ -187,13 +187,11 @@ void RaftChunk::unlock() const {
     // Send unlock request to leader.
     // LOG(WARNING) << PeerId::self() << " Sending unlock req, chunk " << id();
     CHECK(raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self()))
-        << PeerId::self();
+        << " Failed on " << PeerId::self();
     serial_id = request_id_.getNewId();
-    uint64_t index = 0;
-    while (index == 0 && raft_node_.isRunning()) {
-      index =
-          raft_node_.sendChunkUnlockRequest(serial_id, lock_log_index_, true);
-      if (index > 0 && raft_node_.checkIfEntryCommitted(index, serial_id)) {
+    while (raft_node_.isRunning()) {
+      if (raft_node_.sendChunkUnlockRequest(serial_id, lock_log_index_, true) >
+          0) {
         break;
       }
       usleep(500 * kMillisecondsToMicroseconds);
@@ -231,8 +229,10 @@ int RaftChunk::requestParticipation(const PeerId& peer) {
     entry->set_sender(PeerId::self().ipPort());
     uint64_t serial_id = request_id_.getNewId();
     entry->set_sender_serial_id(serial_id);
+    uint64_t append_term = raft_node_.getTerm();
     uint64_t index = raft_node_.leaderSafelyAppendLogEntry(entry);
-    if (index > 0 && raft_node_.checkIfEntryCommitted(index, serial_id)) {
+    if (index > 0 &&
+        raft_node_.checkIfEntryCommitted(index, append_term, serial_id)) {
       return 1;
     }
   }
@@ -321,9 +321,9 @@ uint64_t RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
   bool retrying = false;
   uint64_t serial_id = request_id_.getNewId();
   // TODO(aqurai): Retry forever?
-  while (true && raft_node_.isRunning()) {
+  while (raft_node_.isRunning()) {
     index = raft_node_.sendInsertRequest(item, serial_id, retrying);
-    if (index > 0 && raft_node_.checkIfEntryCommitted(index, serial_id)) {
+    if (index > 0) {
       break;
     }
     retrying = true;
@@ -339,7 +339,7 @@ uint64_t RaftChunk::raftUpdateRequest(const Revision::ConstPtr& item) {
   uint64_t serial_id = request_id_.getNewId();
   while (raft_node_.isRunning()) {
     index = raft_node_.sendUpdateRequest(item, serial_id, retrying);
-    if (index > 0 && raft_node_.checkIfEntryCommitted(index, serial_id)) {
+    if (index > 0) {
       break;
     }
     retrying = true;
@@ -353,22 +353,24 @@ void RaftChunk::leaveImpl() {
   writeLock();
   CHECK(raft_node_.isRunning());
   uint64_t serial_id = request_id_.getNewId();
-  while (true) {
-    if (raft_node_.sendLeaveRequest(serial_id)) {
-      break;
-    }
-    usleep(500 * kMillisecondsToMicroseconds);
-  }
+  leave_requested_ = true;
   while (raft_node_.isRunning()) {
-    uint64_t index = raft_node_.sendLeaveRequest(serial_id);
-    if (index > 0 && raft_node_.checkIfEntryCommitted(index, serial_id)) {
+    VLOG(1) << PeerId::self() << ": Attempting to leave chunk " << id();
+    bool index = raft_node_.sendLeaveRequest(serial_id);
+    if (index) {
       break;
     }
     usleep(150 * kMillisecondsToMicroseconds);
   }
-  LOG(WARNING) << PeerId::self() << " left chunk " << id();
+  VLOG(1) << PeerId::self() << ": Left chunk " << id();
 }
 
 void RaftChunk::awaitShared() {}
+
+void RaftChunk::handleRaftLeaveNotification(Message* response) {
+  CHECK(leave_requested_);
+  leave_notification_.notify();
+  response->ack();
+}
 
 }  // namespace map_api
