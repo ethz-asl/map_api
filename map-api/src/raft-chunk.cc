@@ -104,35 +104,41 @@ uint64_t RaftChunk::insertRequest(const Revision::ConstPtr& item) {
 }
 
 void RaftChunk::handleRaftConnectRequest(const PeerId& sender, Message* response) {
+  CHECK_NOTNULL(response);
   raft_node_.handleConnectRequest(sender, response);
 }
 
 void RaftChunk::handleRaftAppendRequest(proto::AppendEntriesRequest* request,
                                         const PeerId& sender,
                                         Message* response) {
+  CHECK_NOTNULL(response);
   raft_node_.handleAppendRequest(request, sender, response);
 }
 
 void RaftChunk::handleRaftInsertRequest(proto::InsertRequest* request,
                                         const PeerId& sender,
                                         Message* response) {
+  CHECK_NOTNULL(response);
   raft_node_.handleInsertRequest(request, sender, response);
 }
 
 
 void RaftChunk::handleRaftRequestVote(const proto::VoteRequest& request,
                                       const PeerId& sender, Message* response) {
+  CHECK_NOTNULL(response);
   raft_node_.handleRequestVote(request, sender, response);
 }
 
 void RaftChunk::handleRaftQueryState(const proto::QueryState& request,
                                      Message* response) {
+  CHECK_NOTNULL(response);
   raft_node_.handleQueryState(request, response);
 }
 
 void RaftChunk::handleRaftJoinQuitRequest(const proto::JoinQuitRequest& request,
                                           const PeerId& sender,
                                           Message* response) {
+  CHECK_NOTNULL(response);
   raft_node_.handleJoinQuitRequest(request, sender, response);
 }
 

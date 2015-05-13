@@ -265,6 +265,8 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
 
 void RaftNode::handleInsertRequest(proto::InsertRequest* request,
                                    const PeerId& sender, Message* response) {
+  CHECK_NOTNULL(response);
+  CHECK_NOTNULL(request);
   std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
   entry->set_allocated_revision(request->release_revision());
   uint64_t index = leaderSafelyAppendLogEntry(entry);
@@ -276,6 +278,7 @@ void RaftNode::handleInsertRequest(proto::InsertRequest* request,
 
 void RaftNode::handleRequestVote(const proto::VoteRequest& vote_request,
                                  const PeerId& sender, Message* response) {
+  CHECK_NOTNULL(response);
   updateHeartbeatTime();
   proto::VoteResponse vote_response;
   std::lock_guard<std::mutex> state_lock(state_mutex_);
@@ -990,7 +993,7 @@ void RaftNode::followerCommitNewEntries(
         result_increment += e->entry();
       }
       // Joining peers don't act on add/remove peer entries.
-      // TODO(aqurai): This might chenge with chunk join process.
+      // TODO(aqurai): This might change with chunk join process.
       if (state == State::FOLLOWER && e->has_add_peer()) {
         followerAddPeer(PeerId(e->add_peer()));
       }
