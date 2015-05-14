@@ -1,6 +1,7 @@
 #ifndef MAP_API_CACHE_H_
 #define MAP_API_CACHE_H_
 #include <mutex>
+#include <string>
 #include <unordered_set>
 #include <vector>
 
@@ -148,8 +149,10 @@ class Cache : public CacheBase,
    */
   void getAllAvailableIds(std::vector<IdType>* available_ids) const;
 
-  size_t size() const;
+  virtual size_t size() const;
   bool empty() const;
+  virtual size_t numCachedItems() const;
+  virtual std::string underlyingTableName() const;
 
  private:
   static constexpr bool kIsPointer = common::IsPointerType<Value>::value;
