@@ -8,7 +8,6 @@
 #include "map-api/raft-node.h"
 #include "map-api/hub.h"
 #include "map-api/message.h"
-#include "map-api/net-table-manager.h"
 
 namespace map_api {
 
@@ -71,6 +70,13 @@ bool RaftChunk::init(const common::Id& id,
 void RaftChunk::dumpItems(const LogicalTime& time, ConstRevisionMap* items) const {
   CHECK_NOTNULL(items);
   data_container_->dump(time, items);
+}
+
+void RaftChunk::setStateFollowerAndStartRaft() {
+  raft_node_.state_ = RaftNode::State::FOLLOWER;
+  VLOG(1) << PeerId::self() << ": Starting Raft node as follower for chunk "
+          << id_.printString();
+  raft_node_.start();
 }
 
 bool RaftChunk::sendConnectRequest(const PeerId& peer,
