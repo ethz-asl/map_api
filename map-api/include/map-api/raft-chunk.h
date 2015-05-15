@@ -17,7 +17,6 @@ class Revision;
 class RaftChunk : public ChunkBase {
   friend class ChunkTransaction;
   friend class ConsensusFixture;
-  FRIEND_TEST(ConsensusFixture, RaftChunkTest);
 
  public:
   virtual ~RaftChunk();
