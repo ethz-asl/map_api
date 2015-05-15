@@ -496,6 +496,7 @@ void NetTableManager::handleRoutedSpatialChordRequests(const Message& request,
 }
 
 void NetTableManager::handleRaftConnectRequest(const Message& request, Message* response) {
+  CHECK_NOTNULL(response);
   proto::ChunkRequestMetadata metadata;
   request.extract<RaftNode::kConnectRequest>(&metadata);
   const std::string& table = metadata.table();
@@ -512,6 +513,7 @@ void NetTableManager::handleRaftConnectRequest(const Message& request, Message* 
 }
 
 void NetTableManager::handleRaftInitRequest(const Message& request, Message* response) {
+  CHECK_NOTNULL(response);
   proto::InitRequest init_request;
   request.extract<RaftNode::kInitRequest>(&init_request);
   const proto::ChunkRequestMetadata metadata = init_request.metadata();
@@ -529,6 +531,7 @@ void NetTableManager::handleRaftInitRequest(const Message& request, Message* res
 }
 
 void NetTableManager::handleRaftAppendRequest(const Message& request, Message* response) {
+  CHECK_NOTNULL(response);
   proto::AppendEntriesRequest append_request;
   request.extract<RaftNode::kAppendEntries>(&append_request);
   const proto::ChunkRequestMetadata metadata = append_request.metadata();
@@ -546,6 +549,7 @@ void NetTableManager::handleRaftAppendRequest(const Message& request, Message* r
 }
 
 void NetTableManager::handleRaftInsertRequest(const Message& request, Message* response) {
+  CHECK_NOTNULL(response);
   proto::InsertRequest insert_request;
   request.extract<RaftNode::kInsertRequest>(&insert_request);
   const proto::ChunkRequestMetadata metadata = insert_request.metadata();
@@ -563,6 +567,7 @@ void NetTableManager::handleRaftInsertRequest(const Message& request, Message* r
 }
 
 void NetTableManager::handleRaftRequestVote(const Message& request, Message* response) {
+  CHECK_NOTNULL(response);
   proto::VoteRequest vote_request;
   request.extract<RaftNode::kVoteRequest>(&vote_request);
   const proto::ChunkRequestMetadata metadata = vote_request.metadata();
@@ -581,6 +586,7 @@ void NetTableManager::handleRaftRequestVote(const Message& request, Message* res
 
 void NetTableManager::handleRaftJoinQuitRequest(const Message& request,
                                                 Message* response) {
+  CHECK_NOTNULL(response);
   proto::JoinQuitRequest join_quit_request;
   request.extract<RaftNode::kJoinQuitRequest>(&join_quit_request);
   const proto::ChunkRequestMetadata metadata = join_quit_request.metadata();
@@ -599,6 +605,7 @@ void NetTableManager::handleRaftJoinQuitRequest(const Message& request,
 
 void NetTableManager::handleRaftNotifyJoinQuitSuccess(const Message& request,
                                                       Message* response) {
+  CHECK_NOTNULL(response);
   proto::NotifyJoinQuitSuccess notification;
   request.extract<RaftNode::kNotifyJoinQuitSuccess>(&notification);
   const proto::ChunkRequestMetadata metadata = notification.metadata();
@@ -617,6 +624,7 @@ void NetTableManager::handleRaftNotifyJoinQuitSuccess(const Message& request,
 
 void NetTableManager::handleRaftQueryState(const Message& request,
                                            Message* response) {
+  CHECK_NOTNULL(response);
   proto::QueryState query_state;
   request.extract<RaftNode::kQueryState>(&query_state);
   const proto::ChunkRequestMetadata metadata = query_state.metadata();

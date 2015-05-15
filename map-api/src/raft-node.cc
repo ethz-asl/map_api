@@ -24,7 +24,7 @@ constexpr int kJoinResponseTimeoutMs = 1000;
 constexpr int kMaxLogQueueLength = 50;
 
 // TODO(aqurai): Defined new message strings for raft chunk. Some will have to
-// removed once the raft chunk implementation is complete.
+// be removed once the raft chunk implementation is complete.
 const char RaftNode::kAppendEntries[] = "raft_node_append_entries";
 const char RaftNode::kAppendEntriesResponse[] = "raft_node_append_response";
 const char RaftNode::kInsertRequest[] = "raft_node_insert_request";
@@ -270,6 +270,8 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
 
 void RaftNode::handleInsertRequest(proto::InsertRequest* request,
                                    const PeerId& sender, Message* response) {
+  CHECK_NOTNULL(response);
+  CHECK_NOTNULL(request);
   std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
   entry->set_allocated_revision(request->release_revision());
   uint64_t index = leaderSafelyAppendLogEntry(entry);
@@ -281,6 +283,7 @@ void RaftNode::handleInsertRequest(proto::InsertRequest* request,
 
 void RaftNode::handleRequestVote(const proto::VoteRequest& vote_request,
                                  const PeerId& sender, Message* response) {
+  CHECK_NOTNULL(response);
   updateHeartbeatTime();
   proto::VoteResponse vote_response;
   std::lock_guard<std::mutex> state_lock(state_mutex_);
@@ -1152,10 +1155,6 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
       // and unannounced peer removal. Also, There could be other
       // threads/methods (eg: vote request) attempting to send message to the
       // non responsive peer, which causes a problem.
-//    if ((*it)->add_remove_peer().request_type() ==
-//        proto::PeerRequestType::ADD_PEER) {
-//      sendNotifyJoinQuitSuccess(PeerId((*it)->add_remove_peer().peer_id()));
-//    }
   }
 }
 
