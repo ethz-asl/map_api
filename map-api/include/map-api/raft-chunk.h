@@ -12,6 +12,7 @@
 
 namespace map_api {
 class Message;
+class Revision;
 
 class RaftChunk : public ChunkBase {
   friend class ChunkTransaction;
@@ -86,7 +87,7 @@ class RaftChunk : public ChunkBase {
 
   // TODO(aqurai): Replace arg with proto::Revision when implementing
   // transactions. Also add logical time.
-  uint64_t insertRequest(uint64_t revision_entry);
+  uint64_t insertRequest(const Revision::ConstPtr& item);
 
   /**
    * ==========================================
@@ -98,7 +99,7 @@ class RaftChunk : public ChunkBase {
   void handleRaftConnectRequest(const PeerId& sender, Message* response);
   void handleRaftAppendRequest(proto::AppendEntriesRequest* request,
                                const PeerId& sender, Message* response);
-  void handleRaftInsertRequest(const proto::InsertRequest& request,
+  void handleRaftInsertRequest(proto::InsertRequest* request,
                                const PeerId& sender, Message* response);
   void handleRaftRequestVote(const proto::VoteRequest& request,
                              const PeerId& sender, Message* response);

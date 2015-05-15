@@ -14,6 +14,10 @@ std::shared_ptr<Revision> Revision::copyForWrite() const {
   return fromProto(std::move(copy));
 }
 
+proto::Revision* Revision::copyToProtoPtr() const {
+  return new proto::Revision(*underlying_revision_);
+}
+
 std::shared_ptr<Revision> Revision::fromProto(
     std::unique_ptr<proto::Revision>&& revision_proto) {
   std::shared_ptr<Revision> result(new Revision);

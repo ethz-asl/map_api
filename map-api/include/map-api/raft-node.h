@@ -51,6 +51,7 @@
 
 #include "./raft.pb.h"
 #include "map-api/peer-id.h"
+#include "map-api/revision.h"
 #include "multiagent-mapping-common/reader-writer-lock.h"
 
 namespace map_api {
@@ -79,11 +80,13 @@ class RaftNode {
   inline PeerId self_id() const { return PeerId::self(); }
 
   // Returns index of the appended entry if append succeeds, or zero otherwise
-  uint64_t leaderAppendLogEntry(uint32_t entry);
+  uint64_t leaderAppendLogEntry(
+      const std::shared_ptr<proto::RaftLogEntry>& new_entry);
 
   // Waits for the entry to be committed. Returns failure if the leader fails
   // before the new entry is committed.
-  uint64_t leaderAppendLogEntryAndConfirm(uint32_t entry);
+  uint64_t leaderSafelyAppendLogEntry(
+      const std::shared_ptr<proto::RaftLogEntry>& new_entry);
 
   static const char kAppendEntries[];
   static const char kAppendEntriesResponse[];
@@ -122,7 +125,7 @@ class RaftNode {
   void handleConnectRequest(const PeerId& sender, Message* response);
   void handleAppendRequest(proto::AppendEntriesRequest* request,
                            const PeerId& sender, Message* response);
-  void handleInsertRequest(const proto::InsertRequest& request,
+  void handleInsertRequest(proto::InsertRequest* request,
                            const PeerId& sender, Message* response);
   void handleRequestVote(const proto::VoteRequest& request,
                          const PeerId& sender, Message* response);
@@ -226,9 +229,11 @@ class RaftNode {
 
   // Expects no lock to be taken.
   void leaderMonitorFollowerStatus(uint64_t current_term);
-  void leaderAddRemovePeer(const PeerId& peer, proto::PeerRequestType request,
-                           uint64_t current_term);
-  void followerAddRemovePeer(const proto::AddRemovePeer& add_remove_peer);
+  void leaderAddPeer(const PeerId& peer, uint64_t current_term);
+  void leaderRemovePeer(const PeerId& peer);
+
+  void followerAddPeer(const PeerId& peer);
+  void followerRemovePeer(const PeerId& peer);
 
   // First time join.
   std::atomic<bool> is_join_notified_;
@@ -257,24 +262,23 @@ class RaftNode {
   // Leader will overwrite follower logs where index+term doesn't match.
 
   // New revision request.
-  uint64_t sendInsertRequest(uint64_t entry);
+  uint64_t sendInsertRequest(const Revision::ConstPtr& item);
 
   // In Follower state, only handleAppendRequest writes to log_entries.
   // In Leader state, only appendLogEntry writes to log entries.
-  std::vector<std::shared_ptr<proto::RaftRevision>> log_entries_;
+  std::vector<std::shared_ptr<proto::RaftLogEntry>> log_entries_;
   std::condition_variable new_entries_signal_;
   mutable common::ReaderWriterMutex log_mutex_;
-  typedef std::vector<std::shared_ptr<proto::RaftRevision>>::iterator
+  typedef std::vector<std::shared_ptr<proto::RaftLogEntry>>::iterator
       LogIterator;
 
   // Assumes at least read lock is acquired for log_mutex_.
   LogIterator getLogIteratorByIndex(uint64_t index);
 
   // Expects write lock for log_mutex to be acquired.
-  uint64_t leaderAddEntryToLog(uint32_t entry, uint32_t current_term,
-                               const PeerId& peer_id,
-                               proto::PeerRequestType request_type =
-                                   proto::PeerRequestType::ADD_PEER);
+  uint64_t leaderAppendLogEntryLocked(
+      const std::shared_ptr<proto::RaftLogEntry>& new_entry,
+      uint64_t current_term);
 
   // The two following methods assume write lock is acquired for log_mutex_.
   proto::AppendResponseStatus followerAppendNewEntries(

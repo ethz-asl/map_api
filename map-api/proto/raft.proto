@@ -1,5 +1,6 @@
 package map_api.proto;
 import "chunk.proto";
+import "core.proto";
 
 enum PeerRequestType {ADD_PEER = 0; REMOVE_PEER = 1;}
 
@@ -28,15 +29,16 @@ message JoinQuitResponse {
 message NewPeerInit {
   optional ChunkRequestMetadata metadata = 1;
   repeated string peer_id = 2;
-  // TODO(aqurai): existing revision proto instead of RaftRevision.
-  repeated RaftRevision revisions = 3;
+  repeated RaftLogEntry log_entries = 3;
 }
 
-message RaftRevision {
+message RaftLogEntry {
   optional uint64 index = 1;
-  optional uint64 entry = 2;
+  optional uint64 entry = 2;  // TODO(aqurai): To be removed.
   optional uint64 term = 3;
-  optional AddRemovePeer add_remove_peer = 4;
+  optional Revision revision = 4;
+  optional string add_peer = 5;
+  optional string remove_peer = 6;
 }
 
 message AppendEntriesRequest {
@@ -47,7 +49,7 @@ message AppendEntriesRequest {
   optional uint64 commit_index = 5;
   optional uint64 previous_log_index = 6;
   optional uint64 previous_log_term = 7;
-  optional RaftRevision revision = 8;
+  optional RaftLogEntry log_entry = 8;
 }
 
 enum AppendResponseStatus {
@@ -67,7 +69,7 @@ message AppendEntriesResponse {
 
 message InsertRequest {
   optional ChunkRequestMetadata metadata = 1;
-  optional uint64 entry = 2;
+  optional Revision revision = 2;
 }
 
 message InsertResponse {

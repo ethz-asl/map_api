@@ -700,6 +700,7 @@ void NetTable::handleSpatialIndexTrigger(
 void NetTable::handleRaftConnectRequest(const common::Id& chunk_id,
                                         const PeerId& sender,
                                         Message* response) {
+  CHECK_NOTNULL(response);
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
   if (routingBasics(chunk_id, response, &found)) {
@@ -726,6 +727,7 @@ void NetTable::handleRaftAppendRequest(const common::Id& chunk_id,
                                        proto::AppendEntriesRequest* request,
                                        const PeerId& sender,
                                        Message* response) {
+  CHECK_NOTNULL(response);
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
   if (routingBasics(chunk_id, response, &found)) {
@@ -737,9 +739,10 @@ void NetTable::handleRaftAppendRequest(const common::Id& chunk_id,
 }
 
 void NetTable::handleRaftInsertRequest(const common::Id& chunk_id,
-                                       const proto::InsertRequest& request,
+                                       proto::InsertRequest* request,
                                        const PeerId& sender,
                                        Message* response) {
+  CHECK_NOTNULL(response);
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
   if (routingBasics(chunk_id, response, &found)) {
@@ -753,6 +756,7 @@ void NetTable::handleRaftInsertRequest(const common::Id& chunk_id,
 void NetTable::handleRaftRequestVote(const common::Id& chunk_id,
                                      const proto::VoteRequest& request,
                                      const PeerId& sender, Message* response) {
+  CHECK_NOTNULL(response);
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
   if (routingBasics(chunk_id, response, &found)) {
@@ -766,6 +770,7 @@ void NetTable::handleRaftRequestVote(const common::Id& chunk_id,
 void NetTable::handleRaftQueryState(const common::Id& chunk_id,
                                     const proto::QueryState& request,
                                     Message* response) {
+  CHECK_NOTNULL(response);
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
   if (routingBasics(chunk_id, response, &found)) {
@@ -780,6 +785,7 @@ void NetTable::handleRaftJoinQuitRequest(const common::Id& chunk_id,
                                          const proto::JoinQuitRequest& request,
                                          const PeerId& sender,
                                          Message* response) {
+  CHECK_NOTNULL(response);
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
   if (routingBasics(chunk_id, response, &found)) {
@@ -796,6 +802,7 @@ void NetTable::handleRaftNotifyJoinQuitSuccess(
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
   if (routingBasics(chunk_id, response, &found)) {
+    CHECK_NOTNULL(response);
     RaftChunk* chunk = CHECK_NOTNULL(
         dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
     chunk->handleRaftNotifyJoinQuitSuccess(request, response);
