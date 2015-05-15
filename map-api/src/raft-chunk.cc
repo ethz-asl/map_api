@@ -232,7 +232,7 @@ int RaftChunk::requestParticipation(const PeerId& peer) {
     uint64_t append_term = raft_node_.getTerm();
     uint64_t index = raft_node_.leaderSafelyAppendLogEntry(entry);
     if (index > 0 &&
-        raft_node_.checkIfEntryCommitted(index, append_term, serial_id)) {
+        raft_node_.waitAndCheckCommit(index, append_term, serial_id)) {
       return 1;
     }
   }
@@ -356,8 +356,8 @@ void RaftChunk::leaveImpl() {
   leave_requested_ = true;
   while (raft_node_.isRunning()) {
     VLOG(1) << PeerId::self() << ": Attempting to leave chunk " << id();
-    bool index = raft_node_.sendLeaveRequest(serial_id);
-    if (index) {
+    bool success = raft_node_.sendLeaveRequest(serial_id);
+    if (success) {
       break;
     }
     usleep(150 * kMillisecondsToMicroseconds);

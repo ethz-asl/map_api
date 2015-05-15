@@ -190,6 +190,20 @@ RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) c
   }
 }
 
+proto::RaftLogEntry* RaftChunkDataRamContainer::RaftLog::getCompleteLogEntryPtr(
+    iterator it) {
+  proto::RaftLogEntry* entry = new proto::RaftLogEntry;
+  entry = it->get();
+
+  //  if ((*it)->has_revision_id()) {
+  //      entry->set_allocated_insert_revision(CHECK_NOTNULL(
+  //          data_->getByIdImpl(common::Id((*it)->revision_id()),
+  //                             LogicalTime((*it)->logical_time())).get())
+  //                                               ->copyToProtoPtr());
+  //  }
+  return entry;
+}
+
 uint64_t RaftChunkDataRamContainer::RaftLog::getEntryIndex(
     const PeerId& peer, uint64_t serial_id) const {
   for (const_reverse_iterator it = rbegin(); it != rend(); ++it) {

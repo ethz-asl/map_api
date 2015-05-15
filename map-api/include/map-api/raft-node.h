@@ -376,8 +376,8 @@ class RaftNode {
                              bool is_retry_attempt);
   uint64_t sendUpdateRequest(const Revision::ConstPtr& item, uint64_t serial_id,
                              bool is_retry_attempt);
-  bool checkIfEntryCommitted(uint64_t index, uint64_t append_term,
-                             uint64_t serial_id);
+  bool waitAndCheckCommit(uint64_t index, uint64_t append_term,
+                          uint64_t serial_id);
   bool sendLeaveRequest(uint64_t serial_id);
   void sendLeaveSuccessNotification(const PeerId& peer);
 

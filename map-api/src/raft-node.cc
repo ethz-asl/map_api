@@ -1003,9 +1003,11 @@ void RaftNode::followerCommitNewEntries(const LogWriteAccess& log_writer,
         followerAddPeer(PeerId(entry->add_peer()));
       }
       if (state == State::FOLLOWER && entry->has_remove_peer()) {
-        CHECK(raft_chunk_lock_.isLockHolder(PeerId(entry->remove_peer())));
+        if (entry->has_sender() && entry->sender() == entry->remove_peer()) {
+          CHECK(raft_chunk_lock_.isLockHolder(PeerId(entry->remove_peer())));
+          CHECK(raft_chunk_lock_.unlock());
+        }
         followerRemovePeer(PeerId(entry->remove_peer()));
-        CHECK(raft_chunk_lock_.unlock());
       }
       if (!raft_chunk_lock_.isLocked()) {
         // TODO(aqurai): Ensure all revision commits are locked.
@@ -1121,9 +1123,13 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
       leaderAddPeer(PeerId((*it)->add_peer()), log_writer, current_term);
     }
     if ((*it)->has_remove_peer()) {
-      CHECK(raft_chunk_lock_.isLockHolder(PeerId((*it)->remove_peer())));
+      // Remove request can be send by a leaving peer or when leader detects a
+      // non responding peer.
+      if ((*it)->has_sender() && (*it)->sender() == (*it)->remove_peer()) {
+        CHECK(raft_chunk_lock_.isLockHolder(PeerId((*it)->remove_peer())));
+        CHECK(raft_chunk_lock_.unlock());
+      }
       leaderRemovePeer(PeerId((*it)->remove_peer()));
-      CHECK(raft_chunk_lock_.unlock());
     }
     if (!raft_chunk_lock_.isLocked()) {
       applySingleRevisionCommit(*it);
@@ -1134,8 +1140,8 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
                         << " With replication count " << replication_count
                         << " and term " << (*it)->term();
 
-//    // TODO(aqurai): Send notification to quitting peers after zerommq crash
-//    // issue is resolved.
+    // TODO(aqurai): Send notification to quitting peers after zerommq crash
+    // issue is resolved.
       // There is a crash if one attempts to send message to a peer after a
       // previous message to the same peer timed out. So if a peer is removed
       // because it was not responding, sending a notification will cause a
@@ -1143,10 +1149,6 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
       // and unannounced peer removal. Also, There could be other
       // threads/methods (eg: vote request) attempting to send message to the
       // non responsive peer, which causes a problem.
-//    if ((*it)->add_remove_peer().request_type() ==
-//        proto::PeerRequestType::ADD_PEER) {
-//      sendNotifyJoinQuitSuccess(PeerId((*it)->add_remove_peer().peer_id()));
-//    }
   }
 }
 
@@ -1247,7 +1249,7 @@ uint64_t RaftNode::sendChunkLockRequest(uint64_t serial_id) {
       index = lock_response.entry_index();
     }
   }
-  if (index > 0 && checkIfEntryCommitted(index, append_term, serial_id)) {
+  if (index > 0 && waitAndCheckCommit(index, append_term, serial_id)) {
     return index;
   }
   return 0;
@@ -1288,7 +1290,7 @@ uint64_t RaftNode::sendChunkUnlockRequest(uint64_t serial_id,
       index = unlock_response.entry_index();
     }
   }
-  if (index > 0 && checkIfEntryCommitted(index, append_term, serial_id)) {
+  if (index > 0 && waitAndCheckCommit(index, append_term, serial_id)) {
     return index;
   }
   return 0;
@@ -1328,7 +1330,7 @@ uint64_t RaftNode::sendInsertRequest(const Revision::ConstPtr& item,
       index = insert_response.entry_index();
     }
   }
-  if (index > 0 && checkIfEntryCommitted(index, append_term, serial_id)) {
+  if (index > 0 && waitAndCheckCommit(index, append_term, serial_id)) {
     return index;
   }
   return 0;
@@ -1368,14 +1370,14 @@ uint64_t RaftNode::sendUpdateRequest(const Revision::ConstPtr& item,
       index = insert_response.entry_index();
     }
   }
-  if (index > 0 && checkIfEntryCommitted(index, append_term, serial_id)) {
+  if (index > 0 && waitAndCheckCommit(index, append_term, serial_id)) {
     return index;
   }
   return 0;
 }
 
-bool RaftNode::checkIfEntryCommitted(uint64_t index, uint64_t append_term,
-                                     uint64_t serial_id) {
+bool RaftNode::waitAndCheckCommit(uint64_t index, uint64_t append_term,
+                                  uint64_t serial_id) {
   while (isRunning()) {
     if (data_->logCommitIndex() >= index) {
       break;
