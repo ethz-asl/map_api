@@ -13,6 +13,7 @@ void RaftChunk::setStateFollowerAndStartRaft() {
 int RaftChunk::peerSize() const {
   return raft_node_.num_peers_;
 }
-}
+
+}  // namespace map_api
 
 #endif  // MAP_API_RAFT_CHUNK_INL_H_
