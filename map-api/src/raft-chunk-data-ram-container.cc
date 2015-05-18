@@ -11,20 +11,17 @@ std::shared_ptr<const Revision> RaftChunkDataRamContainer::getByIdImpl(
 void RaftChunkDataRamContainer::findByRevisionImpl(
     int key, const Revision& value_holder, const LogicalTime& time,
     ConstRevisionMap* dest) const {
-  // TODO(aqurai)
   LOG(FATAL) << "Not implemented";
 }
 
 void RaftChunkDataRamContainer::getAvailableIdsImpl(
     const LogicalTime& time, std::vector<common::Id>* ids) const {
-  // TODO(aqurai)
   LOG(FATAL) << "Not implemented";
 }
 
 int RaftChunkDataRamContainer::countByRevisionImpl(
     int key, const Revision& value_holder, const LogicalTime& time) const {
   int count = 0;
-  // TODO(aqurai)
   LOG(FATAL) << "Not implemented";
   return count;
 }

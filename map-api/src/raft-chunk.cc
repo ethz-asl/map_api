@@ -51,8 +51,6 @@ bool RaftChunk::init(const common::Id& id,
 
   VLOG(1) << " INIT chunk at peer " << PeerId::self() << " in table "
           << raft_node_.table_name_;
-
-
   raft_node_.initChunkData(init_request);
   setStateFollowerAndStartRaft();
   return true;
@@ -82,7 +80,8 @@ size_t RaftChunk::itemsSizeBytes(const LogicalTime& time) const {
 
 void RaftChunk::getCommitTimes(const LogicalTime& sample_time,
                                std::set<LogicalTime>* commit_times) const {
-  // TODO(aqurai): Implement this after data container implementation.
+  LOG(FATAL) << "Not implemented";
+  // TODO(aqurai): Implement this after data_container.
 }
 
 void RaftChunk::writeLock() {
@@ -91,7 +90,6 @@ void RaftChunk::writeLock() {
   if (is_raft_write_locked_) {
     ++write_lock_depth_;
   } else {
-    // Send lock request via safe insert log entry.
     if (true /* Success */) {
       is_raft_write_locked_ = true;
     }
