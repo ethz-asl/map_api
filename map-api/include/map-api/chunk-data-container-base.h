@@ -21,7 +21,6 @@ namespace map_api {
 class LegacyChunk;
 class ConstRevisionMap;
 class MutableRevisionMap;
-class RaftChunk;
 class Revision;
 
 class ChunkDataContainerBase {

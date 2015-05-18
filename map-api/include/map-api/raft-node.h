@@ -53,11 +53,9 @@
 #include "map-api/peer-id.h"
 #include "map-api/revision.h"
 #include "multiagent-mapping-common/reader-writer-lock.h"
-#include "map-api/legacy-chunk-data-container-base.h"
 #include "map-api/raft-chunk-data-ram-container.h"
 
 namespace map_api {
-// class RaftChunkDataRamContainer;
 class Message;
 class RaftChunk;
 
@@ -312,8 +310,6 @@ class RaftNode {
   // Owner chunk information.
   // ========================
 
-  // std::unique_ptr<RaftChunkDataRamContainer>* raft_data_container_;
-  // Todo(aqurai): Refactor this.
   std::string table_name_;
   common::Id chunk_id_;
   template <typename RequestType>

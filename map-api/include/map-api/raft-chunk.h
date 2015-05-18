@@ -17,7 +17,6 @@ class Revision;
 class RaftChunk : public ChunkBase {
   friend class ChunkTransaction;
   friend class ConsensusFixture;
-  FRIEND_TEST(ConsensusFixture, RaftChunkTest);
 
  public:
   virtual ~RaftChunk();
@@ -41,6 +40,7 @@ class RaftChunk : public ChunkBase {
 
   virtual bool insert(const LogicalTime& time,
                       const std::shared_ptr<Revision>& item) override;
+
   inline virtual int peerSize() const override;
 
   // Mutable because the method declarations in base class are const.
@@ -56,10 +56,14 @@ class RaftChunk : public ChunkBase {
   virtual int requestParticipation(const PeerId& peer) override;
 
   virtual void update(const std::shared_ptr<Revision>& item) override;
-  virtual LogicalTime getLatestCommitTime() const override {return LogicalTime::sample();}
 
   static bool sendConnectRequest(const PeerId& peer,
                                  proto::ChunkRequestMetadata& metadata);
+  
+  virtual LogicalTime getLatestCommitTime() const override {
+    LOG(WARNING) << "RaftChunk::insert() is not implemented";
+    return LogicalTime::sample();
+  }
 
  private:
   virtual void bulkInsertLocked(const MutableRevisionMap& items,
@@ -98,8 +102,12 @@ class RaftChunk : public ChunkBase {
   inline void handleRaftNotifyJoinQuitSuccess(
       const proto::NotifyJoinQuitSuccess& request, Message* response);
 
-  virtual void leaveImpl() override {}
-  virtual void awaitShared() override {}
+  virtual void leaveImpl() override {
+    LOG(WARNING) << "RaftChunk::leaveImpl() is not implemented";
+  }
+  virtual void awaitShared() override {
+    LOG(WARNING) << "RaftChunk::awaitShared() is not implemented";
+  }
 
  private:
   // Handles all communication with other chunk holders. No communication except
@@ -112,8 +120,8 @@ class RaftChunk : public ChunkBase {
   std::unique_ptr<RaftChunkDataRamContainer> data_container2_;
 };
 
-#include "./raft-chunk-inl.h"
-
 }  // namespace map_api
+
+#include "./raft-chunk-inl.h"
 
 #endif  // MAP_API_RAFT_CHUNK_H_
