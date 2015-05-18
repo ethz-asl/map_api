@@ -42,6 +42,7 @@ class RaftChunk : public ChunkBase {
                               std::set<LogicalTime>* commit_times) const override;
   virtual bool insert(const LogicalTime& time,
                       const std::shared_ptr<Revision>& item) override {
+    LOG(WARNING) << "RaftChunk::insert() is not implemented";
     return true;
   }
   inline virtual int peerSize() const override;
@@ -55,18 +56,39 @@ class RaftChunk : public ChunkBase {
   virtual bool isWriteLocked() override;
   virtual void unlock() const override;
 
-  virtual int requestParticipation() override {return 1;}
-  virtual int requestParticipation(const PeerId& peer) override {return 1;}
-  virtual void update(const std::shared_ptr<Revision>& item) override {}
-  virtual LogicalTime getLatestCommitTime() const override {return LogicalTime::sample();}
+  virtual int requestParticipation() override {
+    LOG(WARNING) << "RaftChunk::requestParticipation() is not implemented";
+    return 1;
+  }
+  virtual int requestParticipation(const PeerId& peer) override {
+    LOG(WARNING) << "RaftChunk::requestParticipation() is not implemented";
+    return 1;
+  }
+  virtual void update(const std::shared_ptr<Revision>& item) override {
+    LOG(WARNING) << "RaftChunk::insert() is not implemented";
+  }
+  virtual LogicalTime getLatestCommitTime() const override {
+    LOG(WARNING) << "RaftChunk::update() is not implemented";
+    return LogicalTime::sample();
+  }
   virtual void bulkInsertLocked(const MutableRevisionMap& items,
-                                const LogicalTime& time) override {}
+                                const LogicalTime& time) override {
+    LOG(WARNING) << "RaftChunk::bulkInsertLocked() is not implemented";
+  }
   virtual void updateLocked(const LogicalTime& time,
-                            const std::shared_ptr<Revision>& item) override {}
+                            const std::shared_ptr<Revision>& item) override {
+    LOG(WARNING) << "RaftChunk::updateLocked() is not implemented";
+  }
   virtual void removeLocked(const LogicalTime& time,
-                            const std::shared_ptr<Revision>& item) override {}
-  virtual void leaveImpl() override {}
-  virtual void awaitShared() override {}
+                            const std::shared_ptr<Revision>& item) override {
+    LOG(WARNING) << "RaftChunk::removeLocked() is not implemented";
+  }
+  virtual void leaveImpl() override {
+    LOG(WARNING) << "RaftChunk::leaveImpl() is not implemented";
+  }
+  virtual void awaitShared() override {
+    LOG(WARNING) << "RaftChunk::awaitShared() is not implemented";
+  }
   // ========================================================================
 
   static bool sendConnectRequest(const PeerId& peer,
@@ -106,8 +128,8 @@ class RaftChunk : public ChunkBase {
       const proto::NotifyJoinQuitSuccess& request, Message* response);
 };
 
-#include "./raft-chunk-inl.h"
-
 }  // namespace map_api
+
+#include "./raft-chunk-inl.h"
 
 #endif  // MAP_API_RAFT_CHUNK_H_

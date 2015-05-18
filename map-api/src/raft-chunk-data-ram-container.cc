@@ -4,7 +4,7 @@ namespace map_api {
 
 std::shared_ptr<const Revision> RaftChunkDataRamContainer::getByIdImpl(
     const common::Id& id, const LogicalTime& time) const {
-  // TODO(aqurai)
+  LOG(FATAL) << "Not implemented";
   return std::shared_ptr<Revision>();
 }
 
@@ -12,30 +12,36 @@ void RaftChunkDataRamContainer::findByRevisionImpl(
     int key, const Revision& value_holder, const LogicalTime& time,
     ConstRevisionMap* dest) const {
   // TODO(aqurai)
+  LOG(FATAL) << "Not implemented";
 }
 
 void RaftChunkDataRamContainer::getAvailableIdsImpl(
     const LogicalTime& time, std::vector<common::Id>* ids) const {
   // TODO(aqurai)
+  LOG(FATAL) << "Not implemented";
 }
 
 int RaftChunkDataRamContainer::countByRevisionImpl(
     int key, const Revision& value_holder, const LogicalTime& time) const {
   int count = 0;
   // TODO(aqurai)
+  LOG(FATAL) << "Not implemented";
   return count;
 }
 
 RaftChunkDataRamContainer::~RaftChunkDataRamContainer() {}
 
-bool RaftChunkDataRamContainer::initImpl() { return true; }
+bool RaftChunkDataRamContainer::initImpl() {
+  LOG(FATAL) << "Not implemented";
+  return true;
+}
 
 RaftChunkDataRamContainer::RaftLog::iterator
 RaftChunkDataRamContainer::RaftLog::getLogIteratorByIndex(uint64_t index) {
-  iterator it = end();
   if (index < front()->index() || index > back()->index()) {
-    return it;
+    return end();
   } else {
+    iterator it;
     // The log indices are always sequential.
     it = begin() + (index - front()->index());
     CHECK_EQ((*it)->index(), index) << " Log entries size = " << size();
@@ -45,10 +51,10 @@ RaftChunkDataRamContainer::RaftLog::getLogIteratorByIndex(uint64_t index) {
 
 RaftChunkDataRamContainer::RaftLog::const_iterator
 RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) const {
-  const_iterator it = cend();
   if (index < front()->index() || index > back()->index()) {
-    return it;
+    return cend();
   } else {
+    const_iterator it;
     // The log indices are always sequential.
     it = cbegin() + (index - front()->index());
     CHECK_EQ((*it)->index(), index) << " Log entries size = " << size();
@@ -57,7 +63,7 @@ RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) c
 }
 
 uint64_t RaftChunkDataRamContainer::RaftLog::eraseAfter(iterator it) {
-  CHECK(it + 1 != begin());
+  CHECK((it + 1) != begin());
   resize(std::distance(begin(), it + 1));
   return lastLogIndex();
 }

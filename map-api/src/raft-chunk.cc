@@ -5,7 +5,6 @@
 #include "./core.pb.h"
 #include "./chunk.pb.h"
 #include "map-api/raft-chunk-data-ram-container.h"
-#include "map-api/legacy-chunk-data-ram-container.h"
 #include "map-api/raft-node.h"
 #include "map-api/hub.h"
 #include "map-api/message.h"
@@ -21,7 +20,7 @@ bool RaftChunk::init(const common::Id& id,
                      bool initialize) {
   id_ = id;
   // TODO(aqurai): init new data container here.
-  data_container_.reset(new LegacyChunkDataRamContainer);
+  data_container_.reset(new RaftChunkDataRamContainer);
   CHECK(data_container_->init(descriptor));
   initialized_ = true;
   raft_node_.chunk_id_ = id_;
@@ -87,6 +86,7 @@ void RaftChunk::getCommitTimes(const LogicalTime& sample_time,
 }
 
 void RaftChunk::writeLock() {
+  LOG(WARNING) << "RaftChunk::writeLock() is not implemented";
   std::lock_guard<std::mutex> lock_mutex(write_lock_mutex_);
   if (is_raft_write_locked_) {
     ++write_lock_depth_;
@@ -99,12 +99,14 @@ void RaftChunk::writeLock() {
 }
 
 bool RaftChunk::isWriteLocked() {
+  LOG(WARNING) << "RaftChunk::isWriteLocked() is not implemented";
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
   // return is_raft_write_locked_;
   return true;
 }
 
 void RaftChunk::unlock() const {
+  LOG(WARNING) << "RaftChunk::unlock() is not implemented";
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
   if (write_lock_depth_ > 0) {
     --write_lock_depth_;
