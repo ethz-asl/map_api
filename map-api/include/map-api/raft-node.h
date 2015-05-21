@@ -40,19 +40,24 @@
 #include <condition_variable>
 #include <mutex>
 #include <set>
+#include <string>
 #include <thread>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
 #include <gtest/gtest_prod.h>
+#include <multiagent-mapping-common/unique-id.h>
 
 #include "./raft.pb.h"
 #include "map-api/peer-id.h"
+#include "map-api/revision.h"
 #include "multiagent-mapping-common/reader-writer-lock.h"
+#include "map-api/raft-chunk-data-ram-container.h"
 
 namespace map_api {
 class Message;
+class RaftChunk;
 
 // Implementation of Raft consensus algorithm presented here:
 // https://raftconsensus.github.io, http://ramcloud.stanford.edu/raft.pdf
@@ -67,11 +72,6 @@ class RaftNode {
     STOPPED
   };
 
-  static RaftNode& instance();
-  void kill();
-
-  void registerHandlers();
-
   void start();
   void stop();
   inline bool isRunning() const { return state_thread_running_; }
@@ -81,20 +81,18 @@ class RaftNode {
   inline PeerId self_id() const { return PeerId::self(); }
 
   // Returns index of the appended entry if append succeeds, or zero otherwise
-  uint64_t leaderAppendLogEntry(uint32_t entry);
+  uint64_t leaderAppendLogEntry(
+      const std::shared_ptr<proto::RaftLogEntry>& new_entry);
 
-  static void staticHandleAppendRequest(const Message& request,
-                                        Message* response);
-  static void staticHandleRequestVote(const Message& request,
-                                      Message* response);
-  static void staticHandleQueryState(const Message& request, Message* response);
-  static void staticHandleJoinQuitRequest(const Message& request,
-                                          Message* response);
-  static void staticHandleNotifyJoinQuitSuccess(const Message& request,
-                                                Message* response);
+  // Waits for the entry to be committed. Returns failure if the leader fails
+  // before the new entry is committed.
+  uint64_t leaderSafelyAppendLogEntry(
+      const std::shared_ptr<proto::RaftLogEntry>& new_entry);
 
   static const char kAppendEntries[];
   static const char kAppendEntriesResponse[];
+  static const char kInsertRequest[];
+  static const char kInsertResponse[];
   static const char kVoteRequest[];
   static const char kVoteResponse[];
   static const char kJoinQuitRequest[];
@@ -102,9 +100,13 @@ class RaftNode {
   static const char kNotifyJoinQuitSuccess[];
   static const char kQueryState[];
   static const char kQueryStateResponse[];
+  static const char kConnectRequest[];
+  static const char kConnectResponse[];
+  static const char kInitRequest[];
 
  private:
   friend class ConsensusFixture;
+  friend class RaftChunk;
   // TODO(aqurai) Only for test, will be removed later.
   inline void addPeerBeforeStart(PeerId peer) {
     peer_list_.insert(peer);
@@ -118,21 +120,33 @@ class RaftNode {
   RaftNode(const RaftNode&) = delete;
   RaftNode& operator=(const RaftNode&) = delete;
 
+  typedef RaftChunkDataRamContainer::RaftLog::iterator LogIterator;
+  typedef RaftChunkDataRamContainer::RaftLog::const_iterator ConstLogIterator;
+  typedef RaftChunkDataRamContainer::LogReadAccess LogReadAccess;
+  typedef RaftChunkDataRamContainer::LogWriteAccess LogWriteAccess;
+
   // ========
   // Handlers
   // ========
-  void handleAppendRequest(const Message& request, Message* response);
-  void handleRequestVote(const Message& request, Message* response);
-  void handleJoinQuitRequest(const Message& request, Message* response);
-  void handleNotifyJoinQuitSuccess(const Message& request, Message* response);
-  void handleQueryState(const Message& request, Message* response) const;
+  void handleConnectRequest(const PeerId& sender, Message* response);
+  void handleAppendRequest(proto::AppendEntriesRequest* request,
+                           const PeerId& sender, Message* response);
+  void handleInsertRequest(proto::InsertRequest* request,
+                           const PeerId& sender, Message* response);
+  void handleRequestVote(const proto::VoteRequest& request,
+                         const PeerId& sender, Message* response);
+  void handleJoinQuitRequest(const proto::JoinQuitRequest& request,
+                             const PeerId& sender, Message* response);
+  void handleNotifyJoinQuitSuccess(const proto::NotifyJoinQuitSuccess& request,
+                                   Message* response);
+  void handleQueryState(const proto::QueryState& request, Message* response);
 
   // ====================================================
   // RPCs for heartbeat, leader election, log replication
   // ====================================================
   bool sendAppendEntries(const PeerId& peer,
-                         const proto::AppendEntriesRequest& append_entries,
-                         proto::AppendEntriesResponse* append_response) const;
+                         proto::AppendEntriesRequest* append_entries,
+                         proto::AppendEntriesResponse* append_response);
   enum class VoteResponse {
     VOTE_GRANTED,
     VOTE_DECLINED,
@@ -145,6 +159,8 @@ class RaftNode {
   proto::JoinQuitResponse sendJoinQuitRequest(
       const PeerId& peer, proto::PeerRequestType type) const;
   void sendNotifyJoinQuitSuccess(const PeerId& peer) const;
+
+  bool sendInitRequest(const PeerId& peer, const LogReadAccess& log_reader);
 
   // ================
   // State Management
@@ -219,9 +235,12 @@ class RaftNode {
 
   // Expects no lock to be taken.
   void leaderMonitorFollowerStatus(uint64_t current_term);
-  void leaderAddRemovePeer(const PeerId& peer, proto::PeerRequestType request,
-                           uint64_t current_term);
-  void followerAddRemovePeer(const proto::AddRemovePeer& add_remove_peer);
+  void leaderAddPeer(const PeerId& peer, const LogReadAccess& log_reader,
+                     uint64_t current_term);
+  void leaderRemovePeer(const PeerId& peer);
+
+  void followerAddPeer(const PeerId& peer);
+  void followerRemovePeer(const PeerId& peer);
 
   // First time join.
   std::atomic<bool> is_join_notified_;
@@ -245,33 +264,35 @@ class RaftNode {
   // =====================
   // Log entries/revisions
   // =====================
+  RaftChunkDataRamContainer* data_;
+  void initChunkData(const proto::InitRequest& init_request);
+
   // Index will always be sequential, unique.
   // Leader will overwrite follower logs where index+term doesn't match.
 
-  // In Follower state, only handleAppendRequest writes to log_entries.
-  // In Leader state, only appendLogEntry writes to log entries.
-  std::vector<std::shared_ptr<proto::RaftRevision>> log_entries_;
+  // New revision request.
+  uint64_t sendInsertRequest(const Revision::ConstPtr& item);
+
   std::condition_variable new_entries_signal_;
-  mutable common::ReaderWriterMutex log_mutex_;
-  typedef std::vector<std::shared_ptr<proto::RaftRevision>>::iterator
-      LogIterator;
-
-  // Assumes at least read lock is acquired for log_mutex_.
-  LogIterator getLogIteratorByIndex(uint64_t index);
-
   // Expects write lock for log_mutex to be acquired.
-  uint64_t leaderAddEntryToLog(uint32_t entry, uint32_t current_term,
-                               const PeerId& peer_id,
-                               proto::PeerRequestType request_type =
-                                   proto::PeerRequestType::ADD_PEER);
+  uint64_t leaderAppendLogEntryLocked(
+      const LogWriteAccess& log_writer,
+      const std::shared_ptr<proto::RaftLogEntry>& new_entry,
+      uint64_t current_term);
 
   // The two following methods assume write lock is acquired for log_mutex_.
   proto::AppendResponseStatus followerAppendNewEntries(
-      proto::AppendEntriesRequest& request);
-  void followerCommitNewEntries(const proto::AppendEntriesRequest& request,
+      const LogWriteAccess& log_writer,
+      proto::AppendEntriesRequest* request);
+  void followerCommitNewEntries(const LogWriteAccess& log_writer,
+                                const proto::AppendEntriesRequest* request,
                                 State state);
-  void setAppendEntriesResponse(proto::AppendResponseStatus status,
-                                proto::AppendEntriesResponse* response) const;
+  void setAppendEntriesResponse(proto::AppendEntriesResponse* response,
+                                proto::AppendResponseStatus status,
+                                uint64_t current_commit_index,
+                                uint64_t current_term,
+                                uint64_t last_log_index,
+                                uint64_t last_log_term) const;
 
   // Expects locks for commit_mutex_ and log_mutex_to NOT have been acquired.
   void leaderCommitReplicatedEntries(uint64_t current_term);
@@ -281,7 +302,22 @@ class RaftNode {
   mutable std::mutex commit_mutex_;
   const uint64_t& commit_index() const;
   const uint64_t& committed_result() const;
+
+  // ========================
+  // Owner chunk information.
+  // ========================
+
+  std::string table_name_;
+  common::Id chunk_id_;
+  template <typename RequestType>
+  void fillMetadata(RequestType* destination) const {
+    CHECK_NOTNULL(destination);
+    destination->mutable_metadata()->set_table(this->table_name_);
+    this->chunk_id_.serialize(
+        destination->mutable_metadata()->mutable_chunk_id());
+  }
 };
+
 }  // namespace map_api
 
 #endif  // MAP_API_RAFT_NODE_H_

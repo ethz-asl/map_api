@@ -102,6 +102,25 @@ class NetTableManager {
                                                 Message* response);
   static void handleRoutedSpatialChordRequests(const Message& request,
                                                Message* response);
+  
+  /**
+   * RaftChunk requests.
+   */
+  static void handleRaftConnectRequest(const Message& request,
+                                        Message* response);
+  static void handleRaftInitRequest(const Message& request,
+                                        Message* response);
+  static void handleRaftAppendRequest(const Message& request,
+                                        Message* response);
+  static void handleRaftInsertRequest(const Message& request,
+                                        Message* response);
+  static void handleRaftRequestVote(const Message& request,
+                                      Message* response);
+  static void handleRaftQueryState(const Message& request, Message* response);
+  static void handleRaftJoinQuitRequest(const Message& request,
+                                        Message* response);
+  static void handleRaftNotifyJoinQuitSuccess(const Message& request,
+                                                Message* response);
 
  private:
   NetTableManager();

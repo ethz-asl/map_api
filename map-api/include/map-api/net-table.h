@@ -16,6 +16,7 @@
 #include "map-api/net-table-index.h"
 #include "map-api/spatial-index.h"
 #include "./chunk.pb.h"
+#include "./raft.pb.h"
 
 namespace map_api {
 class ConstRevisionMap;
@@ -193,6 +194,31 @@ class NetTable {
   static const char kAnnounceToListeners[];
 
   void handleSpatialIndexTrigger(const proto::SpatialIndexTrigger& trigger);
+
+  // RaftChunk RPC handlers.
+  void handleRaftConnectRequest(const common::Id& chunk_id,
+                                const PeerId& sender, Message* response);
+  void handleRaftInitRequest(const common::Id& chunk_id,
+                             const proto::InitRequest& init_request,
+                             const PeerId& sender, Message* response);
+  void handleRaftAppendRequest(const common::Id& chunk_id,
+                               proto::AppendEntriesRequest* request,
+                               const PeerId& sender, Message* response);
+  void handleRaftInsertRequest(const common::Id& chunk_id,
+                               proto::InsertRequest* request,
+                               const PeerId& sender, Message* response);
+  void handleRaftRequestVote(const common::Id& chunk_id,
+                             const proto::VoteRequest& request,
+                             const PeerId& sender, Message* response);
+  void handleRaftQueryState(const common::Id& chunk_id,
+                            const proto::QueryState& request,
+                            Message* response);
+  void handleRaftJoinQuitRequest(const common::Id& chunk_id,
+                                 const proto::JoinQuitRequest& request,
+                                 const PeerId& sender, Message* response);
+  void handleRaftNotifyJoinQuitSuccess(
+      const common::Id& chunk_id, const proto::NotifyJoinQuitSuccess& request,
+      Message* response);
 
  private:
   NetTable();
