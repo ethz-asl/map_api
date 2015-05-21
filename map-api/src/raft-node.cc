@@ -456,15 +456,26 @@ bool RaftNode::sendInitRequest(const PeerId& peer,
 
   for (ConstLogIterator it = log_writer->cbegin(); it != log_writer->cend();
        ++it) {
+    // Send only committed log entries.
+    // Added advantage: Don't have to deal with revision separately for
+    // committed and uncommitted entries.
+    if ((*it)->index() > log_writer->commitIndex()) {
+      break;
+    }
+    proto::RaftLogEntry entry(**it);
+    CHECK(!entry.has_insert_revision() && !entry.has_update_revision());
+
     // TODO(aqurai): Use proto::NewPeerInit, use set_allocated() and release().
-    // This is doing double copy!
     if ((*it)->has_revision_id()) {
-      (*it)->set_allocated_insert_revision(CHECK_NOTNULL(
+      entry.set_allocated_insert_revision(CHECK_NOTNULL(
           data_->getByIdImpl(common::Id((*it)->revision_id()),
                              LogicalTime((*it)->logical_time())).get())
-                                               ->copyToProtoPtr());
+                                              ->underlying_revision_.get());
+      entry.clear_revision_id();
+      entry.clear_logical_time();
     }
-    init_request.add_serialized_items((*it)->SerializeAsString());
+    init_request.add_serialized_items(entry.SerializeAsString());
+    entry.release_insert_revision();
   }
   request.impose<kInitRequest>(init_request);
   Hub::instance().try_request(peer, &request, &response);
@@ -854,6 +865,13 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
           CHECK(it != log_reader->cend());
           CHECK(it != log_reader->cbegin());
           append_entries.set_allocated_log_entry(it->get());
+          if ((*it)->has_revision_id()) {
+            append_entries.mutable_log_entry()->set_allocated_insert_revision(
+                CHECK_NOTNULL(
+                    data_->getByIdImpl(common::Id((*it)->revision_id()),
+                                       LogicalTime((*it)->logical_time()))
+                        .get())->underlying_revision_.get());
+          }
           append_entries.set_previous_log_index((*(it - 1))->index());
           append_entries.set_previous_log_term((*(it - 1))->term());
         }
@@ -868,12 +886,14 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
           // this_tracker->tracker_run = false;
           VLOG(1) << PeerId::self() << ": " << peer << " appears offline.";
         }
+        append_entries.mutable_log_entry()->release_insert_revision();
         append_entries.release_log_entry();
         continue;
       }
       this_tracker->status = PeerStatus::AVAILABLE;
       // The call to release is necessary to prevent prevent the allocated
       // memory being deleted during append_entries.Clear().
+      append_entries.mutable_log_entry()->release_insert_revision();
       append_entries.release_log_entry();
 
       follower_commit_index = append_response.commit_index();

@@ -94,7 +94,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     virtual ~RaftLog() {}
     iterator getLogIteratorByIndex(uint64_t index);
     const_iterator getConstLogIteratorByIndex(uint64_t index) const;
-    proto::RaftLogEntry* getCompleteLogEntryPtr(iterator it);
+    proto::Revision* getCorrespondingRevisionProtoPtr(iterator it);
     uint64_t getEntryIndex(const PeerId& peer, uint64_t serial_id) const;
     uint64_t getPeerLatestSerialId(const PeerId& peer) const;
     uint64_t eraseAfter(iterator it);
@@ -106,8 +106,6 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     void appendLogEntry(const std::shared_ptr<proto::RaftLogEntry>& entry);
     inline void setCommitIndex(uint64_t value) { commit_index_ = value; }
     uint64_t setEntryCommitted(iterator it);
-
-    // TODO(aqurai): Provide access through a method. Combine with push_back.
 
    private:
     friend class RaftChunkDataRamContainer;

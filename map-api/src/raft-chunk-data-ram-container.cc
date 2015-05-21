@@ -190,18 +190,16 @@ RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) c
   }
 }
 
-proto::RaftLogEntry* RaftChunkDataRamContainer::RaftLog::getCompleteLogEntryPtr(
+proto::Revision*
+RaftChunkDataRamContainer::RaftLog::getCorrespondingRevisionProtoPtr(
     iterator it) {
-  proto::RaftLogEntry* entry = new proto::RaftLogEntry;
-  entry = it->get();
-
-  //  if ((*it)->has_revision_id()) {
-  //      entry->set_allocated_insert_revision(CHECK_NOTNULL(
-  //          data_->getByIdImpl(common::Id((*it)->revision_id()),
-  //                             LogicalTime((*it)->logical_time())).get())
-  //                                               ->copyToProtoPtr());
+  return NULL;
+  //  if (!(*it)->has_revision_id()){
+  //    return NULL;
   //  }
-  return entry;
+  // return CHECK_NOTNULL(data_->getByIdImpl(
+  //     common::Id((*it)->revision_id()),
+  //     LogicalTime((*it)->logical_time())).get())->underlying_revision_.get();
 }
 
 uint64_t RaftChunkDataRamContainer::RaftLog::getEntryIndex(
