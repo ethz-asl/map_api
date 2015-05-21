@@ -1,6 +1,8 @@
 #ifndef MAP_API_RAFT_CHUNK_INL_H_
 #define MAP_API_RAFT_CHUNK_INL_H_
 
+namespace map_api {
+
 void RaftChunk::setStateFollowerAndStartRaft() {
     raft_node_.state_ = RaftNode::State::FOLLOWER;
     VLOG(1) << PeerId::self() << ": Starting Raft node as follower for chunk "
@@ -70,5 +72,8 @@ inline void RaftChunk::handleRaftNotifyJoinQuitSuccess(
     const proto::NotifyJoinQuitSuccess& request, Message* response) {
   raft_node_.handleNotifyJoinQuitSuccess(request, response);
 }
+
+}  // namespace map_api
+
 
 #endif  // MAP_API_RAFT_CHUNK_INL_H_

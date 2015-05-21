@@ -160,13 +160,13 @@ RaftChunkDataRamContainer::RaftLog::RaftLog() : commit_index_(0) {}
 
 RaftChunkDataRamContainer::RaftLog::iterator
 RaftChunkDataRamContainer::RaftLog::getLogIteratorByIndex(uint64_t index) {
-  iterator it = end();
   if (empty()) {
-    return it;
+    return end();
   }
   if (index < front()->index() || index > back()->index()) {
-    return it;
+    return end();
   } else {
+    iterator it;
     // The log indices are always sequential.
     it = begin() + (index - front()->index());
     CHECK_EQ((*it)->index(), index) << " Log entries size = " << size();
@@ -176,13 +176,13 @@ RaftChunkDataRamContainer::RaftLog::getLogIteratorByIndex(uint64_t index) {
 
 RaftChunkDataRamContainer::RaftLog::const_iterator
 RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) const {
-  const_iterator it = cend();
   if (empty()) {
-    return it;
+    return cend();
   }
   if (index < front()->index() || index > back()->index()) {
-    return it;
+    return cend();
   } else {
+    const_iterator it;
     // The log indices are always sequential.
     it = cbegin() + (index - front()->index());
     CHECK_EQ((*it)->index(), index) << " Log entries size = " << size();
@@ -191,7 +191,7 @@ RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) c
 }
 
 uint64_t RaftChunkDataRamContainer::RaftLog::eraseAfter(iterator it) {
-  CHECK(it + 1 != begin());
+  CHECK((it + 1) != begin());
   resize(std::distance(begin(), it + 1));
   return lastLogIndex();
 }
