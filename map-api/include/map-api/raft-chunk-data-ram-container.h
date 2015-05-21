@@ -94,7 +94,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     virtual ~RaftLog() {}
     iterator getLogIteratorByIndex(uint64_t index);
     const_iterator getConstLogIteratorByIndex(uint64_t index) const;
-    proto::Revision* getCorrespondingRevisionProtoPtr(iterator it);
+    proto::RaftLogEntry* copyWithoutRevision(const_iterator it) const;
     uint64_t getEntryIndex(const PeerId& peer, uint64_t serial_id) const;
     uint64_t getPeerLatestSerialId(const PeerId& peer) const;
     uint64_t eraseAfter(iterator it);

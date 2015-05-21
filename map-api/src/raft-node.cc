@@ -850,7 +850,7 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
       append_entries.set_term(term);
       uint64_t last_log_index;
       {
-        LogReadAccess log_reader(data_);
+        LogWriteAccess log_reader(data_);
         append_entries.set_commit_index(log_reader->commitIndex());
         last_log_index = log_reader->lastLogIndex();
         append_entries.set_last_log_index(log_reader->lastLogIndex());
@@ -864,14 +864,21 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
           // if this is the case, the control shouldn't have reached here,
           CHECK(it != log_reader->cend());
           CHECK(it != log_reader->cbegin());
-          append_entries.set_allocated_log_entry(it->get());
+
+          proto::RaftLogEntry* log_entry = log_reader->copyWithoutRevision(it);
           if ((*it)->has_revision_id()) {
-            append_entries.mutable_log_entry()->set_allocated_insert_revision(
-                CHECK_NOTNULL(
-                    data_->getByIdImpl(common::Id((*it)->revision_id()),
-                                       LogicalTime((*it)->logical_time()))
-                        .get())->underlying_revision_.get());
+            log_entry->set_allocated_insert_revision(CHECK_NOTNULL(
+                data_->getByIdImpl(common::Id((*it)->revision_id()),
+                                   LogicalTime((*it)->logical_time()))
+                    .get())->underlying_revision_.get());
+          } else if ((*it)->has_insert_revision()) {
+            log_entry->set_allocated_insert_revision(
+                (*it)->mutable_insert_revision());
+          } else if ((*it)->has_update_revision()) {
+            log_entry->set_allocated_insert_revision(
+                (*it)->mutable_update_revision());
           }
+          append_entries.set_allocated_log_entry(log_entry);
           append_entries.set_previous_log_index((*(it - 1))->index());
           append_entries.set_previous_log_term((*(it - 1))->term());
         }
@@ -887,14 +894,12 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
           VLOG(1) << PeerId::self() << ": " << peer << " appears offline.";
         }
         append_entries.mutable_log_entry()->release_insert_revision();
-        append_entries.release_log_entry();
         continue;
       }
       this_tracker->status = PeerStatus::AVAILABLE;
       // The call to release is necessary to prevent prevent the allocated
       // memory being deleted during append_entries.Clear().
       append_entries.mutable_log_entry()->release_insert_revision();
-      append_entries.release_log_entry();
 
       follower_commit_index = append_response.commit_index();
       if (append_response.response() == proto::AppendResponseStatus::SUCCESS ||

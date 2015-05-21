@@ -190,16 +190,43 @@ RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) c
   }
 }
 
-proto::Revision*
-RaftChunkDataRamContainer::RaftLog::getCorrespondingRevisionProtoPtr(
-    iterator it) {
-  return NULL;
-  //  if (!(*it)->has_revision_id()){
-  //    return NULL;
-  //  }
-  // return CHECK_NOTNULL(data_->getByIdImpl(
-  //     common::Id((*it)->revision_id()),
-  //     LogicalTime((*it)->logical_time())).get())->underlying_revision_.get();
+proto::RaftLogEntry* RaftChunkDataRamContainer::RaftLog::copyWithoutRevision(
+    const_iterator it) const {
+  proto::RaftLogEntry* entry = new proto::RaftLogEntry;
+
+  entry->set_index((*it)->index());
+  entry->set_term((*it)->term());
+  if ((*it)->has_sender()) {
+    entry->set_sender((*it)->sender());
+  }
+  if ((*it)->has_sender_serial_id()) {
+    entry->set_sender_serial_id((*it)->sender_serial_id());
+  }
+  if ((*it)->has_add_peer()) {
+    entry->set_add_peer((*it)->add_peer());
+  }
+  if ((*it)->has_remove_peer()) {
+    entry->set_remove_peer((*it)->remove_peer());
+  }
+  if ((*it)->has_lock_peer()) {
+    entry->set_lock_peer((*it)->lock_peer());
+  }
+  if ((*it)->has_unlock_peer()) {
+    entry->set_unlock_peer((*it)->unlock_peer());
+  }
+  if ((*it)->has_unlock_proceed_commits()) {
+    entry->set_unlock_proceed_commits((*it)->unlock_proceed_commits());
+  }
+  if ((*it)->has_unlock_lock_index()) {
+    entry->set_unlock_lock_index((*it)->unlock_lock_index());
+  }
+  if ((*it)->has_revision_id()) {
+    entry->mutable_revision_id()->CopyFrom((*it)->revision_id());
+  }
+  if ((*it)->has_logical_time()) {
+    entry->set_logical_time((*it)->logical_time());
+  }
+  return entry;
 }
 
 uint64_t RaftChunkDataRamContainer::RaftLog::getEntryIndex(
