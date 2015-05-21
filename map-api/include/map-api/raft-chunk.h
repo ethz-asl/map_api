@@ -17,7 +17,6 @@ class Revision;
 class RaftChunk : public ChunkBase {
   friend class ChunkTransaction;
   friend class ConsensusFixture;
-  FRIEND_TEST(ConsensusFixture, RaftChunkTest);
 
  public:
   virtual ~RaftChunk();
@@ -32,46 +31,64 @@ class RaftChunk : public ChunkBase {
             std::shared_ptr<TableDescriptor> descriptor);
   virtual void dumpItems(const LogicalTime& time, ConstRevisionMap* items) const
       override;
-
-  void setStateFollowerAndStartRaft();
+  inline void setStateFollowerAndStartRaft();
 
   // ====================
   // Not implemented yet.
   // ====================
-  virtual size_t numItems(const LogicalTime& time) const override { return 0; }
-  virtual size_t itemsSizeBytes(const LogicalTime& time) const override {
-    return 0;
-  }
-
+  virtual size_t numItems(const LogicalTime& time) const override;
+  virtual size_t itemsSizeBytes(const LogicalTime& time) const override;
   virtual void getCommitTimes(const LogicalTime& sample_time,
-                              std::set<LogicalTime>* commit_times) const
-      override {}
-
+                              std::set<LogicalTime>* commit_times) const override;
   virtual bool insert(const LogicalTime& time,
-                      const std::shared_ptr<Revision>& item) override {return true; }
+                      const std::shared_ptr<Revision>& item) override {
+    LOG(WARNING) << "RaftChunk::insert() is not implemented";
+    return true;
+  }
+  inline virtual int peerSize() const override;
 
-  virtual int peerSize() const override { return raft_node_.num_peers_; }
+  // Mutable because the method declarations in base class are const.
+  mutable bool is_raft_write_locked_;
+  mutable int write_lock_depth_;
+  mutable std::mutex write_lock_mutex_;
+  virtual void writeLock() override;
+  virtual void readLock() const override {}  // No read lock for raft chunks.
+  virtual bool isWriteLocked() override;
+  virtual void unlock() const override;
 
-  // Non-const intended to avoid accidental write-lock while reading.
-  // Read lock is definitely not needed for RaftChunk. Write lock has to be
-  // decided depending on the multi chunk commit issue.
-  virtual void writeLock() override {}
-  virtual void readLock() const override {}
-  virtual bool isWriteLocked() override { return true; }
-  virtual void unlock() const override {}
-
-  virtual int requestParticipation() override {return 1;}
-  virtual int requestParticipation(const PeerId& peer) override {return 1;}
-  virtual void update(const std::shared_ptr<Revision>& item) override {}
-  virtual LogicalTime getLatestCommitTime() const override {return LogicalTime::sample();}
+  virtual int requestParticipation() override {
+    LOG(WARNING) << "RaftChunk::requestParticipation() is not implemented";
+    return 1;
+  }
+  virtual int requestParticipation(const PeerId& peer) override {
+    LOG(WARNING) << "RaftChunk::requestParticipation() is not implemented";
+    return 1;
+  }
+  virtual void update(const std::shared_ptr<Revision>& item) override {
+    LOG(WARNING) << "RaftChunk::insert() is not implemented";
+  }
+  virtual LogicalTime getLatestCommitTime() const override {
+    LOG(WARNING) << "RaftChunk::update() is not implemented";
+    return LogicalTime::sample();
+  }
   virtual void bulkInsertLocked(const MutableRevisionMap& items,
-                                const LogicalTime& time) override {}
+                                const LogicalTime& time) override {
+    LOG(WARNING) << "RaftChunk::bulkInsertLocked() is not implemented";
+  }
   virtual void updateLocked(const LogicalTime& time,
-                            const std::shared_ptr<Revision>& item) override {}
+                            const std::shared_ptr<Revision>& item) override {
+    LOG(WARNING) << "RaftChunk::updateLocked() is not implemented";
+  }
   virtual void removeLocked(const LogicalTime& time,
-                            const std::shared_ptr<Revision>& item) override {}
-  virtual void leaveImpl() override {}
-  virtual void awaitShared() override {}
+                            const std::shared_ptr<Revision>& item) override {
+    LOG(WARNING) << "RaftChunk::removeLocked() is not implemented";
+  }
+  virtual void leaveImpl() override {
+    LOG(WARNING) << "RaftChunk::leaveImpl() is not implemented";
+  }
+  virtual void awaitShared() override {
+    LOG(WARNING) << "RaftChunk::awaitShared() is not implemented";
+  }
   // ========================================================================
 
   static bool sendConnectRequest(const PeerId& peer,
@@ -112,5 +129,7 @@ class RaftChunk : public ChunkBase {
 };
 
 }  // namespace map_api
+
+#include "./raft-chunk-inl.h"
 
 #endif  // MAP_API_RAFT_CHUNK_H_

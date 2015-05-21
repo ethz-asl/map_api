@@ -4,7 +4,7 @@
 
 #include "./core.pb.h"
 #include "./chunk.pb.h"
-#include "map-api/legacy-chunk-data-ram-container.h"
+#include "map-api/raft-chunk-data-ram-container.h"
 #include "map-api/raft-node.h"
 #include "map-api/hub.h"
 #include "map-api/message.h"
@@ -20,7 +20,7 @@ bool RaftChunk::init(const common::Id& id,
                      bool initialize) {
   id_ = id;
   // TODO(aqurai): init new data container here.
-  data_container_.reset(new LegacyChunkDataRamContainer);
+  data_container_.reset(new RaftChunkDataRamContainer);
   CHECK(data_container_->init(descriptor));
   initialized_ = true;
   raft_node_.chunk_id_ = id_;
@@ -51,18 +51,7 @@ bool RaftChunk::init(const common::Id& id,
 
   VLOG(1) << " INIT chunk at peer " << PeerId::self() << " in table "
           << raft_node_.table_name_;
-
-  raft_node_.peer_list_.clear();
-  raft_node_.log_entries_.clear();
-  for (int i = 0; i < init_request.peer_address_size(); ++i) {
-    raft_node_.peer_list_.insert(PeerId(init_request.peer_address(i)));
-  }
-  raft_node_.num_peers_ = raft_node_.peer_list_.size();
-  for (int i = 0; i < init_request.serialized_items_size(); ++i) {
-    std::shared_ptr<proto::RaftLogEntry> revision(new proto::RaftLogEntry);
-    revision->ParseFromString(init_request.serialized_items(i));
-    raft_node_.log_entries_.push_back(revision);
-  }
+  raft_node_.initChunkData(init_request);
   setStateFollowerAndStartRaft();
   return true;
 }
@@ -72,11 +61,60 @@ void RaftChunk::dumpItems(const LogicalTime& time, ConstRevisionMap* items) cons
   data_container_->dump(time, items);
 }
 
-void RaftChunk::setStateFollowerAndStartRaft() {
-  raft_node_.state_ = RaftNode::State::FOLLOWER;
-  VLOG(1) << PeerId::self() << ": Starting Raft node as follower for chunk "
-          << id_.printString();
-  raft_node_.start();
+size_t RaftChunk::numItems(const LogicalTime& time) const {
+  return data_container_->numAvailableIds(time);
+}
+
+size_t RaftChunk::itemsSizeBytes(const LogicalTime& time) const {
+  ConstRevisionMap items;
+  data_container_->dump(time, &items);
+  size_t num_bytes = 0;
+  for (const std::pair<common::Id, std::shared_ptr<const Revision> >& item :
+       items) {
+    CHECK(item.second != nullptr);
+    const Revision& revision = *item.second;
+    num_bytes += revision.byteSize();
+  }
+  return num_bytes;
+}
+
+void RaftChunk::getCommitTimes(const LogicalTime& sample_time,
+                               std::set<LogicalTime>* commit_times) const {
+  LOG(FATAL) << "Not implemented";
+  // TODO(aqurai): Implement this after data_container.
+}
+
+void RaftChunk::writeLock() {
+  LOG(WARNING) << "RaftChunk::writeLock() is not implemented";
+  std::lock_guard<std::mutex> lock_mutex(write_lock_mutex_);
+  if (is_raft_write_locked_) {
+    ++write_lock_depth_;
+  } else {
+    if (true /* Success */) {
+      is_raft_write_locked_ = true;
+    }
+  }
+}
+
+bool RaftChunk::isWriteLocked() {
+  LOG(WARNING) << "RaftChunk::isWriteLocked() is not implemented";
+  std::lock_guard<std::mutex> lock(write_lock_mutex_);
+  // return is_raft_write_locked_;
+  return true;
+}
+
+void RaftChunk::unlock() const {
+  LOG(WARNING) << "RaftChunk::unlock() is not implemented";
+  std::lock_guard<std::mutex> lock(write_lock_mutex_);
+  if (write_lock_depth_ > 0) {
+    --write_lock_depth_;
+  }
+  if (write_lock_depth_ == 0) {
+    // Send unlock request to leader.
+    // There is no reason for this request to fail.
+    CHECK(true /* unlock request success */);
+    is_raft_write_locked_ = false;
+  }
 }
 
 bool RaftChunk::sendConnectRequest(const PeerId& peer,
@@ -127,7 +165,6 @@ void RaftChunk::handleRaftInsertRequest(proto::InsertRequest* request,
   CHECK_NOTNULL(response);
   raft_node_.handleInsertRequest(request, sender, response);
 }
-
 
 void RaftChunk::handleRaftRequestVote(const proto::VoteRequest& request,
                                       const PeerId& sender, Message* response) {

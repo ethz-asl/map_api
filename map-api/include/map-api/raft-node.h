@@ -53,6 +53,7 @@
 #include "map-api/peer-id.h"
 #include "map-api/revision.h"
 #include "multiagent-mapping-common/reader-writer-lock.h"
+#include "map-api/raft-chunk-data-ram-container.h"
 
 namespace map_api {
 class Message;
@@ -119,6 +120,11 @@ class RaftNode {
   RaftNode(const RaftNode&) = delete;
   RaftNode& operator=(const RaftNode&) = delete;
 
+  typedef RaftChunkDataRamContainer::RaftLog::iterator LogIterator;
+  typedef RaftChunkDataRamContainer::RaftLog::const_iterator ConstLogIterator;
+  typedef RaftChunkDataRamContainer::LogReadAccess LogReadAccess;
+  typedef RaftChunkDataRamContainer::LogWriteAccess LogWriteAccess;
+
   // ========
   // Handlers
   // ========
@@ -154,7 +160,7 @@ class RaftNode {
       const PeerId& peer, proto::PeerRequestType type) const;
   void sendNotifyJoinQuitSuccess(const PeerId& peer) const;
 
-  bool sendInitRequest(const PeerId& peer);
+  bool sendInitRequest(const PeerId& peer, const LogReadAccess& log_reader);
 
   // ================
   // State Management
@@ -229,7 +235,8 @@ class RaftNode {
 
   // Expects no lock to be taken.
   void leaderMonitorFollowerStatus(uint64_t current_term);
-  void leaderAddPeer(const PeerId& peer, uint64_t current_term);
+  void leaderAddPeer(const PeerId& peer, const LogReadAccess& log_reader,
+                     uint64_t current_term);
   void leaderRemovePeer(const PeerId& peer);
 
   void followerAddPeer(const PeerId& peer);
@@ -257,6 +264,8 @@ class RaftNode {
   // =====================
   // Log entries/revisions
   // =====================
+  RaftChunkDataRamContainer* data_;
+  void initChunkData(const proto::InitRequest& init_request);
 
   // Index will always be sequential, unique.
   // Leader will overwrite follower logs where index+term doesn't match.
@@ -264,29 +273,26 @@ class RaftNode {
   // New revision request.
   uint64_t sendInsertRequest(const Revision::ConstPtr& item);
 
-  // In Follower state, only handleAppendRequest writes to log_entries.
-  // In Leader state, only appendLogEntry writes to log entries.
-  std::vector<std::shared_ptr<proto::RaftLogEntry>> log_entries_;
   std::condition_variable new_entries_signal_;
-  mutable common::ReaderWriterMutex log_mutex_;
-  typedef std::vector<std::shared_ptr<proto::RaftLogEntry>>::iterator
-      LogIterator;
-
-  // Assumes at least read lock is acquired for log_mutex_.
-  LogIterator getLogIteratorByIndex(uint64_t index);
-
   // Expects write lock for log_mutex to be acquired.
   uint64_t leaderAppendLogEntryLocked(
+      const LogWriteAccess& log_writer,
       const std::shared_ptr<proto::RaftLogEntry>& new_entry,
       uint64_t current_term);
 
   // The two following methods assume write lock is acquired for log_mutex_.
   proto::AppendResponseStatus followerAppendNewEntries(
+      const LogWriteAccess& log_writer,
       proto::AppendEntriesRequest* request);
-  void followerCommitNewEntries(const proto::AppendEntriesRequest* request,
+  void followerCommitNewEntries(const LogWriteAccess& log_writer,
+                                const proto::AppendEntriesRequest* request,
                                 State state);
-  void setAppendEntriesResponse(proto::AppendResponseStatus status,
-                                proto::AppendEntriesResponse* response) const;
+  void setAppendEntriesResponse(proto::AppendEntriesResponse* response,
+                                proto::AppendResponseStatus status,
+                                uint64_t current_commit_index,
+                                uint64_t current_term,
+                                uint64_t last_log_index,
+                                uint64_t last_log_term) const;
 
   // Expects locks for commit_mutex_ and log_mutex_to NOT have been acquired.
   void leaderCommitReplicatedEntries(uint64_t current_term);
@@ -301,7 +307,6 @@ class RaftNode {
   // Owner chunk information.
   // ========================
 
-  // Todo(aqurai): Refactor this.
   std::string table_name_;
   common::Id chunk_id_;
   template <typename RequestType>
