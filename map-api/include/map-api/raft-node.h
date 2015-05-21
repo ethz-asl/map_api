@@ -52,11 +52,9 @@
 #include "map-api/peer-id.h"
 #include "map-api/revision.h"
 #include "multiagent-mapping-common/reader-writer-lock.h"
-#include "map-api/legacy-chunk-data-container-base.h"
 #include "map-api/raft-chunk-data-ram-container.h"
 
 namespace map_api {
-// class RaftChunkDataRamContainer;
 class Message;
 class RaftChunk;
 

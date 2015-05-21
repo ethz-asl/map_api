@@ -21,7 +21,6 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
 
  private:
   friend class LogReadAccess;
-  // friend class RaftNode; // TODO(aqurai): Remove friendship?
 
   // READ OPERATIONS INHERITED FROM PARENT
   virtual bool initImpl();

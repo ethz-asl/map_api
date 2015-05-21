@@ -5,11 +5,9 @@
 #include "./core.pb.h"
 #include "./chunk.pb.h"
 #include "map-api/raft-chunk-data-ram-container.h"
-#include "map-api/legacy-chunk-data-ram-container.h"
 #include "map-api/raft-node.h"
 #include "map-api/hub.h"
 #include "map-api/message.h"
-#include "map-api/net-table-manager.h"
 
 namespace map_api {
 

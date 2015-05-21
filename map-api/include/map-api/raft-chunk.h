@@ -18,7 +18,6 @@ class Revision;
 class RaftChunk : public ChunkBase {
   friend class ChunkTransaction;
   friend class ConsensusFixture;
-  FRIEND_TEST(ConsensusFixture, RaftChunkTest);
 
  public:
   RaftChunk();
@@ -43,6 +42,7 @@ class RaftChunk : public ChunkBase {
 
   virtual bool insert(const LogicalTime& time,
                       const std::shared_ptr<Revision>& item) override;
+
   inline virtual int peerSize() const override;
 
   // Mutable because the method declarations in base class are const.
@@ -62,10 +62,14 @@ class RaftChunk : public ChunkBase {
   virtual int requestParticipation(const PeerId& peer) override;
 
   virtual void update(const std::shared_ptr<Revision>& item) override;
-  virtual LogicalTime getLatestCommitTime() const override {return LogicalTime::sample();}
 
   static bool sendConnectRequest(const PeerId& peer,
                                  proto::ChunkRequestMetadata& metadata);
+  
+  virtual LogicalTime getLatestCommitTime() const override {
+    LOG(WARNING) << "RaftChunk::insert() is not implemented";
+    return LogicalTime::sample();
+  }
 
  private:
   virtual void bulkInsertLocked(const MutableRevisionMap& items,
@@ -140,8 +144,8 @@ class RaftChunk : public ChunkBase {
   uint64_t latest_commit_log_index_;
 };
 
-#include "./raft-chunk-inl.h"
-
 }  // namespace map_api
+
+#include "./raft-chunk-inl.h"
 
 #endif  // MAP_API_RAFT_CHUNK_H_

@@ -26,7 +26,7 @@ constexpr int kJoinResponseTimeoutMs = 1000;
 constexpr int kMaxLogQueueLength = 50;
 
 // TODO(aqurai): Defined new message strings for raft chunk. Some will have to
-// removed once the raft chunk implementation is complete.
+// be removed once the raft chunk implementation is complete.
 const char RaftNode::kAppendEntries[] = "raft_node_append_entries";
 const char RaftNode::kAppendEntriesResponse[] = "raft_node_append_response";
 const char RaftNode::kChunkLockRequest[] = "raft_node_chunk_lock_request";
@@ -240,20 +240,21 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
 
 void RaftNode::handleRequestVote(const proto::VoteRequest& vote_request,
                                  const PeerId& sender, Message* response) {
+  CHECK_NOTNULL(response);
   updateHeartbeatTime();
   proto::VoteResponse vote_response;
   std::lock_guard<std::mutex> state_lock(state_mutex_);
   bool is_candidate_log_newer;
   // TODO(aqurai): No need of scope?
   {
-    LogReadAccess log_read(data_);
-    vote_response.set_previous_log_index(log_read->lastLogIndex());
-    vote_response.set_previous_log_term(log_read->lastLogTerm());
+    LogReadAccess log_reader(data_);
+    vote_response.set_previous_log_index(log_reader->lastLogIndex());
+    vote_response.set_previous_log_term(log_reader->lastLogTerm());
 
     is_candidate_log_newer =
-        vote_request.last_log_term() > log_read->lastLogTerm() ||
-        (vote_request.last_log_term() == log_read->lastLogTerm() &&
-         vote_request.last_log_index() >= log_read->lastLogIndex());
+        vote_request.last_log_term() > log_reader->lastLogTerm() ||
+        (vote_request.last_log_term() == log_reader->lastLogTerm() &&
+         vote_request.last_log_index() >= log_reader->lastLogIndex());
   }
   last_vote_request_term_ =
     std::max(static_cast<uint64_t>(last_vote_request_term_), vote_request.term());
@@ -627,8 +628,6 @@ void RaftNode::leaderMonitorFollowerStatus(uint64_t current_term) {
         num_peers_ = peer_list_.size();
       }
     }
-    tracker_lock.unlock();
-    peer_lock.unlock();
   }
 
   // num_peers_ > 1 condition is needed to prevent the leader from thinking it
