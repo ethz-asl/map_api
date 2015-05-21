@@ -398,7 +398,6 @@ class RaftNode {
   // ========================
   // Owner chunk information.
   // ========================
-  // Todo(aqurai): Refactor this.
   std::string table_name_;
   common::Id chunk_id_;
   template <typename RequestType>

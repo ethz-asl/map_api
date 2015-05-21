@@ -132,12 +132,8 @@ void RaftChunk::writeLock() {
   uint64_t serial_id = 0;
   if (is_raft_chunk_locked_) {
     ++chunk_write_lock_depth_;
-    // LOG(WARNING) << PeerId::self() << " Inc lock depth, to " <<
-    // chunk_write_lock_depth_ << ", chunk " << id(); // NOLINT
   } else {
-    // LOG(WARNING) << PeerId::self() << " Sending Lock req, chunk " << id();
     CHECK_EQ(lock_log_index_, 0);
-    // TODO(aqurai): make this function return bool instead of loop here.
     serial_id = request_id_.getNewId();
     while (raft_node_.isRunning()) {
       lock_log_index_ = raft_node_.sendChunkLockRequest(serial_id);
@@ -164,14 +160,12 @@ void RaftChunk::writeLock() {
 void RaftChunk::readLock() const {}
 
 bool RaftChunk::isWriteLocked() {
-  // TODO(aqurai): Implement this.
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
   return is_raft_chunk_locked_;
 }
 
 void RaftChunk::unlock() const {
   CHECK(raft_node_.isRunning());
-  // TODO(aqurai): Implement this.
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
   VLOG(3) << PeerId::self() << " Attempting unlock for chunk " << id()
           << ". Current depth: " << chunk_write_lock_depth_;
@@ -181,11 +175,8 @@ void RaftChunk::unlock() const {
   }
   if (chunk_write_lock_depth_ > 0) {
     --chunk_write_lock_depth_;
-    // LOG(WARNING) << PeerId::self() << " Dec lock depth, to " <<
-    // chunk_write_lock_depth_ << ", chunk " << id(); // NOLINT
   } else if (chunk_write_lock_depth_ == 0) {
     // Send unlock request to leader.
-    // LOG(WARNING) << PeerId::self() << " Sending unlock req, chunk " << id();
     CHECK(raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self()))
         << " Failed on " << PeerId::self();
     serial_id = request_id_.getNewId();
@@ -204,13 +195,14 @@ void RaftChunk::unlock() const {
 }
 
 int RaftChunk::requestParticipation() {
-  // TODO(aqurai): Handle failure/leader change.
   std::set<PeerId> peers;
   Hub::instance().getPeers(&peers);
   int num_success = 0;
   for (const PeerId& peer : peers) {
     if (requestParticipation(peer)) {
       ++num_success;
+    } else {
+      return 0;
     }
   }
   if (num_success > 0) {
@@ -221,7 +213,6 @@ int RaftChunk::requestParticipation() {
 }
 
 int RaftChunk::requestParticipation(const PeerId& peer) {
-  // TODO(aqurai): Handle failure/leader change.
   if (raft_node_.getState() == RaftNode::State::LEADER &&
       !raft_node_.hasPeer(peer)) {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
