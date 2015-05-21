@@ -20,7 +20,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   virtual ~RaftChunkDataRamContainer();
 
  private:
-  friend class LogReadAccess;
+  // friend class LogReadAccess;
 
   // READ OPERATIONS INHERITED FROM PARENT
   virtual bool initImpl();
@@ -47,15 +47,11 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   // INSERT
   bool checkAndPatch(const std::shared_ptr<Revision>& query);
 
-  // TODO(aqurai): This is a separate function because this becomes a virtual
-  // method in base class to be impl by RAM and STXXL derived classes.
   bool patch(const Revision::ConstPtr& query);
 
   // =================
   // HISTORY CONTAINER
   // =================
-  // TODO(aqurai): Implement history container here.
-  // This is an incomplete implementation.
   class History : public std::list<std::shared_ptr<const Revision>> {
    public:
     virtual ~History() {}
@@ -84,9 +80,6 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   // ========
   // RAFT-LOG
   // ========
-
-  // TODO(aqurai): Make this class private. The problem is iterator and
-  // const_iterator are not defined within RaftNode.
   class RaftLog : public std::vector<std::shared_ptr<proto::RaftLogEntry>> {
    public:
     RaftLog();
@@ -114,8 +107,6 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     uint64_t commit_index_;
   };
   RaftLog log_;
-  // TODO(aqurai): Remove this and instead use LogReadAccess for this info in
-  // the interest of deadlock safety?
   inline uint64_t logCommitIndex() const;
   inline uint64_t lastLogTerm() const;
 

@@ -106,10 +106,6 @@ bool RaftChunk::insert(const LogicalTime& time,
   writeLock();
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareInsert(time, item);
-  // at this point, checkAndPrepareInsert() has modified the revision such that
-  // all default
-  // fields are also set, which allows remote peers to just patch the revision
-  // into their table.
   CHECK(raft_node_.isRunning());
   if (raftInsertRequest(item) > 0) {
     syncLatestCommitTime(*item);
@@ -239,7 +235,6 @@ void RaftChunk::update(const std::shared_ptr<Revision>& item) {
     syncLatestCommitTime(*item);
   }
   unlock();
-  // TODO(aqurai): No return? What to do on fail?
 }
 
 bool RaftChunk::sendConnectRequest(const PeerId& peer,
@@ -277,10 +272,8 @@ void RaftChunk::bulkInsertLocked(const MutableRevisionMap& items,
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareBulkInsert(time, items);
   for (const ConstRevisionMap::value_type& item : items) {
-    // TODO(aqurai): Handle partial failure?
     raftInsertRequest(item.second);
   }
-  // TODO(aqurai): No return value? What to do on fail?
 }
 
 void RaftChunk::updateLocked(const LogicalTime& time,
@@ -300,7 +293,6 @@ void RaftChunk::removeLocked(const LogicalTime& time,
   CHECK_EQ(id(), item->getChunkId());
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareUpdate(LogicalTime::sample(), item);
-  // TODO(aqurai): No return? What to do on fail?
   raftUpdateRequest(item);
 }
 
@@ -309,7 +301,6 @@ uint64_t RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
   uint64_t index = 0;
   bool retrying = false;
   uint64_t serial_id = request_id_.getNewId();
-  // TODO(aqurai): Retry forever?
   while (raft_node_.isRunning()) {
     index = raft_node_.sendInsertRequest(item, serial_id, retrying);
     if (index > 0) {

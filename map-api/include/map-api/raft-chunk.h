@@ -65,7 +65,7 @@ class RaftChunk : public ChunkBase {
 
   static bool sendConnectRequest(const PeerId& peer,
                                  proto::ChunkRequestMetadata& metadata);
-  
+
   virtual LogicalTime getLatestCommitTime() const override {
     LOG(WARNING) << "RaftChunk::insert() is not implemented";
     return LogicalTime::sample();
@@ -135,8 +135,9 @@ class RaftChunk : public ChunkBase {
 
   // Handles all communication with other chunk holders. No communication except
   // for peer join shall happen between chunk holder peers outside of raft.
-  // TODO(aqurai): Making this mutable only because unlock() is const.
-  // Remove const qualifier for unlock() in base chunk and other derived chunks.
+  // TODO(aqurai): Making this mutable only because unlock() is const. Remove
+  // const qualifier for unlock() in base chunk and other derived chunks
+  // (#2436).
   mutable RaftNode raft_node_;
   volatile bool initialized_ = false;
   volatile bool relinquished_ = false;

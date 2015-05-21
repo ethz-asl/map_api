@@ -61,7 +61,6 @@ int RaftChunkDataRamContainer::countByRevisionImpl(
 void RaftChunkDataRamContainer::chunkHistory(const common::Id& chunk_id,
                                              const LogicalTime& time,
                                              HistoryMap* dest) const {
-  // TODO(aqurai): Safe to lock access_mutex_ here?
   CHECK_NOTNULL(dest)->clear();
   for (const HistoryMap::value_type& pair : data_) {
     if ((*pair.second.begin())->getChunkId() == chunk_id) {
@@ -73,8 +72,6 @@ void RaftChunkDataRamContainer::chunkHistory(const common::Id& chunk_id,
 
 bool RaftChunkDataRamContainer::checkAndPrepareInsert(
     const LogicalTime& time, const std::shared_ptr<Revision>& query) {
-  // TODO(aqurai): See if this mutex is needed here.
-  std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(query.get() != nullptr);
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
@@ -103,7 +100,6 @@ bool RaftChunkDataRamContainer::checkAndPrepareUpdate(
 
 bool RaftChunkDataRamContainer::checkAndPrepareBulkInsert(
     const LogicalTime& time, const MutableRevisionMap& query) {
-  std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   common::Id id;
@@ -129,9 +125,6 @@ bool RaftChunkDataRamContainer::checkAndPatch(
   CHECK(query->structureMatch(*reference)) << "Bad structure of patch revision";
   CHECK(query->getId<common::Id>().isValid())
       << "Attempted to insert element with invalid ID";
-  // TODO(aqurai): Remove this.
-  //   LOG(WARNING) << PeerId::self() << ": Patching in table " << name()
-  //            << ", History size = " << data_.size();
   return patch(query);
 }
 

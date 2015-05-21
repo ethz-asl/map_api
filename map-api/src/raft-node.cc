@@ -25,8 +25,6 @@ constexpr int kJoinResponseTimeoutMs = 1000;
 // Maximum number of yet-to-be-committed entries allowed in the log.
 constexpr int kMaxLogQueueLength = 50;
 
-// TODO(aqurai): Defined new message strings for raft chunk. Some will have to
-// be removed once the raft chunk implementation is complete.
 const char RaftNode::kAppendEntries[] = "raft_node_append_entries";
 const char RaftNode::kAppendEntriesResponse[] = "raft_node_append_response";
 const char RaftNode::kChunkLockRequest[] = "raft_node_chunk_lock_request";
@@ -93,12 +91,6 @@ RaftNode::RaftNode()
 void RaftNode::start() {
   if (state_thread_running_) {
     LOG(FATAL) << "Start failed. State manager thread is already running.";
-    return;
-  }
-  // TODO(aqurai): To be removed.
-  if (state_ == State::JOINING && !join_request_peer_.isValid() &&
-      peer_list_.empty()) {
-    LOG(WARNING) << "No peer information for sending join request. Exiting.";
     return;
   }
   if (!is_exiting_) {
@@ -219,18 +211,6 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
                              state_);
   }
 
-  // ==========================================
-  // Check if Joining peer can become follower.
-  // ==========================================
-  // TODO(aqurai): This is not needed anymore.
-  if (state_ == State::JOINING && is_join_notified_ &&
-      log_writer->lastLogIndex() >= join_log_index_) {
-    VLOG(1) << PeerId::self() << " has joined the raft network.";
-    state_ = State::FOLLOWER;
-    is_join_notified_ = false;
-    join_log_index_ = 0;
-  }
-
   setAppendEntriesResponse(
       &append_response, response_status, log_writer->commitIndex(),
       current_term_, log_writer->lastLogIndex(), log_writer->lastLogTerm());
@@ -245,7 +225,6 @@ void RaftNode::handleRequestVote(const proto::VoteRequest& vote_request,
   proto::VoteResponse vote_response;
   std::lock_guard<std::mutex> state_lock(state_mutex_);
   bool is_candidate_log_newer;
-  // TODO(aqurai): No need of scope?
   {
     LogReadAccess log_reader(data_);
     vote_response.set_previous_log_index(log_reader->lastLogIndex());
@@ -465,8 +444,6 @@ bool RaftNode::sendInitRequest(const PeerId& peer,
     }
     proto::RaftLogEntry entry(**it);
     CHECK(!entry.has_insert_revision() && !entry.has_update_revision());
-
-    // TODO(aqurai): Use proto::NewPeerInit, use set_allocated() and release().
     if ((*it)->has_revision_id()) {
       entry.set_allocated_insert_revision(CHECK_NOTNULL(
           data_->getByIdImpl(common::Id((*it)->revision_id()),
@@ -611,8 +588,6 @@ void RaftNode::leaderMonitorFollowerStatus(uint64_t current_term) {
       }
       if (tracker.second->status == PeerStatus::OFFLINE ||
           tracker.second->status == PeerStatus::ANNOUNCED_DISCONNECTING) {
-        // TODO(aqurai): NOTE: Segfault here, sometimes!
-        // std::__shared_ptr<>::operator->(). Solved?
         remove_peers.push_back(tracker.first);
       }
     }
@@ -695,7 +670,6 @@ void RaftNode::joinRaft() {
     join_request_peer_ = PeerId();
   } else if (num_peers_ > 0) {
     std::lock_guard<std::mutex> peer_lock(peer_mutex_);
-    // TODO(aqurai): Choose a random peer?
     CHECK(!peer_list_.empty());
     std::set<PeerId>::iterator it = peer_list_.begin();
     peer = *it;
@@ -1022,7 +996,6 @@ void RaftNode::followerCommitNewEntries(const LogWriteAccess& log_writer,
     std::for_each(old_commit + 1, new_commit + 1,
                   [&](const std::shared_ptr<proto::RaftLogEntry>& entry) {
       // Joining peers don't act on add/remove peer entries.
-      // TODO(aqurai): This might change with chunk join process.
       if (state == State::FOLLOWER && entry->has_add_peer()) {
         followerAddPeer(PeerId(entry->add_peer()));
       }
