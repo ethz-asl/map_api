@@ -20,7 +20,6 @@ namespace map_api {
 // TODO(aqurai): decide good values for these
 constexpr int kHeartbeatTimeoutMs = 500;
 constexpr int kHeartbeatSendPeriodMs = 200;
-constexpr int kCommitIndexCheckPeriodMs = 20;
 constexpr int kJoinResponseTimeoutMs = 1000;
 // Maximum number of yet-to-be-committed entries allowed in the log.
 constexpr int kMaxLogQueueLength = 50;
@@ -248,12 +247,13 @@ void RaftNode::handleRequestVote(const proto::VoteRequest& vote_request,
     }
     state_ = State::FOLLOWER;
     VLOG(1) << "Peer " << PeerId::self().ipPort() << " is voting for " << sender
-            << " in term " << current_term_;
+            << " in term " << current_term_ << " for chunk " << chunk_id_;
   } else {
     VLOG(1) << "Peer " << PeerId::self().ipPort() << " is declining vote for "
-            << sender << " in term " << vote_request.term() << ". Reason: "
-            << (vote_request.term() > current_term_ ? ""
-                                                    : "Term is equal or less. ")
+            << sender << " in term " << vote_request.term() << " for chunk "
+            << chunk_id_ << ". Reason: " << (vote_request.term() > current_term_
+                                                 ? ""
+                                                 : "Term is equal or less. ")
             << (is_candidate_log_newer ? "" : "Log is older. ");
     vote_response.set_vote(proto::VoteResponseType::DECLINED);
   }
@@ -501,7 +501,10 @@ void RaftNode::stateManagerThread() {
         leaderCommitReplicatedEntries(current_term);
         leaderMonitorFollowerStatus(current_term);
         if (follower_trackers_run_) {
-          usleep(kCommitIndexCheckPeriodMs * kMillisecondsToMicroseconds);
+          std::mutex wait_mutex;
+          std::unique_lock<std::mutex> wait_lock(wait_mutex);
+          entry_replicated_signal_.wait_for(
+              wait_lock, std::chrono::milliseconds(kHeartbeatSendPeriodMs));
         }
       }
       VLOG(1) << "Peer " << PeerId::self() << " Lost leadership. ";
@@ -871,6 +874,7 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
           // The response is from an append entry RPC, not a regular heartbeat.
           this_tracker->replication_index.store(follower_next_index);
           ++follower_next_index;
+          entry_replicated_signal_.notify_all();
           append_success = (follower_next_index > last_log_index);
         }
       } else if (append_response.response() ==
@@ -976,11 +980,11 @@ void RaftNode::followerCommitNewEntries(const LogWriteAccess& log_writer,
       log_writer->commitIndex() < log_writer->lastLogIndex()) {
     LogIterator old_commit =
         log_writer->getLogIteratorByIndex(log_writer->commitIndex());
-    log_writer->setCommitIndex(
-        std::min(log_writer->lastLogIndex(), request_commit_index));
 
+    uint64_t new_commit_index =
+        std::min(log_writer->lastLogIndex(), request_commit_index);
     LogIterator new_commit =
-        log_writer->getLogIteratorByIndex(log_writer->commitIndex());
+        log_writer->getLogIteratorByIndex(new_commit_index);
 
     std::for_each(old_commit + 1, new_commit + 1,
                   [&](const std::shared_ptr<proto::RaftLogEntry>& entry) {
@@ -1001,6 +1005,8 @@ void RaftNode::followerCommitNewEntries(const LogWriteAccess& log_writer,
       }
       chunkLockEntryCommit(log_writer, entry);
     });
+    log_writer->setCommitIndex(new_commit_index);
+    entry_committed_signal_.notify_all();
     // TODO(aqurai): remove log later. Or increase the verbosity arg.
     VLOG_EVERY_N(1, 50) << PeerId::self() << ": Entry "
                         << log_writer->commitIndex() << " committed *****";
@@ -1104,7 +1110,6 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
       num_peers_ == 0;
 
   if (ready_to_commit) {
-    log_writer->setCommitIndex(log_writer->commitIndex() + 1);
     if ((*it)->has_add_peer()) {
       leaderAddPeer(PeerId((*it)->add_peer()), log_writer, current_term);
     }
@@ -1121,6 +1126,8 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
       applySingleRevisionCommit(*it);
     }
     chunkLockEntryCommit(log_writer, *it);
+    log_writer->setCommitIndex(log_writer->commitIndex() + 1);
+    entry_committed_signal_.notify_all();
     VLOG_EVERY_N(1, 10) << PeerId::self() << ": Commit index increased to "
                         << log_writer->commitIndex()
                         << " With replication count " << replication_count
@@ -1323,7 +1330,11 @@ bool RaftNode::waitAndCheckCommit(uint64_t index, uint64_t append_term,
       // Term changed before our entry could be appended.
       return false;
     }
-    usleep(500 * kMillisecondsToMicroseconds);
+    std::mutex wait_mutex;
+    std::unique_lock<std::mutex> wait_lock(wait_mutex);
+    // Wait time limit to avoid deadlocks.
+    entry_committed_signal_.wait_for(
+        wait_lock, std::chrono::milliseconds(kHeartbeatSendPeriodMs));
   }
   if (!isRunning()) {
     return false;

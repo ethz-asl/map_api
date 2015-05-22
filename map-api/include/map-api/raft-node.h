@@ -304,6 +304,9 @@ class RaftNode {
   void bulkApplyLockedRevisions(const LogWriteAccess& log_writer,
                                 uint64_t lock_index, uint64_t unlock_index);
 
+  std::condition_variable entry_replicated_signal_;
+  std::condition_variable entry_committed_signal_;
+
   class DistributedRaftChunkLock {
    public:
     DistributedRaftChunkLock()
