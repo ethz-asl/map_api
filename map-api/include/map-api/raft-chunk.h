@@ -82,7 +82,6 @@ class RaftChunk : public ChunkBase {
   inline void syncLatestCommitTime(const Revision& item);
 
   uint64_t raftInsertRequest(const Revision::ConstPtr& item);
-  uint64_t raftUpdateRequest(const Revision::ConstPtr& item);
 
   virtual void leaveImpl() override;
   virtual void awaitShared() override;
@@ -117,8 +116,6 @@ class RaftChunk : public ChunkBase {
                                            bool proceed_commits,
                                            Message* response);
   inline void handleRaftInsertRequest(proto::InsertRequest* request,
-                                      const PeerId& sender, Message* response);
-  inline void handleRaftUpdateRequest(proto::InsertRequest* request,
                                       const PeerId& sender, Message* response);
 
   // Raft Requests.

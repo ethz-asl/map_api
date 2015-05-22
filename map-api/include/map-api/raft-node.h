@@ -143,9 +143,8 @@ class RaftNode {
                                 Message* response);
   void handleInsertRequest(proto::InsertRequest* request,
                            const PeerId& sender, Message* response);
-  void handleUpdateRequest(proto::InsertRequest* request, const PeerId& sender,
-                           Message* response);
 
+  // Not ready if entries from older leader pending commit.
   inline bool checkReadyToHandleChunkRequests() const;
 
   // ====================================================
@@ -372,8 +371,6 @@ class RaftNode {
   // New revision request.
   uint64_t sendInsertRequest(const Revision::ConstPtr& item, uint64_t serial_id,
                              bool is_retry_attempt);
-  uint64_t sendUpdateRequest(const Revision::ConstPtr& item, uint64_t serial_id,
-                             bool is_retry_attempt);
   bool waitAndCheckCommit(uint64_t index, uint64_t append_term,
                           uint64_t serial_id);
   bool sendLeaveRequest(uint64_t serial_id);
@@ -387,11 +384,6 @@ class RaftNode {
   proto::RaftChunkRequestResponse processInsertRequest(
       const PeerId& sender, uint64_t serial_id, bool is_retry_attempt,
       proto::Revision* unowned_revision_pointer);
-  proto::RaftChunkRequestResponse processUpdateRequest(
-      const PeerId& sender, uint64_t serial_id, bool is_retry_attempt,
-      proto::Revision* unowned_revision_pointer);
-  // proto::RaftChunkRequestResponse processLeaveRequest(const PeerId& sender,
-  // uint64_t serial_id, bool is_retry_attempt);
 
   // ========================
   // Owner chunk information.

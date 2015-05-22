@@ -1,6 +1,8 @@
 #ifndef MAP_API_RAFT_CHUNK_INL_H_
 #define MAP_API_RAFT_CHUNK_INL_H_
 
+#include "map-api/message.h"
+
 namespace map_api {
 
 void RaftChunk::setStateFollowerAndStartRaft() {
@@ -30,19 +32,31 @@ inline void RaftChunk::syncLatestCommitTime(const Revision& item) {
 
 inline void RaftChunk::handleRaftConnectRequest(const PeerId& sender,
                                                 Message* response) {
-  raft_node_.handleConnectRequest(sender, response);
+  if (raft_node_.isRunning()) {
+    raft_node_.handleConnectRequest(sender, response);
+  } else {
+    response->decline();
+  }
 }
 
 inline void RaftChunk::handleRaftLeaveRequest(const PeerId& sender,
                                               uint64_t serial_id,
                                               Message* response) {
-  raft_node_.handleLeaveRequest(sender, serial_id, response);
+  if (raft_node_.isRunning()) {
+    raft_node_.handleLeaveRequest(sender, serial_id, response);
+  } else {
+    response->decline();
+  }
 }
 
 void RaftChunk::handleRaftChunkLockRequest(const PeerId& sender,
                                            uint64_t serial_id,
                                            Message* response) {
-  raft_node_.handleChunkLockRequest(sender, serial_id, response);
+  if (raft_node_.isRunning()) {
+    raft_node_.handleChunkLockRequest(sender, serial_id, response);
+  } else {
+    response->decline();
+  }
 }
 
 void RaftChunk::handleRaftChunkUnlockRequest(const PeerId& sender,
@@ -50,37 +64,51 @@ void RaftChunk::handleRaftChunkUnlockRequest(const PeerId& sender,
                                              uint64_t lock_index,
                                              bool proceed_commits,
                                              Message* response) {
-  raft_node_.handleChunkUnlockRequest(sender, serial_id, lock_index,
-                                      proceed_commits, response);
+  if (raft_node_.isRunning()) {
+    raft_node_.handleChunkUnlockRequest(sender, serial_id, lock_index,
+                                        proceed_commits, response);
+  } else {
+    response->decline();
+  }
 }
 
 inline void RaftChunk::handleRaftInsertRequest(proto::InsertRequest* request,
                                                const PeerId& sender,
                                                Message* response) {
-  raft_node_.handleInsertRequest(request, sender, response);
-}
-
-inline void RaftChunk::handleRaftUpdateRequest(proto::InsertRequest* request,
-                                               const PeerId& sender,
-                                               Message* response) {
-  raft_node_.handleUpdateRequest(request, sender, response);
+  if (raft_node_.isRunning()) {
+    raft_node_.handleInsertRequest(request, sender, response);
+  } else {
+    response->decline();
+  }
 }
 
 inline void RaftChunk::handleRaftAppendRequest(
     proto::AppendEntriesRequest* request, const PeerId& sender,
     Message* response) {
-  raft_node_.handleAppendRequest(request, sender, response);
+  if (raft_node_.isRunning()) {
+    raft_node_.handleAppendRequest(request, sender, response);
+  } else {
+    response->decline();
+  }
 }
 
 inline void RaftChunk::handleRaftRequestVote(const proto::VoteRequest& request,
                                              const PeerId& sender,
                                              Message* response) {
-  raft_node_.handleRequestVote(request, sender, response);
+  if (raft_node_.isRunning()) {
+    raft_node_.handleRequestVote(request, sender, response);
+  } else {
+    response->decline();
+  }
 }
 
 inline void RaftChunk::handleRaftQueryState(const proto::QueryState& request,
                                             Message* response) {
-  raft_node_.handleQueryState(request, response);
+  if (raft_node_.isRunning()) {
+    raft_node_.handleQueryState(request, response);
+  } else {
+    response->decline();
+  }
 }
 
 }  // namespace map_api

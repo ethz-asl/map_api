@@ -76,9 +76,8 @@ void NetTableManager::registerHandlers() {
                                   handleRaftChunkLockRequest);
   Hub::instance().registerHandler(RaftNode::kChunkUnlockRequest,
                                   handleRaftChunkUnlockRequest);
-  Hub::instance().registerHandler(RaftNode::kInsertRequest, handleRaftInsertRequest);
-  Hub::instance().registerHandler(RaftNode::kUpdateRequest,
-                                  handleRaftUpdateRequest);
+  Hub::instance().registerHandler(RaftNode::kInsertRequest,
+                                  handleRaftInsertRequest);
   Hub::instance().registerHandler(RaftNode::kVoteRequest,
                                   handleRaftRequestVote);
   Hub::instance().registerHandler(RaftNode::kLeaveRequest,
@@ -607,24 +606,6 @@ void NetTableManager::handleRaftInsertRequest(const Message& request, Message* r
     return;
   }
   found->second->handleRaftInsertRequest(chunk_id, &insert_request,
-                                         request.sender(), response);
-}
-
-void NetTableManager::handleRaftUpdateRequest(const Message& request,
-                                              Message* response) {
-  proto::InsertRequest insert_request;
-  request.extract<RaftNode::kUpdateRequest>(&insert_request);
-  const proto::ChunkRequestMetadata metadata = insert_request.metadata();
-  const std::string& table = metadata.table();
-  common::Id chunk_id(metadata.chunk_id());
-  common::ScopedReadLock lock(&instance().tables_lock_);
-  std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator found =
-      instance().tables_.find(table);
-  if (found == instance().tables_.end()) {
-    response->impose<Message::kDecline>();
-    return;
-  }
-  found->second->handleRaftUpdateRequest(chunk_id, &insert_request,
                                          request.sender(), response);
 }
 

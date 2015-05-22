@@ -20,6 +20,7 @@ RaftChunk::RaftChunk()
 
 RaftChunk::~RaftChunk() {
   raft_node_.stop();
+  raft_node_.data_ = NULL;
 }
 
 bool RaftChunk::init(const common::Id& id,
@@ -231,7 +232,7 @@ void RaftChunk::update(const std::shared_ptr<Revision>& item) {
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareUpdate(LogicalTime::sample(), item);
   CHECK(raft_node_.isRunning());
-  if (raftUpdateRequest(item) > 0) {
+  if (raftInsertRequest(item) > 0) {
     syncLatestCommitTime(*item);
   }
   unlock();
@@ -283,7 +284,7 @@ void RaftChunk::updateLocked(const LogicalTime& time,
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareUpdate(LogicalTime::sample(), item);
   // TODO(aqurai): No return? What to do on fail?
-  raftUpdateRequest(item);
+  raftInsertRequest(item);
 }
 
 void RaftChunk::removeLocked(const LogicalTime& time,
@@ -293,7 +294,7 @@ void RaftChunk::removeLocked(const LogicalTime& time,
   CHECK_EQ(id(), item->getChunkId());
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareUpdate(LogicalTime::sample(), item);
-  raftUpdateRequest(item);
+  raftInsertRequest(item);
 }
 
 uint64_t RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
@@ -309,23 +310,6 @@ uint64_t RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
     retrying = true;
     usleep(150 * kMillisecondsToMicroseconds);
   }
-  return index;
-}
-
-uint64_t RaftChunk::raftUpdateRequest(const Revision::ConstPtr& item) {
-  CHECK(raft_node_.isRunning());
-  uint64_t index = 0;
-  bool retrying = false;
-  uint64_t serial_id = request_id_.getNewId();
-  while (raft_node_.isRunning()) {
-    index = raft_node_.sendUpdateRequest(item, serial_id, retrying);
-    if (index > 0) {
-      break;
-    }
-    retrying = true;
-    usleep(150 * kMillisecondsToMicroseconds);
-  }
-  // Wait for the entry to be committed on this peer.
   return index;
 }
 

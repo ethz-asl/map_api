@@ -118,8 +118,6 @@ class NetTableManager {
                                            Message* response);
   static void handleRaftInsertRequest(const Message& request,
                                         Message* response);
-  static void handleRaftUpdateRequest(const Message& request,
-                                      Message* response);
   static void handleRaftRequestVote(const Message& request,
                                       Message* response);
   static void handleRaftQueryState(const Message& request, Message* response);
