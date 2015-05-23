@@ -60,8 +60,6 @@ int RaftChunkDataRamContainer::countByRevisionImpl(
 
 bool RaftChunkDataRamContainer::checkAndPrepareInsert(
     const LogicalTime& time, const std::shared_ptr<Revision>& query) {
-  // TODO(aqurai): See if this mutex is needed here.
-  std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(query.get() != nullptr);
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
@@ -90,7 +88,6 @@ bool RaftChunkDataRamContainer::checkAndPrepareUpdate(
 
 bool RaftChunkDataRamContainer::checkAndPrepareBulkInsert(
     const LogicalTime& time, const MutableRevisionMap& query) {
-  std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   common::Id id;
@@ -104,6 +101,20 @@ bool RaftChunkDataRamContainer::checkAndPrepareBulkInsert(
     id_revision.second->setInsertTime(time);
     id_revision.second->setUpdateTime(time);
   }
+  return true;
+}
+
+bool RaftChunkDataRamContainer::checkAndPrepareRemove(
+    const LogicalTime& time, const std::shared_ptr<Revision>& query) {
+  CHECK(query.get() != nullptr);
+  CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
+  std::shared_ptr<Revision> reference = getTemplate();
+  CHECK(query->structureMatch(*reference))
+      << "Bad structure of insert revision";
+  CHECK(query->getId<common::Id>().isValid())
+      << "Attempted to insert element with invalid ID";
+  query->setUpdateTime(time);
+  query->setRemoved();
   return true;
 }
 
@@ -212,8 +223,8 @@ RaftChunkDataRamContainer::LogWriteAccess::LogWriteAccess(
   write_log_->mutex()->acquireWriteLock();
 }
 
-RaftChunkDataRamContainer::RaftLog* 
-RaftChunkDataRamContainer::LogWriteAccess::operator->() const {
+RaftChunkDataRamContainer::RaftLog* RaftChunkDataRamContainer::LogWriteAccess::
+operator->() const {
   if (is_enabled_) {
     return write_log_;
   } else {

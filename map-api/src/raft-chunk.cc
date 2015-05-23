@@ -156,7 +156,7 @@ int RaftChunk::requestParticipation(const PeerId& peer) {
   if (raft_node_.state() == RaftNode::State::LEADER) {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
     entry->set_add_peer(peer.ipPort());
-    if (raft_node_.leaderSafelyAppendLogEntry(entry) > 0) {
+    if (raft_node_.leaderAppendEntryAndAwaitCommit(entry) > 0) {
       return 1;
     }
   }
@@ -169,7 +169,7 @@ void RaftChunk::update(const std::shared_ptr<Revision>& item) {
   writeLock();
   static_cast<RaftChunkDataRamContainer*>(data_container2_.get())
       ->checkAndPrepareUpdate(LogicalTime::sample(), item);
-  if (raftUpdateRequest(item) > 0) {
+  if (raftInsertRequest(item) > 0) {
     syncLatestCommitTime(*item);
   }
   unlock();
@@ -223,28 +223,22 @@ void RaftChunk::updateLocked(const LogicalTime& time,
   static_cast<RaftChunkDataRamContainer*>(data_container2_.get())
       ->checkAndPrepareUpdate(LogicalTime::sample(), item);
   // TODO(aqurai): No return value? What to do on fail?
-  raftUpdateRequest(item);
+  raftInsertRequest(item);
 }
 
 void RaftChunk::removeLocked(const LogicalTime& time,
                              const std::shared_ptr<Revision>& item) {
-  // TODO(aqurai): How is this different from Update???
   CHECK(item != nullptr);
   CHECK_EQ(id(), item->getChunkId());
   static_cast<RaftChunkDataRamContainer*>(data_container2_.get())
-      ->checkAndPrepareUpdate(LogicalTime::sample(), item);
+      ->checkAndPrepareRemove(LogicalTime::sample(), item);
   // TODO(aqurai): No return? What to do on fail?
-  raftUpdateRequest(item);
+  raftInsertRequest(item);
 }
 
 uint64_t RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
   CHECK(raft_node_.isRunning());
   return raft_node_.sendInsertRequest(item);
-}
-
-uint64_t RaftChunk::raftUpdateRequest(const Revision::ConstPtr& item) {
-  CHECK(raft_node_.isRunning());
-  return raft_node_.sendUpdateRequest(item);
 }
 
 }  // namespace map_api

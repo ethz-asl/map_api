@@ -86,13 +86,12 @@ class RaftNode {
 
   // Waits for the entry to be committed. Returns failure if the leader fails
   // before the new entry is committed.
-  uint64_t leaderSafelyAppendLogEntry(
+  uint64_t leaderAppendEntryAndAwaitCommit(
       const std::shared_ptr<proto::RaftLogEntry>& new_entry);
 
   static const char kAppendEntries[];
   static const char kAppendEntriesResponse[];
   static const char kInsertRequest[];
-  static const char kUpdateRequest[];
   static const char kInsertResponse[];
   static const char kVoteRequest[];
   static const char kVoteResponse[];

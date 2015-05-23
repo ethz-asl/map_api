@@ -753,20 +753,6 @@ void NetTable::handleRaftInsertRequest(const common::Id& chunk_id,
   active_chunks_lock_.releaseReadLock();
 }
 
-void NetTable::handleRaftUpdateRequest(const common::Id& chunk_id,
-                                       proto::InsertRequest* request,
-                                       const PeerId& sender,
-                                       Message* response) {
-  ChunkMap::iterator found;
-  active_chunks_lock_.acquireReadLock();
-  if (routingBasics(chunk_id, response, &found)) {
-    RaftChunk* chunk =
-        CHECK_NOTNULL(dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
-    chunk->handleRaftUpdateRequest(request, sender, response);
-  }
-  active_chunks_lock_.releaseReadLock();
-}
-
 void NetTable::handleRaftRequestVote(const common::Id& chunk_id,
                                      const proto::VoteRequest& request,
                                      const PeerId& sender, Message* response) {

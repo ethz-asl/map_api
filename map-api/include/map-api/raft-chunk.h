@@ -59,7 +59,7 @@ class RaftChunk : public ChunkBase {
 
   static bool sendConnectRequest(const PeerId& peer,
                                  proto::ChunkRequestMetadata& metadata);
-  
+
   virtual LogicalTime getLatestCommitTime() const override {
     LOG(WARNING) << "RaftChunk::insert() is not implemented";
     return LogicalTime::sample();
@@ -76,8 +76,6 @@ class RaftChunk : public ChunkBase {
   inline void syncLatestCommitTime(const Revision& item);
 
   uint64_t raftInsertRequest(const Revision::ConstPtr& item);
-  uint64_t raftUpdateRequest(const Revision::ConstPtr& item);
-
   /**
    * ==========================================
    * Handlers for RPCs addressed to this Chunk.
@@ -89,8 +87,6 @@ class RaftChunk : public ChunkBase {
   inline void handleRaftAppendRequest(proto::AppendEntriesRequest* request,
                                       const PeerId& sender, Message* response);
   inline void handleRaftInsertRequest(proto::InsertRequest* request,
-                                      const PeerId& sender, Message* response);
-  inline void handleRaftUpdateRequest(proto::InsertRequest* request,
                                       const PeerId& sender, Message* response);
   inline void handleRaftRequestVote(const proto::VoteRequest& request,
                                     const PeerId& sender, Message* response);
