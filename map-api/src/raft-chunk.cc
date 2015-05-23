@@ -216,7 +216,7 @@ int RaftChunk::requestParticipation(const PeerId& peer) {
     uint64_t serial_id = request_id_.getNewId();
     entry->set_sender_serial_id(serial_id);
     uint64_t append_term = raft_node_.getTerm();
-    uint64_t index = raft_node_.leaderSafelyAppendLogEntry(entry);
+    uint64_t index = raft_node_.leaderAppendLogEntry(entry);
     if (index > 0 &&
         raft_node_.waitAndCheckCommit(index, append_term, serial_id)) {
       return 1;
