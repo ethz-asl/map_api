@@ -55,7 +55,7 @@ void RaftChunkDataRamContainer::trimToTime(const LogicalTime& time,
     });
   }
 }
-  
+
 }  // namespace map_api
 
 #endif  // MAP_API_RAFT_CHUNK_DATA_RAM_CONTAINER_INL_H_

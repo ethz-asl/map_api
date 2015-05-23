@@ -48,8 +48,6 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   // INSERT
   bool checkAndPatch(const std::shared_ptr<Revision>& query);
 
-  // TODO(aqurai): This is a separate function because this becomes a virtual
-  // method in base class to be impl by RAM and STXXL derived classes.
   bool patch(const Revision::ConstPtr& query);
 
   // =================
