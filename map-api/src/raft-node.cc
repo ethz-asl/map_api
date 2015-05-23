@@ -306,12 +306,11 @@ void RaftNode::handleLeaveRequest(const PeerId& sender, uint64_t serial_id,
   entry->set_sender(sender.ipPort());
   entry->set_sender_serial_id(serial_id);
   uint64_t index = leaderSafelyAppendLogEntry(entry);
-  //  if (index > 0 && !checkIfEntryCommitted(index, getTerm(), serial_id)) {
-  //    index = 0;
-  //  }
+
   proto::RaftChunkRequestResponse leave_response;
   leave_response.set_entry_index(index);
   response->impose<kRaftChunkRequestResponse>(leave_response);
+  leaderRemovePeer(sender);
 }
 
 void RaftNode::handleChunkLockRequest(const PeerId& sender, uint64_t serial_id,
@@ -995,6 +994,8 @@ void RaftNode::followerCommitNewEntries(const LogWriteAccess& log_writer,
       if (state == State::FOLLOWER && entry->has_remove_peer()) {
         if (entry->has_sender() && entry->sender() == entry->remove_peer()) {
           CHECK(raft_chunk_lock_.isLockHolder(PeerId(entry->remove_peer())));
+        }
+        if (raft_chunk_lock_.isLockHolder(PeerId(entry->remove_peer()))) {
           CHECK(raft_chunk_lock_.unlock());
         }
         followerRemovePeer(PeerId(entry->remove_peer()));
@@ -1075,7 +1076,6 @@ uint64_t RaftNode::leaderAppendLogEntryLocked(
 
 void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
   LogWriteAccess log_writer(data_);
-
   uint replication_count = 0;
   {
     std::lock_guard<std::mutex> tracker_lock(follower_tracker_mutex_);
@@ -1118,6 +1118,8 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
       // non responding peer.
       if ((*it)->has_sender() && (*it)->sender() == (*it)->remove_peer()) {
         CHECK(raft_chunk_lock_.isLockHolder(PeerId((*it)->remove_peer())));
+      }
+      if (raft_chunk_lock_.isLockHolder(PeerId((*it)->remove_peer()))) {
         CHECK(raft_chunk_lock_.unlock());
       }
       leaderRemovePeer(PeerId((*it)->remove_peer()));
@@ -1135,13 +1137,13 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
 
     // TODO(aqurai): Send notification to quitting peers after zerommq crash
     // issue is resolved.
-      // There is a crash if one attempts to send message to a peer after a
-      // previous message to the same peer timed out. So if a peer is removed
-      // because it was not responding, sending a notification will cause a
-      // crash. Otherwise, here I have to make a distinction between announced
-      // and unannounced peer removal. Also, There could be other
-      // threads/methods (eg: vote request) attempting to send message to the
-      // non responsive peer, which causes a problem.
+    // There is a crash if one attempts to send message to a peer after a
+    // previous message to the same peer timed out. So if a peer is removed
+    // because it was not responding, sending a notification will cause a
+    // crash. Otherwise, here I have to make a distinction between announced
+    // and unannounced peer removal. Also, There could be other
+    // threads/methods (eg: vote request) attempting to send message to the
+    // non responsive peer, which causes a problem.
   }
 }
 
@@ -1412,7 +1414,6 @@ void RaftNode::sendLeaveSuccessNotification(const PeerId& peer) {
                  << " failed for peer " << peer
                  << ". The peer is probably offline";
   }
-  CHECK(response.isOk());
 }
 
 proto::RaftChunkRequestResponse RaftNode::processChunkLockRequest(
