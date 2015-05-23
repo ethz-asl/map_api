@@ -10,7 +10,6 @@
 
 namespace map_api {
 
-/*
 TEST_F(NetTableFixture, NetInsert) {
   ChunkBase* chunk = table_->newChunk();
   ASSERT_TRUE(chunk);
@@ -213,9 +212,9 @@ TEST_F(NetTableFixture, RemoteUpdate) {
     IPC::barrier(A_UPDATED, 1);
     IPC::barrier(DIE, 1);
   }
-}*/
+}
 
-DEFINE_uint64(grind_processes, 3u,
+DEFINE_uint64(grind_processes, 10u,
               "Total amount of processes in ChunkTest.Grind");
 DEFINE_uint64(grind_cycles, 10u,
               "Total amount of insert-update cycles in ChunkTest.Grind");
@@ -244,7 +243,7 @@ TEST_F(NetTableFixture, Grind) {
   } else {
     IPC::barrier(INIT, kProcesses - 1);
     IPC::barrier(ID_SHARED, kProcesses - 1);
-    /*common::Id chunk_id = IPC::pop<common::Id>();
+    common::Id chunk_id = IPC::pop<common::Id>();
     ChunkBase* chunk = table_->getChunk(chunk_id);
     for (int i = 0; i < kInsertUpdateCycles; ++i) {
       // insert
@@ -255,13 +254,12 @@ TEST_F(NetTableFixture, Grind) {
             results.begin()->second->copyForWrite();
         revision->set(kFieldName, 21);
         EXPECT_TRUE(table_->update(revision));
-    }*/
-    LOG(WARNING) << "Leaving begin. " << PeerId::self();
+    }
     IPC::barrier(DIE, kProcesses - 1);
     VLOG(3) << "Finishing...";
   }
 }
-/*
+
 TEST_F(NetTableFixture, ChunkTransactions) {
   const uint64_t kProcesses = FLAGS_grind_processes;
   enum Barriers {
@@ -538,7 +536,7 @@ TEST_F(NetTableFixture, GetCommitTimes) {
   EXPECT_EQ(2u, commit_times.size());
   EXPECT_TRUE(commit_times.find(first.getCommitTime()) != commit_times.end());
   EXPECT_TRUE(commit_times.find(second.getCommitTime()) != commit_times.end());
-} */
+}
 
 }  // namespace map_api
 
