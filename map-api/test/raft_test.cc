@@ -13,6 +13,7 @@
 #include "map-api/raft-chunk.h"
 #include "map-api/test/testing-entrypoint.h"
 #include "./consensus_fixture.h"
+#include "./net_table_fixture.h"
 
 namespace map_api {
 
@@ -24,7 +25,6 @@ constexpr int kNumEntriesToAppend = 40;
 DEFINE_uint64(raft_chunk_processes, 5u,
               "Total number of processes in RaftChunkTests");
 
-/*
 TEST_F(ConsensusFixture, RaftGetChunk) {
   const uint64_t kProcesses = FLAGS_raft_chunk_processes;
   enum Barriers {
@@ -171,7 +171,7 @@ TEST_F(ConsensusFixture, LeaderElection) {
     EXPECT_EQ(leader.ipPort(), chunk->raft_node_.getLeader().ipPort());
     IPC::barrier(DIE, kProcesses - 1);
   }
-} */
+}
 
 TEST_F(ConsensusFixture, UnannouncedLeave) {
   const uint64_t kProcesses = FLAGS_raft_chunk_processes;

@@ -481,8 +481,10 @@ void RaftNode::stateManagerThread() {
       }
       usleep(kJoinResponseTimeoutMs * kMillisecondsToMicroseconds);
     } else if (state == State::FOLLOWER) {
-      if (getTimeSinceHeartbeatMs() > election_timeout_ms_) {
-        VLOG(1) << "Follower: " << PeerId::self() << " : Heartbeat timed out. ";
+      if (getTimeSinceHeartbeatMs() > election_timeout_ms_ &&
+          !leave_requested_) {
+        VLOG(1) << "Follower: " << PeerId::self()
+                << " : Heartbeat timed out for chunk " << chunk_id_;
         election_timeout = true;
       } else {
         usleep(election_timeout_ms_ * kMillisecondsToMicroseconds);
@@ -1345,6 +1347,7 @@ bool RaftNode::sendLeaveRequest(uint64_t serial_id) {
     if (!checkReadyToHandleChunkRequests()) {
       return false;
     }
+    waitAndCheckCommit(data_->lastLogIndex(), append_term, 0);
     giveUpLeadership();
     while (num_peers_ > 0 && isRunning()) {
       {
@@ -1396,6 +1399,8 @@ void RaftNode::sendLeaveSuccessNotification(const PeerId& peer) {
 
 proto::RaftChunkRequestResponse RaftNode::processChunkLockRequest(
     const PeerId& sender, uint64_t serial_id, bool is_retry_attempt) {
+  VLOG(3) << PeerId::self() << " Received chunk lock request from " << sender
+          << " for chunk " << chunk_id_;
   proto::RaftChunkRequestResponse response;
   if (!checkReadyToHandleChunkRequests()) {
     response.set_entry_index(0);
@@ -1431,7 +1436,7 @@ proto::RaftChunkRequestResponse RaftNode::processChunkUnlockRequest(
   }
   if (!raft_chunk_lock_.isLockHolder(sender)) {
     LOG(ERROR) << "Received unlock request from a non lock holder " << sender;
-    response.set_entry_index(1);
+    response.set_entry_index(0);
     return response;
   }
   std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
@@ -1450,6 +1455,14 @@ proto::RaftChunkRequestResponse RaftNode::processInsertRequest(
     proto::Revision* unowned_revision_pointer) {
   proto::RaftChunkRequestResponse response;
   if (!checkReadyToHandleChunkRequests()) {
+    response.set_entry_index(0);
+    return response;
+  }
+  if (!raft_chunk_lock_.isLockHolder(sender)) {
+    // TODO(aqurai): Change it to FATAL after enforcing it on sender side.
+    LOG(ERROR) << "Insert request from a non lock holder peer " << sender
+               << " for chunk " << chunk_id_ << ". lock holder is "
+               << raft_chunk_lock_.holder();
     response.set_entry_index(0);
     return response;
   }

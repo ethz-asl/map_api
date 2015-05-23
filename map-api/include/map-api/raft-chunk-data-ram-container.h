@@ -109,6 +109,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   RaftLog log_;
   inline uint64_t logCommitIndex() const;
   inline uint64_t lastLogTerm() const;
+  inline uint64_t lastLogIndex() const;
 
   class LogReadAccess {
    public:
