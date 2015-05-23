@@ -21,28 +21,13 @@ class ConsensusFixture : public common::MultiprocessFixture {
 
   void addRaftPeer(const PeerId& peer);
   proto::QueryStateResponse queryState(const PeerId& peer);
-  void giveUpLeadership() {
-    // RaftNode::instance().giveUpLeadership();
-  }
-  void appendEntry() {
-    // RaftNode::instance().leaderAppendLogEntry(kRaftTestAppendEntry);
-  }
-  void setJoinRequestPeer(PeerId peer) {
-    //    RaftNode::instance().state_ = RaftNode::State::JOINING;
-    //    RaftNode::instance().join_request_peer_ = peer;
-  }
-  void quitRaft() {
-    // RaftNode::instance().quitRaft();
-  }
+  void quitRaftUnannounced(RaftChunk* chunk);
 
   // Keep apeend entries for a duration of duration_ms, with a delay of
   // delay_ms between consecutive appends.
   void appendEntriesForMs(uint16_t duration_ms, uint16_t delay_ms);
   void appendEntriesWithLeaderChangesForMs(uint16_t duration_ms,
                                            uint16_t delay_ms);
-
-  // Add num_entries entries in a burst
-  void appendEntriesBurst(uint16_t num_entries);
 
   typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
 

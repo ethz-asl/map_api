@@ -70,12 +70,13 @@ RaftNode::RaftNode()
       last_heartbeat_(std::chrono::system_clock::now()),
       state_thread_running_(false),
       is_exiting_(false),
+      leave_requested_(false),
       num_peers_(0),
       is_join_notified_(false),
       join_log_index_(0),
       last_vote_request_term_(0) {
   election_timeout_ms_ = setElectionTimeout();
-  VLOG(1) << "Peer " << PeerId::self()
+  VLOG(2) << "Peer " << PeerId::self()
           << ": Election timeout = " << election_timeout_ms_;
   data_ = new RaftChunkDataRamContainer;
   std::shared_ptr<proto::RaftLogEntry> default_entry(
@@ -458,8 +459,9 @@ void RaftNode::stateManagerThread() {
   state_thread_running_ = true;
 
   while (!is_exiting_) {
-    // Conduct election if timeout has occurred.
-    if (election_timeout) {
+    // Conduct election if timeout has occurred and the peer is not attempting
+    // to leave chunk.
+    if (election_timeout && !leave_requested_) {
       election_timeout = false;
       conductElection();
     }
@@ -623,7 +625,7 @@ void RaftNode::leaderAddPeer(const PeerId& peer,
     peer_list_.insert(peer);
     num_peers_ = peer_list_.size();
     leaderLaunchTracker(peer, current_term);
-    VLOG(1) << "Leader has added peer " << peer
+    VLOG(1) << "Leader has added peer " << peer << " to chunk " << chunk_id_
             << ". Raft group size: " << num_peers_ + 1;
   }
 }
@@ -635,9 +637,8 @@ void RaftNode::leaderRemovePeer(const PeerId& peer) {
   peer_list_.erase(peer);
   num_peers_ = peer_list_.size();
   leaderShutDownTracker(peer);
-  VLOG(1) << "Leader has removed peer " << peer
-          << ". Raft group size: " << num_peers_ + 1 << " for chunk "
-          << chunk_id_.printString();
+  VLOG(1) << "Leader has removed peer " << peer << " from chunk " << chunk_id_
+          << ". Raft group size: " << num_peers_ + 1;
 }
 
 void RaftNode::followerAddPeer(const PeerId& peer) {
@@ -1007,7 +1008,7 @@ void RaftNode::followerCommitNewEntries(const LogWriteAccess& log_writer,
     log_writer->setCommitIndex(new_commit_index);
     entry_committed_signal_.notify_all();
     // TODO(aqurai): remove log later. Or increase the verbosity arg.
-    VLOG_EVERY_N(1, 50) << PeerId::self() << ": Entry "
+    VLOG_EVERY_N(2, 50) << PeerId::self() << ": Entry "
                         << log_writer->commitIndex() << " committed *****";
   }
 }
@@ -1107,7 +1108,7 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
     chunkLockEntryCommit(log_writer, *it);
     log_writer->setCommitIndex(log_writer->commitIndex() + 1);
     entry_committed_signal_.notify_all();
-    VLOG_EVERY_N(1, 10) << PeerId::self() << ": Commit index increased to "
+    VLOG_EVERY_N(2, 10) << PeerId::self() << ": Commit index increased to "
                         << log_writer->commitIndex()
                         << " With replication count " << replication_count
                         << " and term " << (*it)->term();
@@ -1330,6 +1331,7 @@ bool RaftNode::waitAndCheckCommit(uint64_t index, uint64_t append_term,
 }
 
 bool RaftNode::sendLeaveRequest(uint64_t serial_id) {
+  leave_requested_ = true;
   State append_state;
   uint64_t append_term;
   PeerId leader_id;

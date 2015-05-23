@@ -9,6 +9,7 @@
 #include <map-api/net-table-manager.h>
 
 #include "./raft.pb.h"
+#include "map-api/raft-chunk.h"
 
 constexpr int kTableFieldId = 0;
 
@@ -65,78 +66,6 @@ void ConsensusFixture::addRaftPeer(const PeerId& peer) {
   // RaftNode::instance().addPeerBeforeStart(peer);
 }
 
-void ConsensusFixture::appendEntriesForMs(uint16_t duration_ms,
-                                          uint16_t delay_ms) {
-  TimePoint begin = std::chrono::system_clock::now();
-  TimePoint append_time = std::chrono::system_clock::now();
-  uint16_t total_duration_ms = 0;
-  while (total_duration_ms < duration_ms) {
-    TimePoint now = std::chrono::system_clock::now();
-    const uint16_t append_duration_ms = static_cast<uint16_t>(
-        std::chrono::duration_cast<std::chrono::milliseconds>(now - append_time)
-            .count());
-
-    // Append new entries if leader.
-    //    if (RaftNode::instance().state() == RaftNode::State::LEADER) {
-    //      if (append_duration_ms > delay_ms) {
-    //        appendEntry();
-    //        append_time = std::chrono::system_clock::now();
-    //      }
-    //      usleep(delay_ms * kMillisecondsToMicroseconds);
-    //    } else {
-    //      append_time = std::chrono::system_clock::now();
-    //    }
-
-    total_duration_ms = static_cast<uint16_t>(
-        std::chrono::duration_cast<std::chrono::milliseconds>(now - begin)
-            .count());
-  }
-}
-
-void ConsensusFixture::appendEntriesWithLeaderChangesForMs(uint16_t duration_ms,
-                                                           uint16_t delay_ms) {
-  uint num_appends = 0;
-  TimePoint begin = std::chrono::system_clock::now();
-  TimePoint append_time = std::chrono::system_clock::now();
-  uint16_t total_duration_ms = 0;
-  while (total_duration_ms < duration_ms) {
-    TimePoint now = std::chrono::system_clock::now();
-    const uint16_t append_duration_ms = static_cast<uint16_t>(
-        std::chrono::duration_cast<std::chrono::milliseconds>(now - append_time)
-            .count());
-
-    total_duration_ms = static_cast<uint16_t>(
-        std::chrono::duration_cast<std::chrono::milliseconds>(now - begin)
-            .count());
-    // Append new entries if leader.
-    //    if (RaftNode::instance().state() == RaftNode::State::LEADER) {
-    //      if (append_duration_ms > delay_ms) {
-    //        appendEntry();
-    //        ++num_appends;
-    //        append_time = std::chrono::system_clock::now();
-    //      }
-    //
-    //      if (num_appends > 100) {
-    //        giveUpLeadership();
-    //        num_appends = 0;
-    //        append_time = std::chrono::system_clock::now();
-    //      }
-    //      usleep(delay_ms * kMillisecondsToMicroseconds);
-    //    } else {
-    //      append_time = std::chrono::system_clock::now();
-    //    }
-  }
-}
-
-void ConsensusFixture::appendEntriesBurst(uint16_t num_entries) {
-  //  if (RaftNode::instance().state() != RaftNode::State::LEADER) {
-  //    return;
-  //  }
-  //  for (uint16_t k = 0; k < num_entries; ++k) {
-  //    appendEntry();
-  //  }
-}
-
 proto::QueryStateResponse ConsensusFixture::queryState(const PeerId& peer) {
   Message request, response;
   proto::QueryStateResponse state_response;
@@ -147,6 +76,10 @@ proto::QueryStateResponse ConsensusFixture::queryState(const PeerId& peer) {
     LOG(WARNING) << "Supervisor: QueryState request failed for " << peer;
   }
   return state_response;
+}
+
+void ConsensusFixture::quitRaftUnannounced(RaftChunk* chunk) {
+  chunk->raft_node_.stop();
 }
 
 void ConsensusFixture::TearDownImpl() { map_api::Core::instance()->kill(); }
