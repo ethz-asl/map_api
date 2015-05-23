@@ -24,6 +24,7 @@ constexpr int kNumEntriesToAppend = 40;
 DEFINE_uint64(raft_chunk_processes, 5u,
               "Total number of processes in RaftChunkTests");
 
+/*
 TEST_F(ConsensusFixture, RaftGetChunk) {
   const uint64_t kProcesses = FLAGS_raft_chunk_processes;
   enum Barriers {
@@ -119,7 +120,6 @@ TEST_F(ConsensusFixture, RaftRequestParticipation) {
 }
 
 TEST_F(ConsensusFixture, LeaderElection) {
-  // Processes in addition to supervisor.
   const uint64_t kProcesses = FLAGS_raft_chunk_processes;
   enum Barriers {
     INIT_PEERS,
@@ -169,6 +169,58 @@ TEST_F(ConsensusFixture, LeaderElection) {
     IPC::barrier(LEADER_IP_SENT, kProcesses - 1);
     PeerId leader = IPC::pop<PeerId>();
     EXPECT_EQ(leader.ipPort(), chunk->raft_node_.getLeader().ipPort());
+    IPC::barrier(DIE, kProcesses - 1);
+  }
+} */
+
+TEST_F(ConsensusFixture, UnannouncedLeave) {
+  const uint64_t kProcesses = FLAGS_raft_chunk_processes;
+  enum Barriers {
+    INIT_PEERS,
+    PUSH_CHUNK_ID,
+    CHUNKS_INIT,
+    ONE_LEAVES,
+    DIE
+  };
+  pid_t pid = getpid();
+  VLOG(1) << "PID: " << pid << ", IP: " << PeerId::self();
+  if (getSubprocessId() == 0) {
+    for (uint64_t i = 1u; i < kProcesses; ++i) {
+      launchSubprocess(i);
+    }
+    IPC::barrier(INIT_PEERS, kProcesses - 1);
+    usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
+    LOG(WARNING) << "Creating a new chunk.";
+    usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
+    ChunkBase* base_chunk = table_->newChunk();
+    LOG(WARNING) << "Created a new chunk " << base_chunk->id();
+    RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);
+    CHECK_NOTNULL(chunk);
+    IPC::push(chunk->id());
+    IPC::barrier(PUSH_CHUNK_ID, kProcesses - 1);
+
+    IPC::barrier(CHUNKS_INIT, kProcesses - 1);
+    LOG(WARNING) << "Chunks initialized on all peers";
+    EXPECT_EQ(kProcesses - 1, chunk->peerSize());
+    IPC::barrier(ONE_LEAVES, kProcesses - 1);
+    EXPECT_EQ(kProcesses - 2, chunk->peerSize());
+    IPC::barrier(DIE, kProcesses - 1);
+  } else {
+    IPC::barrier(INIT_PEERS, kProcesses - 1);
+    IPC::barrier(PUSH_CHUNK_ID, kProcesses - 1);
+    common::Id chunk_id = IPC::pop<common::Id>();
+    ChunkBase* base_chunk = table_->getChunk(chunk_id);
+    RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);
+    CHECK_NOTNULL(chunk);
+    IPC::barrier(CHUNKS_INIT, kProcesses - 1);
+    EXPECT_EQ(kProcesses - 1, chunk->peerSize());
+
+    if (getSubprocessId() == 1) {
+      quitRaftUnannounced(chunk);
+    }
+    usleep(5 * kWaitTimeMs * kMillisecondsToMicroseconds);
+    IPC::barrier(ONE_LEAVES, kProcesses - 1);
+    EXPECT_EQ(kProcesses - 2, chunk->peerSize());
     IPC::barrier(DIE, kProcesses - 1);
   }
 }

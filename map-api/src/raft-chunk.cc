@@ -314,6 +314,10 @@ uint64_t RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
 }
 
 void RaftChunk::leaveImpl() {
+  // We may stop raft node explicitly without calling leave in some tests.
+  if (!raft_node_.isRunning()) {
+    return;
+  }
   writeLock();
   CHECK(raft_node_.isRunning());
   uint64_t serial_id = request_id_.getNewId();
