@@ -83,11 +83,6 @@ class RaftNode {
   uint64_t leaderAppendLogEntry(
       const std::shared_ptr<proto::RaftLogEntry>& new_entry);
 
-  // Waits for the entry to be committed. Returns failure if the leader fails
-  // before the new entry is committed.
-  uint64_t leaderSafelyAppendLogEntry(
-      const std::shared_ptr<proto::RaftLogEntry>& new_entry);
-
   static const char kAppendEntries[];
   static const char kAppendEntriesResponse[];
   static const char kChunkLockRequest[];

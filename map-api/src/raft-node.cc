@@ -305,7 +305,7 @@ void RaftNode::handleLeaveRequest(const PeerId& sender, uint64_t serial_id,
   entry->set_remove_peer(sender.ipPort());
   entry->set_sender(sender.ipPort());
   entry->set_sender_serial_id(serial_id);
-  uint64_t index = leaderSafelyAppendLogEntry(entry);
+  uint64_t index = leaderAppendLogEntry(entry);
 
   proto::RaftChunkRequestResponse leave_response;
   leave_response.set_entry_index(index);
@@ -395,7 +395,7 @@ RaftNode::VoteResponse RaftNode::sendRequestVote(
   if (Hub::instance().try_request(peer, &request, &response)) {
     proto::VoteResponse vote_response;
     if (!response.isType<kVoteResponse>()) {
-      return VoteResponse::VOTER_NOT_ELIGIBLE;
+      return VoteResponse::FAILED_REQUEST;
     }
     response.extract<kVoteResponse>(&vote_response);
     switch (vote_response.vote()) {
@@ -946,9 +946,7 @@ proto::AppendResponseStatus RaftNode::followerAppendNewEntries(
       CHECK((it + 1) != log_writer->end());
       // Erase and replace only of the entry is different from the one already
       // stored.
-      // TODO(aqurai): Compare revisions here?
-      if (/*(*(it + 1))->entry() == request->log_entry().entry() &&*/
-          (*(it + 1))->term() == request->log_entry().term()) {
+      if ((*(it + 1))->term() == request->log_entry().term()) {
         return proto::AppendResponseStatus::ALREADY_PRESENT;
       } else {
         VLOG(1) << "Leader is erasing entries in log of " << PeerId::self()
@@ -1038,27 +1036,6 @@ uint64_t RaftNode::leaderAppendLogEntry(
                                      entry->sender_serial_id());
   }
   return leaderAppendLogEntryLocked(log_writer, entry, current_term);
-}
-
-uint64_t RaftNode::leaderSafelyAppendLogEntry(
-    const std::shared_ptr<proto::RaftLogEntry>& entry) {
-  uint64_t index = leaderAppendLogEntry(entry);
-  if (index == 0) {
-    return 0;
-  }
-  // TODO(aqurai): Although the state or term is guaranteed to change in case of
-  // leader failure thus breaking the loop, still add a time out for safety?
-  //  bool term_changed = false;
-  //  while (data_->logCommitIndex() < index) {
-  //    std::unique_lock<std::mutex> state_lock(state_mutex_);
-  //    if (state_ != State::LEADER || current_term_ != append_term) {
-  //      term_changed = true;
-  //      break;
-  //    }
-  //    state_lock.unlock();
-  //    usleep(kCommitIndexCheckPeriodMs * kMillisecondsToMicroseconds);
-  //  }
-  return index;
 }
 
 uint64_t RaftNode::leaderAppendLogEntryLocked(
@@ -1377,7 +1354,6 @@ bool RaftNode::sendLeaveRequest(uint64_t serial_id) {
           leader_id = leader_id_;
           break;
         }
-        // TODO(aqurai): IMPORTANT: Test if this ever gets stuck here!
       }
       usleep(kHeartbeatTimeoutMs * kMillisecondsToMicroseconds);
     }
@@ -1430,7 +1406,7 @@ proto::RaftChunkRequestResponse RaftNode::processChunkLockRequest(
     entry->set_lock_peer(sender.ipPort());
     entry->set_sender(sender.ipPort());
     entry->set_sender_serial_id(serial_id);
-    index = leaderSafelyAppendLogEntry(entry);
+    index = leaderAppendLogEntry(entry);
     if (index > 0 && !raft_chunk_lock_.isLockHolder(sender)) {
       // Someone else got the lock.
       response.set_response_status(
@@ -1462,7 +1438,7 @@ proto::RaftChunkRequestResponse RaftNode::processChunkUnlockRequest(
   entry->set_unlock_lock_index(lock_index);
   entry->set_sender(sender.ipPort());
   entry->set_sender_serial_id(serial_id);
-  uint64_t index = leaderSafelyAppendLogEntry(entry);
+  uint64_t index = leaderAppendLogEntry(entry);
   response.set_entry_index(index);
   return response;
 }
@@ -1479,7 +1455,7 @@ proto::RaftChunkRequestResponse RaftNode::processInsertRequest(
   entry->set_allocated_insert_revision(unowned_revision_pointer);
   entry->set_sender(sender.ipPort());
   entry->set_sender_serial_id(serial_id);
-  uint64_t index = leaderSafelyAppendLogEntry(entry);
+  uint64_t index = leaderAppendLogEntry(entry);
   response.set_entry_index(index);
   return response;
 }
