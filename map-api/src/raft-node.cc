@@ -516,7 +516,7 @@ void RaftNode::stateManagerThread() {
       VLOG(1) << "Peer " << PeerId::self() << ": Follower trackers closed. ";
     }
   }  // while(!is_exiting_)
-  VLOG(1) << PeerId::self() << ": Closing the State manager thread";
+  VLOG(1) << PeerId::self() << ": Closing the State manager thread for chunk " << chunk_id_;
   state_thread_running_ = false;
 }
 
@@ -1034,7 +1034,17 @@ uint64_t RaftNode::leaderAppendLogEntry(
   if (entry->has_sender() &&
       log_writer->getPeerLatestSerialId(PeerId(entry->sender())) >=
           entry->sender_serial_id()) {
-    LOG(WARNING) << "Entry already present";
+    LOG(WARNING) << "Entry already present. Sender: " << entry->sender()
+                 << ". Entry serial id: " << entry->sender_serial_id();
+    if (entry->has_add_peer() ||entry->has_remove_peer()) {
+      LOG(WARNING) << "Entry type: add/remove peer";
+    }
+    if (entry->has_lock_peer() || entry->has_remove_peer()) {
+      LOG(WARNING) << "Entry type: lock/unlock request";
+    }
+    if (entry->has_insert_revision()) {
+      LOG(WARNING) << "Entry type: insert revision";
+    }
     return log_writer->getEntryIndex(PeerId(entry->sender()),
                                      entry->sender_serial_id());
   }

@@ -17,6 +17,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
  public:
   friend class RaftNode;
   friend class RaftChunk;
+  friend class ConsensusFixture;
   virtual ~RaftChunkDataRamContainer();
 
  private:

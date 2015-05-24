@@ -10,6 +10,7 @@
 
 #include "./raft.pb.h"
 #include "map-api/raft-chunk.h"
+#include "map-api/raft-chunk-data-ram-container.h"
 
 constexpr int kTableFieldId = 0;
 
@@ -18,7 +19,7 @@ namespace map_api {
 void ConsensusFixture::SetUpImpl() {
   map_api::Core::initializeInstance();  // Core init.
   ASSERT_TRUE(map_api::Core::instance() != nullptr);
-  // RaftNode::instance().registerHandlers();
+  entry_serial_id_ = 0;
 
   // Create a table
   std::shared_ptr<map_api::TableDescriptor> descriptor(new TableDescriptor);
@@ -80,6 +81,36 @@ proto::QueryStateResponse ConsensusFixture::queryState(const PeerId& peer) {
 
 void ConsensusFixture::quitRaftUnannounced(RaftChunk* chunk) {
   chunk->raft_node_.stop();
+}
+
+void ConsensusFixture::leaderAppendBlankLogEntry(RaftChunk* chunk) {
+  
+  std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
+  entry->set_sender(PeerId::self().ipPort());
+  entry->set_sender_serial_id(++entry_serial_id_);
+  do {
+    CHECK(chunk->raft_node_.getState() == RaftNode::State::LEADER);
+  } while (chunk->raft_node_.leaderAppendLogEntry(entry) == 0);
+}
+
+void ConsensusFixture::leaderWaitUntilAllCommitted(RaftChunk* chunk) {
+  uint64_t term;
+  uint64_t last_index;
+  bool is_leader;
+  {
+    std::lock_guard<std::mutex> state_lock(chunk->raft_node_.state_mutex_);
+    is_leader = (chunk->raft_node_.state_ == RaftNode::State::LEADER);
+    term = chunk->raft_node_.current_term_;
+    last_index = chunk->raft_node_.data_->lastLogIndex();
+  }
+  CHECK(is_leader);
+  chunk->raft_node_.waitAndCheckCommit(last_index, term, 0);
+}
+
+uint64_t ConsensusFixture::getLatestEntrySerialId(RaftChunk* chunk,
+                                              const PeerId& peer) {
+  RaftChunkDataRamContainer::LogReadAccess log_reader(chunk->raft_node_.data_);
+  return log_reader->getPeerLatestSerialId(peer);
 }
 
 void ConsensusFixture::TearDownImpl() { map_api::Core::instance()->kill(); }
