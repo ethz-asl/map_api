@@ -1083,8 +1083,9 @@ void RaftNode::applySingleRevisionCommit(
         std::unique_ptr<proto::Revision>(entry->release_insert_revision()));
     insert_revision->getId<common::Id>().serialize(
         entry->mutable_revision_id());
-    entry->set_logical_time(insert_revision->getInsertTime().serialize());
+    entry->set_logical_time(insert_revision->getUpdateTime().serialize());
     data_->checkAndPatch(insert_revision);
+    // commit_insert_callback_(insert_revision->getId<common::Id>());
   }
 }
 
@@ -1100,6 +1101,10 @@ void RaftNode::chunkLockEntryCommit(const LogWriteAccess& log_writer,
             raft_chunk_lock_.lock_entry_index(), entry->index());
       }
       raft_chunk_lock_.unlock();
+      // TODO(aqurai): Triggers need to be impl differently for raft chunks.
+      //      if (entry->unlock_proceed_commits()) {
+      //         commit_unlock_callback_();
+      //      }
     }
   }
 }

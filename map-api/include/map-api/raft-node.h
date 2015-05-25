@@ -330,6 +330,11 @@ class RaftNode {
       const PeerId& sender, uint64_t serial_id, bool is_retry_attempt,
       proto::Revision* unowned_revision_pointer);
 
+  // Callbacks on Insert/Update
+  std::function<void(const common::Id& inserted_id)> commit_insert_callback_;
+  std::function<void(const common::Id& inserted_id)> commit_update_callback_;
+  std::function<void(void)> commit_unlock_callback_;
+
   inline const std::string getLogEntryTypeString(
       const std::shared_ptr<proto::RaftLogEntry>& entry) const;
 
