@@ -71,8 +71,6 @@ RaftNode::RaftNode()
       state_thread_running_(false),
       is_exiting_(false),
       num_peers_(0),
-      is_join_notified_(false),
-      join_log_index_(0),
       last_vote_request_term_(0) {
   election_timeout_ms_ = setElectionTimeout();
   VLOG(1) << "Peer " << PeerId::self()
@@ -226,7 +224,6 @@ void RaftNode::handleRequestVote(const proto::VoteRequest& vote_request,
   last_vote_request_term_ =
     std::max(static_cast<uint64_t>(last_vote_request_term_), vote_request.term());
   if (state_ == State::JOINING || state_ == State::DISCONNECTING) {
-    join_request_peer_ = sender;
     vote_response.set_vote(proto::VoteResponseType::VOTER_NOT_ELIGIBLE);
   } else if (vote_request.term() > current_term_ && is_candidate_log_newer) {
     vote_response.set_vote(proto::VoteResponseType::GRANTED);
@@ -461,14 +458,7 @@ void RaftNode::stateManagerThread() {
       current_term = current_term_;
     }
 
-    if (state == State::LOST_CONNECTION) {
-      if (getTimeSinceHeartbeatMs() > kJoinResponseTimeoutMs) {
-        VLOG(1) << "Joining peer: " << PeerId::self()
-                << " : Heartbeat timed out. Sending Join request. ";
-        joinRaft();
-      }
-      usleep(kJoinResponseTimeoutMs * kMillisecondsToMicroseconds);
-    } else if (state == State::FOLLOWER) {
+    if (state == State::FOLLOWER) {
       if (getTimeSinceHeartbeatMs() > election_timeout_ms_) {
         VLOG(1) << "Follower: " << PeerId::self() << " : Heartbeat timed out. ";
         election_timeout = true;
@@ -642,42 +632,6 @@ void RaftNode::followerRemovePeer(const PeerId& peer) {
   std::lock_guard<std::mutex> peer_lock(peer_mutex_);
   peer_list_.erase(peer);
   num_peers_ = peer_list_.size();
-}
-
-void RaftNode::joinRaft() {
-  PeerId peer;
-  if (join_request_peer_.isValid()) {
-    peer = join_request_peer_;
-    std::lock_guard<std::mutex> peer_lock(peer_mutex_);
-    peer_list_.insert(join_request_peer_);
-    num_peers_ = peer_list_.size();
-    join_request_peer_ = PeerId();
-  } else if (num_peers_ > 0) {
-    std::lock_guard<std::mutex> peer_lock(peer_mutex_);
-    CHECK(!peer_list_.empty());
-    std::set<PeerId>::iterator it = peer_list_.begin();
-    peer = *it;
-    CHECK(peer.isValid());
-  } else {
-    VLOG(1) << PeerId::self() << ": Unable to join RaftChunk. Exiting.";
-    std::lock_guard<std::mutex> state_lock(state_mutex_);
-    state_ = State::DISCONNECTING;
-    return;
-  }
-  /*VLOG(1) << PeerId::self() << ": Sending join request to " << peer;
-  proto::JoinQuitResponse join_response =
-      sendLeaveRequest(peer, proto::PeerRequestType::ADD_PEER);
-  if (!join_response.response()) {
-    if (join_response.has_leader_id()) {
-      peer = PeerId(join_response.leader_id());
-      join_response =
-          sendLeaveRequest(peer, proto::PeerRequestType::ADD_PEER);
-    }
-  }
-
-  if (join_response.response()) {
-    join_log_index_ = join_response.index();
-  }*/ 
 }
 
 void RaftNode::conductElection() {

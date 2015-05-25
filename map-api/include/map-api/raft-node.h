@@ -230,12 +230,6 @@ class RaftNode {
   void followerAddPeer(const PeerId& peer);
   void followerRemovePeer(const PeerId& peer);
 
-  // First time join.
-  std::atomic<bool> is_join_notified_;
-  std::atomic<uint64_t> join_log_index_;
-  PeerId join_request_peer_;
-  void joinRaft();
-
   // ===============
   // Leader election
   // ===============
