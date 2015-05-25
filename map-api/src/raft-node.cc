@@ -124,16 +124,6 @@ RaftNode::State RaftNode::getState() const {
   return state_;
 }
 
-inline void RaftNode::setAppendEntriesResponse(
-    proto::AppendEntriesResponse* response, proto::AppendResponseStatus status,
-    uint64_t current_commit_index, uint64_t current_term,
-    uint64_t last_log_index, uint64_t last_log_term) const {
-  response->set_response(status);
-  response->set_commit_index(current_commit_index);
-  response->set_term(current_term);
-  response->set_last_log_index(last_log_index);
-  response->set_last_log_term(last_log_term);
-}
 
 // If there are no new entries, Leader sends empty message (heartbeat)
 // Message contains leader commit index, used to update own commit index
@@ -1180,6 +1170,57 @@ bool RaftNode::giveUpLeadership() {
     lock.unlock();
     return false;
   }
+}
+
+bool RaftNode::DistributedRaftChunkLock::writeLock(const PeerId& peer,
+                                                   uint64_t index) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (is_locked_) {
+    // LOG(ERROR) << "Lock false for " << peer << " at log index " << index;
+    return false;
+  }
+  CHECK(peer.isValid());
+  CHECK_GT(index, 0);
+  is_locked_ = true;
+  holder_ = peer;
+  lock_entry_index_ = index;
+  return true;
+}
+
+bool RaftNode::DistributedRaftChunkLock::unlock() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!is_locked_) {
+    LOG(ERROR) << "Unlock false";
+    return false;
+  }
+  is_locked_ = false;
+  lock_entry_index_ = 0;
+  holder_ = PeerId();
+  return true;
+}
+
+uint64_t RaftNode::DistributedRaftChunkLock::lock_entry_index() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return lock_entry_index_;
+}
+
+bool RaftNode::DistributedRaftChunkLock::isLocked() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return is_locked_;
+}
+
+const PeerId& RaftNode::DistributedRaftChunkLock::holder() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return holder_;
+}
+
+bool RaftNode::DistributedRaftChunkLock::isLockHolder(const PeerId& peer)
+    const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!holder_.isValid() || !peer.isValid()) {
+    return false;
+  }
+  return (holder_ == peer);
 }
 
 uint64_t RaftNode::sendChunkLockRequest(uint64_t serial_id) {
