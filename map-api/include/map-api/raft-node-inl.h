@@ -1,6 +1,8 @@
 #ifndef MAP_API_RAFT_NODE_INL_H_
 #define MAP_API_RAFT_NODE_INL_H_
 
+#include <string>
+
 namespace map_api {
 
 void RaftNode::updateHeartbeatTime() const {
@@ -31,6 +33,23 @@ void RaftNode::setAppendEntriesResponse(proto::AppendEntriesResponse* response,
   response->set_term(current_term);
   response->set_last_log_index(last_log_index);
   response->set_last_log_term(last_log_term);
+}
+
+const std::string RaftNode::getLogEntryTypeString(
+    const std::shared_ptr<proto::RaftLogEntry>& entry) const {
+  if (entry->has_add_peer()) {
+    return "Entry type: add peer";
+  } else if (entry->has_remove_peer()) {
+    return "Entry type: remove peer";
+  } else if (entry->has_lock_peer()) {
+    return "Entry type: lock request";
+  } else if (entry->has_unlock_peer()) {
+    return "Entry type: unlock request";
+  } else if (entry->has_insert_revision() || entry->has_revision_id()) {
+    return "Entry type: insert revision";
+  } else {
+    return "Entry type: other";
+  }
 }
 
 template <typename RequestType>

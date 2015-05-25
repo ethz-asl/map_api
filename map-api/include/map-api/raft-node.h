@@ -330,6 +330,9 @@ class RaftNode {
       const PeerId& sender, uint64_t serial_id, bool is_retry_attempt,
       proto::Revision* unowned_revision_pointer);
 
+  inline const std::string getLogEntryTypeString(
+      const std::shared_ptr<proto::RaftLogEntry>& entry) const;
+
   // ========================
   // Owner chunk information.
   // ========================

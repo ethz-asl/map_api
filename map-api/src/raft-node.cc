@@ -977,19 +977,14 @@ uint64_t RaftNode::leaderAppendLogEntry(
   if (entry->has_sender() &&
       log_writer->getPeerLatestSerialId(PeerId(entry->sender())) >=
           entry->sender_serial_id()) {
-    LOG(WARNING) << "Entry already present. Sender: " << entry->sender()
-                 << ". Entry serial id: " << entry->sender_serial_id();
-    if (entry->has_add_peer() ||entry->has_remove_peer()) {
-      LOG(WARNING) << "Entry type: add/remove peer";
-    }
-    if (entry->has_lock_peer() || entry->has_remove_peer()) {
-      LOG(WARNING) << "Entry type: lock/unlock request";
-    }
-    if (entry->has_insert_revision()) {
-      LOG(WARNING) << "Entry type: insert revision";
-    }
-    return log_writer->getEntryIndex(PeerId(entry->sender()),
-                                     entry->sender_serial_id());
+    uint64_t index = log_writer->getEntryIndex(PeerId(entry->sender()),
+                                               entry->sender_serial_id());
+    LOG(WARNING) << "Entry already present at index " << index
+                 << ". Sender: " << entry->sender()
+                 << ". Entry serial id: " << entry->sender_serial_id()
+                 << " in chunk " << chunk_id_ << ". "
+                 << getLogEntryTypeString(entry);
+    return index;
   }
   return leaderAppendLogEntryLocked(log_writer, entry, current_term);
 }
@@ -1418,11 +1413,6 @@ proto::RaftChunkRequestResponse RaftNode::processChunkLockRequest(
     entry->set_sender(sender.ipPort());
     entry->set_sender_serial_id(serial_id);
     index = leaderAppendLogEntry(entry);
-    if (index > 0 && !raft_chunk_lock_.isLockHolder(sender)) {
-      // Someone else got the lock.
-      response.set_response_status(
-          proto::RaftChunkResponse::APPENDED_BUT_FAILED);
-    }
   } else if (raft_chunk_lock_.isLockHolder(sender)) {
     index = raft_chunk_lock_.lock_entry_index();
   }

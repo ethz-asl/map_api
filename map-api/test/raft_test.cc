@@ -24,7 +24,7 @@ constexpr int kNumEntriesToAppend = 40;
 
 DEFINE_uint64(raft_chunk_processes, 5u,
               "Total number of processes in RaftChunkTests");
-
+/*
 TEST_F(ConsensusFixture, RaftGetChunk) {
   const uint64_t kProcesses = FLAGS_raft_chunk_processes;
   enum Barriers {
@@ -229,7 +229,7 @@ TEST_F(ConsensusFixture, UnannouncedLeave) {
     IPC::barrier(DIE, kProcesses - 1);
   }
 }
-
+*/
 DEFINE_uint64(num_appends, 50u, "Total number entries to append");
 
 TEST_F(ConsensusFixture, AppendLogEntries) {
@@ -283,7 +283,7 @@ TEST_F(ConsensusFixture, AppendLogEntries) {
     IPC::barrier(END_APPEND, kProcesses - 1);
     PeerId leader_id = IPC::pop<PeerId>();
     usleep(2*kWaitTimeMs*kMillisecondsToMicroseconds);
-    EXPECT_EQ(FLAGS_num_appends, getLatestEntrySerialId(chunk,leader_id));
+    EXPECT_EQ(FLAGS_num_appends, getLatestEntrySerialId(chunk, leader_id));
     IPC::barrier(DIE, kProcesses - 1);
   }
 }
@@ -323,7 +323,7 @@ TEST_F(ConsensusFixture, AppendLogEntriesWithPeerLeave) {
     LOG(WARNING) << "Chunks initialized on all peers";
     EXPECT_EQ(kProcesses - 1, chunk->peerSize());
     IPC::barrier(START_APPEND, kProcesses - 1);
-    
+
     // Append entries and wait until the are committed.
     for (uint i = 0; i < FLAGS_num_appends; ++i) {
       leaderAppendBlankLogEntry(chunk);
@@ -351,7 +351,7 @@ TEST_F(ConsensusFixture, AppendLogEntriesWithPeerLeave) {
     PeerId leader_id = IPC::pop<PeerId>();
     if (getSubprocessId() != LEAVING_PEER) {
       usleep(2*kWaitTimeMs*kMillisecondsToMicroseconds);
-      EXPECT_EQ(FLAGS_num_appends, getLatestEntrySerialId(chunk,leader_id));
+      EXPECT_EQ(FLAGS_num_appends, getLatestEntrySerialId(chunk, leader_id));
     }
     IPC::barrier(DIE, kProcesses - 1);
   }

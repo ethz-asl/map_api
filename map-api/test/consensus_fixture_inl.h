@@ -19,7 +19,6 @@ namespace map_api {
 void ConsensusFixture::SetUpImpl() {
   map_api::Core::initializeInstance();  // Core init.
   ASSERT_TRUE(map_api::Core::instance() != nullptr);
-  entry_serial_id_ = 0;
 
   // Create a table
   std::shared_ptr<map_api::TableDescriptor> descriptor(new TableDescriptor);
@@ -84,10 +83,9 @@ void ConsensusFixture::quitRaftUnannounced(RaftChunk* chunk) {
 }
 
 void ConsensusFixture::leaderAppendBlankLogEntry(RaftChunk* chunk) {
-  
   std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
   entry->set_sender(PeerId::self().ipPort());
-  entry->set_sender_serial_id(++entry_serial_id_);
+  entry->set_sender_serial_id(chunk->request_id_.getNewId());
   do {
     CHECK(chunk->raft_node_.getState() == RaftNode::State::LEADER);
   } while (chunk->raft_node_.leaderAppendLogEntry(entry) == 0);

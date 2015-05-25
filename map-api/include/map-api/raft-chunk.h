@@ -93,7 +93,7 @@ class RaftChunk : public ChunkBase {
     inline uint64_t getNewId() { return ++serial_id_; }
 
    private:
-    uint64_t serial_id_;
+    std::atomic<uint64_t> serial_id_;
   };
   mutable ChunkRequestId request_id_;
 

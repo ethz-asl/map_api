@@ -22,10 +22,10 @@ class ConsensusFixture : public common::MultiprocessFixture {
   void addRaftPeer(const PeerId& peer);
   proto::QueryStateResponse queryState(const PeerId& peer);
   void quitRaftUnannounced(RaftChunk* chunk);
-  
+
   void leaderAppendBlankLogEntry(RaftChunk* chunk);
   void leaderWaitUntilAllCommitted(RaftChunk* chunk);
-  
+
   uint64_t getLatestEntrySerialId(RaftChunk* chunk, const PeerId& peer);
 
   // Keep apeend entries for a duration of duration_ms, with a delay of
@@ -39,7 +39,6 @@ class ConsensusFixture : public common::MultiprocessFixture {
  protected:
   virtual void SetUpImpl();
   virtual void TearDownImpl();
-  uint64_t entry_serial_id_;
   NetTable* table_;
 };
 
