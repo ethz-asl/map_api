@@ -72,8 +72,6 @@ RaftNode::RaftNode()
       is_exiting_(false),
       leave_requested_(false),
       num_peers_(0),
-      is_join_notified_(false),
-      join_log_index_(0),
       last_vote_request_term_(0) {
   election_timeout_ms_ = setElectionTimeout();
   VLOG(2) << "Peer " << PeerId::self()
@@ -125,16 +123,6 @@ RaftNode::State RaftNode::getState() const {
   return state_;
 }
 
-inline void RaftNode::setAppendEntriesResponse(
-    proto::AppendEntriesResponse* response, proto::AppendResponseStatus status,
-    uint64_t current_commit_index, uint64_t current_term,
-    uint64_t last_log_index, uint64_t last_log_term) const {
-  response->set_response(status);
-  response->set_commit_index(current_commit_index);
-  response->set_term(current_term);
-  response->set_last_log_index(last_log_index);
-  response->set_last_log_term(last_log_term);
-}
 
 // If there are no new entries, Leader sends empty message (heartbeat)
 // Message contains leader commit index, used to update own commit index
@@ -237,7 +225,6 @@ void RaftNode::handleRequestVote(const proto::VoteRequest& vote_request,
   last_vote_request_term_ =
     std::max(static_cast<uint64_t>(last_vote_request_term_), vote_request.term());
   if (state_ == State::JOINING || state_ == State::DISCONNECTING) {
-    join_request_peer_ = sender;
     vote_response.set_vote(proto::VoteResponseType::VOTER_NOT_ELIGIBLE);
   } else if (vote_request.term() > current_term_ && is_candidate_log_newer) {
     vote_response.set_vote(proto::VoteResponseType::GRANTED);
@@ -473,16 +460,8 @@ void RaftNode::stateManagerThread() {
       current_term = current_term_;
     }
 
-    if (state == State::LOST_CONNECTION) {
-      if (getTimeSinceHeartbeatMs() > kJoinResponseTimeoutMs) {
-        VLOG(1) << "Joining peer: " << PeerId::self()
-                << " : Heartbeat timed out. Sending Join request. ";
-        joinRaft();
-      }
-      usleep(kJoinResponseTimeoutMs * kMillisecondsToMicroseconds);
-    } else if (state == State::FOLLOWER) {
-      if (getTimeSinceHeartbeatMs() > election_timeout_ms_ &&
-          !leave_requested_) {
+    if (state == State::FOLLOWER) {
+      if (getTimeSinceHeartbeatMs() > election_timeout_ms_) {
         VLOG(1) << "Follower: " << PeerId::self()
                 << " : Heartbeat timed out for chunk " << chunk_id_;
         election_timeout = true;
@@ -655,42 +634,6 @@ void RaftNode::followerRemovePeer(const PeerId& peer) {
   std::lock_guard<std::mutex> peer_lock(peer_mutex_);
   peer_list_.erase(peer);
   num_peers_ = peer_list_.size();
-}
-
-void RaftNode::joinRaft() {
-  PeerId peer;
-  if (join_request_peer_.isValid()) {
-    peer = join_request_peer_;
-    std::lock_guard<std::mutex> peer_lock(peer_mutex_);
-    peer_list_.insert(join_request_peer_);
-    num_peers_ = peer_list_.size();
-    join_request_peer_ = PeerId();
-  } else if (num_peers_ > 0) {
-    std::lock_guard<std::mutex> peer_lock(peer_mutex_);
-    CHECK(!peer_list_.empty());
-    std::set<PeerId>::iterator it = peer_list_.begin();
-    peer = *it;
-    CHECK(peer.isValid());
-  } else {
-    VLOG(1) << PeerId::self() << ": Unable to join RaftChunk. Exiting.";
-    std::lock_guard<std::mutex> state_lock(state_mutex_);
-    state_ = State::DISCONNECTING;
-    return;
-  }
-  /*VLOG(1) << PeerId::self() << ": Sending join request to " << peer;
-  proto::JoinQuitResponse join_response =
-      sendLeaveRequest(peer, proto::PeerRequestType::ADD_PEER);
-  if (!join_response.response()) {
-    if (join_response.has_leader_id()) {
-      peer = PeerId(join_response.leader_id());
-      join_response =
-          sendLeaveRequest(peer, proto::PeerRequestType::ADD_PEER);
-    }
-  }
-
-  if (join_response.response()) {
-    join_log_index_ = join_response.index();
-  }*/ 
 }
 
 void RaftNode::conductElection() {
@@ -1193,6 +1136,57 @@ bool RaftNode::giveUpLeadership() {
     lock.unlock();
     return false;
   }
+}
+
+bool RaftNode::DistributedRaftChunkLock::writeLock(const PeerId& peer,
+                                                   uint64_t index) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (is_locked_) {
+    // LOG(ERROR) << "Lock false for " << peer << " at log index " << index;
+    return false;
+  }
+  CHECK(peer.isValid());
+  CHECK_GT(index, 0);
+  is_locked_ = true;
+  holder_ = peer;
+  lock_entry_index_ = index;
+  return true;
+}
+
+bool RaftNode::DistributedRaftChunkLock::unlock() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!is_locked_) {
+    LOG(ERROR) << "Unlock false";
+    return false;
+  }
+  is_locked_ = false;
+  lock_entry_index_ = 0;
+  holder_ = PeerId();
+  return true;
+}
+
+uint64_t RaftNode::DistributedRaftChunkLock::lock_entry_index() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return lock_entry_index_;
+}
+
+bool RaftNode::DistributedRaftChunkLock::isLocked() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return is_locked_;
+}
+
+const PeerId& RaftNode::DistributedRaftChunkLock::holder() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return holder_;
+}
+
+bool RaftNode::DistributedRaftChunkLock::isLockHolder(const PeerId& peer)
+    const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!holder_.isValid() || !peer.isValid()) {
+    return false;
+  }
+  return (holder_ == peer);
 }
 
 uint64_t RaftNode::sendChunkLockRequest(uint64_t serial_id) {

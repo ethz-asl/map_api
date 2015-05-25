@@ -149,6 +149,7 @@ class RaftNode {
   bool sendAppendEntries(const PeerId& peer,
                          proto::AppendEntriesRequest* append_entries,
                          proto::AppendEntriesResponse* append_response);
+
   enum class VoteResponse {
     VOTE_GRANTED,
     VOTE_DECLINED,
@@ -175,21 +176,8 @@ class RaftNode {
   typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
   mutable TimePoint last_heartbeat_;
   mutable std::mutex last_heartbeat_mutex_;
-  inline void updateHeartbeatTime() const {
-    std::lock_guard<std::mutex> heartbeat_lock(last_heartbeat_mutex_);
-    last_heartbeat_ = std::chrono::system_clock::now();
-  }
-  inline double getTimeSinceHeartbeatMs() {
-    TimePoint last_hb_time;
-    {
-      std::lock_guard<std::mutex> lock(last_heartbeat_mutex_);
-      last_hb_time = last_heartbeat_;
-    }
-    TimePoint now = std::chrono::system_clock::now();
-    return static_cast<double>(
-        std::chrono::duration_cast<std::chrono::milliseconds>(
-            now - last_hb_time).count());
-  }
+  inline void updateHeartbeatTime() const;
+  inline double getTimeSinceHeartbeatMs();
 
   std::thread state_manager_thread_;  // Gets joined in destructor.
   std::atomic<bool> state_thread_running_;
@@ -236,18 +224,13 @@ class RaftNode {
 
   // Expects no lock to be taken.
   void leaderMonitorFollowerStatus(uint64_t current_term);
+
   void leaderAddPeer(const PeerId& peer, const LogWriteAccess& log_writer,
                      uint64_t current_term);
   void leaderRemovePeer(const PeerId& peer);
 
   void followerAddPeer(const PeerId& peer);
   void followerRemovePeer(const PeerId& peer);
-
-  // First time join.
-  std::atomic<bool> is_join_notified_;
-  std::atomic<uint64_t> join_log_index_;
-  PeerId join_request_peer_;
-  void joinRaft();
 
   // ===============
   // Leader election
@@ -310,49 +293,12 @@ class RaftNode {
         : holder_(PeerId()),
           is_locked_(false),
           lock_entry_index_(0) {}
-    bool writeLock(const PeerId& peer, uint64_t index) {
-      std::lock_guard<std::mutex> lock(mutex_);
-      if (is_locked_) {
-        // LOG(ERROR) << "Lock false for " << peer << " at log index " << index;
-        return false;
-      }
-      CHECK(peer.isValid());
-      CHECK_GT(index, 0);
-      is_locked_ = true;
-      holder_ = peer;
-      lock_entry_index_ = index;
-      return true;
-    }
-    bool unlock() {
-      std::lock_guard<std::mutex> lock(mutex_);
-      if (!is_locked_) {
-        LOG(ERROR) << "Unlock false";
-        return false;
-      }
-      is_locked_ = false;
-      lock_entry_index_ = 0;
-      holder_ = PeerId();
-      return true;
-    }
-    uint64_t lock_entry_index() const {
-      std::lock_guard<std::mutex> lock(mutex_);
-      return lock_entry_index_;
-    }
-    bool isLocked() const {
-      std::lock_guard<std::mutex> lock(mutex_);
-      return is_locked_;
-    }
-    const PeerId& holder() const {
-      std::lock_guard<std::mutex> lock(mutex_);
-      return holder_;
-    }
-    bool isLockHolder(const PeerId& peer) {
-      std::lock_guard<std::mutex> lock(mutex_);
-      if (!holder_.isValid() || !peer.isValid()) {
-        return false;
-      }
-      return (holder_ == peer);
-    }
+    bool writeLock(const PeerId& peer, uint64_t index);
+    bool unlock();
+    uint64_t lock_entry_index() const;
+    bool isLocked() const;
+    const PeerId& holder() const;
+    bool isLockHolder(const PeerId& peer) const;
 
    private:
     PeerId holder_;
@@ -361,7 +307,6 @@ class RaftNode {
     mutable std::mutex mutex_;
   };
   DistributedRaftChunkLock raft_chunk_lock_;
-  // Should only be used by handleChunkLockRequest.
   std::mutex chunk_lock_mutex_;
 
   // Raft Chunk Requests.
@@ -391,14 +336,11 @@ class RaftNode {
   std::string table_name_;
   common::Id chunk_id_;
   template <typename RequestType>
-  void fillMetadata(RequestType* destination) const {
-    CHECK_NOTNULL(destination);
-    destination->mutable_metadata()->set_table(this->table_name_);
-    this->chunk_id_.serialize(
-        destination->mutable_metadata()->mutable_chunk_id());
-  }
+  inline void fillMetadata(RequestType* destination) const;
 };
 
 }  // namespace map_api
+
+#include "./raft-node-inl.h"
 
 #endif  // MAP_API_RAFT_NODE_H_
