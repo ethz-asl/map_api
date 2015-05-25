@@ -300,6 +300,14 @@ void NetTableManager::kill() {
   tables_lock_.releaseWriteLock();
 }
 
+void NetTableManager::forceStopAllRaftChunks() {
+  common::ScopedReadLock lock(&tables_lock_);
+  for (const std::pair<const std::string, std::unique_ptr<NetTable> >& table :
+       tables_) {
+    table.second->forceStopAllRaftChunks();
+  }
+}
+
 void NetTableManager::killOnceShared() {
   tables_lock_.acquireReadLock();
   for (const std::pair<const std::string, std::unique_ptr<NetTable> >& table :

@@ -502,6 +502,16 @@ void NetTable::leaveAllChunks() {
   active_chunks_lock_.releaseWriteLock();
 }
 
+void NetTable::forceStopAllRaftChunks() {
+  common::ScopedReadLock lock(&active_chunks_lock_);
+  for (const ChunkMap::value_type& chunk : active_chunks_) {
+    RaftChunk* raft_chunk =
+        dynamic_cast<RaftChunk*>(chunk.second.get());  // NOLINT
+    CHECK_NOTNULL(raft_chunk);
+    raft_chunk->forceStopRaft();
+  }
+}
+
 void NetTable::leaveAllChunksOnceShared() {
   active_chunks_lock_.acquireReadLock();
   for (const ChunkMap::value_type& chunk : active_chunks_) {

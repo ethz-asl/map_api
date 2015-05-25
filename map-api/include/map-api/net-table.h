@@ -146,6 +146,8 @@ class NetTable {
 
   void leaveAllChunks();
 
+  void forceStopAllRaftChunks();
+
   void leaveAllChunksOnceShared();
 
   std::string getStatistics();

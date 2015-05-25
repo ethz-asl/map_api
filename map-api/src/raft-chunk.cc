@@ -313,6 +313,8 @@ uint64_t RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
   return index;
 }
 
+void RaftChunk::forceStopRaft() { raft_node_.stop(); }
+
 void RaftChunk::leaveImpl() {
   // We may stop raft node explicitly without calling leave in some tests.
   if (!raft_node_.isRunning()) {
@@ -326,6 +328,7 @@ void RaftChunk::leaveImpl() {
     VLOG(1) << PeerId::self() << ": Attempting to leave chunk " << id();
     bool success = raft_node_.sendLeaveRequest(serial_id);
     if (success) {
+      raft_node_.stop();
       break;
     }
     usleep(150 * kMillisecondsToMicroseconds);

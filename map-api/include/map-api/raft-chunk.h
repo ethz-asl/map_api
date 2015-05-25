@@ -84,6 +84,8 @@ class RaftChunk : public ChunkBase {
 
   uint64_t raftInsertRequest(const Revision::ConstPtr& item);
 
+  void forceStopRaft();
+
   virtual void leaveImpl() override;
   virtual void awaitShared() override;
 

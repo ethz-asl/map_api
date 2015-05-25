@@ -1362,9 +1362,12 @@ bool RaftNode::sendLeaveRequest(uint64_t serial_id) {
       usleep(kHeartbeatTimeoutMs * kMillisecondsToMicroseconds);
     }
   }
-  stop();
   if (num_peers_ == 0) {
     return true;
+  }
+  {
+    std::lock_guard<std::mutex> state_lock(state_mutex_);
+    state_ = State::DISCONNECTING;
   }
   Message request, response;
   proto::RaftLeaveRequest leave_request;

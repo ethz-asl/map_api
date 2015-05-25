@@ -48,6 +48,8 @@ class NetTableManager {
 
   void kill();
 
+  void forceStopAllRaftChunks();
+
   // Makes sure all chunk has at least one other peer.
   void killOnceShared();
 
