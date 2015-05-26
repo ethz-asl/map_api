@@ -67,11 +67,6 @@ class RaftChunk : public ChunkBase {
   static bool sendConnectRequest(const PeerId& peer,
                                  proto::ChunkRequestMetadata& metadata);
 
-  virtual LogicalTime getLatestCommitTime() const override {
-    LOG(WARNING) << "RaftChunk::insert() is not implemented";
-    return LogicalTime::sample();
-  }
-
  private:
   virtual void bulkInsertLocked(const MutableRevisionMap& items,
                                 const LogicalTime& time) override;
@@ -81,6 +76,8 @@ class RaftChunk : public ChunkBase {
                             const std::shared_ptr<Revision>& item) override;
 
   inline void syncLatestCommitTime(const Revision& item);
+  virtual LogicalTime getLatestCommitTime() const override;
+  mutable std::mutex latest_commit_time_mutex_;
 
   uint64_t raftInsertRequest(const Revision::ConstPtr& item);
 

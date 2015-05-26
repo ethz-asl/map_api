@@ -297,6 +297,11 @@ void RaftChunk::removeLocked(const LogicalTime& time,
   raftInsertRequest(item);
 }
 
+LogicalTime RaftChunk::getLatestCommitTime() const {
+  std::lock_guard<std::mutex> lock(latest_commit_time_mutex_);
+  return latest_commit_time_;
+}
+
 uint64_t RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
   CHECK(raft_node_.isRunning()) << PeerId::self();
   uint64_t index = 0;

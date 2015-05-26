@@ -1,6 +1,8 @@
 #ifndef MAP_API_RAFT_CHUNK_INL_H_
 #define MAP_API_RAFT_CHUNK_INL_H_
 
+#include <mutex>
+
 #include "map-api/message.h"
 
 namespace map_api {
@@ -24,6 +26,7 @@ int RaftChunk::peerSize() const {
 }
 
 inline void RaftChunk::syncLatestCommitTime(const Revision& item) {
+  std::lock_guard<std::mutex> lock(latest_commit_time_mutex_);
   LogicalTime commit_time = item.getModificationTime();
   if (commit_time > latest_commit_time_) {
     latest_commit_time_ = commit_time;
