@@ -131,7 +131,7 @@ RaftNode::State RaftNode::getState() const {
 void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
                                    const PeerId& sender, Message* response) {
   proto::AppendEntriesResponse append_response;
-  VLOG(3) << "Received AppendRequest/Heartbeat from " << sender;
+  VLOG(4) << "Received AppendRequest/Heartbeat from " << sender;
 
   const uint64_t request_term = append_request->term();
 
@@ -1085,7 +1085,6 @@ void RaftNode::applySingleRevisionCommit(
         entry->mutable_revision_id());
     entry->set_logical_time(insert_revision->getUpdateTime().serialize());
     data_->checkAndPatch(insert_revision);
-    // commit_insert_callback_(insert_revision->getId<common::Id>());
   }
 }
 
@@ -1101,10 +1100,6 @@ void RaftNode::chunkLockEntryCommit(const LogWriteAccess& log_writer,
             raft_chunk_lock_.lock_entry_index(), entry->index());
       }
       raft_chunk_lock_.unlock();
-      // TODO(aqurai): Triggers need to be impl differently for raft chunks.
-      //      if (entry->unlock_proceed_commits()) {
-      //         commit_unlock_callback_();
-      //      }
     }
   }
 }

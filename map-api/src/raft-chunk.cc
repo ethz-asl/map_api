@@ -33,14 +33,6 @@ bool RaftChunk::init(const common::Id& id,
   initialized_ = true;
   raft_node_.chunk_id_ = id_;
   raft_node_.table_name_ = descriptor->name();
-
-  raft_node_.commit_insert_callback_ =
-      std::bind(&RaftChunk::commitInsertCallback, this, std::placeholders::_1);
-  raft_node_.commit_update_callback_ =
-      std::bind(&RaftChunk::commitUpdateCallback, this, std::placeholders::_1);
-  raft_node_.commit_unlock_callback_ =
-      std::bind(&RaftChunk::commitUnlockCallback, this);
-
   return true;
 }
 
