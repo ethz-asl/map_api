@@ -424,6 +424,8 @@ bool RaftNode::sendInitRequest(const PeerId& peer,
     proto::RaftLogEntry entry(**it);
     CHECK(!entry.has_insert_revision());
     if ((*it)->has_revision_id()) {
+      // Sending only committed entries, so revision will be in history, not
+      // log.
       entry.set_allocated_insert_revision(CHECK_NOTNULL(
           data_->getByIdImpl(common::Id((*it)->revision_id()),
                              LogicalTime((*it)->logical_time())).get())
