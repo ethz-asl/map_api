@@ -18,9 +18,6 @@
 namespace map_api {
 
 constexpr int kWaitTimeMs = 1000;
-constexpr int kAppendEntriesForMs = 10000;
-constexpr int kTimeBetweenAppendsMs = 20;
-constexpr int kNumEntriesToAppend = 40;
 
 DEFINE_uint64(raft_chunk_processes, 5u,
               "Total number of processes in RaftChunkTests");
