@@ -13,7 +13,7 @@ namespace map_api {
 
 RaftChunk::RaftChunk()
     : chunk_lock_attempted_(false),
-      is_raft_chunk_locked_(false),
+      is_raft_chunk_lock_acquired_(false),
       lock_log_index_(0),
       chunk_write_lock_depth_(0),
       leave_requested_(false) {}
@@ -125,7 +125,7 @@ void RaftChunk::writeLock() {
           << ". Current depth: " << chunk_write_lock_depth_;
   chunk_lock_attempted_ = true;
   uint64_t serial_id = 0;
-  if (is_raft_chunk_locked_) {
+  if (is_raft_chunk_lock_acquired_) {
     ++chunk_write_lock_depth_;
   } else {
     CHECK_EQ(lock_log_index_, 0);
@@ -145,7 +145,7 @@ void RaftChunk::writeLock() {
     CHECK(raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self()));
 
     if (lock_log_index_ > 0) {
-      is_raft_chunk_locked_ = true;
+      is_raft_chunk_lock_acquired_ = true;
     }
   }
   VLOG(3) << PeerId::self() << " acquired lock for chunk " << id()
@@ -156,7 +156,7 @@ void RaftChunk::readLock() const {}
 
 bool RaftChunk::isWriteLocked() {
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
-  return is_raft_chunk_locked_;
+  return is_raft_chunk_lock_acquired_;
 }
 
 void RaftChunk::unlock() const {
@@ -165,7 +165,7 @@ void RaftChunk::unlock() const {
   VLOG(3) << PeerId::self() << " Attempting unlock for chunk " << id()
           << ". Current depth: " << chunk_write_lock_depth_;
   uint64_t serial_id = 0;
-  if (!is_raft_chunk_locked_) {
+  if (!is_raft_chunk_lock_acquired_) {
     return;
   }
   if (chunk_write_lock_depth_ > 0) {
@@ -184,7 +184,7 @@ void RaftChunk::unlock() const {
     }
     CHECK(!raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self()));
     lock_log_index_ = 0;
-    is_raft_chunk_locked_ = false;
+    is_raft_chunk_lock_acquired_ = false;
     chunk_lock_attempted_ = false;
   }
 }

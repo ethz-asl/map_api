@@ -48,7 +48,7 @@ class RaftChunk : public ChunkBase {
 
   // Mutable because the method declarations in base class are const.
   mutable bool chunk_lock_attempted_;
-  mutable bool is_raft_chunk_locked_;
+  mutable bool is_raft_chunk_lock_acquired_;
   mutable uint64_t lock_log_index_;
   mutable int chunk_write_lock_depth_;
   mutable int self_read_lock_depth_;

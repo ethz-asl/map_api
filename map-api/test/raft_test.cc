@@ -24,7 +24,7 @@ constexpr int kNumEntriesToAppend = 40;
 
 DEFINE_uint64(raft_chunk_processes, 5u,
               "Total number of processes in RaftChunkTests");
-/*
+
 TEST_F(ConsensusFixture, RaftGetChunk) {
   const uint64_t kProcesses = FLAGS_raft_chunk_processes;
   enum Barriers {
@@ -41,17 +41,17 @@ TEST_F(ConsensusFixture, RaftGetChunk) {
     }
     IPC::barrier(INIT_PEERS, kProcesses - 1);
     usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
-    LOG(WARNING) << "Creating a new chunk.";
+    VLOG(1) << "Creating a new chunk.";
     usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
     ChunkBase* base_chunk = table_->newChunk();
-    LOG(WARNING) << "Created a new chunk " << base_chunk->id();
+    VLOG(1) << "Created a new chunk " << base_chunk->id();
     RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);
     CHECK_NOTNULL(chunk);
     IPC::push(chunk->id());
     IPC::barrier(PUSH_CHUNK_ID, kProcesses - 1);
 
     IPC::barrier(CHUNKS_INIT, kProcesses - 1);
-    LOG(WARNING) << "Chunks initialized on all peers";
+    VLOG(1) << "Chunks initialized on all peers";
     EXPECT_EQ(kProcesses - 1, chunk->peerSize());
     IPC::barrier(DIE, kProcesses - 1);
   } else {
@@ -83,10 +83,10 @@ TEST_F(ConsensusFixture, RaftRequestParticipation) {
     }
     IPC::barrier(INIT_PEERS, kProcesses - 1);
     usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
-    LOG(WARNING) << "Creating a new chunk.";
+    VLOG(1) << "Creating a new chunk.";
     usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
     ChunkBase* base_chunk = table_->newChunk();
-    LOG(WARNING) << "Created a new chunk " << base_chunk->id();
+    VLOG(1) << "Created a new chunk " << base_chunk->id();
     RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);
     CHECK_NOTNULL(chunk);
     IPC::push(chunk->id());
@@ -95,7 +95,7 @@ TEST_F(ConsensusFixture, RaftRequestParticipation) {
     IPC::barrier(REQUESTED_PARTICIPATION, kProcesses - 1);
 
     IPC::barrier(CHUNKS_INIT, kProcesses - 1);
-    LOG(WARNING) << "Chunks initialized on all peers";
+    VLOG(1) << "Chunks initialized on all peers";
     EXPECT_EQ(kProcesses - 1, chunk->peerSize());
     IPC::barrier(DIE, kProcesses - 1);
   } else {
@@ -136,22 +136,22 @@ TEST_F(ConsensusFixture, LeaderElection) {
     }
     IPC::barrier(INIT_PEERS, kProcesses - 1);
     usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
-    LOG(WARNING) << "Creating a new chunk.";
+    VLOG(1) << "Creating a new chunk.";
     usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
     ChunkBase* base_chunk = table_->newChunk();
-    LOG(WARNING) << "Created a new chunk " << base_chunk->id();
+    VLOG(1) << "Created a new chunk " << base_chunk->id();
     RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);
     CHECK_NOTNULL(chunk);
     IPC::push(chunk->id());
     IPC::barrier(PUSH_CHUNK_ID, kProcesses - 1);
     IPC::barrier(CHUNKS_INIT, kProcesses - 1);
-    LOG(WARNING) << "Chunks initialized on all peers";
+    VLOG(1) << "Chunks initialized on all peers";
     EXPECT_EQ(kProcesses - 1, chunk->peerSize());
     chunk->raft_node_.giveUpLeadership();
 
     // Wait for a new leader
     while (!chunk->raft_node_.getLeader().isValid()) {
-      LOG(WARNING) << "Waiting for a new leader ... ";
+      VLOG(1) << "Waiting for a new leader ... ";
       usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
     }
     IPC::push(chunk->raft_node_.getLeader());
@@ -194,17 +194,17 @@ TEST_F(ConsensusFixture, UnannouncedLeave) {
     }
     IPC::barrier(INIT_PEERS, kProcesses - 1);
     usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
-    LOG(WARNING) << "Creating a new chunk.";
+    VLOG(1) << "Creating a new chunk.";
     usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
     ChunkBase* base_chunk = table_->newChunk();
-    LOG(WARNING) << "Created a new chunk " << base_chunk->id();
+    VLOG(1) << "Created a new chunk " << base_chunk->id();
     RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);
     CHECK_NOTNULL(chunk);
     IPC::push(chunk->id());
     IPC::barrier(PUSH_CHUNK_ID, kProcesses - 1);
 
     IPC::barrier(CHUNKS_INIT, kProcesses - 1);
-    LOG(WARNING) << "Chunks initialized on all peers";
+    VLOG(1) << "Chunks initialized on all peers";
     EXPECT_EQ(kProcesses - 1, chunk->peerSize());
     IPC::barrier(ONE_LEFT, kProcesses - 1);
     EXPECT_EQ(kProcesses - 2, chunk->peerSize());
@@ -229,7 +229,7 @@ TEST_F(ConsensusFixture, UnannouncedLeave) {
     IPC::barrier(DIE, kProcesses - 1);
   }
 }
-*/
+
 DEFINE_uint64(num_appends, 50u, "Total number entries to append");
 
 TEST_F(ConsensusFixture, AppendLogEntries) {
@@ -251,17 +251,17 @@ TEST_F(ConsensusFixture, AppendLogEntries) {
     }
     IPC::barrier(INIT_PEERS, kProcesses - 1);
     usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
-    LOG(WARNING) << "Creating a new chunk.";
+    VLOG(1) << "Creating a new chunk.";
     usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
     ChunkBase* base_chunk = table_->newChunk();
-    LOG(WARNING) << "Created a new chunk " << base_chunk->id();
+    VLOG(1) << "Created a new chunk " << base_chunk->id();
     RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);
     CHECK_NOTNULL(chunk);
     IPC::push(chunk->id());
     IPC::barrier(PUSH_CHUNK_ID, kProcesses - 1);
 
     IPC::barrier(CHUNKS_INIT, kProcesses - 1);
-    LOG(WARNING) << "Chunks initialized on all peers";
+    VLOG(1) << "Chunks initialized on all peers";
     EXPECT_EQ(kProcesses - 1, chunk->peerSize());
     IPC::barrier(START_APPEND, kProcesses - 1);
     for (uint i = 0; i < FLAGS_num_appends; ++i) {
@@ -319,17 +319,17 @@ TEST_F(ConsensusFixture, AppendLogEntriesWithPeerLeave) {
     }
     IPC::barrier(INIT_PEERS, kProcesses - 1);
     usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
-    LOG(WARNING) << "Creating a new chunk.";
+    VLOG(1) << "Creating a new chunk.";
     usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
     ChunkBase* base_chunk = table_->newChunk();
-    LOG(WARNING) << "Created a new chunk " << base_chunk->id();
+    VLOG(1) << "Created a new chunk " << base_chunk->id();
     RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);
     CHECK_NOTNULL(chunk);
     IPC::push(chunk->id());
     IPC::barrier(PUSH_CHUNK_ID, kProcesses - 1);
 
     IPC::barrier(CHUNKS_INIT, kProcesses - 1);
-    LOG(WARNING) << "Chunks initialized on all peers";
+    VLOG(1) << "Chunks initialized on all peers";
     EXPECT_EQ(kProcesses - 1, chunk->peerSize());
     IPC::barrier(START_APPEND, kProcesses - 1);
 
@@ -362,6 +362,90 @@ TEST_F(ConsensusFixture, AppendLogEntriesWithPeerLeave) {
       usleep(2*kWaitTimeMs*kMillisecondsToMicroseconds);
       EXPECT_EQ(FLAGS_num_appends, getLatestEntrySerialId(chunk, leader_id));
     }
+    IPC::barrier(DIE, kProcesses - 1);
+  }
+}
+
+DEFINE_uint64(lock_request_depth, 5u,
+              "Total number of processes in RaftChunkTests");
+
+TEST_F(ConsensusFixture, RaftDistributedChunkLock) {
+  const uint64_t kProcesses = FLAGS_raft_chunk_processes;
+  enum Barriers {
+    INIT_PEERS,
+    PUSH_CHUNK_ID,
+    CHUNKS_INIT,
+    LEADER_LOCK,
+    LEADER_INCREASE_LOCK_DEPTH,
+    FOLLOWER_ATTEMPT_LEADER_RELEASE_LOCK,
+    DIE
+  };
+  pid_t pid = getpid();
+  VLOG(1) << "PID: " << pid << ", IP: " << PeerId::self();
+  if (getSubprocessId() == 0) {
+    for (uint64_t i = 1u; i < kProcesses; ++i) {
+      launchSubprocess(i);
+    }
+    IPC::barrier(INIT_PEERS, kProcesses - 1);
+
+    usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
+    VLOG(1) << "Creating a new chunk.";
+    usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
+    ChunkBase* base_chunk = table_->newChunk();
+    VLOG(1) << "Created a new chunk " << base_chunk->id();
+    RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);
+    CHECK_NOTNULL(chunk);
+    IPC::push(chunk->id());
+    IPC::push(PeerId::self());
+    IPC::barrier(PUSH_CHUNK_ID, kProcesses - 1);
+
+    IPC::barrier(CHUNKS_INIT, kProcesses - 1);
+    VLOG(1) << "Chunks initialized on all peers";
+    EXPECT_EQ(kProcesses - 1, chunk->peerSize());
+
+    chunk->writeLock();
+    IPC::barrier(LEADER_LOCK, kProcesses - 1);
+
+    EXPECT_TRUE(getLockHolder(chunk) == PeerId::self());
+    for (uint i = 0; i < FLAGS_lock_request_depth; ++i) {
+      chunk->writeLock();
+    }
+    IPC::barrier(LEADER_INCREASE_LOCK_DEPTH, kProcesses - 1);
+
+    EXPECT_EQ(chunk->chunk_write_lock_depth_, FLAGS_lock_request_depth);
+
+    for (uint i = 0; i < FLAGS_lock_request_depth + 1; ++i) {
+      chunk->unlock();
+    }
+    EXPECT_TRUE(getLockHolder(chunk).ipPort() != PeerId::self().ipPort());
+    IPC::barrier(FOLLOWER_ATTEMPT_LEADER_RELEASE_LOCK, kProcesses - 1);
+
+    EXPECT_FALSE(getLockHolder(chunk).isValid());
+    IPC::barrier(DIE, kProcesses - 1);
+  } else {
+    IPC::barrier(INIT_PEERS, kProcesses - 1);
+    IPC::barrier(PUSH_CHUNK_ID, kProcesses - 1);
+
+    common::Id chunk_id = IPC::pop<common::Id>();
+    PeerId leader_id = IPC::pop<PeerId>();
+    ChunkBase* base_chunk = table_->getChunk(chunk_id);
+    RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);
+    CHECK_NOTNULL(chunk);
+    IPC::barrier(CHUNKS_INIT, kProcesses - 1);
+
+    IPC::barrier(LEADER_LOCK, kProcesses - 1);
+
+    usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
+    EXPECT_TRUE(getLockHolder(chunk) == leader_id);
+    IPC::barrier(LEADER_INCREASE_LOCK_DEPTH, kProcesses - 1);
+
+    EXPECT_TRUE(getLockHolder(chunk) == leader_id);
+    chunk->writeLock();
+    EXPECT_TRUE(getLockHolder(chunk) == PeerId::self());
+    chunk->unlock();
+    IPC::barrier(FOLLOWER_ATTEMPT_LEADER_RELEASE_LOCK, kProcesses - 1);
+
+    EXPECT_FALSE(getLockHolder(chunk).isValid());
     IPC::barrier(DIE, kProcesses - 1);
   }
 }

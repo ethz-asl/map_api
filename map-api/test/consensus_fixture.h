@@ -21,6 +21,7 @@ class ConsensusFixture : public common::MultiprocessFixture {
 
   void addRaftPeer(const PeerId& peer);
   proto::QueryStateResponse queryState(const PeerId& peer);
+  const PeerId& getLockHolder(RaftChunk* chunk);
   void quitRaftUnannounced(RaftChunk* chunk);
 
   void leaderAppendBlankLogEntry(RaftChunk* chunk);
