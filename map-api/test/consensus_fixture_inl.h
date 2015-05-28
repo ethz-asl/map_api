@@ -79,7 +79,7 @@ proto::QueryStateResponse ConsensusFixture::queryState(const PeerId& peer) {
 }
 
 const PeerId& ConsensusFixture::getLockHolder(RaftChunk* chunk) {
-  return chunk->raft_node_.raft_chunk_lock_.holder();
+  return chunk->getLockHolder();
 }
 
 void ConsensusFixture::quitRaftUnannounced(RaftChunk* chunk) {
