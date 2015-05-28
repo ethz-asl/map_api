@@ -19,6 +19,7 @@ class RaftChunk : public ChunkBase {
   friend class ChunkTransaction;
   friend class ConsensusFixture;
   FRIEND_TEST(ConsensusFixture, LeaderElection);
+  FRIEND_TEST(NetTableFixture, TransactionAbortOnPeerDisconnect);
 
  public:
   RaftChunk();
@@ -58,6 +59,7 @@ class RaftChunk : public ChunkBase {
   virtual void readLock() const override;  // No read lock for raft chunks.
   virtual bool isWriteLocked() override;
   virtual void unlock() const override;
+  const PeerId& getLockHolder() const;
 
   virtual int requestParticipation() override;
   virtual int requestParticipation(const PeerId& peer) override;

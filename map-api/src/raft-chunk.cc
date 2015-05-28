@@ -207,6 +207,10 @@ int RaftChunk::requestParticipation() {
   }
 }
 
+const PeerId& RaftChunk::getLockHolder() const {
+  return raft_node_.raft_chunk_lock_.holder();
+}
+
 int RaftChunk::requestParticipation(const PeerId& peer) {
   if (raft_node_.getState() == RaftNode::State::LEADER &&
       !raft_node_.hasPeer(peer)) {
