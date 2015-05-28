@@ -305,6 +305,10 @@ void RaftNode::handleChunkLockRequest(const PeerId& sender, uint64_t serial_id,
                                       Message* response) {
   proto::RaftChunkRequestResponse lock_response =
       processChunkLockRequest(sender, serial_id, false);
+  if (!hasPeer(sender)) {
+    response->decline();
+    return;
+  }
   response->impose<kRaftChunkRequestResponse>(lock_response);
 }
 
