@@ -21,6 +21,20 @@ Core* Core::instance() {
   }
 }
 
+Core* Core::instanceNoWait() {
+  if (!instance_.initialized_mutex_.try_lock()) {
+    return nullptr;
+  } else {
+    if (instance_.initialized_) {
+      instance_.initialized_mutex_.unlock();
+      return &instance_;
+    } else {
+      instance_.initialized_mutex_.unlock();
+      return nullptr;
+    }
+  }
+}
+
 void Core::initializeInstance() {
   std::unique_lock<std::mutex> lock(instance_.initialized_mutex_);
   CHECK(!instance_.initialized_);

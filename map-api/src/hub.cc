@@ -198,10 +198,10 @@ bool Hub::registerHandler(
 void Hub::request(const PeerId& peer, Message* request, Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
+  std::lock_guard<std::mutex> lock(peer_mutex_);
   std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
       peers_.find(peer);
   if (found == peers_.end()) {
-    std::lock_guard<std::mutex> lock(peer_mutex_);
     // double-checked locking pattern
     std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
         peers_.find(peer);
@@ -218,13 +218,13 @@ void Hub::request(const PeerId& peer, Message* request, Message* response) {
 bool Hub::try_request(const PeerId& peer, Message* request, Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
+  std::lock_guard<std::mutex> lock(peer_mutex_);
   PeerMap::iterator found = peers_.find(peer);
   if (found == peers_.end()) {
     LOG(INFO) << "couldn't find " << peer << " among " << peers_.size();
     for (const PeerMap::value_type& peer : peers_) {
       LOG(INFO) << peer.first;
     }
-    std::lock_guard<std::mutex> lock(peer_mutex_);
     // double-checked locking pattern
     std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
         peers_.find(peer);
@@ -284,7 +284,7 @@ void Hub::discoveryHandler(const Message& request, Message* response) {
 void Hub::readyHandler(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
   CHECK(request.isType<kReady>());
-  if (Core::instance() == nullptr) {
+  if (Core::instanceNoWait() == nullptr) {
     response->decline();
   } else {
     response->ack();
