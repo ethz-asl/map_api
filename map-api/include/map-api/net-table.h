@@ -18,6 +18,8 @@
 #include "./chunk.pb.h"
 #include "./raft.pb.h"
 
+DECLARE_bool(use_raft);
+
 namespace map_api {
 class ConstRevisionMap;
 class MutableRevisionMap;

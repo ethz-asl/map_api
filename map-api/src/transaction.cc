@@ -134,6 +134,31 @@ bool Transaction::commit() {
   return true;
 }
 
+bool Transaction::multiChunkCommit() {
+  CHECK(FLAGS_use_raft);
+  CHECK(!already_committed_);
+  already_committed_ = true;
+  if (FLAGS_blame_commit) {
+    LOG(INFO) << "Transaction committed from:\n" << common::backtrace();
+  }
+  for (const CacheMap::value_type& cache_pair : attached_caches_) {
+    cache_pair.second->prepareForCommit();
+  }
+  enableDirectAccess();
+  pushNewChunkIdsToTrackers();
+  disableDirectAccess();
+  timing::Timer timer("map_api::Transaction::commit - lock");
+  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
+    net_table_transaction.second->lock();
+  }
+  timer.Stop();
+  // send multi chunk info to all
+  // Check and prepare
+  // actually send all revisions
+  // send abort if one fails
+  // start sending unlocks
+}
+
 void Transaction::merge(const std::shared_ptr<Transaction>& merge_transaction,
                         ConflictMap* conflicts) {
   CHECK(merge_transaction.get() != nullptr) << "Merge requires an initiated "

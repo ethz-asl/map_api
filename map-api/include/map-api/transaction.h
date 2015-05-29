@@ -79,6 +79,7 @@ class Transaction {
 
   // TRANSACTION OPERATIONS
   bool commit();
+  bool multiChunkCommit();
   inline LogicalTime getCommitTime() const { return commit_time_; }
   using Conflict = ChunkTransaction::Conflict;
   using Conflicts = ChunkTransaction::Conflicts;
