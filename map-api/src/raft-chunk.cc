@@ -85,10 +85,9 @@ bool RaftChunk::insert(const LogicalTime& time,
   writeLock();
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareInsert(time, item);
-  // at this point, checkAndPrepareInsert() has modified the revision such that
-  // all default
-  // fields are also set, which allows remote peers to just patch the revision
-  // into their table.
+  // At this point, checkAndPrepareInsert() has modified the revision such that
+  // all default fields are also set, which allows remote peers to just patch
+  // the revision into their table.
   if (raftInsertRequest(item) > 0) {
     syncLatestCommitTime(*item);
     unlock();

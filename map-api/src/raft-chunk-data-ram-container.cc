@@ -22,20 +22,17 @@ std::shared_ptr<const Revision> RaftChunkDataRamContainer::getByIdImpl(
 void RaftChunkDataRamContainer::findByRevisionImpl(
     int key, const Revision& value_holder, const LogicalTime& time,
     ConstRevisionMap* dest) const {
-  CHECK_NOTNULL(dest);
-  dest->clear();
+  CHECK_NOTNULL(dest)->clear();
   forEachItemFoundAtTime(key, value_holder, time,
                          [&dest](const common::Id& id,
                                  const Revision::ConstPtr& item) {
-    CHECK(dest->find(id) == dest->end());
     CHECK(dest->emplace(id, item).second);
   });
 }
 
 void RaftChunkDataRamContainer::getAvailableIdsImpl(
     const LogicalTime& time, std::vector<common::Id>* ids) const {
-  CHECK_NOTNULL(ids);
-  ids->clear();
+  CHECK_NOTNULL(ids)->clear();
   ids->reserve(data_.size());
   for (const HistoryMap::value_type& pair : data_) {
     History::const_iterator latest = pair.second.latestAt(time);

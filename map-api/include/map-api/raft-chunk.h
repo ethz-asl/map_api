@@ -110,7 +110,6 @@ class RaftChunk : public ChunkBase {
   // for peer join shall happen between chunk holder peers outside of raft.
   RaftNode raft_node_;
   volatile bool initialized_ = false;
-  volatile bool relinquished_ = false;
   LogicalTime latest_commit_time_;
   uint64_t latest_commit_log_index_;
 };
