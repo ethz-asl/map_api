@@ -1044,14 +1044,6 @@ void RaftNode::followerCommitNewEntries(const LogWriteAccess& log_writer,
         entry->set_logical_time(insert_revision->getInsertTime().serialize());
         data_->checkAndPatch(insert_revision);
       }
-      if (entry->has_update_revision()) {
-        const std::shared_ptr<Revision> update_revision = Revision::fromProto(
-            std::unique_ptr<proto::Revision>(entry->release_update_revision()));
-        update_revision->getId<common::Id>().serialize(
-            entry->mutable_revision_id());
-        entry->set_logical_time(update_revision->getUpdateTime().serialize());
-        data_->checkAndPatch(update_revision);
-      }
       // Joining peers don't act on add/remove peer entries.
       // TODO(aqurai): This might change with chunk join process.
       if (state == State::FOLLOWER && entry->has_add_peer()) {
@@ -1163,14 +1155,6 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
           (*it)->mutable_revision_id());
       (*it)->set_logical_time(insert_revision->getInsertTime().serialize());
       data_->checkAndPatch(insert_revision);
-    }
-    if ((*it)->has_update_revision()) {
-      const std::shared_ptr<Revision> update_revision = Revision::fromProto(
-          std::unique_ptr<proto::Revision>((*it)->release_update_revision()));
-      update_revision->getId<common::Id>().serialize(
-          (*it)->mutable_revision_id());
-      (*it)->set_logical_time(update_revision->getUpdateTime().serialize());
-      data_->checkAndPatch(update_revision);
     }
     if ((*it)->has_add_peer()) {
       leaderAddPeer(PeerId((*it)->add_peer()), log_writer, current_term);

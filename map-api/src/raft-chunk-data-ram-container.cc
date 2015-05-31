@@ -137,9 +137,6 @@ bool RaftChunkDataRamContainer::checkAndPatch(
   CHECK(query->structureMatch(*reference)) << "Bad structure of patch revision";
   CHECK(query->getId<common::Id>().isValid())
       << "Attempted to insert element with invalid ID";
-  // TODO(aqurai): Remove this.
-  // LOG(WARNING) << PeerId::self() << ": Patching in table " << name()
-  //            << ", History size = " << data_.size();
   return patch(query);
 }
 
