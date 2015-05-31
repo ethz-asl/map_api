@@ -59,6 +59,7 @@ class RaftChunk : public ChunkBase {
   virtual void readLock() const override;  // No read lock for raft chunks.
   virtual bool isWriteLocked() override;
   virtual void unlock() const override;
+  void unlock(bool proceed_transaction) const;
   const PeerId& getLockHolder() const;
 
   virtual int requestParticipation() override;

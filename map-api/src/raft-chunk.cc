@@ -159,7 +159,9 @@ bool RaftChunk::isWriteLocked() {
   return is_raft_chunk_lock_acquired_;
 }
 
-void RaftChunk::unlock() const {
+void RaftChunk::unlock() const { unlock(true); }
+
+void RaftChunk::unlock(bool proceed_transaction) const {
   CHECK(raft_node_.isRunning());
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
   VLOG(3) << PeerId::self() << " Attempting unlock for chunk " << id()
@@ -176,8 +178,8 @@ void RaftChunk::unlock() const {
         << " Failed on " << PeerId::self();
     serial_id = request_id_.getNewId();
     while (raft_node_.isRunning()) {
-      if (raft_node_.sendChunkUnlockRequest(serial_id, lock_log_index_, true) >
-          0) {
+      if (raft_node_.sendChunkUnlockRequest(serial_id, lock_log_index_,
+                                            proceed_transaction) > 0) {
         break;
       }
       usleep(500 * kMillisecondsToMicroseconds);
