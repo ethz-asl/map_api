@@ -24,8 +24,10 @@ class ProtoAutoSerializationWorks;
 
 class Revision {
   friend class LegacyChunk;
+  friend class RaftChunk;
   friend class ChunkDataContainerBase;
   friend class LegacyChunkDataContainerBase;
+  friend class RaftChunkDataRamContainer;
   template<int BlockSize>
   friend class STXXLRevisionStore;
   friend class TrackeeMultimap;

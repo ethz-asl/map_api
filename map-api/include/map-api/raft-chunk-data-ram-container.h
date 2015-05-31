@@ -15,6 +15,7 @@ class ReaderWriterMutex;
 class RaftChunkDataRamContainer : public ChunkDataContainerBase {
  public:
   friend class RaftNode;
+  friend class RaftChunk;
   virtual ~RaftChunkDataRamContainer();
 
  private:
@@ -33,6 +34,22 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   // If key is -1, this should return all the data in the table.
   virtual int countByRevisionImpl(int key, const Revision& valueHolder,
                                   const LogicalTime& time) const;
+
+  // CHECK/PREPARE INSERT AND UPDATE
+  bool checkAndPrepareInsert(const LogicalTime& time,
+                             const std::shared_ptr<Revision>& query);
+  bool checkAndPrepareUpdate(const LogicalTime& time,
+                             const std::shared_ptr<Revision>& query);
+  bool checkAndPrepareBulkInsert(const LogicalTime& time,
+                                 const MutableRevisionMap& query);
+  bool checkAndPrepareRemove(const LogicalTime& time,
+                             const std::shared_ptr<Revision>& query);
+
+  // INSERT
+  bool checkAndPatch(const std::shared_ptr<Revision>& query);
+
+  bool patch(const Revision::ConstPtr& query);
+
   // =================
   // HISTORY CONTAINER
   // =================
@@ -41,21 +58,29 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   class History : public std::list<std::shared_ptr<const Revision>> {
    public:
     virtual ~History() {}
-    inline const_iterator latestAt(const LogicalTime& time) const {
-      for (const_iterator it = cbegin(); it != cend(); ++it) {
-        if ((*it)->getUpdateTime() <= time) return it;
-      }
-      return cend();
-    }
+    inline const_iterator latestAt(const LogicalTime& time) const;
   };
   typedef std::unordered_map<common::Id, History> HistoryMap;
   HistoryMap data_;
+
+  inline void forEachItemFoundAtTime(
+      int key, const Revision& value_holder,
+      const LogicalTime& time,
+      const std::function<void(
+          const common::Id& id,
+          const std::shared_ptr<const Revision>& item)>& action) const;
+  inline void forChunkItemsAtTime(
+      const common::Id& chunk_id, const LogicalTime& time,
+      const std::function<void(
+          const common::Id& id,
+          const std::shared_ptr<const Revision>& item)>& action) const;
+  inline void trimToTime(const LogicalTime& time, HistoryMap* subject) const;
 
   // ========
   // RAFT-LOG
   // ========
 
-  // TODO(aqurai): Make this class private. The prolem is iterator and
+  // TODO(aqurai): Make this class private. The problem is iterator and
   // const_iterator are not defined within RaftNode.
   class RaftLog : public std::vector<std::shared_ptr<proto::RaftLogEntry>> {
    public:
@@ -109,5 +134,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
 };
 
 }  // namespace map_api
+
+#include "./raft-chunk-data-ram-container-inl.h"
 
 #endif  // MAP_API_RAFT_CHUNK_DATA_RAM_CONTAINER_H_

@@ -72,7 +72,8 @@ void NetTableManager::registerHandlers() {
                                   handleRaftInitRequest);
   Hub::instance().registerHandler(RaftNode::kAppendEntries,
                                   handleRaftAppendRequest);
-  Hub::instance().registerHandler(RaftNode::kInsertRequest, handleRaftInsertRequest);
+  Hub::instance().registerHandler(RaftNode::kInsertRequest,
+                                  handleRaftInsertRequest);
   Hub::instance().registerHandler(RaftNode::kVoteRequest,
                                   handleRaftRequestVote);
   Hub::instance().registerHandler(RaftNode::kJoinQuitRequest,

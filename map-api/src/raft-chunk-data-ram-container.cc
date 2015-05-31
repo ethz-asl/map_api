@@ -2,34 +2,150 @@
 
 namespace map_api {
 
+RaftChunkDataRamContainer::~RaftChunkDataRamContainer() {}
+
+bool RaftChunkDataRamContainer::initImpl() { return true; }
+
 std::shared_ptr<const Revision> RaftChunkDataRamContainer::getByIdImpl(
     const common::Id& id, const LogicalTime& time) const {
-  LOG(FATAL) << "Not implemented";
-  return std::shared_ptr<Revision>();
+  HistoryMap::const_iterator found = data_.find(id);
+  if (found == data_.end()) {
+    return std::shared_ptr<Revision>();
+  }
+  History::const_iterator latest = found->second.latestAt(time);
+  if (latest == found->second.end()) {
+    return Revision::ConstPtr();
+  }
+  return *latest;
 }
 
 void RaftChunkDataRamContainer::findByRevisionImpl(
     int key, const Revision& value_holder, const LogicalTime& time,
     ConstRevisionMap* dest) const {
-  LOG(FATAL) << "Not implemented";
+  CHECK_NOTNULL(dest)->clear();
+  forEachItemFoundAtTime(key, value_holder, time,
+                         [&dest](const common::Id& id,
+                                 const Revision::ConstPtr& item) {
+    CHECK(dest->emplace(id, item).second);
+  });
 }
 
 void RaftChunkDataRamContainer::getAvailableIdsImpl(
     const LogicalTime& time, std::vector<common::Id>* ids) const {
-  LOG(FATAL) << "Not implemented";
+  CHECK_NOTNULL(ids)->clear();
+  ids->reserve(data_.size());
+  for (const HistoryMap::value_type& pair : data_) {
+    History::const_iterator latest = pair.second.latestAt(time);
+    if (latest != pair.second.cend()) {
+      if (!(*latest)->isRemoved()) {
+        ids->emplace_back(pair.first);
+      }
+    }
+  }
 }
 
 int RaftChunkDataRamContainer::countByRevisionImpl(
     int key, const Revision& value_holder, const LogicalTime& time) const {
   int count = 0;
-  LOG(FATAL) << "Not implemented";
+  forEachItemFoundAtTime(key, value_holder, time,
+                         [&count](const common::Id& /*id*/,
+                                  const Revision::ConstPtr& /*item*/) {
+    ++count;
+  });
   return count;
 }
 
-RaftChunkDataRamContainer::~RaftChunkDataRamContainer() {}
+bool RaftChunkDataRamContainer::checkAndPrepareInsert(
+    const LogicalTime& time, const std::shared_ptr<Revision>& query) {
+  CHECK(query.get() != nullptr);
+  CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
+  std::shared_ptr<Revision> reference = getTemplate();
+  CHECK(query->structureMatch(*reference))
+      << "Bad structure of insert revision";
+  CHECK(query->getId<common::Id>().isValid())
+      << "Attempted to insert element with invalid ID";
+  query->setInsertTime(time);
+  query->setUpdateTime(time);
+  return true;
+}
 
-bool RaftChunkDataRamContainer::initImpl() {
-  LOG(FATAL) << "Not implemented";
+bool RaftChunkDataRamContainer::checkAndPrepareUpdate(
+    const LogicalTime& time, const std::shared_ptr<Revision>& query) {
+  CHECK(query != nullptr);
+  CHECK(isInitialized()) << "Attempted to update in non-initialized table";
+  std::shared_ptr<Revision> reference = getTemplate();
+  CHECK(query->structureMatch(*reference))
+      << "Bad structure of update revision";
+  CHECK(query->getId<common::Id>().isValid())
+      << "Attempted to update element with invalid ID";
+  LogicalTime update_time = time;
+  query->setUpdateTime(update_time);
+  return true;
+}
+
+bool RaftChunkDataRamContainer::checkAndPrepareBulkInsert(
+    const LogicalTime& time, const MutableRevisionMap& query) {
+  CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
+  std::shared_ptr<Revision> reference = getTemplate();
+  common::Id id;
+  for (const typename MutableRevisionMap::value_type& id_revision : query) {
+    CHECK_NOTNULL(id_revision.second.get());
+    CHECK(id_revision.second->structureMatch(*reference))
+        << "Bad structure of insert revision";
+    id = id_revision.second->getId<common::Id>();
+    CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
+    CHECK(id == id_revision.first) << "ID in RevisionMap doesn't match";
+    id_revision.second->setInsertTime(time);
+    id_revision.second->setUpdateTime(time);
+  }
+  return true;
+}
+
+bool RaftChunkDataRamContainer::checkAndPrepareRemove(
+    const LogicalTime& time, const std::shared_ptr<Revision>& query) {
+  CHECK(query.get() != nullptr);
+  CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
+  std::shared_ptr<Revision> reference = getTemplate();
+  CHECK(query->structureMatch(*reference))
+      << "Bad structure of insert revision";
+  CHECK(query->getId<common::Id>().isValid())
+      << "Attempted to insert element with invalid ID";
+  query->setUpdateTime(time);
+  query->setRemoved();
+  return true;
+}
+
+bool RaftChunkDataRamContainer::checkAndPatch(
+    const std::shared_ptr<Revision>& query) {
+  std::lock_guard<std::mutex> lock(access_mutex_);
+  CHECK(query != nullptr);
+  CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
+  std::shared_ptr<Revision> reference = getTemplate();
+  CHECK(query->structureMatch(*reference)) << "Bad structure of patch revision";
+  CHECK(query->getId<common::Id>().isValid())
+      << "Attempted to insert element with invalid ID";
+
+  return patch(query);
+}
+
+bool RaftChunkDataRamContainer::patch(const Revision::ConstPtr& query) {
+  CHECK(query != nullptr);
+  common::Id id = query->getId<common::Id>();
+  LogicalTime time = query->getUpdateTime();
+  HistoryMap::iterator found = data_.find(id);
+  if (found == data_.end()) {
+    found = data_.insert(std::make_pair(id, History())).first;
+  }
+  for (History::iterator it = found->second.begin(); it != found->second.end();
+       ++it) {
+    if ((*it)->getUpdateTime() <= time) {
+      CHECK_NE(time, (*it)->getUpdateTime());
+      found->second.insert(it, query);
+      return true;
+    }
+    LOG(WARNING) << "Patching, not in front!";  // shouldn't usually be the case
+  }
+  found->second.push_back(query);
   return true;
 }
 
@@ -73,12 +189,12 @@ RaftChunkDataRamContainer::LogReadAccess::LogReadAccess(
 }
 
 const RaftChunkDataRamContainer::RaftLog*
-RaftChunkDataRamContainer::LogReadAccess::
-operator->() const {
+RaftChunkDataRamContainer::LogReadAccess::operator->() const {
   if (is_enabled_) {
     return read_log_;
   } else {
     LOG(FATAL) << "Tried to access raft log using a disabled LogReadAccess object";
+    return NULL;
   }
 }
 
@@ -110,6 +226,7 @@ operator->() const {
     return write_log_;
   } else {
     LOG(FATAL) << "Tried to access raft log using a disabled LogWriteAccess object";
+    return NULL;
   }
 }
 

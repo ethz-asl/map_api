@@ -86,7 +86,7 @@ class RaftNode {
 
   // Waits for the entry to be committed. Returns failure if the leader fails
   // before the new entry is committed.
-  uint64_t leaderSafelyAppendLogEntry(
+  uint64_t leaderAppendEntryAndAwaitCommit(
       const std::shared_ptr<proto::RaftLogEntry>& new_entry);
 
   static const char kAppendEntries[];
@@ -133,6 +133,8 @@ class RaftNode {
                            const PeerId& sender, Message* response);
   void handleInsertRequest(proto::InsertRequest* request,
                            const PeerId& sender, Message* response);
+  void handleUpdateRequest(proto::InsertRequest* request, const PeerId& sender,
+                           Message* response);
   void handleRequestVote(const proto::VoteRequest& request,
                          const PeerId& sender, Message* response);
   void handleJoinQuitRequest(const proto::JoinQuitRequest& request,
@@ -272,6 +274,7 @@ class RaftNode {
 
   // New revision request.
   uint64_t sendInsertRequest(const Revision::ConstPtr& item);
+  uint64_t sendUpdateRequest(const Revision::ConstPtr& item);
 
   std::condition_variable new_entries_signal_;
   // Expects write lock for log_mutex to be acquired.
@@ -301,7 +304,6 @@ class RaftNode {
   uint64_t committed_result_;
   mutable std::mutex commit_mutex_;
   const uint64_t& commit_index() const;
-  const uint64_t& committed_result() const;
 
   // ========================
   // Owner chunk information.

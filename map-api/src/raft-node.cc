@@ -273,13 +273,12 @@ void RaftNode::handleInsertRequest(proto::InsertRequest* request,
   CHECK_NOTNULL(response);
   CHECK_NOTNULL(request);
   std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
-  entry->set_allocated_revision(request->release_revision());
-  uint64_t index = leaderSafelyAppendLogEntry(entry);
+  entry->set_allocated_insert_revision(request->release_revision());
+  uint64_t index = leaderAppendEntryAndAwaitCommit(entry);
   proto::InsertResponse insert_response;
   insert_response.set_index(index);
   response->impose<kInsertResponse>(insert_response);
 }
-
 
 void RaftNode::handleRequestVote(const proto::VoteRequest& vote_request,
                                  const PeerId& sender, Message* response) {
@@ -415,8 +414,8 @@ bool RaftNode::sendAppendEntries(
 uint64_t RaftNode::sendInsertRequest(const Revision::ConstPtr& item) {
   if (state() == State::LEADER) {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
-    entry->set_allocated_revision(item->copyToProtoPtr());
-    leaderSafelyAppendLogEntry(entry);
+    entry->set_allocated_insert_revision(item->copyToProtoPtr());
+    leaderAppendEntryAndAwaitCommit(entry);
   } else if (state() == State::FOLLOWER) {
     Message request, response;
     proto::InsertRequest insert_request;
@@ -1034,11 +1033,6 @@ const uint64_t& RaftNode::commit_index() const {
   return commit_index_;
 }
 
-const uint64_t& RaftNode::committed_result() const {
-  std::lock_guard<std::mutex> lock(commit_mutex_);
-  return committed_result_;
-}
-
 uint64_t RaftNode::leaderAppendLogEntry(
     const std::shared_ptr<proto::RaftLogEntry>& entry) {
   uint64_t current_term;
@@ -1057,7 +1051,7 @@ uint64_t RaftNode::leaderAppendLogEntry(
   return leaderAppendLogEntryLocked(log_writer, entry, current_term);
 }
 
-uint64_t RaftNode::leaderSafelyAppendLogEntry(
+uint64_t RaftNode::leaderAppendEntryAndAwaitCommit(
     const std::shared_ptr<proto::RaftLogEntry>& entry) {
   uint64_t current_term = term();
   uint64_t index = leaderAppendLogEntry(entry);
@@ -1065,8 +1059,6 @@ uint64_t RaftNode::leaderSafelyAppendLogEntry(
     return 0;
   }
 
-  // TODO(aqurai): Although the state or term is guaranteed to change in case of
-  // leader failure thus breaking the loop, still add a time out for safety?
   while (commit_index() < index) {
     std::unique_lock<std::mutex> state_lock(state_mutex_);
     if (state_ != State::LEADER || current_term_ != current_term) {
