@@ -170,7 +170,7 @@ RaftChunkDataRamContainer::RaftLog::iterator
 RaftChunkDataRamContainer::RaftLog::getLogIteratorByIndex(uint64_t index) {
   iterator it = end();
   if (empty()) {
-    return it;
+    return end();
   }
   if (index < front()->index() || index > back()->index()) {
     return end();
@@ -187,7 +187,7 @@ RaftChunkDataRamContainer::RaftLog::const_iterator
 RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) const {
   const_iterator it = cend();
   if (empty()) {
-    return it;
+    return cend();
   }
   if (index < front()->index() || index > back()->index()) {
     return cend();
