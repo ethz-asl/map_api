@@ -5,11 +5,9 @@
 #include "./core.pb.h"
 #include "./chunk.pb.h"
 #include "map-api/raft-chunk-data-ram-container.h"
-#include "map-api/legacy-chunk-data-ram-container.h"
 #include "map-api/raft-node.h"
 #include "map-api/hub.h"
 #include "map-api/message.h"
-#include "map-api/net-table-manager.h"
 
 namespace map_api {
 
@@ -21,7 +19,7 @@ bool RaftChunk::init(const common::Id& id,
                      std::shared_ptr<TableDescriptor> descriptor,
                      bool initialize) {
   id_ = id;
-  // TODO(aqurai): No, this is not a good way of doing things.
+  // TODO(aqurai): init new data container here.
   data_container_.reset(raft_node_.data_);
   CHECK(data_container_->init(descriptor));
   initialized_ = true;
@@ -102,10 +100,9 @@ bool RaftChunk::insert(const LogicalTime& time,
   writeLock();
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareInsert(time, item);
-  // at this point, checkAndPrepareInsert() has modified the revision such that
-  // all default
-  // fields are also set, which allows remote peers to just patch the revision
-  // into their table.
+  // At this point, checkAndPrepareInsert() has modified the revision such that
+  // all default fields are also set, which allows remote peers to just patch
+  // the revision into their table.
   if (raftInsertRequest(item) > 0) {
     syncLatestCommitTime(*item);
     unlock();
@@ -117,12 +114,11 @@ bool RaftChunk::insert(const LogicalTime& time,
 }
 
 void RaftChunk::writeLock() {
-  // TODO(aqurai): Implement this.
+  LOG(WARNING) << "RaftChunk::writeLock() is not implemented";
   std::lock_guard<std::mutex> lock_mutex(write_lock_mutex_);
   if (is_raft_write_locked_) {
     ++write_lock_depth_;
   } else {
-    // Send lock request via safe insert log entry.
     if (true /* Success */) {
       is_raft_write_locked_ = true;
     }
@@ -130,14 +126,14 @@ void RaftChunk::writeLock() {
 }
 
 bool RaftChunk::isWriteLocked() {
-  // TODO(aqurai): Implement this.
+  LOG(WARNING) << "RaftChunk::isWriteLocked() is not implemented";
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
   // return is_raft_write_locked_;
   return true;
 }
 
 void RaftChunk::unlock() const {
-  // TODO(aqurai): Implement this.
+  LOG(WARNING) << "RaftChunk::unlock() is not implemented";
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
   if (write_lock_depth_ > 0) {
     --write_lock_depth_;
@@ -173,7 +169,7 @@ int RaftChunk::requestParticipation(const PeerId& peer) {
       !raft_node_.hasPeer(peer)) {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
     entry->set_add_peer(peer.ipPort());
-    if (raft_node_.leaderSafelyAppendLogEntry(entry) > 0) {
+    if (raft_node_.leaderAppendEntryAndAwaitCommit(entry) > 0) {
       return 1;
     }
   }
@@ -186,7 +182,7 @@ void RaftChunk::update(const std::shared_ptr<Revision>& item) {
   writeLock();
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareUpdate(LogicalTime::sample(), item);
-  if (raftUpdateRequest(item) > 0) {
+  if (raftInsertRequest(item) > 0) {
     syncLatestCommitTime(*item);
   }
   unlock();
@@ -240,29 +236,23 @@ void RaftChunk::updateLocked(const LogicalTime& time,
   CHECK_EQ(id(), item->getChunkId());
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareUpdate(LogicalTime::sample(), item);
-  // TODO(aqurai): No return? What to do on fail?
-  raftUpdateRequest(item);
+  // TODO(aqurai): No return value? What to do on fail?
+  raftInsertRequest(item);
 }
 
 void RaftChunk::removeLocked(const LogicalTime& time,
                              const std::shared_ptr<Revision>& item) {
-  // TODO(aqurai): How is this different from Update???
   CHECK(item != nullptr);
   CHECK_EQ(id(), item->getChunkId());
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
-      ->checkAndPrepareUpdate(LogicalTime::sample(), item);
+      ->checkAndPrepareRemove(LogicalTime::sample(), item);
   // TODO(aqurai): No return? What to do on fail?
-  raftUpdateRequest(item);
+  raftInsertRequest(item);
 }
 
 uint64_t RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
   CHECK(raft_node_.isRunning()) << PeerId::self();
   return raft_node_.sendInsertRequest(item);
-}
-
-uint64_t RaftChunk::raftUpdateRequest(const Revision::ConstPtr& item) {
-  CHECK(raft_node_.isRunning());
-  return raft_node_.sendUpdateRequest(item);
 }
 
 }  // namespace map_api

@@ -22,20 +22,17 @@ std::shared_ptr<const Revision> RaftChunkDataRamContainer::getByIdImpl(
 void RaftChunkDataRamContainer::findByRevisionImpl(
     int key, const Revision& value_holder, const LogicalTime& time,
     ConstRevisionMap* dest) const {
-  CHECK_NOTNULL(dest);
-  dest->clear();
+  CHECK_NOTNULL(dest)->clear();
   forEachItemFoundAtTime(key, value_holder, time,
                          [&dest](const common::Id& id,
                                  const Revision::ConstPtr& item) {
-    CHECK(dest->find(id) == dest->end());
     CHECK(dest->emplace(id, item).second);
   });
 }
 
 void RaftChunkDataRamContainer::getAvailableIdsImpl(
     const LogicalTime& time, std::vector<common::Id>* ids) const {
-  CHECK_NOTNULL(ids);
-  ids->clear();
+  CHECK_NOTNULL(ids)->clear();
   ids->reserve(data_.size());
   for (const HistoryMap::value_type& pair : data_) {
     History::const_iterator latest = pair.second.latestAt(time);
@@ -73,8 +70,6 @@ void RaftChunkDataRamContainer::chunkHistory(const common::Id& chunk_id,
 
 bool RaftChunkDataRamContainer::checkAndPrepareInsert(
     const LogicalTime& time, const std::shared_ptr<Revision>& query) {
-  // TODO(aqurai): See if this mutex is needed here.
-  std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(query.get() != nullptr);
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
@@ -103,7 +98,6 @@ bool RaftChunkDataRamContainer::checkAndPrepareUpdate(
 
 bool RaftChunkDataRamContainer::checkAndPrepareBulkInsert(
     const LogicalTime& time, const MutableRevisionMap& query) {
-  std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   common::Id id;
@@ -117,6 +111,20 @@ bool RaftChunkDataRamContainer::checkAndPrepareBulkInsert(
     id_revision.second->setInsertTime(time);
     id_revision.second->setUpdateTime(time);
   }
+  return true;
+}
+
+bool RaftChunkDataRamContainer::checkAndPrepareRemove(
+    const LogicalTime& time, const std::shared_ptr<Revision>& query) {
+  CHECK(query.get() != nullptr);
+  CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
+  std::shared_ptr<Revision> reference = getTemplate();
+  CHECK(query->structureMatch(*reference))
+      << "Bad structure of insert revision";
+  CHECK(query->getId<common::Id>().isValid())
+      << "Attempted to insert element with invalid ID";
+  query->setUpdateTime(time);
+  query->setRemoved();
   return true;
 }
 
@@ -165,8 +173,9 @@ RaftChunkDataRamContainer::RaftLog::getLogIteratorByIndex(uint64_t index) {
     return it;
   }
   if (index < front()->index() || index > back()->index()) {
-    return it;
+    return end();
   } else {
+    iterator it;
     // The log indices are always sequential.
     it = begin() + (index - front()->index());
     CHECK_EQ((*it)->index(), index) << " Log entries size = " << size();
@@ -181,8 +190,9 @@ RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) c
     return it;
   }
   if (index < front()->index() || index > back()->index()) {
-    return it;
+    return cend();
   } else {
+    const_iterator it;
     // The log indices are always sequential.
     it = cbegin() + (index - front()->index());
     CHECK_EQ((*it)->index(), index) << " Log entries size = " << size();
@@ -191,7 +201,7 @@ RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) c
 }
 
 uint64_t RaftChunkDataRamContainer::RaftLog::eraseAfter(iterator it) {
-  CHECK(it + 1 != begin());
+  CHECK((it + 1) != begin());
   resize(std::distance(begin(), it + 1));
   return lastLogIndex();
 }

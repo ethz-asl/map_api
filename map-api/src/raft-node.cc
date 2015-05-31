@@ -24,11 +24,10 @@ constexpr int kJoinResponseTimeoutMs = 1000;
 constexpr int kMaxLogQueueLength = 50;
 
 // TODO(aqurai): Defined new message strings for raft chunk. Some will have to
-// removed once the raft chunk implementation is complete.
+// be removed once the raft chunk implementation is complete.
 const char RaftNode::kAppendEntries[] = "raft_node_append_entries";
 const char RaftNode::kAppendEntriesResponse[] = "raft_node_append_response";
 const char RaftNode::kInsertRequest[] = "raft_node_insert_request";
-const char RaftNode::kUpdateRequest[] = "raft_node_update_request";
 const char RaftNode::kInsertResponse[] = "raft_node_insert_response";
 const char RaftNode::kVoteRequest[] = "raft_node_vote_request";
 const char RaftNode::kVoteResponse[] = "raft_node_vote_response";
@@ -45,7 +44,6 @@ MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntries, proto::AppendEntriesRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntriesResponse,
                       proto::AppendEntriesResponse);
 MAP_API_PROTO_MESSAGE(RaftNode::kInsertRequest, proto::InsertRequest);
-MAP_API_PROTO_MESSAGE(RaftNode::kUpdateRequest, proto::InsertRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kInsertResponse, proto::InsertResponse);
 MAP_API_PROTO_MESSAGE(RaftNode::kVoteRequest, proto::VoteRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kVoteResponse, proto::VoteResponse);
@@ -276,41 +274,33 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
 
 void RaftNode::handleInsertRequest(proto::InsertRequest* request,
                                    const PeerId& sender, Message* response) {
+  CHECK_NOTNULL(response);
+  CHECK_NOTNULL(request);
   std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
   entry->set_allocated_insert_revision(request->release_revision());
-  uint64_t index = leaderSafelyAppendLogEntry(entry);
+  uint64_t index = leaderAppendEntryAndAwaitCommit(entry);
   proto::InsertResponse insert_response;
   insert_response.set_index(index);
   response->impose<kInsertResponse>(insert_response);
 }
-
-void RaftNode::handleUpdateRequest(proto::InsertRequest* request,
-                                   const PeerId& sender, Message* response) {
-  std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
-  entry->set_allocated_update_revision(request->release_revision());
-  uint64_t index = leaderSafelyAppendLogEntry(entry);
-  proto::InsertResponse insert_response;
-  insert_response.set_index(index);
-  response->impose<kInsertResponse>(insert_response);
-}
-
 
 void RaftNode::handleRequestVote(const proto::VoteRequest& vote_request,
                                  const PeerId& sender, Message* response) {
+  CHECK_NOTNULL(response);
   updateHeartbeatTime();
   proto::VoteResponse vote_response;
   std::lock_guard<std::mutex> state_lock(state_mutex_);
   bool is_candidate_log_newer;
   // TODO(aqurai): No need of scope?
   {
-    LogReadAccess log_read(data_);
-    vote_response.set_previous_log_index(log_read->lastLogIndex());
-    vote_response.set_previous_log_term(log_read->lastLogTerm());
+    LogReadAccess log_reader(data_);
+    vote_response.set_previous_log_index(log_reader->lastLogIndex());
+    vote_response.set_previous_log_term(log_reader->lastLogTerm());
 
     is_candidate_log_newer =
-        vote_request.last_log_term() > log_read->lastLogTerm() ||
-        (vote_request.last_log_term() == log_read->lastLogTerm() &&
-         vote_request.last_log_index() >= log_read->lastLogIndex());
+        vote_request.last_log_term() > log_reader->lastLogTerm() ||
+        (vote_request.last_log_term() == log_reader->lastLogTerm() &&
+         vote_request.last_log_index() >= log_reader->lastLogIndex());
   }
   last_vote_request_term_ =
     std::max(static_cast<uint64_t>(last_vote_request_term_), vote_request.term());
@@ -427,7 +417,7 @@ uint64_t RaftNode::sendInsertRequest(const Revision::ConstPtr& item) {
   if (state() == State::LEADER) {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
     entry->set_allocated_insert_revision(item->copyToProtoPtr());
-    return leaderSafelyAppendLogEntry(entry);
+    leaderAppendEntryAndAwaitCommit(entry);
   } else if (state() == State::FOLLOWER) {
     Message request, response;
     proto::InsertRequest insert_request;
@@ -437,30 +427,6 @@ uint64_t RaftNode::sendInsertRequest(const Revision::ConstPtr& item) {
     request.impose<kInsertRequest>(insert_request);
     if (!Hub::instance().try_request(leader(), &request, &response)) {
       VLOG(1) << "Insert request failed.";
-      return 0;
-    }
-    response.extract<kInsertResponse>(&insert_response);
-    return insert_response.index();
-  }
-  // Failure. Can't add new revision right now because the leader is currently
-  // unknown or there is an election underway.
-  return 0;
-}
-
-uint64_t RaftNode::sendUpdateRequest(const Revision::ConstPtr& item) {
-  if (state() == State::LEADER) {
-    std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
-    entry->set_allocated_update_revision(item->copyToProtoPtr());
-    leaderSafelyAppendLogEntry(entry);
-  } else if (state() == State::FOLLOWER) {
-    Message request, response;
-    proto::InsertRequest insert_request;
-    proto::InsertResponse insert_response;
-    fillMetadata(&insert_request);
-    insert_request.set_allocated_revision(item->copyToProtoPtr());
-    request.impose<kUpdateRequest>(insert_request);
-    if (!Hub::instance().try_request(leader(), &request, &response)) {
-      VLOG(1) << "Update request failed.";
       return 0;
     }
     response.extract<kInsertResponse>(&insert_response);
@@ -697,8 +663,6 @@ void RaftNode::leaderMonitorFollowerStatus(uint64_t current_term) {
         num_peers_ = peer_list_.size();
       }
     }
-    tracker_lock.unlock();
-    peer_lock.unlock();
   }
 
   // num_peers_ > 1 condition is needed to prevent the leader from thinking it
@@ -1122,7 +1086,7 @@ uint64_t RaftNode::leaderAppendLogEntry(
   return leaderAppendLogEntryLocked(log_writer, entry, current_term);
 }
 
-uint64_t RaftNode::leaderSafelyAppendLogEntry(
+uint64_t RaftNode::leaderAppendEntryAndAwaitCommit(
     const std::shared_ptr<proto::RaftLogEntry>& entry) {
   uint64_t current_term = term();
   uint64_t index = leaderAppendLogEntry(entry);
@@ -1130,8 +1094,6 @@ uint64_t RaftNode::leaderSafelyAppendLogEntry(
     return 0;
   }
 
-  // TODO(aqurai): Although the state or term is guaranteed to change in case of
-  // leader failure thus breaking the loop, still add a time out for safety?
   while (data_->logCommitIndex() < index) {
     std::unique_lock<std::mutex> state_lock(state_mutex_);
     if (state_ != State::LEADER || current_term_ != current_term) {
@@ -1230,10 +1192,6 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
       // and unannounced peer removal. Also, There could be other
       // threads/methods (eg: vote request) attempting to send message to the
       // non responsive peer, which causes a problem.
-//    if ((*it)->add_remove_peer().request_type() ==
-//        proto::PeerRequestType::ADD_PEER) {
-//      sendNotifyJoinQuitSuccess(PeerId((*it)->add_remove_peer().peer_id()));
-//    }
   }
 }
 

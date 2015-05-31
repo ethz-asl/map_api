@@ -207,9 +207,6 @@ class NetTable {
   void handleRaftInsertRequest(const common::Id& chunk_id,
                                proto::InsertRequest* request,
                                const PeerId& sender, Message* response);
-  void handleRaftUpdateRequest(const common::Id& chunk_id,
-                               proto::InsertRequest* request,
-                               const PeerId& sender, Message* response);
   void handleRaftRequestVote(const common::Id& chunk_id,
                              const proto::VoteRequest& request,
                              const PeerId& sender, Message* response);

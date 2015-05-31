@@ -52,11 +52,9 @@
 #include "map-api/peer-id.h"
 #include "map-api/revision.h"
 #include "multiagent-mapping-common/reader-writer-lock.h"
-#include "map-api/legacy-chunk-data-container-base.h"
 #include "map-api/raft-chunk-data-ram-container.h"
 
 namespace map_api {
-// class RaftChunkDataRamContainer;
 class Message;
 class RaftChunk;
 
@@ -88,13 +86,12 @@ class RaftNode {
 
   // Waits for the entry to be committed. Returns failure if the leader fails
   // before the new entry is committed.
-  uint64_t leaderSafelyAppendLogEntry(
+  uint64_t leaderAppendEntryAndAwaitCommit(
       const std::shared_ptr<proto::RaftLogEntry>& new_entry);
 
   static const char kAppendEntries[];
   static const char kAppendEntriesResponse[];
   static const char kInsertRequest[];
-  static const char kUpdateRequest[];
   static const char kInsertResponse[];
   static const char kVoteRequest[];
   static const char kVoteResponse[];
@@ -307,8 +304,6 @@ class RaftNode {
   // Owner chunk information.
   // ========================
 
-  // std::unique_ptr<RaftChunkDataRamContainer>* raft_data_container_;
-  // Todo(aqurai): Refactor this.
   std::string table_name_;
   common::Id chunk_id_;
   template <typename RequestType>

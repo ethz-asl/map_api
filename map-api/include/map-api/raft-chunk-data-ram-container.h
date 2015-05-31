@@ -20,7 +20,6 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
 
  private:
   friend class LogReadAccess;
-  // friend class RaftNode; // TODO(aqurai): Remove friendship?
 
   // READ OPERATIONS INHERITED FROM PARENT
   virtual bool initImpl();
@@ -43,12 +42,12 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
                              const std::shared_ptr<Revision>& query);
   bool checkAndPrepareBulkInsert(const LogicalTime& time,
                                  const MutableRevisionMap& query);
+  bool checkAndPrepareRemove(const LogicalTime& time,
+                             const std::shared_ptr<Revision>& query);
 
   // INSERT
   bool checkAndPatch(const std::shared_ptr<Revision>& query);
 
-  // TODO(aqurai): This is a separate function because this becomes a virtual
-  // method in base class to be impl by RAM and STXXL derived classes.
   bool patch(const Revision::ConstPtr& query);
 
   // =================
