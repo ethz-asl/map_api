@@ -103,7 +103,7 @@ class LegacyChunk : public ChunkBase {
    * Update: First locks chunk, then sends update to all peers for patching.
    * Requires underlying table to be CRU (verified).
    */
-  virtual void update(const std::shared_ptr<Revision>& item) override;
+  virtual bool update(const std::shared_ptr<Revision>& item) override;
 
   virtual LogicalTime getLatestCommitTime() const override;
 
@@ -118,13 +118,13 @@ class LegacyChunk : public ChunkBase {
 
  private:
   /**
-   * insert and update for transactions.
+   * insert and update for transactions. These always return true.
    */
-  virtual void bulkInsertLocked(const MutableRevisionMap& items,
+  virtual bool bulkInsertLocked(const MutableRevisionMap& items,
                                 const LogicalTime& time) override;
-  virtual void updateLocked(const LogicalTime& time,
+  virtual bool updateLocked(const LogicalTime& time,
                             const std::shared_ptr<Revision>& item) override;
-  virtual void removeLocked(const LogicalTime& time,
+  virtual bool removeLocked(const LogicalTime& time,
                             const std::shared_ptr<Revision>& item) override;
 
   /**

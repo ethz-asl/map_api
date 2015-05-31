@@ -271,7 +271,7 @@ int LegacyChunk::requestParticipation(const PeerId& peer) {
   return participant_count;
 }
 
-void LegacyChunk::update(const std::shared_ptr<Revision>& item) {
+bool LegacyChunk::update(const std::shared_ptr<Revision>& item) {
   CHECK(item != nullptr);
   CHECK_EQ(id(), item->getChunkId());
   proto::PatchRequest update_request;
@@ -288,6 +288,7 @@ void LegacyChunk::update(const std::shared_ptr<Revision>& item) {
   CHECK(peers_.undisputableBroadcast(&request));
   syncLatestCommitTime(*item);
   distributedUnlock();
+  return true;
 }
 
 LogicalTime LegacyChunk::getLatestCommitTime() const {
@@ -297,7 +298,7 @@ LogicalTime LegacyChunk::getLatestCommitTime() const {
   return result;
 }
 
-void LegacyChunk::bulkInsertLocked(const MutableRevisionMap& items,
+bool LegacyChunk::bulkInsertLocked(const MutableRevisionMap& items,
                                    const LogicalTime& time) {
   std::vector<proto::PatchRequest> insert_requests;
   insert_requests.resize(items.size());
@@ -323,9 +324,10 @@ void LegacyChunk::bulkInsertLocked(const MutableRevisionMap& items,
     // TODO(tcies) also bulk this
     ++i;
   }
+  return true;
 }
 
-void LegacyChunk::updateLocked(const LogicalTime& time,
+bool LegacyChunk::updateLocked(const LogicalTime& time,
                                const std::shared_ptr<Revision>& item) {
   CHECK(item != nullptr);
   CHECK_EQ(id(), item->getChunkId());
@@ -340,9 +342,10 @@ void LegacyChunk::updateLocked(const LogicalTime& time,
   update_request.set_serialized_revision(item->serializeUnderlying());
   request.impose<kUpdateRequest>(update_request);
   CHECK(peers_.undisputableBroadcast(&request));
+  return true;
 }
 
-void LegacyChunk::removeLocked(const LogicalTime& time,
+bool LegacyChunk::removeLocked(const LogicalTime& time,
                                const std::shared_ptr<Revision>& item) {
   CHECK(item != nullptr);
   CHECK_EQ(item->getChunkId(), id());
@@ -357,6 +360,7 @@ void LegacyChunk::removeLocked(const LogicalTime& time,
   remove_request.set_serialized_revision(item->serializeUnderlying());
   request.impose<kUpdateRequest>(remove_request);
   CHECK(peers_.undisputableBroadcast(&request));
+  return true;
 }
 
 bool LegacyChunk::addPeer(const PeerId& peer) {

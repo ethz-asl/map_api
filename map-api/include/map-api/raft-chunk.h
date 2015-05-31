@@ -64,24 +64,24 @@ class RaftChunk : public ChunkBase {
   virtual int requestParticipation() override;
   virtual int requestParticipation(const PeerId& peer) override;
 
-  virtual void update(const std::shared_ptr<Revision>& item) override;
+  virtual bool update(const std::shared_ptr<Revision>& item) override;
 
   static bool sendConnectRequest(const PeerId& peer,
                                  proto::ChunkRequestMetadata& metadata);
 
  private:
-  virtual void bulkInsertLocked(const MutableRevisionMap& items,
+  virtual bool bulkInsertLocked(const MutableRevisionMap& items,
                                 const LogicalTime& time) override;
-  virtual void updateLocked(const LogicalTime& time,
+  virtual bool updateLocked(const LogicalTime& time,
                             const std::shared_ptr<Revision>& item) override;
-  virtual void removeLocked(const LogicalTime& time,
+  virtual bool removeLocked(const LogicalTime& time,
                             const std::shared_ptr<Revision>& item) override;
 
   inline void syncLatestCommitTime(const Revision& item);
   virtual LogicalTime getLatestCommitTime() const override;
   mutable std::mutex latest_commit_time_mutex_;
 
-  uint64_t raftInsertRequest(const Revision::ConstPtr& item);
+  bool raftInsertRequest(const Revision::ConstPtr& item);
 
   void commitInsertCallback(const common::Id& inserted_id) {
     handleCommitInsert(inserted_id);

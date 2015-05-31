@@ -108,7 +108,7 @@ bool RaftChunk::insert(const LogicalTime& time,
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareInsert(time, item);
   CHECK(raft_node_.isRunning());
-  if (raftInsertRequest(item) > 0) {
+  if (raftInsertRequest(item)) {
     syncLatestCommitTime(*item);
     unlock();
     return true;
@@ -229,17 +229,21 @@ int RaftChunk::requestParticipation(const PeerId& peer) {
   return 0;
 }
 
-void RaftChunk::update(const std::shared_ptr<Revision>& item) {
+bool RaftChunk::update(const std::shared_ptr<Revision>& item) {
   CHECK(item != nullptr);
   CHECK_EQ(id(), item->getChunkId());
   writeLock();
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareUpdate(LogicalTime::sample(), item);
   CHECK(raft_node_.isRunning());
-  if (raftInsertRequest(item) > 0) {
+  if (raftInsertRequest(item)) {
     syncLatestCommitTime(*item);
+    unlock();
+    return true;
+  } else {
+    unlock();
+    return false;
   }
-  unlock();
 }
 
 bool RaftChunk::sendConnectRequest(const PeerId& peer,
@@ -267,7 +271,7 @@ bool RaftChunk::sendConnectRequest(const PeerId& peer,
   return false;
 }
 
-void RaftChunk::bulkInsertLocked(const MutableRevisionMap& items,
+bool RaftChunk::bulkInsertLocked(const MutableRevisionMap& items,
                                  const LogicalTime& time) {
   std::vector<proto::PatchRequest> insert_requests;
   for (const MutableRevisionMap::value_type& item : items) {
@@ -277,28 +281,30 @@ void RaftChunk::bulkInsertLocked(const MutableRevisionMap& items,
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareBulkInsert(time, items);
   for (const ConstRevisionMap::value_type& item : items) {
-    raftInsertRequest(item.second);
+    if (!raftInsertRequest(item.second)) {
+      return false;
+    }
   }
+  return true;
 }
 
-void RaftChunk::updateLocked(const LogicalTime& time,
+bool RaftChunk::updateLocked(const LogicalTime& time,
                              const std::shared_ptr<Revision>& item) {
   CHECK(item != nullptr);
   CHECK_EQ(id(), item->getChunkId());
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareUpdate(time, item);
-  // TODO(aqurai): No return? What to do on fail?
-  raftInsertRequest(item);
+  return raftInsertRequest(item);
 }
 
-void RaftChunk::removeLocked(const LogicalTime& time,
+bool RaftChunk::removeLocked(const LogicalTime& time,
                              const std::shared_ptr<Revision>& item) {
   // TODO(aqurai): How is this different from Update???
   CHECK(item != nullptr);
   CHECK_EQ(id(), item->getChunkId());
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareUpdate(time, item);
-  raftInsertRequest(item);
+  return raftInsertRequest(item);
 }
 
 LogicalTime RaftChunk::getLatestCommitTime() const {
@@ -306,11 +312,12 @@ LogicalTime RaftChunk::getLatestCommitTime() const {
   return latest_commit_time_;
 }
 
-uint64_t RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
+bool RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
   CHECK(raft_node_.isRunning()) << PeerId::self();
   uint64_t index = 0;
   bool retrying = false;
   uint64_t serial_id = request_id_.getNewId();
+  // TODO(aqurai): Limit number of retry attempts.
   while (raft_node_.isRunning()) {
     index = raft_node_.sendInsertRequest(item, serial_id, retrying);
     if (index > 0) {
@@ -319,7 +326,7 @@ uint64_t RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
     retrying = true;
     usleep(150 * kMillisecondsToMicroseconds);
   }
-  return index;
+  return (index > 0);
 }
 
 void RaftChunk::forceStopRaft() { raft_node_.stop(); }
