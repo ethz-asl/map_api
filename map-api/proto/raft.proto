@@ -36,13 +36,11 @@ message NewPeerInit {
 message RaftLogEntry {
   optional uint64 index = 1;
   optional uint64 term = 2;
-  // TODO(aqurai): Are seperate fields for insert/update needed? They are
-  // modified before sending, cand can simply be patched on reception.
   optional Revision insert_revision = 3;
-  optional string add_peer = 5;
-  optional string remove_peer = 6;
-  optional common.proto.Id revision_id = 7;
-  optional uint64 logical_time = 8;
+  optional string add_peer = 4;
+  optional string remove_peer = 5;
+  optional common.proto.Id revision_id = 6;
+  optional uint64 logical_time = 7;
 }
 
 message AppendEntriesRequest {

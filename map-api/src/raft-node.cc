@@ -86,7 +86,7 @@ void RaftNode::start() {
     LOG(FATAL) << "Start failed. State manager thread is already running.";
     return;
   }
-  // TODO(aqurai): To be removed.
+
   if (state_ == State::JOINING && !join_request_peer_.isValid() &&
       peer_list_.empty()) {
     LOG(WARNING) << "No peer information for sending join request. Exiting.";
@@ -646,8 +646,6 @@ void RaftNode::leaderMonitorFollowerStatus(uint64_t current_term) {
       }
       if (tracker.second->status == PeerStatus::OFFLINE ||
           tracker.second->status == PeerStatus::ANNOUNCED_DISCONNECTING) {
-        // TODO(aqurai): NOTE: Segfault here, sometimes!
-        // std::__shared_ptr<>::operator->(). Solved?
         remove_peers.push_back(tracker.first);
       }
     }

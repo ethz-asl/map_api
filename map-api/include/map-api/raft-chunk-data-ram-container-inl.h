@@ -1,7 +1,6 @@
 #ifndef MAP_API_RAFT_CHUNK_DATA_RAM_CONTAINER_INL_H_
 #define MAP_API_RAFT_CHUNK_DATA_RAM_CONTAINER_INL_H_
 
-#include <stdint.h>
 #include <mutex>
 
 namespace map_api {
