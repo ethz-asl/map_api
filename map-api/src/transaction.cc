@@ -2,6 +2,7 @@
 #include "map-api/transaction.h"
 
 #include <algorithm>
+#include <future>
 
 #include <multiagent-mapping-common/backtrace.h>
 #include <timing/timer.h>
@@ -15,6 +16,7 @@
 #include "map-api/trackee-multimap.h"
 #include "map-api/workspace.h"
 #include "./core.pb.h"
+#include "./raft.pb.h"
 
 DEFINE_bool(blame_commit, false, "Print stack trace for every commit");
 
@@ -120,7 +122,11 @@ bool Transaction::commit() {
     if (!net_table_transaction.second->check()) {
       for (const TransactionPair& net_table_transaction :
            net_table_transactions_) {
-        net_table_transaction.second->unlock();
+        if (FLAGS_use_raft) {
+          net_table_transaction.second->unlock(false);
+        } else {
+          net_table_transaction.second->unlock();
+        }
       }
       return false;
     }
@@ -128,8 +134,12 @@ bool Transaction::commit() {
   commit_time_ = LogicalTime::sample();
   VLOG(3) << "Commit from " << begin_time_ << " to " << commit_time_;
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
-    net_table_transaction.second->checkedCommit(commit_time_);
-    net_table_transaction.second->unlock();
+    bool success = net_table_transaction.second->checkedCommit(commit_time_);
+    if (FLAGS_use_raft) {
+      net_table_transaction.second->unlock(success);
+    } else {
+      net_table_transaction.second->unlock();
+    }
   }
   return true;
 }
@@ -147,16 +157,67 @@ bool Transaction::multiChunkCommit() {
   enableDirectAccess();
   pushNewChunkIdsToTrackers();
   disableDirectAccess();
+
+  proto::MultiChunkCommitInfo commit_info;
+  prepareMultiChunkCommitInfo(&commit_info);
+
   timing::Timer timer("map_api::Transaction::commit - lock");
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->lock();
+    // TODO(aqurai): Return if this fails as well.
+    net_table_transaction.second->sendMultiChunkCommitInfo(&commit_info);
   }
   timer.Stop();
-  // send multi chunk info to all
-  // Check and prepare
-  // actually send all revisions
-  // send abort if one fails
-  // start sending unlocks
+
+  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
+    if (!net_table_transaction.second->check()) {
+      unlockAll(false);
+      return false;
+    }
+  }
+
+  std::vector<std::future<bool>> responses;
+  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
+    std::future<bool> success =
+        std::async(std::launch::async, &NetTableTransaction::checkedCommit,
+                   net_table_transaction.second, commit_time_);
+    responses.push_back(std::move(success));
+  }
+
+  for (std::future<bool>& response : responses) {
+    if (!response.get()) {
+      unlockAll(false);
+      return false;
+    }
+  }
+
+  // At this point, all chunks have received all their respective transactions.
+  // Any peer receiving unlock implies all other chunks are ready to commit.
+  // If the committing peer (this peer) fails here, the chunks can attempt to
+  // take the transaction forward themselves.
+  unlockAll(true);
+  return true;
+}
+
+void Transaction::unlockAll(bool is_success) {
+  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
+    if (FLAGS_use_raft) {
+      net_table_transaction.second->unlock(is_success);
+    } else {
+      net_table_transaction.second->unlock();
+    }
+  }
+}
+
+void Transaction::prepareMultiChunkCommitInfo(
+    proto::MultiChunkCommitInfo* info) {
+  common::Id commit_id;
+  common::generateId(&commit_id);
+  commit_id.serialize(info->mutable_commit_id());
+  info->set_begin_time(begin_time_.serialize());
+  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
+    net_table_transaction.second->prepareMultiChunkCommitInfo(info);
+  }
 }
 
 void Transaction::merge(const std::shared_ptr<Transaction>& merge_transaction,

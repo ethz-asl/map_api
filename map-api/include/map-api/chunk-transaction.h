@@ -55,7 +55,10 @@ class ChunkTransaction {
   // TRANSACTION OPERATIONS
   bool commit();
   bool check();
-  void checkedCommit(const LogicalTime& time);
+  bool checkedCommit(const LogicalTime& time);
+
+  bool sendMultiChunkCommitInfo(proto::MultiChunkCommitInfo* info);
+
   struct Conflict {
     const std::shared_ptr<const Revision> theirs;
     const std::shared_ptr<const Revision> ours;
@@ -68,6 +71,7 @@ class ChunkTransaction {
   void merge(const std::shared_ptr<ChunkTransaction>& merge_transaction,
              Conflicts* conflicts);
   size_t numChangedItems() const;
+  size_t countChangesToCommit() const;
 
   // INTERNAL
   void prepareCheck(const LogicalTime& check_time,

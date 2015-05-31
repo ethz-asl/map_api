@@ -26,7 +26,7 @@ class MultiChunkCommit {
   ~MultiChunkCommit();
 
   void initMultiChunkCommit(
-      std::shared_ptr<const proto::MultiChunkCommitInit> multi_chunk_data);
+      std::shared_ptr<const proto::MultiChunkCommitInfo> multi_chunk_data);
 
   void clearMultiChunkCommit();
 
@@ -34,7 +34,7 @@ class MultiChunkCommit {
 
   std::unordered_map<common::Id, bool> other_chunk_status_;
   std::unordered_map<common::Id, bool> older_commit_status_;
-  std::shared_ptr<const proto::MultiChunkCommitInit> multi_chunk_data_;
+  std::shared_ptr<const proto::MultiChunkCommitInfo> multi_chunk_data_;
   std::mutex mutex_;
 };
 

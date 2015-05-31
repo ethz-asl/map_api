@@ -71,6 +71,8 @@ class RaftChunk : public ChunkBase {
                                  proto::ChunkRequestMetadata& metadata);
 
  private:
+  bool sendMultiChunkCommitInfo(proto::ChunkCommitInfo info);
+
   virtual bool bulkInsertLocked(const MutableRevisionMap& items,
                                 const LogicalTime& time) override;
   virtual bool updateLocked(const LogicalTime& time,

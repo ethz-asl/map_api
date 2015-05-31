@@ -2,6 +2,7 @@
 #include <unordered_set>
 
 #include "map-api/net-table.h"
+#include "map-api/raft-chunk.h"
 
 namespace map_api {
 
@@ -105,7 +106,7 @@ bool ChunkTransaction::check() {
   return true;
 }
 
-void ChunkTransaction::checkedCommit(const LogicalTime& time) {
+bool ChunkTransaction::checkedCommit(const LogicalTime& time) {
   InsertMap::iterator iter;
   for (iter = insertions_.begin(); iter != insertions_.end();) {
     if (removes_.count(iter->first) > 0u) {
@@ -114,17 +115,36 @@ void ChunkTransaction::checkedCommit(const LogicalTime& time) {
       ++iter;
     }
   }
-  chunk_->bulkInsertLocked(insertions_, time);
+  if (!chunk_->bulkInsertLocked(insertions_, time)) {
+    return false;
+  }
   for (const std::pair<const common::Id,
       std::shared_ptr<Revision> >& item : updates_) {
     if (removes_.count(item.first) == 0u) {
-      chunk_->updateLocked(time, item.second);
+      if (!chunk_->updateLocked(time, item.second)) {
+        return false;
+      }
     }
   }
   for (const std::pair<const common::Id,
       std::shared_ptr<Revision> >& item : removes_) {
-    chunk_->removeLocked(time, item.second);
+    if (!chunk_->removeLocked(time, item.second)) {
+      return false;
+    }
   }
+  return true;
+}
+
+bool ChunkTransaction::sendMultiChunkCommitInfo(
+    proto::MultiChunkCommitInfo* info) {
+  CHECK(FLAGS_use_raft);
+  proto::ChunkCommitInfo this_chunk_commit;
+  this_chunk_commit.set_num_entries(countChangesToCommit());
+  this_chunk_commit.set_allocated_multi_chunk_info(info);
+  bool success = CHECK_NOTNULL(dynamic_cast<RaftChunk*>(chunk_))  // NOLINT
+                     ->sendMultiChunkCommitInfo(this_chunk_commit);
+  this_chunk_commit.release_multi_chunk_info();
+  return success;
 }
 
 void ChunkTransaction::merge(
@@ -166,6 +186,28 @@ size_t ChunkTransaction::numChangedItems() const {
   CHECK(conflict_conditions_.empty()) << "changeCount not compatible with "
                                          "conflict conditions";
   return insertions_.size() + updates_.size() + removes_.size();
+}
+
+size_t ChunkTransaction::countChangesToCommit() const {
+  size_t num_changes = 0;
+  for (const std::pair<const common::Id, std::shared_ptr<Revision> >& item :
+       insertions_) {
+    if (removes_.count(item.first) == 0u) {
+      ++num_changes;
+    }
+  }
+
+  for (const std::pair<const common::Id, std::shared_ptr<Revision> >& item :
+       updates_) {
+    if (removes_.count(item.first) == 0u) {
+      ++num_changes;
+    }
+  }
+  for (const std::pair<const common::Id, std::shared_ptr<Revision> >& item :
+       removes_) {
+    ++num_changes;
+  }
+  return num_changes;
 }
 
 void ChunkTransaction::prepareCheck(

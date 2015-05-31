@@ -273,6 +273,10 @@ bool RaftChunk::sendConnectRequest(const PeerId& peer,
   return false;
 }
 
+bool RaftChunk::sendMultiChunkCommitInfo(proto::ChunkCommitInfo info) {
+  // send.
+}
+
 bool RaftChunk::bulkInsertLocked(const MutableRevisionMap& items,
                                  const LogicalTime& time) {
   std::vector<proto::PatchRequest> insert_requests;

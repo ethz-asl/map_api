@@ -104,11 +104,16 @@ message UnlockRequest {
   optional bool proceed_commits = 5;
 }
 
-message MultiChunkCommitInit {
-  optional uint32 num_entries = 1;
-  optional common.proto.Id commit_id = 2;
-  optional uint64 begin_time = 3;
-  repeated ChunkRequestMetadata chunk_list = 4;
+message ChunkCommitInfo {
+  optional ChunkRequestMetadata metadata = 1;
+  optional uint64 num_entries = 2;
+  optional MultiChunkCommitInfo multi_chunk_info = 3;
+}
+
+message MultiChunkCommitInfo {
+  optional common.proto.Id commit_id = 1;
+  optional uint64 begin_time = 2;
+  repeated ChunkRequestMetadata chunk_list = 3;
 }
 
 message RaftLeaveRequest {
