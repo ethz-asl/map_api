@@ -46,17 +46,20 @@
 #include <vector>
 
 #include <gtest/gtest_prod.h>
+#include "multiagent-mapping-common/reader-writer-lock.h"
 #include <multiagent-mapping-common/unique-id.h>
 
 #include "./raft.pb.h"
+#include "map-api/multi-chunk-commit.h"
 #include "map-api/peer-id.h"
 #include "map-api/revision.h"
-#include "multiagent-mapping-common/reader-writer-lock.h"
+
 #include "map-api/raft-chunk-data-ram-container.h"
 
 namespace map_api {
 class Message;
 class RaftChunk;
+class MultiChunkCommit;
 
 // Implementation of Raft consensus algorithm presented here:
 // https://raftconsensus.github.io, http://ramcloud.stanford.edu/raft.pdf
@@ -89,6 +92,7 @@ class RaftNode {
   static const char kChunkLockResponse[];
   static const char kChunkUnlockRequest[];
   static const char kChunkUnlockResponse[];
+  static const char kChunkCommitInfo[];
   static const char kInsertRequest[];
   static const char kUpdateRequest[];
   static const char kInsertResponse[];
@@ -281,11 +285,15 @@ class RaftNode {
   void applySingleRevisionCommit(const std::shared_ptr<proto::RaftLogEntry>& entry);
   void chunkLockEntryCommit(const LogWriteAccess& log_writer,
                             const std::shared_ptr<proto::RaftLogEntry>& entry);
+  void multiChunkCommitInfoCommit(
+      const std::shared_ptr<proto::RaftLogEntry>& entry);
   void bulkApplyLockedRevisions(const LogWriteAccess& log_writer,
                                 uint64_t lock_index, uint64_t unlock_index);
 
   std::condition_variable entry_replicated_signal_;
   std::condition_variable entry_committed_signal_;
+  std::unique_ptr<MultiChunkCommit> multi_chunk_commit_manager_;
+  void initializeMultiChunkCommitManager();
 
   class DistributedRaftChunkLock {
    public:
@@ -313,6 +321,7 @@ class RaftNode {
   uint64_t sendChunkLockRequest(uint64_t serial_id);
   uint64_t sendChunkUnlockRequest(uint64_t serial_id, uint64_t lock_index,
                                   bool proceed_commits);
+  uint64_t sendChunkCommitInfo(proto::ChunkCommitInfo info, uint64_t serial_id);
   // New revision request.
   uint64_t sendInsertRequest(const Revision::ConstPtr& item, uint64_t serial_id,
                              bool is_retry_attempt);
@@ -326,6 +335,9 @@ class RaftNode {
   proto::RaftChunkRequestResponse processChunkUnlockRequest(
       const PeerId& sender, uint64_t serial_id, bool is_retry_attempt,
       uint64_t lock_index, uint64_t proceed_commits);
+  proto::RaftChunkRequestResponse processChunkCommitInfo(
+      const PeerId& sender, uint64_t serial_id,
+      proto::ChunkCommitInfo* unowned_info_ptr);
   proto::RaftChunkRequestResponse processInsertRequest(
       const PeerId& sender, uint64_t serial_id, bool is_retry_attempt,
       proto::Revision* unowned_revision_pointer);

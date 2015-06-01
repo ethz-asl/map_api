@@ -13,6 +13,7 @@
 #include "map-api/hub.h"
 #include "map-api/logical-time.h"
 #include "map-api/message.h"
+#include "map-api/multi-chunk-commit.h"
 #include "map-api/revision.h"
 
 namespace map_api {
@@ -28,6 +29,7 @@ const char RaftNode::kAppendEntries[] = "raft_node_append_entries";
 const char RaftNode::kAppendEntriesResponse[] = "raft_node_append_response";
 const char RaftNode::kChunkLockRequest[] = "raft_node_chunk_lock_request";
 const char RaftNode::kChunkUnlockRequest[] = "raft_node_chunk_unlock_request";
+const char RaftNode::kChunkCommitInfo[] = "raft_node_chunk_commit_info";
 const char RaftNode::kInsertRequest[] = "raft_node_insert_request";
 const char RaftNode::kUpdateRequest[] = "raft_node_update_request";
 const char RaftNode::kRaftChunkRequestResponse[] =
@@ -47,6 +49,7 @@ MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntriesResponse,
                       proto::AppendEntriesResponse);
 MAP_API_PROTO_MESSAGE(RaftNode::kChunkLockRequest, proto::LockRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kChunkUnlockRequest, proto::UnlockRequest);
+MAP_API_PROTO_MESSAGE(RaftNode::kChunkCommitInfo, proto::ChunkCommitInfo);
 MAP_API_PROTO_MESSAGE(RaftNode::kInsertRequest, proto::InsertRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kRaftChunkRequestResponse,
                       proto::RaftChunkRequestResponse);
@@ -86,6 +89,7 @@ RaftNode::RaftNode()
 }
 
 void RaftNode::start() {
+  CHECK(chunk_id_.isValid());
   if (state_thread_running_) {
     LOG(FATAL) << "Start failed. State manager thread is already running.";
     return;
@@ -1048,7 +1052,7 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
       leaderAddPeer(PeerId((*it)->add_peer()), log_writer, current_term);
     }
     if ((*it)->has_remove_peer()) {
-      // Remove request can be send by a leaving peer or when leader detects a
+      // Remove request can be sent by a leaving peer or when leader detects a
       // non responding peer.
       if ((*it)->has_sender() && (*it)->sender() == (*it)->remove_peer()) {
         CHECK(raft_chunk_lock_.isLockHolder(PeerId((*it)->remove_peer())));
@@ -1059,9 +1063,11 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
       leaderRemovePeer(PeerId((*it)->remove_peer()));
     }
     if (!raft_chunk_lock_.isLocked()) {
+      // TODO(aqurai): Obsolete?
       applySingleRevisionCommit(*it);
     }
     chunkLockEntryCommit(log_writer, *it);
+    multiChunkCommitInfoCommit(*it);
     log_writer->setCommitIndex(log_writer->commitIndex() + 1);
     entry_committed_signal_.notify_all();
     VLOG_EVERY_N(2, 10) << PeerId::self() << ": Commit index increased to "
@@ -1110,6 +1116,15 @@ void RaftNode::chunkLockEntryCommit(const LogWriteAccess& log_writer,
   }
 }
 
+void RaftNode::multiChunkCommitInfoCommit(
+    const std::shared_ptr<proto::RaftLogEntry>& entry) {
+  if (entry->has_multi_chunk_commit_info()) {
+    multi_chunk_commit_manager_->initMultiChunkCommit(
+        entry->multi_chunk_commit_info(),
+        entry->multi_chunk_transaction_num_entries());
+  }
+}
+
 void RaftNode::bulkApplyLockedRevisions(const LogWriteAccess& log_writer,
     uint64_t lock_index, uint64_t unlock_index) {
   LogIterator it_end = log_writer->getLogIteratorByIndex(unlock_index);
@@ -1137,6 +1152,11 @@ bool RaftNode::giveUpLeadership() {
     lock.unlock();
     return false;
   }
+}
+
+void RaftNode::initializeMultiChunkCommitManager() {
+  CHECK(chunk_id_.isValid());
+  multi_chunk_commit_manager_.reset(new MultiChunkCommit(chunk_id_));
 }
 
 bool RaftNode::DistributedRaftChunkLock::writeLock(const PeerId& peer,
@@ -1253,13 +1273,51 @@ uint64_t RaftNode::sendChunkUnlockRequest(uint64_t serial_id,
     unlock_request.set_serial_id(serial_id);
     request.impose<kChunkUnlockRequest>(unlock_request);
     if (!Hub::instance().try_request(leader_id, &request, &response)) {
-      VLOG(1) << "Update request might have failed.";
+      VLOG(1) << "Update request failed.";
       return 0;
     }
     if (response.isType<kRaftChunkRequestResponse>()) {
       proto::RaftChunkRequestResponse unlock_response;
       response.extract<kRaftChunkRequestResponse>(&unlock_response);
       index = unlock_response.entry_index();
+    }
+  }
+  if (index > 0 && waitAndCheckCommit(index, append_term, serial_id)) {
+    return index;
+  }
+  return 0;
+}
+
+uint64_t RaftNode::sendChunkCommitInfo(proto::ChunkCommitInfo info,
+                                       uint64_t serial_id) {
+  State append_state;
+  PeerId leader_id;
+  uint64_t append_term;
+  uint64_t index = 0;
+  {
+    std::lock_guard<std::mutex> state_lock(state_mutex_);
+    append_state = state_;
+    leader_id = leader_id_;
+    append_term = current_term_;
+  }
+  if (append_state == State::LEADER) {
+    proto::ChunkCommitInfo* unowned_info_ptr = new proto::ChunkCommitInfo;
+    unowned_info_ptr->CopyFrom(info);
+    index = processChunkCommitInfo(PeerId::self(), serial_id, unowned_info_ptr)
+                .entry_index();
+  } else if (append_state == State::FOLLOWER && leader_id.isValid()) {
+    Message request, response;
+    fillMetadata(&info);
+    info.set_serial_id(serial_id);
+    proto::RaftChunkRequestResponse chunk_response;
+    request.impose<kChunkCommitInfo>(info);
+    if (!Hub::instance().try_request(leader_id, &request, &response)) {
+      VLOG(1) << "Send Chunk commit info failed.";
+      return 0;
+    }
+    if (response.isType<kRaftChunkRequestResponse>()) {
+      response.extract<kRaftChunkRequestResponse>(&chunk_response);
+      index = chunk_response.entry_index();
     }
   }
   if (index > 0 && waitAndCheckCommit(index, append_term, serial_id)) {
@@ -1448,6 +1506,34 @@ proto::RaftChunkRequestResponse RaftNode::processChunkUnlockRequest(
   entry->set_unlock_lock_index(lock_index);
   entry->set_sender(sender.ipPort());
   entry->set_sender_serial_id(serial_id);
+  uint64_t index = leaderAppendLogEntry(entry);
+  response.set_entry_index(index);
+  return response;
+}
+
+proto::RaftChunkRequestResponse RaftNode::processChunkCommitInfo(
+    const PeerId& sender, uint64_t serial_id,
+    proto::ChunkCommitInfo* unowned_info_ptr) {
+  proto::RaftChunkRequestResponse response;
+  if (!checkReadyToHandleChunkRequests()) {
+    response.set_entry_index(0);
+    return response;
+  }
+  if (!raft_chunk_lock_.isLockHolder(sender)) {
+    // TODO(aqurai): Change it to FATAL after enforcing it on sender side.
+    LOG(ERROR) << "Chunk commit info received from a non lock holder peer "
+               << sender << " for chunk " << chunk_id_ << ". lock holder is "
+               << raft_chunk_lock_.holder();
+    response.set_entry_index(0);
+    return response;
+  }
+  std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
+  entry->set_allocated_multi_chunk_commit_info(
+      unowned_info_ptr->release_multi_chunk_info());
+  entry->set_sender(sender.ipPort());
+  entry->set_sender_serial_id(serial_id);
+  entry->set_multi_chunk_transaction_num_entries(
+      unowned_info_ptr->num_entries());
   uint64_t index = leaderAppendLogEntry(entry);
   response.set_entry_index(index);
   return response;

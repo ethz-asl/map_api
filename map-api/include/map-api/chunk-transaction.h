@@ -101,6 +101,7 @@ class ChunkTransaction {
   ChunkBase* chunk_;
   NetTable* table_;
   std::shared_ptr<const Revision> structure_reference_;
+  bool locked_by_transaction_;
 };
 
 }  // namespace map_api

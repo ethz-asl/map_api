@@ -30,9 +30,10 @@ bool RaftChunk::init(const common::Id& id,
   // TODO(aqurai): No, this is not a good way of doing things.
   data_container_.reset(raft_node_.data_);
   CHECK(data_container_->init(descriptor));
-  initialized_ = true;
   raft_node_.chunk_id_ = id_;
   raft_node_.table_name_ = descriptor->name();
+  raft_node_.initializeMultiChunkCommitManager();
+  initialized_ = true;
   return true;
 }
 
@@ -273,7 +274,7 @@ bool RaftChunk::sendConnectRequest(const PeerId& peer,
   return false;
 }
 
-bool RaftChunk::sendMultiChunkCommitInfo(proto::ChunkCommitInfo info) {
+bool RaftChunk::sendChunkCommitInfo(proto::ChunkCommitInfo info) {
   // send.
 }
 

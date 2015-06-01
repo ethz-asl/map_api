@@ -13,7 +13,8 @@ ChunkTransaction::ChunkTransaction(const LogicalTime& begin_time,
                                    ChunkBase* chunk, NetTable* table)
     : begin_time_(begin_time),
       chunk_(CHECK_NOTNULL(chunk)),
-      table_(CHECK_NOTNULL(table)) {
+      table_(CHECK_NOTNULL(table)),
+      locked_by_transaction_(false) {
   CHECK(begin_time < LogicalTime::sample());
   insertions_.clear();
   updates_.clear();
@@ -142,7 +143,7 @@ bool ChunkTransaction::sendMultiChunkCommitInfo(
   this_chunk_commit.set_num_entries(countChangesToCommit());
   this_chunk_commit.set_allocated_multi_chunk_info(info);
   bool success = CHECK_NOTNULL(dynamic_cast<RaftChunk*>(chunk_))  // NOLINT
-                     ->sendMultiChunkCommitInfo(this_chunk_commit);
+                     ->sendChunkCommitInfo(this_chunk_commit);
   this_chunk_commit.release_multi_chunk_info();
   return success;
 }
@@ -196,17 +197,13 @@ size_t ChunkTransaction::countChangesToCommit() const {
       ++num_changes;
     }
   }
-
   for (const std::pair<const common::Id, std::shared_ptr<Revision> >& item :
        updates_) {
     if (removes_.count(item.first) == 0u) {
       ++num_changes;
     }
   }
-  for (const std::pair<const common::Id, std::shared_ptr<Revision> >& item :
-       removes_) {
-    ++num_changes;
-  }
+  num_changes += removes_.size();
   return num_changes;
 }
 

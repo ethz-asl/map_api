@@ -15,8 +15,10 @@ message RaftLogEntry {
   optional string unlock_peer = 9;
   optional bool unlock_proceed_commits = 10;
   optional uint64 unlock_lock_index = 11;
-  optional common.proto.Id revision_id = 12;
-  optional uint64 logical_time = 13;
+  optional MultiChunkCommitInfo multi_chunk_commit_info = 12;
+  optional uint64 multi_chunk_transaction_num_entries = 13;
+  optional common.proto.Id revision_id = 14;
+  optional uint64 logical_time = 15;
 }
 
 message AppendEntriesRequest {
@@ -106,14 +108,20 @@ message UnlockRequest {
 
 message ChunkCommitInfo {
   optional ChunkRequestMetadata metadata = 1;
-  optional uint64 num_entries = 2;
-  optional MultiChunkCommitInfo multi_chunk_info = 3;
+  optional uint64 serial_id = 2;
+  optional uint64 num_entries = 3;
+  optional MultiChunkCommitInfo multi_chunk_info = 4;
 }
 
 message MultiChunkCommitInfo {
   optional common.proto.Id commit_id = 1;
   optional uint64 begin_time = 2;
   repeated ChunkRequestMetadata chunk_list = 3;
+}
+
+message MultiChunkCommitQuery {
+  optional ChunkRequestMetadata metadata = 1;
+  optional common.proto.Id commit_id = 2;
 }
 
 message RaftLeaveRequest {

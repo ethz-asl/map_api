@@ -113,6 +113,7 @@ void NetTableTransaction::lock() {
   size_t i = 0u;
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
     chunk_transaction.first->writeLock();
+    chunk_transaction.second->locked_by_transaction_ = true;
     ++i;
   }
   statistics::StatsCollector stat("map_api::NetTableTransaction::lock - " +
@@ -122,16 +123,23 @@ void NetTableTransaction::lock() {
 
 void NetTableTransaction::unlock() {
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
-    chunk_transaction.first->unlock();
+    if (chunk_transaction.second->locked_by_transaction_) {
+      chunk_transaction.first->unlock();
+      chunk_transaction.second->locked_by_transaction_ = false;
+    }
   }
 }
 
 void NetTableTransaction::unlock(bool is_success) {
   CHECK(FLAGS_use_raft);
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
-    // TODO(aqurai): Add a function to ChunkBase and avoid dynamic_cast?
-    CHECK_NOTNULL(dynamic_cast<RaftChunk*>(chunk_transaction.first))  // NOLINT
-        ->unlock(is_success);
+    if (chunk_transaction.second->locked_by_transaction_) {
+      // TODO(aqurai): Add a function to ChunkBase and avoid dynamic_cast?
+      CHECK_NOTNULL(
+          dynamic_cast<RaftChunk*>(chunk_transaction.first))  // NOLINT
+          ->unlock(is_success);
+      chunk_transaction.second->locked_by_transaction_ = false;
+    }
   }
 }
 

@@ -120,14 +120,7 @@ bool Transaction::commit() {
   timer.Stop();
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     if (!net_table_transaction.second->check()) {
-      for (const TransactionPair& net_table_transaction :
-           net_table_transactions_) {
-        if (FLAGS_use_raft) {
-          net_table_transaction.second->unlock(false);
-        } else {
-          net_table_transaction.second->unlock();
-        }
-      }
+      unlockAllChunks(false);
       return false;
     }
   }
@@ -164,14 +157,18 @@ bool Transaction::multiChunkCommit() {
   timing::Timer timer("map_api::Transaction::commit - lock");
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->lock();
-    // TODO(aqurai): Return if this fails as well.
-    net_table_transaction.second->sendMultiChunkCommitInfo(&commit_info);
+    bool result =
+        net_table_transaction.second->sendMultiChunkCommitInfo(&commit_info);
+    if (!result) {
+      unlockAllChunks(false);
+      return false;
+    }
   }
   timer.Stop();
 
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     if (!net_table_transaction.second->check()) {
-      unlockAll(false);
+      unlockAllChunks(false);
       return false;
     }
   }
@@ -183,23 +180,22 @@ bool Transaction::multiChunkCommit() {
                    net_table_transaction.second, commit_time_);
     responses.push_back(std::move(success));
   }
-
   for (std::future<bool>& response : responses) {
     if (!response.get()) {
-      unlockAll(false);
+      unlockAllChunks(false);
       return false;
     }
   }
 
   // At this point, all chunks have received all their respective transactions.
   // Any peer receiving unlock implies all other chunks are ready to commit.
-  // If the committing peer (this peer) fails here, the chunks can attempt to
-  // take the transaction forward themselves.
-  unlockAll(true);
+  // If the committing peer (this peer) fails at this point, the chunks can
+  // attempt to take the transaction forward themselves.
+  unlockAllChunks(true);
   return true;
 }
 
-void Transaction::unlockAll(bool is_success) {
+void Transaction::unlockAllChunks(bool is_success) {
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     if (FLAGS_use_raft) {
       net_table_transaction.second->unlock(is_success);

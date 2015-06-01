@@ -3,15 +3,23 @@
 
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <multiagent-mapping-common/unique-id.h>
 
 #include "./raft.pb.h"
 
 namespace map_api {
+class Message;
 
 class MultiChunkCommit {
   friend class RaftNode;
+
+ public:
+  static const char kIsReadyToCommit[];
+  // static const char kIsReadyResponse[];
+  static const char kCommitNotification[];
+  static const char kAbortNotification[];
 
  private:
   enum class State {
@@ -20,21 +28,50 @@ class MultiChunkCommit {
     READY_TO_COMMIT,
     AWAIT_COMMIT,
     COMMITTED,
-    ABORTING
+    ABORTED
   };
-  MultiChunkCommit();
-  ~MultiChunkCommit();
+  enum class OtherChunkStatus {
+    READY,
+    NOT_READY,
+    UNKNOWN
+  };
 
-  void initMultiChunkCommit(
-      std::shared_ptr<const proto::MultiChunkCommitInfo> multi_chunk_data);
-
+  explicit MultiChunkCommit(const common::Id& id);
+  void initMultiChunkCommit(const proto::MultiChunkCommitInfo multi_chunk_data,
+                            uint num_entries);
   void clearMultiChunkCommit();
 
-  void fetchOtherChunkStatus();
+  void notifyReceivedRevisionIfActive();
+  void noitfyUnlockReceived();
+  void notifyCommitSuccess();
+  void notifyAbort();
 
-  std::unordered_map<common::Id, bool> other_chunk_status_;
-  std::unordered_map<common::Id, bool> older_commit_status_;
-  std::shared_ptr<const proto::MultiChunkCommitInfo> multi_chunk_data_;
+  bool isActive();
+
+  bool isReadyToCommit();
+  bool areAllOtherChunksReadyToCommit();
+  bool isTransactionCommitted(const common::Id& commit_id);
+
+  void sendQueryReadyToCommit();
+  void sendCommitNotification();
+  void sendAbortNotification();
+
+  bool sendMessage(const common::Id& id, Message& request);
+
+  void fetchOtherChunkStatusLocked();
+  void addOtherChunkStatusLocked(const common::Id& id, bool is_ready_to_commit);
+
+  State state_;
+  common::Id my_chunk_id_;
+  uint num_commits_received_;
+  uint num_revision_entries_;
+  const proto::MultiChunkCommitInfo* multi_chunk_data_;
+  std::unordered_map<common::Id, OtherChunkStatus> other_chunk_status_;
+  bool asked_all_;
+
+  std::unordered_set<common::Id> older_commits_;
+  // Don't send notification RPCs when committing on a new joining peer.
+  bool notifications_enable_;
   std::mutex mutex_;
 };
 
