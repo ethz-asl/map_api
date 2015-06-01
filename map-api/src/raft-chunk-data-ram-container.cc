@@ -58,7 +58,6 @@ int RaftChunkDataRamContainer::countByRevisionImpl(
 void RaftChunkDataRamContainer::chunkHistory(const common::Id& chunk_id,
                                              const LogicalTime& time,
                                              HistoryMap* dest) const {
-  // TODO(aqurai): Safe to lock access_mutex_ here?
   CHECK_NOTNULL(dest)->clear();
   for (const HistoryMap::value_type& pair : data_) {
     if ((*pair.second.begin())->getChunkId() == chunk_id) {
