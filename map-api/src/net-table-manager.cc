@@ -4,6 +4,7 @@
 #include "map-api/core.h"
 #include "map-api/hub.h"
 #include "map-api/legacy-chunk.h"
+#include "map-api/multi-chunk-commit.h"
 #include "map-api/raft-chunk.h"
 #include "map-api/raft-node.h"
 #include "map-api/revision.h"
@@ -85,6 +86,16 @@ void NetTableManager::registerHandlers() {
   Hub::instance().registerHandler(RaftNode::kLeaveNotification,
                                   handleRaftLeaveNotification);
   Hub::instance().registerHandler(RaftNode::kQueryState, handleRaftQueryState);
+
+  // Multi-chunk commit requests
+  Hub::instance().registerHandler(RaftNode::kChunkCommitInfo,
+                                  handleRaftChunkCommitInfo);
+  Hub::instance().registerHandler(MultiChunkCommit::kIsReadyToCommit,
+                                  handleRaftQueryReadyToCommit);
+  Hub::instance().registerHandler(MultiChunkCommit::kCommitNotification,
+                                  handleRaftCommitNotification);
+  Hub::instance().registerHandler(MultiChunkCommit::kAbortNotification,
+                                  handleRaftAbortNotification);
 
   // Net table requests.
   Hub::instance().registerHandler(NetTable::kPushNewChunksRequest,
@@ -668,6 +679,26 @@ void NetTableManager::handleRaftLeaveNotification(const Message& request,
   }
   found->second->handleRaftLeaveNotification(chunk_id, response);
 }
+
+void NetTableManager::handleRaftChunkCommitInfo(const Message& request, Message* response) {
+  
+}
+
+void NetTableManager::handleRaftQueryReadyToCommit(const Message& request, Message* response) {
+
+}
+
+void NetTableManager::handleRaftCommitNotification(const Message& request, Message* response) {
+
+}
+
+void NetTableManager::handleRaftAbortNotification(const Message& request, Message* response) {
+
+}
+
+
+
+
 
 void NetTableManager::handleRaftQueryState(const Message& request,
                                            Message* response) {

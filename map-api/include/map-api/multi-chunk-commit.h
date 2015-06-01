@@ -56,7 +56,9 @@ class MultiChunkCommit {
   void sendCommitNotification();
   void sendAbortNotification();
 
-  bool sendMessage(const common::Id& id, Message& request);
+  //bool sendMessage(const common::Id& id, Message& request);
+  template <const char* message_type>
+  bool sendMessage(const common::Id& id, const proto::MultiChunkCommitQuery& query);
 
   void fetchOtherChunkStatusLocked();
   void addOtherChunkStatusLocked(const common::Id& id, bool is_ready_to_commit);
