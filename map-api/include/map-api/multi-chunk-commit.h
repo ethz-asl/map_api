@@ -49,17 +49,21 @@ class MultiChunkTransaction {
   void clearMultiChunkTransaction();
 
   void notifyReceivedRevisionIfActive();
-  void noitfyUnlockReceived();
+  void notifyUnlockAndCommitReceived();
+  // When unlock is not received but commit because other chunks are ready.
+  void notifyProceedCommit(NotificationMode mode);
   void notifyCommitSuccess();
-  void notifyAbort();
+  void notifyAbort(NotificationMode mode);
 
   bool isActive();
+  bool isAborted();
 
   bool isReadyToCommit();
-  bool areAllOtherChunksReadyToCommit();
+  bool areAllOtherChunksReadyToCommit(std::unique_lock<std::mutex>* lock);
   bool isTransactionCommitted(const common::Id& commit_id);
 
-  void sendQueryReadyToCommit();
+  void sendQueryReadyToCommit(
+      const std::unordered_set<common::Id>& ready_chunks);
   void sendCommitNotification();
   void sendAbortNotification();
   template <const char* message_type>

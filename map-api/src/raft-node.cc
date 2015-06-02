@@ -594,6 +594,10 @@ void RaftNode::leaderMonitorFollowerStatus(uint64_t current_term) {
         VLOG(1) << remove_peer
                 << " is offline. Shutting down the follower tracker.";
         leaderShutDownTracker(remove_peer);
+        if (raft_chunk_lock_.isLockHolder(remove_peer) &&
+            multi_chunk_transaction_manager_->isActive()) {
+          manageIncompleteTransaction(log_writer, remove_peer, current_term);
+        }
         std::shared_ptr<proto::RaftLogEntry> new_entry(new proto::RaftLogEntry);
         new_entry->set_remove_peer(remove_peer.ipPort());
         leaderAppendLogEntryLocked(log_writer, new_entry, current_term);
@@ -969,6 +973,9 @@ void RaftNode::followerCommitNewEntries(const LogWriteAccess& log_writer,
         // TODO(aqurai): Ensure all revision commits are locked.
         applySingleRevisionCommit(entry);
       }
+      if (raft_chunk_lock_.isLocked() && entry->has_insert_revision()) {
+        multi_chunk_transaction_manager_->notifyReceivedRevisionIfActive();
+      }
       chunkLockEntryCommit(log_writer, entry);
     });
     log_writer->setCommitIndex(new_commit_index);
@@ -1077,6 +1084,9 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
       // TODO(aqurai): Obsolete?
       applySingleRevisionCommit(*it);
     }
+    if (raft_chunk_lock_.isLocked() && (*it)->has_insert_revision()) {
+      multi_chunk_transaction_manager_->notifyReceivedRevisionIfActive();
+    }
     chunkLockEntryCommit(log_writer, *it);
     multiChunkTransactionInfoCommit(*it);
     log_writer->setCommitIndex(log_writer->commitIndex() + 1);
@@ -1117,19 +1127,38 @@ void RaftNode::chunkLockEntryCommit(const LogWriteAccess& log_writer,
     raft_chunk_lock_.writeLock(PeerId(entry->lock_peer()), entry->index());
   }
   if (entry->has_unlock_peer()) {
-    if (raft_chunk_lock_.isLockHolder(PeerId(entry->unlock_peer()))) {
-      if (entry->unlock_proceed_commits()) {
+    if (!raft_chunk_lock_.isLockHolder(PeerId(entry->unlock_peer()))) {
+      // TODO(aqurai): CHECK here?
+      return;
+    }
+    if (entry->unlock_proceed_commits()) {
+      if (multi_chunk_transaction_manager_->isActive() &&
+          !multi_chunk_transaction_manager_->isAborted()) {
+        multi_chunk_transaction_manager_->notifyUnlockAndCommitReceived();
         bulkApplyLockedRevisions(log_writer,
             raft_chunk_lock_.lock_entry_index(), entry->index());
+        multi_chunk_transaction_manager_->notifyCommitSuccess();
+        multi_chunk_transaction_manager_->clearMultiChunkTransaction();
+      } else {
+        // Single chunk transaction.
+        bulkApplyLockedRevisions(
+            log_writer, raft_chunk_lock_.lock_entry_index(), entry->index());
       }
-      raft_chunk_lock_.unlock();
+    } else {
+      if (multi_chunk_transaction_manager_->isActive()) {
+        multi_chunk_transaction_manager_->notifyAbort(
+            MultiChunkTransaction::NotificationMode::SILENT);
+        multi_chunk_transaction_manager_->clearMultiChunkTransaction();
+      }
     }
+    raft_chunk_lock_.unlock();
   }
 }
 
 void RaftNode::multiChunkTransactionInfoCommit(
     const std::shared_ptr<proto::RaftLogEntry>& entry) {
   if (entry->has_multi_chunk_transaction_info()) {
+    CHECK(raft_chunk_lock_.isLockHolder(PeerId(entry->sender())));
     multi_chunk_transaction_manager_->initMultiChunkTransaction(
         entry->multi_chunk_transaction_info(),
         entry->multi_chunk_transaction_num_entries());
@@ -1168,6 +1197,34 @@ bool RaftNode::giveUpLeadership() {
 void RaftNode::initializeMultiChunkTransactionManager() {
   CHECK(chunk_id_.isValid());
   multi_chunk_transaction_manager_.reset(new MultiChunkTransaction(chunk_id_));
+}
+
+void RaftNode::manageIncompleteTransaction(const LogWriteAccess& log_writer,
+                                           const PeerId& peer,
+                                           uint64_t current_term) {
+  VLOG(1) << PeerId::self() << "Attempting to continue a multi chunk "
+                               "transaction after peer disconnect";
+  CHECK(multi_chunk_transaction_manager_->isActive());
+  std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
+  entry->set_unlock_peer(peer.ipPort());
+  entry->set_unlock_lock_index(raft_chunk_lock_.lock_entry_index());
+  entry->set_sender(PeerId::self().ipPort());
+
+  if (multi_chunk_transaction_manager_->isReadyToCommit()) {
+    VLOG(1)
+        << PeerId::self()
+        << "Proceeding with a multi chunk transaction after peer disconnect";
+    multi_chunk_transaction_manager_->notifyProceedCommit(
+        MultiChunkTransaction::NotificationMode::NOTIFY);
+    entry->set_unlock_proceed_commits(true);
+  } else {
+    VLOG(1) << PeerId::self()
+            << "Aborting a multi chunk transaction after peer disconnect";
+    multi_chunk_transaction_manager_->notifyAbort(
+        MultiChunkTransaction::NotificationMode::NOTIFY);
+    entry->set_unlock_proceed_commits(false);
+  }
+  leaderAppendLogEntryLocked(log_writer, entry, current_term);
 }
 
 bool RaftNode::DistributedRaftChunkLock::writeLock(const PeerId& peer,
@@ -1506,6 +1563,7 @@ proto::RaftChunkRequestResponse RaftNode::processChunkUnlockRequest(
     return response;
   }
   if (!raft_chunk_lock_.isLockHolder(sender)) {
+    // TODO(aqurai): Change it to FATAL after enforcing it on sender side.
     LOG(ERROR) << "Received unlock request from a non lock holder " << sender;
     response.set_entry_index(0);
     return response;
@@ -1531,8 +1589,7 @@ proto::RaftChunkRequestResponse RaftNode::processChunkTransactionInfo(
     return response;
   }
   if (!raft_chunk_lock_.isLockHolder(sender)) {
-    // TODO(aqurai): Change it to FATAL after enforcing it on sender side.
-    LOG(ERROR) << "Chunk commit info received from a non lock holder peer "
+    LOG(FATAL) << "Chunk commit info received from a non lock holder peer "
                << sender << " for chunk " << chunk_id_ << ". lock holder is "
                << raft_chunk_lock_.holder();
     response.set_entry_index(0);

@@ -79,8 +79,8 @@ void MultiChunkTransaction::notifyReceivedRevisionIfActive() {
   if (multi_chunk_data_ == NULL) {
     return;
   }
-  CHECK(state_ == State::LOCKED)
-      << "Entry received notification when state is not LOCKED";
+  CHECK(state_ != State::INACTIVE)
+      << "Entry received notification when state is Inactive";
   if (state_ == State::LOCKED) {
     ++num_commits_received_;
   }
@@ -89,13 +89,25 @@ void MultiChunkTransaction::notifyReceivedRevisionIfActive() {
   }
 }
 
-void MultiChunkTransaction::noitfyUnlockReceived() {
+void MultiChunkTransaction::notifyUnlockAndCommitReceived() {
   std::unique_lock<std::mutex> lock(mutex_);
   if (state_ == State::RECEIVED_ALL_ENTRIES) {
     setStateAwaitCommitLocked();
     lock.unlock();
-    sendCommitNotification();
-  } else if (state_ != State::AWAIT_COMMIT) {
+  } else if (state_ != State::AWAIT_COMMIT || state_ == State::COMMITTED) {
+    LOG(FATAL) << "Invalid transition from current state to AWAIT_COMMIT";
+  }
+}
+
+void MultiChunkTransaction::notifyProceedCommit(NotificationMode mode) {
+  std::unique_lock<std::mutex> lock(mutex_);
+  if (state_ == State::RECEIVED_ALL_ENTRIES) {
+    setStateAwaitCommitLocked();
+    lock.unlock();
+    if (mode == NotificationMode::NOTIFY) {
+      sendCommitNotification();
+    }
+  } else if (state_ != State::AWAIT_COMMIT || state_ == State::COMMITTED) {
     LOG(FATAL) << "Invalid transition from current state to AWAIT_COMMIT";
   }
 }
@@ -109,39 +121,60 @@ void MultiChunkTransaction::notifyCommitSuccess() {
   }
 }
 
-void MultiChunkTransaction::notifyAbort() {
+void MultiChunkTransaction::notifyAbort(NotificationMode mode) {
   std::unique_lock<std::mutex> lock(mutex_);
   if (state_ == State::LOCKED || state_ == State::RECEIVED_ALL_ENTRIES) {
     state_ = State::ABORTED;
     lock.unlock();
-    sendAbortNotification();
-  } else {
+    if (mode == NotificationMode::NOTIFY) {
+      sendAbortNotification();
+    }
+  } else if (state_ == State::AWAIT_COMMIT || state_ == State::COMMITTED) {
     LOG(FATAL) << "Invalid transition from current state to ABORTED";
   }
 }
 
 bool MultiChunkTransaction::isActive() {
   std::lock_guard<std::mutex> lock(mutex_);
-  return (state_ == State::LOCKED || state_ == State::RECEIVED_ALL_ENTRIES);
+  return current_transaction_id_.isValid();
+}
+
+bool MultiChunkTransaction::isAborted() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  CHECK(current_transaction_id_.isValid());
+  return (state_ == State::ABORTED);
 }
 
 bool MultiChunkTransaction::isReadyToCommit() {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::unique_lock<std::mutex> lock(mutex_);
   if (state_ == State::AWAIT_COMMIT) {
     return true;
   } else if (state_ == State::RECEIVED_ALL_ENTRIES) {
-    if (areAllOtherChunksReadyToCommit()) {
-      setStateAwaitCommitLocked();
-      return true;
+    if (areAllOtherChunksReadyToCommit(&lock)) {
+      if (!(state_ == State::ABORTED)) {
+        setStateAwaitCommitLocked();
+        return true;
+      }
     }
   }
   return false;
 }
 
-bool MultiChunkTransaction::areAllOtherChunksReadyToCommit() {
-  sendQueryReadyToCommit();
+bool MultiChunkTransaction::areAllOtherChunksReadyToCommit(
+    std::unique_lock<std::mutex>* lock) {
+  CHECK(lock->owns_lock());
+  std::unordered_set<common::Id> ready_chunks;
+  typedef std::unordered_map<common::Id, OtherChunkStatus>::value_type
+      ChunkStatus;
+  for (ChunkStatus& chunk_status : other_chunk_status_) {
+    if (chunk_status.second == OtherChunkStatus::READY) {
+      ready_chunks.insert(chunk_status.first);
+    }
+  }
+  lock->unlock();
+  sendQueryReadyToCommit(ready_chunks);
 
-  std::lock_guard<std::mutex> lock(mutex_);
+  lock->lock();
   typedef std::unordered_map<common::Id, OtherChunkStatus>::value_type
       ChunkStatus;
   for (ChunkStatus& chunk_status : other_chunk_status_) {
@@ -158,19 +191,9 @@ bool MultiChunkTransaction::isTransactionCommitted(
   return older_commits_.count(commit_id);
 }
 
-void MultiChunkTransaction::sendQueryReadyToCommit() {
-  std::unordered_set<common::Id> ready_chunks;
+void MultiChunkTransaction::sendQueryReadyToCommit(
+    const std::unordered_set<common::Id>& ready_chunks) {
   std::map<common::Id, std::future<bool>> response_map;
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    typedef std::unordered_map<common::Id, OtherChunkStatus>::value_type
-        ChunkStatus;
-    for (ChunkStatus& chunk_status : other_chunk_status_) {
-      if (chunk_status.second == OtherChunkStatus::READY) {
-        ready_chunks.insert(chunk_status.first);
-      }
-    }
-  }
   {
     common::ScopedReadLock lock(&data_mutex_);
     CHECK_NOTNULL(multi_chunk_data_);
