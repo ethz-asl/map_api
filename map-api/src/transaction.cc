@@ -207,6 +207,7 @@ void Transaction::unlockAllChunks(bool is_success) {
 
 void Transaction::prepareMultiChunkTransactionInfo(
     proto::MultiChunkTransactionInfo* info) {
+  CHECK(FLAGS_use_raft);
   common::Id transaction_id;
   common::generateId(&transaction_id);
   transaction_id.serialize(info->mutable_transaction_id());

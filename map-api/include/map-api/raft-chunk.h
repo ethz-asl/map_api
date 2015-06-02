@@ -16,6 +16,8 @@ class Message;
 class Revision;
 
 class RaftChunk : public ChunkBase {
+  friend class NetTableTransaction;  // TODO(aqurai): To be removed. (Issue
+                                     // #2466)
   friend class ChunkTransaction;
   friend class ConsensusFixture;
   FRIEND_TEST(ConsensusFixture, LeaderElection);

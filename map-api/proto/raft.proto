@@ -117,6 +117,8 @@ message MultiChunkTransactionInfo {
   optional common.proto.Id transaction_id = 1;
   optional uint64 begin_time = 2;
   repeated ChunkRequestMetadata chunk_list = 3;
+  // TODO(aqurai): To be removed. (Issue #2466)
+  repeated string leader_id = 4;
 }
 
 message MultiChunkTransactionQuery {

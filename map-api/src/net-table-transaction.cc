@@ -87,12 +87,19 @@ bool NetTableTransaction::checkedCommit(const LogicalTime& time) {
 
 void NetTableTransaction::prepareMultiChunkTransactionInfo(
     proto::MultiChunkTransactionInfo* info) {
+  CHECK(FLAGS_use_raft);
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
     proto::ChunkRequestMetadata chunk_metadata;
     chunk_metadata.set_table(table_->name());
     chunk_transaction.second->chunk_->id().serialize(
         chunk_metadata.mutable_chunk_id());
     info->add_chunk_list()->CopyFrom(chunk_metadata);
+
+    // TODO(aqurai): To be removed. (Issue #2466)
+    const PeerId& leader = CHECK_NOTNULL(
+        dynamic_cast<RaftChunk*>(chunk_transaction.first))  // NOLINT
+                               ->raft_node_.getLeader();
+    info->add_leader_id(leader.ipPort());
   }
 }
 

@@ -2,23 +2,24 @@
 #define MAP_API_MULTI_CHUNK_COMMIT_H_
 
 #include <memory>
+#include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 
 #include <multiagent-mapping-common/unique-id.h>
+#include <multiagent-mapping-common/reader-writer-lock.h>
 
 #include "./raft.pb.h"
+#include "map-api/peer-id.h"
 
 namespace map_api {
 class Message;
-class PeerId;
 
 class MultiChunkTransaction {
   friend class RaftNode;
 
  public:
   static const char kIsReadyToCommit[];
-  // static const char kIsReadyResponse[];
   static const char kCommitNotification[];
   static const char kAbortNotification[];
 
@@ -26,7 +27,7 @@ class MultiChunkTransaction {
   enum class State {
     INACTIVE,
     LOCKED,
-    READY_TO_COMMIT,
+    RECEIVED_ALL_ENTRIES,
     AWAIT_COMMIT,
     COMMITTED,
     ABORTED
@@ -36,6 +37,10 @@ class MultiChunkTransaction {
     NOT_READY,
     UNKNOWN
   };
+  enum class NotificationMode {
+    SILENT,
+    NOTIFY
+  };
 
   explicit MultiChunkTransaction(const common::Id& id);
   void initMultiChunkTransaction(
@@ -44,7 +49,7 @@ class MultiChunkTransaction {
   void clearMultiChunkTransaction();
 
   void notifyReceivedRevisionIfActive();
-  void noitfyCommitBegin();
+  void noitfyUnlockReceived();
   void notifyCommitSuccess();
   void notifyAbort();
 
@@ -57,6 +62,9 @@ class MultiChunkTransaction {
   void sendQueryReadyToCommit();
   void sendCommitNotification();
   void sendAbortNotification();
+  template <const char* message_type>
+  bool sendMessage(const common::Id& chunk_id,
+                   const proto::MultiChunkTransactionQuery& query);
 
   void handleQueryReadyToCommit(const proto::MultiChunkTransactionQuery& query,
                                 const PeerId& sender, Message* response);
@@ -65,28 +73,30 @@ class MultiChunkTransaction {
   void handleAbortNotification(const proto::MultiChunkTransactionQuery& query,
                                const PeerId& sender, Message* response);
 
-  template <const char* message_type>
-  bool sendMessage(const common::Id& id,
-                   const proto::MultiChunkTransactionQuery& query);
-
-  void fetchOtherChunkStatusLocked();
   void addOtherChunkStatusLocked(const common::Id& id, bool is_ready_to_commit);
+  bool isChunkReadyToCommitLocked(const common::Id& id);
+  inline void setStateAwaitCommitLocked() {
+    state_ = State::AWAIT_COMMIT;
+    CHECK(older_commits_.insert(current_transaction_id_).second);
+  }
 
-  common::Id my_chunk_id_;
+  const common::Id my_chunk_id_;
 
   // State during a transaction.
   State state_;
   common::Id current_transaction_id_;
   uint num_commits_received_;
   uint num_revision_entries_;
-  const proto::MultiChunkTransactionInfo* multi_chunk_data_;
   std::unordered_map<common::Id, OtherChunkStatus> other_chunk_status_;
-  bool asked_all_;
-
   std::unordered_set<common::Id> older_commits_;
   // Don't send notification RPCs when committing on a new joining peer.
   bool notifications_enable_;
   std::mutex mutex_;
+
+  // TODO(aqurai): To be removed. (Issue #2466)
+  std::unordered_map<common::Id, PeerId> other_chunk_leaders_;
+  const proto::MultiChunkTransactionInfo* multi_chunk_data_;
+  common::ReaderWriterMutex data_mutex_;
 };
 
 }  // namespace map_api
