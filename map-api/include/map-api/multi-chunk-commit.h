@@ -13,7 +13,7 @@ namespace map_api {
 class Message;
 class PeerId;
 
-class MultiChunkCommit {
+class MultiChunkTransaction {
   friend class RaftNode;
 
  public:
@@ -37,10 +37,11 @@ class MultiChunkCommit {
     UNKNOWN
   };
 
-  explicit MultiChunkCommit(const common::Id& id);
-  void initMultiChunkCommit(const proto::MultiChunkCommitInfo multi_chunk_data,
-                            uint num_entries);
-  void clearMultiChunkCommit();
+  explicit MultiChunkTransaction(const common::Id& id);
+  void initMultiChunkTransaction(
+      const proto::MultiChunkTransactionInfo multi_chunk_data,
+      uint num_entries);
+  void clearMultiChunkTransaction();
 
   void notifyReceivedRevisionIfActive();
   void noitfyCommitBegin();
@@ -57,15 +58,16 @@ class MultiChunkCommit {
   void sendCommitNotification();
   void sendAbortNotification();
 
-  void handleQueryReadyToCommit(const proto::MultiChunkCommitQuery& query,
+  void handleQueryReadyToCommit(const proto::MultiChunkTransactionQuery& query,
                                 const PeerId& sender, Message* response);
-  void handleCommitNotification(const proto::MultiChunkCommitQuery& query,
+  void handleCommitNotification(const proto::MultiChunkTransactionQuery& query,
                                 const PeerId& sender, Message* response);
-  void handleAbortNotification(const proto::MultiChunkCommitQuery& query,
+  void handleAbortNotification(const proto::MultiChunkTransactionQuery& query,
                                const PeerId& sender, Message* response);
 
   template <const char* message_type>
-  bool sendMessage(const common::Id& id, const proto::MultiChunkCommitQuery& query);
+  bool sendMessage(const common::Id& id,
+                   const proto::MultiChunkTransactionQuery& query);
 
   void fetchOtherChunkStatusLocked();
   void addOtherChunkStatusLocked(const common::Id& id, bool is_ready_to_commit);
@@ -77,7 +79,7 @@ class MultiChunkCommit {
   common::Id current_transaction_id_;
   uint num_commits_received_;
   uint num_revision_entries_;
-  const proto::MultiChunkCommitInfo* multi_chunk_data_;
+  const proto::MultiChunkTransactionInfo* multi_chunk_data_;
   std::unordered_map<common::Id, OtherChunkStatus> other_chunk_status_;
   bool asked_all_;
 

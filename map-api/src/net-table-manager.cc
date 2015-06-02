@@ -88,13 +88,13 @@ void NetTableManager::registerHandlers() {
   Hub::instance().registerHandler(RaftNode::kQueryState, handleRaftQueryState);
 
   // Multi-chunk commit requests
-  Hub::instance().registerHandler(RaftNode::kChunkCommitInfo,
-                                  handleRaftChunkCommitInfo);
-  Hub::instance().registerHandler(MultiChunkCommit::kIsReadyToCommit,
+  Hub::instance().registerHandler(RaftNode::kChunkTransactionInfo,
+                                  handleRaftChunkTransactionInfo);
+  Hub::instance().registerHandler(MultiChunkTransaction::kIsReadyToCommit,
                                   handleRaftQueryReadyToCommit);
-  Hub::instance().registerHandler(MultiChunkCommit::kCommitNotification,
+  Hub::instance().registerHandler(MultiChunkTransaction::kCommitNotification,
                                   handleRaftCommitNotification);
-  Hub::instance().registerHandler(MultiChunkCommit::kAbortNotification,
+  Hub::instance().registerHandler(MultiChunkTransaction::kAbortNotification,
                                   handleRaftAbortNotification);
 
   // Net table requests.
@@ -698,11 +698,11 @@ void NetTableManager::handleRaftLeaveNotification(const Message& request,
   found->second->handleRaftLeaveNotification(chunk_id, response);
 }
 
-void NetTableManager::handleRaftChunkCommitInfo(const Message& request,
-                                                Message* response) {
+void NetTableManager::handleRaftChunkTransactionInfo(const Message& request,
+                                                     Message* response) {
   CHECK_NOTNULL(response);
-  proto::ChunkCommitInfo info;
-  request.extract<RaftNode::kChunkCommitInfo>(&info);
+  proto::ChunkTransactionInfo info;
+  request.extract<RaftNode::kChunkTransactionInfo>(&info);
   const proto::ChunkRequestMetadata metadata = info.metadata();
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
@@ -713,14 +713,14 @@ void NetTableManager::handleRaftChunkCommitInfo(const Message& request,
     response->impose<Message::kDecline>();
     return;
   }
-  found->second->handleRaftChunkCommitInfo(chunk_id, &info, request.sender(),
-                                           response);
+  found->second->handleRaftChunkTransactionInfo(chunk_id, &info,
+                                                request.sender(), response);
 }
 
 void NetTableManager::handleRaftQueryReadyToCommit(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
-  proto::MultiChunkCommitQuery query;
-  request.extract<MultiChunkCommit::kIsReadyToCommit>(&query);
+  proto::MultiChunkTransactionQuery query;
+  request.extract<MultiChunkTransaction::kIsReadyToCommit>(&query);
   const proto::ChunkRequestMetadata metadata = query.metadata();
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
@@ -737,8 +737,8 @@ void NetTableManager::handleRaftQueryReadyToCommit(const Message& request, Messa
 
 void NetTableManager::handleRaftCommitNotification(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
-  proto::MultiChunkCommitQuery query;
-  request.extract<MultiChunkCommit::kCommitNotification>(&query);
+  proto::MultiChunkTransactionQuery query;
+  request.extract<MultiChunkTransaction::kCommitNotification>(&query);
   const proto::ChunkRequestMetadata metadata = query.metadata();
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
@@ -755,8 +755,8 @@ void NetTableManager::handleRaftCommitNotification(const Message& request, Messa
 
 void NetTableManager::handleRaftAbortNotification(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
-  proto::MultiChunkCommitQuery query;
-  request.extract<MultiChunkCommit::kAbortNotification>(&query);
+  proto::MultiChunkTransactionQuery query;
+  request.extract<MultiChunkTransaction::kAbortNotification>(&query);
   const proto::ChunkRequestMetadata metadata = query.metadata();
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());

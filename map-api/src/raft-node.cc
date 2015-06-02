@@ -29,7 +29,8 @@ const char RaftNode::kAppendEntries[] = "raft_node_append_entries";
 const char RaftNode::kAppendEntriesResponse[] = "raft_node_append_response";
 const char RaftNode::kChunkLockRequest[] = "raft_node_chunk_lock_request";
 const char RaftNode::kChunkUnlockRequest[] = "raft_node_chunk_unlock_request";
-const char RaftNode::kChunkCommitInfo[] = "raft_node_chunk_commit_info";
+const char RaftNode::kChunkTransactionInfo[] =
+    "raft_node_chunk_transaction_info";
 const char RaftNode::kInsertRequest[] = "raft_node_insert_request";
 const char RaftNode::kUpdateRequest[] = "raft_node_update_request";
 const char RaftNode::kRaftChunkRequestResponse[] =
@@ -49,7 +50,8 @@ MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntriesResponse,
                       proto::AppendEntriesResponse);
 MAP_API_PROTO_MESSAGE(RaftNode::kChunkLockRequest, proto::LockRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kChunkUnlockRequest, proto::UnlockRequest);
-MAP_API_PROTO_MESSAGE(RaftNode::kChunkCommitInfo, proto::ChunkCommitInfo);
+MAP_API_PROTO_MESSAGE(RaftNode::kChunkTransactionInfo,
+                      proto::ChunkTransactionInfo);
 MAP_API_PROTO_MESSAGE(RaftNode::kInsertRequest, proto::InsertRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kRaftChunkRequestResponse,
                       proto::RaftChunkRequestResponse);
@@ -346,11 +348,12 @@ void RaftNode::handleQueryState(const proto::QueryState& request,
   response->impose<kQueryStateResponse>(state_response);
 }
 
-void RaftNode::handleChunkCommitInfo(proto::ChunkCommitInfo* info,
-                                     const PeerId& sender, Message* response) {
-  proto::RaftChunkRequestResponse info_response =
-      processChunkCommitInfo(sender, info->serial_id(), info->num_entries(),
-                             info->release_multi_chunk_info());
+void RaftNode::handleChunkTransactionInfo(proto::ChunkTransactionInfo* info,
+                                          const PeerId& sender,
+                                          Message* response) {
+  proto::RaftChunkRequestResponse info_response = processChunkTransactionInfo(
+      sender, info->serial_id(), info->num_entries(),
+      info->release_multi_chunk_info());
   response->impose<kRaftChunkRequestResponse>(info_response);
 }
 
@@ -1075,7 +1078,7 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
       applySingleRevisionCommit(*it);
     }
     chunkLockEntryCommit(log_writer, *it);
-    multiChunkCommitInfoCommit(*it);
+    multiChunkTransactionInfoCommit(*it);
     log_writer->setCommitIndex(log_writer->commitIndex() + 1);
     entry_committed_signal_.notify_all();
     VLOG_EVERY_N(2, 10) << PeerId::self() << ": Commit index increased to "
@@ -1124,11 +1127,11 @@ void RaftNode::chunkLockEntryCommit(const LogWriteAccess& log_writer,
   }
 }
 
-void RaftNode::multiChunkCommitInfoCommit(
+void RaftNode::multiChunkTransactionInfoCommit(
     const std::shared_ptr<proto::RaftLogEntry>& entry) {
-  if (entry->has_multi_chunk_commit_info()) {
-    multi_chunk_commit_manager_->initMultiChunkCommit(
-        entry->multi_chunk_commit_info(),
+  if (entry->has_multi_chunk_transaction_info()) {
+    multi_chunk_transaction_manager_->initMultiChunkTransaction(
+        entry->multi_chunk_transaction_info(),
         entry->multi_chunk_transaction_num_entries());
   }
 }
@@ -1162,9 +1165,9 @@ bool RaftNode::giveUpLeadership() {
   }
 }
 
-void RaftNode::initializeMultiChunkCommitManager() {
+void RaftNode::initializeMultiChunkTransactionManager() {
   CHECK(chunk_id_.isValid());
-  multi_chunk_commit_manager_.reset(new MultiChunkCommit(chunk_id_));
+  multi_chunk_transaction_manager_.reset(new MultiChunkTransaction(chunk_id_));
 }
 
 bool RaftNode::DistributedRaftChunkLock::writeLock(const PeerId& peer,
@@ -1296,8 +1299,8 @@ uint64_t RaftNode::sendChunkUnlockRequest(uint64_t serial_id,
   return 0;
 }
 
-uint64_t RaftNode::sendChunkCommitInfo(proto::ChunkCommitInfo* info,
-                                       uint64_t serial_id) {
+uint64_t RaftNode::sendChunkTransactionInfo(proto::ChunkTransactionInfo* info,
+                                            uint64_t serial_id) {
   State append_state;
   PeerId leader_id;
   uint64_t append_term;
@@ -1309,15 +1312,15 @@ uint64_t RaftNode::sendChunkCommitInfo(proto::ChunkCommitInfo* info,
     append_term = current_term_;
   }
   if (append_state == State::LEADER) {
-    index =
-        processChunkCommitInfo(PeerId::self(), serial_id, info->num_entries(),
-                               info->release_multi_chunk_info()).entry_index();
+    index = processChunkTransactionInfo(
+        PeerId::self(), serial_id, info->num_entries(),
+        info->release_multi_chunk_info()).entry_index();
   } else if (append_state == State::FOLLOWER && leader_id.isValid()) {
     Message request, response;
     fillMetadata(info);
     info->set_serial_id(serial_id);
     proto::RaftChunkRequestResponse chunk_response;
-    request.impose<kChunkCommitInfo>(*info);
+    request.impose<kChunkTransactionInfo>(*info);
     if (!Hub::instance().try_request(leader_id, &request, &response)) {
       VLOG(1) << "Send Chunk commit info failed.";
       return 0;
@@ -1518,9 +1521,9 @@ proto::RaftChunkRequestResponse RaftNode::processChunkUnlockRequest(
   return response;
 }
 
-proto::RaftChunkRequestResponse RaftNode::processChunkCommitInfo(
+proto::RaftChunkRequestResponse RaftNode::processChunkTransactionInfo(
     const PeerId& sender, uint64_t serial_id, uint64_t num_entries,
-    proto::MultiChunkCommitInfo* unowned_multi_chunk_info_ptr) {
+    proto::MultiChunkTransactionInfo* unowned_multi_chunk_info_ptr) {
   CHECK_NOTNULL(unowned_multi_chunk_info_ptr);
   proto::RaftChunkRequestResponse response;
   if (!checkReadyToHandleChunkRequests()) {
@@ -1536,7 +1539,8 @@ proto::RaftChunkRequestResponse RaftNode::processChunkCommitInfo(
     return response;
   }
   std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
-  entry->set_allocated_multi_chunk_commit_info(unowned_multi_chunk_info_ptr);
+  entry->set_allocated_multi_chunk_transaction_info(
+      unowned_multi_chunk_info_ptr);
   entry->set_sender(sender.ipPort());
   entry->set_sender_serial_id(serial_id);
   entry->set_multi_chunk_transaction_num_entries(num_entries);

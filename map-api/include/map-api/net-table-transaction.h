@@ -61,8 +61,9 @@ class NetTableTransaction {
    */
   bool checkedCommit(const LogicalTime& time);
 
-  void prepareMultiChunkCommitInfo(proto::MultiChunkCommitInfo* info);
-  bool sendMultiChunkCommitInfo(const proto::MultiChunkCommitInfo& info);
+  void prepareMultiChunkTransactionInfo(proto::MultiChunkTransactionInfo* info);
+  bool sendMultiChunkTransactionInfo(
+      const proto::MultiChunkTransactionInfo& info);
   /**
    * Locks each chunk write-affected by this transaction
    */

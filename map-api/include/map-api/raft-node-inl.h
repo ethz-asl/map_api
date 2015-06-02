@@ -6,23 +6,24 @@
 namespace map_api {
 
 void RaftNode::handleQueryReadyToCommit(
-    const proto::MultiChunkCommitQuery& query, const PeerId& sender,
+    const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
     Message* response) {
-  multi_chunk_commit_manager_->handleQueryReadyToCommit(query, sender,
-                                                        response);
+  multi_chunk_transaction_manager_->handleQueryReadyToCommit(query, sender,
+                                                             response);
 }
 
 void RaftNode::handleCommitNotification(
-    const proto::MultiChunkCommitQuery& query, const PeerId& sender,
+    const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
     Message* response) {
-  multi_chunk_commit_manager_->handleCommitNotification(query, sender,
-                                                        response);
+  multi_chunk_transaction_manager_->handleCommitNotification(query, sender,
+                                                             response);
 }
 
 void RaftNode::handleAbortNotification(
-    const proto::MultiChunkCommitQuery& query, const PeerId& sender,
+    const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
     Message* response) {
-  multi_chunk_commit_manager_->handleAbortNotification(query, sender, response);
+  multi_chunk_transaction_manager_->handleAbortNotification(query, sender,
+                                                            response);
 }
 
 void RaftNode::updateHeartbeatTime() const {

@@ -85,8 +85,8 @@ bool NetTableTransaction::checkedCommit(const LogicalTime& time) {
   return true;
 }
 
-void NetTableTransaction::prepareMultiChunkCommitInfo(
-    proto::MultiChunkCommitInfo* info) {
+void NetTableTransaction::prepareMultiChunkTransactionInfo(
+    proto::MultiChunkTransactionInfo* info) {
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
     proto::ChunkRequestMetadata chunk_metadata;
     chunk_metadata.set_table(table_->name());
@@ -96,11 +96,11 @@ void NetTableTransaction::prepareMultiChunkCommitInfo(
   }
 }
 
-bool NetTableTransaction::sendMultiChunkCommitInfo(
-    const proto::MultiChunkCommitInfo& info) {
+bool NetTableTransaction::sendMultiChunkTransactionInfo(
+    const proto::MultiChunkTransactionInfo& info) {
   CHECK(FLAGS_use_raft);
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
-    if (!chunk_transaction.second->sendMultiChunkCommitInfo(info)) {
+    if (!chunk_transaction.second->sendMultiChunkTransactionInfo(info)) {
       return false;
     }
   }

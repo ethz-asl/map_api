@@ -131,15 +131,14 @@ class NetTableManager {
   /**
    * Requests related to raft multi-chunk commit
    */
-  static void handleRaftChunkCommitInfo(const Message& request,
-                                        Message* response);
+  static void handleRaftChunkTransactionInfo(const Message& request,
+                                             Message* response);
   static void handleRaftQueryReadyToCommit(const Message& request,
                                            Message* response);
   static void handleRaftCommitNotification(const Message& request,
                                            Message* response);
   static void handleRaftAbortNotification(const Message& request,
                                            Message* response);
-  
 
  private:
   NetTableManager();

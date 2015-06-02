@@ -114,18 +114,18 @@ inline void RaftChunk::handleRaftQueryState(const proto::QueryState& request,
   }
 }
 
-inline void RaftChunk::handleRaftChunkCommitInfo(proto::ChunkCommitInfo* info,
-                                                 const PeerId& sender,
-                                                 Message* response) {
+inline void RaftChunk::handleRaftChunkTransactionInfo(
+    proto::ChunkTransactionInfo* info, const PeerId& sender,
+    Message* response) {
   if (raft_node_.isRunning()) {
-    raft_node_.handleChunkCommitInfo(info, sender, response);
+    raft_node_.handleChunkTransactionInfo(info, sender, response);
   } else {
     response->decline();
   }
 }
 
 inline void RaftChunk::handleRaftQueryReadyToCommit(
-    const proto::MultiChunkCommitQuery& query, const PeerId& sender,
+    const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
     Message* response) {
   if (raft_node_.isRunning()) {
     raft_node_.handleQueryReadyToCommit(query, sender, response);
@@ -135,7 +135,7 @@ inline void RaftChunk::handleRaftQueryReadyToCommit(
 }
 
 inline void RaftChunk::handleRaftCommitNotification(
-    const proto::MultiChunkCommitQuery& query, const PeerId& sender,
+    const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
     Message* response) {
   if (raft_node_.isRunning()) {
     raft_node_.handleCommitNotification(query, sender, response);
@@ -145,7 +145,7 @@ inline void RaftChunk::handleRaftCommitNotification(
 }
 
 inline void RaftChunk::handleRaftAbortNotification(
-    const proto::MultiChunkCommitQuery& query, const PeerId& sender,
+    const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
     Message* response) {
   if (raft_node_.isRunning()) {
     raft_node_.handleAbortNotification(query, sender, response);

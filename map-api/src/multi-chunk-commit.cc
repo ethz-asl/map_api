@@ -12,21 +12,21 @@
 
 namespace map_api {
 
-const char MultiChunkCommit::kIsReadyToCommit[] = "multi_chunk_commit_is_ready";
-// const char MultiChunkCommit::kIsReadyResponse[] =
-// "multi_chunk_commit_is_ready_response";
-const char MultiChunkCommit::kCommitNotification[] =
-    "multi_chunk_commit_commit";
-const char MultiChunkCommit::kAbortNotification[] = "multi_chunk_commit_abort";
+const char MultiChunkTransaction::kIsReadyToCommit[] =
+    "multi_chunk_transaction_is_ready";
+const char MultiChunkTransaction::kCommitNotification[] =
+    "multi_chunk_transaction_commit";
+const char MultiChunkTransaction::kAbortNotification[] =
+    "multi_chunk_transaction_abort";
 
-MAP_API_PROTO_MESSAGE(MultiChunkCommit::kIsReadyToCommit,
-                      proto::MultiChunkCommitQuery);
-MAP_API_PROTO_MESSAGE(MultiChunkCommit::kCommitNotification,
-                      proto::MultiChunkCommitQuery);
-MAP_API_PROTO_MESSAGE(MultiChunkCommit::kAbortNotification,
-                      proto::MultiChunkCommitQuery);
+MAP_API_PROTO_MESSAGE(MultiChunkTransaction::kIsReadyToCommit,
+                      proto::MultiChunkTransactionQuery);
+MAP_API_PROTO_MESSAGE(MultiChunkTransaction::kCommitNotification,
+                      proto::MultiChunkTransactionQuery);
+MAP_API_PROTO_MESSAGE(MultiChunkTransaction::kAbortNotification,
+                      proto::MultiChunkTransactionQuery);
 
-MultiChunkCommit::MultiChunkCommit(const common::Id& id)
+MultiChunkTransaction::MultiChunkTransaction(const common::Id& id)
     : my_chunk_id_(id),
       state_(State::INACTIVE),
       num_commits_received_(0),
@@ -36,12 +36,12 @@ MultiChunkCommit::MultiChunkCommit(const common::Id& id)
   current_transaction_id_.setInvalid();
 }
 
-void MultiChunkCommit::initMultiChunkCommit(
-    const proto::MultiChunkCommitInfo multi_chunk_data, uint num_entries) {
+void MultiChunkTransaction::initMultiChunkTransaction(
+    const proto::MultiChunkTransactionInfo multi_chunk_data, uint num_entries) {
   std::lock_guard<std::mutex> lock(mutex_);
   CHECK_GT(num_entries, 0);
   state_ = State::LOCKED;
-  current_transaction_id_.deserialize(multi_chunk_data.commit_id());
+  current_transaction_id_.deserialize(multi_chunk_data.transaction_id());
   CHECK(current_transaction_id_.isValid());
   num_commits_received_ = 0;
   num_revision_entries_ = num_entries;
@@ -57,7 +57,7 @@ void MultiChunkCommit::initMultiChunkCommit(
   asked_all_ = false;
 }
 
-void MultiChunkCommit::clearMultiChunkCommit() {
+void MultiChunkTransaction::clearMultiChunkTransaction() {
   std::lock_guard<std::mutex> lock(mutex_);
   state_ = State::INACTIVE;
   current_transaction_id_.setInvalid();
@@ -68,7 +68,7 @@ void MultiChunkCommit::clearMultiChunkCommit() {
   asked_all_ = false;
 }
 
-void MultiChunkCommit::notifyReceivedRevisionIfActive() {
+void MultiChunkTransaction::notifyReceivedRevisionIfActive() {
   std::lock_guard<std::mutex> lock(mutex_);
   if (multi_chunk_data_ == NULL) {
     return;
@@ -83,7 +83,7 @@ void MultiChunkCommit::notifyReceivedRevisionIfActive() {
   }
 }
 
-void MultiChunkCommit::noitfyCommitBegin() {
+void MultiChunkTransaction::noitfyCommitBegin() {
   std::lock_guard<std::mutex> lock(mutex_);
   if (state_ == State::READY_TO_COMMIT) {
     state_ = State::AWAIT_COMMIT;
@@ -93,7 +93,7 @@ void MultiChunkCommit::noitfyCommitBegin() {
   }
 }
 
-void MultiChunkCommit::notifyCommitSuccess() {
+void MultiChunkTransaction::notifyCommitSuccess() {
   std::lock_guard<std::mutex> lock(mutex_);
   if (state_ == State::AWAIT_COMMIT) {
     state_ = State::COMMITTED;
@@ -102,7 +102,7 @@ void MultiChunkCommit::notifyCommitSuccess() {
   }
 }
 
-void MultiChunkCommit::notifyAbort() {
+void MultiChunkTransaction::notifyAbort() {
   std::lock_guard<std::mutex> lock(mutex_);
   if (state_ == State::LOCKED || state_ == State::READY_TO_COMMIT) {
     state_ = State::ABORTED;
@@ -112,17 +112,17 @@ void MultiChunkCommit::notifyAbort() {
   }
 }
 
-bool MultiChunkCommit::isActive() {
+bool MultiChunkTransaction::isActive() {
   std::lock_guard<std::mutex> lock(mutex_);
   return (state_ == State::LOCKED || state_ == State::READY_TO_COMMIT);
 }
 
-bool MultiChunkCommit::isReadyToCommit() {
+bool MultiChunkTransaction::isReadyToCommit() {
   std::lock_guard<std::mutex> lock(mutex_);
   return (state_ == State::READY_TO_COMMIT || state_ == State::AWAIT_COMMIT);
 }
 
-bool MultiChunkCommit::areAllOtherChunksReadyToCommit() {
+bool MultiChunkTransaction::areAllOtherChunksReadyToCommit() {
   std::lock_guard<std::mutex> lock(mutex_);
   if (!asked_all_) {
     fetchOtherChunkStatusLocked();
@@ -141,24 +141,27 @@ bool MultiChunkCommit::areAllOtherChunksReadyToCommit() {
   return true;
 }
 
-bool MultiChunkCommit::isTransactionCommitted(const common::Id& commit_id) {
+bool MultiChunkTransaction::isTransactionCommitted(
+    const common::Id& commit_id) {
   std::lock_guard<std::mutex> lock(mutex_);
   return older_commits_.count(commit_id);
 }
 
-void MultiChunkCommit::sendQueryReadyToCommit() {
+void MultiChunkTransaction::sendQueryReadyToCommit() {
   CHECK_NOTNULL(multi_chunk_data_);
   std::map<common::Id, std::future<bool>> response_map;
   for (int i = 0; i < multi_chunk_data_->chunk_list_size(); ++i) {
     common::Id id(multi_chunk_data_->chunk_list(i).chunk_id());
-    proto::MultiChunkCommitQuery query;
+    proto::MultiChunkTransactionQuery query;
     query.mutable_metadata()->CopyFrom(multi_chunk_data_->chunk_list(i));
-    query.mutable_commit_id()->CopyFrom(multi_chunk_data_->commit_id());
+    query.mutable_transaction_id()->CopyFrom(
+        multi_chunk_data_->transaction_id());
     my_chunk_id_.serialize(query.mutable_sender_chunk_id());
 
     std::future<bool> success;
     std::async(std::launch::async,
-        &MultiChunkCommit::sendMessage<kIsReadyToCommit>, this, id, query);
+               &MultiChunkTransaction::sendMessage<kIsReadyToCommit>, this, id,
+               query);
     response_map.insert(std::make_pair(id, std::move(success)));
   }
 
@@ -168,19 +171,21 @@ void MultiChunkCommit::sendQueryReadyToCommit() {
   }
 }
 
-void MultiChunkCommit::sendCommitNotification() {
+void MultiChunkTransaction::sendCommitNotification() {
   CHECK_NOTNULL(multi_chunk_data_);
   std::map<common::Id, std::future<bool>> response_map;
   for (int i = 0; i < multi_chunk_data_->chunk_list_size(); ++i) {
     common::Id id(multi_chunk_data_->chunk_list(i).chunk_id());
-    proto::MultiChunkCommitQuery query;
+    proto::MultiChunkTransactionQuery query;
     query.mutable_metadata()->CopyFrom(multi_chunk_data_->chunk_list(i));
-    query.mutable_commit_id()->CopyFrom(multi_chunk_data_->commit_id());
+    query.mutable_transaction_id()->CopyFrom(
+        multi_chunk_data_->transaction_id());
     my_chunk_id_.serialize(query.mutable_sender_chunk_id());
 
     std::future<bool> success;
     std::async(std::launch::async,
-        &MultiChunkCommit::sendMessage<kCommitNotification>, this, id, query);
+               &MultiChunkTransaction::sendMessage<kCommitNotification>, this,
+               id, query);
     response_map.insert(std::make_pair(id, std::move(success)));
   }
   for (std::map<common::Id, std::future<bool>>::value_type& response :
@@ -196,19 +201,21 @@ void MultiChunkCommit::sendCommitNotification() {
   // not never returned. Implement rollback here?
 }
 
-void MultiChunkCommit::sendAbortNotification() {
+void MultiChunkTransaction::sendAbortNotification() {
   CHECK_NOTNULL(multi_chunk_data_);
   std::map<common::Id, std::future<bool>> response_map;
   for (int i = 0; i < multi_chunk_data_->chunk_list_size(); ++i) {
     common::Id id(multi_chunk_data_->chunk_list(i).chunk_id());
-    proto::MultiChunkCommitQuery query;
+    proto::MultiChunkTransactionQuery query;
     query.mutable_metadata()->CopyFrom(multi_chunk_data_->chunk_list(i));
-    query.mutable_commit_id()->CopyFrom(multi_chunk_data_->commit_id());
+    query.mutable_transaction_id()->CopyFrom(
+        multi_chunk_data_->transaction_id());
     my_chunk_id_.serialize(query.mutable_sender_chunk_id());
 
     std::future<bool> success;
     std::async(std::launch::async,
-        &MultiChunkCommit::sendMessage<kCommitNotification>, this, id, query);
+               &MultiChunkTransaction::sendMessage<kCommitNotification>, this,
+               id, query);
     response_map.insert(std::make_pair(id, std::move(success)));
   }
   for (std::map<common::Id, std::future<bool>>::value_type& response :
@@ -217,10 +224,10 @@ void MultiChunkCommit::sendAbortNotification() {
   }
 }
 
-void MultiChunkCommit::handleQueryReadyToCommit(
-    const proto::MultiChunkCommitQuery& query, const PeerId& sender,
+void MultiChunkTransaction::handleQueryReadyToCommit(
+    const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
     Message* response) {
-  common::Id transaction_id(query.commit_id());
+  common::Id transaction_id(query.transaction_id());
   CHECK(transaction_id.isValid()) << "handleCommitNotification received from "
                                   << sender << "with an invalid transaction id";
   std::lock_guard<std::mutex> lock(mutex_);
@@ -245,10 +252,10 @@ void MultiChunkCommit::handleQueryReadyToCommit(
   response->decline();
 }
 
-void MultiChunkCommit::handleCommitNotification(
-    const proto::MultiChunkCommitQuery& query, const PeerId& sender,
+void MultiChunkTransaction::handleCommitNotification(
+    const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
     Message* response) {
-  common::Id transaction_id(query.commit_id());
+  common::Id transaction_id(query.transaction_id());
   CHECK(transaction_id.isValid()) << "handleCommitNotification received from "
                                   << sender << "with an invalid transaction id";
   std::lock_guard<std::mutex> lock(mutex_);
@@ -258,10 +265,10 @@ void MultiChunkCommit::handleCommitNotification(
   }
 }
 
-void MultiChunkCommit::handleAbortNotification(
-    const proto::MultiChunkCommitQuery& query, const PeerId& sender,
+void MultiChunkTransaction::handleAbortNotification(
+    const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
     Message* response) {
-  common::Id transaction_id(query.commit_id());
+  common::Id transaction_id(query.transaction_id());
   CHECK(transaction_id.isValid()) << "handleCommitNotification received from "
                                   << sender << "with an invalid transaction id";
   std::lock_guard<std::mutex> lock(mutex_);
@@ -274,8 +281,8 @@ void MultiChunkCommit::handleAbortNotification(
 }
 
 template <const char* message_type>
-bool MultiChunkCommit::sendMessage(const common::Id& id,
-                                   const proto::MultiChunkCommitQuery& query) {
+bool MultiChunkTransaction::sendMessage(
+    const common::Id& id, const proto::MultiChunkTransactionQuery& query) {
   Message request, response;
   request.impose<message_type>(query);
 
@@ -294,13 +301,13 @@ bool MultiChunkCommit::sendMessage(const common::Id& id,
   }
 }
 
-void MultiChunkCommit::fetchOtherChunkStatusLocked() {
+void MultiChunkTransaction::fetchOtherChunkStatusLocked() {
   sendQueryReadyToCommit();
   asked_all_ = true;
 }
 
-void MultiChunkCommit::addOtherChunkStatusLocked(const common::Id& id,
-                                                 bool is_ready_to_commit) {
+void MultiChunkTransaction::addOtherChunkStatusLocked(const common::Id& id,
+                                                      bool is_ready_to_commit) {
   if (other_chunk_status_.count(id) == 0) {
     LOG(FATAL) << "The specified Id is not present in the list.";
     return;

@@ -81,7 +81,7 @@ class Transaction {
   bool commit();
   bool multiChunkCommit();
   void unlockAllChunks(bool is_success);
-  void prepareMultiChunkCommitInfo(proto::MultiChunkCommitInfo* info);
+  void prepareMultiChunkTransactionInfo(proto::MultiChunkTransactionInfo* info);
   inline LogicalTime getCommitTime() const { return commit_time_; }
   using Conflict = ChunkTransaction::Conflict;
   using Conflicts = ChunkTransaction::Conflicts;

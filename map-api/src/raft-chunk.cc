@@ -32,7 +32,7 @@ bool RaftChunk::init(const common::Id& id,
   CHECK(data_container_->init(descriptor));
   raft_node_.chunk_id_ = id_;
   raft_node_.table_name_ = descriptor->name();
-  raft_node_.initializeMultiChunkCommitManager();
+  raft_node_.initializeMultiChunkTransactionManager();
   initialized_ = true;
   return true;
 }
@@ -274,13 +274,13 @@ bool RaftChunk::sendConnectRequest(const PeerId& peer,
   return false;
 }
 
-bool RaftChunk::sendChunkCommitInfo(proto::ChunkCommitInfo* info) {
+bool RaftChunk::sendChunkTransactionInfo(proto::ChunkTransactionInfo* info) {
   CHECK(raft_node_.isRunning()) << PeerId::self();
   uint64_t index = 0;
   uint64_t serial_id = request_id_.getNewId();
   // TODO(aqurai): Limit number of retry attempts.
   while (raft_node_.isRunning()) {
-    index = raft_node_.sendChunkCommitInfo(info, serial_id);
+    index = raft_node_.sendChunkTransactionInfo(info, serial_id);
     if (index > 0) {
       break;
     }

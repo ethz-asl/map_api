@@ -852,23 +852,23 @@ void NetTable::handleRaftLeaveNotification(const common::Id& chunk_id,
   active_chunks_lock_.releaseReadLock();
 }
 
-void NetTable::handleRaftChunkCommitInfo(const common::Id& chunk_id,
-                                         proto::ChunkCommitInfo* info,
-                                         const PeerId& sender,
-                                         Message* response) {
+void NetTable::handleRaftChunkTransactionInfo(const common::Id& chunk_id,
+                                              proto::ChunkTransactionInfo* info,
+                                              const PeerId& sender,
+                                              Message* response) {
   CHECK_NOTNULL(response);
   ChunkMap::iterator found;
   active_chunks_lock_.acquireReadLock();
   if (routingBasics(chunk_id, response, &found)) {
     RaftChunk* chunk =
         CHECK_NOTNULL(dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
-    chunk->handleRaftChunkCommitInfo(info, sender, response);
+    chunk->handleRaftChunkTransactionInfo(info, sender, response);
   }
   active_chunks_lock_.releaseReadLock();
 }
 
 void NetTable::handleRaftQueryReadyToCommit(
-    const common::Id& chunk_id, const proto::MultiChunkCommitQuery& query,
+    const common::Id& chunk_id, const proto::MultiChunkTransactionQuery& query,
     const PeerId& sender, Message* response) {
   CHECK_NOTNULL(response);
   ChunkMap::iterator found;
@@ -882,7 +882,7 @@ void NetTable::handleRaftQueryReadyToCommit(
 }
 
 void NetTable::handleRaftCommitNotification(
-    const common::Id& chunk_id, const proto::MultiChunkCommitQuery& query,
+    const common::Id& chunk_id, const proto::MultiChunkTransactionQuery& query,
     const PeerId& sender, Message* response) {
   CHECK_NOTNULL(response);
   ChunkMap::iterator found;
@@ -896,7 +896,7 @@ void NetTable::handleRaftCommitNotification(
 }
 
 void NetTable::handleRaftAbortNotification(
-    const common::Id& chunk_id, const proto::MultiChunkCommitQuery& query,
+    const common::Id& chunk_id, const proto::MultiChunkTransactionQuery& query,
     const PeerId& sender, Message* response) {
   CHECK_NOTNULL(response);
   ChunkMap::iterator found;

@@ -151,14 +151,14 @@ bool Transaction::multiChunkCommit() {
   pushNewChunkIdsToTrackers();
   disableDirectAccess();
 
-  proto::MultiChunkCommitInfo commit_info;
-  prepareMultiChunkCommitInfo(&commit_info);
+  proto::MultiChunkTransactionInfo commit_info;
+  prepareMultiChunkTransactionInfo(&commit_info);
 
   timing::Timer timer("map_api::Transaction::commit - lock");
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->lock();
-    bool result =
-        net_table_transaction.second->sendMultiChunkCommitInfo(commit_info);
+    bool result = net_table_transaction.second->sendMultiChunkTransactionInfo(
+        commit_info);
     if (!result) {
       unlockAllChunks(false);
       return false;
@@ -205,14 +205,14 @@ void Transaction::unlockAllChunks(bool is_success) {
   }
 }
 
-void Transaction::prepareMultiChunkCommitInfo(
-    proto::MultiChunkCommitInfo* info) {
-  common::Id commit_id;
-  common::generateId(&commit_id);
-  commit_id.serialize(info->mutable_commit_id());
+void Transaction::prepareMultiChunkTransactionInfo(
+    proto::MultiChunkTransactionInfo* info) {
+  common::Id transaction_id;
+  common::generateId(&transaction_id);
+  transaction_id.serialize(info->mutable_transaction_id());
   info->set_begin_time(begin_time_.serialize());
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
-    net_table_transaction.second->prepareMultiChunkCommitInfo(info);
+    net_table_transaction.second->prepareMultiChunkTransactionInfo(info);
   }
 }
 
