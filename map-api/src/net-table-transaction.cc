@@ -97,7 +97,7 @@ void NetTableTransaction::prepareMultiChunkCommitInfo(
 }
 
 bool NetTableTransaction::sendMultiChunkCommitInfo(
-    proto::MultiChunkCommitInfo* info) {
+    const proto::MultiChunkCommitInfo& info) {
   CHECK(FLAGS_use_raft);
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
     if (!chunk_transaction.second->sendMultiChunkCommitInfo(info)) {

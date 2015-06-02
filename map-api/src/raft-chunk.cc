@@ -274,7 +274,7 @@ bool RaftChunk::sendConnectRequest(const PeerId& peer,
   return false;
 }
 
-bool RaftChunk::sendChunkCommitInfo(proto::ChunkCommitInfo info) {
+bool RaftChunk::sendChunkCommitInfo(proto::ChunkCommitInfo* info) {
   CHECK(raft_node_.isRunning()) << PeerId::self();
   uint64_t index = 0;
   uint64_t serial_id = request_id_.getNewId();

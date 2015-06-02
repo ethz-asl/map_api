@@ -57,7 +57,7 @@ class ChunkTransaction {
   bool check();
   bool checkedCommit(const LogicalTime& time);
 
-  bool sendMultiChunkCommitInfo(proto::MultiChunkCommitInfo* info);
+  bool sendMultiChunkCommitInfo(const proto::MultiChunkCommitInfo& info);
 
   struct Conflict {
     const std::shared_ptr<const Revision> theirs;

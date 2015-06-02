@@ -1,12 +1,14 @@
 #include "map-api/multi-chunk-commit.h"
 
 #include <future>
+#include <readline/history.h>
 
 #include "./raft.pb.h"
 #include "map-api/hub.h"
 #include "map-api/message.h"
 #include "map-api/net-table.h"
 #include "map-api/net-table-manager.h"
+#include "map-api/peer-id.h"
 
 namespace map_api {
 
@@ -26,16 +28,21 @@ MAP_API_PROTO_MESSAGE(MultiChunkCommit::kAbortNotification,
 
 MultiChunkCommit::MultiChunkCommit(const common::Id& id)
     : my_chunk_id_(id),
+      state_(State::INACTIVE),
       num_commits_received_(0),
       num_revision_entries_(0),
       asked_all_(false),
-      notifications_enable_(false) {}
+      notifications_enable_(false) {
+  current_transaction_id_.setInvalid();
+}
 
 void MultiChunkCommit::initMultiChunkCommit(
     const proto::MultiChunkCommitInfo multi_chunk_data, uint num_entries) {
   std::lock_guard<std::mutex> lock(mutex_);
   CHECK_GT(num_entries, 0);
   state_ = State::LOCKED;
+  current_transaction_id_.deserialize(multi_chunk_data.commit_id());
+  CHECK(current_transaction_id_.isValid());
   num_commits_received_ = 0;
   num_revision_entries_ = num_entries;
   multi_chunk_data_ = &multi_chunk_data;
@@ -53,7 +60,7 @@ void MultiChunkCommit::initMultiChunkCommit(
 void MultiChunkCommit::clearMultiChunkCommit() {
   std::lock_guard<std::mutex> lock(mutex_);
   state_ = State::INACTIVE;
-  my_chunk_id_.setInvalid();
+  current_transaction_id_.setInvalid();
   num_commits_received_ = 0;
   num_revision_entries_ = 0;
   multi_chunk_data_ = NULL;
@@ -76,7 +83,7 @@ void MultiChunkCommit::notifyReceivedRevisionIfActive() {
   }
 }
 
-void MultiChunkCommit::noitfyUnlockReceived() {
+void MultiChunkCommit::noitfyCommitBegin() {
   std::lock_guard<std::mutex> lock(mutex_);
   if (state_ == State::READY_TO_COMMIT) {
     state_ = State::AWAIT_COMMIT;
@@ -147,6 +154,7 @@ void MultiChunkCommit::sendQueryReadyToCommit() {
     proto::MultiChunkCommitQuery query;
     query.mutable_metadata()->CopyFrom(multi_chunk_data_->chunk_list(i));
     query.mutable_commit_id()->CopyFrom(multi_chunk_data_->commit_id());
+    my_chunk_id_.serialize(query.mutable_sender_chunk_id());
 
     std::future<bool> success;
     std::async(std::launch::async,
@@ -168,6 +176,7 @@ void MultiChunkCommit::sendCommitNotification() {
     proto::MultiChunkCommitQuery query;
     query.mutable_metadata()->CopyFrom(multi_chunk_data_->chunk_list(i));
     query.mutable_commit_id()->CopyFrom(multi_chunk_data_->commit_id());
+    my_chunk_id_.serialize(query.mutable_sender_chunk_id());
 
     std::future<bool> success;
     std::async(std::launch::async,
@@ -183,8 +192,8 @@ void MultiChunkCommit::sendCommitNotification() {
   }
   // TODO(aqurai): We are not checking if one of the chunks fails here. We are
   // ensuring that a correct version of related entry in another chunk is
-  // available or it is not available altogether, but a wrong version is not
-  // available.
+  // available or the entry is not available altogether, but a wrong version is
+  // not never returned. Implement rollback here?
 }
 
 void MultiChunkCommit::sendAbortNotification() {
@@ -195,6 +204,7 @@ void MultiChunkCommit::sendAbortNotification() {
     proto::MultiChunkCommitQuery query;
     query.mutable_metadata()->CopyFrom(multi_chunk_data_->chunk_list(i));
     query.mutable_commit_id()->CopyFrom(multi_chunk_data_->commit_id());
+    my_chunk_id_.serialize(query.mutable_sender_chunk_id());
 
     std::future<bool> success;
     std::async(std::launch::async,
@@ -207,11 +217,68 @@ void MultiChunkCommit::sendAbortNotification() {
   }
 }
 
+void MultiChunkCommit::handleQueryReadyToCommit(
+    const proto::MultiChunkCommitQuery& query, const PeerId& sender,
+    Message* response) {
+  common::Id transaction_id(query.commit_id());
+  CHECK(transaction_id.isValid()) << "handleCommitNotification received from "
+                                  << sender << "with an invalid transaction id";
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (older_commits_.count(transaction_id)) {
+    // This transaction has already been committed.
+    response->ack();
+    return;
+  } else if (current_transaction_id_.isValid() &&
+             transaction_id == current_transaction_id_) {
+    CHECK(state_ != State::INACTIVE);
+    // If state is COMMITTED, the transaction would have been already  added to
+    // older_commits_, returning ack above.
+    if (state_ == State::READY_TO_COMMIT || state_ == State::AWAIT_COMMIT) {
+      response->ack();
+      return;
+    }
+  } else {
+    LOG(ERROR) << "QueryReadyToCommit received for a transaction id that is "
+                  "neither current nor an older transaction. Sender: " << sender
+               << ", chunk id: " << my_chunk_id_;
+  }
+  response->decline();
+}
+
+void MultiChunkCommit::handleCommitNotification(
+    const proto::MultiChunkCommitQuery& query, const PeerId& sender,
+    Message* response) {
+  common::Id transaction_id(query.commit_id());
+  CHECK(transaction_id.isValid()) << "handleCommitNotification received from "
+                                  << sender << "with an invalid transaction id";
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (current_transaction_id_.isValid() &&
+      transaction_id == current_transaction_id_) {
+    // TODO(aqurai): handle this
+  }
+}
+
+void MultiChunkCommit::handleAbortNotification(
+    const proto::MultiChunkCommitQuery& query, const PeerId& sender,
+    Message* response) {
+  common::Id transaction_id(query.commit_id());
+  CHECK(transaction_id.isValid()) << "handleCommitNotification received from "
+                                  << sender << "with an invalid transaction id";
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (current_transaction_id_.isValid() &&
+      transaction_id == current_transaction_id_) {
+    CHECK(state_ != State::AWAIT_COMMIT || state_ != State::COMMITTED)
+        << "Abort received after transaction committed on " << my_chunk_id_;
+    state_ = State::ABORTED;
+  }
+}
+
 template <const char* message_type>
-bool MultiChunkCommit::sendMessage(const common::Id& id, const proto::MultiChunkCommitQuery& query) {
+bool MultiChunkCommit::sendMessage(const common::Id& id,
+                                   const proto::MultiChunkCommitQuery& query) {
   Message request, response;
   request.impose<message_type>(query);
-  
+
   // std::unordered_set<PeerId> peers;
   // NetTableManager.instance().getTable(query.metadata().table()).get
   // getChunkHolders(id, &peers);

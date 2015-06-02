@@ -122,6 +122,7 @@ message MultiChunkCommitInfo {
 message MultiChunkCommitQuery {
   optional ChunkRequestMetadata metadata = 1;
   optional common.proto.Id commit_id = 2;
+  optional common.proto.Id sender_chunk_id = 3;
 }
 
 message RaftLeaveRequest {

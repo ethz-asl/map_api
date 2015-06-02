@@ -137,14 +137,13 @@ bool ChunkTransaction::checkedCommit(const LogicalTime& time) {
 }
 
 bool ChunkTransaction::sendMultiChunkCommitInfo(
-    proto::MultiChunkCommitInfo* info) {
+    const proto::MultiChunkCommitInfo& info) {
   CHECK(FLAGS_use_raft);
   proto::ChunkCommitInfo this_chunk_commit_info;
   this_chunk_commit_info.set_num_entries(countChangesToCommit());
-  this_chunk_commit_info.set_allocated_multi_chunk_info(info);
+  this_chunk_commit_info.mutable_multi_chunk_info()->CopyFrom(info);
   bool success = CHECK_NOTNULL(dynamic_cast<RaftChunk*>(chunk_))  // NOLINT
-                     ->sendChunkCommitInfo(this_chunk_commit_info);
-  this_chunk_commit_info.release_multi_chunk_info();
+                     ->sendChunkCommitInfo(&this_chunk_commit_info);
   return success;
 }
 

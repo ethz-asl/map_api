@@ -71,7 +71,7 @@ class RaftChunk : public ChunkBase {
                                  proto::ChunkRequestMetadata& metadata);
 
  private:
-  bool sendChunkCommitInfo(proto::ChunkCommitInfo info);
+  bool sendChunkCommitInfo(proto::ChunkCommitInfo* info);
 
   virtual bool bulkInsertLocked(const MutableRevisionMap& items,
                                 const LogicalTime& time) override;
@@ -137,6 +137,20 @@ class RaftChunk : public ChunkBase {
                                     const PeerId& sender, Message* response);
   inline void handleRaftQueryState(const proto::QueryState& request,
                                    Message* response);
+
+  // Multi-chunk commit RPCs
+  inline void handleRaftChunkCommitInfo(proto::ChunkCommitInfo* info,
+                                        const PeerId& sender,
+                                        Message* response);
+  inline void handleRaftQueryReadyToCommit(
+      const proto::MultiChunkCommitQuery& query, const PeerId& sender,
+      Message* response);
+  inline void handleRaftCommitNotification(
+      const proto::MultiChunkCommitQuery& query, const PeerId& sender,
+      Message* response);
+  inline void handleRaftAbortNotification(
+      const proto::MultiChunkCommitQuery& query, const PeerId& sender,
+      Message* response);
 
   // Leaving the chunk.
   bool leave_requested_;

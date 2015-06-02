@@ -158,7 +158,7 @@ bool Transaction::multiChunkCommit() {
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->lock();
     bool result =
-        net_table_transaction.second->sendMultiChunkCommitInfo(&commit_info);
+        net_table_transaction.second->sendMultiChunkCommitInfo(commit_info);
     if (!result) {
       unlockAllChunks(false);
       return false;

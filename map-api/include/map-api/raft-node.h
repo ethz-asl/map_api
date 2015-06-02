@@ -144,6 +144,18 @@ class RaftNode {
   void handleInsertRequest(proto::InsertRequest* request,
                            const PeerId& sender, Message* response);
 
+  // Multi-chunk commit requests.
+  void handleChunkCommitInfo(proto::ChunkCommitInfo* info, const PeerId& sender,
+                             Message* response);
+  inline void handleQueryReadyToCommit(
+      const proto::MultiChunkCommitQuery& query, const PeerId& sender,
+      Message* response);
+  inline void handleCommitNotification(
+      const proto::MultiChunkCommitQuery& query, const PeerId& sender,
+      Message* response);
+  inline void handleAbortNotification(const proto::MultiChunkCommitQuery& query,
+                                      const PeerId& sender, Message* response);
+
   // Not ready if entries from older leader pending commit.
   inline bool checkReadyToHandleChunkRequests() const;
 
@@ -321,7 +333,8 @@ class RaftNode {
   uint64_t sendChunkLockRequest(uint64_t serial_id);
   uint64_t sendChunkUnlockRequest(uint64_t serial_id, uint64_t lock_index,
                                   bool proceed_commits);
-  uint64_t sendChunkCommitInfo(proto::ChunkCommitInfo info, uint64_t serial_id);
+  uint64_t sendChunkCommitInfo(proto::ChunkCommitInfo* info,
+                               uint64_t serial_id);
   // New revision request.
   uint64_t sendInsertRequest(const Revision::ConstPtr& item, uint64_t serial_id,
                              bool is_retry_attempt);
@@ -336,8 +349,8 @@ class RaftNode {
       const PeerId& sender, uint64_t serial_id, bool is_retry_attempt,
       uint64_t lock_index, uint64_t proceed_commits);
   proto::RaftChunkRequestResponse processChunkCommitInfo(
-      const PeerId& sender, uint64_t serial_id,
-      proto::ChunkCommitInfo* unowned_info_ptr);
+      const PeerId& sender, uint64_t serial_id, uint64_t num_entries,
+      proto::MultiChunkCommitInfo* unowned_multi_chunk_info_ptr);
   proto::RaftChunkRequestResponse processInsertRequest(
       const PeerId& sender, uint64_t serial_id, bool is_retry_attempt,
       proto::Revision* unowned_revision_pointer);

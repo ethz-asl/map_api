@@ -11,6 +11,7 @@
 
 namespace map_api {
 class Message;
+class PeerId;
 
 class MultiChunkCommit {
   friend class RaftNode;
@@ -42,7 +43,7 @@ class MultiChunkCommit {
   void clearMultiChunkCommit();
 
   void notifyReceivedRevisionIfActive();
-  void noitfyUnlockReceived();
+  void noitfyCommitBegin();
   void notifyCommitSuccess();
   void notifyAbort();
 
@@ -56,15 +57,24 @@ class MultiChunkCommit {
   void sendCommitNotification();
   void sendAbortNotification();
 
-  //bool sendMessage(const common::Id& id, Message& request);
+  void handleQueryReadyToCommit(const proto::MultiChunkCommitQuery& query,
+                                const PeerId& sender, Message* response);
+  void handleCommitNotification(const proto::MultiChunkCommitQuery& query,
+                                const PeerId& sender, Message* response);
+  void handleAbortNotification(const proto::MultiChunkCommitQuery& query,
+                               const PeerId& sender, Message* response);
+
   template <const char* message_type>
   bool sendMessage(const common::Id& id, const proto::MultiChunkCommitQuery& query);
 
   void fetchOtherChunkStatusLocked();
   void addOtherChunkStatusLocked(const common::Id& id, bool is_ready_to_commit);
 
-  State state_;
   common::Id my_chunk_id_;
+
+  // State during a transaction.
+  State state_;
+  common::Id current_transaction_id_;
   uint num_commits_received_;
   uint num_revision_entries_;
   const proto::MultiChunkCommitInfo* multi_chunk_data_;

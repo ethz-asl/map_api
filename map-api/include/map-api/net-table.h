@@ -229,6 +229,20 @@ class NetTable {
   void handleRaftLeaveNotification(const common::Id& chunk_id,
                                    Message* response);
 
+  // Raft Multi-chunk commit RPCs
+  void handleRaftChunkCommitInfo(const common::Id& chunk_id,
+                                 proto::ChunkCommitInfo* info,
+                                 const PeerId& sender, Message* response);
+  void handleRaftQueryReadyToCommit(const common::Id& chunk_id,
+                                    const proto::MultiChunkCommitQuery& query,
+                                    const PeerId& sender, Message* response);
+  void handleRaftCommitNotification(const common::Id& chunk_id,
+                                    const proto::MultiChunkCommitQuery& query,
+                                    const PeerId& sender, Message* response);
+  void handleRaftAbortNotification(const common::Id& chunk_id,
+                                   const proto::MultiChunkCommitQuery& query,
+                                   const PeerId& sender, Message* response);
+
  private:
   NetTable();
   NetTable(const NetTable&) = delete;
