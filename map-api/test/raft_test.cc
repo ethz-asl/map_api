@@ -10,7 +10,6 @@
 #include "map-api/ipc.h"
 #include "map-api/peer-id.h"
 #include "map-api/raft-node.h"
-#include "map-api/raft-chunk.h"
 #include "map-api/test/testing-entrypoint.h"
 #include "./consensus_fixture.h"
 
@@ -21,44 +20,6 @@ constexpr int kAppendEntriesForMs = 10000;
 constexpr int kTimeBetweenAppendsMs = 20;
 constexpr int kNumEntriesToAppend = 40;
 
-TEST_F(ConsensusFixture, RaftChunkTest) {
-  const uint64_t kProcesses = 5;
-  enum Barriers {
-    INIT_PEERS,
-    PUSH_CHUNK_ID,
-    RAFT_START,
-    DIE
-  };
-  pid_t pid = getpid();
-  VLOG(1) << "PID: " << pid << ", IP: " << PeerId::self();
-  if (getSubprocessId() == 0) {
-    for (uint64_t i = 1u; i < kProcesses; ++i) {
-      launchSubprocess(i);
-    }
-    IPC::barrier(INIT_PEERS, kProcesses - 1);
-    ChunkBase* base_chunk = table_->newChunk();
-    RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);
-    CHECK_NOTNULL(chunk);
-    IPC::push(chunk->id());
-    IPC::barrier(PUSH_CHUNK_ID, kProcesses - 1);
-    // chunk->requestParticipation();
-    IPC::barrier(RAFT_START, kProcesses - 1);
-    usleep(5000 * kMillisecondsToMicroseconds);
-
-    IPC::barrier(DIE, kProcesses - 1);
-  } else {
-    IPC::barrier(INIT_PEERS, kProcesses - 1);
-    IPC::barrier(PUSH_CHUNK_ID, kProcesses - 1);
-    common::Id chunk_id = IPC::pop<common::Id>();
-    ChunkBase* base_chunk = table_->getChunk(chunk_id);
-    IPC::barrier(RAFT_START, kProcesses - 1);
-
-    usleep(5000 * kMillisecondsToMicroseconds);
-
-    IPC::barrier(DIE, kProcesses - 1);
-  }
-}
-/*
 TEST_F(ConsensusFixture, LeaderElection) {
   const uint64_t kProcesses = 5;  // Processes in addition to supervisor.
   enum Barriers {
@@ -249,7 +210,7 @@ TEST_F(ConsensusFixture, BurstAppendEntries) {
     RaftNode::instance().stop();
     IPC::barrier(DIE, kProcesses);
   }
-} */
+}
 
 }  // namespace map_api
 

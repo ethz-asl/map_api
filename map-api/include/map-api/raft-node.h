@@ -90,7 +90,6 @@ class RaftNode {
   static const char kChunkUnlockRequest[];
   static const char kChunkUnlockResponse[];
   static const char kInsertRequest[];
-  static const char kUpdateRequest[];
   static const char kInsertResponse[];
   static const char kVoteRequest[];
   static const char kVoteResponse[];
