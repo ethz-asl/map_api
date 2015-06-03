@@ -682,7 +682,8 @@ void RaftNode::leaderAddPeer(const PeerId& peer,
   std::lock_guard<std::mutex> peer_lock(peer_mutex_);
   std::lock_guard<std::mutex> tracker_lock(follower_tracker_mutex_);
 
-  if (peer != PeerId::self() && peer_list_.count(peer) == 0) {  // Add new peer.
+  if (peer != PeerId::self() &&
+      peer_list_.count(peer) == 0u) {  // Add new peer.
     sendInitRequest(peer, log_writer);
     peer_list_.insert(peer);
     num_peers_ = peer_list_.size();

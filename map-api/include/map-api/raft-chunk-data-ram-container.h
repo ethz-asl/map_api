@@ -92,14 +92,14 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     virtual ~RaftLog() {}
     iterator getLogIteratorByIndex(uint64_t index);
     const_iterator getConstLogIteratorByIndex(uint64_t index) const;
-    uint64_t eraseAfter(iterator it);
+    uint64_t eraseAfter(const iterator& it);
     inline uint64_t lastLogIndex() const { return back()->index(); }
     inline uint64_t lastLogTerm() const { return back()->term(); }
     inline uint64_t commitIndex() const { return commit_index_; }
     inline common::ReaderWriterMutex* mutex() const { return &log_mutex_; }
 
     inline void setCommitIndex(uint64_t value) { commit_index_ = value; }
-    uint64_t setEntryCommitted(iterator it);
+    uint64_t setEntryCommitted(const iterator& it);
 
    private:
     friend class RaftChunkDataRamContainer;

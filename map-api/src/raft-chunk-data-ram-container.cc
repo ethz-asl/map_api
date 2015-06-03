@@ -164,7 +164,6 @@ RaftChunkDataRamContainer::RaftLog::RaftLog() : commit_index_(0) {}
 
 RaftChunkDataRamContainer::RaftLog::iterator
 RaftChunkDataRamContainer::RaftLog::getLogIteratorByIndex(uint64_t index) {
-  iterator it = end();
   if (empty()) {
     return end();
   }
@@ -181,7 +180,6 @@ RaftChunkDataRamContainer::RaftLog::getLogIteratorByIndex(uint64_t index) {
 
 RaftChunkDataRamContainer::RaftLog::const_iterator
 RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) const {
-  const_iterator it = cend();
   if (empty()) {
     return cend();
   }
@@ -196,13 +194,14 @@ RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) c
   }
 }
 
-uint64_t RaftChunkDataRamContainer::RaftLog::eraseAfter(iterator it) {
+uint64_t RaftChunkDataRamContainer::RaftLog::eraseAfter(const iterator& it) {
   CHECK((it + 1) != begin());
   resize(std::distance(begin(), it + 1));
   return lastLogIndex();
 }
 
-uint64_t RaftChunkDataRamContainer::RaftLog::setEntryCommitted(iterator it) {
+uint64_t RaftChunkDataRamContainer::RaftLog::setEntryCommitted(
+    const iterator& it) {
   CHECK_EQ(commit_index_ + 1, (*it)->index());
   return ++commit_index_;
 }

@@ -156,11 +156,7 @@ int RaftChunk::requestParticipation() {
       ++num_success;
     }
   }
-  if (num_success > 0) {
-    return 1;
-  } else {
-    return 0;
-  }
+  return num_success;
 }
 
 int RaftChunk::requestParticipation(const PeerId& peer) {
