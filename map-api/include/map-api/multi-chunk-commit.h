@@ -81,6 +81,7 @@ class MultiChunkTransaction {
   void addOtherChunkStatusLocked(const common::Id& id, bool is_ready_to_commit);
   bool isOtherChunkReadyToCommitLocked(const common::Id& id);
   inline void setStateAwaitCommitLocked() {
+    LOG(WARNING) << "Going to commit state on " << PeerId::self();
     state_ = State::AWAIT_COMMIT;
     CHECK(older_commits_.insert(current_transaction_id_).second);
   }

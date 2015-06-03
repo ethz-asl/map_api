@@ -41,6 +41,8 @@ void MultiChunkTransaction::initMultiChunkTransaction(
   std::lock_guard<std::mutex> lock(mutex_);
   common::ScopedWriteLock data_lock(&data_mutex_);
 
+  LOG(WARNING) << "Multi chunk commit started on peer " << PeerId::self();
+
   state_ = State::LOCKED;
   current_transaction_id_.deserialize(multi_chunk_data.transaction_id());
   num_revisions_received_ = 0;
@@ -69,6 +71,7 @@ void MultiChunkTransaction::initMultiChunkTransaction(
 void MultiChunkTransaction::clearMultiChunkTransaction() {
   std::lock_guard<std::mutex> lock(mutex_);
   common::ScopedWriteLock data_lock(&data_mutex_);
+  LOG(WARNING) << "Multi chunk commit finished on peer " << PeerId::self();
 
   state_ = State::INACTIVE;
   current_transaction_id_.setInvalid();
@@ -87,7 +90,7 @@ void MultiChunkTransaction::notifyReceivedRevisionIfActive() {
   }
   CHECK(state_ != State::INACTIVE);
   CHECK_LE(num_revisions_received_, num_revision_entries_);
-  if (state_ == State::LOCKED) {  
+  if (state_ == State::LOCKED) {
     ++num_revisions_received_;
   }
   if (num_revisions_received_ == num_revision_entries_) {
