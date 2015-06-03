@@ -76,6 +76,10 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
           const std::shared_ptr<const Revision>& item)>& action) const;
   inline void trimToTime(const LogicalTime& time, HistoryMap* subject) const;
 
+  // OTHER READ OPERATIONS
+  void chunkHistory(const common::Id& chunk_id, const LogicalTime& time,
+                    HistoryMap* dest) const;
+
   // ========
   // RAFT-LOG
   // ========
@@ -84,25 +88,26 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   // const_iterator are not defined within RaftNode.
   class RaftLog : public std::vector<std::shared_ptr<proto::RaftLogEntry>> {
    public:
+    RaftLog();
     virtual ~RaftLog() {}
     iterator getLogIteratorByIndex(uint64_t index);
     const_iterator getConstLogIteratorByIndex(uint64_t index) const;
-    uint64_t eraseAfter(iterator it);
+    uint64_t eraseAfter(const iterator& it);
     inline uint64_t lastLogIndex() const { return back()->index(); }
     inline uint64_t lastLogTerm() const { return back()->term(); }
+    inline uint64_t commitIndex() const { return commit_index_; }
     inline common::ReaderWriterMutex* mutex() const { return &log_mutex_; }
 
-    // Yet to be implemented:
-    // void commitNextEnty() {}
-    // void commitUntilIndex(uint64_t index) {}
-    // uint64_t commit_index();
+    inline void setCommitIndex(uint64_t value) { commit_index_ = value; }
+    uint64_t setEntryCommitted(const iterator& it);
 
    private:
+    friend class RaftChunkDataRamContainer;
     mutable common::ReaderWriterMutex log_mutex_;
-    mutable std::mutex commit_mutex_;
     uint64_t commit_index_;
   };
   RaftLog log_;
+  inline uint64_t logCommitIndex() const;
 
   class LogReadAccess {
    public:

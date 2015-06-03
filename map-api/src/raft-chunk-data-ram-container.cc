@@ -55,6 +55,18 @@ int RaftChunkDataRamContainer::countByRevisionImpl(
   return count;
 }
 
+void RaftChunkDataRamContainer::chunkHistory(const common::Id& chunk_id,
+                                             const LogicalTime& time,
+                                             HistoryMap* dest) const {
+  CHECK_NOTNULL(dest)->clear();
+  for (const HistoryMap::value_type& pair : data_) {
+    if ((*pair.second.begin())->getChunkId() == chunk_id) {
+      CHECK(dest->emplace(pair).second);
+    }
+  }
+  trimToTime(time, dest);
+}
+
 bool RaftChunkDataRamContainer::checkAndPrepareInsert(
     const LogicalTime& time, const std::shared_ptr<Revision>& query) {
   CHECK(query.get() != nullptr);
@@ -124,7 +136,6 @@ bool RaftChunkDataRamContainer::checkAndPatch(
   CHECK(query->structureMatch(*reference)) << "Bad structure of patch revision";
   CHECK(query->getId<common::Id>().isValid())
       << "Attempted to insert element with invalid ID";
-
   return patch(query);
 }
 
@@ -149,8 +160,13 @@ bool RaftChunkDataRamContainer::patch(const Revision::ConstPtr& query) {
   return true;
 }
 
+RaftChunkDataRamContainer::RaftLog::RaftLog() : commit_index_(0) {}
+
 RaftChunkDataRamContainer::RaftLog::iterator
 RaftChunkDataRamContainer::RaftLog::getLogIteratorByIndex(uint64_t index) {
+  if (empty()) {
+    return end();
+  }
   if (index < front()->index() || index > back()->index()) {
     return end();
   } else {
@@ -164,6 +180,9 @@ RaftChunkDataRamContainer::RaftLog::getLogIteratorByIndex(uint64_t index) {
 
 RaftChunkDataRamContainer::RaftLog::const_iterator
 RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) const {
+  if (empty()) {
+    return cend();
+  }
   if (index < front()->index() || index > back()->index()) {
     return cend();
   } else {
@@ -175,10 +194,16 @@ RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) c
   }
 }
 
-uint64_t RaftChunkDataRamContainer::RaftLog::eraseAfter(iterator it) {
+uint64_t RaftChunkDataRamContainer::RaftLog::eraseAfter(const iterator& it) {
   CHECK((it + 1) != begin());
   resize(std::distance(begin(), it + 1));
   return lastLogIndex();
+}
+
+uint64_t RaftChunkDataRamContainer::RaftLog::setEntryCommitted(
+    const iterator& it) {
+  CHECK_EQ(commit_index_ + 1, (*it)->index());
+  return ++commit_index_;
 }
 
 RaftChunkDataRamContainer::LogReadAccess::LogReadAccess(

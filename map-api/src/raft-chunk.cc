@@ -73,8 +73,23 @@ size_t RaftChunk::itemsSizeBytes(const LogicalTime& time) const {
 
 void RaftChunk::getCommitTimes(const LogicalTime& sample_time,
                                std::set<LogicalTime>* commit_times) const {
-  LOG(FATAL) << "Not implemented";
-  // TODO(aqurai): Implement this after data_container.
+  CHECK_NOTNULL(commit_times);
+  //  Using a temporary unordered map because it should have a faster insertion
+  //  time. The expected amount of commit times << the expected amount of items,
+  //  so this should be worth it.
+  std::unordered_set<LogicalTime> unordered_commit_times;
+  ConstRevisionMap items;
+  RaftChunkDataRamContainer::HistoryMap histories;
+  static_cast<RaftChunkDataRamContainer*>(data_container_.get())
+      ->chunkHistory(id(), sample_time, &histories);
+  for (const RaftChunkDataRamContainer::HistoryMap::value_type& history :
+       histories) {
+    for (const std::shared_ptr<const Revision>& revision : history.second) {
+      unordered_commit_times.insert(revision->getUpdateTime());
+    }
+  }
+  commit_times->insert(unordered_commit_times.begin(),
+                       unordered_commit_times.end());
 }
 
 bool RaftChunk::insert(const LogicalTime& time,
@@ -141,16 +156,13 @@ int RaftChunk::requestParticipation() {
       ++num_success;
     }
   }
-  if (num_success > 0) {
-    return 1;
-  } else {
-    return 0;
-  }
+  return num_success;
 }
 
 int RaftChunk::requestParticipation(const PeerId& peer) {
   // TODO(aqurai): Handle failure/leader change.
-  if (raft_node_.state() == RaftNode::State::LEADER) {
+  if (raft_node_.state() == RaftNode::State::LEADER &&
+      !raft_node_.hasPeer(peer)) {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
     entry->set_add_peer(peer.ipPort());
     if (raft_node_.leaderAppendEntryAndAwaitCommit(entry) > 0) {
@@ -211,6 +223,7 @@ void RaftChunk::bulkInsertLocked(const MutableRevisionMap& items,
     // TODO(aqurai): Handle partial failure?
     raftInsertRequest(item.second);
   }
+  // TODO(aqurai): No return value? What to do on fail?
 }
 
 void RaftChunk::updateLocked(const LogicalTime& time,
@@ -234,7 +247,7 @@ void RaftChunk::removeLocked(const LogicalTime& time,
 }
 
 uint64_t RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
-  CHECK(raft_node_.isRunning());
+  CHECK(raft_node_.isRunning()) << PeerId::self();
   return raft_node_.sendInsertRequest(item);
 }
 

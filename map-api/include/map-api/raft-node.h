@@ -17,11 +17,10 @@
  * -------------------------
  * 1. state_mutex_
  * 2. log_mutex_
- * 3. commit_mutex_
- * 4. peer_mutex_
- * 5. follower_tracker_mutex_
- * 6. last_heartbeat_mutex_
- * 
+ * 3. peer_mutex_
+ * 4. follower_tracker_mutex_
+ * 5. last_heartbeat_mutex_
+ *
  * --------------------------------------------------------------
  *  TODO List at this point
  * --------------------------------------------------------------
@@ -68,6 +67,7 @@ class RaftNode {
     LEADER,
     FOLLOWER,
     CANDIDATE,
+    LOST_CONNECTION,
     DISCONNECTING,
     STOPPED
   };
@@ -156,13 +156,13 @@ class RaftNode {
     FAILED_REQUEST
   };
   VoteResponse sendRequestVote(const PeerId& peer, uint64_t term,
-                               uint64_t last_log_index,
-                               uint64_t last_log_term) const;
+                               uint64_t last_log_index, uint64_t last_log_term,
+                               uint64_t current_commit_index) const;
   proto::JoinQuitResponse sendJoinQuitRequest(
       const PeerId& peer, proto::PeerRequestType type) const;
   void sendNotifyJoinQuitSuccess(const PeerId& peer) const;
 
-  bool sendInitRequest(const PeerId& peer, const LogReadAccess& log_reader);
+  bool sendInitRequest(const PeerId& peer, const LogWriteAccess& log_writer);
 
   // ================
   // State Management
@@ -229,6 +229,7 @@ class RaftNode {
   std::atomic<uint> num_peers_;
   std::mutex peer_mutex_;
   std::mutex follower_tracker_mutex_;
+  bool hasPeer(const PeerId& peer);
 
   // Expects follower_tracker_mutex_ locked.
   void leaderShutDownTracker(const PeerId& peer);
@@ -237,7 +238,7 @@ class RaftNode {
 
   // Expects no lock to be taken.
   void leaderMonitorFollowerStatus(uint64_t current_term);
-  void leaderAddPeer(const PeerId& peer, const LogReadAccess& log_reader,
+  void leaderAddPeer(const PeerId& peer, const LogWriteAccess& log_writer,
                      uint64_t current_term);
   void leaderRemovePeer(const PeerId& peer);
 
@@ -288,8 +289,7 @@ class RaftNode {
       const LogWriteAccess& log_writer,
       proto::AppendEntriesRequest* request);
   void followerCommitNewEntries(const LogWriteAccess& log_writer,
-                                const proto::AppendEntriesRequest* request,
-                                State state);
+                                uint64_t request_commit_index, State state);
   void setAppendEntriesResponse(proto::AppendEntriesResponse* response,
                                 proto::AppendResponseStatus status,
                                 uint64_t current_commit_index,
@@ -297,13 +297,8 @@ class RaftNode {
                                 uint64_t last_log_index,
                                 uint64_t last_log_term) const;
 
-  // Expects locks for commit_mutex_ and log_mutex_to NOT have been acquired.
+  // Expects lock for log_mutex_to NOT have been acquired.
   void leaderCommitReplicatedEntries(uint64_t current_term);
-
-  uint64_t commit_index_;
-  uint64_t committed_result_;
-  mutable std::mutex commit_mutex_;
-  const uint64_t& commit_index() const;
 
   // ========================
   // Owner chunk information.

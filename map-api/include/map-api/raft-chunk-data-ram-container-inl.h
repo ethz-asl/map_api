@@ -1,6 +1,7 @@
 #ifndef MAP_API_RAFT_CHUNK_DATA_RAM_CONTAINER_INL_H_
 #define MAP_API_RAFT_CHUNK_DATA_RAM_CONTAINER_INL_H_
 
+
 namespace map_api {
 
 RaftChunkDataRamContainer::History::const_iterator
@@ -54,6 +55,11 @@ void RaftChunkDataRamContainer::trimToTime(const LogicalTime& time,
       return item->getUpdateTime() > time;
     });
   }
+}
+
+inline uint64_t RaftChunkDataRamContainer::logCommitIndex() const {
+  LogReadAccess log_reader(this);
+  return log_reader->commitIndex();
 }
 
 }  // namespace map_api
