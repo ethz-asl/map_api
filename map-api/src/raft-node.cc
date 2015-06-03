@@ -977,6 +977,7 @@ void RaftNode::followerCommitNewEntries(const LogWriteAccess& log_writer,
         multi_chunk_transaction_manager_->notifyReceivedRevisionIfActive();
       }
       chunkLockEntryCommit(log_writer, entry);
+      multiChunkTransactionInfoCommit(entry);
     });
     log_writer->setCommitIndex(new_commit_index);
     entry_committed_signal_.notify_all();
@@ -1139,7 +1140,11 @@ void RaftNode::chunkLockEntryCommit(const LogWriteAccess& log_writer,
             raft_chunk_lock_.lock_entry_index(), entry->index());
         multi_chunk_transaction_manager_->notifyCommitSuccess();
         multi_chunk_transaction_manager_->clearMultiChunkTransaction();
-      } else {
+      } else if (multi_chunk_transaction_manager_->isActive() &&
+                 multi_chunk_transaction_manager_->isAborted()) {
+        // Aborted for other reasons. Don't apply revision commits.
+        multi_chunk_transaction_manager_->clearMultiChunkTransaction();
+      } else if (!multi_chunk_transaction_manager_->isActive()) {
         // Single chunk transaction.
         bulkApplyLockedRevisions(
             log_writer, raft_chunk_lock_.lock_entry_index(), entry->index());

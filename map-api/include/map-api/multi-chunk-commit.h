@@ -63,7 +63,8 @@ class MultiChunkTransaction {
   bool isTransactionCommitted(const common::Id& commit_id);
 
   void sendQueryReadyToCommit(
-      const std::unordered_set<common::Id>& ready_chunks);
+      const std::unordered_set<common::Id>& ready_chunks,
+      std::unique_lock<std::mutex>* lock);
   void sendCommitNotification();
   void sendAbortNotification();
   template <const char* message_type>
@@ -78,7 +79,7 @@ class MultiChunkTransaction {
                                const PeerId& sender, Message* response);
 
   void addOtherChunkStatusLocked(const common::Id& id, bool is_ready_to_commit);
-  bool isChunkReadyToCommitLocked(const common::Id& id);
+  bool isOtherChunkReadyToCommitLocked(const common::Id& id);
   inline void setStateAwaitCommitLocked() {
     state_ = State::AWAIT_COMMIT;
     CHECK(older_commits_.insert(current_transaction_id_).second);
@@ -89,7 +90,7 @@ class MultiChunkTransaction {
   // State during a transaction.
   State state_;
   common::Id current_transaction_id_;
-  uint num_commits_received_;
+  uint num_revisions_received_;
   uint num_revision_entries_;
   std::unordered_map<common::Id, OtherChunkStatus> other_chunk_status_;
   std::unordered_set<common::Id> older_commits_;

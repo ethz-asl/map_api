@@ -30,7 +30,7 @@ MAP_API_PROTO_MESSAGE(MultiChunkTransaction::kAbortNotification,
 MultiChunkTransaction::MultiChunkTransaction(const common::Id& id)
     : my_chunk_id_(id),
       state_(State::INACTIVE),
-      num_commits_received_(0),
+      num_revisions_received_(0),
       num_revision_entries_(0),
       notifications_enable_(false) {
   current_transaction_id_.setInvalid();
@@ -40,18 +40,22 @@ void MultiChunkTransaction::initMultiChunkTransaction(
     const proto::MultiChunkTransactionInfo multi_chunk_data, uint num_entries) {
   std::lock_guard<std::mutex> lock(mutex_);
   common::ScopedWriteLock data_lock(&data_mutex_);
-  CHECK_GT(num_entries, 0);
+
   state_ = State::LOCKED;
   current_transaction_id_.deserialize(multi_chunk_data.transaction_id());
-  CHECK(current_transaction_id_.isValid());
-  num_commits_received_ = 0;
+  num_revisions_received_ = 0;
   num_revision_entries_ = num_entries;
-  multi_chunk_data_ = &multi_chunk_data;
-  CHECK_NOTNULL(multi_chunk_data_);
   other_chunk_status_.clear();
+
   other_chunk_leaders_.clear();
+  multi_chunk_data_ = &multi_chunk_data;
+
+  CHECK(current_transaction_id_.isValid());
+  CHECK_GT(num_entries, 0);
+  CHECK_NOTNULL(multi_chunk_data_);
   CHECK_EQ(multi_chunk_data_->chunk_list_size(),
            multi_chunk_data_->leader_id_size());
+
   for (int i = 0; i < multi_chunk_data_->chunk_list_size(); ++i) {
     common::Id id(multi_chunk_data_->chunk_list(i).chunk_id());
     if (id != my_chunk_id_) {
@@ -65,26 +69,28 @@ void MultiChunkTransaction::initMultiChunkTransaction(
 void MultiChunkTransaction::clearMultiChunkTransaction() {
   std::lock_guard<std::mutex> lock(mutex_);
   common::ScopedWriteLock data_lock(&data_mutex_);
+
   state_ = State::INACTIVE;
   current_transaction_id_.setInvalid();
-  num_commits_received_ = 0;
+  num_revisions_received_ = 0;
   num_revision_entries_ = 0;
-  multi_chunk_data_ = NULL;
   other_chunk_status_.clear();
+
+  multi_chunk_data_ = NULL;
   other_chunk_leaders_.clear();
 }
 
 void MultiChunkTransaction::notifyReceivedRevisionIfActive() {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (multi_chunk_data_ == NULL) {
+  if (!current_transaction_id_.isValid()) {
     return;
   }
-  CHECK(state_ != State::INACTIVE)
-      << "Entry received notification when state is Inactive";
-  if (state_ == State::LOCKED) {
-    ++num_commits_received_;
+  CHECK(state_ != State::INACTIVE);
+  CHECK_LE(num_revisions_received_, num_revision_entries_);
+  if (state_ == State::LOCKED) {  
+    ++num_revisions_received_;
   }
-  if (num_commits_received_ == num_revision_entries_) {
+  if (num_revisions_received_ == num_revision_entries_) {
     state_ = State::RECEIVED_ALL_ENTRIES;
   }
 }
@@ -94,7 +100,7 @@ void MultiChunkTransaction::notifyUnlockAndCommitReceived() {
   if (state_ == State::RECEIVED_ALL_ENTRIES) {
     setStateAwaitCommitLocked();
     lock.unlock();
-  } else if (state_ != State::AWAIT_COMMIT || state_ == State::COMMITTED) {
+  } else if (state_ != State::AWAIT_COMMIT && state_ != State::COMMITTED) {
     LOG(FATAL) << "Invalid transition from current state to AWAIT_COMMIT";
   }
 }
@@ -107,7 +113,7 @@ void MultiChunkTransaction::notifyProceedCommit(NotificationMode mode) {
     if (mode == NotificationMode::NOTIFY) {
       sendCommitNotification();
     }
-  } else if (state_ != State::AWAIT_COMMIT || state_ == State::COMMITTED) {
+  } else if (state_ != State::AWAIT_COMMIT && state_ != State::COMMITTED) {
     LOG(FATAL) << "Invalid transition from current state to AWAIT_COMMIT";
   }
 }
@@ -171,10 +177,10 @@ bool MultiChunkTransaction::areAllOtherChunksReadyToCommit(
       ready_chunks.insert(chunk_status.first);
     }
   }
-  lock->unlock();
-  sendQueryReadyToCommit(ready_chunks);
 
-  lock->lock();
+  sendQueryReadyToCommit(ready_chunks, lock);
+
+  CHECK(lock->owns_lock());
   typedef std::unordered_map<common::Id, OtherChunkStatus>::value_type
       ChunkStatus;
   for (ChunkStatus& chunk_status : other_chunk_status_) {
@@ -192,7 +198,10 @@ bool MultiChunkTransaction::isTransactionCommitted(
 }
 
 void MultiChunkTransaction::sendQueryReadyToCommit(
-    const std::unordered_set<common::Id>& ready_chunks) {
+    const std::unordered_set<common::Id>& ready_chunks,
+    std::unique_lock<std::mutex>* lock) {
+  // Locked mutex while sending RPC can cause deadlock.
+  lock->unlock();
   std::map<common::Id, std::future<bool>> response_map;
   {
     common::ScopedReadLock lock(&data_mutex_);
@@ -219,7 +228,8 @@ void MultiChunkTransaction::sendQueryReadyToCommit(
        response_map) {
     response.second.wait();
   }
-  std::lock_guard<std::mutex> lock(mutex_);
+
+  lock->lock();
   for (std::map<common::Id, std::future<bool>>::value_type& response :
        response_map) {
     addOtherChunkStatusLocked(response.first, response.second.get());
@@ -324,9 +334,9 @@ void MultiChunkTransaction::handleQueryReadyToCommit(
       return;
     }
   } else {
-    LOG(ERROR) << "QueryReadyToCommit received for a transaction id that is "
-                  "neither current nor an older transaction. Sender: " << sender
-               << ", chunk id: " << my_chunk_id_;
+    LOG(WARNING) << "QueryReadyToCommit received for a transaction id that is "
+                    "neither current nor an older transaction. Sender: "
+                    << sender << ", chunk id: " << my_chunk_id_;
   }
   response->decline();
 }
@@ -385,8 +395,11 @@ void MultiChunkTransaction::addOtherChunkStatusLocked(
   }
 }
 
-bool MultiChunkTransaction::isChunkReadyToCommitLocked(
+bool MultiChunkTransaction::isOtherChunkReadyToCommitLocked(
     const common::Id& Chunk_id) {
+  if (!current_transaction_id_.isValid()) {
+    return false;
+  }
   if (other_chunk_status_.count(Chunk_id) == 0) {
     LOG(FATAL) << "The specified Id is not present in the list.";
   }
