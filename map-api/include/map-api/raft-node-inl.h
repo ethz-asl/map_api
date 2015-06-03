@@ -40,6 +40,7 @@ void RaftNode::fillMetadata(RequestType* destination) const {
   this->chunk_id_.serialize(
       destination->mutable_metadata()->mutable_chunk_id());
 }
+
 }  // namespace map_api
 
 #endif  // MAP_API_RAFT_NODE_INL_H_

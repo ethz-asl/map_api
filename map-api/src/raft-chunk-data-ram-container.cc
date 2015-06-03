@@ -195,7 +195,7 @@ RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) c
 }
 
 proto::RaftLogEntry* RaftChunkDataRamContainer::RaftLog::copyWithoutRevision(
-    const_iterator it) const {
+    const const_iterator& it) const {
   proto::RaftLogEntry* entry = new proto::RaftLogEntry;
 
   entry->set_index((*it)->index());

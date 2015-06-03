@@ -313,8 +313,10 @@ class RaftNode {
   // New revision request.
   uint64_t sendInsertRequest(const Revision::ConstPtr& item, uint64_t serial_id,
                              bool is_retry_attempt);
+
   bool waitAndCheckCommit(uint64_t index, uint64_t append_term,
                           uint64_t serial_id);
+
   bool sendLeaveRequest(uint64_t serial_id);
   void sendLeaveSuccessNotification(const PeerId& peer);
 
