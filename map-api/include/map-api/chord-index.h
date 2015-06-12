@@ -1,3 +1,13 @@
+/* NOTES
+ *
+ * Lock Order
+ *
+ * integrate_mutex_
+ * initialize_mutex_
+ *
+ * node lock, peer lock, data lock
+ *
+ */
 #ifndef MAP_API_CHORD_INDEX_H_
 #define MAP_API_CHORD_INDEX_H_
 
@@ -90,6 +100,8 @@ class ChordIndex {
   bool lock(const PeerId& subject);
   void unlock();
   void unlock(const PeerId& subject);
+  bool lockPeersInOrder(const PeerId& subject_1, const PeerId& subject_2);
+  bool unlockPeers(const PeerId& subject_1, const PeerId& subject_2);
 
   /**
    * Terminates stabilizeThread();, pushes responsible data
@@ -211,8 +223,6 @@ class ChordIndex {
 
   FRIEND_TEST(ChordIndexTestInitialized, onePeerJoin);
   friend class ChordIndexTestInitialized;
-
-  std::mutex peer_access_;
 
   Key own_key_ = hash(PeerId::self());
   std::shared_ptr<ChordPeer> self_;

@@ -101,8 +101,9 @@ bool ChordIndex::handleReplace(const PeerId& old_peer, const PeerId& new_peer) {
     LOG(FATAL) << "Should Repl.Rpc only locked peers, locked peers shouldn't "\
         "be able to leave!";
   }
-  CHECK_EQ(kCleanJoin, FLAGS_join_mode) <<
-      "Replace available only in clean join";
+  // TODO(aqurai): Uncomment this!
+  // CHECK_EQ(kCleanJoin, FLAGS_join_mode) <<
+  //    "Replace available only in clean join";
   peer_lock_.acquireReadLock();
   bool successor = old_peer == successor_->id;
   bool predecessor = old_peer == predecessor_->id;
@@ -291,18 +292,7 @@ void ChordIndex::cleanJoin(const PeerId& other) {
       continue;
     }
 
-    // locking must occur in order, in order to avoid deadlock
-    if (hash(predecessor) < hash(successor)) {
-      CHECK(lock(predecessor));
-      CHECK(lock(successor));
-    } else if (hash(predecessor) > hash(successor)) {
-      CHECK(lock(successor));
-      CHECK(lock(predecessor));
-    } else {
-      CHECK_EQ(predecessor, successor) << "Same hash of two different peers";
-      CHECK(lock(predecessor));
-    }
-
+    lockPeersInOrder(predecessor, successor);
     PeerId successor_predecessor, predecessor_successor;
     CHECK(getPredecessorRpc(successor, &successor_predecessor));
     CHECK(getSuccessorRpc(predecessor, &predecessor_successor));
@@ -379,10 +369,36 @@ void ChordIndex::unlock(const PeerId& subject) {
   CHECK(unlockRpc(subject));
 }
 
+bool ChordIndex::lockPeersInOrder(const PeerId& subject_1,
+                                  const PeerId& subject_2) {
+  // locking must occur in order, in order to avoid deadlock
+  if (hash(subject_1) < hash(subject_2)) {
+    CHECK(lock(subject_1));
+    CHECK(lock(subject_2));
+  } else if (hash(subject_1) > hash(subject_2)) {
+    CHECK(lock(subject_2));
+    CHECK(lock(subject_1));
+  } else {
+    CHECK_EQ(subject_1, subject_2) << "Same hash of two different peers";
+    CHECK(lock(subject_1));
+  }
+  // TODO(aqurai): Avoid infinite loop and return false if fail.
+  return false;
+}
+
+bool ChordIndex::unlockPeers(const PeerId& subject_1, const PeerId& subject_2) {
+  unlock(subject_1);
+  if (subject_1 != subject_2) {
+    unlock(subject_2);
+  }
+  return true;
+}
+
 void ChordIndex::leave() {
   terminate_ = true;
   stabilizer_.join();
-  CHECK_EQ(kCleanJoin, FLAGS_join_mode) << "Stabilize leave deprecated";
+  // TODO(aqurai): Uncomment this!
+  // CHECK_EQ(kCleanJoin, FLAGS_join_mode) << "Stabilize leave deprecated";
   leaveClean();
   // TODO(tcies) unhack! "Ensures" that pending requests resolve
   usleep(FLAGS_simulated_lag_ms * 100000 + 100000);
