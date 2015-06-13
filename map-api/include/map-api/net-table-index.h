@@ -41,6 +41,10 @@ class NetTableIndex : public ChordIndex {
   static const char kFetchResponsibilitiesRequest[];
   static const char kFetchResponsibilitiesResponse[];
   static const char kPushResponsibilitiesRequest[];
+  static const char kInitReplicatorRequest[];
+  static const char kAppendReplicationDataRequest[];
+  static const char kFetchReplicationDataRequest[];
+  static const char kFetchReplicationDataResponse[];
 
  private:
   /**
@@ -77,6 +81,12 @@ class NetTableIndex : public ChordIndex {
       const PeerId& to, DataMap* responsibilities) final override;
   virtual bool pushResponsibilitiesRpc(
       const PeerId& to, const DataMap& responsibilities) final override;
+  virtual bool initReplicatorRpc(
+      const PeerId& to, int index, const DataMap& data) final override;
+  virtual bool appendOnReplicatorRpc(
+      const PeerId& to, int index, const DataMap& data) final override;
+  virtual bool fetchFromReplicatorRpc(
+      const PeerId& to, int index, DataMap* data, PeerId* peer) final override;
 
   std::string table_name_;
   PeerHandler peers_;

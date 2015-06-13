@@ -43,6 +43,7 @@ class ChordIndex {
   // shouldn't expose these kinds of typedefs unless e.g. a serialization
   // method is given as well
   // static constexpr size_t kSuccessorListSize = 3; TODO(tcies) later
+  static constexpr size_t kNumReplications = 3;
 
   virtual ~ChordIndex();
 
@@ -62,6 +63,10 @@ class ChordIndex {
   bool handleFetchResponsibilities(
       const PeerId& requester, DataMap* responsibilities);
   bool handlePushResponsibilities(const DataMap& responsibilities);
+  bool handleInitReplicator(int index, const DataMap& data, const PeerId& peer);
+  bool handleAppendReplicationData(
+      int index, const DataMap& data, const PeerId& peer);
+  bool handleFetchReplicationData(int index, DataMap* data, PeerId* peer);
 
   // ====================
   // HIGH-LEVEL FUNCTIONS
@@ -92,6 +97,8 @@ class ChordIndex {
   void join(const PeerId& other);
   void cleanJoin(const PeerId& other);
   void stabilizeJoin(const PeerId& other);
+
+  void initReplicator(const PeerId& to, int index);
 
   /**
    * Argument-free versions (un)lock self
@@ -137,6 +144,12 @@ class ChordIndex {
       const PeerId& to, DataMap* responsibilities) = 0;
   virtual bool pushResponsibilitiesRpc(
       const PeerId& to, const DataMap& responsibilities) = 0;
+  virtual bool initReplicatorRpc(
+      const PeerId& to, int index, const DataMap& data) = 0;
+  virtual bool appendOnReplicatorRpc(
+      const PeerId& to, int index, const DataMap& data) = 0;
+  virtual bool fetchFromReplicatorRpc(
+      const PeerId& to, int index, DataMap* data, PeerId* peer) = 0;
 
   // This function gets executed after data that is allocated locally (i.e. not
   // on another peer) gets updated. Derived classes can use this to implement
@@ -150,7 +163,13 @@ class ChordIndex {
 
   bool replaceDisconnectedSuccessor();
   void joinBetween(const PeerId& predecessor, const PeerId& successor);
+
   void fixFinger(int i);
+  void fixReplicators();
+
+  void appendDataOnReplicators(const DataMap& data);
+  // Not Guaranteed to always recover all data.
+  void attemptDataRecovery(const Key& from);
 
   struct ChordPeer {
     PeerId id;
@@ -244,6 +263,16 @@ class ChordIndex {
   // TODO(tcies) data stats: Has it already been requested?
   DataMap data_;
   common::ReaderWriterMutex data_lock_;
+
+  // Data from other nodes replicated here.
+  DataMap replicated_data_[kNumReplications];
+  PeerId replicating_peers_[kNumReplications];
+  common::ReaderWriterMutex replicated_data_lock_;
+
+  // Peers that replicate data of this node.
+  PeerId replicators_[kNumReplications];
+  std::mutex replicator_peer_mutex;
+  
 
   std::mutex node_lock_;
   bool node_locked_ = false;

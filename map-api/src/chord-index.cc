@@ -1,3 +1,5 @@
+#include <future>
+
 #include <map-api/chord-index.h>
 #include <type_traits>
 
@@ -192,6 +194,40 @@ bool ChordIndex::handlePushResponsibilities(const DataMap& responsibilities) {
   return true;
 }
 
+bool ChordIndex::handleInitReplicator(
+    int index, const DataMap& data, const PeerId& peer) {
+  CHECK_LT(index, kNumReplications);
+  common::ScopedWriteLock replicated_data_lock(&replicated_data_lock_);
+  replicated_data_[index] = data;
+  replicating_peers_[index] = peer;
+  return true;
+}
+
+bool ChordIndex::handleAppendReplicationData(
+    int index, const DataMap& data, const PeerId& peer) {
+  CHECK_LT(index, kNumReplications);
+  common::ScopedWriteLock replicated_data_lock(&replicated_data_lock_);
+  if (replicating_peers_[index] != peer) {
+    return false;
+  }
+  for (const DataMap::value_type& item : data) {
+    replicated_data_[index].insert(item);
+  }
+  return true;
+}
+
+bool ChordIndex::handleFetchReplicationData(int index, DataMap* data, PeerId* peer) {
+  CHECK_NOTNULL(data);
+  CHECK_NOTNULL(peer);
+  common::ScopedReadLock replicated_data_lock(&replicated_data_lock_);
+  for (const DataMap::value_type& item : replicated_data_[index]) {
+    data->insert(item);
+  }
+  *peer = replicating_peers_[index];
+  return true;
+}
+
+
 bool ChordIndex::addData(const std::string& key, const std::string& value) {
   Key chord_key = hash(key);
   PeerId successor = findSuccessor(chord_key);
@@ -325,11 +361,37 @@ void ChordIndex::cleanJoin(const PeerId& other) {
 
 void ChordIndex::stabilizeJoin(const PeerId& other) {
   cleanJoin(other);
+
+  // TODO(aqurai): make this part of join, and prevent other peers from init-ing
+  // replication data before this finishes.
+  peer_lock_.acquireReadLock();
+  const PeerId successor = successor_->id;
+  peer_lock_.releaseReadLock();
+  for (size_t i = 0; i < kNumReplications; ++i) {
+    PeerId peer;
+    DataMap data;
+    if (!fetchFromReplicatorRpc(successor, i, &data, &peer)) {
+      break;
+    }
+    replicated_data_lock_.acquireWriteLock();
+    replicated_data_[i] = data;
+    replicating_peers_[i] = peer;
+    replicated_data_lock_.releaseWriteLock();
+  }
+
   for (size_t i = 0; i < M; ++i) {
     fixFinger(i);
   }
   LOG(INFO) << PeerId::self() << " stabilize-joined " << other;
 }
+
+void ChordIndex::initReplicator(const PeerId& to, int index) {
+  data_lock_.acquireReadLock();
+  DataMap data = data_;
+  data_lock_.releaseReadLock();
+  initReplicatorRpc(to, index, data);
+}
+
 
 bool ChordIndex::lock() {
   while (true) {
@@ -661,6 +723,72 @@ void ChordIndex::fixFinger(int i) {
 
   registerPeer(finger_peer, &fingers_[i].peer);
 }
+
+void ChordIndex::fixReplicators() {
+  {
+    std::lock_guard<std::mutex> lock(replicator_peer_mutex);
+    replicators_[0] = successor_->id;
+  }
+  for (size_t i = 1; i < kNumReplications; ++i) {
+    PeerId successor;
+    std::unique_lock<std::mutex> replicator_peer_lock(replicator_peer_mutex);
+    const PeerId to = replicators_[i-1];
+    replicator_peer_lock.unlock();
+    if(!getSuccessorRpc(to, &successor)) {
+      LOG(WARNING) << "Failed fix successor list because one of them is offline";
+      break;
+    }
+    {
+      std::lock_guard<std::mutex> lock(replicator_peer_mutex);
+      if (replicators_[i] != successor) {
+        replicators_[i] = successor;
+        std::thread(&ChordIndex::initReplicator, this, successor, i).detach();
+      }
+    }
+  }
+}
+
+void ChordIndex::appendDataOnReplicators(const DataMap& data) {
+  std::lock_guard<std::mutex> replicator_peer_lock(replicator_peer_mutex);
+  for (size_t i = 0; i < kNumReplications; ++i) {
+    // Detached.
+    std::async(std::launch::async,
+        &ChordIndex::appendOnReplicatorRpc, this, replicators_[i], i, data);
+  }
+}
+
+void ChordIndex::attemptDataRecovery(const Key& from) {
+  VLOG(1) << PeerId::self() << "Attempting chord data recovery";
+  DataMap to_append;
+  replicated_data_lock_.acquireReadLock();
+  for (size_t i = 0; i < kNumReplications; ++i) {
+    for (const DataMap::value_type& item : replicated_data_[i]) {
+      if (!data_.count(item.first)) {
+        to_append.insert(item);
+      }
+    }
+  }
+  replicated_data_lock_.releaseReadLock();
+  VLOG(1) << PeerId::self() << "Recovering " << to_append.size() << " items.";
+
+  data_lock_.acquireWriteLock();
+  for (const DataMap::value_type& item : to_append) {
+    data_.insert(item);
+  }
+  data_lock_.releaseWriteLock();
+
+  std::vector<std::future<bool>> responses;
+  // TODO(aqurai) ensure this succeeds. Repeat if fail.
+  for (size_t i = 0; i < kNumReplications; ++i) {
+    std::future<bool> response = std::async(std::launch::async,
+        &ChordIndex::appendOnReplicatorRpc, this, replicators_[i], i, to_append);
+    responses.push_back(std::move(response));
+  }
+  for (std::future<bool>& response : responses) {
+    response.get();
+  }
+}
+
 
 void ChordIndex::integrateThread(ChordIndex* self) {
   CHECK_NOTNULL(self);

@@ -89,6 +89,13 @@ class TestChordIndex final : public ChordIndex {
   virtual bool pushResponsibilitiesRpc(
       const PeerId& to, const DataMap& responsibilities) final override;
 
+  virtual bool initReplicatorRpc(
+      const PeerId& to, int index, const DataMap& data) final override {return true; }
+  virtual bool appendOnReplicatorRpc(
+      const PeerId& to, int index, const DataMap& data) final override {return true; }
+  virtual bool fetchFromReplicatorRpc(
+      const PeerId& to, int index, DataMap* data, PeerId* peer) final override {return true; }
+
   PeerHandler peers_;
 };
 

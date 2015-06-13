@@ -12,4 +12,10 @@ message AddDataRequest {
 
 message FetchResponsibilitiesResponse {
   repeated AddDataRequest data = 1;
+  optional uint32 replicator_index = 2;
+  optional string replicator_peer_id = 3;
+}
+
+message FetchReplicationDataRequest {
+  optional uint32 replicator_index = 1;
 }

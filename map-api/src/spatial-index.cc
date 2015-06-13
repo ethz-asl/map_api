@@ -232,6 +232,14 @@ const char SpatialIndex::kFetchResponsibilitiesResponse[] =
     "fetch_responsibilities_response";
 const char SpatialIndex::kPushResponsibilitiesRequest[] =
     "push_responsibilities_response";
+const char SpatialIndex::kInitReplicatorRequest[] =
+    "init_chord_replicator";
+const char SpatialIndex::kAppendReplicationDataRequest[] =
+    "append_chord_replication_data";
+const char SpatialIndex::kFetchReplicationDataRequest[] =
+    "fetch_chord_replication_data";
+const char SpatialIndex::kFetchReplicationDataResponse[] =
+    "fetch_chord_replication_data_response";
 
 MAP_API_PROTO_MESSAGE(SpatialIndex::kRoutedChordRequest,
                       proto::RoutedChordRequest);
@@ -246,6 +254,14 @@ MAP_API_STRING_MESSAGE(SpatialIndex::kRetrieveDataResponse);
 MAP_API_PROTO_MESSAGE(SpatialIndex::kFetchResponsibilitiesResponse,
                       proto::FetchResponsibilitiesResponse);
 MAP_API_PROTO_MESSAGE(SpatialIndex::kPushResponsibilitiesRequest,
+                      proto::FetchResponsibilitiesResponse);
+MAP_API_PROTO_MESSAGE(SpatialIndex::kInitReplicatorRequest,
+                      proto::FetchResponsibilitiesResponse);
+MAP_API_PROTO_MESSAGE(SpatialIndex::kAppendReplicationDataRequest,
+                      proto::FetchResponsibilitiesResponse);
+MAP_API_PROTO_MESSAGE(SpatialIndex::kFetchReplicationDataRequest,
+                      proto::FetchReplicationDataRequest);
+MAP_API_PROTO_MESSAGE(SpatialIndex::kFetchReplicationDataResponse,
                       proto::FetchResponsibilitiesResponse);
 
 void SpatialIndex::handleRoutedRequest(const Message& routed_request_message,
@@ -395,6 +411,64 @@ void SpatialIndex::handleRoutedRequest(const Message& routed_request_message,
     }
     if (handlePushResponsibilities(data)) {
       response->ack();
+    } else {
+      response->decline();
+    }
+    return;
+  }
+  
+  if (request.isType<kInitReplicatorRequest>()) {
+    DataMap data;
+    proto::FetchResponsibilitiesResponse init_request;
+    request.extract<kInitReplicatorRequest>(&init_request);
+    for (int i = 0; i < init_request.data_size(); ++i) {
+      data[init_request.data(i).key()] = init_request.data(i).value();
+    }
+    if (handleInitReplicator(
+          init_request.replicator_index(), data, request.sender())) {
+      response->ack();
+    } else {
+      response->decline();
+    }
+    return;
+  }
+  
+  if (request.isType<kAppendReplicationDataRequest>()) {
+    DataMap data;
+    proto::FetchResponsibilitiesResponse replication_request;
+    request.extract<kAppendReplicationDataRequest>(&replication_request);
+    for (int i = 0; i < replication_request.data_size(); ++i) {
+      data[replication_request.data(i).key()] = replication_request.data(i).value();
+    }
+    if (handleAppendReplicationData(
+          replication_request.replicator_index(), data, request.sender())) {
+      response->ack();
+    } else {
+      response->decline();
+    }
+    return;
+  }
+  
+  if (request.isType<kFetchReplicationDataRequest>()) {
+    DataMap data;
+    PeerId replicating_peer_;
+    CHECK(request.isType<kFetchReplicationDataRequest>());
+    proto::FetchReplicationDataRequest data_request;
+    request.extract<kFetchReplicationDataRequest>(&data_request);
+    if (handleFetchReplicationData(
+          data_request.replicator_index(), &data, &replicating_peer_)) {
+      proto::FetchResponsibilitiesResponse fetch_response;
+      fetch_response.set_replicator_peer_id(replicating_peer_.ipPort());
+      for (const DataMap::value_type& item : data) {
+        proto::AddDataRequest add_request;
+        add_request.set_key(item.first);
+        add_request.set_value(item.second);
+        proto::AddDataRequest* slot = fetch_response.add_data();
+        CHECK_NOTNULL(slot);
+        // TODO(aqurai): Why?
+        *slot = add_request;
+      }
+      response->impose<kFetchReplicationDataResponse>(fetch_response);
     } else {
       response->decline();
     }
@@ -641,6 +715,63 @@ bool SpatialIndex::pushResponsibilitiesRpc(const PeerId& to,
     return false;
   }
   CHECK(response.isType<Message::kAck>());
+  return true;
+}
+
+bool SpatialIndex::initReplicatorRpc(
+    const PeerId& to, int index, const DataMap& data) {
+  Message request, response;
+  proto::FetchResponsibilitiesResponse push_request;
+  for (const DataMap::value_type& item : data) {
+    proto::AddDataRequest* slot = push_request.add_data();
+    slot->set_key(item.first);
+    slot->set_value(item.second);
+  }
+  push_request.set_replicator_index(index);
+  request.impose<kInitReplicatorRequest>(push_request);
+  if (!rpc(to, request, &response)) {
+    return false;
+  }
+  CHECK(response.isType<Message::kAck>());
+  return true;
+}
+
+bool SpatialIndex::appendOnReplicatorRpc(
+    const PeerId& to, int index, const DataMap& data) {
+  Message request, response;
+  proto::FetchResponsibilitiesResponse push_request;
+  for (const DataMap::value_type& item : data) {
+    proto::AddDataRequest* slot = push_request.add_data();
+    slot->set_key(item.first);
+    slot->set_value(item.second);
+  }
+  push_request.set_replicator_index(index);
+  request.impose<kAppendReplicationDataRequest>(push_request);
+  if (!rpc(to, request, &response)) {
+    return false;
+  }
+  CHECK(response.isType<Message::kAck>());
+  return true;
+}
+
+bool SpatialIndex::fetchFromReplicatorRpc(
+    const PeerId& to, int index, DataMap* data, PeerId* peer) {
+  CHECK_NOTNULL(data);
+  CHECK_NOTNULL(peer);
+  Message request, response;
+  proto::FetchReplicationDataRequest data_request;
+  data_request.set_replicator_index(index);
+  request.impose<kFetchReplicationDataRequest>(data_request);
+  if (!rpc(to, request, &response)) {
+    return false;
+  }
+  CHECK(response.isType<kFetchReplicationDataResponse>());
+  proto::FetchResponsibilitiesResponse fetch_response;
+  response.extract<kFetchReplicationDataResponse>(&fetch_response);
+  for (int i = 0; i < fetch_response.data_size(); ++i) {
+    data->emplace(fetch_response.data(i).key(), fetch_response.data(i).value());
+  }
+  *peer = PeerId(fetch_response.replicator_peer_id());
   return true;
 }
 
