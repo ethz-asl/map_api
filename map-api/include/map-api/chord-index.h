@@ -148,6 +148,10 @@ class ChordIndex {
   static void stabilizeThread(ChordIndex* self);
   static void integrateThread(ChordIndex* self);
 
+  bool replaceDisconnectedSuccessor();
+  void joinBetween(const PeerId& predecessor, const PeerId& successor);
+  void fixFinger(int i);
+
   struct ChordPeer {
     PeerId id;
     Key key;
@@ -218,7 +222,6 @@ class ChordIndex {
   Finger fingers_[M];
   SuccessorListItem successor_;
   std::shared_ptr<ChordPeer> predecessor_;
-
   common::ReaderWriterMutex peer_lock_;
 
   FRIEND_TEST(ChordIndexTestInitialized, onePeerJoin);
