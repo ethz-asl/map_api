@@ -196,6 +196,9 @@ bool ChordIndex::handlePushResponsibilities(const DataMap& responsibilities) {
 
 bool ChordIndex::handleInitReplicator(
     int index, const DataMap& data, const PeerId& peer) {
+  if (!replication_ready_) {
+    return false;
+  }
   CHECK_LT(index, kNumReplications);
   common::ScopedWriteLock replicated_data_lock(&replicated_data_lock_);
   replicated_data_[index] = data;
@@ -297,6 +300,7 @@ void ChordIndex::create() {
   initialized_ = true;
   lock.unlock();
   initialized_cv_.notify_all();
+  replication_ready_ = true;
   VLOG(3) << "Root(" << PeerId::self() << ") has key " << own_key_;
 }
 
@@ -371,6 +375,10 @@ void ChordIndex::stabilizeJoin(const PeerId& other) {
     PeerId peer;
     DataMap data;
     if (!fetchFromReplicatorRpc(successor, i, &data, &peer)) {
+      // Break because this peer will receive replication data from its
+      // predecessors later. If the successor fails here, the problem is
+      // when all other peers that replicated data on this successor fail
+      // simultaneously as well, in which case, nothing can be done anyway.
       break;
     }
     replicated_data_lock_.acquireWriteLock();
@@ -378,6 +386,7 @@ void ChordIndex::stabilizeJoin(const PeerId& other) {
     replicating_peers_[i] = peer;
     replicated_data_lock_.releaseWriteLock();
   }
+  replication_ready_ = true;
 
   for (size_t i = 0; i < M; ++i) {
     fixFinger(i);
@@ -385,11 +394,11 @@ void ChordIndex::stabilizeJoin(const PeerId& other) {
   LOG(INFO) << PeerId::self() << " stabilize-joined " << other;
 }
 
-void ChordIndex::initReplicator(const PeerId& to, int index) {
+bool ChordIndex::initReplicator(const PeerId& to, int index) {
   data_lock_.acquireReadLock();
   DataMap data = data_;
   data_lock_.releaseReadLock();
-  initReplicatorRpc(to, index, data);
+  return initReplicatorRpc(to, index, data);
 }
 
 
@@ -610,7 +619,7 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
 
       self->peer_lock_.acquireReadLock();
       if (successor_disconnected) {
-        if(!self->replaceDisconnectedSuccessor()) {
+        if (!self->replaceDisconnectedSuccessor()) {
           continue;
         }
       } else if (successor_predecessor != PeerId::self() &&
@@ -672,7 +681,7 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
   lock(candidate);
   PeerId candidate_predecessor_predecessor;
   while (candidate_predecessor != successor_->id) {
-    if(!getPredecessorRpc(candidate_predecessor, 
+    if (!getPredecessorRpc(candidate_predecessor, 
                           &candidate_predecessor_predecessor)) {
       break;
     } else {
@@ -725,24 +734,36 @@ void ChordIndex::fixFinger(int i) {
 }
 
 void ChordIndex::fixReplicators() {
-  {
-    std::lock_guard<std::mutex> lock(replicator_peer_mutex);
-    replicators_[0] = successor_->id;
+  if (!replication_ready_) {
+    return;
   }
-  for (size_t i = 1; i < kNumReplications; ++i) {
-    PeerId successor;
-    std::unique_lock<std::mutex> replicator_peer_lock(replicator_peer_mutex);
-    const PeerId to = replicators_[i-1];
-    replicator_peer_lock.unlock();
-    if(!getSuccessorRpc(to, &successor)) {
+  for (size_t i = 0; i < kNumReplications; ++i) {
+    PeerId successor, to, old_successor;
+    if (i == 0) {
+      peer_lock_.acquireReadLock();
+      to = successor_->id;
+      peer_lock_.releaseReadLock();
+      std::lock_guard<std::mutex> lock(replicator_peer_mutex);
+      old_successor = replicators_[0];
+    } else {
+      std::lock_guard<std::mutex> lock(replicator_peer_mutex);
+      to = replicators_[i-1];
+      old_successor = replicators_[i];
+    }
+    if (!getSuccessorRpc(to, &successor)) {
       LOG(WARNING) << "Failed fix successor list because one of them is offline";
+      std::lock_guard<std::mutex> lock(replicator_peer_mutex);
+      replicators_[i] = PeerId();
       break;
     }
-    {
-      std::lock_guard<std::mutex> lock(replicator_peer_mutex);
-      if (replicators_[i] != successor) {
+    if (successor != old_successor) {
+      if (initReplicator(successor, i)) {
+        std::lock_guard<std::mutex> lock(replicator_peer_mutex);
         replicators_[i] = successor;
-        std::thread(&ChordIndex::initReplicator, this, successor, i).detach();
+      } else {
+        std::lock_guard<std::mutex> lock(replicator_peer_mutex);
+        replicators_[i] = PeerId();
+        break;
       }
     }
   }
@@ -751,6 +772,9 @@ void ChordIndex::fixReplicators() {
 void ChordIndex::appendDataOnReplicators(const DataMap& data) {
   std::lock_guard<std::mutex> replicator_peer_lock(replicator_peer_mutex);
   for (size_t i = 0; i < kNumReplications; ++i) {
+    if (!replicators_[i].isValid()) {
+      break;
+    }
     // Detached.
     std::async(std::launch::async,
         &ChordIndex::appendOnReplicatorRpc, this, replicators_[i], i, data);
@@ -759,6 +783,11 @@ void ChordIndex::appendDataOnReplicators(const DataMap& data) {
 
 void ChordIndex::attemptDataRecovery(const Key& from) {
   VLOG(1) << PeerId::self() << "Attempting chord data recovery";
+  while (!replication_ready_) {
+    // Wait if some data is still being received after join.
+    // TODO(aqurai): Make const var.
+    usleep(1000);
+  }
   DataMap to_append;
   replicated_data_lock_.acquireReadLock();
   for (size_t i = 0; i < kNumReplications; ++i) {
@@ -773,7 +802,7 @@ void ChordIndex::attemptDataRecovery(const Key& from) {
 
   data_lock_.acquireWriteLock();
   for (const DataMap::value_type& item : to_append) {
-    data_.insert(item);
+    data_[item.first] = item.second;
   }
   data_lock_.releaseWriteLock();
 
@@ -826,6 +855,10 @@ void ChordIndex::init() {
   data_lock_.releaseWriteLock();
   std::lock_guard<std::mutex> lock(node_lock_);
   node_locked_ = false;
+  replication_ready_ = false;
+  for (size_t i = 0; i < kNumReplications; ++i) {
+    replicators_[i] = PeerId();
+  }
 }
 
 void ChordIndex::registerPeer(

@@ -11,6 +11,7 @@
 #ifndef MAP_API_CHORD_INDEX_H_
 #define MAP_API_CHORD_INDEX_H_
 
+#include <atomic>
 #include <condition_variable>
 #include <memory>
 #include <mutex>
@@ -98,7 +99,7 @@ class ChordIndex {
   void cleanJoin(const PeerId& other);
   void stabilizeJoin(const PeerId& other);
 
-  void initReplicator(const PeerId& to, int index);
+  bool initReplicator(const PeerId& to, int index);
 
   /**
    * Argument-free versions (un)lock self
@@ -267,12 +268,13 @@ class ChordIndex {
   // Data from other nodes replicated here.
   DataMap replicated_data_[kNumReplications];
   PeerId replicating_peers_[kNumReplications];
+  std::atomic<bool> replication_ready_;
   common::ReaderWriterMutex replicated_data_lock_;
 
   // Peers that replicate data of this node.
   PeerId replicators_[kNumReplications];
-  std::mutex replicator_peer_mutex;
-  
+  std::mutex replicator_peer_mutex;  
+
 
   std::mutex node_lock_;
   bool node_locked_ = false;
