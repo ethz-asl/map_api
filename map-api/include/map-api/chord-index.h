@@ -79,8 +79,8 @@ class ChordIndex {
    */
   void create();
 
-  void join(const PeerId& other);
-  void cleanJoin(const PeerId& other);
+  bool join(const PeerId& other);
+  bool cleanJoin(const PeerId& other);
   void stabilizeJoin(const PeerId& other);
 
   /**
@@ -89,7 +89,9 @@ class ChordIndex {
   bool lock();
   bool lock(const PeerId& subject);
   void unlock();
-  void unlock(const PeerId& subject);
+  bool unlock(const PeerId& subject);
+  bool lockPeersInOrder(const PeerId& subject_1, const PeerId& subject_2);
+  bool unlockPeers(const PeerId& subject_1, const PeerId& subject_2);
 
   /**
    * Terminates stabilizeThread();, pushes responsible data
@@ -141,6 +143,9 @@ class ChordIndex {
 
   static void stabilizeThread(ChordIndex* self);
   static void integrateThread(ChordIndex* self);
+  bool joinBetweenLockedPeers(const PeerId& predecessor,
+                              const PeerId& successor);
+  void fixFinger(size_t i);
 
   struct ChordPeer {
     PeerId id;
@@ -164,6 +169,7 @@ class ChordIndex {
    */
   void init();
   void registerPeer(const PeerId& peer, std::shared_ptr<ChordPeer>* target);
+  void setChordPeer(const PeerId& peer, std::shared_ptr<ChordPeer>* target);
 
   /**
    * Check whether key is is same as from_inclusive or between from_inclusive
@@ -212,13 +218,10 @@ class ChordIndex {
   Finger fingers_[M];
   SuccessorListItem successor_;
   std::shared_ptr<ChordPeer> predecessor_;
-
   common::ReaderWriterMutex peer_lock_;
 
   FRIEND_TEST(ChordIndexTestInitialized, onePeerJoin);
   friend class ChordIndexTestInitialized;
-
-  std::mutex peer_access_;
 
   Key own_key_ = hash(PeerId::self());
   std::shared_ptr<ChordPeer> self_;
