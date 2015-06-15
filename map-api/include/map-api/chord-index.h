@@ -143,6 +143,7 @@ class ChordIndex {
 
   static void stabilizeThread(ChordIndex* self);
   static void integrateThread(ChordIndex* self);
+  bool replaceDisconnectedSuccessor();
   bool joinBetweenLockedPeers(const PeerId& predecessor,
                               const PeerId& successor);
   void fixFinger(size_t i);
@@ -169,7 +170,7 @@ class ChordIndex {
    */
   void init();
   void registerPeer(const PeerId& peer, std::shared_ptr<ChordPeer>* target);
-  void setChordPeer(const PeerId& peer, std::shared_ptr<ChordPeer>* target);
+  void setFingerPeer(const PeerId& peer, std::shared_ptr<ChordPeer>* target);
 
   /**
    * Check whether key is is same as from_inclusive or between from_inclusive
