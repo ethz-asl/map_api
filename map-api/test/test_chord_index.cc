@@ -74,8 +74,8 @@ class TestChordIndex final : public ChordIndex {
                                PeerId* predecessor) final override;
   virtual bool getPredecessorRpc(const PeerId& to,
                                  PeerId* predecessor) final override;
-  virtual bool lockRpc(const PeerId& to) final override;
-  virtual bool unlockRpc(const PeerId& to) final override;
+  virtual ChordIndex::RpcStatus lockRpc(const PeerId& to) final override;
+  virtual ChordIndex::RpcStatus unlockRpc(const PeerId& to) final override;
   virtual bool notifyRpc(const PeerId& to,
                          const PeerId& subject) final override;
   virtual bool replaceRpc(const PeerId& to, const PeerId& old_peer,
@@ -355,32 +355,32 @@ bool TestChordIndex::getPredecessorRpc(const PeerId& to, PeerId* result) {
   return true;
 }
 
-bool TestChordIndex::lockRpc(const PeerId& to) {
+ChordIndex::RpcStatus TestChordIndex::lockRpc(const PeerId& to) {
   Message request, response;
   request.impose<kLockRequest>();
   if (!instance().peers_.try_request(to, &request, &response)) {
     LOG(WARNING) << "Couldn't reach peer to lock";
-    return false;
+    return RpcStatus::RPC_FAILED;
   }
   if (response.isType<Message::kDecline>()) {
-    return false;
+    return RpcStatus::DECLINED;
   }
   CHECK(response.isType<Message::kAck>());
-  return true;
+  return RpcStatus::SUCCESS;
 }
 
-bool TestChordIndex::unlockRpc(const PeerId& to) {
+ChordIndex::RpcStatus TestChordIndex::unlockRpc(const PeerId& to) {
   Message request, response;
   request.impose<kUnlockRequest>();
   if (!instance().peers_.try_request(to, &request, &response)) {
     LOG(WARNING) << "Couldn't reach peer to unlock";
-    return false;
+    return RpcStatus::RPC_FAILED;
   }
   if (response.isType<Message::kDecline>()) {
-    return false;
+    return RpcStatus::DECLINED;
   }
   CHECK(response.isType<Message::kAck>());
-  return true;
+  return RpcStatus::SUCCESS;
 }
 
 bool TestChordIndex::notifyRpc(const PeerId& to, const PeerId& self) {

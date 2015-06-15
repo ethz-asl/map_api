@@ -358,7 +358,7 @@ bool ChordIndex::lock() {
 
 bool ChordIndex::lock(const PeerId& subject) {
   while (true) {
-    if (!lockRpc(subject)) {
+    if (lockRpc(subject) != RpcStatus::SUCCESS) {
       usleep(1000);
     } else {
       break;
@@ -376,7 +376,7 @@ void ChordIndex::unlock() {
 }
 
 void ChordIndex::unlock(const PeerId& subject) {
-  CHECK(unlockRpc(subject));
+  CHECK(unlockRpc(subject) == RpcStatus::SUCCESS);
 }
 
 void ChordIndex::leave() {

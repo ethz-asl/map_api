@@ -157,7 +157,8 @@ class SpatialIndex : public ChordIndex {
    * TODO(tcies) the below is basically a copy of NetTableIndex AND
    * ChordIndexTest
    */
-  bool rpc(const PeerId& to, const Message& request, Message* response);
+  ChordIndex::RpcStatus rpc(const PeerId& to, const Message& request,
+                            Message* response);
 
   virtual bool getClosestPrecedingFingerRpc(const PeerId& to, const Key& key,
                                             PeerId* closest_preceding)
@@ -166,8 +167,8 @@ class SpatialIndex : public ChordIndex {
                                PeerId* predecessor) final override;
   virtual bool getPredecessorRpc(const PeerId& to,
                                  PeerId* predecessor) final override;
-  virtual bool lockRpc(const PeerId& to) final override;
-  virtual bool unlockRpc(const PeerId& to) final override;
+  virtual ChordIndex::RpcStatus lockRpc(const PeerId& to) final override;
+  virtual ChordIndex::RpcStatus unlockRpc(const PeerId& to) final override;
   virtual bool notifyRpc(const PeerId& to,
                          const PeerId& subject) final override;
   virtual bool replaceRpc(const PeerId& to, const PeerId& old_peer,
