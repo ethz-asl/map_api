@@ -264,12 +264,12 @@ class RaftNode {
       proto::AppendEntriesRequest* request);
   void followerCommitNewEntries(const LogWriteAccess& log_writer,
                                 uint64_t request_commit_index, State state);
-  inline void setAppendEntriesResponse(proto::AppendEntriesResponse* response,
-                                proto::AppendResponseStatus status,
+  inline void setAppendEntriesResponse(proto::AppendResponseStatus status,
                                 uint64_t current_commit_index,
                                 uint64_t current_term,
                                 uint64_t last_log_index,
-                                uint64_t last_log_term) const;
+                                uint64_t last_log_term,
+                                proto::AppendEntriesResponse* response) const;
 
   // Expects lock for log_mutex_to NOT have been acquired.
   void leaderCommitReplicatedEntries(uint64_t current_term);
@@ -308,10 +308,10 @@ class RaftNode {
 
   // Raft Chunk Requests.
   uint64_t sendChunkLockRequest(uint64_t serial_id);
-  uint64_t sendChunkUnlockRequest(uint64_t serial_id, uint64_t lock_index,
+  bool sendChunkUnlockRequest(uint64_t serial_id, uint64_t lock_index,
                                   bool proceed_commits);
   // New revision request.
-  uint64_t sendInsertRequest(const Revision::ConstPtr& item, uint64_t serial_id,
+  bool sendInsertRequest(const Revision::ConstPtr& item, uint64_t serial_id,
                              bool is_retry_attempt);
 
   bool waitAndCheckCommit(uint64_t index, uint64_t append_term,

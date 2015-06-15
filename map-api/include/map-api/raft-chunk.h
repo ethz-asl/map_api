@@ -78,7 +78,7 @@ class RaftChunk : public ChunkBase {
   virtual LogicalTime getLatestCommitTime() const override;
   mutable std::mutex latest_commit_time_mutex_;
 
-  uint64_t raftInsertRequest(const Revision::ConstPtr& item);
+  bool raftInsertRequest(const Revision::ConstPtr& item);
 
   virtual void leaveImpl() override;
   virtual void awaitShared() override;

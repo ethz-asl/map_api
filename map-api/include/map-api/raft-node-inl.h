@@ -20,12 +20,14 @@ double RaftNode::getTimeSinceHeartbeatMs() {
           .count());
 }
 
-void RaftNode::setAppendEntriesResponse(proto::AppendEntriesResponse* response,
-                                        proto::AppendResponseStatus status,
+void RaftNode::setAppendEntriesResponse(proto::AppendResponseStatus status,
                                         uint64_t current_commit_index,
                                         uint64_t current_term,
                                         uint64_t last_log_index,
-                                        uint64_t last_log_term) const {
+                                        uint64_t last_log_term,
+                                        proto::AppendEntriesResponse* response)
+                                            const {
+  CHECK_NOTNULL(response);
   response->set_response(status);
   response->set_commit_index(current_commit_index);
   response->set_term(current_term);

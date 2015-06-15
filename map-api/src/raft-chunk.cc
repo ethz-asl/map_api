@@ -108,7 +108,7 @@ bool RaftChunk::insert(const LogicalTime& time,
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareInsert(time, item);
   CHECK(raft_node_.isRunning());
-  if (raftInsertRequest(item) > 0) {
+  if (raftInsertRequest(item)) {
     syncLatestCommitTime(*item);
     unlock();
     return true;
@@ -176,8 +176,7 @@ void RaftChunk::unlock() const {
         << " Failed on " << PeerId::self();
     serial_id = request_id_.getNewId();
     while (raft_node_.isRunning()) {
-      if (raft_node_.sendChunkUnlockRequest(serial_id, lock_log_index_, true) >
-          0) {
+      if (raft_node_.sendChunkUnlockRequest(serial_id, lock_log_index_, true)) {
         break;
       }
       usleep(500 * kMillisecondsToMicroseconds);
@@ -228,7 +227,7 @@ void RaftChunk::update(const std::shared_ptr<Revision>& item) {
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareUpdate(LogicalTime::sample(), item);
   CHECK(raft_node_.isRunning());
-  if (raftInsertRequest(item) > 0) {
+  if (raftInsertRequest(item)) {
     syncLatestCommitTime(*item);
   }
   unlock();
@@ -297,20 +296,18 @@ LogicalTime RaftChunk::getLatestCommitTime() const {
   return latest_commit_time_;
 }
 
-uint64_t RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
+bool RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
   CHECK(raft_node_.isRunning()) << PeerId::self();
-  uint64_t index = 0;
   bool retrying = false;
   uint64_t serial_id = request_id_.getNewId();
   while (raft_node_.isRunning()) {
-    index = raft_node_.sendInsertRequest(item, serial_id, retrying);
-    if (index > 0) {
+    if (raft_node_.sendInsertRequest(item, serial_id, retrying)) {
       break;
     }
     retrying = true;
     usleep(150 * kMillisecondsToMicroseconds);
   }
-  return index;
+  return true;
 }
 
 void RaftChunk::leaveImpl() {

@@ -44,6 +44,22 @@ bool NetTableManager::getTableForRequestWithMetadataOrDecline(
   return true;
 }
 
+template <typename RequestType>
+bool NetTableManager::getTableChunkForRequestWithMetadataOrDecline(
+    const RequestType& request, Message* response, TableMap::iterator* found,
+    common::Id* chunk_id) {
+  CHECK_NOTNULL(response);
+  CHECK_NOTNULL(found);
+  CHECK_NOTNULL(chunk_id);
+  const std::string& table = request.metadata().table();
+  chunk_id->deserialize(request.metadata().chunk_id());
+  if (!findTable(table, found)) {
+    response->impose<Message::kDecline>();
+    return false;
+  }
+  return true;
+}
+
 template <typename StringRequestType>
 bool NetTableManager::getTableForRequestWithStringOrDecline(
     const StringRequestType& request, Message* response,
