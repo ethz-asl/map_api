@@ -621,7 +621,7 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
       self->fixFinger(fix_finger_index);
       ++fix_finger_index;
       if (fix_finger_index == M) {
-        fix_finger_index = 1;
+        fix_finger_index = 0;
       }
     }
     usleep(FLAGS_stabilize_us);
@@ -782,8 +782,7 @@ void ChordIndex::init() {
   //  LOG(INFO) << "Self key is " << self_->key;
   for (size_t i = 0; i < M; ++i) {
     fingers_[i].base_key = own_key_ + (1 << i);  // overflow intended
-    fingers_[i].peer.reset(new ChordPeer(PeerId::self()));
-    fingers_[i].peer->invalidate();
+    fingers_[i].peer.reset(new ChordPeer());
   }
   terminate_ = false;
   stabilizer_ = std::thread(stabilizeThread, this);

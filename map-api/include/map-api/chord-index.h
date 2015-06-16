@@ -166,6 +166,7 @@ class ChordIndex {
   struct ChordPeer {
     PeerId id;
     Key key;
+    ChordPeer() : id(PeerId()) {}
     explicit ChordPeer(const PeerId& _id) : id(_id), key(hash(_id)) {}
     inline bool isValid() const {
       return id.isValid();
