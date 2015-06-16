@@ -10,7 +10,6 @@
 #include "map-api/ipc.h"
 #include "map-api/peer-id.h"
 #include "map-api/raft-node.h"
-#include "map-api/raft-chunk.h"
 #include "map-api/test/testing-entrypoint.h"
 #include "./consensus_fixture.h"
 #include "./net_table_fixture.h"

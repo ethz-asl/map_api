@@ -14,6 +14,9 @@
 
 constexpr int kTableFieldId = 0;
 
+using std::chrono::milliseconds;
+using std::chrono::duration_cast;
+
 namespace map_api {
 
 void ConsensusFixture::SetUpImpl() {
@@ -63,7 +66,7 @@ void ConsensusFixture::setupRaftPeers(uint64_t num_processes) {
 }
 
 void ConsensusFixture::addRaftPeer(const PeerId& peer) {
-  // RaftNode::instance().addPeerBeforeStart(peer);
+  RaftNode::instance().addPeerBeforeStart(peer);
 }
 
 proto::QueryStateResponse ConsensusFixture::queryState(const PeerId& peer) {

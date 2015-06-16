@@ -40,7 +40,6 @@ class ConsensusFixture : public common::MultiprocessFixture {
  protected:
   virtual void SetUpImpl();
   virtual void TearDownImpl();
-  NetTable* table_;
 };
 
 }  // namespace map_api

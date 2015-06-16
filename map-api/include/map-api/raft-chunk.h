@@ -81,7 +81,7 @@ class RaftChunk : public ChunkBase {
   virtual LogicalTime getLatestCommitTime() const override;
   mutable std::mutex latest_commit_time_mutex_;
 
-  uint64_t raftInsertRequest(const Revision::ConstPtr& item);
+  bool raftInsertRequest(const Revision::ConstPtr& item);
 
   void commitInsertCallback(const common::Id& inserted_id) {
     handleCommitInsert(inserted_id);
@@ -146,7 +146,6 @@ class RaftChunk : public ChunkBase {
   // (#2436).
   mutable RaftNode raft_node_;
   volatile bool initialized_ = false;
-  volatile bool relinquished_ = false;
   LogicalTime latest_commit_time_;
   uint64_t latest_commit_log_index_;
 };

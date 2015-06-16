@@ -29,7 +29,6 @@ const char RaftNode::kAppendEntriesResponse[] = "raft_node_append_response";
 const char RaftNode::kChunkLockRequest[] = "raft_node_chunk_lock_request";
 const char RaftNode::kChunkUnlockRequest[] = "raft_node_chunk_unlock_request";
 const char RaftNode::kInsertRequest[] = "raft_node_insert_request";
-const char RaftNode::kUpdateRequest[] = "raft_node_update_request";
 const char RaftNode::kRaftChunkRequestResponse[] =
     "raft_node_chunk_request_response";
 const char RaftNode::kVoteRequest[] = "raft_node_vote_request";
@@ -60,6 +59,13 @@ MAP_API_PROTO_MESSAGE(RaftNode::kQueryStateResponse, proto::QueryStateResponse);
 MAP_API_PROTO_MESSAGE(RaftNode::kConnectRequest, proto::ChunkRequestMetadata);
 MAP_API_PROTO_MESSAGE(RaftNode::kConnectResponse, proto::ConnectResponse);
 MAP_API_PROTO_MESSAGE(RaftNode::kInitRequest, proto::InitRequest);
+
+template <>
+void RaftNode::fillMetadata<proto::ChunkRequestMetadata>(
+    proto::ChunkRequestMetadata* destination) const {
+  CHECK_NOTNULL(destination)->set_table(this->table_name_);
+  this->chunk_id_.serialize(destination->mutable_chunk_id());
+}
 
 const PeerId kInvalidId = PeerId();
 
@@ -175,9 +181,9 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
                  << sender.ipPort() << " (new) ";
     } else {
       setAppendEntriesResponse(
-          &append_response, proto::AppendResponseStatus::REJECTED,
-          log_writer->commitIndex(), current_term_, log_writer->lastLogIndex(),
-          log_writer->lastLogTerm());
+          proto::AppendResponseStatus::REJECTED, log_writer->commitIndex(),
+          current_term_, log_writer->lastLogIndex(),log_writer->lastLogTerm(),
+          &append_response);
       response->impose<kAppendEntriesResponse>(append_response);
       return;
     }
@@ -199,8 +205,8 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
   }
 
   setAppendEntriesResponse(
-      &append_response, response_status, log_writer->commitIndex(),
-      current_term_, log_writer->lastLogIndex(), log_writer->lastLogTerm());
+      response_status, log_writer->commitIndex(), current_term_,
+      log_writer->lastLogIndex(), log_writer->lastLogTerm(), &append_response);
   state_lock.unlock();
   response->impose<kAppendEntriesResponse>(append_response);
 }
@@ -288,7 +294,6 @@ void RaftNode::handleLeaveRequest(const PeerId& sender, uint64_t serial_id,
     response->decline();
     return;
   }
-  CHECK(raft_chunk_lock_.isLockHolder(sender));
   std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
   entry->set_remove_peer(sender.ipPort());
   entry->set_sender(sender.ipPort());
@@ -607,7 +612,8 @@ void RaftNode::leaderAddPeer(const PeerId& peer,
   std::lock_guard<std::mutex> peer_lock(peer_mutex_);
   std::lock_guard<std::mutex> tracker_lock(follower_tracker_mutex_);
 
-  if (peer != PeerId::self() && peer_list_.count(peer) == 0) {  // Add new peer.
+  if (peer != PeerId::self() &&
+      peer_list_.count(peer) == 0u) {  // Add new peer.
     sendInitRequest(peer, log_writer);
     peer_list_.insert(peer);
     num_peers_ = peer_list_.size();
@@ -1143,7 +1149,6 @@ bool RaftNode::DistributedRaftChunkLock::writeLock(const PeerId& peer,
                                                    uint64_t index) {
   std::lock_guard<std::mutex> lock(mutex_);
   if (is_locked_) {
-    // LOG(ERROR) << "Lock false for " << peer << " at log index " << index;
     return false;
   }
   CHECK(peer.isValid());
@@ -1227,7 +1232,7 @@ uint64_t RaftNode::sendChunkLockRequest(uint64_t serial_id) {
   return 0;
 }
 
-uint64_t RaftNode::sendChunkUnlockRequest(uint64_t serial_id,
+bool RaftNode::sendChunkUnlockRequest(uint64_t serial_id,
                                           uint64_t lock_index,
                                           bool proceed_commits) {
   State append_state;
@@ -1254,7 +1259,7 @@ uint64_t RaftNode::sendChunkUnlockRequest(uint64_t serial_id,
     request.impose<kChunkUnlockRequest>(unlock_request);
     if (!Hub::instance().try_request(leader_id, &request, &response)) {
       VLOG(1) << "Update request might have failed.";
-      return 0;
+      return false;
     }
     if (response.isType<kRaftChunkRequestResponse>()) {
       proto::RaftChunkRequestResponse unlock_response;
@@ -1263,12 +1268,12 @@ uint64_t RaftNode::sendChunkUnlockRequest(uint64_t serial_id,
     }
   }
   if (index > 0 && waitAndCheckCommit(index, append_term, serial_id)) {
-    return index;
+    return true;
   }
-  return 0;
+  return false;
 }
 
-uint64_t RaftNode::sendInsertRequest(const Revision::ConstPtr& item,
+bool RaftNode::sendInsertRequest(const Revision::ConstPtr& item,
                                      uint64_t serial_id,
                                      bool is_retry_attempt) {
   State append_state;
@@ -1295,7 +1300,7 @@ uint64_t RaftNode::sendInsertRequest(const Revision::ConstPtr& item,
     request.impose<kInsertRequest>(insert_request);
     if (!Hub::instance().try_request(leader_id, &request, &response)) {
       VLOG(1) << "Insert request might have failed.";
-      return 0;
+      return false;
     }
     if (response.isType<kRaftChunkRequestResponse>()) {
       response.extract<kRaftChunkRequestResponse>(&insert_response);
@@ -1303,9 +1308,9 @@ uint64_t RaftNode::sendInsertRequest(const Revision::ConstPtr& item,
     }
   }
   if (index > 0 && waitAndCheckCommit(index, append_term, serial_id)) {
-    return index;
+    return true;
   }
-  return 0;
+  return false;
 }
 
 bool RaftNode::waitAndCheckCommit(uint64_t index, uint64_t append_term,
@@ -1387,7 +1392,7 @@ bool RaftNode::sendLeaveRequest(uint64_t serial_id) {
   if (response.isType<kRaftChunkRequestResponse>()) {
     proto::RaftChunkRequestResponse leave_response;
     response.extract<kRaftChunkRequestResponse>(&leave_response);
-    return (leave_response.entry_index());
+    return (leave_response.entry_index() > 0);
   }
   return false;
 }
@@ -1395,8 +1400,9 @@ bool RaftNode::sendLeaveRequest(uint64_t serial_id) {
 void RaftNode::sendLeaveSuccessNotification(const PeerId& peer) {
   Message request, response;
   proto::ChunkRequestMetadata metadata;
-  metadata.set_table(table_name_);
-  chunk_id_.serialize(metadata.mutable_chunk_id());
+  //metadata.set_table(table_name_);
+  //chunk_id_.serialize(metadata.mutable_chunk_id());
+  fillMetadata(&metadata);
   request.impose<kLeaveNotification>(metadata);
   if (!Hub::instance().try_request(peer, &request, &response)) {
     LOG(WARNING) << "Leave success notification for chunk " << chunk_id_
