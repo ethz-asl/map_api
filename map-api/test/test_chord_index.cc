@@ -36,6 +36,9 @@ class TestChordIndex final : public ChordIndex {
                                                 Message* response);
   static void staticHandlePushResponsibilities(const Message& request,
                                                Message* response);
+
+  size_t findPredecessorCountRpcs(const Key& key, PeerId* peer);
+
   /**
    * RPC types
    */
@@ -301,6 +304,24 @@ void TestChordIndex::staticHandlePushResponsibilities(const Message& request,
   } else {
     response->decline();
   }
+}
+
+size_t TestChordIndex::findPredecessorCountRpcs(const Key& key, PeerId* peer) {
+  CHECK_NOTNULL(peer);
+  size_t count = 0;
+  PeerId result = closestPrecedingFinger(key), result_successor;
+  CHECK(getSuccessorRpc(result, &result_successor));
+  while (!isIn(key, hash(result), hash(result_successor))) {
+    ++count;
+    CHECK(getClosestPrecedingFingerRpc(result, key, &result));
+    // Needed because we are not checking apriori if key predecessor is self.
+    if (result == PeerId::self()) {
+      break;
+    }
+    CHECK(getSuccessorRpc(result, &result_successor));
+  }
+  *peer = result;
+  return count;
 }
 
 // ========

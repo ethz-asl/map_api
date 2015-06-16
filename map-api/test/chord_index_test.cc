@@ -109,8 +109,6 @@ class ChordIndexTestInitialized : public ChordIndexTest {
 };
 
 DEFINE_uint64(chord_processes, 10, "Amount of processes to test chord with");
-DEFINE_uint64(finger_test_processes, 100,
-              "Amount of processes to test chord with");
 
 TEST_F(ChordIndexTestInitialized, onePeerJoin) {
   const size_t kNProcesses = FLAGS_chord_processes;
@@ -412,14 +410,14 @@ TEST_F(ChordIndexTestInitialized,
   }
 }
 
-TEST_F(ChordIndexTestInitialized, fingerRetrieveLength) {
-  const size_t kNProcesses = FLAGS_finger_test_processes;
-  const size_t kNData = 100;
+/*TEST_F(ChordIndexTestInitialized, fingerRetrieveLength) {
+  const size_t kNProcesses = FLAGS_chord_processes;
   enum Barriers {
     INIT,
     ROOT_SHARED,
     JOINED_STABILIZED,
-    ADDED_RETRIEVED
+    FINGERS_READY,
+    GET_PREDECESSOR
   };
   if (getSubprocessId() == 0) {
     for (size_t i = 1; i < kNProcesses; ++i) {
@@ -432,30 +430,29 @@ TEST_F(ChordIndexTestInitialized, fingerRetrieveLength) {
     // it should be an upper bound of the amount of required stabilization
     // iterations per process
     IPC::barrier(JOINED_STABILIZED, kNProcesses - 1);
-    EXPECT_GT(kNProcesses, 1u);
-    for (size_t i = 0; i < kNData; ++i) {
-      std::string key, value, result;
-      addNonLocalData(&key, &value, i);
-      timing::Timer timer(kRetrieveDataTimerTag);
-      EXPECT_TRUE(TestChordIndex::instance().retrieveData(key, &result));
-      timer.Stop();
-      EXPECT_EQ(value, result);
+    while (!TestChordIndex::instance().areFingersReady()) {
+      usleep(2000);
     }
-    std::ofstream file(kRetrieveDataTimeFile, std::ios::out);
-    file << timing::Timing::GetMeanSeconds(kRetrieveDataTimerTag) << " "
-         << timing::Timing::GetMinSeconds(kRetrieveDataTimerTag) << " "
-         << timing::Timing::GetMaxSeconds(kRetrieveDataTimerTag) << std::endl;
-    LOG(INFO) << timing::Timing::Print();
-    IPC::barrier(ADDED_RETRIEVED, kNProcesses - 1);
+    IPC::barrier(FINGERS_READY, kNProcesses - 1);
+    PeerId predecessor;
+    ChordIndex::Key key = ChordIndex::hash(PeerId::self()) - 1;
+    size_t count = TestChordIndex::instance().findPredecessorCountRpcs(key,
+&predecessor);
+    EXPECT_LT(count, kNProcesses);
+    IPC::barrier(GET_PREDECESSOR, kNProcesses - 1);
   } else {
     IPC::barrier(INIT, kNProcesses - 1);
     IPC::barrier(ROOT_SHARED, kNProcesses - 1);
     PeerId root = IPC::pop<PeerId>();
     TestChordIndex::instance().join(root);
     IPC::barrier(JOINED_STABILIZED, kNProcesses - 1);
-    IPC::barrier(ADDED_RETRIEVED, kNProcesses - 1);
+    while (!TestChordIndex::instance().areFingersReady()) {
+      usleep(2000);
+    }
+    IPC::barrier(FINGERS_READY, kNProcesses - 1);
+    IPC::barrier(GET_PREDECESSOR, kNProcesses - 1);
   }
-}
+}*/
 
 }  // namespace map_api
 

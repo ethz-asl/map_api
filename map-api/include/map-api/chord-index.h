@@ -108,7 +108,22 @@ class ChordIndex {
     RPC_FAILED
   };
 
+ protected:
+  /**
+   * Returns index of finger which is counter-clockwise closest to key.
+   */
+  PeerId closestPrecedingFinger(const Key& key);
+
+  /**
+   * Check whether key is is same as from_inclusive or between from_inclusive
+   * and to_exclusive, clockwise. In particular, returns true if from_inclusive
+   * is the same as to_exclusive.
+   */
+  static bool isIn(const Key& key, const Key& from_inclusive,
+                   const Key& to_exclusive);
+
  private:
+  friend class TestChordIndex;
   // ======================
   // REQUIRE IMPLEMENTATION
   // ======================
@@ -161,11 +176,6 @@ class ChordIndex {
   };
 
   /**
-   * Returns index of finger which is counter-clockwise closest to key.
-   */
-  PeerId closestPrecedingFinger(
-      const Key& key);
-  /**
    * Routine common to create() and join()
    */
   void init();
@@ -173,17 +183,13 @@ class ChordIndex {
   void setFingerPeer(const PeerId& peer, std::shared_ptr<ChordPeer>* target);
 
   /**
-   * Check whether key is is same as from_inclusive or between from_inclusive
-   * and to_exclusive, clockwise. In particular, returns true if from_inclusive
-   * is the same as to_exclusive.
-   */
-  static bool isIn(const Key& key, const Key& from_inclusive,
-                   const Key& to_exclusive);
-
-  /**
    * Returns false if chord index terminated
    */
   bool waitUntilInitialized();
+
+  FRIEND_TEST(ChordIndexTestInitialized, fingerRetrieveLength);
+
+  bool areFingersReady();
 
   bool addDataLocally(const std::string& key, const std::string& value);
 

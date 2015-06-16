@@ -845,6 +845,16 @@ bool ChordIndex::waitUntilInitialized() {
   return true;
 }
 
+bool ChordIndex::areFingersReady() {
+  for (size_t i = 0; i < M; ++i) {
+    common::ScopedReadLock peer_lock(&peer_lock_);
+    if (!fingers_[i].peer->isValid()) {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool ChordIndex::addDataLocally(
     const std::string& key, const std::string& value) {
   data_lock_.acquireWriteLock();
