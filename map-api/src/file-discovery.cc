@@ -121,7 +121,7 @@ void FileDiscovery::remove(const PeerId& peer) {
 
 void FileDiscovery::unlock() {
   CHECK_NE(close(lock_file_descriptor_), -1) << errno;
-  CHECK_NE(unlink(kLockFileName), -1);
+  unlink(kLockFileName);
   mutex_.unlock();
 }
 
