@@ -63,7 +63,7 @@ class ChordIndex {
   bool addData(const std::string& key, const std::string& value);
   bool retrieveData(const std::string& key, std::string* value);
 
-  static constexpr size_t M = sizeof(Key) * 8;
+  static constexpr size_t kNumFingers = sizeof(Key) * 8;
   /**
    * Find successor to key, i.e. who holds the information associated with key
    * It is the first node whose hash key is larger than or equal to the key.
@@ -223,7 +223,7 @@ class ChordIndex {
   typedef std::unordered_map<PeerId, std::weak_ptr<ChordPeer> > PeerMap;
   PeerMap peers_;
 
-  Finger fingers_[M];
+  Finger fingers_[kNumFingers];
   SuccessorListItem successor_;
   std::shared_ptr<ChordPeer> predecessor_;
   common::ReaderWriterMutex peer_lock_;

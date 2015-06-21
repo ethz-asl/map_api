@@ -250,7 +250,7 @@ void ChordIndex::create() {
   init();
   peer_lock_.acquireWriteLock();
   if (!enable_fingers) {
-    for (size_t i = 0; i < M; ++i) {
+    for (size_t i = 0; i < kNumFingers; ++i) {
       fingers_[i].peer = self_;
     }
   }
@@ -307,6 +307,7 @@ bool ChordIndex::cleanJoin(const PeerId& other) {
     PeerId successor_predecessor, predecessor_successor;
     if (!(getPredecessorRpc(successor, &successor_predecessor) &&
           getSuccessorRpc(predecessor, &predecessor_successor))) {
+      unlockPeers(predecessor, successor);
       return false;
     }
     if (predecessor_successor == successor &&
@@ -368,7 +369,7 @@ bool ChordIndex::unlock(const PeerId& subject) {
 
 bool ChordIndex::lockPeersInOrder(const PeerId& subject_1,
                                   const PeerId& subject_2) {
-  // locking must occur in order, in order to avoid deadlock
+  // Locking must occur in order in order to avoid deadlocks.
   if (hash(subject_1) < hash(subject_2)) {
     if (!lock(subject_1)) {
       return false;
@@ -391,7 +392,6 @@ bool ChordIndex::lockPeersInOrder(const PeerId& subject_1,
     CHECK_EQ(subject_1, subject_2) << "Same hash of two different peers";
     return lock(subject_1);
   }
-  // TODO(aqurai): Avoid infinite loop and return false if fail.
   return false;
 }
 
@@ -406,6 +406,7 @@ bool ChordIndex::unlockPeers(const PeerId& subject_1, const PeerId& subject_2) {
 void ChordIndex::leave() {
   terminate_ = true;
   stabilizer_.join();
+  // TODO(aqurai): Check if this has to be uncommented.
   // CHECK_EQ(kCleanJoin, FLAGS_join_mode) << "Stabilize leave deprecated";
   leaveClean();
   // TODO(tcies) unhack! "Ensures" that pending requests resolve
@@ -516,7 +517,7 @@ PeerId ChordIndex::closestPrecedingFinger(const Key& key) {
   } else {
     result = successor_->id;
     if (enable_fingers) {
-      for (size_t i = 1; i < M; ++i) {
+      for (size_t i = 1; i < kNumFingers; ++i) {
         if (!fingers_[i].peer->isValid()) {
           break;
         }
@@ -539,7 +540,7 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
   }
   usleep(5000);
 
-  for (size_t i = 0; i < M; ++i) {
+  for (size_t i = 0; i < kNumFingers; ++i) {
     self->fixFinger(i);
     // Give time for other RPCs to proceed.
     usleep(1000);
@@ -602,7 +603,7 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
     // TODO(aqurai): Debugging purpose. Remove later.
     bool print = false;
     std::stringstream finger_list;
-    for (size_t i = 0; i < M; ++i) {
+    for (size_t i = 0; i < kNumFingers; ++i) {
       common::ScopedReadLock(&self->peer_lock_);
       if (!self->fingers_[i].peer->isValid()) {
         if (i < 2) {
@@ -613,14 +614,14 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
     }
     // Dont print if only higher fingers are invalid.
     if (print) {
-      // LOG(WARNING) << " Fingers " << finger_list.str() << " not initialized
-      // on " << PeerId::self();
+      LOG(WARNING) << " Fingers " << finger_list.str()
+                   << " not initialized on " << PeerId::self();
     }
 
     if (enable_fingers) {
       self->fixFinger(fix_finger_index);
       ++fix_finger_index;
-      if (fix_finger_index == M) {
+      if (fix_finger_index == kNumFingers) {
         fix_finger_index = 0;
       }
     }
@@ -664,7 +665,8 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
   const PeerId self_successor = successor_->id;
   size_t finger_index = 0;
 
-  for (size_t i = 0; i < M; ++i) {
+  // Get the peer corresponding to the lowest finger that is alive.
+  for (size_t i = 0; i < kNumFingers; ++i) {
     if (!fingers_[i].peer->isValid()) {
       peer_lock_.releaseReadLock();
       return false;
@@ -694,8 +696,12 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
   }
 
   // TODO(aqurai): Can this lead to infinite loop?
-  uint i = 0;
+  size_t i = 0u;
   peer_lock_.acquireReadLock();
+
+  // From the finger-peer, traverse back each predecessor towards self in the
+  // circle. The first responding predecessor-peer becomes the new successor.
+  // Locks help avoid simultaneous peer join at this point.
   PeerId candidate_predecessor_predecessor;
   while (candidate_predecessor != successor_->id) {
     ++i;
@@ -719,6 +725,7 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
     peer_lock_.acquireReadLock();
   }
 
+  // Set the successor and notify.
   if (candidate != successor_->id) {
     peer_lock_.releaseReadLock();
     registerPeer(candidate, &successor_);
@@ -735,9 +742,8 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
 
 void ChordIndex::fixFinger(size_t i) {
   if (i == 0) {
-    peer_lock_.acquireWriteLock();
+    common::ScopedWriteLock peer_lock(&peer_lock_);
     fingers_[0].peer.reset(new ChordPeer(successor_->id));
-    peer_lock_.releaseWriteLock();
     return;
   }
   peer_lock_.acquireReadLock();
@@ -780,7 +786,7 @@ void ChordIndex::init() {
   own_key_ = hash(PeerId::self());
   self_.reset(new ChordPeer(PeerId::self()));
   //  LOG(INFO) << "Self key is " << self_->key;
-  for (size_t i = 0; i < M; ++i) {
+  for (size_t i = 0; i < kNumFingers; ++i) {
     fingers_[i].base_key = own_key_ + (1 << i);  // overflow intended
     fingers_[i].peer.reset(new ChordPeer());
   }
@@ -811,9 +817,8 @@ void ChordIndex::registerPeer(
 void ChordIndex::setFingerPeer(const PeerId& peer,
                                std::shared_ptr<ChordPeer>* target) {
   CHECK_NOTNULL(target);
-  peer_lock_.acquireWriteLock();
+  common::ScopedWriteLock peer_lock(&peer_lock_);
   target->reset(new ChordPeer(peer));
-  peer_lock_.releaseWriteLock();
 }
 
 bool ChordIndex::isIn(
@@ -845,7 +850,7 @@ bool ChordIndex::waitUntilInitialized() {
 }
 
 bool ChordIndex::areFingersReady() {
-  for (size_t i = 0; i < M; ++i) {
+  for (size_t i = 0; i < kNumFingers; ++i) {
     common::ScopedReadLock peer_lock(&peer_lock_);
     if (!fingers_[i].peer->isValid()) {
       return false;
@@ -883,7 +888,7 @@ bool ChordIndex::handleNotifyClean(const PeerId& peer_id) {
   CHECK(node_locked_);
   CHECK_EQ(peer_id, node_lock_holder_);
   peer_lock_.acquireReadLock();
-  // CHECK(peers_.find(peer_id) == peers_.end());
+  CHECK(peers_.find(peer_id) == peers_.end());
   std::shared_ptr<ChordPeer> peer(new ChordPeer(peer_id));
   handleNotifyCommon(peer);
   CHECK_GT(peer.use_count(), 1);
