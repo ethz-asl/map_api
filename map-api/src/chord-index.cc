@@ -14,7 +14,7 @@ DECLARE_int32(simulated_lag_ms);
 
 namespace map_api {
 
-constexpr bool enable_fingers = false;
+constexpr bool enable_fingers = true;
 
 ChordIndex::~ChordIndex() {}
 
