@@ -30,8 +30,8 @@ void ConsensusFixture::SetUpImpl() {
   table_ = map_api::NetTableManager::instance().addTable(descriptor);
 }
 
-RaftChunk* ConsensusFixture::createChunkAndPushId() {
-  ChunkBase* base_chunk = table_->newChunk();
+RaftChunk* ConsensusFixture::createChunkAndPushId(NetTable* table) {
+  ChunkBase* base_chunk = CHECK_NOTNULL(table)->newChunk();
   VLOG(1) << "Created a new chunk " << base_chunk->id();
   RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);
   CHECK_NOTNULL(chunk);
@@ -39,9 +39,9 @@ RaftChunk* ConsensusFixture::createChunkAndPushId() {
   return chunk;
 }
 
-RaftChunk* ConsensusFixture::getPushedChunk() {
+RaftChunk* ConsensusFixture::getPushedChunk(NetTable* table) {
   common::Id chunk_id = IPC::pop<common::Id>();
-  ChunkBase* base_chunk = table_->getChunk(chunk_id);
+  ChunkBase* base_chunk = CHECK_NOTNULL(table)->getChunk(chunk_id);
   RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);
   return CHECK_NOTNULL(chunk);
 }

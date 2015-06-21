@@ -15,8 +15,8 @@ constexpr uint32_t kRaftTestAppendEntry = 19;
 
 class ConsensusFixture : public common::MultiprocessFixture {
  public:
-  RaftChunk* createChunkAndPushId();
-  RaftChunk* getPushedChunk();
+  static RaftChunk* createChunkAndPushId(NetTable* table);
+  static RaftChunk* getPushedChunk(NetTable* table);
 
   proto::QueryStateResponse queryState(const PeerId& peer);
   const PeerId& getLockHolder(RaftChunk* chunk);
