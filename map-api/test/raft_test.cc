@@ -225,7 +225,7 @@ TEST_F(ConsensusFixture, AppendLogEntries) {
     VLOG(1) << "Chunks initialized on all peers";
     EXPECT_EQ(kProcesses - 1, chunk->peerSize());
     IPC::barrier(START_APPEND, kProcesses - 1);
-    for (uint i = 0; i < FLAGS_num_appends; ++i) {
+    for (uint64_t i = 0; i < FLAGS_num_appends; ++i) {
       leaderAppendBlankLogEntry(chunk);
     }
     leaderWaitUntilAllCommitted(chunk);
@@ -287,7 +287,7 @@ TEST_F(ConsensusFixture, AppendLogEntriesWithPeerLeave) {
     IPC::barrier(START_APPEND, kProcesses - 1);
 
     // Append entries and wait until they are committed.
-    for (uint i = 0; i < FLAGS_num_appends; ++i) {
+    for (uint64_t i = 0; i < FLAGS_num_appends; ++i) {
       leaderAppendBlankLogEntry(chunk);
     }
     leaderWaitUntilAllCommitted(chunk);
@@ -352,14 +352,14 @@ TEST_F(ConsensusFixture, RaftDistributedChunkLock) {
     IPC::barrier(LEADER_LOCK, kProcesses - 1);
 
     EXPECT_TRUE(getLockHolder(chunk) == PeerId::self());
-    for (uint i = 0; i < FLAGS_lock_request_depth; ++i) {
+    for (uint64_t i = 0; i < FLAGS_lock_request_depth; ++i) {
       chunk->writeLock();
     }
     IPC::barrier(LEADER_INCREASE_LOCK_DEPTH, kProcesses - 1);
 
     EXPECT_EQ(chunk->chunk_write_lock_depth_, FLAGS_lock_request_depth);
 
-    for (uint i = 0; i < FLAGS_lock_request_depth + 1; ++i) {
+    for (uint64_t i = 0; i < FLAGS_lock_request_depth + 1; ++i) {
       chunk->unlock();
     }
     EXPECT_TRUE(getLockHolder(chunk).ipPort() != PeerId::self().ipPort());
