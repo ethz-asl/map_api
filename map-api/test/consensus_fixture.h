@@ -15,11 +15,9 @@ constexpr uint32_t kRaftTestAppendEntry = 19;
 
 class ConsensusFixture : public common::MultiprocessFixture {
  public:
-  // Setup supervisor and peers.
-  void setupRaftSupervisor(uint64_t num_processes);
-  void setupRaftPeers(uint64_t num_processes);
+  RaftChunk* createChunkAndPushId();
+  RaftChunk* getPushedChunk();
 
-  void addRaftPeer(const PeerId& peer);
   proto::QueryStateResponse queryState(const PeerId& peer);
   const PeerId& getLockHolder(RaftChunk* chunk);
   void quitRaftUnannounced(RaftChunk* chunk);
@@ -40,6 +38,7 @@ class ConsensusFixture : public common::MultiprocessFixture {
  protected:
   virtual void SetUpImpl();
   virtual void TearDownImpl();
+  NetTable* table_;
 };
 
 }  // namespace map_api

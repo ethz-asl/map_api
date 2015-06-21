@@ -30,43 +30,20 @@ void ConsensusFixture::SetUpImpl() {
   table_ = map_api::NetTableManager::instance().addTable(descriptor);
 }
 
-void ConsensusFixture::setupRaftSupervisor(uint64_t num_processes) {
-  enum Barriers {
-    INIT = 253,  // Some large number.
-    SUPERVISOR_ID_ANNOUNCED = 254,
-    PEERS_SETUP = 255
-  };
-  for (uint64_t i = 1u; i <= num_processes; ++i) {
-    launchSubprocess(i);
-  }
-  IPC::barrier(INIT, num_processes);
-  IPC::push(PeerId::self());
-  IPC::barrier(SUPERVISOR_ID_ANNOUNCED, num_processes);
-  IPC::barrier(PEERS_SETUP, num_processes);
+RaftChunk* ConsensusFixture::createChunkAndPushId() {
+  ChunkBase* base_chunk = table_->newChunk();
+  VLOG(1) << "Created a new chunk " << base_chunk->id();
+  RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);
+  CHECK_NOTNULL(chunk);
+  IPC::push(chunk->id());
+  return chunk;
 }
 
-void ConsensusFixture::setupRaftPeers(uint64_t num_processes) {
-  enum Barriers {
-    INIT = 253,  // Some large number.
-    SUPERVISOR_ID_ANNOUNCED = 254,
-    PEERS_SETUP = 255
-  };
-
-  IPC::barrier(INIT, num_processes);
-  IPC::barrier(SUPERVISOR_ID_ANNOUNCED, num_processes);
-  std::set<PeerId> peer_list;
-  Hub::instance().getPeers(&peer_list);
-  PeerId supervisor = IPC::pop<PeerId>();
-  peer_list.erase(supervisor);
-
-  for (const PeerId& peer : peer_list) {
-    addRaftPeer(peer);
-  }
-  IPC::barrier(PEERS_SETUP, num_processes);
-}
-
-void ConsensusFixture::addRaftPeer(const PeerId& peer) {
-  RaftNode::instance().addPeerBeforeStart(peer);
+RaftChunk* ConsensusFixture::getPushedChunk() {
+  common::Id chunk_id = IPC::pop<common::Id>();
+  ChunkBase* base_chunk = table_->getChunk(chunk_id);
+  RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);
+  return CHECK_NOTNULL(chunk);
 }
 
 proto::QueryStateResponse ConsensusFixture::queryState(const PeerId& peer) {
