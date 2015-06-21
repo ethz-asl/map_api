@@ -410,7 +410,7 @@ TEST_F(ChordIndexTestInitialized,
   }
 }
 
-/*TEST_F(ChordIndexTestInitialized, fingerRetrieveLength) {
+TEST_F(ChordIndexTestInitialized, fingerRetrieveLength) {
   const size_t kNProcesses = FLAGS_chord_processes;
   enum Barriers {
     INIT,
@@ -452,7 +452,7 @@ TEST_F(ChordIndexTestInitialized,
     IPC::barrier(FINGERS_READY, kNProcesses - 1);
     IPC::barrier(GET_PREDECESSOR, kNProcesses - 1);
   }
-}*/
+}
 
 }  // namespace map_api
 

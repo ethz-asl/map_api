@@ -14,7 +14,7 @@ DECLARE_int32(simulated_lag_ms);
 
 namespace map_api {
 
-constexpr bool enable_fingers = true;
+constexpr bool enable_fingers = false;
 
 ChordIndex::~ChordIndex() {}
 
@@ -540,10 +540,12 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
   }
   usleep(5000);
 
-  for (size_t i = 0; i < kNumFingers; ++i) {
-    self->fixFinger(i);
-    // Give time for other RPCs to proceed.
-    usleep(1000);
+  if (enable_fingers) {
+    for (size_t i = 0; i < kNumFingers; ++i) {
+      self->fixFinger(i);
+      // Give time for other RPCs to proceed.
+      usleep(1000);
+    }
   }
 
   int fix_finger_index = 0;
@@ -601,21 +603,23 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
     }
 
     // TODO(aqurai): Debugging purpose. Remove later.
-    bool print = false;
-    std::stringstream finger_list;
-    for (size_t i = 0; i < kNumFingers; ++i) {
-      common::ScopedReadLock(&self->peer_lock_);
-      if (!self->fingers_[i].peer->isValid()) {
-        if (i < 2) {
-          print = true;
+    if (VLOG_IS_ON(2)) {
+      bool print = false;
+      std::stringstream finger_list;
+      for (size_t i = 0; i < kNumFingers; ++i) {
+        common::ScopedReadLock(&self->peer_lock_);
+        if (!self->fingers_[i].peer->isValid()) {
+          if (i < 2) {
+            print = true;
+          }
+          finger_list << " " << i;
         }
-        finger_list << " " << i;
       }
-    }
-    // Dont print if only higher fingers are invalid.
-    if (print) {
-      LOG(WARNING) << " Fingers " << finger_list.str()
-                   << " not initialized on " << PeerId::self();
+      // Don't print if only higher fingers are invalid.
+      if (print) {
+        LOG(WARNING) << " Fingers " << finger_list.str()
+                     << " not initialized on " << PeerId::self();
+      }
     }
 
     if (enable_fingers) {
