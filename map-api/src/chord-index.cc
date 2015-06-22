@@ -4,7 +4,6 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <multiagent-mapping-common/backtrace.h>
 
 const std::string kCleanJoin("clean");
 const std::string kStabilizeJoin("stabilize");
@@ -327,11 +326,8 @@ void ChordIndex::cleanJoin(const PeerId& other) {
   registerPeer(predecessor, &predecessor_);
   registerPeer(successor, &successor_);
   // 4. notify & unlock
-  LOG(INFO) << common::backtrace();
-  LOG(INFO) << PeerId::self() << " notifies predecessor " << predecessor;
   CHECK(notifyRpc(predecessor, PeerId::self()));
   if (predecessor != successor) {
-    LOG(INFO) << PeerId::self() << " notifies successor" << successor;
     CHECK(notifyRpc(successor, PeerId::self()));
     unlock(successor);
   }
