@@ -8,6 +8,7 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <multiagent-mapping-common/conversions.h>
 #include <multiagent-mapping-common/delayed-notification.h>
 
 #include "map-api/hub.h"
@@ -86,7 +87,7 @@ void FileDiscovery::lock() {
     using std::chrono::duration_cast;
     double time_ms =
         duration_cast<std::chrono::milliseconds>(end - start).count();
-    if (time_ms > FLAGS_discovery_timeout_seconds * 1e3) {
+    if (time_ms > FLAGS_discovery_timeout_seconds * kSecondsToMilliSeconds) {
       // Allow to force unlock the file once, in case there is still a lock file present from
       // a previous unclean shutdown.
       if (!force_unlocked_once_) {

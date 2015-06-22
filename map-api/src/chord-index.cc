@@ -1,8 +1,10 @@
-#include <map-api/chord-index.h>
+#include "map-api/chord-index.h"
+
 #include <type_traits>
 
-#include <glog/logging.h>
 #include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <multiagent-mapping-common/backtrace.h>
 
 const std::string kCleanJoin("clean");
 const std::string kStabilizeJoin("stabilize");
@@ -325,8 +327,11 @@ void ChordIndex::cleanJoin(const PeerId& other) {
   registerPeer(predecessor, &predecessor_);
   registerPeer(successor, &successor_);
   // 4. notify & unlock
+  LOG(INFO) << common::backtrace();
+  LOG(INFO) << PeerId::self() << " notifies predecessor " << predecessor;
   CHECK(notifyRpc(predecessor, PeerId::self()));
   if (predecessor != successor) {
+    LOG(INFO) << PeerId::self() << " notifies successor" << successor;
     CHECK(notifyRpc(successor, PeerId::self()));
     unlock(successor);
   }
@@ -651,7 +656,7 @@ bool ChordIndex::handleNotifyClean(const PeerId& peer_id) {
   CHECK(node_locked_);
   CHECK_EQ(peer_id, node_lock_holder_);
   peer_lock_.acquireReadLock();
-  CHECK(peers_.find(peer_id) == peers_.end());
+  CHECK(peers_.find(peer_id) == peers_.end()) << peer_id;
   std::shared_ptr<ChordPeer> peer(new ChordPeer(peer_id));
   handleNotifyCommon(peer);
   CHECK_GT(peer.use_count(), 1);

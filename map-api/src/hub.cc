@@ -145,9 +145,10 @@ void Hub::kill() {
   // unbind and re-enter server
   terminate_ = true;
   listener_.join();
-  // disconnect from peers (no need to lock as listener should be only other
-  // thread)
-  peers_.clear();
+  {
+    std::lock_guard<std::mutex> lock(peer_mutex_);
+    peers_.clear();
+  }
   // destroy context
   discovery_->lock();
   discovery_->leave();
@@ -206,15 +207,10 @@ void Hub::request(const PeerId& peer, Message* request, Message* response) {
   std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
       peers_.find(peer);
   if (found == peers_.end()) {
-    // double-checked locking pattern
-    std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
-        peers_.find(peer);
-    if (found == peers_.end()) {
-      std::pair<PeerMap::iterator, bool> emplacement = peers_.emplace(
-          peer, std::unique_ptr<Peer>(new Peer(peer, *context_, ZMQ_REQ)));
-      CHECK(emplacement.second);
-      found = emplacement.first;
-    }
+    std::pair<PeerMap::iterator, bool> emplacement = peers_.emplace(
+        peer, std::unique_ptr<Peer>(new Peer(peer, *context_, ZMQ_REQ)));
+    CHECK(emplacement.second);
+    found = emplacement.first;
   }
   found->second->request(request, response);
 }
@@ -276,12 +272,15 @@ bool Hub::isReady(const PeerId& peer) {
 
 void Hub::discoveryHandler(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
-  std::lock_guard<std::mutex> lock(instance().peer_mutex_);
 
-  instance().peers_.insert(
-      std::make_pair(PeerId(request.sender()),
-                     std::unique_ptr<Peer>(new Peer(
-                         request.sender(), *instance().context_, ZMQ_REQ))));
+  PeerId peer = request.sender();
+  std::thread([peer]() {
+                std::lock_guard<std::mutex> lock(instance().peer_mutex_);
+                instance().peers_.insert(std::make_pair(
+                    PeerId(peer), std::unique_ptr<Peer>(new Peer(
+                                      peer, *instance().context_, ZMQ_REQ))));
+              }).detach();
+
   response->ack();
 }
 
@@ -393,9 +392,10 @@ void Hub::listenThread(Hub* self) {
                    << " not registered";
       }
       Message response;
-      VLOG(3) << PeerId::self() << " received request " << query.type();
+      VLOG(4) << PeerId::self() << " received request " << query.type()
+              << " from " << query.sender();
       handler->second(query, &response);
-      VLOG(3) << PeerId::self() << " handled request " << query.type();
+      VLOG(4) << PeerId::self() << " handled request " << query.type();
       response.set_sender(PeerId::self().ipPort());
       response.set_logical_time(LogicalTime::sample().serialize());
       std::string serialized_response = response.SerializeAsString();
