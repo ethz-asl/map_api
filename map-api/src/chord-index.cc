@@ -518,7 +518,7 @@ PeerId ChordIndex::closestPrecedingFinger(const Key& key) {
     result = successor_->id;
     if (enable_fingers) {
       for (size_t i = 1; i < kNumFingers; ++i) {
-        if (!fingers_[i].peer->isValid()) {
+        if (!fingers_[i].peer->isValid() || fingers_[i].is_self) {
           break;
         }
         if (!isIn(key, fingers_[i - 1].peer->key, fingers_[i].peer->key)) {
@@ -671,7 +671,7 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
 
   // Get the peer corresponding to the lowest finger that is alive.
   for (size_t i = 0; i < kNumFingers; ++i) {
-    if (!fingers_[i].peer->isValid()) {
+    if (!fingers_[i].peer->isValid() || fingers_[i].is_self) {
       peer_lock_.releaseReadLock();
       return false;
     }
@@ -693,13 +693,15 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
     return false;
   }
   if (finger_index == 0) {
+    // Existing successor active again. Nothing to do.
     return true;
   }
   if (!lock(candidate)) {
     return false;
   }
 
-  // TODO(aqurai): Can this lead to infinite loop?
+  // TODO(aqurai): Can this lead to infinite loop? Exit loop if candidate key is
+  // in last-finger-key and own-key?
   size_t i = 0u;
   peer_lock_.acquireReadLock();
 
@@ -744,24 +746,18 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
   return false;
 }
 
-void ChordIndex::fixFinger(size_t i) {
-  if (i == 0) {
+void ChordIndex::fixFinger(size_t finger_index) {
+  if (finger_index == 0) {
     common::ScopedWriteLock peer_lock(&peer_lock_);
     fingers_[0].peer.reset(new ChordPeer(successor_->id));
     return;
   }
   peer_lock_.acquireReadLock();
-  const Key finger_key = fingers_[i].base_key;
+  const Key finger_key = fingers_[finger_index].base_key;
   peer_lock_.releaseReadLock();
 
   const PeerId finger_peer = findSuccessor(finger_key);
-  if (finger_peer != PeerId::self()) {
-    setFingerPeer(finger_peer, &fingers_[i].peer);
-  } else {
-    peer_lock_.acquireWriteLock();
-    fingers_[i].peer->invalidate();
-    peer_lock_.releaseWriteLock();
-  }
+  setFingerPeer(finger_peer, finger_index);
 }
 
 void ChordIndex::integrateThread(ChordIndex* self) {
@@ -818,11 +814,16 @@ void ChordIndex::registerPeer(
   peer_lock_.releaseWriteLock();
 }
 
-void ChordIndex::setFingerPeer(const PeerId& peer,
-                               std::shared_ptr<ChordPeer>* target) {
-  CHECK_NOTNULL(target);
+void ChordIndex::setFingerPeer(const PeerId& peer, size_t finger_index) {
   common::ScopedWriteLock peer_lock(&peer_lock_);
-  target->reset(new ChordPeer(peer));
+  if (peer == PeerId::self()) {
+    fingers_[finger_index].is_self = true;
+    // Intentionally not sharing the pointer with self_.
+    fingers_[finger_index].peer.reset(new ChordPeer(PeerId::self()));
+  } else {
+    fingers_[finger_index].is_self = false;
+    fingers_[finger_index].peer.reset(new ChordPeer(peer));
+  }
 }
 
 bool ChordIndex::isIn(

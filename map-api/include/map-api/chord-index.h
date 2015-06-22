@@ -161,7 +161,7 @@ class ChordIndex {
   bool replaceDisconnectedSuccessor();
   bool joinBetweenLockedPeers(const PeerId& predecessor,
                               const PeerId& successor);
-  void fixFinger(size_t i);
+  void fixFinger(size_t finger_index);
 
   struct ChordPeer {
     PeerId id;
@@ -181,7 +181,7 @@ class ChordIndex {
    */
   void init();
   void registerPeer(const PeerId& peer, std::shared_ptr<ChordPeer>* target);
-  void setFingerPeer(const PeerId& peer, std::shared_ptr<ChordPeer>* target);
+  void setFingerPeer(const PeerId& peer, size_t finger_index);
 
   /**
    * Returns false if chord index terminated
@@ -211,6 +211,8 @@ class ChordIndex {
   struct Finger {
     Key base_key;
     std::shared_ptr<ChordPeer> peer;
+    bool is_self = false;
+    bool isValid() { return (peer && peer->isValid()); }
   };
   typedef std::shared_ptr<ChordPeer> SuccessorListItem;
 
