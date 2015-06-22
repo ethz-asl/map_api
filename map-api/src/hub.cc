@@ -42,6 +42,11 @@ DEFINE_int32(discovery_timeout_ms, 100, "Timeout specific for first contact.");
 DEFINE_bool(map_api_network_log, false, "Log network activity.");
 DECLARE_int32(simulated_lag_ms);
 
+DEFINE_string(
+    map_api_hub_filter_handle_debug_output, "",
+    "Filter the debug "
+    "output of the handle thread to message types containing this string.");
+
 namespace map_api {
 
 const char Hub::kDiscovery[] = "map_api_hub_discovery";
@@ -221,18 +226,10 @@ bool Hub::try_request(const PeerId& peer, Message* request, Message* response) {
   std::lock_guard<std::mutex> lock(peer_mutex_);
   PeerMap::iterator found = peers_.find(peer);
   if (found == peers_.end()) {
-    LOG(INFO) << "couldn't find " << peer << " among " << peers_.size();
-    for (const PeerMap::value_type& peer : peers_) {
-      LOG(INFO) << peer.first;
-    }
-    // double-checked locking pattern
-    std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
-        peers_.find(peer);
-    if (found == peers_.end()) {
-      found = peers_.insert(std::make_pair(
-                                peer, std::unique_ptr<Peer>(new Peer(
-                                          peer, *context_, ZMQ_REQ)))).first;
-    }
+    std::pair<PeerMap::iterator, bool> emplacement = peers_.emplace(
+        peer, std::unique_ptr<Peer>(new Peer(peer, *context_, ZMQ_REQ)));
+    CHECK(emplacement.second);
+    found = emplacement.first;
   }
   return found->second->try_request(request, response);
 }
@@ -246,7 +243,6 @@ void Hub::broadcast(Message* request_message,
   std::set<PeerId> peers;
   getPeers(&peers);
   for (const PeerId& peer : peers) {
-    VLOG(3) << "Requesting " << peer;
     request(peer, request_message, &(*responses)[peer]);
   }
 }
@@ -392,10 +388,30 @@ void Hub::listenThread(Hub* self) {
                    << " not registered";
       }
       Message response;
-      VLOG(4) << PeerId::self() << " received request " << query.type()
-              << " from " << query.sender();
+      if (VLOG_IS_ON(4)) {
+        if (FLAGS_map_api_hub_filter_handle_debug_output != "") {
+          if (query.type().find(FLAGS_map_api_hub_filter_handle_debug_output) !=
+              std::string::npos) {
+            VLOG(4) << PeerId::self() << " received request " << query.type()
+                    << " from " << query.sender();
+          }
+        } else {
+          VLOG(4) << PeerId::self() << " received request " << query.type()
+                  << " from " << query.sender();
+        }
+      }
       handler->second(query, &response);
-      VLOG(4) << PeerId::self() << " handled request " << query.type();
+      if (VLOG_IS_ON(4)) {
+        if (FLAGS_map_api_hub_filter_handle_debug_output != "") {
+          if (query.type().find(FLAGS_map_api_hub_filter_handle_debug_output) !=
+              std::string::npos) {
+            VLOG(4) << PeerId::self() << " handled request " << query.type();
+          }
+        } else {
+          VLOG(4) << PeerId::self() << " handled request " << query.type();
+        }
+      }
+
       response.set_sender(PeerId::self().ipPort());
       response.set_logical_time(LogicalTime::sample().serialize());
       std::string serialized_response = response.SerializeAsString();
