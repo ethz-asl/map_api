@@ -239,9 +239,11 @@ PeerId ChordIndex::findPredecessor(const Key& key) {
       "FindPredecessor called while it's the calling peer";
   peer_lock_.releaseReadLock();
   PeerId result = closestPrecedingFinger(key), result_successor;
+
+  // Used fingers to jump peers earlier. Search one-by-one from here.
   CHECK(getSuccessorRpc(result, &result_successor));
   while (!isIn(key, hash(result), hash(result_successor))) {
-    CHECK(getClosestPrecedingFingerRpc(result, key, &result));
+    result = result_successor;
     CHECK(getSuccessorRpc(result, &result_successor));
   }
   return result;
@@ -519,7 +521,8 @@ PeerId ChordIndex::closestPrecedingFinger(const Key& key) {
     result = successor_->id;
     if (enable_fingers) {
       for (size_t i = 1; i < kNumFingers; ++i) {
-        if (!fingers_[i].peer->isValid() || fingers_[i].is_self) {
+        if (!fingers_[i].peer->isValid() || fingers_[i].is_self ||
+            !fingers_[i - 1].peer->isValid() || fingers_[i - 1].is_self) {
           break;
         }
         if (!isIn(key, fingers_[i - 1].peer->key, fingers_[i].peer->key)) {
