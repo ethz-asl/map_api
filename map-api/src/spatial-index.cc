@@ -555,8 +555,9 @@ inline size_t SpatialIndex::keyToPosition(const std::string& key) {
 // ========
 // REQUESTS
 // ========
-bool SpatialIndex::rpc(const PeerId& to, const Message& request,
-                       Message* response) {
+ChordIndex::RpcStatus SpatialIndex::rpc(const PeerId& to,
+                                        const Message& request,
+                                        Message* response) {
   CHECK_NOTNULL(response);
   Message to_be_sent;
   proto::RoutedChordRequest routed_request;
@@ -564,12 +565,12 @@ bool SpatialIndex::rpc(const PeerId& to, const Message& request,
   routed_request.set_serialized_message(request.SerializeAsString());
   to_be_sent.impose<kRoutedChordRequest>(routed_request);
   if (!peers_.try_request(to, &to_be_sent, response)) {
-    return false;
+    return RpcStatus::RPC_FAILED;
   }
   if (response->isType<Message::kDecline>()) {
-    return false;
+    return RpcStatus::DECLINED;
   }
-  return true;
+  return RpcStatus::SUCCESS;
 }
 
 bool SpatialIndex::getClosestPrecedingFingerRpc(const PeerId& to,
@@ -580,7 +581,7 @@ bool SpatialIndex::getClosestPrecedingFingerRpc(const PeerId& to,
   std::ostringstream key_ss;
   key_ss << key;
   request.impose<kGetClosestPrecedingFingerRequest>(key_ss.str());
-  if (!rpc(to, request, &response)) {
+  if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
     return false;
   }
   CHECK(response.isType<kPeerResponse>());
@@ -592,7 +593,7 @@ bool SpatialIndex::getSuccessorRpc(const PeerId& to, PeerId* result) {
   CHECK_NOTNULL(result);
   Message request, response;
   request.impose<kGetSuccessorRequest>();
-  if (!rpc(to, request, &response)) {
+  if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
     return false;
   }
   CHECK(response.isType<kPeerResponse>());
@@ -604,7 +605,7 @@ bool SpatialIndex::getPredecessorRpc(const PeerId& to, PeerId* result) {
   CHECK_NOTNULL(result);
   Message request, response;
   request.impose<kGetPredecessorRequest>();
-  if (!rpc(to, request, &response)) {
+  if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
     return false;
   }
   CHECK(response.isType<kPeerResponse>());
@@ -612,30 +613,22 @@ bool SpatialIndex::getPredecessorRpc(const PeerId& to, PeerId* result) {
   return true;
 }
 
-bool SpatialIndex::lockRpc(const PeerId& to) {
+ChordIndex::RpcStatus SpatialIndex::lockRpc(const PeerId& to) {
   Message request, response;
   request.impose<kLockRequest>();
-  if (!rpc(to, request, &response)) {
-    return false;
-  }
-  CHECK(response.isType<Message::kAck>());
-  return true;
+  return rpc(to, request, &response);
 }
 
-bool SpatialIndex::unlockRpc(const PeerId& to) {
+ChordIndex::RpcStatus SpatialIndex::unlockRpc(const PeerId& to) {
   Message request, response;
   request.impose<kUnlockRequest>();
-  if (!rpc(to, request, &response)) {
-    return false;
-  }
-  CHECK(response.isType<Message::kAck>());
-  return true;
+  return rpc(to, request, &response);
 }
 
 bool SpatialIndex::notifyRpc(const PeerId& to, const PeerId& self) {
   Message request, response;
   request.impose<kNotifyRequest>(self.ipPort());
-  if (!rpc(to, request, &response)) {
+  if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
     return false;
   }
   CHECK(response.isType<Message::kAck>());
@@ -649,7 +642,7 @@ bool SpatialIndex::replaceRpc(const PeerId& to, const PeerId& old_peer,
   replace_request.set_old_peer(old_peer.ipPort());
   replace_request.set_new_peer(new_peer.ipPort());
   request.impose<kReplaceRequest>(replace_request);
-  if (!rpc(to, request, &response)) {
+  if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
     return false;
   }
   CHECK(response.isType<Message::kAck>());
@@ -663,7 +656,7 @@ bool SpatialIndex::addDataRpc(const PeerId& to, const std::string& key,
   add_data_request.set_key(key);
   add_data_request.set_value(value);
   request.impose<kAddDataRequest>(add_data_request);
-  if (!rpc(to, request, &response)) {
+  if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
     return false;
   }
   CHECK(response.isType<Message::kAck>());
@@ -675,7 +668,7 @@ bool SpatialIndex::retrieveDataRpc(const PeerId& to, const std::string& key,
   CHECK_NOTNULL(value);
   Message request, response;
   request.impose<kRetrieveDataRequest>(key);
-  if (!rpc(to, request, &response)) {
+  if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
     return false;
   }
   CHECK(response.isType<kRetrieveDataResponse>());
@@ -688,7 +681,7 @@ bool SpatialIndex::fetchResponsibilitiesRpc(const PeerId& to,
   CHECK_NOTNULL(responsibilities);
   Message request, response;
   request.impose<kFetchResponsibilitiesRequest>();
-  if (!rpc(to, request, &response)) {
+  if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
     return false;
   }
   CHECK(response.isType<kFetchResponsibilitiesResponse>());
@@ -711,7 +704,7 @@ bool SpatialIndex::pushResponsibilitiesRpc(const PeerId& to,
     slot->set_value(item.second);
   }
   request.impose<kPushResponsibilitiesRequest>(push_request);
-  if (!rpc(to, request, &response)) {
+  if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
     return false;
   }
   CHECK(response.isType<Message::kAck>());
@@ -729,7 +722,7 @@ bool SpatialIndex::initReplicatorRpc(
   }
   push_request.set_replicator_index(index);
   request.impose<kInitReplicatorRequest>(push_request);
-  if (!rpc(to, request, &response)) {
+  if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
     return false;
   }
   CHECK(response.isType<Message::kAck>());
@@ -747,7 +740,7 @@ bool SpatialIndex::appendOnReplicatorRpc(
   }
   push_request.set_replicator_index(index);
   request.impose<kAppendReplicationDataRequest>(push_request);
-  if (!rpc(to, request, &response)) {
+  if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
     return false;
   }
   CHECK(response.isType<Message::kAck>());
@@ -762,7 +755,7 @@ bool SpatialIndex::fetchFromReplicatorRpc(
   proto::FetchReplicationDataRequest data_request;
   data_request.set_replicator_index(index);
   request.impose<kFetchReplicationDataRequest>(data_request);
-  if (!rpc(to, request, &response)) {
+  if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
     return false;
   }
   CHECK(response.isType<kFetchReplicationDataResponse>());
