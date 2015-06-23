@@ -396,7 +396,7 @@ void ChordIndex::stabilizeJoin(const PeerId& other) {
   LOG(INFO) << PeerId::self() << " stabilize-joined " << other;
 }
 
-bool ChordIndex::initReplicator(const PeerId& to, int index) {
+bool ChordIndex::sendInitReplicatorRpc(const PeerId& to, int index) {
   data_lock_.acquireReadLock();
   DataMap data = data_;
   data_lock_.releaseReadLock();
@@ -646,8 +646,9 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
         self->replaceDisconnectedSuccessor();
       } else {
         self->lock();
+        // Note that we do isIn from-exclusive and to-exclusive
         if (successor_predecessor != PeerId::self() &&
-            isIn(hash(successor_predecessor), own_key, successor_key)) {
+            isIn(hash(successor_predecessor), own_key, successor_key + 1)) {
           self->unlock();
           // Someone joined in between.
           // TODO(aqurai): Check if this case ever happens after joinBetween
@@ -665,7 +666,8 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
             continue;
           }
         } else if (successor_predecessor != PeerId::self() &&
-                   isIn(own_key, hash(successor_predecessor), successor_key)) {
+                   isIn(own_key, hash(successor_predecessor),
+                        successor_key + 1)) {
           self->unlock();
           // Chord ring bypasses this peer. Can happen when this peer gets
           // disconnected for a while.
@@ -730,13 +732,11 @@ bool ChordIndex::joinBetweenLockedPeers(const PeerId& predecessor,
 
   // Notify & unlock.
   bool result = true;
-  // TODO(aqurai) Test by only sending notification to successor.
-  result = notifyRpc(predecessor, PeerId::self());
-  if (predecessor != successor) {
-    result = notifyRpc(successor, PeerId::self()) && result;
-    result = unlock(successor) && result;
+  result = notifyRpc(successor, PeerId::self());
+  if (successor != predecessor) {
+    result = unlock(predecessor) && result;
   }
-  result = unlock(predecessor) && result;
+  result = unlock(successor) && result;
   return result;
 }
 
@@ -839,7 +839,7 @@ void ChordIndex::fixFinger(size_t finger_index) {
   const PeerId finger_peer = findSuccessor(finger_key);
   setFingerPeer(finger_peer, finger_index);
 }
-    
+
 void ChordIndex::fixReplicators() {
   if (!replication_ready_) {
     return;
@@ -850,25 +850,25 @@ void ChordIndex::fixReplicators() {
       peer_lock_.acquireReadLock();
       to = successor_->id;
       peer_lock_.releaseReadLock();
-      std::lock_guard<std::mutex> lock(replicator_peer_mutex);
+      std::lock_guard<std::mutex> lock(replicator_peer_mutex_);
       old_successor = replicators_[0];
     } else {
-      std::lock_guard<std::mutex> lock(replicator_peer_mutex);
+      std::lock_guard<std::mutex> lock(replicator_peer_mutex_);
       to = replicators_[i-1];
       old_successor = replicators_[i];
     }
     if (!getSuccessorRpc(to, &successor)) {
       LOG(WARNING) << "Failed fix successor list because one of them is offline";
-      std::lock_guard<std::mutex> lock(replicator_peer_mutex);
+      std::lock_guard<std::mutex> lock(replicator_peer_mutex_);
       replicators_[i] = PeerId();
       break;
     }
     if (successor != old_successor) {
-      if (initReplicator(successor, i)) {
-        std::lock_guard<std::mutex> lock(replicator_peer_mutex);
+      if (sendInitReplicatorRpc(successor, i)) {
+        std::lock_guard<std::mutex> lock(replicator_peer_mutex_);
         replicators_[i] = successor;
       } else {
-        std::lock_guard<std::mutex> lock(replicator_peer_mutex);
+        std::lock_guard<std::mutex> lock(replicator_peer_mutex_);
         replicators_[i] = PeerId();
         break;
       }
@@ -877,7 +877,7 @@ void ChordIndex::fixReplicators() {
 }
 
 void ChordIndex::appendDataOnReplicators(const DataMap& data) {
-  std::lock_guard<std::mutex> replicator_peer_lock(replicator_peer_mutex);
+  std::lock_guard<std::mutex> replicator_peer_lock(replicator_peer_mutex_);
   for (size_t i = 0; i < kNumReplications; ++i) {
     if (!replicators_[i].isValid()) {
       break;
@@ -1106,25 +1106,18 @@ bool ChordIndex::handleNotifyStabilize(const PeerId& peer_id) {
 }
 
 void ChordIndex::handleNotifyCommon(std::shared_ptr<ChordPeer> peer) {
-  if (isIn(peer->key, own_key_, successor_->key)) {
-    peer_lock_.releaseReadLock();
-    peer_lock_.acquireWriteLock();
-    successor_ = peer;
-    peer_lock_.releaseWriteLock();
-    peer_lock_.acquireReadLock();
-    VLOG(3) << own_key_ << " changed successor to " << peer->key <<
-        " by notification";
+  // Notifications come only from new predecessors.
+  peer_lock_.releaseReadLock();
+  peer_lock_.acquireWriteLock();
+  predecessor_ = peer;
+  if (successor_ == self_) {
+    VLOG(1) << PeerId::self() << ": First peer formed ring with " << peer->id;
+    successor_.reset(new ChordPeer(peer->id));
   }
-  // fix predecessor
-  if (isIn(peer->key, predecessor_->key, own_key_)) {
-    peer_lock_.releaseReadLock();
-    peer_lock_.acquireWriteLock();
-    predecessor_ = peer;
-    peer_lock_.releaseWriteLock();
-    peer_lock_.acquireReadLock();
-    VLOG(3) << own_key_ << " changed predecessor to " << peer->key <<
-        " by notification";
-  }
+  peer_lock_.releaseWriteLock();
+  peer_lock_.acquireReadLock();
+  VLOG(3) << own_key_ << " changed predecessor to " << peer->key
+          << " by notification";
 }
 
 } /* namespace map_api */

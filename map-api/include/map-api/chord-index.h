@@ -99,7 +99,7 @@ class ChordIndex {
   bool cleanJoin(const PeerId& other);
   void stabilizeJoin(const PeerId& other);
 
-  bool initReplicator(const PeerId& to, int index);
+  bool sendInitReplicatorRpc(const PeerId& to, int index);
 
   /**
    * Argument-free versions (un)lock self
@@ -287,10 +287,9 @@ class ChordIndex {
   std::atomic<bool> replication_ready_;
   common::ReaderWriterMutex replicated_data_lock_;
 
-  // Peers that replicate data of this node.
+  // Other nodes that replicate data of this node.
   PeerId replicators_[kNumReplications];
-  std::mutex replicator_peer_mutex;  
-
+  std::mutex replicator_peer_mutex_;
 
   std::mutex node_lock_;
   bool node_locked_ = false;
