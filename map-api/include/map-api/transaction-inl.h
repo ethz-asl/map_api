@@ -37,7 +37,7 @@ void Transaction::getAvailableIds(NetTable* table,
 }
 
 template <typename IdType>
-void Transaction::remove(NetTable* table, const common::UniqueId<IdType>& id) {
+void Transaction::remove(NetTable* table, const IdType& id) {
   return transactionOf(CHECK_NOTNULL(table))->remove(id);
 }
 

@@ -47,7 +47,7 @@ class NetTableTransaction {
   void update(std::shared_ptr<Revision> revision);
   void remove(std::shared_ptr<Revision> revision);
   template <typename IdType>
-  void remove(const common::UniqueId<IdType>& id);
+  void remove(const IdType& id);
 
   // TRANSACTION OPERATIONS
   /**

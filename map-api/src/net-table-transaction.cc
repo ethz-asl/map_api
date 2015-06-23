@@ -27,7 +27,11 @@ void NetTableTransaction::dumpActiveChunks(ConstRevisionMap* result) {
   CHECK_NOTNULL(result);
   workspace_.forEachChunk([&, this](const ChunkBase& chunk) {
     ConstRevisionMap chunk_revisions;
-    chunk.dumpItems(begin_time_, &chunk_revisions);
+    // The following const_cast is necessary, because dumpChunk needs to run
+    // transactionOf(ChunkBase*), which does find() in a ChunkBase*-keyed map.
+    // There, the key needs to be non-const in order to enable iterations that
+    // modify the chunk.
+    dumpChunk(const_cast<ChunkBase*>(&chunk), &chunk_revisions);
     result->insert(chunk_revisions.begin(), chunk_revisions.end());
   });
 }
