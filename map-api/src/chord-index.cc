@@ -13,10 +13,10 @@ DEFINE_string(join_mode, kCleanJoin,
               ("Can be " + kCleanJoin + " or " + kStabilizeJoin).c_str());
 DEFINE_uint64(stabilize_us, 1000, "Interval of stabilization in microseconds");
 DECLARE_int32(simulated_lag_ms);
+DEFINE_bool(enable_fingers, true, "enable chord fingers");
+DEFINE_bool(enable_replication, true, "enable chord replication");
 
 namespace map_api {
-
-constexpr bool enable_fingers = true;
 
 ChordIndex::~ChordIndex() {}
 
@@ -203,6 +203,7 @@ bool ChordIndex::handleInitReplicator(
   }
   CHECK_LT(index, kNumReplications);
   common::ScopedWriteLock replicated_data_lock(&replicated_data_lock_);
+  replicated_data_[index].clear();
   replicated_data_[index] = data;
   replicating_peers_[index] = peer;
   return true;
@@ -291,7 +292,7 @@ PeerId ChordIndex::findPredecessor(const Key& key) {
 void ChordIndex::create() {
   init();
   peer_lock_.acquireWriteLock();
-  if (!enable_fingers) {
+  if (!FLAGS_enable_fingers) {
     for (size_t i = 0; i < kNumFingers; ++i) {
       fingers_[i].peer = self_;
     }
@@ -362,6 +363,7 @@ bool ChordIndex::cleanJoin(const PeerId& other) {
   }
 
   joinBetweenLockedPeers(predecessor, successor);
+  replication_ready_ = true;
   return true;
 }
 
@@ -594,7 +596,7 @@ PeerId ChordIndex::closestPrecedingFinger(const Key& key) {
     result = PeerId::self();
   } else {
     result = successor_->id;
-    if (enable_fingers) {
+    if (FLAGS_enable_fingers) {
       for (size_t i = 1; i < kNumFingers; ++i) {
         if (!fingers_[i].peer->isValid() || fingers_[i].is_self ||
             !fingers_[i - 1].peer->isValid() || fingers_[i - 1].is_self) {
@@ -619,7 +621,7 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
   }
   usleep(5000);
 
-  if (enable_fingers) {
+  if (FLAGS_enable_fingers) {
     for (size_t i = 0; i < kNumFingers; ++i) {
       self->fixFinger(i);
       // Give time for other RPCs to proceed.
@@ -704,12 +706,15 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
       }
     }
 
-    if (enable_fingers) {
+    if (FLAGS_enable_fingers) {
       self->fixFinger(fix_finger_index);
       ++fix_finger_index;
       if (fix_finger_index == kNumFingers) {
         fix_finger_index = 0;
       }
+    }
+    if (FLAGS_enable_replication) {
+      self->fixReplicators();
     }
     usleep(FLAGS_stabilize_us);
   }
@@ -848,22 +853,35 @@ void ChordIndex::fixReplicators() {
     PeerId successor, to, old_successor;
     if (i == 0) {
       peer_lock_.acquireReadLock();
-      to = successor_->id;
+      successor = successor_->id;
       peer_lock_.releaseReadLock();
       std::lock_guard<std::mutex> lock(replicator_peer_mutex_);
       old_successor = replicators_[0];
     } else {
-      std::lock_guard<std::mutex> lock(replicator_peer_mutex_);
-      to = replicators_[i-1];
-      old_successor = replicators_[i];
+      {
+        std::lock_guard<std::mutex> lock(replicator_peer_mutex_);
+        to = replicators_[i - 1];
+        if (to == PeerId::self()) {
+          break;
+        }
+        old_successor = replicators_[i];
+      }
+      if (!getSuccessorRpc(to, &successor)) {
+        LOG(WARNING) << "Failed fixReplicators because one of them is offline";
+        std::lock_guard<std::mutex> lock(replicator_peer_mutex_);
+        replicators_[i - 1] = PeerId();
+        break;
+      }
     }
-    if (!getSuccessorRpc(to, &successor)) {
-      LOG(WARNING) << "Failed fix successor list because one of them is offline";
+    if (successor == PeerId::self()) {
       std::lock_guard<std::mutex> lock(replicator_peer_mutex_);
       replicators_[i] = PeerId();
       break;
-    }
-    if (successor != old_successor) {
+    } else if (successor != old_successor) {
+      // Indexing replicators means we are sending all the entries when the
+      // replicator peer itself doesn't change but its index changes (e.g. if a
+      // peer joins in between, replicator 2 will become replicator 3).
+      // TODO(aqurai): Fix this.
       if (sendInitReplicatorRpc(successor, i)) {
         std::lock_guard<std::mutex> lock(replicator_peer_mutex_);
         replicators_[i] = successor;
@@ -876,15 +894,27 @@ void ChordIndex::fixReplicators() {
   }
 }
 
-void ChordIndex::appendDataOnReplicators(const DataMap& data) {
-  std::lock_guard<std::mutex> replicator_peer_lock(replicator_peer_mutex_);
+void ChordIndex::appendDataOnAllReplicators(const DataMap& data) {
   for (size_t i = 0; i < kNumReplications; ++i) {
-    if (!replicators_[i].isValid()) {
-      break;
-    }
     // Detached.
-    std::async(std::launch::async,
-        &ChordIndex::appendOnReplicatorRpc, this, replicators_[i], i, data);
+    std::async(std::launch::async, &ChordIndex::appendDataOnReplicator, this, i,
+               data);
+  }
+}
+
+void ChordIndex::appendDataOnReplicator(size_t replicator_index,
+                                        const DataMap& data) {
+  std::unique_lock<std::mutex> replicator_peer_lock(replicator_peer_mutex_);
+  const PeerId peer = replicators_[replicator_index];
+  if (!peer.isValid()) {
+    return;
+  }
+  replicator_peer_lock.unlock();
+
+  // Invalidate replicator id if rpc fails or request declined.
+  if (!appendOnReplicatorRpc(peer, replicator_index, data)) {
+    replicator_peer_lock.lock();
+    replicators_[replicator_index] = PeerId();
   }
 }
 
@@ -899,7 +929,7 @@ void ChordIndex::attemptDataRecovery(const Key& from) {
   replicated_data_lock_.acquireReadLock();
   for (size_t i = 0; i < kNumReplications; ++i) {
     for (const DataMap::value_type& item : replicated_data_[i]) {
-      if (!data_.count(item.first)) {
+      if (!data_.count(item.first) && isIn(hash(item.first), from, own_key_)) {
         to_append.insert(item);
       }
     }
@@ -912,17 +942,6 @@ void ChordIndex::attemptDataRecovery(const Key& from) {
     data_[item.first] = item.second;
   }
   data_lock_.releaseWriteLock();
-
-  std::vector<std::future<bool>> responses;
-  // TODO(aqurai) ensure this succeeds. Repeat if fail.
-  for (size_t i = 0; i < kNumReplications; ++i) {
-    std::future<bool> response = std::async(std::launch::async,
-        &ChordIndex::appendOnReplicatorRpc, this, replicators_[i], i, to_append);
-    responses.push_back(std::move(response));
-  }
-  for (std::future<bool>& response : responses) {
-    response.get();
-  }
 }
 
 void ChordIndex::integrateThread(ChordIndex* self) {
@@ -1041,6 +1060,11 @@ bool ChordIndex::addDataLocally(
   // Releasing lock here so the update callback can do whatever it wants to.
   data_lock_.releaseWriteLock();
   localUpdateCallback(key, old_value, value);
+  if (FLAGS_enable_replication) {
+    DataMap data;
+    data[key] = value;
+    appendDataOnAllReplicators(data);
+  }
   return true;
 }
 
@@ -1107,6 +1131,12 @@ bool ChordIndex::handleNotifyStabilize(const PeerId& peer_id) {
 
 void ChordIndex::handleNotifyCommon(std::shared_ptr<ChordPeer> peer) {
   // Notifications come only from new predecessors.
+
+  if (!isIn(peer->key, predecessor_->key, own_key_)) {
+    // This peer is bypassing the existing predecessor, which may have left.
+    attemptDataRecovery(peer->key);
+  }
+
   peer_lock_.releaseReadLock();
   peer_lock_.acquireWriteLock();
   predecessor_ = peer;

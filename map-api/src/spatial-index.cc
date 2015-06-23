@@ -416,7 +416,7 @@ void SpatialIndex::handleRoutedRequest(const Message& routed_request_message,
     }
     return;
   }
-  
+
   if (request.isType<kInitReplicatorRequest>()) {
     DataMap data;
     proto::FetchResponsibilitiesResponse init_request;
@@ -432,7 +432,7 @@ void SpatialIndex::handleRoutedRequest(const Message& routed_request_message,
     }
     return;
   }
-  
+
   if (request.isType<kAppendReplicationDataRequest>()) {
     DataMap data;
     proto::FetchResponsibilitiesResponse replication_request;
@@ -448,7 +448,7 @@ void SpatialIndex::handleRoutedRequest(const Message& routed_request_message,
     }
     return;
   }
-  
+
   if (request.isType<kFetchReplicationDataRequest>()) {
     DataMap data;
     PeerId replicating_peer_;
@@ -711,8 +711,8 @@ bool SpatialIndex::pushResponsibilitiesRpc(const PeerId& to,
   return true;
 }
 
-bool SpatialIndex::initReplicatorRpc(
-    const PeerId& to, int index, const DataMap& data) {
+bool SpatialIndex::initReplicatorRpc(const PeerId& to, size_t index,
+                                     const DataMap& data) {
   Message request, response;
   proto::FetchResponsibilitiesResponse push_request;
   for (const DataMap::value_type& item : data) {
@@ -729,8 +729,8 @@ bool SpatialIndex::initReplicatorRpc(
   return true;
 }
 
-bool SpatialIndex::appendOnReplicatorRpc(
-    const PeerId& to, int index, const DataMap& data) {
+bool SpatialIndex::appendOnReplicatorRpc(const PeerId& to, size_t index,
+                                         const DataMap& data) {
   Message request, response;
   proto::FetchResponsibilitiesResponse push_request;
   for (const DataMap::value_type& item : data) {
@@ -747,8 +747,8 @@ bool SpatialIndex::appendOnReplicatorRpc(
   return true;
 }
 
-bool SpatialIndex::fetchFromReplicatorRpc(
-    const PeerId& to, int index, DataMap* data, PeerId* peer) {
+bool SpatialIndex::fetchFromReplicatorRpc(const PeerId& to, size_t index,
+                                          DataMap* data, PeerId* peer) {
   CHECK_NOTNULL(data);
   CHECK_NOTNULL(peer);
   Message request, response;

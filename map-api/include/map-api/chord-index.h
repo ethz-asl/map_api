@@ -166,12 +166,12 @@ class ChordIndex {
       const PeerId& to, DataMap* responsibilities) = 0;
   virtual bool pushResponsibilitiesRpc(
       const PeerId& to, const DataMap& responsibilities) = 0;
-  virtual bool initReplicatorRpc(
-      const PeerId& to, int index, const DataMap& data) = 0;
-  virtual bool appendOnReplicatorRpc(
-      const PeerId& to, int index, const DataMap& data) = 0;
-  virtual bool fetchFromReplicatorRpc(
-      const PeerId& to, int index, DataMap* data, PeerId* peer) = 0;
+  virtual bool initReplicatorRpc(const PeerId& to, size_t index,
+                                 const DataMap& data) = 0;
+  virtual bool appendOnReplicatorRpc(const PeerId& to, size_t index,
+                                     const DataMap& data) = 0;
+  virtual bool fetchFromReplicatorRpc(const PeerId& to, size_t index,
+                                      DataMap* data, PeerId* peer) = 0;
 
   // This function gets executed after data that is allocated locally (i.e. not
   // on another peer) gets updated. Derived classes can use this to implement
@@ -189,7 +189,8 @@ class ChordIndex {
 
   void fixReplicators();
 
-  void appendDataOnReplicators(const DataMap& data);
+  void appendDataOnAllReplicators(const DataMap& data);
+  void appendDataOnReplicator(size_t replicator_index, const DataMap& data);
   // Not Guaranteed to always recover all data.
   void attemptDataRecovery(const Key& from);
 
