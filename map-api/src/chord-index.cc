@@ -631,7 +631,7 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
         fix_finger_index = 0;
       }
     }
-    usleep(FLAGS_stabilize_us * 1000);
+    usleep(FLAGS_stabilize_us * 1500);
   }
 }
 
