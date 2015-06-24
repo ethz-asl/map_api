@@ -294,8 +294,8 @@ void NetTableIndex::handleRoutedRequest(
     for (int i = 0; i < replication_request.data_size(); ++i) {
       data[replication_request.data(i).key()] = replication_request.data(i).value();
     }
-    if (handleAppendReplicationData(
-          replication_request.replicator_index(), data, request.sender())) {
+    if (handleAppendOnReplicator(replication_request.replicator_index(), data,
+                                 request.sender())) {
       response->ack();
     } else {
       response->decline();

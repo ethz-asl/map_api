@@ -65,8 +65,8 @@ class ChordIndex {
       const PeerId& requester, DataMap* responsibilities);
   bool handlePushResponsibilities(const DataMap& responsibilities);
   bool handleInitReplicator(int index, const DataMap& data, const PeerId& peer);
-  bool handleAppendReplicationData(
-      int index, const DataMap& data, const PeerId& peer);
+  bool handleAppendOnReplicator(int index, const DataMap& data,
+                                const PeerId& peer);
   bool handleFetchReplicationData(int index, DataMap* data, PeerId* peer);
 
   // ====================

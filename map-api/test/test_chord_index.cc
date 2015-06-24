@@ -36,6 +36,12 @@ class TestChordIndex final : public ChordIndex {
                                                 Message* response);
   static void staticHandlePushResponsibilities(const Message& request,
                                                Message* response);
+  static void staticHandleInitReplicator(const Message& request,
+                                         Message* response);
+  static void staticHandleAppendOnReplicator(const Message& request,
+                                             Message* response);
+  static void staticHandleFetchReplicationData(const Message& request,
+                                               Message* response);
 
   size_t findPredecessorCountRpcs(const Key& key, PeerId* peer);
 
@@ -178,6 +184,10 @@ void TestChordIndex::staticInit() {
                                   staticHandleFetchResponsibilities);
   Hub::instance().registerHandler(kPushResponsibilitiesRequest,
                                   staticHandlePushResponsibilities);
+  Hub::instance().registerHandler(kInitReplicatorRequest,
+                                  staticHandleInitReplicator);
+  Hub::instance().registerHandler(kAppendReplicationDataRequest,
+                                  staticHandleAppendOnReplicator);
 }
 
 // ========
@@ -328,6 +338,41 @@ void TestChordIndex::staticHandlePushResponsibilities(const Message& request,
     data[push_request.data(i).key()] = push_request.data(i).value();
   }
   if (instance().handlePushResponsibilities(data)) {
+    response->ack();
+  } else {
+    response->decline();
+  }
+}
+
+void TestChordIndex::staticHandleInitReplicator(const Message& request,
+                                                Message* response) {
+  CHECK_NOTNULL(response);
+  DataMap data;
+  proto::FetchResponsibilitiesResponse init_request;
+  request.extract<kInitReplicatorRequest>(&init_request);
+  for (int i = 0; i < init_request.data_size(); ++i) {
+    data[init_request.data(i).key()] = init_request.data(i).value();
+  }
+  if (instance().handleInitReplicator(init_request.replicator_index(), data,
+                                      request.sender())) {
+    response->ack();
+  } else {
+    response->decline();
+  }
+}
+
+void TestChordIndex::staticHandleAppendOnReplicator(const Message& request,
+                                                    Message* response) {
+  CHECK_NOTNULL(response);
+  DataMap data;
+  proto::FetchResponsibilitiesResponse replication_request;
+  request.extract<kAppendReplicationDataRequest>(&replication_request);
+  for (int i = 0; i < replication_request.data_size(); ++i) {
+    data[replication_request.data(i).key()] =
+        replication_request.data(i).value();
+  }
+  if (instance().handleAppendOnReplicator(
+          replication_request.replicator_index(), data, request.sender())) {
     response->ack();
   } else {
     response->decline();

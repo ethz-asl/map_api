@@ -209,8 +209,8 @@ bool ChordIndex::handleInitReplicator(
   return true;
 }
 
-bool ChordIndex::handleAppendReplicationData(
-    int index, const DataMap& data, const PeerId& peer) {
+bool ChordIndex::handleAppendOnReplicator(int index, const DataMap& data,
+                                          const PeerId& peer) {
   CHECK_LT(index, kNumReplications);
   common::ScopedWriteLock replicated_data_lock(&replicated_data_lock_);
   if (replicating_peers_[index] != peer) {
@@ -368,34 +368,7 @@ bool ChordIndex::cleanJoin(const PeerId& other) {
 }
 
 void ChordIndex::stabilizeJoin(const PeerId& other) {
-  cleanJoin(other);
-
-  // TODO(aqurai): make this part of join, and prevent other peers from init-ing
-  // replication data before this finishes.
-  peer_lock_.acquireReadLock();
-  const PeerId successor = successor_->id;
-  peer_lock_.releaseReadLock();
-  for (size_t i = 0; i < kNumReplications; ++i) {
-    PeerId peer;
-    DataMap data;
-    if (!fetchFromReplicatorRpc(successor, i, &data, &peer)) {
-      // Break because this peer will receive replication data from its
-      // predecessors later. If the successor fails here, the problem is
-      // when all other peers that replicated data on this successor fail
-      // simultaneously as well, in which case, nothing can be done anyway.
-      break;
-    }
-    replicated_data_lock_.acquireWriteLock();
-    replicated_data_[i] = data;
-    replicating_peers_[i] = peer;
-    replicated_data_lock_.releaseWriteLock();
-  }
-  replication_ready_ = true;
-
-  for (size_t i = 0; i < kNumFingers; ++i) {
-    fixFinger(i);
-  }
-  LOG(INFO) << PeerId::self() << " stabilize-joined " << other;
+  LOG(FATAL) << "stabilizeJoin not implemented";
 }
 
 bool ChordIndex::sendInitReplicatorRpc(const PeerId& to, int index) {
