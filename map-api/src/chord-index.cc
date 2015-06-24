@@ -350,7 +350,10 @@ bool ChordIndex::cleanJoin(const PeerId& other) {
     unlockPeers(predecessor, successor);
   }
 
+  VLOG(2) << own_key_ << ": Joining between peers " << hash(predecessor) << ", "
+          << hash(successor);
   joinBetweenLockedPeers(predecessor, successor);
+  VLOG(2) << own_key_ << ": Joined.";
   replication_ready_ = true;
   return true;
 }
@@ -616,7 +619,8 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
           // Someone joined in between.
           // TODO(aqurai): Check if this case ever happens after joinBetween
           // impl.
-          LOG(WARNING) << "Someone joined in between me and my successor.";
+          VLOG(2) << self->own_key_ << ": " << hash(successor_predecessor)
+                  << " joined in between me and my successor " << successor_key;
           self->lock(successor_predecessor);
           self->registerPeer(successor_predecessor, &self->successor_);
           self->data_lock_.acquireWriteLock();
@@ -635,6 +639,9 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
           // Chord ring bypasses this peer. Can happen when this peer gets
           // disconnected for a while.
           // TODO(aqurai): Verify and test this.
+          VLOG(2) << self->own_key_ << ": Successor " << successor_key
+                  << " has predecessor " << hash(successor_predecessor)
+                  << " bypassing this node in the ring";
           LOG(FATAL) << "No tests written for producing this, hence this "
                         "shouldnt happen.";
           self->peer_lock_.releaseReadLock();
@@ -1093,7 +1100,8 @@ bool ChordIndex::handleNotifyStabilize(const PeerId& peer_id) {
 void ChordIndex::handleNotifyCommon(std::shared_ptr<ChordPeer> peer) {
   // Notifications come only from new predecessors.
 
-  if (!isIn(peer->key, predecessor_->key, own_key_)) {
+  if (FLAGS_enable_replication &&
+      !isIn(peer->key, predecessor_->key, own_key_)) {
     // This peer is bypassing the existing predecessor, which may have left.
     attemptDataRecovery(peer->key);
   }
@@ -1102,8 +1110,9 @@ void ChordIndex::handleNotifyCommon(std::shared_ptr<ChordPeer> peer) {
   peer_lock_.acquireWriteLock();
   predecessor_ = peer;
   if (successor_ == self_) {
-    VLOG(1) << PeerId::self() << ": First peer formed ring with " << peer->id;
-    successor_.reset(new ChordPeer(peer->id));
+    CHECK(node_locked_);
+    VLOG(1) << own_key_ << ": First peer formed ring with " << peer->key;
+    successor_ = peer;
   }
   peer_lock_.releaseWriteLock();
   peer_lock_.acquireReadLock();
