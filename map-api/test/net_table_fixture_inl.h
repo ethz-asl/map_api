@@ -97,7 +97,7 @@ void NetTableFixture::update(int n, const common::Id& id,
   CHECK_NOTNULL(transaction);
   std::shared_ptr<const Revision> to_update =
       transaction->getById(id, table_, chunk_);
-  ASSERT_TRUE(to_update.get() != nullptr);
+  ASSERT_TRUE(to_update != nullptr);
   std::shared_ptr<Revision> update = to_update->copyForWrite();
   update->set(kFieldName, n);
   transaction->update(table_, update);

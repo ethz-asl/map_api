@@ -78,7 +78,7 @@ TEST_F(TransactionTest, MultiCommit) {
   update(4, inserted_id_2, &perturber);
   EXPECT_TRUE(perturber.commit());
 
-  transaction.remove(table_, inserted_id_1);
+  transaction.remove(inserted_id_1, table_);
   EXPECT_TRUE(transaction.commit());
   EXPECT_EQ(1u, count());
 

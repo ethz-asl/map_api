@@ -75,7 +75,7 @@ class Transaction {
   void remove(NetTable* table, std::shared_ptr<Revision> revision);
   // slow
   template <typename IdType>
-  void remove(NetTable* table, const IdType& id);
+  void remove(const IdType& id, NetTable* table);
 
   // TRANSACTION OPERATIONS
   bool commit();

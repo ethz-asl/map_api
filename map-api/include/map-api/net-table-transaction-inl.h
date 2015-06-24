@@ -72,12 +72,7 @@ void NetTableTransaction::getAvailableIds(std::vector<IdType>* ids) {
   CHECK_NOTNULL(ids)->clear();
   workspace_.forEachChunk([&, this](const ChunkBase& chunk) {
     std::unordered_set<IdType> chunk_result;
-    // The following const_cast is necessary, because of
-    // transactionOf(ChunkBase*), which does find() in a ChunkBase*-keyed map.
-    // There, the key needs to be non-const in order to enable iterations that
-    // modify the chunk.
-    transactionOf(const_cast<ChunkBase*>(&chunk))
-        ->getAvailableIds(&chunk_result);
+    transactionOf(&chunk)->getAvailableIds(&chunk_result);
     ids->insert(ids->end(), chunk_result.begin(), chunk_result.end());
   });
 }
@@ -104,12 +99,9 @@ ChunkBase* NetTableTransaction::chunkOf(
     }
     ChunkBase* chunk = table_->getChunk(latest->getChunkId());
     ChunkTransaction* transaction = transactionOf(chunk);
-    common::Id common_id;
-    aslam::HashId hash_id;
-    id.toHashId(&hash_id);
-    common_id.fromHashId(hash_id);
     ChunkTransaction::ItemTimes::const_iterator found =
-        transaction->previously_committed_.find(common_id);
+        transaction->previously_committed_.find(
+            id.template toIdType<common::Id>());
     if (found != transaction->previously_committed_.end()) {
       if (found->second == latest->getUpdateTime()) {
         *inconsistent = latest;

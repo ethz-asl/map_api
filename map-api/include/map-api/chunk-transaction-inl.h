@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include <multiagent-mapping-common/unique-id.h>
+
 namespace map_api {
 
 template <typename ValueType>
@@ -22,11 +24,8 @@ std::shared_ptr<const Revision> ChunkTransaction::getById(const IdType& id) {
   }
 
   LogicalTime get_time = begin_time_;
-  common::Id common_id;
-  aslam::HashId hash_id;
-  id.toHashId(&hash_id);
-  common_id.fromHashId(hash_id);
-  ItemTimes::const_iterator found = previously_committed_.find(common_id);
+  ItemTimes::const_iterator found =
+      previously_committed_.find(id.template toIdType<common::Id>());
   if (found != previously_committed_.end()) {
     get_time = found->second;
   }
@@ -46,12 +45,10 @@ void ChunkTransaction::getAvailableIds(std::unordered_set<IdType>* ids) {
   // Remove items removed in previous commits.
   for (ItemTimes::const_iterator it = previously_committed_.begin();
        it != previously_committed_.end(); ++it) {
-    IdType id;
-    aslam::HashId hash_id;
-    it->first.toHashId(&hash_id);
-    id.fromHashId(hash_id);
-    typename std::unordered_set<IdType>::iterator found = ids->find(id);
+    typename std::unordered_set<IdType>::iterator found =
+        ids->find(it->first.toIdType<IdType>());
     if (found != ids->end()) {
+      // Returns nullptr if object has been removed by given time.
       std::shared_ptr<const Revision> item =
           chunk_->data_container_->getById(it->first, it->second);
       if (!item) {
