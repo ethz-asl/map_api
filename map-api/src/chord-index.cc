@@ -85,17 +85,18 @@ bool ChordIndex::handleUnlock(const PeerId& requester) {
   }
 }
 
-bool ChordIndex::handleNotify(const PeerId& peer_id) {
+bool ChordIndex::handleNotify(const PeerId& peer_id,
+                              proto::NotifySender sender_type) {
   if (!waitUntilInitialized()) {
     // TODO(tcies) re-introduce request_status
     LOG(FATAL) << "Should NotifyRpc only locked peers, locked peers shouldn't "\
         "be able to leave!";
   }
   if (FLAGS_join_mode == kCleanJoin) {
-    return handleNotifyClean(peer_id);
+    return handleNotifyClean(peer_id, sender_type);
   } else {
     CHECK_EQ(kStabilizeJoin, FLAGS_join_mode);
-    return handleNotifyStabilize(peer_id);
+    return handleNotifyStabilize(peer_id, sender_type);
   }
 }
 
@@ -198,6 +199,7 @@ bool ChordIndex::handlePushResponsibilities(const DataMap& responsibilities) {
 
 bool ChordIndex::handleInitReplicator(
     int index, const DataMap& data, const PeerId& peer) {
+  CHECK(FLAGS_enable_replication);
   if (!replication_ready_) {
     return false;
   }
@@ -211,6 +213,7 @@ bool ChordIndex::handleInitReplicator(
 
 bool ChordIndex::handleAppendOnReplicator(int index, const DataMap& data,
                                           const PeerId& peer) {
+  CHECK(FLAGS_enable_replication);
   CHECK_LT(index, kNumReplications);
   common::ScopedWriteLock replicated_data_lock(&replicated_data_lock_);
   if (replicating_peers_[index] != peer) {
@@ -627,7 +630,8 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
           CHECK(self->fetchResponsibilitiesRpc(successor_predecessor,
                                                &self->data_));
           self->data_lock_.releaseWriteLock();
-          bool result = self->notifyRpc(successor_predecessor, PeerId::self());
+          bool result = self->notifyRpc(successor_predecessor, PeerId::self(),
+                                        proto::NotifySender::PREDECESSOR);
           self->unlock(successor_predecessor);
           if (!result) {
             continue;
@@ -639,11 +643,10 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
           // Chord ring bypasses this peer. Can happen when this peer gets
           // disconnected for a while.
           // TODO(aqurai): Verify and test this.
-          VLOG(2) << self->own_key_ << ": Successor " << successor_key
-                  << " has predecessor " << hash(successor_predecessor)
-                  << " bypassing this node in the ring";
-          LOG(FATAL) << "No tests written for producing this, hence this "
-                        "shouldnt happen.";
+          LOG(FATAL) << self->own_key_ << ": Successor " << successor_key
+                     << " has predecessor " << hash(successor_predecessor)
+                     << " bypassing this node in the ring. No tests written for"
+                        "producing this, hence this  shouldnt happen.";
           self->peer_lock_.releaseReadLock();
           self->lockPeersInOrder(successor_predecessor, successor_id);
           self->joinBetweenLockedPeers(successor_predecessor, successor_id);
@@ -684,7 +687,7 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
     if (FLAGS_enable_replication) {
       self->fixReplicators();
     }
-    usleep(FLAGS_stabilize_us);
+    usleep(FLAGS_stabilize_us * 100);
   }
 }
 
@@ -705,8 +708,12 @@ bool ChordIndex::joinBetweenLockedPeers(const PeerId& predecessor,
 
   // Notify & unlock.
   bool result = true;
-  result = notifyRpc(successor, PeerId::self());
+  result =
+      notifyRpc(successor, PeerId::self(), proto::NotifySender::PREDECESSOR);
   if (successor != predecessor) {
+    result = notifyRpc(predecessor, PeerId::self(),
+                       proto::NotifySender::SUCCESSOR) &&
+             result;
     result = unlock(predecessor) && result;
   }
   result = unlock(successor) && result;
@@ -791,7 +798,8 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
     data_lock_.acquireWriteLock();
     CHECK(fetchResponsibilitiesRpc(candidate, &data_));
     data_lock_.releaseWriteLock();
-    bool result = notifyRpc(candidate, PeerId::self());
+    bool result =
+        notifyRpc(candidate, PeerId::self(), proto::NotifySender::PREDECESSOR);
     unlock(candidate);
     return result;
   }
@@ -814,6 +822,7 @@ void ChordIndex::fixFinger(size_t finger_index) {
 }
 
 void ChordIndex::fixReplicators() {
+  CHECK(FLAGS_enable_replication);
   if (!replication_ready_) {
     return;
   }
@@ -863,6 +872,7 @@ void ChordIndex::fixReplicators() {
 }
 
 void ChordIndex::appendDataOnAllReplicators(const DataMap& data) {
+  CHECK(FLAGS_enable_replication);
   for (size_t i = 0; i < kNumReplications; ++i) {
     // Detached.
     std::async(std::launch::async, &ChordIndex::appendDataOnReplicator, this, i,
@@ -872,6 +882,7 @@ void ChordIndex::appendDataOnAllReplicators(const DataMap& data) {
 
 void ChordIndex::appendDataOnReplicator(size_t replicator_index,
                                         const DataMap& data) {
+  CHECK(FLAGS_enable_replication);
   std::unique_lock<std::mutex> replicator_peer_lock(replicator_peer_mutex_);
   const PeerId peer = replicators_[replicator_index];
   if (!peer.isValid()) {
@@ -887,6 +898,7 @@ void ChordIndex::appendDataOnReplicator(size_t replicator_index,
 }
 
 void ChordIndex::attemptDataRecovery(const Key& from) {
+  CHECK(FLAGS_enable_replication);
   VLOG(1) << PeerId::self() << "Attempting chord data recovery";
   while (!replication_ready_) {
     // Wait if some data is still being received after join.
@@ -1050,13 +1062,14 @@ bool ChordIndex::retrieveDataLocally(
   return true;
 }
 
-bool ChordIndex::handleNotifyClean(const PeerId& peer_id) {
+bool ChordIndex::handleNotifyClean(const PeerId& peer_id,
+                                   proto::NotifySender sender_type) {
   CHECK(node_locked_);
   CHECK_EQ(peer_id, node_lock_holder_);
   peer_lock_.acquireReadLock();
 
   std::shared_ptr<ChordPeer> peer(new ChordPeer(peer_id));
-  handleNotifyCommon(peer);
+  handleNotifyCommon(peer, sender_type);
   CHECK_GT(peer.use_count(), 1);
   peer_lock_.releaseReadLock();
   peer_lock_.acquireWriteLock();
@@ -1065,7 +1078,8 @@ bool ChordIndex::handleNotifyClean(const PeerId& peer_id) {
   return true;
 }
 
-bool ChordIndex::handleNotifyStabilize(const PeerId& peer_id) {
+bool ChordIndex::handleNotifyStabilize(const PeerId& peer_id,
+                                       proto::NotifySender sender_type) {
   peer_lock_.acquireReadLock();
   // if notify came from predecessor, integrate!
   if (isIn(hash(peer_id), predecessor_->key, own_key_)) {
@@ -1083,7 +1097,7 @@ bool ChordIndex::handleNotifyStabilize(const PeerId& peer_id) {
     return true;
   }
   std::shared_ptr<ChordPeer> peer(new ChordPeer(peer_id));
-  handleNotifyCommon(peer);
+  handleNotifyCommon(peer, sender_type);
   // save peer to peer map only if information has been useful anywhere
   if (peer.use_count() > 1) {
     peer_lock_.releaseReadLock();
@@ -1097,27 +1111,32 @@ bool ChordIndex::handleNotifyStabilize(const PeerId& peer_id) {
   return true;
 }
 
-void ChordIndex::handleNotifyCommon(std::shared_ptr<ChordPeer> peer) {
-  // Notifications come only from new predecessors.
+void ChordIndex::handleNotifyCommon(std::shared_ptr<ChordPeer> peer,
+                                    proto::NotifySender sender_type) {
+  if (sender_type == proto::NotifySender::PREDECESSOR) {
+    if (FLAGS_enable_replication &&
+        !isIn(peer->key, predecessor_->key, own_key_)) {
+      // This peer is bypassing the existing predecessor, which may have left.
+      attemptDataRecovery(peer->key);
+    }
 
-  if (FLAGS_enable_replication &&
-      !isIn(peer->key, predecessor_->key, own_key_)) {
-    // This peer is bypassing the existing predecessor, which may have left.
-    attemptDataRecovery(peer->key);
+    peer_lock_.releaseReadLock();
+    peer_lock_.acquireWriteLock();
+    predecessor_ = peer;
+    peer_lock_.releaseWriteLock();
+    peer_lock_.acquireReadLock();
+    VLOG(3) << own_key_ << " changed predecessor to " << peer->key
+            << " by notification";
   }
-
-  peer_lock_.releaseReadLock();
-  peer_lock_.acquireWriteLock();
-  predecessor_ = peer;
-  if (successor_ == self_) {
-    CHECK(node_locked_);
-    VLOG(1) << own_key_ << ": First peer formed ring with " << peer->key;
+  if (sender_type == proto::NotifySender::SUCCESSOR) {
+    peer_lock_.releaseReadLock();
+    peer_lock_.acquireWriteLock();
     successor_ = peer;
+    peer_lock_.releaseWriteLock();
+    peer_lock_.acquireReadLock();
+    VLOG(3) << own_key_ << " changed successor to " << peer->key
+            << " by notification";
   }
-  peer_lock_.releaseWriteLock();
-  peer_lock_.acquireReadLock();
-  VLOG(3) << own_key_ << " changed predecessor to " << peer->key
-          << " by notification";
 }
 
 } /* namespace map_api */

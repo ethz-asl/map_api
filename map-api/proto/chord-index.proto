@@ -15,3 +15,10 @@ message FetchResponsibilitiesResponse {
   optional uint32 replicator_index = 2;
   optional string replicator_peer_id = 3;
 }
+
+enum NotifySender {PREDECESSOR = 0; SUCCESSOR = 1; }
+
+message NotifyRequest {
+  optional string peer_id = 1;
+  optional NotifySender sender_type = 2;
+}

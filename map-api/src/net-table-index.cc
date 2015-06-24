@@ -95,11 +95,11 @@ MAP_API_PROTO_MESSAGE(NetTableIndex::kRoutedChordRequest,
 
 MAP_API_STRING_MESSAGE(NetTableIndex::kPeerResponse);
 MAP_API_STRING_MESSAGE(NetTableIndex::kGetClosestPrecedingFingerRequest);
-MAP_API_STRING_MESSAGE(NetTableIndex::kNotifyRequest);
 MAP_API_PROTO_MESSAGE(NetTableIndex::kReplaceRequest, proto::ReplaceRequest);
 MAP_API_PROTO_MESSAGE(NetTableIndex::kAddDataRequest, proto::AddDataRequest);
 MAP_API_STRING_MESSAGE(NetTableIndex::kRetrieveDataRequest);
 MAP_API_STRING_MESSAGE(NetTableIndex::kRetrieveDataResponse);
+MAP_API_PROTO_MESSAGE(NetTableIndex::kNotifyRequest, proto::NotifyRequest);
 MAP_API_PROTO_MESSAGE(NetTableIndex::kFetchResponsibilitiesResponse,
                       proto::FetchResponsibilitiesResponse);
 MAP_API_PROTO_MESSAGE(NetTableIndex::kPushResponsibilitiesRequest,
@@ -182,7 +182,10 @@ void NetTableIndex::handleRoutedRequest(
   }
 
   if (request.isType<kNotifyRequest>()) {
-    if (handleNotify(PeerId(request.serialized()))) {
+    proto::NotifyRequest notify_request;
+    request.extract<kNotifyRequest>(&notify_request);
+    if (handleNotify(PeerId(notify_request.peer_id()),
+                     notify_request.sender_type())) {
       response->ack();
     } else {
       response->decline();
@@ -371,10 +374,13 @@ ChordIndex::RpcStatus NetTableIndex::unlockRpc(const PeerId& to) {
   return rpc(to, request, &response);
 }
 
-bool NetTableIndex::notifyRpc(
-    const PeerId& to, const PeerId& self) {
+bool NetTableIndex::notifyRpc(const PeerId& to, const PeerId& self,
+                              proto::NotifySender sender_type) {
   Message request, response;
-  request.impose<kNotifyRequest>(self.ipPort());
+  proto::NotifyRequest notify_request;
+  notify_request.set_peer_id(self.ipPort());
+  notify_request.set_sender_type(sender_type);
+  request.impose<kNotifyRequest>(notify_request);
   if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
     return false;
   }

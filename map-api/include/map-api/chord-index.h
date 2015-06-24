@@ -24,6 +24,8 @@
 
 #include "map-api/peer-id.h"
 
+#include "./chord-index.pb.h"
+
 namespace map_api {
 
 /**
@@ -57,7 +59,7 @@ class ChordIndex {
   bool handleGetPredecessor(PeerId* result);
   bool handleLock(const PeerId& requester);
   bool handleUnlock(const PeerId& requester);
-  bool handleNotify(const PeerId& peer_id);
+  bool handleNotify(const PeerId& peer_id, proto::NotifySender sender_type);
   bool handleReplace(const PeerId& old_peer, const PeerId& new_peer);
   bool handleAddData(const std::string& key, const std::string& value);
   bool handleRetrieveData(const std::string& key, std::string* value);
@@ -151,7 +153,8 @@ class ChordIndex {
   virtual bool getPredecessorRpc(const PeerId& to, PeerId* predecessor) = 0;
   virtual RpcStatus lockRpc(const PeerId& to) = 0;
   virtual RpcStatus unlockRpc(const PeerId& to) = 0;
-  virtual bool notifyRpc(const PeerId& to, const PeerId& subject) = 0;
+  virtual bool notifyRpc(const PeerId& to, const PeerId& subject,
+                         proto::NotifySender sender_type) = 0;
   virtual bool replaceRpc(
       const PeerId& to, const PeerId& old_peer, const PeerId& new_peer) = 0;
   // query RPCs
@@ -224,12 +227,15 @@ class ChordIndex {
 
   bool retrieveDataLocally(const std::string& key, std::string* value);
 
-  bool handleNotifyClean(const PeerId& peer_id);
-  bool handleNotifyStabilize(const PeerId& peer_id);
+  bool handleNotifyClean(const PeerId& peer_id,
+                         proto::NotifySender sender_type);
+  bool handleNotifyStabilize(const PeerId& peer_id,
+                             proto::NotifySender sender_type);
   /**
    * Assumes peers read-locked!
    */
-  void handleNotifyCommon(std::shared_ptr<ChordPeer> peer);
+  void handleNotifyCommon(std::shared_ptr<ChordPeer> peer,
+                          proto::NotifySender sender_type);
 
   /**
    * A finger and a successor list item may point to the same peer, yet peer

@@ -85,8 +85,8 @@ class TestChordIndex final : public ChordIndex {
                                  PeerId* predecessor) final override;
   virtual ChordIndex::RpcStatus lockRpc(const PeerId& to) final override;
   virtual ChordIndex::RpcStatus unlockRpc(const PeerId& to) final override;
-  virtual bool notifyRpc(const PeerId& to,
-                         const PeerId& subject) final override;
+  virtual bool notifyRpc(const PeerId& to, const PeerId& subject,
+                         proto::NotifySender sender_type) final override;
   virtual bool replaceRpc(const PeerId& to, const PeerId& old_peer,
                           const PeerId& new_peer) final override;
   virtual bool addDataRpc(const PeerId& to, const std::string& key,
@@ -137,11 +137,11 @@ const char TestChordIndex::kAppendReplicationDataRequest[] =
 
 MAP_API_STRING_MESSAGE(TestChordIndex::kPeerResponse);
 MAP_API_STRING_MESSAGE(TestChordIndex::kGetClosestPrecedingFingerRequest);
-MAP_API_STRING_MESSAGE(TestChordIndex::kNotifyRequest);
 MAP_API_PROTO_MESSAGE(TestChordIndex::kReplaceRequest, proto::ReplaceRequest);
 MAP_API_PROTO_MESSAGE(TestChordIndex::kAddDataRequest, proto::AddDataRequest);
 MAP_API_STRING_MESSAGE(TestChordIndex::kRetrieveDataRequest);
 MAP_API_STRING_MESSAGE(TestChordIndex::kRetrieveDataResponse);
+MAP_API_PROTO_MESSAGE(TestChordIndex::kNotifyRequest, proto::NotifyRequest);
 MAP_API_PROTO_MESSAGE(TestChordIndex::kFetchResponsibilitiesResponse,
                       proto::FetchResponsibilitiesResponse);
 MAP_API_PROTO_MESSAGE(TestChordIndex::kPushResponsibilitiesRequest,
@@ -244,7 +244,10 @@ void TestChordIndex::staticHandleUnlock(const Message& request,
 void TestChordIndex::staticHandleNotify(const Message& request,
                                         Message* response) {
   CHECK_NOTNULL(response);
-  if (instance().handleNotify(PeerId(request.serialized()))) {
+  proto::NotifyRequest notify_request;
+  request.extract<kNotifyRequest>(&notify_request);
+  if (instance().handleNotify(PeerId(notify_request.peer_id()),
+                              notify_request.sender_type())) {
     response->ack();
   } else {
     response->decline();
@@ -462,9 +465,13 @@ ChordIndex::RpcStatus TestChordIndex::unlockRpc(const PeerId& to) {
   return RpcStatus::SUCCESS;
 }
 
-bool TestChordIndex::notifyRpc(const PeerId& to, const PeerId& self) {
+bool TestChordIndex::notifyRpc(const PeerId& to, const PeerId& self,
+                               proto::NotifySender sender_type) {
   Message request, response;
-  request.impose<kNotifyRequest>(self.ipPort());
+  proto::NotifyRequest notify_request;
+  notify_request.set_peer_id(self.ipPort());
+  notify_request.set_sender_type(sender_type);
+  request.impose<kNotifyRequest>(notify_request);
   if (!instance().peers_.try_request(to, &request, &response)) {
     return false;
   }
