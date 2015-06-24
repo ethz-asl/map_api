@@ -513,19 +513,18 @@ void ChordIndex::localUpdateCallback(const std::string& /*key*/,
                                      const std::string& /*new_value*/) {}
 
 PeerId ChordIndex::closestPrecedingFinger(const Key& key) {
-  peer_lock_.acquireReadLock();
+  common::ScopedReadLock peer_lock(&peer_lock_);
   PeerId result;
   if (isIn(key, own_key_, successor_->key)) {
     result = PeerId::self();
   } else {
     result = successor_->id;
     if (enable_fingers) {
-      for (size_t i = 1; i < kNumFingers; ++i) {
-        if (!fingers_[i].peer->isValid() || fingers_[i].is_self ||
-            !fingers_[i - 1].peer->isValid() || fingers_[i - 1].is_self) {
-          break;
+      for (size_t i = 0; i < kNumFingers; ++i) {
+        if (!fingers_[i].peer->isValid() || fingers_[i].is_self) {
+          continue;
         }
-        if (!isIn(key, fingers_[i - 1].peer->key, fingers_[i].peer->key)) {
+        if (!isIn(key, own_key_, fingers_[i].peer->key)) {
           result = fingers_[i].peer->id;
         } else {
           break;
@@ -533,7 +532,6 @@ PeerId ChordIndex::closestPrecedingFinger(const Key& key) {
       }
     }
   }
-  peer_lock_.releaseReadLock();
   return result;
 }
 
@@ -753,7 +751,7 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
 void ChordIndex::fixFinger(size_t finger_index) {
   if (finger_index == 0) {
     common::ScopedWriteLock peer_lock(&peer_lock_);
-    fingers_[0].peer.reset(new ChordPeer(successor_->id));
+    fingers_[0].peer = successor_;
     return;
   }
   peer_lock_.acquireReadLock();
