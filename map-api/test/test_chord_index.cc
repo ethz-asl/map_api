@@ -40,8 +40,6 @@ class TestChordIndex final : public ChordIndex {
                                          Message* response);
   static void staticHandleAppendOnReplicator(const Message& request,
                                              Message* response);
-  static void staticHandleFetchReplicationData(const Message& request,
-                                               Message* response);
 
   size_t findPredecessorCountRpcs(const Key& key, PeerId* peer);
 
@@ -64,8 +62,6 @@ class TestChordIndex final : public ChordIndex {
   static const char kPushResponsibilitiesRequest[];
   static const char kInitReplicatorRequest[];
   static const char kAppendReplicationDataRequest[];
-  static const char kFetchReplicationDataRequest[];
-  static const char kFetchReplicationDataResponse[];
 
   /**
    * Inits handlers, must be called before core::init
@@ -106,9 +102,6 @@ class TestChordIndex final : public ChordIndex {
                                  const DataMap& data) final override;
   virtual bool appendOnReplicatorRpc(const PeerId& to, size_t index,
                                      const DataMap& data) final override;
-  virtual bool fetchFromReplicatorRpc(const PeerId& to, size_t index,
-                                      DataMap* data,
-                                      PeerId* peer) final override;
 
   PeerHandler peers_;
 };
@@ -141,10 +134,6 @@ const char TestChordIndex::kInitReplicatorRequest[] =
     "test_chord_index_init_chord_replicator";
 const char TestChordIndex::kAppendReplicationDataRequest[] =
     "test_chord_index_append_chord_replication_data";
-const char TestChordIndex::kFetchReplicationDataRequest[] =
-    "test_chord_index_fetch_chord_replication_data";
-const char TestChordIndex::kFetchReplicationDataResponse[] =
-    "test_chord_index_fetch_chord_replication_data_response";
 
 MAP_API_STRING_MESSAGE(TestChordIndex::kPeerResponse);
 MAP_API_STRING_MESSAGE(TestChordIndex::kGetClosestPrecedingFingerRequest);
@@ -160,10 +149,6 @@ MAP_API_PROTO_MESSAGE(TestChordIndex::kPushResponsibilitiesRequest,
 MAP_API_PROTO_MESSAGE(TestChordIndex::kInitReplicatorRequest,
                       proto::FetchResponsibilitiesResponse);
 MAP_API_PROTO_MESSAGE(TestChordIndex::kAppendReplicationDataRequest,
-                      proto::FetchResponsibilitiesResponse);
-MAP_API_PROTO_MESSAGE(TestChordIndex::kFetchReplicationDataRequest,
-                      proto::FetchReplicationDataRequest);
-MAP_API_PROTO_MESSAGE(TestChordIndex::kFetchReplicationDataResponse,
                       proto::FetchResponsibilitiesResponse);
 
 void TestChordIndex::staticInit() {
@@ -597,29 +582,6 @@ bool TestChordIndex::appendOnReplicatorRpc(const PeerId& to, size_t index,
     return false;
   }
   return response.isType<Message::kAck>();
-}
-
-bool TestChordIndex::fetchFromReplicatorRpc(const PeerId& to, size_t index,
-                                            DataMap* data, PeerId* peer) {
-  CHECK_NOTNULL(data);
-  CHECK_NOTNULL(peer);
-  Message request, response;
-  proto::FetchReplicationDataRequest data_request;
-  data_request.set_replicator_index(index);
-  request.impose<kFetchReplicationDataRequest>(data_request);
-  if (!instance().peers_.try_request(to, &request, &response)) {
-    return false;
-  }
-  if (!response.isType<kFetchReplicationDataResponse>()) {
-    return false;
-  }
-  proto::FetchResponsibilitiesResponse fetch_response;
-  response.extract<kFetchReplicationDataResponse>(&fetch_response);
-  for (int i = 0; i < fetch_response.data_size(); ++i) {
-    data->emplace(fetch_response.data(i).key(), fetch_response.data(i).value());
-  }
-  *peer = PeerId(fetch_response.replicator_peer_id());
-  return true;
 }
 
 }  // namespace map_api

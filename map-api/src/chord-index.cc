@@ -222,18 +222,6 @@ bool ChordIndex::handleAppendOnReplicator(int index, const DataMap& data,
   return true;
 }
 
-bool ChordIndex::handleFetchReplicationData(int index, DataMap* data, PeerId* peer) {
-  CHECK_NOTNULL(data);
-  CHECK_NOTNULL(peer);
-  common::ScopedReadLock replicated_data_lock(&replicated_data_lock_);
-  for (const DataMap::value_type& item : replicated_data_[index]) {
-    data->insert(item);
-  }
-  *peer = replicating_peers_[index];
-  return true;
-}
-
-
 bool ChordIndex::addData(const std::string& key, const std::string& value) {
   Key chord_key = hash(key);
   PeerId successor = findSuccessor(chord_key);

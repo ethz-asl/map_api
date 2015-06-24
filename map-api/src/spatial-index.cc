@@ -236,10 +236,6 @@ const char SpatialIndex::kInitReplicatorRequest[] =
     "init_chord_replicator";
 const char SpatialIndex::kAppendReplicationDataRequest[] =
     "append_chord_replication_data";
-const char SpatialIndex::kFetchReplicationDataRequest[] =
-    "fetch_chord_replication_data";
-const char SpatialIndex::kFetchReplicationDataResponse[] =
-    "fetch_chord_replication_data_response";
 
 MAP_API_PROTO_MESSAGE(SpatialIndex::kRoutedChordRequest,
                       proto::RoutedChordRequest);
@@ -258,10 +254,6 @@ MAP_API_PROTO_MESSAGE(SpatialIndex::kPushResponsibilitiesRequest,
 MAP_API_PROTO_MESSAGE(SpatialIndex::kInitReplicatorRequest,
                       proto::FetchResponsibilitiesResponse);
 MAP_API_PROTO_MESSAGE(SpatialIndex::kAppendReplicationDataRequest,
-                      proto::FetchResponsibilitiesResponse);
-MAP_API_PROTO_MESSAGE(SpatialIndex::kFetchReplicationDataRequest,
-                      proto::FetchReplicationDataRequest);
-MAP_API_PROTO_MESSAGE(SpatialIndex::kFetchReplicationDataResponse,
                       proto::FetchResponsibilitiesResponse);
 
 void SpatialIndex::handleRoutedRequest(const Message& routed_request_message,
@@ -443,32 +435,6 @@ void SpatialIndex::handleRoutedRequest(const Message& routed_request_message,
     if (handleAppendOnReplicator(replication_request.replicator_index(), data,
                                  request.sender())) {
       response->ack();
-    } else {
-      response->decline();
-    }
-    return;
-  }
-
-  if (request.isType<kFetchReplicationDataRequest>()) {
-    DataMap data;
-    PeerId replicating_peer_;
-    CHECK(request.isType<kFetchReplicationDataRequest>());
-    proto::FetchReplicationDataRequest data_request;
-    request.extract<kFetchReplicationDataRequest>(&data_request);
-    if (handleFetchReplicationData(
-          data_request.replicator_index(), &data, &replicating_peer_)) {
-      proto::FetchResponsibilitiesResponse fetch_response;
-      fetch_response.set_replicator_peer_id(replicating_peer_.ipPort());
-      for (const DataMap::value_type& item : data) {
-        proto::AddDataRequest add_request;
-        add_request.set_key(item.first);
-        add_request.set_value(item.second);
-        proto::AddDataRequest* slot = fetch_response.add_data();
-        CHECK_NOTNULL(slot);
-        // TODO(aqurai): Why?
-        *slot = add_request;
-      }
-      response->impose<kFetchReplicationDataResponse>(fetch_response);
     } else {
       response->decline();
     }
@@ -744,27 +710,6 @@ bool SpatialIndex::appendOnReplicatorRpc(const PeerId& to, size_t index,
     return false;
   }
   CHECK(response.isType<Message::kAck>());
-  return true;
-}
-
-bool SpatialIndex::fetchFromReplicatorRpc(const PeerId& to, size_t index,
-                                          DataMap* data, PeerId* peer) {
-  CHECK_NOTNULL(data);
-  CHECK_NOTNULL(peer);
-  Message request, response;
-  proto::FetchReplicationDataRequest data_request;
-  data_request.set_replicator_index(index);
-  request.impose<kFetchReplicationDataRequest>(data_request);
-  if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
-    return false;
-  }
-  CHECK(response.isType<kFetchReplicationDataResponse>());
-  proto::FetchResponsibilitiesResponse fetch_response;
-  response.extract<kFetchReplicationDataResponse>(&fetch_response);
-  for (int i = 0; i < fetch_response.data_size(); ++i) {
-    data->emplace(fetch_response.data(i).key(), fetch_response.data(i).value());
-  }
-  *peer = PeerId(fetch_response.replicator_peer_id());
   return true;
 }
 

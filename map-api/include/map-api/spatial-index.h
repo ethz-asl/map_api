@@ -133,8 +133,6 @@ class SpatialIndex : public ChordIndex {
   static const char kPushResponsibilitiesRequest[];
   static const char kInitReplicatorRequest[];
   static const char kAppendReplicationDataRequest[];
-  static const char kFetchReplicationDataRequest[];
-  static const char kFetchReplicationDataResponse[];
   static const char kTriggerRequest[];
 
  private:
@@ -189,9 +187,6 @@ class SpatialIndex : public ChordIndex {
                                  const DataMap& data) final override;
   virtual bool appendOnReplicatorRpc(const PeerId& to, size_t index,
                                      const DataMap& data) final override;
-  virtual bool fetchFromReplicatorRpc(const PeerId& to, size_t index,
-                                      DataMap* data,
-                                      PeerId* peer) final override;
 
   virtual void localUpdateCallback(const std::string& key,
                                    const std::string& old_value,

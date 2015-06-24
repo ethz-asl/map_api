@@ -67,7 +67,6 @@ class ChordIndex {
   bool handleInitReplicator(int index, const DataMap& data, const PeerId& peer);
   bool handleAppendOnReplicator(int index, const DataMap& data,
                                 const PeerId& peer);
-  bool handleFetchReplicationData(int index, DataMap* data, PeerId* peer);
 
   // ====================
   // HIGH-LEVEL FUNCTIONS
@@ -170,8 +169,6 @@ class ChordIndex {
                                  const DataMap& data) = 0;
   virtual bool appendOnReplicatorRpc(const PeerId& to, size_t index,
                                      const DataMap& data) = 0;
-  virtual bool fetchFromReplicatorRpc(const PeerId& to, size_t index,
-                                      DataMap* data, PeerId* peer) = 0;
 
   // This function gets executed after data that is allocated locally (i.e. not
   // on another peer) gets updated. Derived classes can use this to implement
