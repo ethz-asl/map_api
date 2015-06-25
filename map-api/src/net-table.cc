@@ -662,7 +662,12 @@ void NetTable::handleUpdateRequest(const common::Id& chunk_id,
 void NetTable::handleRoutedNetTableChordRequests(const Message& request,
                                                  Message* response) {
   common::ScopedReadLock lock(&index_lock_);
-  CHECK_NOTNULL(index_.get());
+  // Peers sending replication data are not notified when this peer leaves
+  // the index. Hence decline instead of CHECK_NOTNULL(index_.get()).
+  if (!index_) {
+    response->decline();
+    return;
+  }
   index_->handleRoutedRequest(request, response);
 }
 
