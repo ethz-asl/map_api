@@ -65,15 +65,12 @@ bool ChordIndex::handleLock(const PeerId& requester) {
   } else {
     node_locked_ = true;
     node_lock_holder_ = requester;
-    {
-      std::lock_guard<std::mutex> lock_monitor_mutex(lock_monitor_mutex_);
-      CHECK(!lock_motitor_thread_running_);
-      if (lock_motitor_thread_.joinable()) {
-        LOG(WARNING) << own_key_ << " earlier unlocked due to timeout";
-        lock_motitor_thread_.join();
-      }
-      lock_motitor_thread_ = std::thread(&ChordIndex::lockMonitor, this);
+    CHECK(!lock_motitor_thread_running_);
+    if (lock_motitor_thread_.joinable()) {
+      LOG(WARNING) << own_key_ << " earlier unlocked due to timeout";
+      lock_motitor_thread_.join();
     }
+    lock_motitor_thread_ = std::thread(&ChordIndex::lockMonitor, this);
 
     VLOG(3) << hash(requester) << " locked " << own_key_;
     return true;
@@ -90,11 +87,8 @@ bool ChordIndex::handleUnlock(const PeerId& requester) {
     return false;
   } else {
     node_locked_ = false;
-    {
-      std::lock_guard<std::mutex> lock_monitor_mutex(lock_monitor_mutex_);
-      CHECK(lock_motitor_thread_.joinable());
-      lock_motitor_thread_.join();
-    }
+    CHECK(lock_motitor_thread_.joinable());
+    lock_motitor_thread_.join();
     VLOG(3) << hash(requester) << " unlocked " << own_key_;
     return true;
   }
@@ -1233,7 +1227,6 @@ void ChordIndex::lockMonitor() {
     lock_monitor_mutex.unlock();
     if (duration_ms > kLockTimeoutMs) {
       std::lock_guard<std::mutex> node_lock(node_lock_);
-      lock_monitor_mutex.lock();
       node_locked_ = false;
       LOG(WARNING) << own_key_ << ": Lock held by " << hash(node_lock_holder_)
                    << " timed out.";
