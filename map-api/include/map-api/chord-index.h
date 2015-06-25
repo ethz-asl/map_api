@@ -6,6 +6,7 @@
 // initialize_mutex_
 //
 // node lock, peer lock, data lock
+// node_lock, lock_monitor_mutex_
 
 #ifndef MAP_API_CHORD_INDEX_H_
 #define MAP_API_CHORD_INDEX_H_
@@ -21,9 +22,8 @@
 #include <gtest/gtest_prod.h>
 #include <multiagent-mapping-common/reader-writer-lock.h>
 
-#include "map-api/peer-id.h"
-
 #include "./chord-index.pb.h"
+#include "map-api/peer-id.h"
 
 namespace map_api {
 

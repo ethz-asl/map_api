@@ -436,8 +436,8 @@ TEST_F(ChordIndexTestInitialized, fingerRetrieveLength) {
     IPC::barrier(FINGERS_READY, kNProcesses - 1);
     PeerId predecessor;
     ChordIndex::Key key = ChordIndex::hash(PeerId::self()) - 1;
-    size_t count = TestChordIndex::instance().findPredecessorCountRpcs(key,
-&predecessor);
+    size_t count =
+        TestChordIndex::instance().findPredecessorCountRpcs(key, &predecessor);
     EXPECT_LT(count, kNProcesses);
     IPC::barrier(GET_PREDECESSOR, kNProcesses - 1);
   } else {
