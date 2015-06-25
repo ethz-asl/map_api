@@ -410,6 +410,50 @@ TEST_F(ChordIndexTestInitialized,
   }
 }
 
+TEST_F(ChordIndexTestInitialized, fingerRetrieveLength) {
+  const size_t kNProcesses = FLAGS_chord_processes;
+  enum Barriers {
+    INIT,
+    ROOT_SHARED,
+    JOINED_STABILIZED,
+    FINGERS_READY,
+    GET_PREDECESSOR
+  };
+  if (getSubprocessId() == 0) {
+    for (size_t i = 1; i < kNProcesses; ++i) {
+      launchSubprocess(i);
+    }
+    IPC::barrier(INIT, kNProcesses - 1);
+    IPC::push(PeerId::self());
+    IPC::barrier(ROOT_SHARED, kNProcesses - 1);
+    usleep(20 * kNProcesses * FLAGS_stabilize_us);  // yes, 10 is a magic number
+    // it should be an upper bound of the amount of required stabilization
+    // iterations per process
+    IPC::barrier(JOINED_STABILIZED, kNProcesses - 1);
+    while (!TestChordIndex::instance().areFingersReady()) {
+      usleep(2000);
+    }
+    IPC::barrier(FINGERS_READY, kNProcesses - 1);
+    PeerId predecessor;
+    ChordIndex::Key key = ChordIndex::hash(PeerId::self()) - 1;
+    size_t count = TestChordIndex::instance().findPredecessorCountRpcs(key,
+&predecessor);
+    EXPECT_LT(count, kNProcesses);
+    IPC::barrier(GET_PREDECESSOR, kNProcesses - 1);
+  } else {
+    IPC::barrier(INIT, kNProcesses - 1);
+    IPC::barrier(ROOT_SHARED, kNProcesses - 1);
+    PeerId root = IPC::pop<PeerId>();
+    TestChordIndex::instance().join(root);
+    IPC::barrier(JOINED_STABILIZED, kNProcesses - 1);
+    while (!TestChordIndex::instance().areFingersReady()) {
+      usleep(2000);
+    }
+    IPC::barrier(FINGERS_READY, kNProcesses - 1);
+    IPC::barrier(GET_PREDECESSOR, kNProcesses - 1);
+  }
+}
+
 }  // namespace map_api
 
 MAP_API_UNITTEST_ENTRYPOINT

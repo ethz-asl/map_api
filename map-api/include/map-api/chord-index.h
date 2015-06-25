@@ -63,7 +63,7 @@ class ChordIndex {
   bool addData(const std::string& key, const std::string& value);
   bool retrieveData(const std::string& key, std::string* value);
 
-  static constexpr size_t M = sizeof(Key) * 8;
+  static constexpr size_t kNumFingers = sizeof(Key) * 8;
   /**
    * Find successor to key, i.e. who holds the information associated with key
    * It is the first node whose hash key is larger than or equal to the key.
@@ -79,8 +79,8 @@ class ChordIndex {
    */
   void create();
 
-  void join(const PeerId& other);
-  void cleanJoin(const PeerId& other);
+  bool join(const PeerId& other);
+  bool cleanJoin(const PeerId& other);
   void stabilizeJoin(const PeerId& other);
 
   /**
@@ -89,7 +89,9 @@ class ChordIndex {
   bool lock();
   bool lock(const PeerId& subject);
   void unlock();
-  void unlock(const PeerId& subject);
+  bool unlock(const PeerId& subject);
+  bool lockPeersInOrder(const PeerId& subject_1, const PeerId& subject_2);
+  bool unlockPeers(const PeerId& subject_1, const PeerId& subject_2);
 
   /**
    * Terminates stabilizeThread();, pushes responsible data
@@ -100,7 +102,28 @@ class ChordIndex {
   template <typename DataType>
   static Key hash(const DataType& data);
 
+  enum class RpcStatus {
+    SUCCESS,
+    DECLINED,
+    RPC_FAILED
+  };
+
+ protected:
+  /**
+   * Returns index of finger which is counter-clockwise closest to key.
+   */
+  PeerId closestPrecedingFinger(const Key& key);
+
+  /**
+   * Check whether key is is same as from_inclusive or between from_inclusive
+   * and to_exclusive, clockwise. In particular, returns true if from_inclusive
+   * is the same as to_exclusive.
+   */
+  static bool isIn(const Key& key, const Key& from_inclusive,
+                   const Key& to_exclusive);
+
  private:
+  friend class TestChordIndex;
   // ======================
   // REQUIRE IMPLEMENTATION
   // ======================
@@ -109,8 +132,8 @@ class ChordIndex {
       const PeerId& to, const Key& key, PeerId* closest_preceding) = 0;
   virtual bool getSuccessorRpc(const PeerId& to, PeerId* successor) = 0;
   virtual bool getPredecessorRpc(const PeerId& to, PeerId* predecessor) = 0;
-  virtual bool lockRpc(const PeerId& to) = 0;
-  virtual bool unlockRpc(const PeerId& to) = 0;
+  virtual RpcStatus lockRpc(const PeerId& to) = 0;
+  virtual RpcStatus unlockRpc(const PeerId& to) = 0;
   virtual bool notifyRpc(const PeerId& to, const PeerId& subject) = 0;
   virtual bool replaceRpc(
       const PeerId& to, const PeerId& old_peer, const PeerId& new_peer) = 0;
@@ -135,10 +158,15 @@ class ChordIndex {
 
   static void stabilizeThread(ChordIndex* self);
   static void integrateThread(ChordIndex* self);
+  bool replaceDisconnectedSuccessor();
+  bool joinBetweenLockedPeers(const PeerId& predecessor,
+                              const PeerId& successor);
+  void fixFinger(size_t finger_index);
 
   struct ChordPeer {
     PeerId id;
     Key key;
+    ChordPeer() : id(PeerId()) {}
     explicit ChordPeer(const PeerId& _id) : id(_id), key(hash(_id)) {}
     inline bool isValid() const {
       return id.isValid();
@@ -149,28 +177,20 @@ class ChordIndex {
   };
 
   /**
-   * Returns index of finger which is counter-clockwise closest to key.
-   */
-  PeerId closestPrecedingFinger(
-      const Key& key);
-  /**
    * Routine common to create() and join()
    */
   void init();
   void registerPeer(const PeerId& peer, std::shared_ptr<ChordPeer>* target);
-
-  /**
-   * Check whether key is is same as from_inclusive or between from_inclusive
-   * and to_exclusive, clockwise. In particular, returns true if from_inclusive
-   * is the same as to_exclusive.
-   */
-  static bool isIn(const Key& key, const Key& from_inclusive,
-                   const Key& to_exclusive);
+  void setFingerPeer(const PeerId& peer, size_t finger_index);
 
   /**
    * Returns false if chord index terminated
    */
   bool waitUntilInitialized();
+
+  FRIEND_TEST(ChordIndexTestInitialized, fingerRetrieveLength);
+
+  bool areFingersReady();
 
   bool addDataLocally(const std::string& key, const std::string& value);
 
@@ -191,6 +211,8 @@ class ChordIndex {
   struct Finger {
     Key base_key;
     std::shared_ptr<ChordPeer> peer;
+    bool is_self = false;
+    bool isValid() { return (peer && peer->isValid()); }
   };
   typedef std::shared_ptr<ChordPeer> SuccessorListItem;
 
@@ -203,16 +225,13 @@ class ChordIndex {
   typedef std::unordered_map<PeerId, std::weak_ptr<ChordPeer> > PeerMap;
   PeerMap peers_;
 
-  Finger fingers_[M];
+  Finger fingers_[kNumFingers];
   SuccessorListItem successor_;
   std::shared_ptr<ChordPeer> predecessor_;
-
   common::ReaderWriterMutex peer_lock_;
 
   FRIEND_TEST(ChordIndexTestInitialized, onePeerJoin);
   friend class ChordIndexTestInitialized;
-
-  std::mutex peer_access_;
 
   Key own_key_ = hash(PeerId::self());
   std::shared_ptr<ChordPeer> self_;

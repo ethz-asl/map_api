@@ -15,6 +15,8 @@ DECLARE_int32(simulated_lag_ms);
 
 namespace map_api {
 
+constexpr bool enable_fingers = true;
+
 ChordIndex::~ChordIndex() {}
 
 bool ChordIndex::handleGetClosestPrecedingFinger(
@@ -237,9 +239,11 @@ PeerId ChordIndex::findPredecessor(const Key& key) {
       "FindPredecessor called while it's the calling peer";
   peer_lock_.releaseReadLock();
   PeerId result = closestPrecedingFinger(key), result_successor;
+
+  // Used fingers to jump peers earlier. Search one-by-one from here.
   CHECK(getSuccessorRpc(result, &result_successor));
   while (!isIn(key, hash(result), hash(result_successor))) {
-    CHECK(getClosestPrecedingFingerRpc(result, key, &result));
+    result = result_successor;
     CHECK(getSuccessorRpc(result, &result_successor));
   }
   return result;
@@ -248,8 +252,10 @@ PeerId ChordIndex::findPredecessor(const Key& key) {
 void ChordIndex::create() {
   init();
   peer_lock_.acquireWriteLock();
-  for (size_t i = 0; i < M; ++i) {
-    fingers_[i].peer = self_;
+  if (!enable_fingers) {
+    for (size_t i = 0; i < kNumFingers; ++i) {
+      fingers_[i].peer = self_;
+    }
   }
   successor_ = self_;
   predecessor_ = self_;
@@ -264,10 +270,12 @@ void ChordIndex::create() {
   VLOG(3) << "Root(" << PeerId::self() << ") has key " << own_key_;
 }
 
-void ChordIndex::join(const PeerId& other) {
+bool ChordIndex::join(const PeerId& other) {
   init();
   if (FLAGS_join_mode == kCleanJoin) {
-    cleanJoin(other);
+    if (!cleanJoin(other)) {
+      return false;
+    }
   } else {
     CHECK_EQ(kStabilizeJoin, FLAGS_join_mode);
     stabilizeJoin(other);
@@ -277,61 +285,43 @@ void ChordIndex::join(const PeerId& other) {
   lock.unlock();
   initialized_cv_.notify_all();
   VLOG(3) << "Peer(" << PeerId::self() << ") has key " << own_key_;
+  return true;
 }
 
-void ChordIndex::cleanJoin(const PeerId& other) {
+bool ChordIndex::cleanJoin(const PeerId& other) {
   // 1. lock proper predecessor and successor
   PeerId predecessor = other, successor;
   while (true) {
-    CHECK(getClosestPrecedingFingerRpc(predecessor, own_key_, &predecessor));
-    CHECK(getSuccessorRpc(predecessor, &successor));
-
+    if (!getClosestPrecedingFingerRpc(predecessor, own_key_, &predecessor)) {
+      return false;
+    }
+    if (!getSuccessorRpc(predecessor, &successor)) {
+      return false;
+    }
     if (!isIn(own_key_, hash(predecessor), hash(successor))) {
       // case when predecessor.successor managed to join between the above
       // two RPC's
       continue;
     }
 
-    // locking must occur in order, in order to avoid deadlock
-    if (hash(predecessor) < hash(successor)) {
-      CHECK(lock(predecessor));
-      CHECK(lock(successor));
-    } else if (hash(predecessor) > hash(successor)) {
-      CHECK(lock(successor));
-      CHECK(lock(predecessor));
-    } else {
-      CHECK_EQ(predecessor, successor) << "Same hash of two different peers";
-      CHECK(lock(predecessor));
+    if (!lockPeersInOrder(predecessor, successor)) {
+      return false;
     }
-
     PeerId successor_predecessor, predecessor_successor;
-    CHECK(getPredecessorRpc(successor, &successor_predecessor));
-    CHECK(getSuccessorRpc(predecessor, &predecessor_successor));
+    if (!(getPredecessorRpc(successor, &successor_predecessor) &&
+          getSuccessorRpc(predecessor, &predecessor_successor))) {
+      unlockPeers(predecessor, successor);
+      return false;
+    }
     if (predecessor_successor == successor &&
         successor_predecessor == predecessor) {
       break;
     }
+    unlockPeers(predecessor, successor);
+  }
 
-    unlock(predecessor);
-    if (predecessor != successor) {
-      unlock(successor);
-    }
-  }
-  // 2. fetch data
-  // TODO(tcies) atomicity: what if any request while locked?
-  data_lock_.acquireWriteLock();
-  CHECK(fetchResponsibilitiesRpc(successor, &data_));
-  data_lock_.releaseWriteLock();
-  // 3. set pred/succ
-  registerPeer(predecessor, &predecessor_);
-  registerPeer(successor, &successor_);
-  // 4. notify & unlock
-  CHECK(notifyRpc(predecessor, PeerId::self()));
-  if (predecessor != successor) {
-    CHECK(notifyRpc(successor, PeerId::self()));
-    unlock(successor);
-  }
-  unlock(predecessor);
+  joinBetweenLockedPeers(predecessor, successor);
+  return true;
 }
 
 void ChordIndex::stabilizeJoin(const PeerId& other) {
@@ -359,7 +349,7 @@ bool ChordIndex::lock() {
 
 bool ChordIndex::lock(const PeerId& subject) {
   while (true) {
-    if (!lockRpc(subject)) {
+    if (lockRpc(subject) != RpcStatus::SUCCESS) {
       usleep(1000);
     } else {
       break;
@@ -376,14 +366,51 @@ void ChordIndex::unlock() {
   VLOG(3) << own_key_ << " unlocked self";
 }
 
-void ChordIndex::unlock(const PeerId& subject) {
-  CHECK(unlockRpc(subject));
+bool ChordIndex::unlock(const PeerId& subject) {
+  return unlockRpc(subject) == RpcStatus::SUCCESS;
+}
+
+bool ChordIndex::lockPeersInOrder(const PeerId& subject_1,
+                                  const PeerId& subject_2) {
+  // Locking must occur in order in order to avoid deadlocks.
+  if (hash(subject_1) < hash(subject_2)) {
+    if (!lock(subject_1)) {
+      return false;
+    }
+    if (!lock(subject_2)) {
+      unlock(subject_1);
+      return false;
+    }
+    return true;
+  } else if (hash(subject_1) > hash(subject_2)) {
+    if (!lock(subject_2)) {
+      return false;
+    }
+    if (!lock(subject_1)) {
+      unlock(subject_2);
+      return false;
+    }
+    return true;
+  } else {
+    CHECK_EQ(subject_1, subject_2) << "Same hash of two different peers";
+    return lock(subject_1);
+  }
+  return false;
+}
+
+bool ChordIndex::unlockPeers(const PeerId& subject_1, const PeerId& subject_2) {
+  bool unlock_result = unlock(subject_1);
+  if (subject_1 != subject_2) {
+    unlock_result = (unlock(subject_2) && unlock_result);
+  }
+  return unlock_result;
 }
 
 void ChordIndex::leave() {
   terminate_ = true;
   stabilizer_.join();
-  CHECK_EQ(kCleanJoin, FLAGS_join_mode) << "Stabilize leave deprecated";
+  // TODO(aqurai): Check if this has to be uncommented.
+  // CHECK_EQ(kCleanJoin, FLAGS_join_mode) << "Stabilize leave deprecated";
   leaveClean();
   // TODO(tcies) unhack! "Ensures" that pending requests resolve
   usleep(FLAGS_simulated_lag_ms * 100000 + 100000);
@@ -485,16 +512,26 @@ void ChordIndex::localUpdateCallback(const std::string& /*key*/,
                                      const std::string& /*old_value*/,
                                      const std::string& /*new_value*/) {}
 
-PeerId ChordIndex::closestPrecedingFinger(
-    const Key& key) {
-  peer_lock_.acquireReadLock();
+PeerId ChordIndex::closestPrecedingFinger(const Key& key) {
+  common::ScopedReadLock peer_lock(&peer_lock_);
   PeerId result;
   if (isIn(key, own_key_, successor_->key)) {
     result = PeerId::self();
   } else {
     result = successor_->id;
+    if (enable_fingers) {
+      for (size_t i = 0; i < kNumFingers; ++i) {
+        if (!fingers_[i].peer->isValid() || fingers_[i].is_self) {
+          continue;
+        }
+        if (!isIn(key, own_key_, fingers_[i].peer->key)) {
+          result = fingers_[i].peer->id;
+        } else {
+          break;
+        }
+      }
+    }
   }
-  peer_lock_.releaseReadLock();
   return result;
 }
 
@@ -503,43 +540,226 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
   if (!self->waitUntilInitialized()) {
     return;
   }
-  if (FLAGS_join_mode == kCleanJoin) {
+  usleep(5000);
+
+  if (enable_fingers) {
+    for (size_t i = 0; i < kNumFingers; ++i) {
+      self->fixFinger(i);
+      // Give time for other RPCs to proceed.
+      usleep(1000);
+    }
+  }
+
+  int fix_finger_index = 0;
+  while (!self->terminate_) {
+    // Avoid holding lock during RPC.
+    self->peer_lock_.acquireReadLock();
+    const PeerId successor_id = self->successor_->id;
+    const Key own_key = self->own_key_;
+    const Key successor_key = self->successor_->key;
+    self->peer_lock_.releaseReadLock();
+
+    PeerId successor_predecessor;
+    if (successor_id != PeerId::self()) {
+      bool successor_responding =
+          self->getPredecessorRpc(successor_id, &successor_predecessor);
+
+      if (!successor_responding) {
+        self->replaceDisconnectedSuccessor();
+      } else {
+        self->lock();
+        if (successor_predecessor != PeerId::self() &&
+            isIn(hash(successor_predecessor), own_key, successor_key)) {
+          self->unlock();
+          // Someone joined in between.
+          // TODO(aqurai): Check if this case ever happens after joinBetween
+          // impl.
+          LOG(WARNING) << "Someone joined in between me and my successor.";
+          self->lock(successor_predecessor);
+          self->registerPeer(successor_predecessor, &self->successor_);
+          self->data_lock_.acquireWriteLock();
+          CHECK(self->fetchResponsibilitiesRpc(successor_predecessor,
+                                               &self->data_));
+          self->data_lock_.releaseWriteLock();
+          bool result = self->notifyRpc(successor_predecessor, PeerId::self());
+          self->unlock(successor_predecessor);
+          if (!result) {
+            continue;
+          }
+        } else if (successor_predecessor != PeerId::self() &&
+                   isIn(own_key, hash(successor_predecessor), successor_key)) {
+          self->unlock();
+          // Chord ring bypasses this peer. Can happen when this peer gets
+          // disconnected for a while.
+          // TODO(aqurai): Verify and test this.
+          LOG(FATAL) << "No tests written for producing this, hence this "
+                        "shouldnt happen.";
+          self->peer_lock_.releaseReadLock();
+          self->lockPeersInOrder(successor_predecessor, successor_id);
+          self->joinBetweenLockedPeers(successor_predecessor, successor_id);
+          self->peer_lock_.acquireReadLock();
+        } else {
+          self->unlock();
+        }
+      }
+    }
+
+    // TODO(aqurai): Debugging purpose. Remove later.
+    if (VLOG_IS_ON(2)) {
+      bool print = false;
+      std::stringstream finger_list;
+      for (size_t i = 0; i < kNumFingers; ++i) {
+        common::ScopedReadLock(&self->peer_lock_);
+        if (!self->fingers_[i].peer->isValid()) {
+          if (i < 2) {
+            print = true;
+          }
+          finger_list << " " << i;
+        }
+      }
+      // Don't print if only higher fingers are invalid.
+      if (print) {
+        LOG(WARNING) << " Fingers " << finger_list.str()
+                     << " not initialized on " << PeerId::self();
+      }
+    }
+
+    if (enable_fingers) {
+      self->fixFinger(fix_finger_index);
+      ++fix_finger_index;
+      if (fix_finger_index == kNumFingers) {
+        fix_finger_index = 0;
+      }
+    }
+    usleep(FLAGS_stabilize_us * 1500);
+  }
+}
+
+bool ChordIndex::joinBetweenLockedPeers(const PeerId& predecessor,
+                                        const PeerId& successor) {
+  // Fetch data.
+  data_lock_.acquireWriteLock();
+  if (!fetchResponsibilitiesRpc(successor, &data_)) {
+    unlockPeers(predecessor, successor);
+    return false;
+  }
+  data_lock_.releaseWriteLock();
+  // TODO(aqurai): Mark: Fetch replication data here.
+
+  // Set pred/succ.
+  registerPeer(predecessor, &predecessor_);
+  registerPeer(successor, &successor_);
+
+  // Notify & unlock.
+  bool result = true;
+  // TODO(aqurai) Test by only sending notification to successor.
+  result = notifyRpc(predecessor, PeerId::self());
+  if (predecessor != successor) {
+    result = notifyRpc(successor, PeerId::self()) && result;
+    result = unlock(successor) && result;
+  }
+  result = unlock(predecessor) && result;
+  return result;
+}
+
+bool ChordIndex::replaceDisconnectedSuccessor() {
+  LOG(WARNING) << "replaceDisconnectedSuccessor on " << PeerId::self();
+  PeerId candidate;
+  PeerId candidate_predecessor;
+
+  peer_lock_.acquireReadLock();
+  const PeerId self_successor = successor_->id;
+  size_t finger_index = 0;
+
+  // Get the peer corresponding to the lowest finger that is alive.
+  for (size_t i = 0; i < kNumFingers; ++i) {
+    if (!fingers_[i].peer->isValid() || fingers_[i].is_self) {
+      peer_lock_.releaseReadLock();
+      return false;
+    }
+    const PeerId to = fingers_[i].peer->id;
+    peer_lock_.releaseReadLock();
+    bool response = getPredecessorRpc(to, &candidate_predecessor);
+    peer_lock_.acquireReadLock();
+    if (response) {
+      finger_index = i;
+      candidate = fingers_[i].peer->id;
+      break;
+    }
+  }
+  peer_lock_.releaseReadLock();
+
+  if (!candidate_predecessor.isValid()) {
+    // TODO(aqurai): Handle this. This means none of the getPred Rpcs succeeded.
+    LOG(FATAL) << "Case of self disconnect from network not handled.";
+    return false;
+  }
+  if (finger_index == 0) {
+    // Existing successor active again. Nothing to do.
+    return true;
+  }
+  if (!lock(candidate)) {
+    return false;
+  }
+
+  // TODO(aqurai): Can this lead to infinite loop? Exit loop if candidate key is
+  // in last-finger-key and own-key?
+  size_t i = 0u;
+  peer_lock_.acquireReadLock();
+
+  // From the finger-peer, traverse back each predecessor towards self in the
+  // circle. The first responding predecessor-peer becomes the new successor.
+  // Locks help avoid simultaneous peer join at this point.
+  PeerId candidate_predecessor_predecessor;
+  while (candidate_predecessor != successor_->id) {
+    ++i;
+    if (i > 20) {
+      LOG(WARNING) << "apparently inf loop in replaceDisconnectedSuccessor on "
+                   << PeerId::self();
+    }
+    peer_lock_.releaseReadLock();
+    bool response = getPredecessorRpc(candidate_predecessor,
+                                      &candidate_predecessor_predecessor);
+    if (!response) {
+      break;
+    } else {
+      unlock(candidate);
+      candidate = candidate_predecessor;
+      candidate_predecessor = candidate_predecessor_predecessor;
+      if (!lock(candidate)) {
+        return false;
+      }
+    }
+    peer_lock_.acquireReadLock();
+  }
+
+  // Set the successor and notify.
+  if (candidate != successor_->id) {
+    peer_lock_.releaseReadLock();
+    registerPeer(candidate, &successor_);
+    data_lock_.acquireWriteLock();
+    CHECK(fetchResponsibilitiesRpc(candidate, &data_));
+    data_lock_.releaseWriteLock();
+    bool result = notifyRpc(candidate, PeerId::self());
+    unlock(candidate);
+    return result;
+  }
+  peer_lock_.releaseReadLock();
+  return false;
+}
+
+void ChordIndex::fixFinger(size_t finger_index) {
+  if (finger_index == 0) {
+    common::ScopedWriteLock peer_lock(&peer_lock_);
+    fingers_[0].peer = successor_;
     return;
   }
-  while (!self->terminate_) {
-    PeerId successor_predecessor;
-    self->peer_lock_.acquireReadLock();
-    if (self->successor_->id != PeerId::self()) {
-      if (!self->getPredecessorRpc(self->successor_->id,
-                                   &successor_predecessor)) {
-        // Node leaves have not been accounted for yet. However, not crashing
-        // the program is necessery for successful (simultaneous) shutdown of a
-        // network.
-        self->peer_lock_.releaseReadLock();
-        continue;
-      }
-      if (successor_predecessor != PeerId::self() &&
-          isIn(hash(successor_predecessor), self->own_key_,
-               self->successor_->key)) {
-        self->peer_lock_.releaseReadLock();
-        self->registerPeer(successor_predecessor, &self->successor_);
-        self->peer_lock_.acquireReadLock();
-        VLOG(3) << self->own_key_ << " changed successor to " <<
-            hash(successor_predecessor) << " through stabilization";
-      }
-      // because notifyRpc does peer_lock_.writeLock on the remote peer, we need
-      // to release the read-lock to avoid potential deadlock.
-      PeerId to_notify = self->successor_->id;
-      self->peer_lock_.releaseReadLock();
-      if (!self->notifyRpc(to_notify, PeerId::self())) {
-        continue;
-      }
-      self->peer_lock_.acquireReadLock();
-    }
-    self->peer_lock_.releaseReadLock();
-    usleep(FLAGS_stabilize_us);
-    // TODO(tcies) finger fixing
-  }
+  peer_lock_.acquireReadLock();
+  const Key finger_key = fingers_[finger_index].base_key;
+  peer_lock_.releaseReadLock();
+
+  const PeerId finger_peer = findSuccessor(finger_key);
+  setFingerPeer(finger_peer, finger_index);
 }
 
 void ChordIndex::integrateThread(ChordIndex* self) {
@@ -568,8 +788,9 @@ void ChordIndex::init() {
   own_key_ = hash(PeerId::self());
   self_.reset(new ChordPeer(PeerId::self()));
   //  LOG(INFO) << "Self key is " << self_->key;
-  for (size_t i = 0; i < M; ++i) {
+  for (size_t i = 0; i < kNumFingers; ++i) {
     fingers_[i].base_key = own_key_ + (1 << i);  // overflow intended
+    fingers_[i].peer.reset(new ChordPeer());
   }
   terminate_ = false;
   stabilizer_ = std::thread(stabilizeThread, this);
@@ -593,6 +814,18 @@ void ChordIndex::registerPeer(
     peers_[peer] = std::weak_ptr<ChordPeer>(*target);
   }
   peer_lock_.releaseWriteLock();
+}
+
+void ChordIndex::setFingerPeer(const PeerId& peer, size_t finger_index) {
+  common::ScopedWriteLock peer_lock(&peer_lock_);
+  if (peer == PeerId::self()) {
+    fingers_[finger_index].is_self = true;
+    // Intentionally not sharing the pointer with self_.
+    fingers_[finger_index].peer.reset(new ChordPeer(PeerId::self()));
+  } else {
+    fingers_[finger_index].is_self = false;
+    fingers_[finger_index].peer.reset(new ChordPeer(peer));
+  }
 }
 
 bool ChordIndex::isIn(
@@ -620,6 +853,16 @@ bool ChordIndex::waitUntilInitialized() {
   }
   lock.unlock();
   initialized_cv_.notify_all();
+  return true;
+}
+
+bool ChordIndex::areFingersReady() {
+  for (size_t i = 0; i < kNumFingers; ++i) {
+    common::ScopedReadLock peer_lock(&peer_lock_);
+    if (!fingers_[i].peer->isValid()) {
+      return false;
+    }
+  }
   return true;
 }
 
@@ -652,7 +895,7 @@ bool ChordIndex::handleNotifyClean(const PeerId& peer_id) {
   CHECK(node_locked_);
   CHECK_EQ(peer_id, node_lock_holder_);
   peer_lock_.acquireReadLock();
-  CHECK(peers_.find(peer_id) == peers_.end()) << peer_id;
+
   std::shared_ptr<ChordPeer> peer(new ChordPeer(peer_id));
   handleNotifyCommon(peer);
   CHECK_GT(peer.use_count(), 1);

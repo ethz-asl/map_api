@@ -268,7 +268,6 @@ bool Hub::isReady(const PeerId& peer) {
 
 void Hub::discoveryHandler(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
-
   PeerId peer = request.sender();
   std::thread([peer]() {
                 std::lock_guard<std::mutex> lock(instance().peer_mutex_);
@@ -276,7 +275,6 @@ void Hub::discoveryHandler(const Message& request, Message* response) {
                     PeerId(peer), std::unique_ptr<Peer>(new Peer(
                                       peer, *instance().context_, ZMQ_REQ))));
               }).detach();
-
   response->ack();
 }
 
