@@ -273,6 +273,8 @@ void SpatialIndex::handleRoutedRequest(const Message& routed_request_message,
     request.setSender(routed_request_message.sender());
   }
 
+  updateLastHeard(request.sender());
+
   if (request.isType<kGetClosestPrecedingFingerRequest>()) {
     Key key;
     std::istringstream key_ss(request.serialized());

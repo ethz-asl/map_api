@@ -182,6 +182,7 @@ void TestChordIndex::staticInit() {
 void TestChordIndex::staticHandleGetClosestPrecedingFinger(
     const Message& request, Message* response) {
   CHECK_NOTNULL(response);
+  instance().updateLastHeard(request.sender());
   Key key;
   std::istringstream key_ss(request.serialized());
   key_ss >> key;
@@ -199,6 +200,7 @@ void TestChordIndex::staticHandleGetSuccessor(const Message& request,
                                               Message* response) {
   CHECK(request.isType<kGetSuccessorRequest>());
   CHECK_NOTNULL(response);
+  instance().updateLastHeard(request.sender());
   PeerId successor;
   if (!instance().handleGetSuccessor(&successor)) {
     response->decline();
@@ -211,6 +213,7 @@ void TestChordIndex::staticHandleGetPredecessor(const Message& request,
                                                 Message* response) {
   CHECK(request.isType<kGetPredecessorRequest>());
   CHECK_NOTNULL(response);
+  instance().updateLastHeard(request.sender());
   PeerId predecessor;
   if (!instance().handleGetPredecessor(&predecessor)) {
     response->decline();
@@ -223,6 +226,7 @@ void TestChordIndex::staticHandleLock(const Message& request,
                                       Message* response) {
   CHECK_NOTNULL(response);
   PeerId requester(request.sender());
+  instance().updateLastHeard(request.sender());
   if (instance().handleLock(requester)) {
     response->ack();
   } else {
@@ -234,6 +238,7 @@ void TestChordIndex::staticHandleUnlock(const Message& request,
                                         Message* response) {
   CHECK_NOTNULL(response);
   PeerId requester(request.sender());
+  instance().updateLastHeard(request.sender());
   if (instance().handleUnlock(requester)) {
     response->ack();
   } else {
@@ -245,6 +250,7 @@ void TestChordIndex::staticHandleNotify(const Message& request,
                                         Message* response) {
   CHECK_NOTNULL(response);
   proto::NotifyRequest notify_request;
+  instance().updateLastHeard(request.sender());
   request.extract<kNotifyRequest>(&notify_request);
   if (instance().handleNotify(PeerId(notify_request.peer_id()),
                               notify_request.sender_type())) {
@@ -257,6 +263,7 @@ void TestChordIndex::staticHandleNotify(const Message& request,
 void TestChordIndex::staticHandleReplace(const Message& request,
                                          Message* response) {
   CHECK_NOTNULL(response);
+  instance().updateLastHeard(request.sender());
   proto::ReplaceRequest replace_request;
   request.extract<kReplaceRequest>(&replace_request);
   if (instance().handleReplace(PeerId(replace_request.old_peer()),
@@ -270,6 +277,7 @@ void TestChordIndex::staticHandleReplace(const Message& request,
 void TestChordIndex::staticHandleAddData(const Message& request,
                                          Message* response) {
   CHECK_NOTNULL(response);
+  instance().updateLastHeard(request.sender());
   proto::AddDataRequest add_data_request;
   request.extract<kAddDataRequest>(&add_data_request);
   CHECK(add_data_request.has_key());
@@ -285,6 +293,7 @@ void TestChordIndex::staticHandleAddData(const Message& request,
 void TestChordIndex::staticHandleRetrieveData(const Message& request,
                                               Message* response) {
   CHECK_NOTNULL(response);
+  instance().updateLastHeard(request.sender());
   std::string key, value;
   request.extract<kRetrieveDataRequest>(&key);
   if (instance().handleRetrieveData(key, &value)) {
@@ -297,6 +306,7 @@ void TestChordIndex::staticHandleRetrieveData(const Message& request,
 void TestChordIndex::staticHandleFetchResponsibilities(const Message& request,
                                                        Message* response) {
   CHECK_NOTNULL(response);
+  instance().updateLastHeard(request.sender());
   DataMap data;
   PeerId requester = PeerId(request.sender());
   CHECK(request.isType<kFetchResponsibilitiesRequest>());
@@ -319,6 +329,7 @@ void TestChordIndex::staticHandleFetchResponsibilities(const Message& request,
 void TestChordIndex::staticHandlePushResponsibilities(const Message& request,
                                                       Message* response) {
   CHECK_NOTNULL(response);
+  instance().updateLastHeard(request.sender());
   DataMap data;
   proto::FetchResponsibilitiesResponse push_request;
   request.extract<kPushResponsibilitiesRequest>(&push_request);
@@ -335,6 +346,7 @@ void TestChordIndex::staticHandlePushResponsibilities(const Message& request,
 void TestChordIndex::staticHandleInitReplicator(const Message& request,
                                                 Message* response) {
   CHECK_NOTNULL(response);
+  instance().updateLastHeard(request.sender());
   DataMap data;
   proto::FetchResponsibilitiesResponse init_request;
   request.extract<kInitReplicatorRequest>(&init_request);
@@ -352,6 +364,7 @@ void TestChordIndex::staticHandleInitReplicator(const Message& request,
 void TestChordIndex::staticHandleAppendOnReplicator(const Message& request,
                                                     Message* response) {
   CHECK_NOTNULL(response);
+  instance().updateLastHeard(request.sender());
   DataMap data;
   proto::FetchResponsibilitiesResponse replication_request;
   request.extract<kAppendReplicationDataRequest>(&replication_request);

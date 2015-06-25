@@ -65,6 +65,8 @@ bool ChordIndex::handleLock(const PeerId& requester) {
   } else {
     node_locked_ = true;
     node_lock_holder_ = requester;
+    CHECK(!lock_motitor_thread_running_);
+    lock_motitor_thread_ = std::thread(&ChordIndex::lockMonitor, this);
     VLOG(3) << hash(requester) << " locked " << own_key_;
     return true;
   }
@@ -80,6 +82,8 @@ bool ChordIndex::handleUnlock(const PeerId& requester) {
     return false;
   } else {
     node_locked_ = false;
+    CHECK(lock_motitor_thread_.joinable());
+    lock_motitor_thread_.join();
     VLOG(3) << hash(requester) << " unlocked " << own_key_;
     return true;
   }
@@ -227,19 +231,24 @@ bool ChordIndex::handleAppendOnReplicator(int index, const DataMap& data,
 
 bool ChordIndex::addData(const std::string& key, const std::string& value) {
   Key chord_key = hash(key);
-  PeerId successor = findSuccessor(chord_key);
+  PeerId successor;
+  if (!findSuccessor(chord_key, &successor)) {
+    return false;
+  }
   if (successor == PeerId::self()) {
     return addDataLocally(key, value);
   } else {
-    CHECK(addDataRpc(successor, key, value));
-    return true;
+    return addDataRpc(successor, key, value);
   }
 }
 
 bool ChordIndex::retrieveData(const std::string& key, std::string* value) {
   CHECK_NOTNULL(value);
   Key chord_key = hash(key);
-  PeerId successor = findSuccessor(chord_key);
+  PeerId successor;
+  if (!findSuccessor(chord_key, &successor)) {
+    return false;
+  }
   if (successor == PeerId::self()) {
     return retrieveDataLocally(key, value);
   } else {
@@ -250,34 +259,45 @@ bool ChordIndex::retrieveData(const std::string& key, std::string* value) {
   }
 }
 
-PeerId ChordIndex::findSuccessor(const Key& key) {
+bool ChordIndex::findSuccessor(const Key& key, PeerId* result) {
+  CHECK_NOTNULL(result);
   peer_lock_.acquireReadLock();
-  PeerId result;
   if (isIn(key, own_key_, successor_->key)) {
-    result = successor_->id;
+    *result = successor_->id;
     peer_lock_.releaseReadLock();
-    return result;
   } else {
     peer_lock_.releaseReadLock();
-    CHECK(getSuccessorRpc(findPredecessor(key), &result));
-    return result;
+    PeerId predecessor;
+    if (!findPredecessor(key, &predecessor)) {
+      return false;
+    }
+    if (!getSuccessorRpc(predecessor, result)) {
+      return false;
+    }
   }
+  return true;
 }
 
-PeerId ChordIndex::findPredecessor(const Key& key) {
+bool ChordIndex::findPredecessor(const Key& key, PeerId* result) {
+  CHECK_NOTNULL(result);
   peer_lock_.acquireReadLock();
   CHECK(!isIn(key, own_key_, successor_->key)) <<
       "FindPredecessor called while it's the calling peer";
   peer_lock_.releaseReadLock();
-  PeerId result = closestPrecedingFinger(key), result_successor;
+  PeerId result_successor;
+  *result = closestPrecedingFinger(key);
 
   // Used fingers to jump peers earlier. Search one-by-one from here.
-  CHECK(getSuccessorRpc(result, &result_successor));
-  while (!isIn(key, hash(result), hash(result_successor))) {
-    result = result_successor;
-    CHECK(getSuccessorRpc(result, &result_successor));
+  if (!getSuccessorRpc(*result, &result_successor)) {
+    return false;
   }
-  return result;
+  while (!isIn(key, hash(*result), hash(result_successor))) {
+    *result = result_successor;
+    if (!getSuccessorRpc(*result, &result_successor)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 void ChordIndex::create() {
@@ -391,6 +411,9 @@ bool ChordIndex::lock() {
 }
 
 bool ChordIndex::lock(const PeerId& subject) {
+  if (subject == PeerId::self()) {
+    return lock();
+  }
   while (true) {
     if (lockRpc(subject) != RpcStatus::SUCCESS) {
       usleep(1000);
@@ -410,6 +433,10 @@ void ChordIndex::unlock() {
 }
 
 bool ChordIndex::unlock(const PeerId& subject) {
+  if (subject == PeerId::self()) {
+    unlock();
+    return true;
+  }
   return unlockRpc(subject) == RpcStatus::SUCCESS;
 }
 
@@ -449,6 +476,24 @@ bool ChordIndex::unlockPeers(const PeerId& subject_1, const PeerId& subject_2) {
   return unlock_result;
 }
 
+bool ChordIndex::lockPeersInArgOrder(const PeerId& subject_1,
+                                     const PeerId& subject_2,
+                                     const PeerId& subject_3) {
+  if (!lock(subject_1)) {
+    return false;
+  }
+  if (!lock(subject_2)) {
+    unlock(subject_1);
+    return false;
+  }
+  if (!lock(subject_3)) {
+    unlock(subject_1);
+    unlock(subject_2);
+    return false;
+  }
+  return true;
+}
+
 void ChordIndex::leave() {
   terminate_ = true;
   stabilizer_.join();
@@ -472,38 +517,35 @@ void ChordIndex::leaveClean() {
     successor = successor_->id;
     peer_lock_.releaseReadLock();
     // in-order locking
+    bool lock_result = false;
     if (hash(successor) <= hash(predecessor)) {
       if (hash(successor) < hash(predecessor)) {
         CHECK_NE(PeerId::self(), successor);
         CHECK_NE(PeerId::self(), predecessor);
         if (own_key_ > hash(successor)) {  // su ... pr, self
-          CHECK(lock(successor));
-          CHECK(lock(predecessor));
-          CHECK(lock());
+          lock_result =
+              lockPeersInArgOrder(successor, predecessor, PeerId::self());
         } else {  // self, su ... pr
-          CHECK(lock());
-          CHECK(lock(successor));
-          CHECK(lock(predecessor));
+          lock_result =
+              lockPeersInArgOrder(PeerId::self(), successor, predecessor);
         }
       } else {
         CHECK_EQ(successor, predecessor);
-        if (own_key_ < hash(successor)) {  // self, su = pr
-          CHECK(lock());
-          CHECK(lock(successor));
-        } else if (hash(successor) < own_key_) {  // su = pr, self
-          CHECK(lock(successor));
-          CHECK(lock());
+        if (own_key_ != hash(successor)) {  // self, su = pr or su = pr, self
+          lock_result = lockPeersInOrder(successor, PeerId::self());
         } else {  // su = pr = self
           CHECK_EQ(PeerId::self(), predecessor);
-          CHECK(lock());
+          lock_result = lock();
         }
       }
     } else {  // general case: ... pr, self, su ...
       CHECK_NE(PeerId::self(), successor);
       CHECK_NE(PeerId::self(), predecessor);
-      CHECK(lock(predecessor));
-      CHECK(lock());
-      CHECK(lock(successor));
+      lock_result = lockPeersInArgOrder(predecessor, PeerId::self(), successor);
+    }
+    if (!lock_result) {
+      // TODO(aqurai) upper limit on continue loop and then exit?
+      continue;
     }
     // verify validity
     if (predecessor == PeerId::self()) {
@@ -514,14 +556,24 @@ void ChordIndex::leaveClean() {
     } else {
       bool predecessor_consistent, self_consistent, successor_consistent;
       PeerId predecessor_successor, successor_predecessor;
-      CHECK(getSuccessorRpc(predecessor, &predecessor_successor));
-      predecessor_consistent = predecessor_successor == PeerId::self();
+
+      if (!getSuccessorRpc(predecessor, &predecessor_successor)) {
+        predecessor_consistent = false;
+      } else {
+        predecessor_consistent = PeerId::self() == predecessor_successor;
+      }
+
       peer_lock_.acquireReadLock();
       self_consistent = predecessor_->id == predecessor &&
           successor_->id == successor;
       peer_lock_.releaseReadLock();
-      CHECK(getPredecessorRpc(successor, &successor_predecessor));
-      successor_consistent = successor_predecessor == PeerId::self();
+
+      if (!getPredecessorRpc(successor, &successor_predecessor)) {
+        successor_consistent = false;
+      } else {
+        successor_consistent = PeerId::self() == successor_predecessor;
+      }
+
       if (predecessor_consistent && self_consistent && successor_consistent) {
         break;
       }
@@ -539,9 +591,10 @@ void ChordIndex::leaveClean() {
     pushResponsibilitiesRpc(successor, data_);
     data_lock_.releaseReadLock();
     // 3. reroute & unlock
-    CHECK(replaceRpc(successor, PeerId::self(), predecessor));
+    // Ignore if replaceRpc fails.
+    replaceRpc(successor, PeerId::self(), predecessor);
     if (successor != predecessor) {
-      CHECK(replaceRpc(predecessor, PeerId::self(), successor));
+      replaceRpc(predecessor, PeerId::self(), successor);
       unlock(predecessor);
     }
     unlock(successor);
@@ -622,16 +675,21 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
           // impl.
           VLOG(2) << self->own_key_ << ": " << hash(successor_predecessor)
                   << " joined in between me and my successor " << successor_key;
-          self->lock(successor_predecessor);
+          bool proceed = false;
+          proceed = self->lock(successor_predecessor);
+          if (proceed) {
+            self->data_lock_.acquireWriteLock();
+            proceed = self->fetchResponsibilitiesRpc(successor_predecessor,
+                                                     &self->data_);
+            self->data_lock_.releaseWriteLock();
+          }
+          if (proceed) {
           self->registerPeer(successor_predecessor, &self->successor_);
-          self->data_lock_.acquireWriteLock();
-          CHECK(self->fetchResponsibilitiesRpc(successor_predecessor,
-                                               &self->data_));
-          self->data_lock_.releaseWriteLock();
-          bool result = self->notifyRpc(successor_predecessor, PeerId::self(),
-                                        proto::NotifySender::PREDECESSOR);
+          proceed = self->notifyRpc(successor_predecessor, PeerId::self(),
+                                    proto::NotifySender::PREDECESSOR);
+          }
           self->unlock(successor_predecessor);
-          if (!result) {
+          if (!proceed) {
             continue;
           }
         } else if (successor_predecessor != PeerId::self() &&
@@ -792,10 +850,15 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
   // Set the successor and notify.
   if (candidate != successor_->id) {
     peer_lock_.releaseReadLock();
-    registerPeer(candidate, &successor_);
+
     data_lock_.acquireWriteLock();
-    CHECK(fetchResponsibilitiesRpc(candidate, &data_));
+    if (!fetchResponsibilitiesRpc(candidate, &data_)) {
+      // No need to unlock peer, as it appears to be unreachable anyway.
+      data_lock_.releaseWriteLock();
+      return false;
+    }
     data_lock_.releaseWriteLock();
+    registerPeer(candidate, &successor_);
     bool result =
         notifyRpc(candidate, PeerId::self(), proto::NotifySender::PREDECESSOR);
     unlock(candidate);
@@ -815,8 +878,10 @@ void ChordIndex::fixFinger(size_t finger_index) {
   const Key finger_key = fingers_[finger_index].base_key;
   peer_lock_.releaseReadLock();
 
-  const PeerId finger_peer = findSuccessor(finger_key);
-  setFingerPeer(finger_peer, finger_index);
+  PeerId finger_peer;
+  if (findSuccessor(finger_key, &finger_peer)) {
+    setFingerPeer(finger_peer, finger_index);
+  }
 }
 
 void ChordIndex::fixReplicators() {
@@ -963,6 +1028,7 @@ void ChordIndex::init() {
   for (size_t i = 0; i < kNumReplications; ++i) {
     replicators_[i] = PeerId();
   }
+  lock_motitor_thread_running_ = false;
 }
 
 void ChordIndex::registerPeer(
@@ -1137,6 +1203,46 @@ void ChordIndex::handleNotifyCommon(std::shared_ptr<ChordPeer> peer,
     peer_lock_.acquireReadLock();
     VLOG(3) << own_key_ << " changed successor to " << peer->key
             << " by notification";
+  }
+}
+
+void ChordIndex::lockMonitor() {
+  lock_motitor_thread_running_ = true;
+  VLOG(4) << own_key_ << " Starting lock monitor thread";
+  std::unique_lock<std::mutex> lock_monitor_mutex(lock_monitor_mutex_);
+  last_heard_ = std::chrono::system_clock::now();
+  lock_monitor_mutex.unlock();
+  while (node_locked_) {
+    lock_monitor_mutex.lock();
+    std::chrono::time_point<std::chrono::system_clock> time_now =
+        std::chrono::system_clock::now();
+    uint64_t duration_ms = static_cast<double>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            time_now - last_heard_).count());
+    lock_monitor_mutex.unlock();
+    if (duration_ms > kLockTimeoutMs) {
+      std::lock_guard<std::mutex> node_lock(node_lock_);
+      node_locked_ = false;
+      LOG(WARNING) << own_key_ << ": Lock held by " << hash(node_lock_holder_)
+                   << " timed out.";
+      node_lock_holder_ = PeerId();
+      break;
+    }
+    usleep(1000);
+  }
+  VLOG(4) << own_key_ << " Stopping lock monitor thread";
+  lock_motitor_thread_running_ = false;
+}
+
+void ChordIndex::updateLastHeard(const PeerId& peer) {
+  bool update;
+  {
+    std::lock_guard<std::mutex> node_lock(node_lock_);
+    update = peer == node_lock_holder_;
+  }
+  if (update) {
+    std::lock_guard<std::mutex> lock_monitor_mutex(lock_monitor_mutex_);
+    last_heard_ = std::chrono::system_clock::now();
   }
 }
 

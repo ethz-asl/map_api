@@ -41,12 +41,14 @@ void NetTableIndex::announcePosession(const common::Id& chunk_id) {
     CHECK(peers.ParseFromString(peers_string));
     peers.add_peers(PeerId::self().ipPort());
   }
+  // TODO(aqurai): Repeat until success or return false.
   CHECK(addData(chunk_id.hexString(), peers.SerializeAsString()));
 }
 
 void NetTableIndex::renouncePosession(const common::Id& chunk_id) {
   std::string peers_string;
   proto::PeerList peers;
+  // TODO(aqurai): Repeat until success or return false.
   CHECK(retrieveData(chunk_id.hexString(), &peers_string));
   CHECK(peers.ParseFromString(peers_string));
 
@@ -60,6 +62,7 @@ void NetTableIndex::renouncePosession(const common::Id& chunk_id) {
   }
   LOG_IF(ERROR, !found)
       << "Tried to renounce possession that was not announced!";
+  // TODO(aqurai): Repeat until success or return false.
   CHECK(addData(chunk_id.hexString(), peers.SerializeAsString()));
 }
 
@@ -125,6 +128,8 @@ void NetTableIndex::handleRoutedRequest(
     CHECK(routed_request_message.has_sender());
     request.setSender(routed_request_message.sender());
   }
+
+  updateLastHeard(request.sender());
 
   if (request.isType<kGetClosestPrecedingFingerRequest>()) {
     Key key;
