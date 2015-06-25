@@ -48,7 +48,6 @@ TEST_F(ChordIndexTest, hashDistribution) {
     DIE
   };
   if (getSubprocessId() == 0) {
-    LOG(INFO) << getSubprocessId() << " Subprocess begin ";
     std::ostringstream command_extra;
     command_extra << "--addresses_to_hash=" << FLAGS_addresses_to_hash;
     for (size_t i = 1; i < FLAGS_addresses_to_hash; ++i) {
@@ -64,19 +63,14 @@ TEST_F(ChordIndexTest, hashDistribution) {
     }
     hash_ss << "]";
     LOG(INFO) << hash_ss.str();
-    LOG(INFO) << getSubprocessId() << " Subprocess ready to exit ";
     IPC::barrier(DIE, FLAGS_addresses_to_hash - 1);
-    LOG(INFO) << getSubprocessId() << " exiting.";
   } else {
-    LOG(INFO) << getSubprocessId() << " Subprocess begin ";
     IPC::barrier(INIT, FLAGS_addresses_to_hash - 1);
     std::ostringstream hash_ss;
     hash_ss << ChordIndex::hash(PeerId::self());
     IPC::push(hash_ss.str());
     IPC::barrier(HASH, FLAGS_addresses_to_hash - 1);
-    LOG(INFO) << getSubprocessId() << " Subprocess ready to exit ";
     IPC::barrier(DIE, FLAGS_addresses_to_hash - 1);
-    LOG(INFO) << getSubprocessId() << " exiting.";
   }
 }
 
