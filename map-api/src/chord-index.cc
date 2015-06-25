@@ -710,10 +710,10 @@ bool ChordIndex::joinBetweenLockedPeers(const PeerId& predecessor,
   bool result = true;
   result =
       notifyRpc(successor, PeerId::self(), proto::NotifySender::PREDECESSOR);
+  result =
+      notifyRpc(predecessor, PeerId::self(), proto::NotifySender::SUCCESSOR) &&
+      result;
   if (successor != predecessor) {
-    result = notifyRpc(predecessor, PeerId::self(),
-                       proto::NotifySender::SUCCESSOR) &&
-             result;
     result = unlock(predecessor) && result;
   }
   result = unlock(successor) && result;
@@ -1128,6 +1128,9 @@ void ChordIndex::handleNotifyCommon(std::shared_ptr<ChordPeer> peer,
     VLOG(3) << own_key_ << " changed predecessor to " << peer->key
             << " by notification";
   }
+
+  // In the present implementation, notification from successor comes only
+  // during join.
   if (sender_type == proto::NotifySender::SUCCESSOR) {
     peer_lock_.releaseReadLock();
     peer_lock_.acquireWriteLock();
