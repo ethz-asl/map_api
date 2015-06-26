@@ -62,6 +62,16 @@ inline uint64_t RaftChunkDataRamContainer::logCommitIndex() const {
   return log_reader->commitIndex();
 }
 
+inline uint64_t RaftChunkDataRamContainer::lastLogTerm() const {
+  LogReadAccess log_reader(this);
+  return log_reader->lastLogTerm();
+}
+
+inline uint64_t RaftChunkDataRamContainer::lastLogIndex() const {
+  LogReadAccess log_reader(this);
+  return log_reader->lastLogIndex();
+}
+
 }  // namespace map_api
 
 #endif  // MAP_API_RAFT_CHUNK_DATA_RAM_CONTAINER_INL_H_

@@ -15,16 +15,17 @@ constexpr uint32_t kRaftTestAppendEntry = 19;
 
 class ConsensusFixture : public common::MultiprocessFixture {
  public:
-  // Setup supervisor and peers.
-  void setupRaftSupervisor(uint64_t num_processes);
-  void setupRaftPeers(uint64_t num_processes);
+  static RaftChunk* createChunkAndPushId(NetTable* table);
+  static RaftChunk* getPushedChunk(NetTable* table);
 
-  void addRaftPeer(const PeerId& peer);
   proto::QueryStateResponse queryState(const PeerId& peer);
-  void giveUpLeadership() { RaftNode::instance().giveUpLeadership(); }
-  void appendEntry() {
-    RaftNode::instance().leaderAppendLogEntry(kRaftTestAppendEntry);
-  }
+  const PeerId& getLockHolder(RaftChunk* chunk);
+  void quitRaftUnannounced(RaftChunk* chunk);
+
+  void leaderAppendBlankLogEntry(RaftChunk* chunk);
+  void leaderWaitUntilAllCommitted(RaftChunk* chunk);
+
+  uint64_t getLatestEntrySerialId(RaftChunk* chunk, const PeerId& peer);
 
   // Keep apeend entries for a duration of duration_ms, with a delay of
   // delay_ms between consecutive appends.
@@ -32,14 +33,12 @@ class ConsensusFixture : public common::MultiprocessFixture {
   void appendEntriesWithLeaderChangesForMs(uint16_t duration_ms,
                                            uint16_t delay_ms);
 
-  // Add num_entries entries in a burst
-  void appendEntriesBurst(uint16_t num_entries);
-
   typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
 
  protected:
   virtual void SetUpImpl();
   virtual void TearDownImpl();
+  NetTable* table_;
 };
 
 }  // namespace map_api

@@ -2,6 +2,7 @@
 #define MAP_API_RAFT_CHUNK_DATA_RAM_CONTAINER_H_
 
 #include <list>
+#include <string>
 #include <vector>
 
 #include "./raft.pb.h"
@@ -16,11 +17,10 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
  public:
   friend class RaftNode;
   friend class RaftChunk;
+  friend class ConsensusFixture;
   virtual ~RaftChunkDataRamContainer();
 
  private:
-  friend class LogReadAccess;
-
   // READ OPERATIONS INHERITED FROM PARENT
   virtual bool initImpl();
   virtual std::shared_ptr<const Revision> getByIdImpl(
@@ -53,8 +53,6 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   // =================
   // HISTORY CONTAINER
   // =================
-  // TODO(aqurai): Implement history container here.
-  // This is an incomplete implementation.
   class History : public std::list<std::shared_ptr<const Revision>> {
    public:
     virtual ~History() {}
@@ -83,31 +81,36 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   // ========
   // RAFT-LOG
   // ========
-
-  // TODO(aqurai): Make this class private. The problem is iterator and
-  // const_iterator are not defined within RaftNode.
   class RaftLog : public std::vector<std::shared_ptr<proto::RaftLogEntry>> {
    public:
     RaftLog();
     virtual ~RaftLog() {}
     iterator getLogIteratorByIndex(uint64_t index);
     const_iterator getConstLogIteratorByIndex(uint64_t index) const;
+    proto::RaftLogEntry* copyWithoutRevision(const const_iterator& it) const;
+    uint64_t getEntryIndex(const PeerId& peer, uint64_t serial_id) const;
+    uint64_t getPeerLatestSerialId(const PeerId& peer) const;
     uint64_t eraseAfter(const iterator& it);
     inline uint64_t lastLogIndex() const { return back()->index(); }
     inline uint64_t lastLogTerm() const { return back()->term(); }
     inline uint64_t commitIndex() const { return commit_index_; }
     inline common::ReaderWriterMutex* mutex() const { return &log_mutex_; }
 
+    void appendLogEntry(const std::shared_ptr<proto::RaftLogEntry>& entry);
     inline void setCommitIndex(uint64_t value) { commit_index_ = value; }
     uint64_t setEntryCommitted(const iterator& it);
 
    private:
     friend class RaftChunkDataRamContainer;
+    using std::vector<std::shared_ptr<proto::RaftLogEntry>>::push_back;
+    std::unordered_map<std::string, uint64_t> serial_id_map_;
     mutable common::ReaderWriterMutex log_mutex_;
     uint64_t commit_index_;
   };
   RaftLog log_;
   inline uint64_t logCommitIndex() const;
+  inline uint64_t lastLogTerm() const;
+  inline uint64_t lastLogIndex() const;
 
   class LogReadAccess {
    public:

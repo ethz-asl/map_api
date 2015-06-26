@@ -194,10 +194,79 @@ RaftChunkDataRamContainer::RaftLog::getConstLogIteratorByIndex(uint64_t index) c
   }
 }
 
+proto::RaftLogEntry* RaftChunkDataRamContainer::RaftLog::copyWithoutRevision(
+    const const_iterator& it) const {
+  proto::RaftLogEntry* entry = new proto::RaftLogEntry;
+
+  entry->set_index((*it)->index());
+  entry->set_term((*it)->term());
+  if ((*it)->has_sender()) {
+    entry->set_sender((*it)->sender());
+  }
+  if ((*it)->has_sender_serial_id()) {
+    entry->set_sender_serial_id((*it)->sender_serial_id());
+  }
+  if ((*it)->has_add_peer()) {
+    entry->set_add_peer((*it)->add_peer());
+  }
+  if ((*it)->has_remove_peer()) {
+    entry->set_remove_peer((*it)->remove_peer());
+  }
+  if ((*it)->has_lock_peer()) {
+    entry->set_lock_peer((*it)->lock_peer());
+  }
+  if ((*it)->has_unlock_peer()) {
+    entry->set_unlock_peer((*it)->unlock_peer());
+  }
+  if ((*it)->has_unlock_proceed_commits()) {
+    entry->set_unlock_proceed_commits((*it)->unlock_proceed_commits());
+  }
+  if ((*it)->has_unlock_lock_index()) {
+    entry->set_unlock_lock_index((*it)->unlock_lock_index());
+  }
+  if ((*it)->has_revision_id()) {
+    entry->mutable_revision_id()->CopyFrom((*it)->revision_id());
+  }
+  if ((*it)->has_logical_time()) {
+    entry->set_logical_time((*it)->logical_time());
+  }
+  return entry;
+}
+
+uint64_t RaftChunkDataRamContainer::RaftLog::getEntryIndex(
+    const PeerId& peer, uint64_t serial_id) const {
+  for (const_reverse_iterator it = rbegin(); it != rend(); ++it) {
+    if ((*it)->has_sender() && peer.ipPort().compare((*it)->sender()) == 0) {
+      CHECK((*it)->has_sender_serial_id());
+      if ((*it)->sender_serial_id() == serial_id) {
+        return (*it)->index();
+      }
+    }
+  }
+  return 0;
+}
+
+uint64_t RaftChunkDataRamContainer::RaftLog::getPeerLatestSerialId(
+    const PeerId& peer) const {
+  if (serial_id_map_.count(peer.ipPort()) == 1) {
+    return serial_id_map_.find(peer.ipPort())->second;
+  }
+  return 0;
+}
+
 uint64_t RaftChunkDataRamContainer::RaftLog::eraseAfter(const iterator& it) {
   CHECK((it + 1) != begin());
   resize(std::distance(begin(), it + 1));
   return lastLogIndex();
+}
+
+void RaftChunkDataRamContainer::RaftLog::appendLogEntry(
+    const std::shared_ptr<proto::RaftLogEntry>& entry) {
+  push_back(entry);
+  if (entry->has_sender()) {
+    CHECK(entry->has_sender_serial_id());
+    serial_id_map_[entry->sender()] = entry->sender_serial_id();
+  }
 }
 
 uint64_t RaftChunkDataRamContainer::RaftLog::setEntryCommitted(

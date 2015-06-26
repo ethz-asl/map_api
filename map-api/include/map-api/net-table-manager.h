@@ -48,6 +48,8 @@ class NetTableManager {
 
   void kill();
 
+  void forceStopAllRaftChunks();
+
   // Makes sure all chunk has at least one other peer.
   void killOnceShared();
 
@@ -112,15 +114,19 @@ class NetTableManager {
                                         Message* response);
   static void handleRaftAppendRequest(const Message& request,
                                         Message* response);
+  static void handleRaftChunkLockRequest(const Message& request,
+                                         Message* response);
+  static void handleRaftChunkUnlockRequest(const Message& request,
+                                           Message* response);
   static void handleRaftInsertRequest(const Message& request,
                                         Message* response);
   static void handleRaftRequestVote(const Message& request,
                                       Message* response);
   static void handleRaftQueryState(const Message& request, Message* response);
-  static void handleRaftJoinQuitRequest(const Message& request,
+  static void handleRaftLeaveRequest(const Message& request,
                                         Message* response);
-  static void handleRaftNotifyJoinQuitSuccess(const Message& request,
-                                                Message* response);
+  static void handleRaftLeaveNotification(const Message& request,
+                                          Message* response);
 
  private:
   NetTableManager();
@@ -146,6 +152,10 @@ class NetTableManager {
   static bool getTableForRequestWithMetadataOrDecline(
       const MetadataRequestType& request, Message* response,
       TableMap::iterator* found);
+  template <typename MetadataRequestType>
+  static bool getTableChunkForRequestWithMetadataOrDecline(
+      const MetadataRequestType& request, Message* response,
+      TableMap::iterator* found, common::Id* chunk_id);
   template <typename StringRequestType>
   static bool getTableForRequestWithStringOrDecline(
       const StringRequestType& request, Message* response,
