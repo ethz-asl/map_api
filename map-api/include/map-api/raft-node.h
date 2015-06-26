@@ -105,6 +105,7 @@ class RaftNode {
  private:
   friend class ConsensusFixture;
   friend class RaftChunk;
+  FRIEND_TEST(ConsensusFixture, LeaderElection);
   RaftNode();
   RaftNode(const RaftNode&) = delete;
   RaftNode& operator=(const RaftNode&) = delete;
@@ -180,6 +181,7 @@ class RaftNode {
   std::thread state_manager_thread_;  // Gets joined in destructor.
   std::atomic<bool> state_thread_running_;
   std::atomic<bool> is_exiting_;
+  std::atomic<bool> leave_requested_;
   void stateManagerThread();
 
   // ===============
@@ -328,6 +330,9 @@ class RaftNode {
   proto::RaftChunkRequestResponse processInsertRequest(
       const PeerId& sender, uint64_t serial_id, bool is_retry_attempt,
       proto::Revision* unowned_revision_pointer);
+
+  inline const std::string getLogEntryTypeString(
+      const std::shared_ptr<proto::RaftLogEntry>& entry) const;
 
   // ========================
   // Owner chunk information.

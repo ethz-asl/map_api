@@ -17,6 +17,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
  public:
   friend class RaftNode;
   friend class RaftChunk;
+  friend class ConsensusFixture;
   virtual ~RaftChunkDataRamContainer();
 
  private:
@@ -109,6 +110,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   RaftLog log_;
   inline uint64_t logCommitIndex() const;
   inline uint64_t lastLogTerm() const;
+  inline uint64_t lastLogIndex() const;
 
   class LogReadAccess {
    public:

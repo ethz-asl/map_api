@@ -18,6 +18,8 @@ class Revision;
 class RaftChunk : public ChunkBase {
   friend class ChunkTransaction;
   friend class ConsensusFixture;
+  FRIEND_TEST(ConsensusFixture, LeaderElection);
+  FRIEND_TEST(NetTableFixture, TransactionAbortOnPeerDisconnect);
 
  public:
   RaftChunk();
@@ -47,7 +49,7 @@ class RaftChunk : public ChunkBase {
 
   // Mutable because the method declarations in base class are const.
   mutable bool chunk_lock_attempted_;
-  mutable bool is_raft_chunk_locked_;
+  mutable bool is_raft_chunk_lock_acquired_;
   mutable uint64_t lock_log_index_;
   mutable int chunk_write_lock_depth_;
   mutable int self_read_lock_depth_;
@@ -57,6 +59,7 @@ class RaftChunk : public ChunkBase {
   virtual void readLock() const override;  // No read lock for raft chunks.
   virtual bool isWriteLocked() override;
   virtual void unlock() const override;
+  const PeerId& getLockHolder() const;
 
   virtual int requestParticipation() override;
   virtual int requestParticipation(const PeerId& peer) override;
@@ -80,6 +83,15 @@ class RaftChunk : public ChunkBase {
 
   bool raftInsertRequest(const Revision::ConstPtr& item);
 
+  void commitInsertCallback(const common::Id& inserted_id) {
+    handleCommitInsert(inserted_id);
+  }
+  void commitUpdateCallback(const common::Id& updated_id) {
+    handleCommitUpdate(updated_id);
+  }
+  void commitUnlockCallback() { handleCommitEnd(); }
+
+  void forceStopRaft();
   virtual void leaveImpl() override;
   virtual void awaitShared() override;
 
@@ -89,7 +101,7 @@ class RaftChunk : public ChunkBase {
     inline uint64_t getNewId() { return ++serial_id_; }
 
    private:
-    uint64_t serial_id_;
+    std::atomic<uint64_t> serial_id_;
   };
   mutable ChunkRequestId request_id_;
 

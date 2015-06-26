@@ -9,14 +9,14 @@ namespace map_api {
 
 void RaftChunk::setStateFollowerAndStartRaft() {
     raft_node_.state_ = RaftNode::State::FOLLOWER;
-    VLOG(1) << PeerId::self() << ": Starting Raft node as follower for chunk "
+    VLOG(2) << PeerId::self() << ": Starting Raft node as follower for chunk "
             << id_.printString();
     raft_node_.start();
 }
 
 void RaftChunk::setStateLeaderAndStartRaft() {
     raft_node_.state_ = RaftNode::State::LEADER;
-    VLOG(1) << PeerId::self() << ": Starting Raft node as leader for chunk "
+    VLOG(2) << PeerId::self() << ": Starting Raft node as leader for chunk "
             << id_.printString();
     raft_node_.start();
 }

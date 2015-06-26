@@ -13,7 +13,7 @@ namespace map_api {
 
 RaftChunk::RaftChunk()
     : chunk_lock_attempted_(false),
-      is_raft_chunk_locked_(false),
+      is_raft_chunk_lock_acquired_(false),
       lock_log_index_(0),
       chunk_write_lock_depth_(0),
       leave_requested_(false) {}
@@ -50,7 +50,7 @@ bool RaftChunk::init(const common::Id& id,
                      std::shared_ptr<TableDescriptor> descriptor) {
   CHECK(init(id, descriptor, true));
 
-  VLOG(1) << " INIT chunk at peer " << PeerId::self() << " in table "
+  VLOG(2) << " INIT chunk at peer " << PeerId::self() << " in table "
           << raft_node_.table_name_;
   raft_node_.initChunkData(init_request);
   setStateFollowerAndStartRaft();
@@ -125,7 +125,7 @@ void RaftChunk::writeLock() {
           << ". Current depth: " << chunk_write_lock_depth_;
   chunk_lock_attempted_ = true;
   uint64_t serial_id = 0;
-  if (is_raft_chunk_locked_) {
+  if (is_raft_chunk_lock_acquired_) {
     ++chunk_write_lock_depth_;
   } else {
     CHECK_EQ(lock_log_index_, 0);
@@ -140,12 +140,12 @@ void RaftChunk::writeLock() {
           serial_id = request_id_.getNewId();
         }
       }
-      usleep(500 * kMillisecondsToMicroseconds);
+      usleep(1000 * kMillisecondsToMicroseconds);
     }
     CHECK(raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self()));
 
     if (lock_log_index_ > 0) {
-      is_raft_chunk_locked_ = true;
+      is_raft_chunk_lock_acquired_ = true;
     }
   }
   VLOG(3) << PeerId::self() << " acquired lock for chunk " << id()
@@ -156,7 +156,7 @@ void RaftChunk::readLock() const {}
 
 bool RaftChunk::isWriteLocked() {
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
-  return is_raft_chunk_locked_;
+  return is_raft_chunk_lock_acquired_;
 }
 
 void RaftChunk::unlock() const {
@@ -165,7 +165,7 @@ void RaftChunk::unlock() const {
   VLOG(3) << PeerId::self() << " Attempting unlock for chunk " << id()
           << ". Current depth: " << chunk_write_lock_depth_;
   uint64_t serial_id = 0;
-  if (!is_raft_chunk_locked_) {
+  if (!is_raft_chunk_lock_acquired_) {
     return;
   }
   if (chunk_write_lock_depth_ > 0) {
@@ -183,7 +183,7 @@ void RaftChunk::unlock() const {
     }
     CHECK(!raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self()));
     lock_log_index_ = 0;
-    is_raft_chunk_locked_ = false;
+    is_raft_chunk_lock_acquired_ = false;
     chunk_lock_attempted_ = false;
   }
 }
@@ -200,6 +200,10 @@ int RaftChunk::requestParticipation() {
     }
   }
   return num_success;
+}
+
+const PeerId& RaftChunk::getLockHolder() const {
+  return raft_node_.raft_chunk_lock_.holder();
 }
 
 int RaftChunk::requestParticipation(const PeerId& peer) {
@@ -277,7 +281,7 @@ void RaftChunk::updateLocked(const LogicalTime& time,
   CHECK(item != nullptr);
   CHECK_EQ(id(), item->getChunkId());
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
-      ->checkAndPrepareUpdate(LogicalTime::sample(), item);
+      ->checkAndPrepareUpdate(time, item);
   // TODO(aqurai): No return? What to do on fail?
   raftInsertRequest(item);
 }
@@ -287,7 +291,7 @@ void RaftChunk::removeLocked(const LogicalTime& time,
   CHECK(item != nullptr);
   CHECK_EQ(id(), item->getChunkId());
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
-      ->checkAndPrepareUpdate(LogicalTime::sample(), item);
+      ->checkAndPrepareUpdate(time, item);
   raftInsertRequest(item);
 }
 
@@ -310,7 +314,13 @@ bool RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
   return true;
 }
 
+void RaftChunk::forceStopRaft() { raft_node_.stop(); }
+
 void RaftChunk::leaveImpl() {
+  // We may stop raft node explicitly without calling leave in some tests.
+  if (!raft_node_.isRunning()) {
+    return;
+  }
   writeLock();
   CHECK(raft_node_.isRunning());
   uint64_t serial_id = request_id_.getNewId();
@@ -319,6 +329,7 @@ void RaftChunk::leaveImpl() {
     VLOG(1) << PeerId::self() << ": Attempting to leave chunk " << id();
     bool success = raft_node_.sendLeaveRequest(serial_id);
     if (success) {
+      raft_node_.stop();
       break;
     }
     usleep(150 * kMillisecondsToMicroseconds);
