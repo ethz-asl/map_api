@@ -36,6 +36,10 @@ class TestChordIndex final : public ChordIndex {
                                                 Message* response);
   static void staticHandlePushResponsibilities(const Message& request,
                                                Message* response);
+  static void staticHandleInitReplicator(const Message& request,
+                                         Message* response);
+  static void staticHandleAppendOnReplicator(const Message& request,
+                                             Message* response);
 
   size_t findPredecessorCountRpcs(const Key& key, PeerId* peer);
 
@@ -56,6 +60,8 @@ class TestChordIndex final : public ChordIndex {
   static const char kFetchResponsibilitiesRequest[];
   static const char kFetchResponsibilitiesResponse[];
   static const char kPushResponsibilitiesRequest[];
+  static const char kInitReplicatorRequest[];
+  static const char kAppendReplicationDataRequest[];
 
   /**
    * Inits handlers, must be called before core::init
@@ -79,8 +85,8 @@ class TestChordIndex final : public ChordIndex {
                                  PeerId* predecessor) final override;
   virtual ChordIndex::RpcStatus lockRpc(const PeerId& to) final override;
   virtual ChordIndex::RpcStatus unlockRpc(const PeerId& to) final override;
-  virtual bool notifyRpc(const PeerId& to,
-                         const PeerId& subject) final override;
+  virtual bool notifyRpc(const PeerId& to, const PeerId& subject,
+                         proto::NotifySenderType sender_type) final override;
   virtual bool replaceRpc(const PeerId& to, const PeerId& old_peer,
                           const PeerId& new_peer) final override;
   virtual bool addDataRpc(const PeerId& to, const std::string& key,
@@ -91,6 +97,11 @@ class TestChordIndex final : public ChordIndex {
       const PeerId& to, DataMap* responsibilities) final override;
   virtual bool pushResponsibilitiesRpc(
       const PeerId& to, const DataMap& responsibilities) final override;
+
+  virtual bool initReplicatorRpc(const PeerId& to, size_t index,
+                                 const DataMap& data) final override;
+  virtual bool appendToReplicatorRpc(const PeerId& to, size_t index,
+                                     const DataMap& data) final override;
 
   PeerHandler peers_;
 };
@@ -119,17 +130,25 @@ const char TestChordIndex::kFetchResponsibilitiesResponse[] =
     "test_chord_index_fetch_responsibilities_response";
 const char TestChordIndex::kPushResponsibilitiesRequest[] =
     "test_chord_index_push_responsibilities_response";
+const char TestChordIndex::kInitReplicatorRequest[] =
+    "test_chord_index_init_chord_replicator";
+const char TestChordIndex::kAppendReplicationDataRequest[] =
+    "test_chord_index_append_chord_replication_data";
 
 MAP_API_STRING_MESSAGE(TestChordIndex::kPeerResponse);
 MAP_API_STRING_MESSAGE(TestChordIndex::kGetClosestPrecedingFingerRequest);
-MAP_API_STRING_MESSAGE(TestChordIndex::kNotifyRequest);
 MAP_API_PROTO_MESSAGE(TestChordIndex::kReplaceRequest, proto::ReplaceRequest);
 MAP_API_PROTO_MESSAGE(TestChordIndex::kAddDataRequest, proto::AddDataRequest);
 MAP_API_STRING_MESSAGE(TestChordIndex::kRetrieveDataRequest);
 MAP_API_STRING_MESSAGE(TestChordIndex::kRetrieveDataResponse);
+MAP_API_PROTO_MESSAGE(TestChordIndex::kNotifyRequest, proto::NotifyRequest);
 MAP_API_PROTO_MESSAGE(TestChordIndex::kFetchResponsibilitiesResponse,
                       proto::FetchResponsibilitiesResponse);
 MAP_API_PROTO_MESSAGE(TestChordIndex::kPushResponsibilitiesRequest,
+                      proto::FetchResponsibilitiesResponse);
+MAP_API_PROTO_MESSAGE(TestChordIndex::kInitReplicatorRequest,
+                      proto::FetchResponsibilitiesResponse);
+MAP_API_PROTO_MESSAGE(TestChordIndex::kAppendReplicationDataRequest,
                       proto::FetchResponsibilitiesResponse);
 
 void TestChordIndex::staticInit() {
@@ -150,6 +169,10 @@ void TestChordIndex::staticInit() {
                                   staticHandleFetchResponsibilities);
   Hub::instance().registerHandler(kPushResponsibilitiesRequest,
                                   staticHandlePushResponsibilities);
+  Hub::instance().registerHandler(kInitReplicatorRequest,
+                                  staticHandleInitReplicator);
+  Hub::instance().registerHandler(kAppendReplicationDataRequest,
+                                  staticHandleAppendOnReplicator);
 }
 
 // ========
@@ -221,7 +244,10 @@ void TestChordIndex::staticHandleUnlock(const Message& request,
 void TestChordIndex::staticHandleNotify(const Message& request,
                                         Message* response) {
   CHECK_NOTNULL(response);
-  if (instance().handleNotify(PeerId(request.serialized()))) {
+  proto::NotifyRequest notify_request;
+  request.extract<kNotifyRequest>(&notify_request);
+  if (instance().handleNotify(PeerId(notify_request.peer_id()),
+                              notify_request.sender_type())) {
     response->ack();
   } else {
     response->decline();
@@ -300,6 +326,41 @@ void TestChordIndex::staticHandlePushResponsibilities(const Message& request,
     data[push_request.data(i).key()] = push_request.data(i).value();
   }
   if (instance().handlePushResponsibilities(data)) {
+    response->ack();
+  } else {
+    response->decline();
+  }
+}
+
+void TestChordIndex::staticHandleInitReplicator(const Message& request,
+                                                Message* response) {
+  CHECK_NOTNULL(response);
+  DataMap data;
+  proto::FetchResponsibilitiesResponse init_request;
+  request.extract<kInitReplicatorRequest>(&init_request);
+  for (int i = 0; i < init_request.data_size(); ++i) {
+    data[init_request.data(i).key()] = init_request.data(i).value();
+  }
+  if (instance().handleInitReplicator(init_request.replicator_index(), &data,
+                                      request.sender())) {
+    response->ack();
+  } else {
+    response->decline();
+  }
+}
+
+void TestChordIndex::staticHandleAppendOnReplicator(const Message& request,
+                                                    Message* response) {
+  CHECK_NOTNULL(response);
+  DataMap data;
+  proto::FetchResponsibilitiesResponse replication_request;
+  request.extract<kAppendReplicationDataRequest>(&replication_request);
+  for (int i = 0; i < replication_request.data_size(); ++i) {
+    data[replication_request.data(i).key()] =
+        replication_request.data(i).value();
+  }
+  if (instance().handleAppendToReplicator(
+          replication_request.replicator_index(), data, request.sender())) {
     response->ack();
   } else {
     response->decline();
@@ -404,9 +465,13 @@ ChordIndex::RpcStatus TestChordIndex::unlockRpc(const PeerId& to) {
   return RpcStatus::SUCCESS;
 }
 
-bool TestChordIndex::notifyRpc(const PeerId& to, const PeerId& self) {
+bool TestChordIndex::notifyRpc(const PeerId& to, const PeerId& self,
+                               proto::NotifySenderType sender_type) {
   Message request, response;
-  request.impose<kNotifyRequest>(self.ipPort());
+  proto::NotifyRequest notify_request;
+  notify_request.set_peer_id(self.ipPort());
+  notify_request.set_sender_type(sender_type);
+  request.impose<kNotifyRequest>(notify_request);
   if (!instance().peers_.try_request(to, &request, &response)) {
     return false;
   }
@@ -486,6 +551,40 @@ bool TestChordIndex::pushResponsibilitiesRpc(const PeerId& to,
     slot->set_value(item.second);
   }
   request.impose<kPushResponsibilitiesRequest>(push_request);
+  if (!instance().peers_.try_request(to, &request, &response)) {
+    return false;
+  }
+  return response.isType<Message::kAck>();
+}
+
+bool TestChordIndex::initReplicatorRpc(const PeerId& to, size_t index,
+                                       const DataMap& data) {
+  Message request, response;
+  proto::FetchResponsibilitiesResponse push_request;
+  for (const DataMap::value_type& item : data) {
+    proto::AddDataRequest* slot = push_request.add_data();
+    slot->set_key(item.first);
+    slot->set_value(item.second);
+  }
+  push_request.set_replicator_index(index);
+  request.impose<kInitReplicatorRequest>(push_request);
+  if (!instance().peers_.try_request(to, &request, &response)) {
+    return false;
+  }
+  return response.isType<Message::kAck>();
+}
+
+bool TestChordIndex::appendToReplicatorRpc(const PeerId& to, size_t index,
+                                           const DataMap& data) {
+  Message request, response;
+  proto::FetchResponsibilitiesResponse push_request;
+  for (const DataMap::value_type& item : data) {
+    proto::AddDataRequest* slot = push_request.add_data();
+    slot->set_key(item.first);
+    slot->set_value(item.second);
+  }
+  push_request.set_replicator_index(index);
+  request.impose<kAppendReplicationDataRequest>(push_request);
   if (!instance().peers_.try_request(to, &request, &response)) {
     return false;
   }

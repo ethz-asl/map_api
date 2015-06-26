@@ -85,20 +85,28 @@ const char NetTableIndex::kFetchResponsibilitiesResponse[] =
     "fetch_responsibilities_response";
 const char NetTableIndex::kPushResponsibilitiesRequest[] =
     "push_responsibilities_response";
+const char NetTableIndex::kInitReplicatorRequest[] =
+    "init_chord_replicator";
+const char NetTableIndex::kAppendReplicationDataRequest[] =
+    "append_chord_replication_data";
 
 MAP_API_PROTO_MESSAGE(NetTableIndex::kRoutedChordRequest,
                       proto::RoutedChordRequest);
 
 MAP_API_STRING_MESSAGE(NetTableIndex::kPeerResponse);
 MAP_API_STRING_MESSAGE(NetTableIndex::kGetClosestPrecedingFingerRequest);
-MAP_API_STRING_MESSAGE(NetTableIndex::kNotifyRequest);
 MAP_API_PROTO_MESSAGE(NetTableIndex::kReplaceRequest, proto::ReplaceRequest);
 MAP_API_PROTO_MESSAGE(NetTableIndex::kAddDataRequest, proto::AddDataRequest);
 MAP_API_STRING_MESSAGE(NetTableIndex::kRetrieveDataRequest);
 MAP_API_STRING_MESSAGE(NetTableIndex::kRetrieveDataResponse);
+MAP_API_PROTO_MESSAGE(NetTableIndex::kNotifyRequest, proto::NotifyRequest);
 MAP_API_PROTO_MESSAGE(NetTableIndex::kFetchResponsibilitiesResponse,
                       proto::FetchResponsibilitiesResponse);
 MAP_API_PROTO_MESSAGE(NetTableIndex::kPushResponsibilitiesRequest,
+                      proto::FetchResponsibilitiesResponse);
+MAP_API_PROTO_MESSAGE(NetTableIndex::kInitReplicatorRequest,
+                      proto::FetchResponsibilitiesResponse);
+MAP_API_PROTO_MESSAGE(NetTableIndex::kAppendReplicationDataRequest,
                       proto::FetchResponsibilitiesResponse);
 
 void NetTableIndex::handleRoutedRequest(
@@ -174,7 +182,10 @@ void NetTableIndex::handleRoutedRequest(
   }
 
   if (request.isType<kNotifyRequest>()) {
-    if (handleNotify(PeerId(request.serialized()))) {
+    proto::NotifyRequest notify_request;
+    request.extract<kNotifyRequest>(&notify_request);
+    if (handleNotify(PeerId(notify_request.peer_id()),
+                     notify_request.sender_type())) {
       response->ack();
     } else {
       response->decline();
@@ -248,6 +259,38 @@ void NetTableIndex::handleRoutedRequest(
       data[push_request.data(i).key()] = push_request.data(i).value();
     }
     if (handlePushResponsibilities(data)) {
+      response->ack();
+    } else {
+      response->decline();
+    }
+    return;
+  }
+
+  if (request.isType<kInitReplicatorRequest>()) {
+    DataMap data;
+    proto::FetchResponsibilitiesResponse init_request;
+    request.extract<kInitReplicatorRequest>(&init_request);
+    for (int i = 0; i < init_request.data_size(); ++i) {
+      data[init_request.data(i).key()] = init_request.data(i).value();
+    }
+    if (handleInitReplicator(init_request.replicator_index(), &data,
+                             request.sender())) {
+      response->ack();
+    } else {
+      response->decline();
+    }
+    return;
+  }
+
+  if (request.isType<kAppendReplicationDataRequest>()) {
+    DataMap data;
+    proto::FetchResponsibilitiesResponse replication_request;
+    request.extract<kAppendReplicationDataRequest>(&replication_request);
+    for (int i = 0; i < replication_request.data_size(); ++i) {
+      data[replication_request.data(i).key()] = replication_request.data(i).value();
+    }
+    if (handleAppendToReplicator(replication_request.replicator_index(), data,
+                                 request.sender())) {
       response->ack();
     } else {
       response->decline();
@@ -331,10 +374,13 @@ ChordIndex::RpcStatus NetTableIndex::unlockRpc(const PeerId& to) {
   return rpc(to, request, &response);
 }
 
-bool NetTableIndex::notifyRpc(
-    const PeerId& to, const PeerId& self) {
+bool NetTableIndex::notifyRpc(const PeerId& to, const PeerId& self,
+                              proto::NotifySenderType sender_type) {
   Message request, response;
-  request.impose<kNotifyRequest>(self.ipPort());
+  proto::NotifyRequest notify_request;
+  notify_request.set_peer_id(self.ipPort());
+  notify_request.set_sender_type(sender_type);
+  request.impose<kNotifyRequest>(notify_request);
   if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
     return false;
   }
@@ -411,6 +457,42 @@ bool NetTableIndex::pushResponsibilitiesRpc(
     slot->set_value(item.second);
   }
   request.impose<kPushResponsibilitiesRequest>(push_request);
+  if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
+    return false;
+  }
+  CHECK(response.isType<Message::kAck>());
+  return true;
+}
+
+bool NetTableIndex::initReplicatorRpc(const PeerId& to, size_t index,
+                                      const DataMap& data) {
+  Message request, response;
+  proto::FetchResponsibilitiesResponse push_request;
+  for (const DataMap::value_type& item : data) {
+    proto::AddDataRequest* slot = push_request.add_data();
+    slot->set_key(item.first);
+    slot->set_value(item.second);
+  }
+  push_request.set_replicator_index(index);
+  request.impose<kInitReplicatorRequest>(push_request);
+  if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
+    return false;
+  }
+  CHECK(response.isType<Message::kAck>());
+  return true;
+}
+
+bool NetTableIndex::appendToReplicatorRpc(const PeerId& to, size_t index,
+                                          const DataMap& data) {
+  Message request, response;
+  proto::FetchResponsibilitiesResponse push_request;
+  for (const DataMap::value_type& item : data) {
+    proto::AddDataRequest* slot = push_request.add_data();
+    slot->set_key(item.first);
+    slot->set_value(item.second);
+  }
+  push_request.set_replicator_index(index);
+  request.impose<kAppendReplicationDataRequest>(push_request);
   if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
     return false;
   }

@@ -1,6 +1,17 @@
+// NOTES
+//
+// Lock Order
+//
+// integrate_mutex_
+// initialize_mutex_
+//
+// node lock, peer lock, data lock
+//
+
 #ifndef MAP_API_CHORD_INDEX_H_
 #define MAP_API_CHORD_INDEX_H_
 
+#include <atomic>
 #include <condition_variable>
 #include <memory>
 #include <mutex>
@@ -10,7 +21,9 @@
 
 #include <gtest/gtest_prod.h>
 #include <multiagent-mapping-common/reader-writer-lock.h>
+#include <multiagent-mapping-common/condition.h>
 
+#include "./chord-index.pb.h"
 #include "map-api/peer-id.h"
 
 namespace map_api {
@@ -33,6 +46,7 @@ class ChordIndex {
   // shouldn't expose these kinds of typedefs unless e.g. a serialization
   // method is given as well
   // static constexpr size_t kSuccessorListSize = 3; TODO(tcies) later
+  static constexpr size_t kNumReplications = 3;
 
   virtual ~ChordIndex();
 
@@ -45,13 +59,16 @@ class ChordIndex {
   bool handleGetPredecessor(PeerId* result);
   bool handleLock(const PeerId& requester);
   bool handleUnlock(const PeerId& requester);
-  bool handleNotify(const PeerId& peer_id);
+  bool handleNotify(const PeerId& peer_id, proto::NotifySenderType sender_type);
   bool handleReplace(const PeerId& old_peer, const PeerId& new_peer);
   bool handleAddData(const std::string& key, const std::string& value);
   bool handleRetrieveData(const std::string& key, std::string* value);
   bool handleFetchResponsibilities(
       const PeerId& requester, DataMap* responsibilities);
   bool handlePushResponsibilities(const DataMap& responsibilities);
+  bool handleInitReplicator(int index, DataMap* data, const PeerId& peer);
+  bool handleAppendToReplicator(int index, const DataMap& data,
+                                const PeerId& peer);
 
   // ====================
   // HIGH-LEVEL FUNCTIONS
@@ -82,6 +99,8 @@ class ChordIndex {
   bool join(const PeerId& other);
   bool cleanJoin(const PeerId& other);
   void stabilizeJoin(const PeerId& other);
+
+  bool sendInitReplicatorRpc(const PeerId& to, int index);
 
   /**
    * Argument-free versions (un)lock self
@@ -134,7 +153,8 @@ class ChordIndex {
   virtual bool getPredecessorRpc(const PeerId& to, PeerId* predecessor) = 0;
   virtual RpcStatus lockRpc(const PeerId& to) = 0;
   virtual RpcStatus unlockRpc(const PeerId& to) = 0;
-  virtual bool notifyRpc(const PeerId& to, const PeerId& subject) = 0;
+  virtual bool notifyRpc(const PeerId& to, const PeerId& subject,
+                         proto::NotifySenderType sender_type) = 0;
   virtual bool replaceRpc(
       const PeerId& to, const PeerId& old_peer, const PeerId& new_peer) = 0;
   // query RPCs
@@ -148,6 +168,10 @@ class ChordIndex {
       const PeerId& to, DataMap* responsibilities) = 0;
   virtual bool pushResponsibilitiesRpc(
       const PeerId& to, const DataMap& responsibilities) = 0;
+  virtual bool initReplicatorRpc(const PeerId& to, size_t index,
+                                 const DataMap& data) = 0;
+  virtual bool appendToReplicatorRpc(const PeerId& to, size_t index,
+                                     const DataMap& data) = 0;
 
   // This function gets executed after data that is allocated locally (i.e. not
   // on another peer) gets updated. Derived classes can use this to implement
@@ -162,6 +186,13 @@ class ChordIndex {
   bool joinBetweenLockedPeers(const PeerId& predecessor,
                               const PeerId& successor);
   void fixFinger(size_t finger_index);
+
+  void fixReplicators();
+
+  void appendDataToAllReplicators(const DataMap& data);
+  void appendDataToReplicator(size_t replicator_index, const DataMap& data);
+  // Not Guaranteed to always recover all data.
+  void attemptDataRecovery(const Key& from);
 
   struct ChordPeer {
     PeerId id;
@@ -196,12 +227,15 @@ class ChordIndex {
 
   bool retrieveDataLocally(const std::string& key, std::string* value);
 
-  bool handleNotifyClean(const PeerId& peer_id);
-  bool handleNotifyStabilize(const PeerId& peer_id);
+  bool handleNotifyClean(const PeerId& peer_id,
+                         proto::NotifySenderType sender_type);
+  bool handleNotifyStabilize(const PeerId& peer_id,
+                             proto::NotifySenderType sender_type);
   /**
    * Assumes peers read-locked!
    */
-  void handleNotifyCommon(std::shared_ptr<ChordPeer> peer);
+  void handleNotifyCommon(std::shared_ptr<ChordPeer> peer,
+                          proto::NotifySenderType sender_type);
 
   /**
    * A finger and a successor list item may point to the same peer, yet peer
@@ -250,6 +284,17 @@ class ChordIndex {
   // TODO(tcies) data stats: Has it already been requested?
   DataMap data_;
   common::ReaderWriterMutex data_lock_;
+
+  // Data from other nodes replicated here.
+  DataMap replicated_data_[kNumReplications];
+  PeerId replicated_peers_[kNumReplications];
+  std::atomic<bool> replication_ready_;
+  common::Condition replication_ready_condition_;
+  common::ReaderWriterMutex replicated_data_lock_;
+
+  // Other nodes that replicate data of this node.
+  PeerId replicators_[kNumReplications];
+  std::mutex replicator_peer_mutex_;
 
   std::mutex node_lock_;
   bool node_locked_ = false;

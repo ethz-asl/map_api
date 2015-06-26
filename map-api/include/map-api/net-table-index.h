@@ -41,6 +41,8 @@ class NetTableIndex : public ChordIndex {
   static const char kFetchResponsibilitiesRequest[];
   static const char kFetchResponsibilitiesResponse[];
   static const char kPushResponsibilitiesRequest[];
+  static const char kInitReplicatorRequest[];
+  static const char kAppendReplicationDataRequest[];
 
  private:
   /**
@@ -63,8 +65,8 @@ class NetTableIndex : public ChordIndex {
   final override;
   virtual ChordIndex::RpcStatus lockRpc(const PeerId& to) final override;
   virtual ChordIndex::RpcStatus unlockRpc(const PeerId& to) final override;
-  virtual bool notifyRpc(
-      const PeerId& to, const PeerId& subject) final override;
+  virtual bool notifyRpc(const PeerId& to, const PeerId& subject,
+                         proto::NotifySenderType sender_type) final override;
   virtual bool replaceRpc(
       const PeerId& to, const PeerId& old_peer, const PeerId& new_peer)
   final override;
@@ -78,6 +80,10 @@ class NetTableIndex : public ChordIndex {
       const PeerId& to, DataMap* responsibilities) final override;
   virtual bool pushResponsibilitiesRpc(
       const PeerId& to, const DataMap& responsibilities) final override;
+  virtual bool initReplicatorRpc(const PeerId& to, size_t index,
+                                 const DataMap& data) final override;
+  virtual bool appendToReplicatorRpc(const PeerId& to, size_t index,
+                                     const DataMap& data) final override;
 
   std::string table_name_;
   PeerHandler peers_;
