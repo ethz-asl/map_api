@@ -74,7 +74,7 @@ void ConsensusFixture::leaderAppendBlankLogEntry(RaftChunk* chunk) {
   entry->set_sender(PeerId::self().ipPort());
   entry->set_sender_serial_id(chunk->request_id_.getNewId());
   do {
-    CHECK(chunk->raft_node_.getState() == RaftNode::State::LEADER);
+    ASSERT_EQ(chunk->raft_node_.getState(), RaftNode::State::LEADER);
   } while (chunk->raft_node_.leaderAppendLogEntry(entry) == 0);
 }
 
