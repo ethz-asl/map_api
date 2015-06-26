@@ -17,9 +17,12 @@ constexpr int kTableFieldId = 0;
 using std::chrono::milliseconds;
 using std::chrono::duration_cast;
 
+DECLARE_bool(use_raft);
+
 namespace map_api {
 
 void ConsensusFixture::SetUpImpl() {
+  FLAGS_use_raft = true;
   map_api::Core::initializeInstance();  // Core init.
   ASSERT_TRUE(map_api::Core::instance() != nullptr);
 
@@ -33,7 +36,7 @@ void ConsensusFixture::SetUpImpl() {
 RaftChunk* ConsensusFixture::createChunkAndPushId(NetTable* table) {
   ChunkBase* base_chunk = CHECK_NOTNULL(table)->newChunk();
   VLOG(1) << "Created a new chunk " << base_chunk->id();
-  RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);
+  RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);  // NOLINT
   CHECK_NOTNULL(chunk);
   IPC::push(chunk->id());
   return chunk;
@@ -42,7 +45,7 @@ RaftChunk* ConsensusFixture::createChunkAndPushId(NetTable* table) {
 RaftChunk* ConsensusFixture::getPushedChunk(NetTable* table) {
   common::Id chunk_id = IPC::pop<common::Id>();
   ChunkBase* base_chunk = CHECK_NOTNULL(table)->getChunk(chunk_id);
-  RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);
+  RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);  // NOLINT
   return CHECK_NOTNULL(chunk);
 }
 

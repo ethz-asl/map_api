@@ -154,6 +154,7 @@ TEST_F(ConsensusFixture, UnannouncedLeave) {
     PUSH_CHUNK_ID,
     CHUNKS_INIT,
     ONE_LEFT,
+    STOP_RAFT,
     DIE
   };
   enum Peers {
@@ -177,6 +178,8 @@ TEST_F(ConsensusFixture, UnannouncedLeave) {
     EXPECT_EQ(kProcesses - 1, chunk->peerSize());
     IPC::barrier(ONE_LEFT, kProcesses - 1);
     EXPECT_EQ(kProcesses - 2, chunk->peerSize());
+    IPC::barrier(STOP_RAFT, kProcesses - 1);
+    NetTableManager::instance().forceStopAllRaftChunks();
     IPC::barrier(DIE, kProcesses - 1);
   } else {
     IPC::barrier(INIT_PEERS, kProcesses - 1);
@@ -191,7 +194,11 @@ TEST_F(ConsensusFixture, UnannouncedLeave) {
     }
     usleep(5 * kWaitTimeMs * kMillisecondsToMicroseconds);
     IPC::barrier(ONE_LEFT, kProcesses - 1);
-    EXPECT_EQ(kProcesses - 2, chunk->peerSize());
+    if (getSubprocessId() != LEAVING_PEER) {
+      EXPECT_EQ(kProcesses - 2, chunk->peerSize());
+    }
+    IPC::barrier(STOP_RAFT, kProcesses - 1);
+    NetTableManager::instance().forceStopAllRaftChunks();
     IPC::barrier(DIE, kProcesses - 1);
   }
 }
