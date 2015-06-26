@@ -15,11 +15,12 @@ class NetTableManager;
  */
 class Core final {
  public:
-  /**
-   * Get singleton instance of Map Api Core
-   * Returns a null pointer if not initialized.
-   */
+  // Returns null iff core is not initialized yet. Waits on initialized_mutex_.
   static Core* instance();
+  // Returns null if core is not initialized, or if initialized_mutex_ is
+  // locked.
+  static Core* instanceNoWait();
+
   static void initializeInstance();
   /**
    * Initializer
