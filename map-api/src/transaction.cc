@@ -136,8 +136,6 @@ bool Transaction::commit() {
 
 bool Transaction::multiChunkCommit() {
   CHECK(FLAGS_use_raft);
-  CHECK(!already_committed_);
-  already_committed_ = true;
   if (FLAGS_blame_commit) {
     LOG(INFO) << "Transaction committed from:\n" << common::backtrace();
   }
