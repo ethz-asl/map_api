@@ -172,7 +172,7 @@ class SpatialIndex : public ChordIndex {
   virtual ChordIndex::RpcStatus lockRpc(const PeerId& to) final override;
   virtual ChordIndex::RpcStatus unlockRpc(const PeerId& to) final override;
   virtual bool notifyRpc(const PeerId& to, const PeerId& subject,
-                         proto::NotifySender sender_type) final override;
+                         proto::NotifySenderType sender_type) final override;
   virtual bool replaceRpc(const PeerId& to, const PeerId& old_peer,
                           const PeerId& new_peer) final override;
   virtual bool addDataRpc(const PeerId& to, const std::string& key,
@@ -185,7 +185,7 @@ class SpatialIndex : public ChordIndex {
       const PeerId& to, const DataMap& responsibilities) final override;
   virtual bool initReplicatorRpc(const PeerId& to, size_t index,
                                  const DataMap& data) final override;
-  virtual bool appendOnReplicatorRpc(const PeerId& to, size_t index,
+  virtual bool appendToReplicatorRpc(const PeerId& to, size_t index,
                                      const DataMap& data) final override;
 
   virtual void localUpdateCallback(const std::string& key,

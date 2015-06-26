@@ -419,8 +419,8 @@ void SpatialIndex::handleRoutedRequest(const Message& routed_request_message,
     for (int i = 0; i < init_request.data_size(); ++i) {
       data[init_request.data(i).key()] = init_request.data(i).value();
     }
-    if (handleInitReplicator(
-          init_request.replicator_index(), data, request.sender())) {
+    if (handleInitReplicator(init_request.replicator_index(), &data,
+                             request.sender())) {
       response->ack();
     } else {
       response->decline();
@@ -435,7 +435,7 @@ void SpatialIndex::handleRoutedRequest(const Message& routed_request_message,
     for (int i = 0; i < replication_request.data_size(); ++i) {
       data[replication_request.data(i).key()] = replication_request.data(i).value();
     }
-    if (handleAppendOnReplicator(replication_request.replicator_index(), data,
+    if (handleAppendToReplicator(replication_request.replicator_index(), data,
                                  request.sender())) {
       response->ack();
     } else {
@@ -595,7 +595,7 @@ ChordIndex::RpcStatus SpatialIndex::unlockRpc(const PeerId& to) {
 }
 
 bool SpatialIndex::notifyRpc(const PeerId& to, const PeerId& self,
-                             proto::NotifySender sender_type) {
+                             proto::NotifySenderType sender_type) {
   Message request, response;
   proto::NotifyRequest notify_request;
   notify_request.set_peer_id(self.ipPort());
@@ -702,7 +702,7 @@ bool SpatialIndex::initReplicatorRpc(const PeerId& to, size_t index,
   return true;
 }
 
-bool SpatialIndex::appendOnReplicatorRpc(const PeerId& to, size_t index,
+bool SpatialIndex::appendToReplicatorRpc(const PeerId& to, size_t index,
                                          const DataMap& data) {
   Message request, response;
   proto::FetchResponsibilitiesResponse push_request;

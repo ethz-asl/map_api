@@ -16,9 +16,9 @@ message FetchResponsibilitiesResponse {
   optional string replicator_peer_id = 3;
 }
 
-enum NotifySender {PREDECESSOR = 0; SUCCESSOR = 1; }
+enum NotifySenderType {PREDECESSOR = 0; SUCCESSOR = 1; }
 
 message NotifyRequest {
   optional string peer_id = 1;
-  optional NotifySender sender_type = 2;
+  optional NotifySenderType sender_type = 2;
 }

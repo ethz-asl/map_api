@@ -1,13 +1,13 @@
-/* NOTES
- *
- * Lock Order
- *
- * integrate_mutex_
- * initialize_mutex_
- *
- * node lock, peer lock, data lock
- *
- */
+// NOTES
+//
+// Lock Order
+//
+// integrate_mutex_
+// initialize_mutex_
+//
+// node lock, peer lock, data lock
+//
+
 #ifndef MAP_API_CHORD_INDEX_H_
 #define MAP_API_CHORD_INDEX_H_
 
@@ -21,10 +21,10 @@
 
 #include <gtest/gtest_prod.h>
 #include <multiagent-mapping-common/reader-writer-lock.h>
-
-#include "map-api/peer-id.h"
+#include <multiagent-mapping-common/condition.h>
 
 #include "./chord-index.pb.h"
+#include "map-api/peer-id.h"
 
 namespace map_api {
 
@@ -59,15 +59,15 @@ class ChordIndex {
   bool handleGetPredecessor(PeerId* result);
   bool handleLock(const PeerId& requester);
   bool handleUnlock(const PeerId& requester);
-  bool handleNotify(const PeerId& peer_id, proto::NotifySender sender_type);
+  bool handleNotify(const PeerId& peer_id, proto::NotifySenderType sender_type);
   bool handleReplace(const PeerId& old_peer, const PeerId& new_peer);
   bool handleAddData(const std::string& key, const std::string& value);
   bool handleRetrieveData(const std::string& key, std::string* value);
   bool handleFetchResponsibilities(
       const PeerId& requester, DataMap* responsibilities);
   bool handlePushResponsibilities(const DataMap& responsibilities);
-  bool handleInitReplicator(int index, const DataMap& data, const PeerId& peer);
-  bool handleAppendOnReplicator(int index, const DataMap& data,
+  bool handleInitReplicator(int index, DataMap* data, const PeerId& peer);
+  bool handleAppendToReplicator(int index, const DataMap& data,
                                 const PeerId& peer);
 
   // ====================
@@ -154,7 +154,7 @@ class ChordIndex {
   virtual RpcStatus lockRpc(const PeerId& to) = 0;
   virtual RpcStatus unlockRpc(const PeerId& to) = 0;
   virtual bool notifyRpc(const PeerId& to, const PeerId& subject,
-                         proto::NotifySender sender_type) = 0;
+                         proto::NotifySenderType sender_type) = 0;
   virtual bool replaceRpc(
       const PeerId& to, const PeerId& old_peer, const PeerId& new_peer) = 0;
   // query RPCs
@@ -170,7 +170,7 @@ class ChordIndex {
       const PeerId& to, const DataMap& responsibilities) = 0;
   virtual bool initReplicatorRpc(const PeerId& to, size_t index,
                                  const DataMap& data) = 0;
-  virtual bool appendOnReplicatorRpc(const PeerId& to, size_t index,
+  virtual bool appendToReplicatorRpc(const PeerId& to, size_t index,
                                      const DataMap& data) = 0;
 
   // This function gets executed after data that is allocated locally (i.e. not
@@ -189,8 +189,8 @@ class ChordIndex {
 
   void fixReplicators();
 
-  void appendDataOnAllReplicators(const DataMap& data);
-  void appendDataOnReplicator(size_t replicator_index, const DataMap& data);
+  void appendDataToAllReplicators(const DataMap& data);
+  void appendDataToReplicator(size_t replicator_index, const DataMap& data);
   // Not Guaranteed to always recover all data.
   void attemptDataRecovery(const Key& from);
 
@@ -228,14 +228,14 @@ class ChordIndex {
   bool retrieveDataLocally(const std::string& key, std::string* value);
 
   bool handleNotifyClean(const PeerId& peer_id,
-                         proto::NotifySender sender_type);
+                         proto::NotifySenderType sender_type);
   bool handleNotifyStabilize(const PeerId& peer_id,
-                             proto::NotifySender sender_type);
+                             proto::NotifySenderType sender_type);
   /**
    * Assumes peers read-locked!
    */
   void handleNotifyCommon(std::shared_ptr<ChordPeer> peer,
-                          proto::NotifySender sender_type);
+                          proto::NotifySenderType sender_type);
 
   /**
    * A finger and a successor list item may point to the same peer, yet peer
@@ -287,8 +287,9 @@ class ChordIndex {
 
   // Data from other nodes replicated here.
   DataMap replicated_data_[kNumReplications];
-  PeerId replicating_peers_[kNumReplications];
+  PeerId replicated_peers_[kNumReplications];
   std::atomic<bool> replication_ready_;
+  common::Condition replication_ready_condition_;
   common::ReaderWriterMutex replicated_data_lock_;
 
   // Other nodes that replicate data of this node.

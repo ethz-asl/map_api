@@ -86,7 +86,7 @@ class TestChordIndex final : public ChordIndex {
   virtual ChordIndex::RpcStatus lockRpc(const PeerId& to) final override;
   virtual ChordIndex::RpcStatus unlockRpc(const PeerId& to) final override;
   virtual bool notifyRpc(const PeerId& to, const PeerId& subject,
-                         proto::NotifySender sender_type) final override;
+                         proto::NotifySenderType sender_type) final override;
   virtual bool replaceRpc(const PeerId& to, const PeerId& old_peer,
                           const PeerId& new_peer) final override;
   virtual bool addDataRpc(const PeerId& to, const std::string& key,
@@ -100,7 +100,7 @@ class TestChordIndex final : public ChordIndex {
 
   virtual bool initReplicatorRpc(const PeerId& to, size_t index,
                                  const DataMap& data) final override;
-  virtual bool appendOnReplicatorRpc(const PeerId& to, size_t index,
+  virtual bool appendToReplicatorRpc(const PeerId& to, size_t index,
                                      const DataMap& data) final override;
 
   PeerHandler peers_;
@@ -341,7 +341,7 @@ void TestChordIndex::staticHandleInitReplicator(const Message& request,
   for (int i = 0; i < init_request.data_size(); ++i) {
     data[init_request.data(i).key()] = init_request.data(i).value();
   }
-  if (instance().handleInitReplicator(init_request.replicator_index(), data,
+  if (instance().handleInitReplicator(init_request.replicator_index(), &data,
                                       request.sender())) {
     response->ack();
   } else {
@@ -359,7 +359,7 @@ void TestChordIndex::staticHandleAppendOnReplicator(const Message& request,
     data[replication_request.data(i).key()] =
         replication_request.data(i).value();
   }
-  if (instance().handleAppendOnReplicator(
+  if (instance().handleAppendToReplicator(
           replication_request.replicator_index(), data, request.sender())) {
     response->ack();
   } else {
@@ -466,7 +466,7 @@ ChordIndex::RpcStatus TestChordIndex::unlockRpc(const PeerId& to) {
 }
 
 bool TestChordIndex::notifyRpc(const PeerId& to, const PeerId& self,
-                               proto::NotifySender sender_type) {
+                               proto::NotifySenderType sender_type) {
   Message request, response;
   proto::NotifyRequest notify_request;
   notify_request.set_peer_id(self.ipPort());
@@ -574,7 +574,7 @@ bool TestChordIndex::initReplicatorRpc(const PeerId& to, size_t index,
   return response.isType<Message::kAck>();
 }
 
-bool TestChordIndex::appendOnReplicatorRpc(const PeerId& to, size_t index,
+bool TestChordIndex::appendToReplicatorRpc(const PeerId& to, size_t index,
                                            const DataMap& data) {
   Message request, response;
   proto::FetchResponsibilitiesResponse push_request;
