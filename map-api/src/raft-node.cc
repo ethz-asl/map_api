@@ -180,10 +180,10 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
                  << "). They are " << leader_id_.ipPort() << " (current) and "
                  << sender.ipPort() << " (new) ";
     } else {
-      setAppendEntriesResponse(
-          proto::AppendResponseStatus::REJECTED, log_writer->commitIndex(),
-          current_term_, log_writer->lastLogIndex(),log_writer->lastLogTerm(),
-          &append_response);
+      setAppendEntriesResponse(proto::AppendResponseStatus::REJECTED,
+                               log_writer->commitIndex(), current_term_,
+                               log_writer->lastLogIndex(),
+                               log_writer->lastLogTerm(), &append_response);
       response->impose<kAppendEntriesResponse>(append_response);
       return;
     }
@@ -775,7 +775,7 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
       append_entries.set_term(term);
       uint64_t last_log_index;
       {
-        LogWriteAccess log_reader(data_);
+        LogReadAccess log_reader(data_);
         append_entries.set_commit_index(log_reader->commitIndex());
         last_log_index = log_reader->lastLogIndex();
         append_entries.set_last_log_index(log_reader->lastLogIndex());
@@ -1400,8 +1400,6 @@ bool RaftNode::sendLeaveRequest(uint64_t serial_id) {
 void RaftNode::sendLeaveSuccessNotification(const PeerId& peer) {
   Message request, response;
   proto::ChunkRequestMetadata metadata;
-  //metadata.set_table(table_name_);
-  //chunk_id_.serialize(metadata.mutable_chunk_id());
   fillMetadata(&metadata);
   request.impose<kLeaveNotification>(metadata);
   if (!Hub::instance().try_request(peer, &request, &response)) {
