@@ -26,8 +26,7 @@ Transaction::Transaction(const std::shared_ptr<Workspace>& workspace,
                          const LogicalTime& begin_time)
     : workspace_(workspace),
       begin_time_(begin_time),
-      chunk_tracking_disabled_(false),
-      already_committed_(false) {
+      chunk_tracking_disabled_(false) {
   CHECK(begin_time < LogicalTime::sample());
 }
 Transaction::Transaction()
@@ -102,8 +101,6 @@ std::string Transaction::printCacheStatistics() const {
 // net_table_transactions_, and have the locks acquired in that order
 // (resource hierarchy solution)
 bool Transaction::commit() {
-  CHECK(!already_committed_);
-  already_committed_ = true;
   if (FLAGS_blame_commit) {
     LOG(INFO) << "Transaction committed from:\n" << common::backtrace();
   }

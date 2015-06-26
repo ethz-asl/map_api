@@ -27,7 +27,7 @@ bool RaftChunk::init(const common::Id& id,
                      std::shared_ptr<TableDescriptor> descriptor,
                      bool initialize) {
   id_ = id;
-  // TODO(aqurai): No, this is not a good way of doing things.
+  // TODO(aqurai): init new data container here.
   data_container_.reset(raft_node_.data_);
   CHECK(data_container_->init(descriptor));
   raft_node_.chunk_id_ = id_;
@@ -203,11 +203,7 @@ int RaftChunk::requestParticipation() {
       return 0;
     }
   }
-  if (num_success > 0) {
-    return 1;
-  } else {
-    return 0;
-  }
+  return num_success;
 }
 
 const PeerId& RaftChunk::getLockHolder() const {
@@ -317,7 +313,6 @@ bool RaftChunk::updateLocked(const LogicalTime& time,
 
 bool RaftChunk::removeLocked(const LogicalTime& time,
                              const std::shared_ptr<Revision>& item) {
-  // TODO(aqurai): How is this different from Update???
   CHECK(item != nullptr);
   CHECK_EQ(id(), item->getChunkId());
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
@@ -332,19 +327,17 @@ LogicalTime RaftChunk::getLatestCommitTime() const {
 
 bool RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
   CHECK(raft_node_.isRunning()) << PeerId::self();
-  uint64_t index = 0;
   bool retrying = false;
   uint64_t serial_id = request_id_.getNewId();
   // TODO(aqurai): Limit number of retry attempts.
   while (raft_node_.isRunning()) {
-    index = raft_node_.sendInsertRequest(item, serial_id, retrying);
-    if (index > 0) {
+    if (raft_node_.sendInsertRequest(item, serial_id, retrying)) {
       break;
     }
     retrying = true;
     usleep(150 * kMillisecondsToMicroseconds);
   }
-  return (index > 0);
+  return true;
 }
 
 void RaftChunk::forceStopRaft() { raft_node_.stop(); }

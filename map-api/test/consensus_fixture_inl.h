@@ -14,9 +14,15 @@
 
 constexpr int kTableFieldId = 0;
 
+using std::chrono::milliseconds;
+using std::chrono::duration_cast;
+
+DECLARE_bool(use_raft);
+
 namespace map_api {
 
 void ConsensusFixture::SetUpImpl() {
+  FLAGS_use_raft = true;
   map_api::Core::initializeInstance();  // Core init.
   ASSERT_TRUE(map_api::Core::instance() != nullptr);
 
@@ -27,43 +33,20 @@ void ConsensusFixture::SetUpImpl() {
   table_ = map_api::NetTableManager::instance().addTable(descriptor);
 }
 
-void ConsensusFixture::setupRaftSupervisor(uint64_t num_processes) {
-  enum Barriers {
-    INIT = 253,  // Some large number.
-    SUPERVISOR_ID_ANNOUNCED = 254,
-    PEERS_SETUP = 255
-  };
-  for (uint64_t i = 1u; i <= num_processes; ++i) {
-    launchSubprocess(i);
-  }
-  IPC::barrier(INIT, num_processes);
-  IPC::push(PeerId::self());
-  IPC::barrier(SUPERVISOR_ID_ANNOUNCED, num_processes);
-  IPC::barrier(PEERS_SETUP, num_processes);
+RaftChunk* ConsensusFixture::createChunkAndPushId(NetTable* table) {
+  ChunkBase* base_chunk = CHECK_NOTNULL(table)->newChunk();
+  VLOG(1) << "Created a new chunk " << base_chunk->id();
+  RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);  // NOLINT
+  CHECK_NOTNULL(chunk);
+  IPC::push(chunk->id());
+  return chunk;
 }
 
-void ConsensusFixture::setupRaftPeers(uint64_t num_processes) {
-  enum Barriers {
-    INIT = 253,  // Some large number.
-    SUPERVISOR_ID_ANNOUNCED = 254,
-    PEERS_SETUP = 255
-  };
-
-  IPC::barrier(INIT, num_processes);
-  IPC::barrier(SUPERVISOR_ID_ANNOUNCED, num_processes);
-  std::set<PeerId> peer_list;
-  Hub::instance().getPeers(&peer_list);
-  PeerId supervisor = IPC::pop<PeerId>();
-  peer_list.erase(supervisor);
-
-  for (const PeerId& peer : peer_list) {
-    addRaftPeer(peer);
-  }
-  IPC::barrier(PEERS_SETUP, num_processes);
-}
-
-void ConsensusFixture::addRaftPeer(const PeerId& peer) {
-  // RaftNode::instance().addPeerBeforeStart(peer);
+RaftChunk* ConsensusFixture::getPushedChunk(NetTable* table) {
+  common::Id chunk_id = IPC::pop<common::Id>();
+  ChunkBase* base_chunk = CHECK_NOTNULL(table)->getChunk(chunk_id);
+  RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);  // NOLINT
+  return CHECK_NOTNULL(chunk);
 }
 
 proto::QueryStateResponse ConsensusFixture::queryState(const PeerId& peer) {
@@ -91,7 +74,7 @@ void ConsensusFixture::leaderAppendBlankLogEntry(RaftChunk* chunk) {
   entry->set_sender(PeerId::self().ipPort());
   entry->set_sender_serial_id(chunk->request_id_.getNewId());
   do {
-    CHECK(chunk->raft_node_.getState() == RaftNode::State::LEADER);
+    ASSERT_EQ(chunk->raft_node_.getState(), RaftNode::State::LEADER);
   } while (chunk->raft_node_.leaderAppendLogEntry(entry) == 0);
 }
 

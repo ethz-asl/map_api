@@ -21,8 +21,6 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   virtual ~RaftChunkDataRamContainer();
 
  private:
-  // friend class LogReadAccess;
-
   // READ OPERATIONS INHERITED FROM PARENT
   virtual bool initImpl();
   virtual std::shared_ptr<const Revision> getByIdImpl(
@@ -44,6 +42,8 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
                              const std::shared_ptr<Revision>& query);
   bool checkAndPrepareBulkInsert(const LogicalTime& time,
                                  const MutableRevisionMap& query);
+  bool checkAndPrepareRemove(const LogicalTime& time,
+                             const std::shared_ptr<Revision>& query);
 
   // INSERT
   bool checkAndPatch(const std::shared_ptr<Revision>& query);
@@ -87,10 +87,10 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     virtual ~RaftLog() {}
     iterator getLogIteratorByIndex(uint64_t index);
     const_iterator getConstLogIteratorByIndex(uint64_t index) const;
-    proto::RaftLogEntry* copyWithoutRevision(const_iterator it) const;
+    proto::RaftLogEntry* copyWithoutRevision(const const_iterator& it) const;
     uint64_t getEntryIndex(const PeerId& peer, uint64_t serial_id) const;
     uint64_t getPeerLatestSerialId(const PeerId& peer) const;
-    uint64_t eraseAfter(iterator it);
+    uint64_t eraseAfter(const iterator& it);
     inline uint64_t lastLogIndex() const { return back()->index(); }
     inline uint64_t lastLogTerm() const { return back()->term(); }
     inline uint64_t commitIndex() const { return commit_index_; }
@@ -98,7 +98,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
 
     void appendLogEntry(const std::shared_ptr<proto::RaftLogEntry>& entry);
     inline void setCommitIndex(uint64_t value) { commit_index_ = value; }
-    uint64_t setEntryCommitted(iterator it);
+    uint64_t setEntryCommitted(const iterator& it);
 
    private:
     friend class RaftChunkDataRamContainer;

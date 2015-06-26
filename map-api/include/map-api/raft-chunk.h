@@ -165,7 +165,6 @@ class RaftChunk : public ChunkBase {
   // (#2436).
   mutable RaftNode raft_node_;
   volatile bool initialized_ = false;
-  volatile bool relinquished_ = false;
   LogicalTime latest_commit_time_;
   uint64_t latest_commit_log_index_;
 };

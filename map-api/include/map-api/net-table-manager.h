@@ -164,6 +164,10 @@ class NetTableManager {
   static bool getTableForRequestWithMetadataOrDecline(
       const MetadataRequestType& request, Message* response,
       TableMap::iterator* found);
+  template <typename MetadataRequestType>
+  static bool getTableChunkForRequestWithMetadataOrDecline(
+      const MetadataRequestType& request, Message* response,
+      TableMap::iterator* found, common::Id* chunk_id);
   template <typename StringRequestType>
   static bool getTableForRequestWithStringOrDecline(
       const StringRequestType& request, Message* response,

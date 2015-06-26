@@ -75,7 +75,7 @@ class Transaction {
   void remove(NetTable* table, std::shared_ptr<Revision> revision);
   // slow
   template <typename IdType>
-  void remove(NetTable* table, const common::UniqueId<IdType>& id);
+  void remove(const IdType& id, NetTable* table);
 
   // TRANSACTION OPERATIONS
   bool commit();
@@ -170,8 +170,6 @@ class Transaction {
   mutable std::mutex net_table_transactions_mutex_;
 
   bool chunk_tracking_disabled_;
-
-  bool already_committed_;
 };
 
 }  // namespace map_api
