@@ -5,13 +5,15 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <multiagent-mapping-common/conversions.h>
 
 const std::string kCleanJoin("clean");
 const std::string kStabilizeJoin("stabilize");
 
 DEFINE_string(join_mode, kCleanJoin,
               ("Can be " + kCleanJoin + " or " + kStabilizeJoin).c_str());
-DEFINE_uint64(stabilize_us, 1000, "Interval of stabilization in microseconds");
+DEFINE_uint64(stabilize_interval_ms, 1500,
+              "Interval of stabilization in milliseconds");
 DECLARE_int32(simulated_lag_ms);
 DEFINE_bool(enable_fingers, true, "enable chord fingers");
 DEFINE_bool(enable_replication, true, "enable chord replication");
@@ -392,7 +394,7 @@ bool ChordIndex::lock() {
 bool ChordIndex::lock(const PeerId& subject) {
   while (true) {
     if (lockRpc(subject) != RpcStatus::SUCCESS) {
-      usleep(1000);
+      usleep(10 * kMillisecondsToMicroseconds);
     } else {
       break;
     }
@@ -684,7 +686,7 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
     if (FLAGS_enable_replication) {
       self->fixReplicators();
     }
-    usleep(FLAGS_stabilize_us * 1500);
+    usleep(FLAGS_stabilize_interval_ms * kMillisecondsToMicroseconds);
   }
 }
 
