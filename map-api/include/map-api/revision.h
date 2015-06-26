@@ -26,6 +26,9 @@ class Revision {
   friend class LegacyChunk;
   friend class ChunkDataContainerBase;
   friend class LegacyChunkDataContainerBase;
+  friend class RaftChunk;
+  friend class RaftChunkDataRamContainer;
+  friend class RaftNode;
   template<int BlockSize>
   friend class STXXLRevisionStore;
   friend class TrackeeMultimap;

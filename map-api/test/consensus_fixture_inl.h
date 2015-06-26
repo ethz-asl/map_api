@@ -9,123 +9,44 @@
 #include <map-api/net-table-manager.h>
 
 #include "./raft.pb.h"
+#include "map-api/raft-chunk.h"
+#include "map-api/raft-chunk-data-ram-container.h"
 
 constexpr int kTableFieldId = 0;
 
 using std::chrono::milliseconds;
 using std::chrono::duration_cast;
 
+DECLARE_bool(use_raft);
+
 namespace map_api {
 
 void ConsensusFixture::SetUpImpl() {
+  FLAGS_use_raft = true;
   map_api::Core::initializeInstance();  // Core init.
   ASSERT_TRUE(map_api::Core::instance() != nullptr);
-  RaftNode::instance().registerHandlers();
+
+  // Create a table
+  std::shared_ptr<map_api::TableDescriptor> descriptor(new TableDescriptor);
+  descriptor->setName("Table0");
+  descriptor->addField<int>(kTableFieldId);
+  table_ = map_api::NetTableManager::instance().addTable(descriptor);
 }
 
-void ConsensusFixture::setupRaftSupervisor(uint64_t num_processes) {
-  enum Barriers {
-    INIT = 253,  // Some large number.
-    SUPERVISOR_ID_ANNOUNCED = 254,
-    PEERS_SETUP = 255
-  };
-  for (uint64_t i = 1u; i <= num_processes; ++i) {
-    launchSubprocess(i);
-  }
-  IPC::barrier(INIT, num_processes);
-  IPC::push(PeerId::self());
-  IPC::barrier(SUPERVISOR_ID_ANNOUNCED, num_processes);
-  IPC::barrier(PEERS_SETUP, num_processes);
+RaftChunk* ConsensusFixture::createChunkAndPushId(NetTable* table) {
+  ChunkBase* base_chunk = CHECK_NOTNULL(table)->newChunk();
+  VLOG(1) << "Created a new chunk " << base_chunk->id();
+  RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);  // NOLINT
+  CHECK_NOTNULL(chunk);
+  IPC::push(chunk->id());
+  return chunk;
 }
 
-void ConsensusFixture::setupRaftPeers(uint64_t num_processes) {
-  enum Barriers {
-    INIT = 253,  // Some large number.
-    SUPERVISOR_ID_ANNOUNCED = 254,
-    PEERS_SETUP = 255
-  };
-
-  IPC::barrier(INIT, num_processes);
-  IPC::barrier(SUPERVISOR_ID_ANNOUNCED, num_processes);
-  std::set<PeerId> peer_list;
-  Hub::instance().getPeers(&peer_list);
-  PeerId supervisor = IPC::pop<PeerId>();
-  peer_list.erase(supervisor);
-
-  for (const PeerId& peer : peer_list) {
-    addRaftPeer(peer);
-  }
-  IPC::barrier(PEERS_SETUP, num_processes);
-}
-
-void ConsensusFixture::addRaftPeer(const PeerId& peer) {
-  RaftNode::instance().addPeerBeforeStart(peer);
-}
-
-void ConsensusFixture::appendEntriesForMs(uint16_t duration_ms,
-                                          uint16_t delay_ms) {
-  TimePoint begin = std::chrono::system_clock::now();
-  TimePoint append_time = std::chrono::system_clock::now();
-  uint16_t total_duration_ms = 0;
-  while (total_duration_ms < duration_ms) {
-    TimePoint now = std::chrono::system_clock::now();
-    const uint16_t append_duration_ms = static_cast<uint16_t>(
-        duration_cast<milliseconds>(now - append_time).count());
-    // Append new entries if leader.
-    if (RaftNode::instance().state() == RaftNode::State::LEADER) {
-      if (append_duration_ms > delay_ms) {
-        appendEntry();
-        append_time = std::chrono::system_clock::now();
-      }
-      usleep(delay_ms * kMillisecondsToMicroseconds);
-    } else {
-      append_time = std::chrono::system_clock::now();
-    }
-
-    total_duration_ms =
-        static_cast<uint16_t>(duration_cast<milliseconds>(now - begin).count());
-  }
-}
-
-void ConsensusFixture::appendEntriesWithLeaderChangesForMs(uint16_t duration_ms,
-                                                           uint16_t delay_ms) {
-  uint num_appends = 0;
-  TimePoint begin = std::chrono::system_clock::now();
-  TimePoint append_time = std::chrono::system_clock::now();
-  uint16_t total_duration_ms = 0;
-  while (total_duration_ms < duration_ms) {
-    TimePoint now = std::chrono::system_clock::now();
-    const uint16_t append_duration_ms = static_cast<uint16_t>(
-        duration_cast<milliseconds>(now - append_time).count());
-    total_duration_ms =
-        static_cast<uint16_t>(duration_cast<milliseconds>(now - begin).count());
-    // Append new entries if leader.
-    if (RaftNode::instance().state() == RaftNode::State::LEADER) {
-      if (append_duration_ms > delay_ms) {
-        appendEntry();
-        ++num_appends;
-        append_time = std::chrono::system_clock::now();
-      }
-
-      if (num_appends > 100) {
-        giveUpLeadership();
-        num_appends = 0;
-        append_time = std::chrono::system_clock::now();
-      }
-      usleep(delay_ms * kMillisecondsToMicroseconds);
-    } else {
-      append_time = std::chrono::system_clock::now();
-    }
-  }
-}
-
-void ConsensusFixture::appendEntriesBurst(uint16_t num_entries) {
-  if (RaftNode::instance().state() != RaftNode::State::LEADER) {
-    return;
-  }
-  for (uint16_t k = 0; k < num_entries; ++k) {
-    appendEntry();
-  }
+RaftChunk* ConsensusFixture::getPushedChunk(NetTable* table) {
+  common::Id chunk_id = IPC::pop<common::Id>();
+  ChunkBase* base_chunk = CHECK_NOTNULL(table)->getChunk(chunk_id);
+  RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);  // NOLINT
+  return CHECK_NOTNULL(chunk);
 }
 
 proto::QueryStateResponse ConsensusFixture::queryState(const PeerId& peer) {
@@ -138,6 +59,43 @@ proto::QueryStateResponse ConsensusFixture::queryState(const PeerId& peer) {
     LOG(WARNING) << "Supervisor: QueryState request failed for " << peer;
   }
   return state_response;
+}
+
+const PeerId& ConsensusFixture::getLockHolder(RaftChunk* chunk) {
+  return chunk->getLockHolder();
+}
+
+void ConsensusFixture::quitRaftUnannounced(RaftChunk* chunk) {
+  chunk->raft_node_.stop();
+}
+
+void ConsensusFixture::leaderAppendBlankLogEntry(RaftChunk* chunk) {
+  std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
+  entry->set_sender(PeerId::self().ipPort());
+  entry->set_sender_serial_id(chunk->request_id_.getNewId());
+  do {
+    ASSERT_EQ(chunk->raft_node_.getState(), RaftNode::State::LEADER);
+  } while (chunk->raft_node_.leaderAppendLogEntry(entry) == 0);
+}
+
+void ConsensusFixture::leaderWaitUntilAllCommitted(RaftChunk* chunk) {
+  uint64_t term;
+  uint64_t last_index;
+  bool is_leader;
+  {
+    std::lock_guard<std::mutex> state_lock(chunk->raft_node_.state_mutex_);
+    is_leader = (chunk->raft_node_.state_ == RaftNode::State::LEADER);
+    term = chunk->raft_node_.current_term_;
+    last_index = chunk->raft_node_.data_->lastLogIndex();
+  }
+  CHECK(is_leader);
+  chunk->raft_node_.waitAndCheckCommit(last_index, term, 0);
+}
+
+uint64_t ConsensusFixture::getLatestEntrySerialId(RaftChunk* chunk,
+                                              const PeerId& peer) {
+  RaftChunkDataRamContainer::LogReadAccess log_reader(chunk->raft_node_.data_);
+  return log_reader->getPeerLatestSerialId(peer);
 }
 
 void ConsensusFixture::TearDownImpl() { map_api::Core::instance()->kill(); }

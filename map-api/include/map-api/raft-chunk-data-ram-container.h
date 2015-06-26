@@ -2,6 +2,7 @@
 #define MAP_API_RAFT_CHUNK_DATA_RAM_CONTAINER_H_
 
 #include <list>
+#include <string>
 #include <vector>
 
 #include "./raft.pb.h"
@@ -15,11 +16,11 @@ class ReaderWriterMutex;
 class RaftChunkDataRamContainer : public ChunkDataContainerBase {
  public:
   friend class RaftNode;
+  friend class RaftChunk;
+  friend class ConsensusFixture;
   virtual ~RaftChunkDataRamContainer();
 
  private:
-  friend class LogReadAccess;
-
   // READ OPERATIONS INHERITED FROM PARENT
   virtual bool initImpl();
   virtual std::shared_ptr<const Revision> getByIdImpl(
@@ -33,51 +34,83 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
   // If key is -1, this should return all the data in the table.
   virtual int countByRevisionImpl(int key, const Revision& valueHolder,
                                   const LogicalTime& time) const;
+
+  // CHECK/PREPARE INSERT AND UPDATE
+  bool checkAndPrepareInsert(const LogicalTime& time,
+                             const std::shared_ptr<Revision>& query);
+  bool checkAndPrepareUpdate(const LogicalTime& time,
+                             const std::shared_ptr<Revision>& query);
+  bool checkAndPrepareBulkInsert(const LogicalTime& time,
+                                 const MutableRevisionMap& query);
+  bool checkAndPrepareRemove(const LogicalTime& time,
+                             const std::shared_ptr<Revision>& query);
+
+  // INSERT
+  bool checkAndPatch(const std::shared_ptr<Revision>& query);
+
+  bool patch(const Revision::ConstPtr& query);
+
   // =================
   // HISTORY CONTAINER
   // =================
-  // TODO(aqurai): Implement history container here.
-  // This is an incomplete implementation.
   class History : public std::list<std::shared_ptr<const Revision>> {
    public:
     virtual ~History() {}
-    inline const_iterator latestAt(const LogicalTime& time) const {
-      for (const_iterator it = cbegin(); it != cend(); ++it) {
-        if ((*it)->getUpdateTime() <= time) return it;
-      }
-      return cend();
-    }
+    inline const_iterator latestAt(const LogicalTime& time) const;
   };
   typedef std::unordered_map<common::Id, History> HistoryMap;
   HistoryMap data_;
 
+  inline void forEachItemFoundAtTime(
+      int key, const Revision& value_holder,
+      const LogicalTime& time,
+      const std::function<void(
+          const common::Id& id,
+          const std::shared_ptr<const Revision>& item)>& action) const;
+  inline void forChunkItemsAtTime(
+      const common::Id& chunk_id, const LogicalTime& time,
+      const std::function<void(
+          const common::Id& id,
+          const std::shared_ptr<const Revision>& item)>& action) const;
+  inline void trimToTime(const LogicalTime& time, HistoryMap* subject) const;
+
+  // OTHER READ OPERATIONS
+  void chunkHistory(const common::Id& chunk_id, const LogicalTime& time,
+                    HistoryMap* dest) const;
+
   // ========
   // RAFT-LOG
   // ========
-
-  // TODO(aqurai): Make this class private. The prolem is iterator and
-  // const_iterator are not defined within RaftNode.
   class RaftLog : public std::vector<std::shared_ptr<proto::RaftLogEntry>> {
    public:
+    RaftLog();
     virtual ~RaftLog() {}
     iterator getLogIteratorByIndex(uint64_t index);
     const_iterator getConstLogIteratorByIndex(uint64_t index) const;
-    uint64_t eraseAfter(iterator it);
+    proto::RaftLogEntry* copyWithoutRevision(const const_iterator& it) const;
+    uint64_t getEntryIndex(const PeerId& peer, uint64_t serial_id) const;
+    uint64_t getPeerLatestSerialId(const PeerId& peer) const;
+    uint64_t eraseAfter(const iterator& it);
     inline uint64_t lastLogIndex() const { return back()->index(); }
     inline uint64_t lastLogTerm() const { return back()->term(); }
+    inline uint64_t commitIndex() const { return commit_index_; }
     inline common::ReaderWriterMutex* mutex() const { return &log_mutex_; }
 
-    // Yet to be implemented:
-    // void commitNextEnty() {}
-    // void commitUntilIndex(uint64_t index) {}
-    // uint64_t commit_index();
+    void appendLogEntry(const std::shared_ptr<proto::RaftLogEntry>& entry);
+    inline void setCommitIndex(uint64_t value) { commit_index_ = value; }
+    uint64_t setEntryCommitted(const iterator& it);
 
    private:
+    friend class RaftChunkDataRamContainer;
+    using std::vector<std::shared_ptr<proto::RaftLogEntry>>::push_back;
+    std::unordered_map<std::string, uint64_t> serial_id_map_;
     mutable common::ReaderWriterMutex log_mutex_;
-    mutable std::mutex commit_mutex_;
     uint64_t commit_index_;
   };
   RaftLog log_;
+  inline uint64_t logCommitIndex() const;
+  inline uint64_t lastLogTerm() const;
+  inline uint64_t lastLogIndex() const;
 
   class LogReadAccess {
    public:
@@ -109,5 +142,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
 };
 
 }  // namespace map_api
+
+#include "./raft-chunk-data-ram-container-inl.h"
 
 #endif  // MAP_API_RAFT_CHUNK_DATA_RAM_CONTAINER_H_

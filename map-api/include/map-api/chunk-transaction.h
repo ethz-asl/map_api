@@ -28,6 +28,7 @@ class ChunkTransaction {
   friend class NetTableFixture;
   FRIEND_TEST(NetTableFixture, ChunkTransactions);
   FRIEND_TEST(NetTableFixture, ChunkTransactionsConflictConditions);
+  FRIEND_TEST(NetTableFixture, TransactionAbortOnPeerDisconnect);
 
  private:
   ChunkTransaction(ChunkBase* chunk, NetTable* table);

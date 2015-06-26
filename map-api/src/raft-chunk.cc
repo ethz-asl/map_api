@@ -11,8 +11,16 @@
 
 namespace map_api {
 
+RaftChunk::RaftChunk()
+    : chunk_lock_attempted_(false),
+      is_raft_chunk_lock_acquired_(false),
+      lock_log_index_(0),
+      chunk_write_lock_depth_(0),
+      leave_requested_(false) {}
+
 RaftChunk::~RaftChunk() {
   raft_node_.stop();
+  raft_node_.data_ = NULL;
 }
 
 bool RaftChunk::init(const common::Id& id,
@@ -20,7 +28,7 @@ bool RaftChunk::init(const common::Id& id,
                      bool initialize) {
   id_ = id;
   // TODO(aqurai): init new data container here.
-  data_container_.reset(new RaftChunkDataRamContainer);
+  data_container_.reset(raft_node_.data_);
   CHECK(data_container_->init(descriptor));
   initialized_ = true;
   raft_node_.chunk_id_ = id_;
@@ -34,14 +42,7 @@ void RaftChunk::initializeNewImpl(
 
   VLOG(1) << " INIT chunk at peer " << PeerId::self() << " in table "
           << raft_node_.table_name_;
-  setStateFollowerAndStartRaft();
-}
-
-bool RaftChunk::init(const common::Id& id,
-                     std::shared_ptr<TableDescriptor> descriptor) {
-  CHECK(init(id, descriptor, true));
-  setStateFollowerAndStartRaft();
-  return true;
+  setStateLeaderAndStartRaft();
 }
 
 bool RaftChunk::init(const common::Id& id,
@@ -49,7 +50,7 @@ bool RaftChunk::init(const common::Id& id,
                      std::shared_ptr<TableDescriptor> descriptor) {
   CHECK(init(id, descriptor, true));
 
-  VLOG(1) << " INIT chunk at peer " << PeerId::self() << " in table "
+  VLOG(2) << " INIT chunk at peer " << PeerId::self() << " in table "
           << raft_node_.table_name_;
   raft_node_.initChunkData(init_request);
   setStateFollowerAndStartRaft();
@@ -80,41 +81,160 @@ size_t RaftChunk::itemsSizeBytes(const LogicalTime& time) const {
 
 void RaftChunk::getCommitTimes(const LogicalTime& sample_time,
                                std::set<LogicalTime>* commit_times) const {
-  LOG(FATAL) << "Not implemented";
-  // TODO(aqurai): Implement this after data_container.
+  CHECK_NOTNULL(commit_times);
+  //  Using a temporary unordered map because it should have a faster insertion
+  //  time. The expected amount of commit times << the expected amount of items,
+  //  so this should be worth it.
+  std::unordered_set<LogicalTime> unordered_commit_times;
+  ConstRevisionMap items;
+  RaftChunkDataRamContainer::HistoryMap histories;
+  static_cast<RaftChunkDataRamContainer*>(data_container_.get())
+      ->chunkHistory(id(), sample_time, &histories);
+  for (const RaftChunkDataRamContainer::HistoryMap::value_type& history :
+       histories) {
+    for (const std::shared_ptr<const Revision>& revision : history.second) {
+      unordered_commit_times.insert(revision->getUpdateTime());
+    }
+  }
+  commit_times->insert(unordered_commit_times.begin(),
+                       unordered_commit_times.end());
+}
+
+bool RaftChunk::insert(const LogicalTime& time,
+                       const std::shared_ptr<Revision>& item) {
+  CHECK(item != nullptr);
+  item->setChunkId(id());
+  writeLock();
+  static_cast<RaftChunkDataRamContainer*>(data_container_.get())
+      ->checkAndPrepareInsert(time, item);
+  CHECK(raft_node_.isRunning());
+  if (raftInsertRequest(item)) {
+    syncLatestCommitTime(*item);
+    unlock();
+    return true;
+  } else {
+    unlock();
+    return false;
+  }
 }
 
 void RaftChunk::writeLock() {
-  LOG(WARNING) << "RaftChunk::writeLock() is not implemented";
+  CHECK(raft_node_.isRunning());
   std::lock_guard<std::mutex> lock_mutex(write_lock_mutex_);
-  if (is_raft_write_locked_) {
-    ++write_lock_depth_;
+  VLOG(3) << PeerId::self() << " Attempting lock for chunk " << id()
+          << ". Current depth: " << chunk_write_lock_depth_;
+  chunk_lock_attempted_ = true;
+  uint64_t serial_id = 0;
+  if (is_raft_chunk_lock_acquired_) {
+    ++chunk_write_lock_depth_;
   } else {
-    if (true /* Success */) {
-      is_raft_write_locked_ = true;
+    CHECK_EQ(lock_log_index_, 0);
+    serial_id = request_id_.getNewId();
+    while (raft_node_.isRunning()) {
+      lock_log_index_ = raft_node_.sendChunkLockRequest(serial_id);
+      if (lock_log_index_ > 0) {
+        if (raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self())) {
+          break;
+        } else {
+          // Someone else has the lock. Try with a new Id.
+          serial_id = request_id_.getNewId();
+        }
+      }
+      usleep(1000 * kMillisecondsToMicroseconds);
+    }
+    CHECK(raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self()));
+
+    if (lock_log_index_ > 0) {
+      is_raft_chunk_lock_acquired_ = true;
     }
   }
+  VLOG(3) << PeerId::self() << " acquired lock for chunk " << id()
+          << ". Current depth: " << chunk_write_lock_depth_;
 }
 
+void RaftChunk::readLock() const {}
+
 bool RaftChunk::isWriteLocked() {
-  LOG(WARNING) << "RaftChunk::isWriteLocked() is not implemented";
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
-  // return is_raft_write_locked_;
-  return true;
+  return is_raft_chunk_lock_acquired_;
 }
 
 void RaftChunk::unlock() const {
-  LOG(WARNING) << "RaftChunk::unlock() is not implemented";
+  CHECK(raft_node_.isRunning());
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
-  if (write_lock_depth_ > 0) {
-    --write_lock_depth_;
+  VLOG(3) << PeerId::self() << " Attempting unlock for chunk " << id()
+          << ". Current depth: " << chunk_write_lock_depth_;
+  uint64_t serial_id = 0;
+  if (!is_raft_chunk_lock_acquired_) {
+    return;
   }
-  if (write_lock_depth_ == 0) {
+  if (chunk_write_lock_depth_ > 0) {
+    --chunk_write_lock_depth_;
+  } else if (chunk_write_lock_depth_ == 0) {
     // Send unlock request to leader.
-    // There is no reason for this request to fail.
-    CHECK(true /* unlock request success */);
-    is_raft_write_locked_ = false;
+    CHECK(raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self()))
+        << " Failed on " << PeerId::self();
+    serial_id = request_id_.getNewId();
+    while (raft_node_.isRunning()) {
+      if (raft_node_.sendChunkUnlockRequest(serial_id, lock_log_index_, true)) {
+        break;
+      }
+      usleep(500 * kMillisecondsToMicroseconds);
+    }
+    CHECK(!raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self()));
+    lock_log_index_ = 0;
+    is_raft_chunk_lock_acquired_ = false;
+    chunk_lock_attempted_ = false;
   }
+}
+
+int RaftChunk::requestParticipation() {
+  std::set<PeerId> peers;
+  Hub::instance().getPeers(&peers);
+  int num_success = 0;
+  for (const PeerId& peer : peers) {
+    if (requestParticipation(peer)) {
+      ++num_success;
+    } else {
+      return 0;
+    }
+  }
+  return num_success;
+}
+
+const PeerId& RaftChunk::getLockHolder() const {
+  return raft_node_.raft_chunk_lock_.holder();
+}
+
+int RaftChunk::requestParticipation(const PeerId& peer) {
+  if (raft_node_.getState() == RaftNode::State::LEADER &&
+      !raft_node_.hasPeer(peer)) {
+    std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
+    entry->set_add_peer(peer.ipPort());
+    entry->set_sender(PeerId::self().ipPort());
+    uint64_t serial_id = request_id_.getNewId();
+    entry->set_sender_serial_id(serial_id);
+    uint64_t append_term = raft_node_.getTerm();
+    uint64_t index = raft_node_.leaderAppendLogEntry(entry);
+    if (index > 0 &&
+        raft_node_.waitAndCheckCommit(index, append_term, serial_id)) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+void RaftChunk::update(const std::shared_ptr<Revision>& item) {
+  CHECK(item != nullptr);
+  CHECK_EQ(id(), item->getChunkId());
+  writeLock();
+  static_cast<RaftChunkDataRamContainer*>(data_container_.get())
+      ->checkAndPrepareUpdate(LogicalTime::sample(), item);
+  CHECK(raft_node_.isRunning());
+  if (raftInsertRequest(item)) {
+    syncLatestCommitTime(*item);
+  }
+  unlock();
 }
 
 bool RaftChunk::sendConnectRequest(const PeerId& peer,
@@ -142,52 +262,87 @@ bool RaftChunk::sendConnectRequest(const PeerId& peer,
   return false;
 }
 
-uint64_t RaftChunk::insertRequest(const Revision::ConstPtr& item) {
+void RaftChunk::bulkInsertLocked(const MutableRevisionMap& items,
+                                 const LogicalTime& time) {
+  std::vector<proto::PatchRequest> insert_requests;
+  for (const MutableRevisionMap::value_type& item : items) {
+    CHECK_NOTNULL(item.second.get());
+    item.second->setChunkId(id());
+  }
+  static_cast<RaftChunkDataRamContainer*>(data_container_.get())
+      ->checkAndPrepareBulkInsert(time, items);
+  for (const ConstRevisionMap::value_type& item : items) {
+    raftInsertRequest(item.second);
+  }
+}
+
+void RaftChunk::updateLocked(const LogicalTime& time,
+                             const std::shared_ptr<Revision>& item) {
+  CHECK(item != nullptr);
+  CHECK_EQ(id(), item->getChunkId());
+  static_cast<RaftChunkDataRamContainer*>(data_container_.get())
+      ->checkAndPrepareUpdate(time, item);
+  // TODO(aqurai): No return? What to do on fail?
+  raftInsertRequest(item);
+}
+
+void RaftChunk::removeLocked(const LogicalTime& time,
+                             const std::shared_ptr<Revision>& item) {
+  CHECK(item != nullptr);
+  CHECK_EQ(id(), item->getChunkId());
+  static_cast<RaftChunkDataRamContainer*>(data_container_.get())
+      ->checkAndPrepareUpdate(time, item);
+  raftInsertRequest(item);
+}
+
+LogicalTime RaftChunk::getLatestCommitTime() const {
+  std::lock_guard<std::mutex> lock(latest_commit_time_mutex_);
+  return latest_commit_time_;
+}
+
+bool RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
+  CHECK(raft_node_.isRunning()) << PeerId::self();
+  bool retrying = false;
+  uint64_t serial_id = request_id_.getNewId();
+  while (raft_node_.isRunning()) {
+    if (raft_node_.sendInsertRequest(item, serial_id, retrying)) {
+      break;
+    }
+    retrying = true;
+    usleep(150 * kMillisecondsToMicroseconds);
+  }
+  return true;
+}
+
+void RaftChunk::forceStopRaft() { raft_node_.stop(); }
+
+void RaftChunk::leaveImpl() {
+  // We may stop raft node explicitly without calling leave in some tests.
+  if (!raft_node_.isRunning()) {
+    return;
+  }
+  writeLock();
   CHECK(raft_node_.isRunning());
-  return raft_node_.sendInsertRequest(item);
+  uint64_t serial_id = request_id_.getNewId();
+  leave_requested_ = true;
+  while (raft_node_.isRunning()) {
+    VLOG(1) << PeerId::self() << ": Attempting to leave chunk " << id();
+    bool success = raft_node_.sendLeaveRequest(serial_id);
+    if (success) {
+      raft_node_.stop();
+      break;
+    }
+    usleep(150 * kMillisecondsToMicroseconds);
+  }
+  VLOG(1) << PeerId::self() << ": Left chunk " << id();
 }
 
-void RaftChunk::handleRaftConnectRequest(const PeerId& sender, Message* response) {
-  CHECK_NOTNULL(response);
-  raft_node_.handleConnectRequest(sender, response);
-}
+void RaftChunk::awaitShared() {}
 
-void RaftChunk::handleRaftAppendRequest(proto::AppendEntriesRequest* request,
-                                        const PeerId& sender,
-                                        Message* response) {
-  CHECK_NOTNULL(response);
-  raft_node_.handleAppendRequest(request, sender, response);
-}
-
-void RaftChunk::handleRaftInsertRequest(proto::InsertRequest* request,
-                                        const PeerId& sender,
-                                        Message* response) {
-  CHECK_NOTNULL(response);
-  raft_node_.handleInsertRequest(request, sender, response);
-}
-
-void RaftChunk::handleRaftRequestVote(const proto::VoteRequest& request,
-                                      const PeerId& sender, Message* response) {
-  CHECK_NOTNULL(response);
-  raft_node_.handleRequestVote(request, sender, response);
-}
-
-void RaftChunk::handleRaftQueryState(const proto::QueryState& request,
-                                     Message* response) {
-  CHECK_NOTNULL(response);
-  raft_node_.handleQueryState(request, response);
-}
-
-void RaftChunk::handleRaftJoinQuitRequest(const proto::JoinQuitRequest& request,
-                                          const PeerId& sender,
-                                          Message* response) {
-  CHECK_NOTNULL(response);
-  raft_node_.handleJoinQuitRequest(request, sender, response);
-}
-
-void RaftChunk::handleRaftNotifyJoinQuitSuccess(
-    const proto::NotifyJoinQuitSuccess& request, Message* response) {
-  raft_node_.handleNotifyJoinQuitSuccess(request, response);
+void RaftChunk::handleRaftLeaveNotification(Message* response) {
+  CHECK(leave_requested_);
+  leave_notification_.notify();
+  response->ack();
 }
 
 }  // namespace map_api
