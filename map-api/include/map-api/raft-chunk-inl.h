@@ -125,6 +125,46 @@ inline void RaftChunk::handleRaftQueryState(const proto::QueryState& request,
   }
 }
 
+inline void RaftChunk::handleRaftChunkTransactionInfo(
+    proto::ChunkTransactionInfo* info, const PeerId& sender,
+    Message* response) {
+  if (raft_node_.isRunning()) {
+    raft_node_.handleChunkTransactionInfo(info, sender, response);
+  } else {
+    response->decline();
+  }
+}
+
+inline void RaftChunk::handleRaftQueryReadyToCommit(
+    const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
+    Message* response) {
+  if (raft_node_.isRunning()) {
+    raft_node_.handleQueryReadyToCommit(query, sender, response);
+  } else {
+    response->decline();
+  }
+}
+
+inline void RaftChunk::handleRaftCommitNotification(
+    const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
+    Message* response) {
+  if (raft_node_.isRunning()) {
+    raft_node_.handleCommitNotification(query, sender, response);
+  } else {
+    response->decline();
+  }
+}
+
+inline void RaftChunk::handleRaftAbortNotification(
+    const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
+    Message* response) {
+  if (raft_node_.isRunning()) {
+    raft_node_.handleAbortNotification(query, sender, response);
+  } else {
+    response->decline();
+  }
+}
+
 }  // namespace map_api
 
 #endif  // MAP_API_RAFT_CHUNK_INL_H_

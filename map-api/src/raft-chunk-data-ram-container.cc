@@ -225,6 +225,14 @@ proto::RaftLogEntry* RaftChunkDataRamContainer::RaftLog::copyWithoutRevision(
   if ((*it)->has_unlock_lock_index()) {
     entry->set_unlock_lock_index((*it)->unlock_lock_index());
   }
+  if ((*it)->has_multi_chunk_transaction_info()) {
+    entry->mutable_multi_chunk_transaction_info()->CopyFrom(
+        (*it)->multi_chunk_transaction_info());
+  }
+  if ((*it)->has_multi_chunk_transaction_num_entries()) {
+    entry->set_multi_chunk_transaction_num_entries(
+        (*it)->multi_chunk_transaction_num_entries());
+  }
   if ((*it)->has_revision_id()) {
     entry->mutable_revision_id()->CopyFrom((*it)->revision_id());
   }

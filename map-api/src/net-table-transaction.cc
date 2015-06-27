@@ -2,6 +2,10 @@
 
 #include <statistics/statistics.h>
 
+#include "map-api/raft-chunk.h"
+
+#include "./raft.pb.h"
+
 namespace map_api {
 
 NetTableTransaction::NetTableTransaction(const LogicalTime& begin_time,
@@ -13,7 +17,7 @@ NetTableTransaction::NetTableTransaction(const LogicalTime& begin_time,
   CHECK(begin_time < LogicalTime::sample());
 }
 
-void NetTableTransaction::dumpChunk(ChunkBase* chunk,
+void NetTableTransaction::dumpChunk(const ChunkBase* chunk,
                                     ConstRevisionMap* result) {
   CHECK_NOTNULL(chunk);
   if (workspace_.contains(chunk->id())) {
@@ -27,7 +31,7 @@ void NetTableTransaction::dumpActiveChunks(ConstRevisionMap* result) {
   CHECK_NOTNULL(result);
   workspace_.forEachChunk([&, this](const ChunkBase& chunk) {
     ConstRevisionMap chunk_revisions;
-    chunk.dumpItems(begin_time_, &chunk_revisions);
+    dumpChunk(&chunk, &chunk_revisions);
     result->insert(chunk_revisions.begin(), chunk_revisions.end());
   });
 }
@@ -72,10 +76,42 @@ bool NetTableTransaction::commit() {
   return true;
 }
 
-void NetTableTransaction::checkedCommit(const LogicalTime& time) {
+bool NetTableTransaction::checkedCommit(const LogicalTime& time) {
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
-    chunk_transaction.second->checkedCommit(time);
+    if (!chunk_transaction.second->checkedCommit(time)) {
+      return false;
+    }
   }
+  return true;
+}
+
+void NetTableTransaction::prepareMultiChunkTransactionInfo(
+    proto::MultiChunkTransactionInfo* info) {
+  CHECK(FLAGS_use_raft);
+  for (const TransactionPair& chunk_transaction : chunk_transactions_) {
+    proto::ChunkRequestMetadata chunk_metadata;
+    chunk_metadata.set_table(table_->name());
+    chunk_transaction.second->chunk_->id().serialize(
+        chunk_metadata.mutable_chunk_id());
+    info->add_chunk_list()->CopyFrom(chunk_metadata);
+
+    // TODO(aqurai): To be removed. (Issue #2466)
+    const PeerId& leader = CHECK_NOTNULL(
+        dynamic_cast<RaftChunk*>(chunk_transaction.first))  // NOLINT
+                               ->raft_node_.getLeader();
+    info->add_leader_id(leader.ipPort());
+  }
+}
+
+bool NetTableTransaction::sendMultiChunkTransactionInfo(
+    const proto::MultiChunkTransactionInfo& info) {
+  CHECK(FLAGS_use_raft);
+  for (const TransactionPair& chunk_transaction : chunk_transactions_) {
+    if (!chunk_transaction.second->sendMultiChunkTransactionInfo(info)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 // Deadlocks in lock() are prevented by imposing a global ordering on chunks,
@@ -84,6 +120,7 @@ void NetTableTransaction::lock() {
   size_t i = 0u;
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
     chunk_transaction.first->writeLock();
+    chunk_transaction.second->locked_by_transaction_ = true;
     ++i;
   }
   statistics::StatsCollector stat("map_api::NetTableTransaction::lock - " +
@@ -93,7 +130,23 @@ void NetTableTransaction::lock() {
 
 void NetTableTransaction::unlock() {
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
-    chunk_transaction.first->unlock();
+    if (chunk_transaction.second->locked_by_transaction_) {
+      chunk_transaction.first->unlock();
+      chunk_transaction.second->locked_by_transaction_ = false;
+    }
+  }
+}
+
+void NetTableTransaction::unlock(bool is_success) {
+  CHECK(FLAGS_use_raft);
+  for (const TransactionPair& chunk_transaction : chunk_transactions_) {
+    if (chunk_transaction.second->locked_by_transaction_) {
+      // TODO(aqurai): Add a function to ChunkBase and avoid dynamic_cast?
+      CHECK_NOTNULL(
+          dynamic_cast<RaftChunk*>(chunk_transaction.first))  // NOLINT
+          ->unlock(is_success);
+      chunk_transaction.second->locked_by_transaction_ = false;
+    }
   }
 }
 
@@ -138,14 +191,18 @@ size_t NetTableTransaction::numChangedItems() const {
   return result;
 }
 
-ChunkTransaction* NetTableTransaction::transactionOf(ChunkBase* chunk) const {
+ChunkTransaction* NetTableTransaction::transactionOf(const ChunkBase* chunk)
+    const {
   CHECK_NOTNULL(chunk);
-  TransactionMap::iterator chunk_transaction = chunk_transactions_.find(chunk);
+  // Const cast needed, as transactions map has non-const key.
+  ChunkBase* mutable_chunk = const_cast<ChunkBase*>(chunk);
+  TransactionMap::iterator chunk_transaction =
+      chunk_transactions_.find(mutable_chunk);
   if (chunk_transaction == chunk_transactions_.end()) {
     std::shared_ptr<ChunkTransaction> transaction(
-        new ChunkTransaction(begin_time_, chunk, table_));
+        new ChunkTransaction(begin_time_, mutable_chunk, table_));
     std::pair<TransactionMap::iterator, bool> inserted =
-        chunk_transactions_.insert(std::make_pair(chunk, transaction));
+        chunk_transactions_.insert(std::make_pair(mutable_chunk, transaction));
     CHECK(inserted.second);
     chunk_transaction = inserted.first;
   }

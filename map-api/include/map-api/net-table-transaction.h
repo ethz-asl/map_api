@@ -35,7 +35,7 @@ class NetTableTransaction {
   template <typename IdType>
   std::shared_ptr<const Revision> getByIdFromUncommitted(const IdType& id)
       const;
-  void dumpChunk(ChunkBase* chunk, ConstRevisionMap* result);
+  void dumpChunk(const ChunkBase* chunk, ConstRevisionMap* result);
   void dumpActiveChunks(ConstRevisionMap* result);
   template <typename ValueType>
   void find(int key, const ValueType& value, ConstRevisionMap* result);
@@ -47,7 +47,7 @@ class NetTableTransaction {
   void update(std::shared_ptr<Revision> revision);
   void remove(std::shared_ptr<Revision> revision);
   template <typename IdType>
-  void remove(const common::UniqueId<IdType>& id);
+  void remove(const IdType& id);
 
   // TRANSACTION OPERATIONS
   /**
@@ -59,12 +59,17 @@ class NetTableTransaction {
    * Commit with specified time and under the guarantee that the required
    * sub-transactions are locked and checked.
    */
-  void checkedCommit(const LogicalTime& time);
+  bool checkedCommit(const LogicalTime& time);
+
+  void prepareMultiChunkTransactionInfo(proto::MultiChunkTransactionInfo* info);
+  bool sendMultiChunkTransactionInfo(
+      const proto::MultiChunkTransactionInfo& info);
   /**
    * Locks each chunk write-affected by this transaction
    */
   void lock();
   void unlock();
+  void unlock(bool is_success);
   /**
    * Checks all sub-transactions.
    * Returns false if any sub-check fails.
@@ -76,7 +81,7 @@ class NetTableTransaction {
   size_t numChangedItems() const;
 
   // INTERNAL
-  ChunkTransaction* transactionOf(ChunkBase* chunk) const;
+  ChunkTransaction* transactionOf(const ChunkBase* chunk) const;
   template <typename IdType>
   ChunkBase* chunkOf(const IdType& id,
                      std::shared_ptr<const Revision>* latest) const;

@@ -15,8 +15,10 @@ message RaftLogEntry {
   optional string unlock_peer = 9;
   optional bool unlock_proceed_commits = 10;
   optional uint64 unlock_lock_index = 11;
-  optional common.proto.Id revision_id = 12;
-  optional uint64 logical_time = 13;
+  optional MultiChunkTransactionInfo multi_chunk_transaction_info = 12;
+  optional uint64 multi_chunk_transaction_num_entries = 13;
+  optional common.proto.Id revision_id = 14;
+  optional uint64 logical_time = 15;
   optional bool is_rejoin_peer = 16;
 }
 
@@ -110,6 +112,27 @@ message UnlockRequest {
   optional bool is_retry_attempt = 3;
   optional uint64 lock_entry_index = 4;
   optional bool proceed_commits = 5;
+}
+
+message ChunkTransactionInfo {
+  optional ChunkRequestMetadata metadata = 1;
+  optional uint64 serial_id = 2;
+  optional uint64 num_entries = 3;
+  optional MultiChunkTransactionInfo multi_chunk_info = 4;
+}
+
+message MultiChunkTransactionInfo {
+  optional common.proto.Id transaction_id = 1;
+  optional uint64 begin_time = 2;
+  repeated ChunkRequestMetadata chunk_list = 3;
+  // TODO(aqurai): To be removed. (Issue #2466)
+  repeated string leader_id = 4;
+}
+
+message MultiChunkTransactionQuery {
+  optional ChunkRequestMetadata metadata = 1;
+  optional common.proto.Id transaction_id = 2;
+  optional common.proto.Id sender_chunk_id = 3;
 }
 
 message RaftLeaveRequest {

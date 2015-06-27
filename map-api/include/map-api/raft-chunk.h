@@ -16,6 +16,8 @@ class Message;
 class Revision;
 
 class RaftChunk : public ChunkBase {
+  friend class NetTableTransaction;  // TODO(aqurai): To be removed. (Issue
+                                     // #2466)
   friend class ChunkTransaction;
   friend class ConsensusFixture;
   FRIEND_TEST(ConsensusFixture, LeaderElection);
@@ -59,23 +61,26 @@ class RaftChunk : public ChunkBase {
   virtual void readLock() const override;  // No read lock for raft chunks.
   virtual bool isWriteLocked() override;
   virtual void unlock() const override;
+  void unlock(bool proceed_transaction) const;
   const PeerId& getLockHolder() const;
 
   virtual int requestParticipation() override;
   virtual int requestParticipation(const PeerId& peer) override;
 
-  virtual void update(const std::shared_ptr<Revision>& item) override;
+  virtual bool update(const std::shared_ptr<Revision>& item) override;
 
   static bool sendConnectRequest(const PeerId& peer,
                                  const proto::ChunkRequestMetadata& metadata,
                                  proto::ConnectRequestType connect_type);
 
  private:
-  virtual void bulkInsertLocked(const MutableRevisionMap& items,
+  bool sendChunkTransactionInfo(proto::ChunkTransactionInfo* info);
+
+  virtual bool bulkInsertLocked(const MutableRevisionMap& items,
                                 const LogicalTime& time) override;
-  virtual void updateLocked(const LogicalTime& time,
+  virtual bool updateLocked(const LogicalTime& time,
                             const std::shared_ptr<Revision>& item) override;
-  virtual void removeLocked(const LogicalTime& time,
+  virtual bool removeLocked(const LogicalTime& time,
                             const std::shared_ptr<Revision>& item) override;
 
   inline void syncLatestCommitTime(const Revision& item);
@@ -137,6 +142,20 @@ class RaftChunk : public ChunkBase {
                                     const PeerId& sender, Message* response);
   inline void handleRaftQueryState(const proto::QueryState& request,
                                    Message* response);
+
+  // Multi-chunk commit RPCs
+  inline void handleRaftChunkTransactionInfo(proto::ChunkTransactionInfo* info,
+                                             const PeerId& sender,
+                                             Message* response);
+  inline void handleRaftQueryReadyToCommit(
+      const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
+      Message* response);
+  inline void handleRaftCommitNotification(
+      const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
+      Message* response);
+  inline void handleRaftAbortNotification(
+      const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
+      Message* response);
 
   // Leaving the chunk.
   bool leave_requested_;

@@ -8,7 +8,7 @@
 #include <vector>
 
 #include <gtest/gtest_prod.h>
-#include <multiagent-mapping-common/reader-writer-lock.h>
+#include <multiagent-mapping-common/reader-first-reader-writer-lock.h>
 
 #include "map-api/chunk-data-container-base.h"
 #include "map-api/app-templates.h"
@@ -17,6 +17,8 @@
 #include "map-api/spatial-index.h"
 #include "./chunk.pb.h"
 #include "./raft.pb.h"
+
+DECLARE_bool(use_raft);
 
 namespace map_api {
 class ConstRevisionMap;
@@ -229,6 +231,23 @@ class NetTable {
   void handleRaftLeaveNotification(const common::Id& chunk_id,
                                    Message* response);
 
+  // Raft Multi-chunk commit RPCs
+  void handleRaftChunkTransactionInfo(const common::Id& chunk_id,
+                                      proto::ChunkTransactionInfo* info,
+                                      const PeerId& sender, Message* response);
+  void handleRaftQueryReadyToCommit(
+      const common::Id& chunk_id,
+      const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
+      Message* response);
+  void handleRaftCommitNotification(
+      const common::Id& chunk_id,
+      const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
+      Message* response);
+  void handleRaftAbortNotification(
+      const common::Id& chunk_id,
+      const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
+      Message* response);
+
  private:
   NetTable();
   NetTable(const NetTable&) = delete;
@@ -302,7 +321,8 @@ class NetTable {
 
   std::shared_ptr<TableDescriptor> descriptor_;
   ChunkMap active_chunks_;
-  mutable common::ReaderWriterMutex active_chunks_lock_;
+  // See issue #2391 for why we need a reader-first RW mutex here.
+  mutable common::ReaderFirstReaderWriterMutex active_chunks_lock_;
 
   // DO NOT USE FROM HANDLER THREAD (else TODO(tcies) mutex)
   std::unique_ptr<NetTableIndex> index_;

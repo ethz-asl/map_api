@@ -44,6 +44,8 @@ class ChunkTransaction {
   template <typename ValueType>
   std::shared_ptr<const Revision> findUnique(int key, const ValueType& value);
   void dumpChunk(ConstRevisionMap* result);
+  template <typename IdType>
+  void getAvailableIds(std::unordered_set<IdType>* ids);
 
   // WRITE
   void insert(std::shared_ptr<Revision> revision);
@@ -55,7 +57,11 @@ class ChunkTransaction {
   // TRANSACTION OPERATIONS
   bool commit();
   bool check();
-  void checkedCommit(const LogicalTime& time);
+  bool checkedCommit(const LogicalTime& time);
+
+  bool sendMultiChunkTransactionInfo(
+      const proto::MultiChunkTransactionInfo& info);
+
   struct Conflict {
     const std::shared_ptr<const Revision> theirs;
     const std::shared_ptr<const Revision> ours;
@@ -68,10 +74,15 @@ class ChunkTransaction {
   void merge(const std::shared_ptr<ChunkTransaction>& merge_transaction,
              Conflicts* conflicts);
   size_t numChangedItems() const;
+  size_t countChangesToCommit() const;
 
   // INTERNAL
+  typedef std::unordered_map<common::Id, LogicalTime> ItemTimes;
   void prepareCheck(const LogicalTime& check_time,
-                    std::unordered_map<common::Id, LogicalTime>* chunk_stamp);
+                    ItemTimes* chunk_stamp) const;
+  bool hasUpdateConflict(const common::Id& item,
+                         const ItemTimes& db_stamps) const;
+
   typedef std::unordered_multimap<NetTable*, common::Id> TableToIdMultiMap;
   void getTrackers(const NetTable::NewChunkTrackerMap& overrides,
                    TableToIdMultiMap* trackers) const;
@@ -89,14 +100,19 @@ class ChunkTransaction {
         : key(_key), value_holder(_value_holder) {}
   };
   class ConflictVector : public std::vector<ConflictCondition> {};
+
   InsertMap insertions_;
   UpdateMap updates_;
   RemoveMap removes_;
   ConflictVector conflict_conditions_;
+
   LogicalTime begin_time_;
+  ItemTimes previously_committed_;
+
   ChunkBase* chunk_;
   NetTable* table_;
   std::shared_ptr<const Revision> structure_reference_;
+  bool locked_by_transaction_;
 };
 
 }  // namespace map_api
