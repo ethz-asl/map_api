@@ -47,7 +47,7 @@ inline void RaftChunk::handleRaftLeaveRequest(const PeerId& sender,
                                               uint64_t serial_id,
                                               Message* response) {
   CHECK_NOTNULL(response);
-  if (raft_node_.isRunning()) {
+  if (raft_node_.isRunning() && raft_node_.hasPeer(sender)) {
     raft_node_.handleLeaveRequest(sender, serial_id, response);
   } else {
     response->decline();
@@ -58,7 +58,7 @@ void RaftChunk::handleRaftChunkLockRequest(const PeerId& sender,
                                            uint64_t serial_id,
                                            Message* response) {
   CHECK_NOTNULL(response);
-  if (raft_node_.isRunning()) {
+  if (raft_node_.isRunning() && raft_node_.hasPeer(sender)) {
     raft_node_.handleChunkLockRequest(sender, serial_id, response);
   } else {
     response->decline();
@@ -71,7 +71,7 @@ void RaftChunk::handleRaftChunkUnlockRequest(const PeerId& sender,
                                              bool proceed_commits,
                                              Message* response) {
   CHECK_NOTNULL(response);
-  if (raft_node_.isRunning()) {
+  if (raft_node_.isRunning() && raft_node_.hasPeer(sender)) {
     raft_node_.handleChunkUnlockRequest(sender, serial_id, lock_index,
                                         proceed_commits, response);
   } else {
@@ -82,8 +82,9 @@ void RaftChunk::handleRaftChunkUnlockRequest(const PeerId& sender,
 inline void RaftChunk::handleRaftInsertRequest(proto::InsertRequest* request,
                                                const PeerId& sender,
                                                Message* response) {
+  CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
-  if (raft_node_.isRunning()) {
+  if (raft_node_.isRunning() && raft_node_.hasPeer(sender)) {
     raft_node_.handleInsertRequest(request, sender, response);
   } else {
     response->decline();
@@ -93,8 +94,9 @@ inline void RaftChunk::handleRaftInsertRequest(proto::InsertRequest* request,
 inline void RaftChunk::handleRaftAppendRequest(
     proto::AppendEntriesRequest* request, const PeerId& sender,
     Message* response) {
+  CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
-  if (raft_node_.isRunning()) {
+  if (raft_node_.isRunning() && raft_node_.hasPeer(sender)) {
     raft_node_.handleAppendRequest(request, sender, response);
   } else {
     response->decline();
@@ -105,7 +107,7 @@ inline void RaftChunk::handleRaftRequestVote(const proto::VoteRequest& request,
                                              const PeerId& sender,
                                              Message* response) {
   CHECK_NOTNULL(response);
-  if (raft_node_.isRunning()) {
+  if (raft_node_.isRunning() && raft_node_.hasPeer(sender)) {
     raft_node_.handleRequestVote(request, sender, response);
   } else {
     response->decline();

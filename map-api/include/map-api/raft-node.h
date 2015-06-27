@@ -27,9 +27,6 @@
  *
  * PENDING: Handle peers who don't respond to vote rpc
  * PENDING: Values for timeout
- * PENDING: Adding and removing peers, handling non-responding peers
- * PENDING: Multiple raft instances managed by a manager class
- * PENDING: Remove the extra log messages
  */
 
 #ifndef MAP_API_RAFT_NODE_H_
@@ -159,6 +156,7 @@ class RaftNode {
                                uint64_t last_log_index, uint64_t last_log_term,
                                uint64_t current_commit_index) const;
 
+  // Expects log write lock to have been acquired.
   bool sendInitRequest(const PeerId& peer, const LogWriteAccess& log_writer);
 
   // ================

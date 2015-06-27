@@ -308,12 +308,12 @@ void RaftNode::handleLeaveRequest(const PeerId& sender, uint64_t serial_id,
 
 void RaftNode::handleChunkLockRequest(const PeerId& sender, uint64_t serial_id,
                                       Message* response) {
-  proto::RaftChunkRequestResponse lock_response =
-      processChunkLockRequest(sender, serial_id, false);
   if (!hasPeer(sender)) {
     response->decline();
     return;
   }
+  proto::RaftChunkRequestResponse lock_response =
+      processChunkLockRequest(sender, serial_id, false);
   response->impose<kRaftChunkRequestResponse>(lock_response);
 }
 
@@ -410,10 +410,10 @@ RaftNode::VoteResponse RaftNode::sendRequestVote(
   }
 }
 
-// Peer lock acquired by the calling function, leaderAddPeer().
 // Read lock for log acquired by leaderCommitReplicatedEntries().
 bool RaftNode::sendInitRequest(const PeerId& peer,
                                const LogWriteAccess& log_writer) {
+  std::unique_lock<std::mutex> peer_lock(peer_mutex_);
   Message request, response;
   proto::InitRequest init_request;
   fillMetadata(&init_request);
@@ -445,6 +445,7 @@ bool RaftNode::sendInitRequest(const PeerId& peer,
     init_request.add_serialized_items(entry.SerializeAsString());
     entry.release_insert_revision();
   }
+  peer_lock.unlock();
   request.impose<kInitRequest>(init_request);
   Hub::instance().try_request(peer, &request, &response);
   return response.isOk();
@@ -609,14 +610,16 @@ void RaftNode::leaderMonitorFollowerStatus(uint64_t current_term) {
 void RaftNode::leaderAddPeer(const PeerId& peer,
                              const LogWriteAccess& log_writer,
                              uint64_t current_term) {
-  std::lock_guard<std::mutex> peer_lock(peer_mutex_);
-  std::lock_guard<std::mutex> tracker_lock(follower_tracker_mutex_);
-
+  std::unique_lock<std::mutex> peer_lock(peer_mutex_);
   if (peer != PeerId::self() &&
       peer_list_.count(peer) == 0u) {  // Add new peer.
+    peer_lock.unlock();
     sendInitRequest(peer, log_writer);
+    peer_lock.lock();
+
     peer_list_.insert(peer);
     num_peers_ = peer_list_.size();
+    std::lock_guard<std::mutex> tracker_lock(follower_tracker_mutex_);
     leaderLaunchTracker(peer, current_term);
     VLOG(1) << "Leader has added peer " << peer << " to chunk " << chunk_id_
             << ". Raft group size: " << num_peers_ + 1;
