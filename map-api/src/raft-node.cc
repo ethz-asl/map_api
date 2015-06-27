@@ -1129,10 +1129,18 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
   // Commit entries from older leaders only if they are replicated on all peers,
   // because otherwise they can potentially be overwritten by new leaders.
   // (see §5.4.2 of http://ramcloud.stanford.edu/raft.pdf)
-  bool ready_to_commit =
-      ((*it)->term() < current_term && replication_count == num_peers_) ||
-      ((*it)->term() == current_term && replication_count > num_peers_ / 2) ||
-      num_peers_ == 0;
+  // Also, consensus is not possible if there are < 3 peers. Then, commit only
+  // if the entry is replicated on all peers.
+  bool ready_to_commit;
+  if (num_peers_ > 3) {
+    ready_to_commit =
+        ((*it)->term() < current_term && replication_count == num_peers_) ||
+        ((*it)->term() == current_term && replication_count > num_peers_ / 2);
+  } else if (num_peers_ > 0 && num_peers_ <= 3) {
+    ready_to_commit = replication_count == num_peers_;
+  } else {
+    ready_to_commit = true;
+  }
 
   if (ready_to_commit) {
     if ((*it)->has_add_peer()) {
