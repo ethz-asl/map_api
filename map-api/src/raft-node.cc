@@ -673,7 +673,7 @@ void RaftNode::attemptRejoin() {
   PeerId request_peer;
   {
     std::lock_guard<std::mutex> peer_lock(peer_mutex_);
-    size_t i = rand() % peer_list_.size();
+    size_t i = rand_r() % peer_list_.size();
     std::set<PeerId>::iterator it = peer_list_.begin();
     std::advance(it, i);
     request_peer = *it;

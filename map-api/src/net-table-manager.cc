@@ -612,7 +612,7 @@ void NetTableManager::handleRaftLeaveRequest(const Message& request,
                                                    &found, &chunk_id)) {
     found->second->handleRaftLeaveRequest(chunk_id, leave_request.serial_id(),
                                           request.sender(), response);
-  }  
+  }
 }
 
 void NetTableManager::handleRaftLeaveNotification(const Message& request,
