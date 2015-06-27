@@ -238,11 +238,16 @@ void RaftChunk::update(const std::shared_ptr<Revision>& item) {
 }
 
 bool RaftChunk::sendConnectRequest(const PeerId& peer,
-                                   proto::ChunkRequestMetadata& metadata) {
+                                   const proto::ChunkRequestMetadata& metadata,
+                                   proto::ConnectRequestType connect_type) {
   Message request, response;
   proto::ConnectResponse connect_response;
   connect_response.set_index(0);
-  request.impose<RaftNode::kConnectRequest>(metadata);
+
+  proto::RaftConnectRequest connect_request;
+  connect_request.mutable_metadata()->CopyFrom(metadata);
+  connect_request.set_connect_request_type(connect_type);
+  request.impose<RaftNode::kConnectRequest>(connect_request);
 
   // TODO(aqurai): Avoid infinite loop. Use Chord index to get chunk holder
   // if request fails.

@@ -67,7 +67,8 @@ class RaftChunk : public ChunkBase {
   virtual void update(const std::shared_ptr<Revision>& item) override;
 
   static bool sendConnectRequest(const PeerId& peer,
-                                 proto::ChunkRequestMetadata& metadata);
+                                 const proto::ChunkRequestMetadata& metadata,
+                                 proto::ConnectRequestType connect_type);
 
  private:
   virtual void bulkInsertLocked(const MutableRevisionMap& items,
@@ -113,7 +114,9 @@ class RaftChunk : public ChunkBase {
   friend class NetTable;
 
   // Chunk Requests.
-  inline void handleRaftConnectRequest(const PeerId& sender, Message* response);
+  inline void handleRaftConnectRequest(const PeerId& sender,
+                                       proto::ConnectRequestType connect_type,
+                                       Message* response);
   inline void handleRaftLeaveRequest(const PeerId& sender, uint64_t serial_id,
                                      Message* response);
   void handleRaftLeaveNotification(Message* response);

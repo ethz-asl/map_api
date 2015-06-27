@@ -33,11 +33,12 @@ inline void RaftChunk::syncLatestCommitTime(const Revision& item) {
   }
 }
 
-inline void RaftChunk::handleRaftConnectRequest(const PeerId& sender,
-                                                Message* response) {
+inline void RaftChunk::handleRaftConnectRequest(
+    const PeerId& sender, proto::ConnectRequestType connect_type,
+    Message* response) {
   CHECK_NOTNULL(response);
   if (raft_node_.isRunning()) {
-    raft_node_.handleConnectRequest(sender, response);
+    raft_node_.handleConnectRequest(sender, connect_type, response);
   } else {
     response->decline();
   }

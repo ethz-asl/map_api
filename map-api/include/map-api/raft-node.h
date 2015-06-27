@@ -125,7 +125,9 @@ class RaftNode {
   void handleQueryState(const proto::QueryState& request, Message* response);
 
   // Chunk Requests.
-  void handleConnectRequest(const PeerId& sender, Message* response);
+  void handleConnectRequest(const PeerId& sender,
+                            proto::ConnectRequestType connect_type,
+                            Message* response);
   void handleLeaveRequest(const PeerId& sender, uint64_t serial_id,
                           Message* response);
   void handleChunkLockRequest(const PeerId& sender, uint64_t serial_id,
@@ -223,11 +225,13 @@ class RaftNode {
   void leaderMonitorFollowerStatus(uint64_t current_term);
 
   void leaderAddPeer(const PeerId& peer, const LogWriteAccess& log_writer,
-                     uint64_t current_term);
+                     uint64_t current_term, bool is_rejoin_peer);
   void leaderRemovePeer(const PeerId& peer);
 
   void followerAddPeer(const PeerId& peer);
   void followerRemovePeer(const PeerId& peer);
+
+  void attemptRejoin();
 
   // ===============
   // Leader election

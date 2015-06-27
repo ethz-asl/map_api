@@ -17,6 +17,7 @@ message RaftLogEntry {
   optional uint64 unlock_lock_index = 11;
   optional common.proto.Id revision_id = 12;
   optional uint64 logical_time = 13;
+  optional bool is_rejoin_peer = 16;
 }
 
 message AppendEntriesRequest {
@@ -70,6 +71,13 @@ message QueryStateResponse {
   optional uint64 last_log_index = 3;
   optional uint64 last_log_term = 4;
   optional uint64 commit_index = 5;
+}
+
+enum ConnectRequestType {FIRST_TIME_JOIN = 0; RE_JOIN = 2;}
+
+message RaftConnectRequest {
+  optional ChunkRequestMetadata metadata = 1;
+  optional ConnectRequestType connect_request_type = 2;
 }
 
 message ConnectResponse {

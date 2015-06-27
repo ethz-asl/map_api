@@ -56,7 +56,7 @@ MAP_API_PROTO_MESSAGE(RaftNode::kLeaveNotification,
                       proto::ChunkRequestMetadata);
 MAP_API_PROTO_MESSAGE(RaftNode::kQueryState, proto::QueryState);
 MAP_API_PROTO_MESSAGE(RaftNode::kQueryStateResponse, proto::QueryStateResponse);
-MAP_API_PROTO_MESSAGE(RaftNode::kConnectRequest, proto::ChunkRequestMetadata);
+MAP_API_PROTO_MESSAGE(RaftNode::kConnectRequest, proto::RaftConnectRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kConnectResponse, proto::ConnectResponse);
 MAP_API_PROTO_MESSAGE(RaftNode::kInitRequest, proto::InitRequest);
 
@@ -143,7 +143,16 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
 
   // Lock and read the state.
   std::unique_lock<std::mutex> state_lock(state_mutex_);
-  bool sender_changed = (sender != leader_id_ || request_term != current_term_);
+  bool sender_changed;
+
+  if (state_ == State::LOST_CONNECTION) {
+    sender_changed = false;
+    leader_id_ = sender;
+    current_term_ = request_term;
+    state_ = State::FOLLOWER;
+  } else {
+    sender_changed = (sender != leader_id_ || request_term != current_term_);
+  }
 
   // Lock and read log info
   LogWriteAccess log_writer(data_);
@@ -256,7 +265,9 @@ void RaftNode::handleRequestVote(const proto::VoteRequest& vote_request,
   election_timeout_ms_ = setElectionTimeout();
 }
 
-void RaftNode::handleConnectRequest(const PeerId& sender, Message* response) {
+void RaftNode::handleConnectRequest(const PeerId& sender,
+                                    proto::ConnectRequestType connect_type,
+                                    Message* response) {
   proto::ConnectResponse connect_response;
   uint64_t entry_index = 0;
   {
@@ -273,6 +284,8 @@ void RaftNode::handleConnectRequest(const PeerId& sender, Message* response) {
       // In that case, avoid sending all log entries during connect.
       std::shared_ptr<proto::RaftLogEntry> new_entry(new proto::RaftLogEntry);
       new_entry->set_add_peer(sender.ipPort());
+      new_entry->set_is_rejoin_peer(connect_type ==
+                                    proto::ConnectRequestType::RE_JOIN);
       entry_index =
           leaderAppendLogEntryLocked(log_writer, new_entry, current_term_);
       connect_response.set_index(entry_index);
@@ -505,6 +518,9 @@ void RaftNode::stateManagerThread() {
       tracker_lock.lock();
       leaderShutDownAllTrackes();
       VLOG(1) << "Peer " << PeerId::self() << ": Follower trackers closed. ";
+    } else if (state == State::LOST_CONNECTION) {
+      attemptRejoin();
+      usleep(election_timeout_ms_ * kMillisecondsToMicroseconds);
     }
   }  // while(!is_exiting_)
   VLOG(1) << PeerId::self() << ": Closing the State manager thread for chunk " << chunk_id_;
@@ -609,13 +625,15 @@ void RaftNode::leaderMonitorFollowerStatus(uint64_t current_term) {
 
 void RaftNode::leaderAddPeer(const PeerId& peer,
                              const LogWriteAccess& log_writer,
-                             uint64_t current_term) {
+                             uint64_t current_term, bool is_rejoin_peer) {
   std::unique_lock<std::mutex> peer_lock(peer_mutex_);
   if (peer != PeerId::self() &&
       peer_list_.count(peer) == 0u) {  // Add new peer.
-    peer_lock.unlock();
-    sendInitRequest(peer, log_writer);
-    peer_lock.lock();
+    if (!is_rejoin_peer) {
+      peer_lock.unlock();
+      sendInitRequest(peer, log_writer);
+      peer_lock.lock();
+    }
 
     peer_list_.insert(peer);
     num_peers_ = peer_list_.size();
@@ -651,6 +669,44 @@ void RaftNode::followerRemovePeer(const PeerId& peer) {
   num_peers_ = peer_list_.size();
 }
 
+void RaftNode::attemptRejoin() {
+  PeerId request_peer;
+  {
+    std::lock_guard<std::mutex> peer_lock(peer_mutex_);
+    size_t i = rand() % peer_list_.size();
+    std::set<PeerId>::iterator it = peer_list_.begin();
+    std::advance(it, i);
+    request_peer = *it;
+  }
+  VLOG(1) << PeerId::self() << ": Sending re-join request to " << request_peer;
+  Message request, response;
+  proto::ConnectResponse connect_response;
+  connect_response.set_index(0);
+
+  proto::RaftConnectRequest connect_request;
+  fillMetadata(&connect_request);
+  connect_request.set_connect_request_type(proto::ConnectRequestType::RE_JOIN);
+  request.impose<RaftNode::kConnectRequest>(connect_request);
+
+  if (!(Hub::instance().try_request(request_peer, &request, &response))) {
+    LOG(WARNING) << PeerId::self() << ": Rejoin request to " << request_peer
+                 << " failed.";
+    return;
+  }
+  response.extract<RaftNode::kConnectResponse>(&connect_response);
+  if (connect_response.index() > 0) {
+    return;
+  } else if (connect_response.has_leader_id()) {
+    request_peer = PeerId(connect_response.leader_id());
+    std::lock_guard<std::mutex> peer_lock(peer_mutex_);
+    peer_list_.insert(request_peer);
+    if (!(Hub::instance().try_request(request_peer, &request, &response))) {
+      LOG(WARNING) << PeerId::self() << ": Rejoin request to " << request_peer
+                   << " failed.";
+    }
+  }
+}
+
 void RaftNode::conductElection() {
   uint num_votes = 0;
   uint num_failed = 0;
@@ -660,6 +716,7 @@ void RaftNode::conductElection() {
   uint64_t old_term = current_term_;
   current_term_ = std::max(current_term_ + 1, last_vote_request_term_ + 1);
   uint64_t term = current_term_;
+  const PeerId old_leader = leader_id_;
   leader_id_ = PeerId();
   LogReadAccess log_reader(data_);
   const uint64_t last_log_index = log_reader->lastLogIndex();
@@ -699,6 +756,7 @@ void RaftNode::conductElection() {
   if (num_failed > num_peers_ / 2) {
     state_ = State::LOST_CONNECTION;
     current_term_ = old_term;
+    leader_id_ = old_leader;
     return;
   } else if (state_ == State::CANDIDATE &&
              num_votes + 1 >
@@ -1054,7 +1112,8 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
 
   if (ready_to_commit) {
     if ((*it)->has_add_peer()) {
-      leaderAddPeer(PeerId((*it)->add_peer()), log_writer, current_term);
+      leaderAddPeer(PeerId((*it)->add_peer()), log_writer, current_term,
+                    (*it)->is_rejoin_peer());
     }
     if ((*it)->has_remove_peer()) {
       // Remove request can be send by a leaving peer or when leader detects a

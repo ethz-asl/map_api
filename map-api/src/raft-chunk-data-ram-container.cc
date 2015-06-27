@@ -208,6 +208,7 @@ proto::RaftLogEntry* RaftChunkDataRamContainer::RaftLog::copyWithoutRevision(
   }
   if ((*it)->has_add_peer()) {
     entry->set_add_peer((*it)->add_peer());
+    entry->set_is_rejoin_peer((*it)->is_rejoin_peer());
   }
   if ((*it)->has_remove_peer()) {
     entry->set_remove_peer((*it)->remove_peer());
