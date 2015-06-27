@@ -20,7 +20,7 @@ constexpr int kWaitTimeMs = 1500;
 
 DEFINE_uint64(raft_chunk_processes, 5u,
               "Total number of processes in RaftChunkTests");
-/*
+
 TEST_F(ConsensusFixture, RaftGetChunk) {
   const uint64_t kProcesses = FLAGS_raft_chunk_processes;
   enum Barriers {
@@ -476,7 +476,7 @@ TEST_F(NetTableFixture, TransactionAbortOnPeerDisconnect) {
       IPC::barrier(DIE, kProcesses - 1);
     }
   }
-}*/
+}
 
 TEST_F(ConsensusFixture, MultiChunkTransaction) {
   const uint64_t kProcesses = FLAGS_raft_chunk_processes;
