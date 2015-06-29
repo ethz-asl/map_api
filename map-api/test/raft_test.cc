@@ -500,12 +500,7 @@ TEST_F(ConsensusFixture, MultiChunkTransaction) {
     IPC::barrier(INIT_PEERS, kProcesses - 1);
     usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
     VLOG(1) << "Creating a new chunk.";
-    usleep(kWaitTimeMs * kMillisecondsToMicroseconds);
-    ChunkBase* base_chunk = table_->newChunk();
-    VLOG(1) << "Created a new chunk " << base_chunk->id();
-    RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);
-    CHECK_NOTNULL(chunk);
-    IPC::push(chunk->id());
+    RaftChunk* chunk = ConsensusFixture::createChunkAndPushId(table_);
     IPC::barrier(PUSH_CHUNK_ID, kProcesses - 1);
     IPC::barrier(CHUNKS_INIT, kProcesses - 1);
     VLOG(1) << "Chunks initialized on all peers";
@@ -529,9 +524,7 @@ TEST_F(ConsensusFixture, MultiChunkTransaction) {
   } else {
     IPC::barrier(INIT_PEERS, kProcesses - 1);
     IPC::barrier(PUSH_CHUNK_ID, kProcesses - 1);
-    common::Id chunk_id = IPC::pop<common::Id>();
-    ChunkBase* base_chunk = table_->getChunk(chunk_id);
-    RaftChunk* chunk = dynamic_cast<RaftChunk*>(base_chunk);
+    RaftChunk* chunk = ConsensusFixture::getPushedChunk(table_);
     CHECK_NOTNULL(chunk);
     IPC::barrier(CHUNKS_INIT, kProcesses - 1);
 
