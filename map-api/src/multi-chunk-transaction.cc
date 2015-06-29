@@ -1,4 +1,4 @@
-#include "map-api/multi-chunk-commit.h"
+#include "map-api/multi-chunk-transaction.h"
 
 #include <future>
 
@@ -41,7 +41,7 @@ void MultiChunkTransaction::initMultiChunkTransaction(
   std::lock_guard<std::mutex> lock(mutex_);
   common::ScopedWriteLock data_lock(&data_mutex_);
 
-  LOG(WARNING) << "Multi chunk commit started on peer " << PeerId::self();
+  VLOG(2) << "Multi chunk commit started on peer " << PeerId::self();
 
   state_ = State::LOCKED;
   current_transaction_id_.deserialize(multi_chunk_data.transaction_id());
@@ -71,7 +71,7 @@ void MultiChunkTransaction::initMultiChunkTransaction(
 void MultiChunkTransaction::clearMultiChunkTransaction() {
   std::lock_guard<std::mutex> lock(mutex_);
   common::ScopedWriteLock data_lock(&data_mutex_);
-  LOG(WARNING) << "Multi chunk commit finished on peer " << PeerId::self();
+  VLOG(2) << "Multi chunk commit finished on peer " << PeerId::self();
 
   state_ = State::INACTIVE;
   current_transaction_id_.setInvalid();
@@ -339,7 +339,7 @@ void MultiChunkTransaction::handleQueryReadyToCommit(
   } else {
     LOG(WARNING) << "QueryReadyToCommit received for a transaction id that is "
                     "neither current nor an older transaction. Sender: "
-                    << sender << ", chunk id: " << my_chunk_id_;
+                 << sender << ", chunk id: " << my_chunk_id_;
   }
   response->decline();
 }
@@ -396,6 +396,12 @@ void MultiChunkTransaction::addOtherChunkStatusLocked(
   } else {
     other_chunk_status_[chunk_id] = OtherChunkStatus::NOT_READY;
   }
+}
+
+void MultiChunkTransaction::setStateAwaitCommitLocked() {
+  VLOG(2) << "Going to commit state on " << PeerId::self();
+  state_ = State::AWAIT_COMMIT;
+  CHECK(older_commits_.insert(current_transaction_id_).second);
 }
 
 bool MultiChunkTransaction::isOtherChunkReadyToCommitLocked(

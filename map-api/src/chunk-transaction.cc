@@ -152,8 +152,6 @@ bool ChunkTransaction::checkedCommit(const LogicalTime& time) {
     if (!chunk_->removeLocked(time, item.second)) {
       return false;
     }
-    // TODO(aqurai): Ask what this is.
-    CHECK(false) << "Ask what previously_committed_ is.";
     previously_committed_[item.first] = time;
   }
   insertions_.clear();
