@@ -111,13 +111,14 @@ class ChordIndex {
   bool lock(const PeerId& subject);
   void unlock();
   bool unlock(const PeerId& subject);
+  void lockMonitorThread();
+  void updateLastHeard(const PeerId& peer);
+
   bool lockPeersInOrder(const PeerId& subject_1, const PeerId& subject_2);
   bool unlockPeers(const PeerId& subject_1, const PeerId& subject_2);
 
   bool lockPeersInArgOrder(const PeerId& subject_1, const PeerId& subject_2,
                            const PeerId& subject_3);
-
-  void updateLastHeard(const PeerId& peer);
 
   /**
    * Terminates stabilizeThread();, pushes responsible data
@@ -306,11 +307,9 @@ class ChordIndex {
   std::mutex node_lock_;
   bool node_locked_ = false;
   PeerId node_lock_holder_;
-  std::chrono::time_point<std::chrono::system_clock> last_heard_;
-  std::thread lock_motitor_thread_;
-  std::mutex lock_monitor_mutex_;
-  std::atomic<bool> lock_motitor_thread_running_;
-  void lockMonitor();
+  std::condition_variable lock_holder_cv_;
+  std::thread lock_monitor_thread_;
+  std::atomic<bool> lock_monitor_thread_running_;
 };
 
 }  // namespace map_api

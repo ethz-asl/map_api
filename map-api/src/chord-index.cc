@@ -67,12 +67,12 @@ bool ChordIndex::handleLock(const PeerId& requester) {
   } else {
     node_locked_ = true;
     node_lock_holder_ = requester;
-    CHECK(!lock_motitor_thread_running_);
-    if (lock_motitor_thread_.joinable()) {
-      LOG(WARNING) << own_key_ << " earlier unlocked due to timeout";
-      lock_motitor_thread_.join();
+    CHECK(!lock_monitor_thread_running_);
+    if (lock_monitor_thread_.joinable()) {
+      LOG(WARNING) << own_key_ << " unlocked earlier due to timeout.";
+      lock_monitor_thread_.join();
     }
-    lock_motitor_thread_ = std::thread(&ChordIndex::lockMonitor, this);
+    lock_monitor_thread_ = std::thread(&ChordIndex::lockMonitorThread, this);
 
     VLOG(3) << hash(requester) << " locked " << own_key_;
     return true;
@@ -84,13 +84,15 @@ bool ChordIndex::handleUnlock(const PeerId& requester) {
     // TODO(tcies) re-introduce request_status
     LOG(ERROR) << "Not active any more! Clean solution?";
   }
-  std::lock_guard<std::mutex> lock(node_lock_);
+  std::unique_lock<std::mutex> lock(node_lock_);
   if (!node_locked_ || node_lock_holder_ != requester) {
     return false;
   } else {
     node_locked_ = false;
-    CHECK(lock_motitor_thread_.joinable());
-    lock_motitor_thread_.join();
+    lock.unlock();
+    lock_holder_cv_.notify_all();
+    CHECK(lock_monitor_thread_.joinable());
+    lock_monitor_thread_.join();
     VLOG(3) << hash(requester) << " unlocked " << own_key_;
     return true;
   }
@@ -1033,7 +1035,7 @@ void ChordIndex::init() {
   for (size_t i = 0; i < kNumReplications; ++i) {
     replicators_[i] = PeerId();
   }
-  lock_motitor_thread_running_ = false;
+  lock_monitor_thread_running_ = false;
 }
 
 void ChordIndex::registerPeer(
@@ -1211,44 +1213,32 @@ void ChordIndex::handleNotifyCommon(std::shared_ptr<ChordPeer> peer,
   }
 }
 
-void ChordIndex::lockMonitor() {
-  lock_motitor_thread_running_ = true;
+void ChordIndex::lockMonitorThread() {
+  lock_monitor_thread_running_ = true;
   VLOG(4) << own_key_ << " Starting lock monitor thread";
-  std::unique_lock<std::mutex> lock_monitor_mutex(lock_monitor_mutex_);
-  last_heard_ = std::chrono::system_clock::now();
-  lock_monitor_mutex.unlock();
+  std::unique_lock<std::mutex> node_lock(node_lock_);
+
+  // cv.waitfor is not happy with a const var for some reason.
+  uint64_t timeout_ms = kLockTimeoutMs;
   while (node_locked_) {
-    lock_monitor_mutex.lock();
-    std::chrono::time_point<std::chrono::system_clock> time_now =
-        std::chrono::system_clock::now();
-    uint64_t duration_ms = static_cast<double>(
-        std::chrono::duration_cast<std::chrono::milliseconds>(
-            time_now - last_heard_).count());
-    lock_monitor_mutex.unlock();
-    if (duration_ms > kLockTimeoutMs) {
-      std::lock_guard<std::mutex> node_lock(node_lock_);
+    if (lock_holder_cv_.wait_for(node_lock,
+                                 std::chrono::milliseconds(timeout_ms)) ==
+        std::cv_status::timeout) {
+      node_lock_holder_ = PeerId();
       node_locked_ = false;
       LOG(WARNING) << own_key_ << ": Lock held by " << hash(node_lock_holder_)
                    << " timed out.";
-      node_lock_holder_ = PeerId();
-      lock_motitor_thread_running_ = false;
-      return;
+      break;
     }
-    usleep(1000);
   }
   VLOG(4) << own_key_ << " Stopping lock monitor thread";
-  lock_motitor_thread_running_ = false;
+  lock_monitor_thread_running_ = false;
 }
 
 void ChordIndex::updateLastHeard(const PeerId& peer) {
-  bool update;
-  {
-    std::lock_guard<std::mutex> node_lock(node_lock_);
-    update = peer == node_lock_holder_;
-  }
-  if (update) {
-    std::lock_guard<std::mutex> lock_monitor_mutex(lock_monitor_mutex_);
-    last_heard_ = std::chrono::system_clock::now();
+  std::lock_guard<std::mutex> node_lock(node_lock_);
+  if (peer == node_lock_holder_) {
+    lock_holder_cv_.notify_all();
   }
 }
 
