@@ -15,7 +15,8 @@
 #include "./map_api_fixture.h"
 #include "./test_chord_index.cc"
 
-DECLARE_uint64(stabilize_us);
+DEFINE_uint64(wait_for_stabilize_us, 1000,
+              "Interval of stabilization in microseconds");
 
 namespace map_api {
 
@@ -127,7 +128,8 @@ TEST_F(ChordIndexTestInitialized, onePeerJoin) {
     IPC::barrier(INIT, kNProcesses - 1);
     IPC::push(PeerId::self());
     IPC::barrier(ROOT_SHARED, kNProcesses - 1);
-    usleep(10 * kNProcesses * FLAGS_stabilize_us);  // yes, 10 is a magic number
+    usleep(10 * kNProcesses *
+           FLAGS_wait_for_stabilize_us);  // yes, 10 is a magic number
     // it should be an upper bound of the amount of required stabilization
     // iterations per process
     IPC::barrier(JOINED, kNProcesses - 1);
@@ -177,7 +179,8 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddRetrieve) {
     IPC::barrier(INIT, kNProcesses - 1);
     IPC::push(PeerId::self());
     IPC::barrier(ROOT_SHARED, kNProcesses - 1);
-    usleep(10 * kNProcesses * FLAGS_stabilize_us);  // yes, 10 is a magic number
+    usleep(10 * kNProcesses *
+           FLAGS_wait_for_stabilize_us);  // yes, 10 is a magic number
     // it should be an upper bound of the amount of required stabilization
     // iterations per process
     IPC::barrier(JOINED_STABILIZED, kNProcesses - 1);
@@ -230,7 +233,7 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddjoinStabilizeRetrieve) {
       launchSubprocess(kNProcessesHalf + i);
     }
     // wait for stabilization of round 1
-    usleep(10 * kNProcessesHalf * FLAGS_stabilize_us);
+    usleep(10 * kNProcessesHalf * FLAGS_wait_for_stabilize_us);
     // yes, 10 is a magic number
     // it should be an upper bound of the amount of required stabilization
     // iterations per process
@@ -245,7 +248,7 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddjoinStabilizeRetrieve) {
     IPC::push(PeerId::self());
     IPC::barrier(ADDED__ROOT_SHARED_2, 2 * kNProcessesHalf);
     // wait for stabilization of round 2
-    usleep(10 * kNProcessesHalf * FLAGS_stabilize_us);
+    usleep(10 * kNProcessesHalf * FLAGS_wait_for_stabilize_us);
     IPC::barrier(JOINED_STABILIZED_2, 2 * kNProcessesHalf);
     for (const TestChordIndex::DataMap::value_type& item : data) {
       std::string result;
@@ -290,7 +293,7 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddLeaveStabilizeRetrieve) {
     IPC::barrier(INIT, 2 * kNProcessesHalf);
     IPC::push(PeerId::self());
     IPC::barrier(ROOT_SHARED, 2 * kNProcessesHalf);
-    usleep(20 * kNProcessesHalf * FLAGS_stabilize_us);
+    usleep(20 * kNProcessesHalf * FLAGS_wait_for_stabilize_us);
     IPC::barrier(JOINED_STABILIZED, 2 * kNProcessesHalf);
     EXPECT_GT(kNProcessesHalf, 0u);
     TestChordIndex::DataMap data;
@@ -300,7 +303,7 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddLeaveStabilizeRetrieve) {
       EXPECT_TRUE(data.insert(std::make_pair(key, value)).second);
     }
     IPC::barrier(ADDED, 2 * kNProcessesHalf);
-    usleep(10 * kNProcessesHalf * FLAGS_stabilize_us);
+    usleep(10 * kNProcessesHalf * FLAGS_wait_for_stabilize_us);
     IPC::barrier(LEFT, kNProcessesHalf);
     for (const TestChordIndex::DataMap::value_type& item : data) {
       std::string result;
@@ -350,7 +353,7 @@ TEST_F(ChordIndexTestInitialized,
       launchSubprocess(kNProcessesHalf + i);
     }
     // wait for stabilization of round 1
-    usleep(10 * kNProcessesHalf * FLAGS_stabilize_us);
+    usleep(10 * kNProcessesHalf * FLAGS_wait_for_stabilize_us);
     // yes, 10 is a magic number
     // it should be an upper bound of the amount of required stabilization
     // iterations per process
@@ -365,7 +368,7 @@ TEST_F(ChordIndexTestInitialized,
     IPC::push(PeerId::self());
     IPC::barrier(ADDED__ROOT_SHARED_2, 2 * kNProcessesHalf);
     // wait for stabilization of round 2
-    usleep(10 * kNProcessesHalf * FLAGS_stabilize_us);
+    usleep(10 * kNProcessesHalf * FLAGS_wait_for_stabilize_us);
     IPC::barrier(JOINED_STABILIZED_2, 2 * kNProcessesHalf);
     size_t i = 0;
     for (TestChordIndex::DataMap::value_type& item : data) {
@@ -379,7 +382,7 @@ TEST_F(ChordIndexTestInitialized,
       }
     }
     IPC::barrier(UPDATED, kNProcessesHalf);
-    usleep(10 * kNProcessesHalf * FLAGS_stabilize_us);
+    usleep(10 * kNProcessesHalf * FLAGS_wait_for_stabilize_us);
     IPC::barrier(LEFT, kNProcessesHalf);
     for (const TestChordIndex::DataMap::value_type& item : data) {
       std::string result;
@@ -407,6 +410,51 @@ TEST_F(ChordIndexTestInitialized,
       IPC::barrier(LEFT, kNProcessesHalf);
       IPC::barrier(RETRIEVED, kNProcessesHalf);
     }
+  }
+}
+
+TEST_F(ChordIndexTestInitialized, fingerRetrieveLength) {
+  const size_t kNProcesses = FLAGS_chord_processes;
+  enum Barriers {
+    INIT,
+    ROOT_SHARED,
+    JOINED_STABILIZED,
+    FINGERS_READY,
+    GET_PREDECESSOR
+  };
+  if (getSubprocessId() == 0) {
+    for (size_t i = 1; i < kNProcesses; ++i) {
+      launchSubprocess(i);
+    }
+    IPC::barrier(INIT, kNProcesses - 1);
+    IPC::push(PeerId::self());
+    IPC::barrier(ROOT_SHARED, kNProcesses - 1);
+    usleep(20 * kNProcesses *
+           FLAGS_wait_for_stabilize_us);  // yes, 10 is a magic number
+    // it should be an upper bound of the amount of required stabilization
+    // iterations per process
+    IPC::barrier(JOINED_STABILIZED, kNProcesses - 1);
+    while (!TestChordIndex::instance().areFingersReady()) {
+      usleep(2000);
+    }
+    IPC::barrier(FINGERS_READY, kNProcesses - 1);
+    PeerId predecessor;
+    ChordIndex::Key key = ChordIndex::hash(PeerId::self()) - 1;
+    size_t count =
+        TestChordIndex::instance().findPredecessorCountRpcs(key, &predecessor);
+    EXPECT_LT(count, kNProcesses);
+    IPC::barrier(GET_PREDECESSOR, kNProcesses - 1);
+  } else {
+    IPC::barrier(INIT, kNProcesses - 1);
+    IPC::barrier(ROOT_SHARED, kNProcesses - 1);
+    PeerId root = IPC::pop<PeerId>();
+    TestChordIndex::instance().join(root);
+    IPC::barrier(JOINED_STABILIZED, kNProcesses - 1);
+    while (!TestChordIndex::instance().areFingersReady()) {
+      usleep(2000);
+    }
+    IPC::barrier(FINGERS_READY, kNProcesses - 1);
+    IPC::barrier(GET_PREDECESSOR, kNProcesses - 1);
   }
 }
 

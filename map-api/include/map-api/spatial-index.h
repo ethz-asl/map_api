@@ -131,6 +131,8 @@ class SpatialIndex : public ChordIndex {
   static const char kFetchResponsibilitiesRequest[];
   static const char kFetchResponsibilitiesResponse[];
   static const char kPushResponsibilitiesRequest[];
+  static const char kInitReplicatorRequest[];
+  static const char kAppendReplicationDataRequest[];
   static const char kTriggerRequest[];
 
  private:
@@ -157,7 +159,8 @@ class SpatialIndex : public ChordIndex {
    * TODO(tcies) the below is basically a copy of NetTableIndex AND
    * ChordIndexTest
    */
-  bool rpc(const PeerId& to, const Message& request, Message* response);
+  ChordIndex::RpcStatus rpc(const PeerId& to, const Message& request,
+                            Message* response);
 
   virtual bool getClosestPrecedingFingerRpc(const PeerId& to, const Key& key,
                                             PeerId* closest_preceding)
@@ -166,10 +169,10 @@ class SpatialIndex : public ChordIndex {
                                PeerId* predecessor) final override;
   virtual bool getPredecessorRpc(const PeerId& to,
                                  PeerId* predecessor) final override;
-  virtual bool lockRpc(const PeerId& to) final override;
-  virtual bool unlockRpc(const PeerId& to) final override;
-  virtual bool notifyRpc(const PeerId& to,
-                         const PeerId& subject) final override;
+  virtual ChordIndex::RpcStatus lockRpc(const PeerId& to) final override;
+  virtual ChordIndex::RpcStatus unlockRpc(const PeerId& to) final override;
+  virtual bool notifyRpc(const PeerId& to, const PeerId& subject,
+                         proto::NotifySenderType sender_type) final override;
   virtual bool replaceRpc(const PeerId& to, const PeerId& old_peer,
                           const PeerId& new_peer) final override;
   virtual bool addDataRpc(const PeerId& to, const std::string& key,
@@ -180,6 +183,10 @@ class SpatialIndex : public ChordIndex {
       const PeerId& to, DataMap* responsibilities) final override;
   virtual bool pushResponsibilitiesRpc(
       const PeerId& to, const DataMap& responsibilities) final override;
+  virtual bool initReplicatorRpc(const PeerId& to, size_t index,
+                                 const DataMap& data) final override;
+  virtual bool appendToReplicatorRpc(const PeerId& to, size_t index,
+                                     const DataMap& data) final override;
 
   virtual void localUpdateCallback(const std::string& key,
                                    const std::string& old_value,

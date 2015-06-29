@@ -12,4 +12,13 @@ message AddDataRequest {
 
 message FetchResponsibilitiesResponse {
   repeated AddDataRequest data = 1;
+  optional uint32 replicator_index = 2;
+  optional string replicator_peer_id = 3;
+}
+
+enum NotifySenderType {PREDECESSOR = 0; SUCCESSOR = 1; }
+
+message NotifyRequest {
+  optional string peer_id = 1;
+  optional NotifySenderType sender_type = 2;
 }
