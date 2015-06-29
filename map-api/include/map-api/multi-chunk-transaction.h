@@ -1,5 +1,5 @@
-#ifndef MAP_API_MULTI_CHUNK_COMMIT_H_
-#define MAP_API_MULTI_CHUNK_COMMIT_H_
+#ifndef MAP_API_MULTI_CHUNK_TRANSACTION_H_
+#define MAP_API_MULTI_CHUNK_TRANSACTION_H_
 
 #include <memory>
 #include <mutex>
@@ -107,4 +107,4 @@ class MultiChunkTransaction {
 
 }  // namespace map_api
 
-#endif  // MAP_API_MULTI_CHUNK_COMMIT_H_
+#endif  // MAP_API_MULTI_CHUNK_TRANSACTION_H_

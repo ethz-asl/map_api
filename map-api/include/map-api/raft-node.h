@@ -50,7 +50,7 @@
 #include <multiagent-mapping-common/unique-id.h>
 
 #include "./raft.pb.h"
-#include "map-api/multi-chunk-commit.h"
+#include "map-api/multi-chunk-transaction.h"
 #include "map-api/peer-id.h"
 #include "map-api/revision.h"
 

@@ -4,7 +4,7 @@
 #include "map-api/core.h"
 #include "map-api/hub.h"
 #include "map-api/legacy-chunk.h"
-#include "map-api/multi-chunk-commit.h"
+#include "map-api/multi-chunk-transaction.h"
 #include "map-api/raft-chunk.h"
 #include "map-api/raft-node.h"
 #include "map-api/revision.h"
@@ -644,7 +644,7 @@ void NetTableManager::handleRaftLeaveRequest(const Message& request,
                                                    &found, &chunk_id)) {
     found->second->handleRaftLeaveRequest(chunk_id, leave_request.serial_id(),
                                           request.sender(), response);
-  }  
+  }
 }
 
 void NetTableManager::handleRaftLeaveNotification(const Message& request,

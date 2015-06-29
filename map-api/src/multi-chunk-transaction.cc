@@ -1,4 +1,4 @@
-#include "map-api/multi-chunk-commit.h"
+#include "map-api/multi-chunk-transaction.h"
 
 #include <future>
 
@@ -339,7 +339,7 @@ void MultiChunkTransaction::handleQueryReadyToCommit(
   } else {
     LOG(WARNING) << "QueryReadyToCommit received for a transaction id that is "
                     "neither current nor an older transaction. Sender: "
-                    << sender << ", chunk id: " << my_chunk_id_;
+                 << sender << ", chunk id: " << my_chunk_id_;
   }
   response->decline();
 }

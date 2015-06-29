@@ -13,7 +13,7 @@
 #include "map-api/hub.h"
 #include "map-api/logical-time.h"
 #include "map-api/message.h"
-#include "map-api/multi-chunk-commit.h"
+#include "map-api/multi-chunk-transaction.h"
 #include "map-api/revision.h"
 
 namespace map_api {
@@ -186,10 +186,10 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
                  << "). They are " << leader_id_.ipPort() << " (current) and "
                  << sender.ipPort() << " (new) ";
     } else {
-      setAppendEntriesResponse(
-          proto::AppendResponseStatus::REJECTED, log_writer->commitIndex(),
-          current_term_, log_writer->lastLogIndex(),log_writer->lastLogTerm(),
-          &append_response);
+      setAppendEntriesResponse(proto::AppendResponseStatus::REJECTED,
+                               log_writer->commitIndex(), current_term_,
+                               log_writer->lastLogIndex(),
+                               log_writer->lastLogTerm(), &append_response);
       response->impose<kAppendEntriesResponse>(append_response);
       return;
     }
@@ -1530,8 +1530,6 @@ bool RaftNode::sendLeaveRequest(uint64_t serial_id) {
 void RaftNode::sendLeaveSuccessNotification(const PeerId& peer) {
   Message request, response;
   proto::ChunkRequestMetadata metadata;
-  //metadata.set_table(table_name_);
-  //chunk_id_.serialize(metadata.mutable_chunk_id());
   fillMetadata(&metadata);
   request.impose<kLeaveNotification>(metadata);
   if (!Hub::instance().try_request(peer, &request, &response)) {
