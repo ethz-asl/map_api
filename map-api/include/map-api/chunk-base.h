@@ -74,7 +74,7 @@ class ChunkBase {
   virtual int requestParticipation(const PeerId& peer) = 0;
 
   // Update: First locks chunk, then sends update to all peers for patching.
-  virtual void update(const std::shared_ptr<Revision>& item) = 0;
+  virtual bool update(const std::shared_ptr<Revision>& item) = 0;
 
   typedef std::function<void(const common::IdSet insertions,
                              const common::IdSet updates)> TriggerCallback;
@@ -103,11 +103,11 @@ class ChunkBase {
 
  private:
   // Insert and update for transactions.
-  virtual void bulkInsertLocked(const MutableRevisionMap& items,
+  virtual bool bulkInsertLocked(const MutableRevisionMap& items,
                                 const LogicalTime& time) = 0;
-  virtual void updateLocked(const LogicalTime& time,
+  virtual bool updateLocked(const LogicalTime& time,
                             const std::shared_ptr<Revision>& item) = 0;
-  virtual void removeLocked(const LogicalTime& time,
+  virtual bool removeLocked(const LogicalTime& time,
                             const std::shared_ptr<Revision>& item) = 0;
 
   void leave();

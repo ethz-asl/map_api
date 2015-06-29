@@ -16,6 +16,9 @@
 #include "map-api/net-table-index.h"
 #include "map-api/spatial-index.h"
 #include "./chunk.pb.h"
+#include "./raft.pb.h"
+
+DECLARE_bool(use_raft);
 
 namespace map_api {
 class ConstRevisionMap;
@@ -145,6 +148,8 @@ class NetTable {
 
   void leaveAllChunks();
 
+  void forceStopAllRaftChunks();
+
   void leaveAllChunksOnceShared();
 
   std::string getStatistics();
@@ -193,6 +198,55 @@ class NetTable {
   static const char kAnnounceToListeners[];
 
   void handleSpatialIndexTrigger(const proto::SpatialIndexTrigger& trigger);
+
+  // RaftChunk RPC handlers.
+  void handleRaftConnectRequest(const common::Id& chunk_id,
+                                const PeerId& sender,
+                                proto::ConnectRequestType connect_type,
+                                Message* response);
+  void handleRaftInitRequest(const common::Id& chunk_id,
+                             const proto::InitRequest& init_request,
+                             const PeerId& sender, Message* response);
+  void handleRaftChunkLockRequest(const common::Id& chunk_id,
+                                  uint64_t serial_id, const PeerId& sender,
+                                  Message* response);
+  void handleRaftChunkUnlockRequest(const common::Id& chunk_id,
+                                    uint64_t serial_id, const PeerId& sender,
+                                    uint64_t lock_index, bool proceed_commits,
+                                    Message* response);
+  void handleRaftAppendRequest(const common::Id& chunk_id,
+                               proto::AppendEntriesRequest* request,
+                               const PeerId& sender, Message* response);
+  void handleRaftInsertRequest(const common::Id& chunk_id,
+                               proto::InsertRequest* request,
+                               const PeerId& sender, Message* response);
+  void handleRaftRequestVote(const common::Id& chunk_id,
+                             const proto::VoteRequest& request,
+                             const PeerId& sender, Message* response);
+  void handleRaftQueryState(const common::Id& chunk_id,
+                            const proto::QueryState& request,
+                            Message* response);
+  void handleRaftLeaveRequest(const common::Id& chunk_id, uint64_t serial_id,
+                              const PeerId& sender, Message* response);
+  void handleRaftLeaveNotification(const common::Id& chunk_id,
+                                   Message* response);
+
+  // Raft Multi-chunk commit RPCs
+  void handleRaftChunkTransactionInfo(const common::Id& chunk_id,
+                                      proto::ChunkTransactionInfo* info,
+                                      const PeerId& sender, Message* response);
+  void handleRaftQueryReadyToCommit(
+      const common::Id& chunk_id,
+      const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
+      Message* response);
+  void handleRaftCommitNotification(
+      const common::Id& chunk_id,
+      const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
+      Message* response);
+  void handleRaftAbortNotification(
+      const common::Id& chunk_id,
+      const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
+      Message* response);
 
  private:
   NetTable();

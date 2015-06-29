@@ -28,6 +28,7 @@ class ChunkTransaction {
   friend class NetTableFixture;
   FRIEND_TEST(NetTableFixture, ChunkTransactions);
   FRIEND_TEST(NetTableFixture, ChunkTransactionsConflictConditions);
+  FRIEND_TEST(NetTableFixture, TransactionAbortOnPeerDisconnect);
 
  private:
   ChunkTransaction(ChunkBase* chunk, NetTable* table);
@@ -56,7 +57,11 @@ class ChunkTransaction {
   // TRANSACTION OPERATIONS
   bool commit();
   bool check();
-  void checkedCommit(const LogicalTime& time);
+  bool checkedCommit(const LogicalTime& time);
+
+  bool sendMultiChunkTransactionInfo(
+      const proto::MultiChunkTransactionInfo& info);
+
   struct Conflict {
     const std::shared_ptr<const Revision> theirs;
     const std::shared_ptr<const Revision> ours;
@@ -69,6 +74,7 @@ class ChunkTransaction {
   void merge(const std::shared_ptr<ChunkTransaction>& merge_transaction,
              Conflicts* conflicts);
   size_t numChangedItems() const;
+  size_t countChangesToCommit() const;
 
   // INTERNAL
   typedef std::unordered_map<common::Id, LogicalTime> ItemTimes;
@@ -106,6 +112,7 @@ class ChunkTransaction {
   ChunkBase* chunk_;
   NetTable* table_;
   std::shared_ptr<const Revision> structure_reference_;
+  bool locked_by_transaction_;
 };
 
 }  // namespace map_api

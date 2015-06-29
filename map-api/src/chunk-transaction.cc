@@ -5,6 +5,7 @@
 #include <multiagent-mapping-common/accessors.h>
 
 #include "map-api/net-table.h"
+#include "map-api/raft-chunk.h"
 
 namespace map_api {
 
@@ -15,7 +16,8 @@ ChunkTransaction::ChunkTransaction(const LogicalTime& begin_time,
                                    ChunkBase* chunk, NetTable* table)
     : begin_time_(begin_time),
       chunk_(CHECK_NOTNULL(chunk)),
-      table_(CHECK_NOTNULL(table)) {
+      table_(CHECK_NOTNULL(table)),
+      locked_by_transaction_(false) {
   CHECK(begin_time < LogicalTime::sample());
   insertions_.clear();
   updates_.clear();
@@ -123,9 +125,9 @@ bool ChunkTransaction::check() {
   return true;
 }
 
-void ChunkTransaction::checkedCommit(const LogicalTime& time) {
-  for (InsertMap::iterator iter = insertions_.begin();
-       iter != insertions_.end();) {
+bool ChunkTransaction::checkedCommit(const LogicalTime& time) {
+  InsertMap::iterator iter;
+  for (iter = insertions_.begin(); iter != insertions_.end();) {
     if (removes_.count(iter->first) > 0u) {
       iter = insertions_.erase(iter);
     } else {
@@ -133,24 +135,40 @@ void ChunkTransaction::checkedCommit(const LogicalTime& time) {
       ++iter;
     }
   }
-  chunk_->bulkInsertLocked(insertions_, time);
-
+  if (!chunk_->bulkInsertLocked(insertions_, time)) {
+    return false;
+  }
   for (const std::pair<const common::Id,
       std::shared_ptr<Revision> >& item : updates_) {
     if (removes_.count(item.first) == 0u) {
-      chunk_->updateLocked(time, item.second);
+      if (!chunk_->updateLocked(time, item.second)) {
+        return false;
+      }
       previously_committed_[item.first] = time;
     }
   }
   for (const std::pair<const common::Id,
       std::shared_ptr<Revision> >& item : removes_) {
-    chunk_->removeLocked(time, item.second);
+    if (!chunk_->removeLocked(time, item.second)) {
+      return false;
+    }
     previously_committed_[item.first] = time;
   }
-
   insertions_.clear();
   updates_.clear();
   removes_.clear();
+  return true;
+}
+
+bool ChunkTransaction::sendMultiChunkTransactionInfo(
+    const proto::MultiChunkTransactionInfo& info) {
+  CHECK(FLAGS_use_raft);
+  proto::ChunkTransactionInfo this_chunk_transaction_info;
+  this_chunk_transaction_info.set_num_entries(countChangesToCommit());
+  this_chunk_transaction_info.mutable_multi_chunk_info()->CopyFrom(info);
+  bool success = CHECK_NOTNULL(dynamic_cast<RaftChunk*>(chunk_))  // NOLINT
+                     ->sendChunkTransactionInfo(&this_chunk_transaction_info);
+  return success;
 }
 
 void ChunkTransaction::merge(
@@ -192,6 +210,24 @@ size_t ChunkTransaction::numChangedItems() const {
   CHECK(conflict_conditions_.empty()) << "changeCount not compatible with "
                                          "conflict conditions";
   return insertions_.size() + updates_.size() + removes_.size();
+}
+
+size_t ChunkTransaction::countChangesToCommit() const {
+  size_t num_changes = 0;
+  for (const std::pair<const common::Id, std::shared_ptr<Revision> >& item :
+       insertions_) {
+    if (removes_.count(item.first) == 0u) {
+      ++num_changes;
+    }
+  }
+  for (const std::pair<const common::Id, std::shared_ptr<Revision> >& item :
+       updates_) {
+    if (removes_.count(item.first) == 0u) {
+      ++num_changes;
+    }
+  }
+  num_changes += removes_.size();
+  return num_changes;
 }
 
 void ChunkTransaction::prepareCheck(

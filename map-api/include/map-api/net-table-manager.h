@@ -48,6 +48,8 @@ class NetTableManager {
 
   void kill();
 
+  void forceStopAllRaftChunks();
+
   // Makes sure all chunk has at least one other peer.
   void killOnceShared();
 
@@ -103,6 +105,41 @@ class NetTableManager {
   static void handleRoutedSpatialChordRequests(const Message& request,
                                                Message* response);
 
+  /**
+   * RaftChunk requests.
+   */
+  static void handleRaftConnectRequest(const Message& request,
+                                        Message* response);
+  static void handleRaftInitRequest(const Message& request,
+                                        Message* response);
+  static void handleRaftAppendRequest(const Message& request,
+                                        Message* response);
+  static void handleRaftChunkLockRequest(const Message& request,
+                                         Message* response);
+  static void handleRaftChunkUnlockRequest(const Message& request,
+                                           Message* response);
+  static void handleRaftInsertRequest(const Message& request,
+                                        Message* response);
+  static void handleRaftRequestVote(const Message& request,
+                                      Message* response);
+  static void handleRaftQueryState(const Message& request, Message* response);
+  static void handleRaftLeaveRequest(const Message& request,
+                                        Message* response);
+  static void handleRaftLeaveNotification(const Message& request,
+                                          Message* response);
+
+  /**
+   * Requests related to raft multi-chunk commit
+   */
+  static void handleRaftChunkTransactionInfo(const Message& request,
+                                             Message* response);
+  static void handleRaftQueryReadyToCommit(const Message& request,
+                                           Message* response);
+  static void handleRaftCommitNotification(const Message& request,
+                                           Message* response);
+  static void handleRaftAbortNotification(const Message& request,
+                                           Message* response);
+
  private:
   NetTableManager();
   NetTableManager(const NetTableManager&) = delete;
@@ -127,6 +164,10 @@ class NetTableManager {
   static bool getTableForRequestWithMetadataOrDecline(
       const MetadataRequestType& request, Message* response,
       TableMap::iterator* found);
+  template <typename MetadataRequestType>
+  static bool getTableChunkForRequestWithMetadataOrDecline(
+      const MetadataRequestType& request, Message* response,
+      TableMap::iterator* found, common::Id* chunk_id);
   template <typename StringRequestType>
   static bool getTableForRequestWithStringOrDecline(
       const StringRequestType& request, Message* response,
