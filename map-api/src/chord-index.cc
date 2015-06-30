@@ -15,8 +15,8 @@ DEFINE_string(join_mode, kCleanJoin,
 DEFINE_uint64(stabilize_interval_ms, 1500,
               "Interval of stabilization in milliseconds");
 DECLARE_int32(simulated_lag_ms);
-DEFINE_bool(enable_fingers, true, "enable chord fingers");
-DEFINE_bool(enable_replication, true, "enable chord replication");
+DEFINE_bool(enable_fingers, false, "enable chord fingers");
+DEFINE_bool(enable_replication, false, "enable chord replication");
 
 namespace map_api {
 
