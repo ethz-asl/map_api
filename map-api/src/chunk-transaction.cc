@@ -1,5 +1,8 @@
-#include <map-api/chunk-transaction.h>
+#include "map-api/chunk-transaction.h"
+
 #include <unordered_set>
+
+#include <multiagent-mapping-common/accessors.h>
 
 #include "map-api/net-table.h"
 
@@ -22,6 +25,21 @@ ChunkTransaction::ChunkTransaction(const LogicalTime& begin_time,
 void ChunkTransaction::dumpChunk(ConstRevisionMap* result) {
   CHECK_NOTNULL(result);
   chunk_->dumpItems(begin_time_, result);
+
+  // Add previously committed items.
+  for (ItemTimes::const_iterator it = previously_committed_.begin();
+       it != previously_committed_.end(); ++it) {
+    std::shared_ptr<const Revision> item =
+        chunk_->data_container_->getById(it->first, it->second);
+    if (item) {
+      (*result)[it->first] = item;
+    } else {  // Item has been deleted in a previous commit.
+      ConstRevisionMap::iterator found = result->find(it->first);
+      if (found != result->end()) {
+        result->erase(found);
+      }
+    }
+  }
 }
 
 void ChunkTransaction::insert(std::shared_ptr<Revision> revision) {
@@ -84,13 +102,13 @@ bool ChunkTransaction::check() {
   }
   for (const std::pair<const common::Id,
       std::shared_ptr<const Revision> >& item : updates_) {
-    if (stamps[item.first] >= begin_time_) {
+    if (hasUpdateConflict(item.first, stamps)) {
       return false;
     }
   }
   for (const std::pair<const common::Id,
       std::shared_ptr<const Revision> >& item : removes_) {
-    if (stamps[item.first] >= begin_time_) {
+    if (hasUpdateConflict(item.first, stamps)) {
       return false;
     }
   }
@@ -106,25 +124,33 @@ bool ChunkTransaction::check() {
 }
 
 void ChunkTransaction::checkedCommit(const LogicalTime& time) {
-  InsertMap::iterator iter;
-  for (iter = insertions_.begin(); iter != insertions_.end();) {
+  for (InsertMap::iterator iter = insertions_.begin();
+       iter != insertions_.end();) {
     if (removes_.count(iter->first) > 0u) {
       iter = insertions_.erase(iter);
     } else {
+      previously_committed_[iter->first] = time;
       ++iter;
     }
   }
   chunk_->bulkInsertLocked(insertions_, time);
+
   for (const std::pair<const common::Id,
       std::shared_ptr<Revision> >& item : updates_) {
     if (removes_.count(item.first) == 0u) {
       chunk_->updateLocked(time, item.second);
+      previously_committed_[item.first] = time;
     }
   }
   for (const std::pair<const common::Id,
       std::shared_ptr<Revision> >& item : removes_) {
     chunk_->removeLocked(time, item.second);
+    previously_committed_[item.first] = time;
   }
+
+  insertions_.clear();
+  updates_.clear();
+  removes_.clear();
 }
 
 void ChunkTransaction::merge(
@@ -170,7 +196,7 @@ size_t ChunkTransaction::numChangedItems() const {
 
 void ChunkTransaction::prepareCheck(
     const LogicalTime& check_time,
-    std::unordered_map<common::Id, LogicalTime>* chunk_stamp) {
+    std::unordered_map<common::Id, LogicalTime>* chunk_stamp) const {
   CHECK_NOTNULL(chunk_stamp);
   chunk_stamp->clear();
   ConstRevisionMap contents;
@@ -188,6 +214,23 @@ void ChunkTransaction::prepareCheck(
       chunk_stamp->insert(std::make_pair(item.first, time));
     }
   }
+}
+
+bool ChunkTransaction::hasUpdateConflict(const common::Id& item,
+                                         const ItemTimes& db_stamps) const {
+  const LogicalTime db_stamp = getChecked(db_stamps, item);
+  if (db_stamp >= begin_time_) {
+    // Allow conflicts only if they come from a previous commit of the same
+    // transaction.
+    ItemTimes::const_iterator found = previously_committed_.find(item);
+    if (found != previously_committed_.end()) {
+      if (found->second == db_stamp) {
+        return false;
+      }
+    }
+    return true;
+  }
+  return false;
 }
 
 void ChunkTransaction::getTrackers(
