@@ -533,7 +533,8 @@ void RaftNode::stateManagerThread() {
               wait_lock, std::chrono::milliseconds(kHeartbeatSendPeriodMs));
         }
       }
-      VLOG(1) << "Peer " << PeerId::self() << " Lost leadership. ";
+      VLOG(1) << "Peer " << PeerId::self() << " Lost leadership of chunk "
+              << chunk_id_;
       tracker_lock.lock();
       leaderShutDownAllTrackes();
       VLOG(1) << "Peer " << PeerId::self() << ": Follower trackers closed. ";
