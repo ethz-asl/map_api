@@ -492,6 +492,10 @@ void RaftNode::stateManagerThread() {
       election_timeout = false;
       conductElection();
     }
+    if (leave_requested_) {
+      usleep(election_timeout_ms_ * kMillisecondsToMicroseconds);
+      continue;
+    }
 
     // Read state information.
     {
