@@ -58,7 +58,8 @@ template <typename ValueType>
 void NetTableTransaction::find(int key, const ValueType& value,
                                ConstRevisionMap* result) {
   CHECK_NOTNULL(result);
-  // TODO(tcies) uncommitted
+  // TODO(tcies) Also search in uncommitted.
+  // TODO(tcies) Also search in previously committed.
   workspace_.forEachChunk([&, this](const ChunkBase& chunk) {
     ConstRevisionMap chunk_result;
     chunk.constData()->find(key, value, begin_time_, &chunk_result);
@@ -70,18 +71,17 @@ template <typename IdType>
 void NetTableTransaction::getAvailableIds(std::vector<IdType>* ids) {
   CHECK_NOTNULL(ids)->clear();
   workspace_.forEachChunk([&, this](const ChunkBase& chunk) {
-    std::vector<IdType> chunk_result;
-    chunk.constData()->getAvailableIds(begin_time_, &chunk_result);
+    std::unordered_set<IdType> chunk_result;
+    transactionOf(&chunk)->getAvailableIds(&chunk_result);
     ids->insert(ids->end(), chunk_result.begin(), chunk_result.end());
   });
 }
 
 template <typename IdType>
-void NetTableTransaction::remove(const common::UniqueId<IdType>& id) {
+void NetTableTransaction::remove(const IdType& id) {
   std::shared_ptr<const Revision> revision;
   ChunkBase* chunk = chunkOf(id, &revision);
-  std::shared_ptr<Revision> remove_revision =
-      std::make_shared<Revision>(*revision);
+  std::shared_ptr<Revision> remove_revision = revision->copyForWrite();
   transactionOf(CHECK_NOTNULL(chunk))->remove(remove_revision);
 }
 
@@ -92,6 +92,22 @@ ChunkBase* NetTableTransaction::chunkOf(
   // TODO(tcies) uncommitted
   *inconsistent = table_->getById(id, begin_time_);
   if (!(*inconsistent)) {
+    std::shared_ptr<const Revision> latest =
+        table_->getById(id, LogicalTime::sample());
+    if (!latest) {
+      return nullptr;
+    }
+    ChunkBase* chunk = table_->getChunk(latest->getChunkId());
+    ChunkTransaction* transaction = transactionOf(chunk);
+    ChunkTransaction::ItemTimes::const_iterator found =
+        transaction->previously_committed_.find(
+            id.template toIdType<common::Id>());
+    if (found != transaction->previously_committed_.end()) {
+      if (found->second == latest->getUpdateTime()) {
+        *inconsistent = latest;
+        return chunk;
+      }
+    }
     return nullptr;
   }
   return table_->getChunk((*inconsistent)->getChunkId());
