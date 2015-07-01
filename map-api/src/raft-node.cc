@@ -459,7 +459,9 @@ bool RaftNode::sendInitRequest(const PeerId& peer,
       break;
     }
     proto::RaftLogEntry entry(**it);
-    CHECK(!entry.has_insert_revision());
+    CHECK(!entry.has_insert_revision()) << "Index = " << (*it)->index()
+                                        << ", commit index = "
+                                        << log_writer->commitIndex();
     if ((*it)->has_revision_id()) {
       // Sending only committed entries, so revision will be in history, not
       // log.
@@ -1061,6 +1063,8 @@ uint64_t RaftNode::leaderAppendLogEntry(
   {
     std::lock_guard<std::mutex> state_lock(state_mutex_);
     if (state_ != State::LEADER) {
+      LOG(WARNING)
+          << "leaderAppendLogEntry failed because this peer is not leader.";
       return 0;
     }
     current_term = current_term_;
@@ -1068,6 +1072,9 @@ uint64_t RaftNode::leaderAppendLogEntry(
   LogWriteAccess log_writer(data_);
   if (log_writer->lastLogIndex() - log_writer->commitIndex() >
       kMaxLogQueueLength) {
+    LOG(WARNING) << "leaderAppendLogEntry failed because commit queue is full."
+                 << " Last log index " << log_writer->lastLogIndex()
+                 << ". Commit index " << log_writer->commitIndex();
     return 0;
   }
   // Check if this entry is already in the log. If so, return its index.
@@ -1184,6 +1191,17 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
     // threads/methods (eg: vote request) attempting to send message to the
     // non responsive peer, which causes a problem.
   }
+}
+
+uint64_t RaftNode::getLatestFullyReplicatedEntry() {
+  uint64_t result = 0 - 1;
+  std::lock_guard<std::mutex> tracker_lock(follower_tracker_mutex_);
+  for (TrackerMap::value_type& tracker : follower_tracker_map_) {
+    if (tracker.second->replication_index.load() < result) {
+      result = tracker.second->replication_index.load();
+    }
+  }
+  return result;
 }
 
 void RaftNode::applySingleRevisionCommit(

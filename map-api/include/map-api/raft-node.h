@@ -58,6 +58,11 @@ class Message;
 class RaftChunk;
 class MultiChunkTransaction;
 
+namespace benchmarks {
+// Forward declaration necessary for friending this class.
+class RaftBenchmarkTests;
+}
+
 // Implementation of Raft consensus algorithm presented here:
 // https://raftconsensus.github.io, http://ramcloud.stanford.edu/raft.pdf
 class RaftNode {
@@ -105,6 +110,7 @@ class RaftNode {
 
  private:
   friend class ConsensusFixture;
+  friend class benchmarks::RaftBenchmarkTests;
   friend class RaftChunk;
   FRIEND_TEST(ConsensusFixture, LeaderElection);
   RaftNode();
@@ -294,6 +300,8 @@ class RaftNode {
 
   // Expects lock for log_mutex_to NOT have been acquired.
   void leaderCommitReplicatedEntries(uint64_t current_term);
+
+  uint64_t getLatestFullyReplicatedEntry();
 
   // All three of the following are called from leader or follower commit.
   void applySingleRevisionCommit(const std::shared_ptr<proto::RaftLogEntry>& entry);

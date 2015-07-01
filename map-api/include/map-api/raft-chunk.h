@@ -15,13 +15,20 @@ namespace map_api {
 class Message;
 class Revision;
 
+namespace benchmarks {
+// Forward declaration necessary for friending this class.
+class RaftBenchmarkTests;
+}
+
 class RaftChunk : public ChunkBase {
   friend class NetTableTransaction;  // TODO(aqurai): To be removed. (Issue
                                      // #2466)
   friend class ChunkTransaction;
   friend class ConsensusFixture;
+  friend class benchmarks::RaftBenchmarkTests;
   FRIEND_TEST(ConsensusFixture, LeaderElection);
   FRIEND_TEST(NetTableFixture, TransactionAbortOnPeerDisconnect);
+  FRIEND_TEST(RaftBenchmarkTests, Raft);
 
  public:
   RaftChunk();
