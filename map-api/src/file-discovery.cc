@@ -54,6 +54,7 @@ void FileDiscovery::append(const std::string& new_content) const {
   std::ofstream out(kFileName, std::ios::out | std::ios::app);
   out << new_content << "\n";
   out.close();
+  VLOG(4) << "Appended" << new_content;
 }
 
 void FileDiscovery::getFileContents(std::string* result) const {
@@ -105,6 +106,7 @@ void FileDiscovery::lock() {
 
 void FileDiscovery::replace(const std::string& new_content) const {
   std::ofstream out(kFileName, std::ios::out);
+  VLOG(4) << "Replacing " << new_content;
   out << new_content << std::endl;
   out.close();
 }

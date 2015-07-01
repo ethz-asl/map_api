@@ -107,6 +107,7 @@ bool Hub::init(bool* is_first_peer) {
   peer_mutex_.unlock();
 
   // 3. Report self to discovery
+  VLOG(4) << "Announcing self" << PeerId::self();
   discovery_->announce();
 
   // 4. Announce self to peers (who will not revisit discovery)
@@ -114,6 +115,7 @@ bool Hub::init(bool* is_first_peer) {
   announce_self.impose<kDiscovery>();
   std::unordered_set<PeerId> unreachable;
   for (const std::pair<const PeerId, std::unique_ptr<Peer> >& peer : peers_) {
+    VLOG(4) << "Telling " << peer.first;
     if (!peer.second->try_request_for(FLAGS_discovery_timeout_ms,
                                       &announce_self, &response)) {
       LOG(WARNING) << "Discovery timeout for " << peer.first << "!";

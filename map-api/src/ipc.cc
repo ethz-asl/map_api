@@ -34,7 +34,8 @@ void IPC::barrier(int id, int n_peers) {
   std::ostringstream ss;
   ss << id;
   while (Hub::instance().peerSize() < n_peers) {
-    usleep(10000);
+    sleep(1);
+    VLOG(3) << "Not enough peers...";
   }
   Message barrier_message;
   barrier_message.impose<kBarrierMessage, std::string>(ss.str());
