@@ -13,12 +13,7 @@ namespace map_api {
 
 MapApiTestEntryPoint::~MapApiTestEntryPoint() {}
 
-void MapApiTestEntryPoint::customInit() {
-  if (FLAGS_subprocess_id == 0) {
-    std::ofstream truncator(FileDiscovery::kFileName,
-                            std::ofstream::out | std::ofstream::trunc);
-  }
-}
+void MapApiTestEntryPoint::customInit() {}
 
 }  // namespace map_api
 
