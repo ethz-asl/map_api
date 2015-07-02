@@ -285,7 +285,6 @@ void RaftNode::handleConnectRequest(const PeerId& sender,
       }
     } else {
       LogWriteAccess log_writer(data_);
-      std::lock_guard<std::mutex> tracker_lock(follower_tracker_mutex_);
       // TODO(aqurai): If the peer is already present, it could be re-joining.
       // In that case, avoid sending all log entries during connect.
       std::shared_ptr<proto::RaftLogEntry> new_entry(new proto::RaftLogEntry);
