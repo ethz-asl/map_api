@@ -43,6 +43,16 @@ double RaftNode::getTimeSinceHeartbeatMs() {
           .count());
 }
 
+bool RaftNode::hasPeer(const PeerId& peer) {
+  std::lock_guard<std::mutex> peer_lock(peer_mutex_);
+  return peer_list_.count(peer);
+}
+
+size_t RaftNode::numPeers() {
+  std::lock_guard<std::mutex> peer_lock(peer_mutex_);
+  return peer_list_.size();
+}
+
 void RaftNode::setAppendEntriesResponse(proto::AppendResponseStatus status,
                                         uint64_t current_commit_index,
                                         uint64_t current_term,

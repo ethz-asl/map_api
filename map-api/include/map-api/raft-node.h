@@ -228,10 +228,10 @@ class RaftNode {
   // Available peers. Modified ONLY in followerCommitNewEntries() or
   // leaderCommitReplicatedEntries() or leaderMonitorFollowerStatus()
   std::set<PeerId> peer_list_;
-  std::atomic<uint> num_peers_;
   std::mutex peer_mutex_;
   std::mutex follower_tracker_mutex_;
-  bool hasPeer(const PeerId& peer);
+  inline bool hasPeer(const PeerId& peer);
+  inline size_t numPeers();
 
   // Expects follower_tracker_mutex_ locked.
   void leaderShutDownTracker(const PeerId& peer);

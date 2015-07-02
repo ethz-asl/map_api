@@ -21,9 +21,7 @@ void RaftChunk::setStateLeaderAndStartRaft() {
     raft_node_.start();
 }
 
-int RaftChunk::peerSize() const {
-  return raft_node_.num_peers_;
-}
+int RaftChunk::peerSize() const { return raft_node_.numPeers(); }
 
 inline void RaftChunk::syncLatestCommitTime(const Revision& item) {
   std::lock_guard<std::mutex> lock(latest_commit_time_mutex_);
