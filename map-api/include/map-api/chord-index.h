@@ -6,6 +6,7 @@
 // initialize_mutex_
 //
 // node lock, peer lock, data lock
+// node_lock, lock_monitor_mutex_
 //
 
 #ifndef MAP_API_CHORD_INDEX_H_
@@ -47,6 +48,7 @@ class ChordIndex {
   // method is given as well
   // static constexpr size_t kSuccessorListSize = 3; TODO(tcies) later
   static constexpr size_t kNumReplications = 3;
+  static constexpr uint64_t kLockTimeoutMs = 10000;
 
   virtual ~ChordIndex();
 
@@ -85,11 +87,11 @@ class ChordIndex {
    * Find successor to key, i.e. who holds the information associated with key
    * It is the first node whose hash key is larger than or equal to the key.
    */
-  PeerId findSuccessor(const Key& key);
+  bool findSuccessor(const Key& key, PeerId* result);
   /**
    * First node whose hash key is strictly smaller than the key.
    */
-  PeerId findPredecessor(const Key& key);
+  bool findPredecessor(const Key& key, PeerId* result);
 
   /**
    * Equivalent to join(nil) in the Chord paper
@@ -109,8 +111,14 @@ class ChordIndex {
   bool lock(const PeerId& subject);
   void unlock();
   bool unlock(const PeerId& subject);
+  void lockMonitorThread();
+  void updateLastHeard(const PeerId& peer);
+
   bool lockPeersInOrder(const PeerId& subject_1, const PeerId& subject_2);
   bool unlockPeers(const PeerId& subject_1, const PeerId& subject_2);
+
+  bool lockPeersInArgOrder(const PeerId& subject_1, const PeerId& subject_2,
+                           const PeerId& subject_3);
 
   /**
    * Terminates stabilizeThread();, pushes responsible data
@@ -299,6 +307,9 @@ class ChordIndex {
   std::mutex node_lock_;
   bool node_locked_ = false;
   PeerId node_lock_holder_;
+  std::condition_variable lock_holder_cv_;
+  std::thread lock_monitor_thread_;
+  std::atomic<bool> lock_monitor_thread_running_;
 };
 
 }  // namespace map_api
