@@ -80,6 +80,8 @@ const std::string RaftNode::getLogEntryTypeString(
     return "Entry type: unlock request";
   } else if (entry->has_insert_revision() || entry->has_revision_id()) {
     return "Entry type: insert revision";
+  } else if (entry->has_multi_chunk_transaction_info()) {
+    return "Entry type: multi-chunk-transaction info";
   } else {
     return "Entry type: other";
   }

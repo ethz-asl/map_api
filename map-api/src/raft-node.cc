@@ -542,7 +542,8 @@ void RaftNode::stateManagerThread() {
       usleep(election_timeout_ms_ * kMillisecondsToMicroseconds);
     }
   }  // while(!is_exiting_)
-  VLOG(1) << PeerId::self() << ": Closing the State manager thread for chunk " << chunk_id_;
+  VLOG(1) << PeerId::self() << ": Closing the State manager thread for chunk "
+          << chunk_id_;
   state_thread_running_ = false;
 }
 
