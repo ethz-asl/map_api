@@ -26,6 +26,18 @@ void RaftNode::handleAbortNotification(
                                                             response);
 }
 
+bool RaftNode::checkReadyToHandleChunkRequests() const {
+  uint64_t current_term = getTerm();
+  LogReadAccess log_reader(data_);
+  ConstLogIterator it =
+      log_reader->getConstLogIteratorByIndex(log_reader->commitIndex());
+  CHECK(it != log_reader->cend());
+  if ((*it)->term() >= current_term) {
+    return true;
+  }
+  return false;
+}
+
 void RaftNode::updateHeartbeatTime() const {
   std::lock_guard<std::mutex> heartbeat_lock(last_heartbeat_mutex_);
   last_heartbeat_ = std::chrono::system_clock::now();

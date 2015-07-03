@@ -306,6 +306,7 @@ class RaftNode {
 
   std::condition_variable entry_replicated_signal_;
   std::condition_variable entry_committed_signal_;
+
   std::unique_ptr<MultiChunkTransaction> multi_chunk_transaction_manager_;
   void initializeMultiChunkTransactionManager();
   void manageIncompleteTransaction(const LogWriteAccess& log_writer,
