@@ -13,7 +13,7 @@ NetTableTransaction::NetTableTransaction(const LogicalTime& begin_time,
   CHECK(begin_time < LogicalTime::sample());
 }
 
-void NetTableTransaction::dumpChunk(ChunkBase* chunk,
+void NetTableTransaction::dumpChunk(const ChunkBase* chunk,
                                     ConstRevisionMap* result) {
   CHECK_NOTNULL(chunk);
   if (workspace_.contains(chunk->id())) {
@@ -27,7 +27,7 @@ void NetTableTransaction::dumpActiveChunks(ConstRevisionMap* result) {
   CHECK_NOTNULL(result);
   workspace_.forEachChunk([&, this](const ChunkBase& chunk) {
     ConstRevisionMap chunk_revisions;
-    chunk.dumpItems(begin_time_, &chunk_revisions);
+    dumpChunk(&chunk, &chunk_revisions);
     result->insert(chunk_revisions.begin(), chunk_revisions.end());
   });
 }
@@ -138,14 +138,18 @@ size_t NetTableTransaction::numChangedItems() const {
   return result;
 }
 
-ChunkTransaction* NetTableTransaction::transactionOf(ChunkBase* chunk) const {
+ChunkTransaction* NetTableTransaction::transactionOf(const ChunkBase* chunk)
+    const {
   CHECK_NOTNULL(chunk);
-  TransactionMap::iterator chunk_transaction = chunk_transactions_.find(chunk);
+  // Const cast needed, as transactions map has non-const key.
+  ChunkBase* mutable_chunk = const_cast<ChunkBase*>(chunk);
+  TransactionMap::iterator chunk_transaction =
+      chunk_transactions_.find(mutable_chunk);
   if (chunk_transaction == chunk_transactions_.end()) {
     std::shared_ptr<ChunkTransaction> transaction(
-        new ChunkTransaction(begin_time_, chunk, table_));
+        new ChunkTransaction(begin_time_, mutable_chunk, table_));
     std::pair<TransactionMap::iterator, bool> inserted =
-        chunk_transactions_.insert(std::make_pair(chunk, transaction));
+        chunk_transactions_.insert(std::make_pair(mutable_chunk, transaction));
     CHECK(inserted.second);
     chunk_transaction = inserted.first;
   }
