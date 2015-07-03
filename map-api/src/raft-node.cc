@@ -134,7 +134,6 @@ RaftNode::State RaftNode::getState() const {
   return state_;
 }
 
-
 // If there are no new entries, Leader sends empty message (heartbeat)
 // Message contains leader commit index, used to update own commit index
 // In Follower state, ONLY this thread writes to log_entries_ (via the function
@@ -527,7 +526,9 @@ void RaftNode::stateManagerThread() {
     } else if (state == State::LOST_CONNECTION) {
       LOG(WARNING) << PeerId::self() << " lost connection. Attempting rejoin";
       attemptRejoin();
-      usleep(election_timeout_ms_ * kMillisecondsToMicroseconds);
+      // Wait for leader to commit rejoin entry, launch tracker for this peer
+      // and send heartbeat / append entries.
+      usleep(kJoinResponseTimeoutMs * kMillisecondsToMicroseconds);
     }
   }  // while(!is_exiting_)
   VLOG(1) << PeerId::self() << ": Closing the State manager thread for chunk "
