@@ -36,13 +36,19 @@ class RaftChunk : public ChunkBase {
 
   bool init(const common::Id& id, std::shared_ptr<TableDescriptor> descriptor,
             bool initialize);
+
+  // Create a new chunk and start raft as leader.
   virtual void initializeNewImpl(
       const common::Id& id,
       const std::shared_ptr<TableDescriptor>& descriptor) override;
+
+  // Initialize replica to join raft group of an existing chunk.
   bool init(const common::Id& id, const proto::InitRequest& init_request,
             std::shared_ptr<TableDescriptor> descriptor);
+
   virtual void dumpItems(const LogicalTime& time, ConstRevisionMap* items) const
       override;
+
   inline void setStateFollowerAndStartRaft();
   inline void setStateLeaderAndStartRaft();
 
@@ -85,8 +91,10 @@ class RaftChunk : public ChunkBase {
 
   virtual bool bulkInsertLocked(const MutableRevisionMap& items,
                                 const LogicalTime& time) override;
+
   virtual bool updateLocked(const LogicalTime& time,
                             const std::shared_ptr<Revision>& item) override;
+
   virtual bool removeLocked(const LogicalTime& time,
                             const std::shared_ptr<Revision>& item) override;
 
@@ -96,23 +104,22 @@ class RaftChunk : public ChunkBase {
 
   bool raftInsertRequest(const Revision::ConstPtr& item);
 
-  void commitInsertCallback(const common::Id& inserted_id) {
-    handleCommitInsert(inserted_id);
-  }
-  void commitUpdateCallback(const common::Id& updated_id) {
-    handleCommitUpdate(updated_id);
-  }
-  void commitUnlockCallback() { handleCommitEnd(); }
+  void commitInsertCallback(const common::Id& inserted_id);
+
+  void commitUpdateCallback(const common::Id& updated_id);
+
+  void commitUnlockCallback();
 
   void forceStopRaft();
+
   virtual void leaveImpl() override;
+
   virtual void awaitShared() override;
 
   class ChunkRequestId {
    public:
     ChunkRequestId() : serial_id_(0) {}
     inline uint64_t getNewId() { return ++serial_id_; }
-
    private:
     std::atomic<uint64_t> serial_id_;
   };

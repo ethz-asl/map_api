@@ -8,10 +8,14 @@
 namespace map_api {
 
 void RaftChunk::setStateFollowerAndStartRaft() {
-    raft_node_.state_ = RaftNode::State::FOLLOWER;
-    VLOG(2) << PeerId::self() << ": Starting Raft node as follower for chunk "
-            << id_.printString();
-    raft_node_.start();
+  // Leader sends init request when committing join entry. It only sends
+  // already committed entries. Hence last log index + 1 is this peer's join
+  // index.
+  raft_node_.join_log_index_ = raft_node_.data_->lastLogIndex() + 1;
+  raft_node_.state_ = RaftNode::State::JOINING;
+  VLOG(2) << PeerId::self() << ": Starting Raft node as JOINING for chunk "
+          << id_.printString();
+  raft_node_.start();
 }
 
 void RaftChunk::setStateLeaderAndStartRaft() {
@@ -21,9 +25,7 @@ void RaftChunk::setStateLeaderAndStartRaft() {
     raft_node_.start();
 }
 
-int RaftChunk::peerSize() const {
-  return raft_node_.num_peers_;
-}
+int RaftChunk::peerSize() const { return raft_node_.numPeers(); }
 
 inline void RaftChunk::syncLatestCommitTime(const Revision& item) {
   std::lock_guard<std::mutex> lock(latest_commit_time_mutex_);
@@ -97,7 +99,10 @@ inline void RaftChunk::handleRaftAppendRequest(
     Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
-  if (raft_node_.isRunning() && raft_node_.hasPeer(sender)) {
+  // No need to check hasPeer() because a new peer can send this request about
+  // which this peer doesn't know yet. This is safe because handleAppendRequest
+  // checks for log and term consistency.
+  if (raft_node_.isRunning()) {
     raft_node_.handleAppendRequest(request, sender, response);
   } else {
     response->decline();
@@ -108,7 +113,10 @@ inline void RaftChunk::handleRaftRequestVote(const proto::VoteRequest& request,
                                              const PeerId& sender,
                                              Message* response) {
   CHECK_NOTNULL(response);
-  if (raft_node_.isRunning() && raft_node_.hasPeer(sender)) {
+  // No need to check hasPeer() because a new peer can send this request about
+  // which this peer doesn't know yet. This is safe because handleRequestVote
+  // checks for log and term consistency.
+  if (raft_node_.isRunning()) {
     raft_node_.handleRequestVote(request, sender, response);
   } else {
     response->decline();

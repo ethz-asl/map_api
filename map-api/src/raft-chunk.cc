@@ -345,6 +345,16 @@ bool RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
   return true;
 }
 
+void RaftChunk::commitInsertCallback(const common::Id& inserted_id) {
+  handleCommitInsert(inserted_id);
+}
+
+void RaftChunk::commitUpdateCallback(const common::Id& updated_id) {
+  handleCommitUpdate(updated_id);
+}
+
+void RaftChunk::commitUnlockCallback() { handleCommitEnd(); }
+
 void RaftChunk::forceStopRaft() { raft_node_.stop(); }
 
 void RaftChunk::leaveImpl() {
