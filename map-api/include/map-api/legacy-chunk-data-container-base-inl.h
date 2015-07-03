@@ -7,7 +7,11 @@ LegacyChunkDataContainerBase::History::const_iterator
 LegacyChunkDataContainerBase::History::latestAt(const LogicalTime& time) const {
   for (const_iterator it = cbegin(); it != cend(); ++it) {
     if ((*it)->getUpdateTime() <= time) {
-      return it;
+      if ((*it)->isRemoved()) {
+        return cend();
+      } else {
+        return it;
+      }
     }
   }
   return cend();
