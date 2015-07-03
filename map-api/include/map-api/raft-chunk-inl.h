@@ -95,7 +95,10 @@ inline void RaftChunk::handleRaftAppendRequest(
     Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
-  if (raft_node_.isRunning() && raft_node_.hasPeer(sender)) {
+  // No need to check hasPeer() because a new peer can send this request about
+  // which this peer doesn't know yet. This is safe because handleAppendRequest
+  // checks for log and term consistency.
+  if (raft_node_.isRunning()) {
     raft_node_.handleAppendRequest(request, sender, response);
   } else {
     response->decline();
@@ -106,7 +109,10 @@ inline void RaftChunk::handleRaftRequestVote(const proto::VoteRequest& request,
                                              const PeerId& sender,
                                              Message* response) {
   CHECK_NOTNULL(response);
-  if (raft_node_.isRunning() && raft_node_.hasPeer(sender)) {
+  // No need to check hasPeer() because a new peer can send this request about
+  // which this peer doesn't know yet. This is safe because handleRequestVote
+  // checks for log and term consistency.
+  if (raft_node_.isRunning()) {
     raft_node_.handleRequestVote(request, sender, response);
   } else {
     response->decline();
