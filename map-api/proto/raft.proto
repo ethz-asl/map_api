@@ -89,8 +89,9 @@ message ConnectResponse {
 
 message RaftInitRequest {
   optional ChunkRequestMetadata metadata = 1;
-  repeated string peer_id = 2;
-  repeated RaftLogEntry log_entries = 3;
+  optional uint64 log_entry_index = 2;
+  repeated string peer_id = 3;
+  repeated RaftLogEntry log_entries = 4;
 }
 
 message InsertRequest {

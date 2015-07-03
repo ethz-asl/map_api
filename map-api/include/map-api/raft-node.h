@@ -63,13 +63,13 @@ class MultiChunkTransaction;
 class RaftNode {
  public:
   enum class State {
+    INITIALIZING,
     JOINING,
-    LEADER,
     FOLLOWER,
     CANDIDATE,
+    LEADER,
     LOST_CONNECTION,
-    DISCONNECTING,
-    STOPPED
+    DISCONNECTING
   };
 
   void start();
@@ -178,6 +178,9 @@ class RaftNode {
   // Expects log write lock to have been acquired.
   bool sendInitRequest(const PeerId& peer, const LogWriteAccess& log_writer);
 
+  uint64_t sendRejoinRequest(const PeerId& to, Message* request,
+                             proto::ConnectResponse* connect_response);
+
   // ================
   // State Management
   // ================
@@ -186,6 +189,7 @@ class RaftNode {
   PeerId leader_id_;
   State state_;
   uint64_t current_term_;
+  uint64_t join_log_index_;
   mutable std::mutex state_mutex_;
 
   // Heartbeat information.
@@ -248,7 +252,7 @@ class RaftNode {
   void followerAddPeer(const PeerId& peer);
   void followerRemovePeer(const PeerId& peer);
 
-  void attemptRejoin();
+  uint64_t attemptRejoin();
 
   // ===============
   // Leader election

@@ -8,10 +8,14 @@
 namespace map_api {
 
 void RaftChunk::setStateFollowerAndStartRaft() {
-    raft_node_.state_ = RaftNode::State::FOLLOWER;
-    VLOG(2) << PeerId::self() << ": Starting Raft node as follower for chunk "
-            << id_.printString();
-    raft_node_.start();
+  // Leader sends init request when committing join entry. It only sends
+  // already committed entries. Hence last log index + 1 is this peer's join
+  // index.
+  raft_node_.join_log_index_ = raft_node_.data_->lastLogIndex() + 1;
+  raft_node_.state_ = RaftNode::State::JOINING;
+  VLOG(2) << PeerId::self() << ": Starting Raft node as JOINING for chunk "
+          << id_.printString();
+  raft_node_.start();
 }
 
 void RaftChunk::setStateLeaderAndStartRaft() {
