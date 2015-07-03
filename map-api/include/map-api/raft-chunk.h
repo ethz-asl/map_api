@@ -18,6 +18,7 @@ class Revision;
 namespace benchmarks {
 // Forward declaration necessary for friending this class.
 class RaftBenchmarkTests;
+class BubbleSortTest;
 }
 
 class RaftChunk : public ChunkBase {
@@ -26,6 +27,7 @@ class RaftChunk : public ChunkBase {
   friend class ChunkTransaction;
   friend class ConsensusFixture;
   friend class benchmarks::RaftBenchmarkTests;
+  friend class benchmarks::BubbleSortTest;
   FRIEND_TEST(ConsensusFixture, LeaderElection);
   FRIEND_TEST(NetTableFixture, TransactionAbortOnPeerDisconnect);
   FRIEND_TEST(RaftBenchmarkTests, Raft);

@@ -56,6 +56,10 @@ class PeerHandler {
 
   size_t size() const;
 
+  size_t selfRank();
+
+  const PeerId& getPeerByRank(size_t rank);
+
  private:
   std::set<PeerId> peers_;  // std::set to ensure uniform ordering
   mutable std::mutex mutex_;

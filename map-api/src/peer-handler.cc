@@ -107,4 +107,22 @@ bool PeerHandler::undisputableBroadcast(Message* request) {
   return true;
 }
 
+size_t PeerHandler::selfRank() {
+  size_t i = 0;
+  for (const PeerId& peer : peers_) {
+    if (peer == PeerId::self()) {
+      return i;
+    }
+    ++i;
+  }
+  CHECK(false) << "Self not found in set!";
+  return 0u;
+}
+
+const PeerId& PeerHandler::getPeerByRank(size_t rank) {
+  std::set<PeerId>::iterator it = peers_.begin();
+  std::advance(it, rank);
+  return *it;
+}
+
 } /* namespace map_api */

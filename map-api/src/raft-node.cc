@@ -107,6 +107,9 @@ void RaftNode::start() {
     while (!state_thread_running_) {
       usleep(2000);
     }
+    election_timeout_ms_ = setElectionTimeout();
+    VLOG(1) << "Starting raft node for chunk " << chunk_id_
+            << " with election timeout " << election_timeout_ms_;
   }
 }
 

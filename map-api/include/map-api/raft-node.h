@@ -61,6 +61,7 @@ class MultiChunkTransaction;
 namespace benchmarks {
 // Forward declaration necessary for friending this class.
 class RaftBenchmarkTests;
+class BubbleSortTest;
 }
 
 // Implementation of Raft consensus algorithm presented here:
@@ -111,6 +112,7 @@ class RaftNode {
  private:
   friend class ConsensusFixture;
   friend class benchmarks::RaftBenchmarkTests;
+  friend class benchmarks::BubbleSortTest;
   friend class RaftChunk;
   FRIEND_TEST(ConsensusFixture, LeaderElection);
   RaftNode();
