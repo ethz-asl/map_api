@@ -99,6 +99,7 @@ void NetTableTransaction::prepareMultiChunkTransactionInfo(
     const PeerId& leader = CHECK_NOTNULL(
         dynamic_cast<RaftChunk*>(chunk_transaction.first))  // NOLINT
                                ->raft_node_.getLeader();
+    CHECK(leader.isValid());
     info->add_leader_id(leader.ipPort());
   }
 }
