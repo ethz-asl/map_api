@@ -4,9 +4,12 @@
 #include <mutex>
 #include <string>
 
+#include <gflags/gflags.h>
 #include <zeromq_cpp/zmq.hpp>
 
 #include "map-api/peer-id.h"
+
+DECLARE_int32(request_timeout);
 
 namespace map_api {
 class Message;
