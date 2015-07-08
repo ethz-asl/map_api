@@ -20,6 +20,7 @@ void RaftChunk::setStateFollowerAndStartRaft() {
 
 void RaftChunk::setStateLeaderAndStartRaft() {
     raft_node_.state_ = RaftNode::State::LEADER;
+    raft_node_.leader_id_ = PeerId::self();
     VLOG(2) << PeerId::self() << ": Starting Raft node as leader for chunk "
             << id_.printString();
     raft_node_.start();
