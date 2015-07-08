@@ -388,6 +388,15 @@ class RaftNode {
   common::Id chunk_id_;
   template <typename RequestType>
   inline void fillMetadata(RequestType* destination) const;
+
+  // ==================
+  // Hooks for testing.
+  // ==================
+  std::function<void(void)> lost_leadership_callback_;
+  std::function<void(void)> elected_as_leader_callback_;
+  std::function<void(void)> new_leader_found_callback_;
+  std::function<void(uint64_t)> entry_appended_callback_;
+  std::function<void(uint64_t)> entry_commited_callback_;
 };
 
 }  // namespace map_api
