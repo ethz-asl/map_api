@@ -188,6 +188,8 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
         state_ = State::FOLLOWER;
         follower_trackers_run_ = false;
       }
+      VLOG(1) << " *** Leader changed to " << sender
+              << " in term " << request_term << " for chunk " << chunk_id_;
     } else if (state_ == State::FOLLOWER && request_term == current_term_ &&
                sender != leader_id_ && current_term_ > 0 &&
                leader_id_.isValid()) {
