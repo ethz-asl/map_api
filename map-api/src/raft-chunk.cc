@@ -119,7 +119,11 @@ bool RaftChunk::insert(const LogicalTime& time,
   }
 }
 
-void RaftChunk::writeLock() {
+void RaftChunk::writeLock() { raftChunkLock(); }
+
+void RaftChunk::readLock() const { raftChunkLock(); }
+
+void RaftChunk::raftChunkLock() const {
   CHECK(raft_node_.isRunning());
   std::lock_guard<std::mutex> lock_mutex(write_lock_mutex_);
   VLOG(3) << PeerId::self() << " Attempting lock for chunk " << id()
@@ -152,8 +156,6 @@ void RaftChunk::writeLock() {
   VLOG(3) << PeerId::self() << " acquired lock for chunk " << id()
           << ". Current depth: " << chunk_write_lock_depth_;
 }
-
-void RaftChunk::readLock() const {}
 
 bool RaftChunk::isWriteLocked() {
   std::lock_guard<std::mutex> lock(write_lock_mutex_);

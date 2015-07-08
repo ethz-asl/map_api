@@ -72,11 +72,18 @@ class RaftChunk : public ChunkBase {
   mutable int self_read_lock_depth_;
   mutable std::condition_variable chunk_lock_cv_;
   mutable std::mutex write_lock_mutex_;
+
   virtual void writeLock() override;
-  virtual void readLock() const override;  // No read lock for raft chunks.
+
+  virtual void readLock() const override;
+
+  void raftChunkLock() const;
+
   virtual bool isWriteLocked() override;
+
   virtual void unlock() const override;
   void unlock(bool proceed_transaction) const;
+
   const PeerId& getLockHolder() const;
 
   virtual int requestParticipation() override;

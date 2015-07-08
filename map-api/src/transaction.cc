@@ -168,6 +168,8 @@ bool Transaction::multiChunkCommit() {
     }
   }
 
+  commit_time_ = LogicalTime::sample();
+  VLOG(3) << "Commit from " << begin_time_ << " to " << commit_time_;
   std::vector<std::future<bool>> responses;
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     std::future<bool> success =
