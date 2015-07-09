@@ -621,17 +621,12 @@ void NetTableManager::handleRaftQueryState(const Message& request,
   CHECK_NOTNULL(response);
   proto::QueryState query_state;
   request.extract<RaftNode::kQueryState>(&query_state);
-  const proto::ChunkRequestMetadata metadata = query_state.metadata();
-  const std::string& table = metadata.table();
-  common::Id chunk_id(metadata.chunk_id());
-  common::ScopedReadLock lock(&instance().tables_lock_);
-  std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator found =
-      instance().tables_.find(table);
-  if (found == instance().tables_.end()) {
-    response->impose<Message::kDecline>();
-    return;
+  TableMap::iterator found;
+  common::Id chunk_id;
+  if (getTableChunkForRequestWithMetadataOrDecline(query_state, response,
+                                                   &found, &chunk_id)) {
+    found->second->handleRaftQueryState(chunk_id, query_state, response);
   }
-  found->second->handleRaftQueryState(chunk_id, query_state, response);
 }
 
 void NetTableManager::handleRaftLeaveRequest(const Message& request,
