@@ -97,10 +97,7 @@ std::string Transaction::printCacheStatistics() const {
   return ss.str();
 }
 
-// Deadlocks are prevented by imposing a global ordering on
-// net_table_transactions_, and have the locks acquired in that order
-// (resource hierarchy solution)
-bool Transaction::commit() {
+void Transaction::prepareForCommit() {
   if (FLAGS_blame_commit) {
     LOG(INFO) << "Transaction committed from:\n" << common::backtrace();
   }
@@ -110,6 +107,13 @@ bool Transaction::commit() {
   enableDirectAccess();
   pushNewChunkIdsToTrackers();
   disableDirectAccess();
+}
+
+// Deadlocks are prevented by imposing a global ordering on
+// net_table_transactions_, and have the locks acquired in that order
+// (resource hierarchy solution)
+bool Transaction::commit() {
+  prepareForCommit();
   timing::Timer timer("map_api::Transaction::commit - lock");
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->lock();
@@ -136,15 +140,7 @@ bool Transaction::commit() {
 
 bool Transaction::multiChunkCommit() {
   CHECK(FLAGS_use_raft);
-  if (FLAGS_blame_commit) {
-    LOG(INFO) << "Transaction committed from:\n" << common::backtrace();
-  }
-  for (const CacheMap::value_type& cache_pair : attached_caches_) {
-    cache_pair.second->prepareForCommit();
-  }
-  enableDirectAccess();
-  pushNewChunkIdsToTrackers();
-  disableDirectAccess();
+  prepareForCommit();
 
   proto::MultiChunkTransactionInfo commit_info;
   prepareMultiChunkTransactionInfo(&commit_info);

@@ -272,17 +272,15 @@ bool RaftChunk::sendConnectRequest(const PeerId& peer,
 
 bool RaftChunk::sendChunkTransactionInfo(proto::ChunkTransactionInfo* info) {
   CHECK(raft_node_.isRunning()) << PeerId::self();
-  uint64_t index = 0;
   uint64_t serial_id = request_id_.getNewId();
   // TODO(aqurai): Limit number of retry attempts.
   while (raft_node_.isRunning()) {
-    index = raft_node_.sendChunkTransactionInfo(info, serial_id);
-    if (index > 0) {
-      break;
+    if (raft_node_.sendChunkTransactionInfo(info, serial_id)) {
+      return true;
     }
     usleep(150 * kMillisecondsToMicroseconds);
   }
-  return (index > 0);
+  return false;
 }
 
 bool RaftChunk::bulkInsertLocked(const MutableRevisionMap& items,
