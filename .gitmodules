@@ -6,7 +6,7 @@
 	url = git@github.com:ethz-asl/aslam_cv2.git
 [submodule "gtsam_devel"]
 	path = gtsam_devel
-	url = git@bitbucket.org:gtborg/gtsam.git
+	url = https://bitbucket.org/gtborg/gtsam.git
 [submodule "tools/multiagent_mapping_test_data"]
 	path = tools/multiagent_mapping_test_data
 	url = git@github.com:ethz-asl/multiagent_mapping_test_data.git
