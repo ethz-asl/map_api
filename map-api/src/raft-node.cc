@@ -190,6 +190,10 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
       }
       VLOG(1) << " *** Leader changed to " << sender << " in term "
               << request_term << " for chunk " << chunk_id_;
+
+      if (new_leader_found_callback_) {
+        std::thread(new_leader_found_callback_).detach();
+      }
     } else if (state_ == State::FOLLOWER && request_term == current_term_ &&
                sender != leader_id_ && current_term_ > 0 &&
                leader_id_.isValid()) {
@@ -545,6 +549,11 @@ void RaftNode::stateManagerThread() {
               wait_lock, std::chrono::milliseconds(kHeartbeatSendPeriodMs));
         }
       }
+
+      if (lost_leadership_callback_) {
+        std::thread(lost_leadership_callback_).detach();
+      }
+
       VLOG(1) << "Peer " << PeerId::self() << " Lost leadership of chunk "
               << chunk_id_;
       tracker_lock.lock();
@@ -811,6 +820,10 @@ void RaftNode::conductElection() {
     VLOG(1) << "*** Peer " << PeerId::self()
             << " Elected as the leader of chunk " << chunk_id_ << " for term "
             << current_term_ << " with " << num_votes + 1 << " votes. ***";
+
+    if (elected_as_leader_callback_) {
+      std::thread(elected_as_leader_callback_).detach();
+    }
   } else if (state_ == State::CANDIDATE) {
     // This peer doesn't win the election.
     LOG(WARNING) << PeerId::self() << " not elected as leader for chunk"
@@ -1123,6 +1136,11 @@ uint64_t RaftNode::leaderAppendLogEntryLocked(
   new_entry->set_index(log_writer->lastLogIndex() + 1);
   new_entry->set_term(current_term);
   log_writer->appendLogEntry(new_entry);
+
+  if (leader_entry_appended_callback_) {
+    std::thread(leader_entry_appended_callback_, new_entry->index()).detach();
+  }
+
   new_entries_signal_.notify_all();
   VLOG_EVERY_N(1, 10) << "Adding entry to log with index "
                       << new_entry->index();
@@ -1199,6 +1217,11 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
     multiChunkTransactionInfoCommit(*it);
     log_writer->setCommitIndex(log_writer->commitIndex() + 1);
     entry_committed_signal_.notify_all();
+
+    if (leader_entry_committed_callback_) {
+      std::thread(leader_entry_committed_callback_, (*it)->index()).detach();
+    }
+
     VLOG_EVERY_N(2, 10) << PeerId::self() << ": Commit index increased to "
                         << log_writer->commitIndex()
                         << " With replication count " << replication_count
