@@ -1202,7 +1202,7 @@ void ChordIndex::lockMonitorThread() {
       node_lock_holder_ = PeerId();
       node_locked_ = false;
       LOG(WARNING) << own_key_ << ": Lock held by " << hash(node_lock_holder_)
-                   << " timed out.";
+                   << " ( " << node_lock_holder_ << " ) timed out.";
       break;
     }
   }
