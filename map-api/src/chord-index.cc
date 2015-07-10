@@ -508,6 +508,7 @@ void ChordIndex::leave() {
 
   // TODO(aqurai): Check if this has to be uncommented.
   // CHECK_EQ(kCleanJoin, FLAGS_join_mode) << "Stabilize leave deprecated";
+  VLOG(1) << own_key_ << "Attempting to leave chord ring.";
   leaveClean();
   // TODO(tcies) unhack! "Ensures" that pending requests resolve
   usleep(FLAGS_simulated_lag_ms * 100000 + 100000);
@@ -606,9 +607,9 @@ void ChordIndex::leaveClean() {
       unlock(predecessor);
     }
     unlock(successor);
-    VLOG(3) << own_key_ << " left ring topo";
+    VLOG(1) << own_key_ << " left ring topo";
   } else {
-    VLOG(3) << "Last peer left chord index";
+    VLOG(1) << "Last peer left chord index";
   }
   unlock();
 }
@@ -674,33 +675,7 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
         self->replaceDisconnectedSuccessor();
       } else {
         self->lock();
-        // Note that we do isIn from-exclusive and to-exclusive
         if (successor_predecessor != PeerId::self() &&
-            isIn(hash(successor_predecessor), own_key, successor_key + 1)) {
-          self->unlock();
-          // Someone joined in between.
-          // TODO(aqurai): Check if this case ever happens after joinBetween
-          // impl.
-          VLOG(2) << self->own_key_ << ": " << hash(successor_predecessor)
-                  << " joined in between me and my successor " << successor_key;
-          bool proceed = false;
-          proceed = self->lock(successor_predecessor);
-          if (proceed) {
-            self->data_lock_.acquireWriteLock();
-            proceed = self->fetchResponsibilitiesRpc(successor_predecessor,
-                                                     &self->data_);
-            self->data_lock_.releaseWriteLock();
-          }
-          if (proceed) {
-            self->registerPeer(successor_predecessor, &self->successor_);
-            proceed = self->notifyRpc(successor_predecessor, PeerId::self(),
-                                      proto::NotifySenderType::PREDECESSOR);
-          }
-          self->unlock(successor_predecessor);
-          if (!proceed) {
-            continue;
-          }
-        } else if (successor_predecessor != PeerId::self() &&
                    isIn(own_key, hash(successor_predecessor),
                         successor_key + 1)) {
           self->unlock();
