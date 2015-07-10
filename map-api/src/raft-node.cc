@@ -1060,7 +1060,7 @@ void RaftNode::followerCommitNewEntries(const LogWriteAccess& log_writer,
         applySingleRevisionCommit(entry);
       }
       if (raft_chunk_lock_.isLocked() && entry->has_insert_revision()) {
-        multi_chunk_transaction_manager_->notifyReceivedRevisionIfActive();
+        multi_chunk_transaction_manager_->notifyReceivedRevision();
       }
       chunkLockEntryCommit(log_writer, entry);
       multiChunkTransactionInfoCommit(entry);
@@ -1181,7 +1181,7 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
       applySingleRevisionCommit(*it);
     }
     if (raft_chunk_lock_.isLocked() && (*it)->has_insert_revision()) {
-      multi_chunk_transaction_manager_->notifyReceivedRevisionIfActive();
+      multi_chunk_transaction_manager_->notifyReceivedRevision();
     }
     chunkLockEntryCommit(log_writer, *it);
     multiChunkTransactionInfoCommit(*it);
@@ -1230,15 +1230,16 @@ void RaftNode::chunkLockEntryCommit(const LogWriteAccess& log_writer,
     if (entry->unlock_proceed_commits()) {
       if (multi_chunk_transaction_manager_->isActive() &&
           !multi_chunk_transaction_manager_->isAborted()) {
-        multi_chunk_transaction_manager_->notifyUnlockAndCommitReceived();
+        multi_chunk_transaction_manager_->notifyProceedCommit(
+            MultiChunkTransaction::NotificationMode::SILENT);
         bulkApplyLockedRevisions(log_writer,
             raft_chunk_lock_.lock_entry_index(), entry->index());
         multi_chunk_transaction_manager_->notifyCommitSuccess();
-        multi_chunk_transaction_manager_->clearMultiChunkTransaction();
+        multi_chunk_transaction_manager_->clear();
       } else if (multi_chunk_transaction_manager_->isActive() &&
                  multi_chunk_transaction_manager_->isAborted()) {
         // Aborted for other reasons. Don't apply revision commits.
-        multi_chunk_transaction_manager_->clearMultiChunkTransaction();
+        multi_chunk_transaction_manager_->clear();
       } else if (!multi_chunk_transaction_manager_->isActive()) {
         // Single chunk transaction.
         bulkApplyLockedRevisions(
@@ -1248,7 +1249,7 @@ void RaftNode::chunkLockEntryCommit(const LogWriteAccess& log_writer,
       if (multi_chunk_transaction_manager_->isActive()) {
         multi_chunk_transaction_manager_->notifyAbort(
             MultiChunkTransaction::NotificationMode::SILENT);
-        multi_chunk_transaction_manager_->clearMultiChunkTransaction();
+        multi_chunk_transaction_manager_->clear();
       }
     }
     raft_chunk_lock_.unlock();
@@ -1259,8 +1260,8 @@ void RaftNode::multiChunkTransactionInfoCommit(
     const std::shared_ptr<proto::RaftLogEntry>& entry) {
   if (entry->has_multi_chunk_transaction_info()) {
     CHECK(raft_chunk_lock_.isLockHolder(PeerId(entry->sender())));
-    multi_chunk_transaction_manager_->initMultiChunkTransaction(
-        entry->multi_chunk_transaction_info(),
+    multi_chunk_transaction_manager_->initNewMultiChunkTransaction(
+        entry->release_multi_chunk_transaction_info(),
         entry->multi_chunk_transaction_num_entries());
   }
 }
@@ -1455,8 +1456,8 @@ bool RaftNode::sendChunkUnlockRequest(uint64_t serial_id,
   return false;
 }
 
-uint64_t RaftNode::sendChunkTransactionInfo(proto::ChunkTransactionInfo* info,
-                                            uint64_t serial_id) {
+bool RaftNode::sendChunkTransactionInfo(proto::ChunkTransactionInfo* info,
+                                        uint64_t serial_id) {
   State append_state;
   PeerId leader_id;
   uint64_t append_term;
@@ -1479,7 +1480,7 @@ uint64_t RaftNode::sendChunkTransactionInfo(proto::ChunkTransactionInfo* info,
     request.impose<kChunkTransactionInfo>(*info);
     if (!Hub::instance().try_request(leader_id, &request, &response)) {
       VLOG(1) << "Send Chunk commit info failed.";
-      return 0;
+      return false;
     }
     if (response.isType<kRaftChunkRequestResponse>()) {
       response.extract<kRaftChunkRequestResponse>(&chunk_response);
@@ -1487,9 +1488,9 @@ uint64_t RaftNode::sendChunkTransactionInfo(proto::ChunkTransactionInfo* info,
     }
   }
   if (index > 0 && waitAndCheckCommit(index, append_term, serial_id)) {
-    return index;
+    return true;
   }
-  return 0;
+  return false;
 }
 
 bool RaftNode::sendInsertRequest(const Revision::ConstPtr& item,

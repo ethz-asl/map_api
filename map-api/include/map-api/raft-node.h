@@ -43,7 +43,7 @@
 #include <vector>
 
 #include <gtest/gtest_prod.h>
-#include "multiagent-mapping-common/reader-writer-lock.h"
+#include <multiagent-mapping-common/reader-writer-lock.h>
 #include <multiagent-mapping-common/unique-id.h>
 
 #include "./raft.pb.h"
@@ -342,8 +342,8 @@ class RaftNode {
   uint64_t sendChunkLockRequest(uint64_t serial_id);
   bool sendChunkUnlockRequest(uint64_t serial_id, uint64_t lock_index,
                                   bool proceed_commits);
-  uint64_t sendChunkTransactionInfo(proto::ChunkTransactionInfo* info,
-                                    uint64_t serial_id);
+  bool sendChunkTransactionInfo(proto::ChunkTransactionInfo* info,
+                                uint64_t serial_id);
   // New revision request.
   bool sendInsertRequest(const Revision::ConstPtr& item, uint64_t serial_id,
                              bool is_retry_attempt);

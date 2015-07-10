@@ -78,6 +78,7 @@ class Transaction {
   void remove(const IdType& id, NetTable* table);
 
   // TRANSACTION OPERATIONS
+  void prepareForCommit();
   bool commit();
   bool multiChunkCommit();
   void unlockAllChunks(bool is_success);
