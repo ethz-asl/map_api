@@ -16,6 +16,8 @@
 #include "map-api/multi-chunk-transaction.h"
 #include "map-api/revision.h"
 
+DECLARE_int32(request_timeout);
+
 namespace map_api {
 
 // TODO(aqurai): decide good values for these
@@ -267,6 +269,7 @@ void RaftNode::handleRequestVote(const proto::VoteRequest& vote_request,
     // It takes this amount of time for the candidate to complete the election
     // if the leader / one of the voters is not responding. Longer timeout will
     // prevent a parallel election.
+    // TODO(aqurai): Does this need to be randomized?
     election_timeout_ms_ = 2 * FLAGS_request_timeout;
     VLOG(1) << "Peer " << PeerId::self().ipPort() << " is voting for " << sender
             << " in term " << current_term_ << " for chunk " << chunk_id_;
