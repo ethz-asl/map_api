@@ -87,9 +87,7 @@ void LegacyChunkDataRamContainer::getAvailableIdsImpl(
   for (const HistoryMap::value_type& pair : data_) {
     History::const_iterator latest = pair.second.latestAt(time);
     if (latest != pair.second.cend()) {
-      if (!(*latest)->isRemoved()) {
-        ids->emplace_back(pair.first);
-      }
+      ids->emplace_back(pair.first);
     }
   }
 }
@@ -158,9 +156,7 @@ inline void LegacyChunkDataRamContainer::forEachItemFoundAtTime(
     History::const_iterator latest = pair.second.latestAt(time);
     if (latest != pair.second.cend()) {
       if (key < 0 || value_holder.fieldMatch(**latest, key)) {
-        if (!(*latest)->isRemoved()) {
-          action(pair.first, *latest);
-        }
+        action(pair.first, *latest);
       }
     }
   }
@@ -175,9 +171,7 @@ inline void LegacyChunkDataRamContainer::forChunkItemsAtTime(
     if ((*pair.second.begin())->getChunkId() == chunk_id) {
       History::const_iterator latest = pair.second.latestAt(time);
       if (latest != pair.second.cend()) {
-        if (!(*latest)->isRemoved()) {
-          action(pair.first, *latest);
-        }
+        action(pair.first, *latest);
       }
     }
   }
