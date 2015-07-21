@@ -8,6 +8,7 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <multiagent-mapping-common/conversions.h>
 #include <multiagent-mapping-common/delayed-notification.h>
 
 #include "map-api/hub.h"
@@ -17,7 +18,8 @@ DEFINE_double(discovery_timeout_seconds, 0.5, "Timeout for file discovery.");
 
 namespace map_api {
 
-FileDiscovery::FileDiscovery() {
+FileDiscovery::FileDiscovery()
+    : force_unlocked_once_(false) {
   if (FLAGS_clear_discovery) {
     LOG(WARNING) << "Beware, discovery file is manually removed!";
     if (unlink(kFileName) == -1) {
@@ -85,9 +87,18 @@ void FileDiscovery::lock() {
     using std::chrono::duration_cast;
     double time_ms =
         duration_cast<std::chrono::milliseconds>(end - start).count();
-    if (time_ms > FLAGS_discovery_timeout_seconds * 1e3) {
-      LOG(FATAL) << "File discovery lock timed out! "
-        << "Need to remove " << kLockFileName;
+    if (time_ms > FLAGS_discovery_timeout_seconds * kSecondsToMilliSeconds) {
+      // Allow to force unlock the file once, in case there is still a lock file present from
+      // a previous unclean shutdown.
+      if (!force_unlocked_once_) {
+        LOG(ERROR) << "File discovery lock timed out! "
+            << "Probably there was an outdated lock file present: " << kLockFileName << ". "
+            << "The lock file has been deleted and ownership of the lock will be forced.";
+        CHECK_NE(unlink(kLockFileName), -1);
+        force_unlocked_once_ = true;
+      } else {
+        LOG(FATAL) << "File discovery lock timed out! ";
+      }
     }
   }
 }
@@ -111,7 +122,7 @@ void FileDiscovery::remove(const PeerId& peer) {
 
 void FileDiscovery::unlock() {
   CHECK_NE(close(lock_file_descriptor_), -1) << errno;
-  CHECK_NE(unlink(kLockFileName), -1);
+  unlink(kLockFileName);
   mutex_.unlock();
 }
 
