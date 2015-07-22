@@ -1,6 +1,6 @@
-##Contributions to multi-agent-mapping are welcome!
+Contributions to multi-agent-mapping are welcome!
 
-###We would like to ask you do stick to the following procedure when contributing to the multi-agent-mapping repository:
+We would like to ask you do stick to the following procedure when contributing to the multi-agent-mapping repository:
 
 - Use the google-c++ code [style](http://google-styleguide.googlecode.com/svn/trunk/cppguide.html).
 - Follow the pull-request and review work-flow.
