@@ -7,7 +7,6 @@
 
 #include "map-api/file-discovery.h"
 #include "map-api/hub.h"
-#include "map-api/net-table-manager.h"
 #include "map-api/server-discovery.h"
 #include "map-api/test/testing-entrypoint.h"
 #include "./map_api_fixture.h"
