@@ -7,6 +7,7 @@
 
 #include "map-api/file-discovery.h"
 #include "map-api/hub.h"
+#include "map-api/net-table-manager.h"
 #include "map-api/server-discovery.h"
 #include "map-api/test/testing-entrypoint.h"
 #include "./map_api_fixture.h"
@@ -88,16 +89,6 @@ class FileDiscoveryTest : public DiscoveryTest {
     CHECK_NE(unlink(FileDiscovery::kLockFileName), -1);
   }
 };
-
-TEST_P(FileDiscoveryTest, DiscoveryLockTimeout) {
-  fakeZombieLockFile();
-  std::set<PeerId> peers;
-  EXPECT_DEATH(Hub::instance().getPeers(&peers), "^");
-  clearFakeZombieLockFile();
-}
-
-INSTANTIATE_TEST_CASE_P(FileDiscoveryInstance, FileDiscoveryTest,
-                        ::testing::Values("file"));
 
 }  // namespace map_api
 
