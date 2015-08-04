@@ -52,8 +52,6 @@ namespace map_api {
 const char Hub::kDiscovery[] = "map_api_hub_discovery";
 const char Hub::kReady[] = "map_api_hub_ready";
 
-Hub::HandlerMap Hub::handlers_;
-
 bool Hub::init(bool* is_first_peer) {
   CHECK_NOTNULL(is_first_peer);
   context_.reset(new zmq::context_t());
@@ -379,9 +377,9 @@ void Hub::listenThread(Hub* self) {
       LogicalTime::synchronize(LogicalTime(query.logical_time()));
 
       // Query handler
-      HandlerMap::iterator handler = handlers_.find(query.type());
-      if (handler == handlers_.end()) {
-        for (const HandlerMap::value_type& handler : handlers_) {
+      HandlerMap::iterator handler = self->handlers_.find(query.type());
+      if (handler == self->handlers_.end()) {
+        for (const HandlerMap::value_type& handler : self->handlers_) {
           LOG(INFO) << handler.first;
         }
         LOG(FATAL) << "Handler for message type " << query.type()
