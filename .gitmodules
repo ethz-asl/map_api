@@ -10,3 +10,6 @@
 [submodule "tools/multiagent_mapping_test_data"]
 	path = tools/multiagent_mapping_test_data
 	url = git@github.com:ethz-asl/multiagent_mapping_test_data.git
+[submodule "vi-algorithms/structural_descriptors"]
+	path = vi-algorithms/structural_descriptors
+	url = git@github.com:ethz-asl/structural_descriptors.git
