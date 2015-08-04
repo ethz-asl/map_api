@@ -80,7 +80,10 @@ common::Id NetTableFixture::insert(int n, ChunkTransaction* transaction) {
 }
 
 void NetTableFixture::insert(int n, common::Id* id, Transaction* transaction) {
-  CHECK_NOTNULL(id);
+  common::Id id_obj;
+  if (!id) {
+    id = &id_obj;
+  }
   CHECK_NOTNULL(transaction);
   generateId(id);
   std::shared_ptr<Revision> to_insert = table_->getTemplate();
@@ -92,10 +95,12 @@ void NetTableFixture::insert(int n, common::Id* id, Transaction* transaction) {
 void NetTableFixture::update(int n, const common::Id& id,
                              Transaction* transaction) {
   CHECK_NOTNULL(transaction);
-  std::shared_ptr<Revision> to_update =
-      transaction->getById(id, table_, chunk_)->copyForWrite();
-  to_update->set(kFieldName, n);
-  transaction->update(table_, to_update);
+  std::shared_ptr<const Revision> to_update =
+      transaction->getById(id, table_, chunk_);
+  ASSERT_TRUE(to_update != nullptr);
+  std::shared_ptr<Revision> update = to_update->copyForWrite();
+  update->set(kFieldName, n);
+  transaction->update(table_, update);
 }
 
 const std::string NetTableFixture::kTableName = "chunk_test_table";

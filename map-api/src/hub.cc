@@ -42,12 +42,15 @@ DEFINE_int32(discovery_timeout_ms, 100, "Timeout specific for first contact.");
 DEFINE_bool(map_api_network_log, false, "Log network activity.");
 DECLARE_int32(simulated_lag_ms);
 
+DEFINE_string(
+    map_api_hub_filter_handle_debug_output, "",
+    "Filter the debug "
+    "output of the handle thread to message types containing this string.");
+
 namespace map_api {
 
 const char Hub::kDiscovery[] = "map_api_hub_discovery";
 const char Hub::kReady[] = "map_api_hub_ready";
-
-Hub::HandlerMap Hub::handlers_;
 
 bool Hub::init(bool* is_first_peer) {
   CHECK_NOTNULL(is_first_peer);
@@ -145,9 +148,10 @@ void Hub::kill() {
   // unbind and re-enter server
   terminate_ = true;
   listener_.join();
-  // disconnect from peers (no need to lock as listener should be only other
-  // thread)
-  peers_.clear();
+  {
+    std::lock_guard<std::mutex> lock(peer_mutex_);
+    peers_.clear();
+  }
   // destroy context
   discovery_->lock();
   discovery_->leave();
@@ -206,15 +210,10 @@ void Hub::request(const PeerId& peer, Message* request, Message* response) {
   std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
       peers_.find(peer);
   if (found == peers_.end()) {
-    // double-checked locking pattern
-    std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
-        peers_.find(peer);
-    if (found == peers_.end()) {
-      std::pair<PeerMap::iterator, bool> emplacement = peers_.emplace(
-          peer, std::unique_ptr<Peer>(new Peer(peer, *context_, ZMQ_REQ)));
-      CHECK(emplacement.second);
-      found = emplacement.first;
-    }
+    std::pair<PeerMap::iterator, bool> emplacement = peers_.emplace(
+        peer, std::unique_ptr<Peer>(new Peer(peer, *context_, ZMQ_REQ)));
+    CHECK(emplacement.second);
+    found = emplacement.first;
   }
   found->second->request(request, response);
 }
@@ -225,18 +224,10 @@ bool Hub::try_request(const PeerId& peer, Message* request, Message* response) {
   std::lock_guard<std::mutex> lock(peer_mutex_);
   PeerMap::iterator found = peers_.find(peer);
   if (found == peers_.end()) {
-    LOG(INFO) << "couldn't find " << peer << " among " << peers_.size();
-    for (const PeerMap::value_type& peer : peers_) {
-      LOG(INFO) << peer.first;
-    }
-    // double-checked locking pattern
-    std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
-        peers_.find(peer);
-    if (found == peers_.end()) {
-      found = peers_.insert(std::make_pair(
-                                peer, std::unique_ptr<Peer>(new Peer(
-                                          peer, *context_, ZMQ_REQ)))).first;
-    }
+    std::pair<PeerMap::iterator, bool> emplacement = peers_.emplace(
+        peer, std::unique_ptr<Peer>(new Peer(peer, *context_, ZMQ_REQ)));
+    CHECK(emplacement.second);
+    found = emplacement.first;
   }
   return found->second->try_request(request, response);
 }
@@ -250,7 +241,6 @@ void Hub::broadcast(Message* request_message,
   std::set<PeerId> peers;
   getPeers(&peers);
   for (const PeerId& peer : peers) {
-    VLOG(3) << "Requesting " << peer;
     request(peer, request_message, &(*responses)[peer]);
   }
 }
@@ -276,12 +266,15 @@ bool Hub::isReady(const PeerId& peer) {
 
 void Hub::discoveryHandler(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
-  std::lock_guard<std::mutex> lock(instance().peer_mutex_);
 
-  instance().peers_.insert(
-      std::make_pair(PeerId(request.sender()),
-                     std::unique_ptr<Peer>(new Peer(
-                         request.sender(), *instance().context_, ZMQ_REQ))));
+  PeerId peer = request.sender();
+  std::thread([peer]() {
+                std::lock_guard<std::mutex> lock(instance().peer_mutex_);
+                instance().peers_.insert(std::make_pair(
+                    PeerId(peer), std::unique_ptr<Peer>(new Peer(
+                                      peer, *instance().context_, ZMQ_REQ))));
+              }).detach();
+
   response->ack();
 }
 
@@ -384,18 +377,39 @@ void Hub::listenThread(Hub* self) {
       LogicalTime::synchronize(LogicalTime(query.logical_time()));
 
       // Query handler
-      HandlerMap::iterator handler = handlers_.find(query.type());
-      if (handler == handlers_.end()) {
-        for (const HandlerMap::value_type& handler : handlers_) {
+      HandlerMap::iterator handler = self->handlers_.find(query.type());
+      if (handler == self->handlers_.end()) {
+        for (const HandlerMap::value_type& handler : self->handlers_) {
           LOG(INFO) << handler.first;
         }
         LOG(FATAL) << "Handler for message type " << query.type()
                    << " not registered";
       }
       Message response;
-      VLOG(3) << PeerId::self() << " received request " << query.type();
+      if (VLOG_IS_ON(4)) {
+        if (FLAGS_map_api_hub_filter_handle_debug_output != "") {
+          if (query.type().find(FLAGS_map_api_hub_filter_handle_debug_output) !=
+              std::string::npos) {
+            VLOG(4) << PeerId::self() << " received request " << query.type()
+                    << " from " << query.sender();
+          }
+        } else {
+          VLOG(4) << PeerId::self() << " received request " << query.type()
+                  << " from " << query.sender();
+        }
+      }
       handler->second(query, &response);
-      VLOG(3) << PeerId::self() << " handled request " << query.type();
+      if (VLOG_IS_ON(4)) {
+        if (FLAGS_map_api_hub_filter_handle_debug_output != "") {
+          if (query.type().find(FLAGS_map_api_hub_filter_handle_debug_output) !=
+              std::string::npos) {
+            VLOG(4) << PeerId::self() << " handled request " << query.type();
+          }
+        } else {
+          VLOG(4) << PeerId::self() << " handled request " << query.type();
+        }
+      }
+
       response.set_sender(PeerId::self().ipPort());
       response.set_logical_time(LogicalTime::sample().serialize());
       std::string serialized_response = response.SerializeAsString();
