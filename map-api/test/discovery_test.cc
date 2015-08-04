@@ -89,6 +89,16 @@ class FileDiscoveryTest : public DiscoveryTest {
   }
 };
 
+TEST_P(FileDiscoveryTest, DiscoveryLockTimeout) {
+  fakeZombieLockFile();
+  std::set<PeerId> peers;
+  EXPECT_DEATH(Hub::instance().getPeers(&peers), "^");
+  clearFakeZombieLockFile();
+}
+
+INSTANTIATE_TEST_CASE_P(FileDiscoveryInstance, FileDiscoveryTest,
+                        ::testing::Values("file"));
+
 }  // namespace map_api
 
 MAP_API_UNITTEST_ENTRYPOINT
