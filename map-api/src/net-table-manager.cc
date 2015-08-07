@@ -521,19 +521,16 @@ void NetTableManager::handleRoutedSpatialChordRequests(const Message& request,
 
 void NetTableManager::handleRaftConnectRequest(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
-  proto::ChunkRequestMetadata metadata;
-  request.extract<RaftNode::kConnectRequest>(&metadata);
-  const std::string& table = metadata.table();
-  common::Id chunk_id(metadata.chunk_id());
-  // TODO(aqurai): CHECK_NOTNULL(Core::instance()) needed here?
-  common::ScopedReadLock lock(&instance().tables_lock_);
-  std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
-  found = instance().tables_.find(table);
-  if (found == instance().tables_.end()) {
-    response->impose<Message::kDecline>();
-    return;
+  proto::RaftConnectRequest connect_request;
+  request.extract<RaftNode::kConnectRequest>(&connect_request);
+  TableMap::iterator found;
+  common::Id chunk_id;
+  if (getTableChunkForRequestWithMetadataOrDecline(connect_request, response,
+                                                   &found, &chunk_id)) {
+    found->second->handleRaftConnectRequest(
+        chunk_id, request.sender(), connect_request.connect_request_type(),
+        response);
   }
-  found->second->handleRaftConnectRequest(chunk_id, request.sender(), response);
 }
 
 void NetTableManager::handleRaftInitRequest(const Message& request, Message* response) {

@@ -119,7 +119,11 @@ bool RaftChunk::insert(const LogicalTime& time,
   }
 }
 
-void RaftChunk::writeLock() {
+void RaftChunk::writeLock() { raftChunkLock(); }
+
+void RaftChunk::readLock() const { raftChunkLock(); }
+
+void RaftChunk::raftChunkLock() const {
   CHECK(raft_node_.isRunning());
   std::lock_guard<std::mutex> lock_mutex(write_lock_mutex_);
   VLOG(3) << PeerId::self() << " Attempting lock for chunk " << id()
@@ -152,8 +156,6 @@ void RaftChunk::writeLock() {
   VLOG(3) << PeerId::self() << " acquired lock for chunk " << id()
           << ". Current depth: " << chunk_write_lock_depth_;
 }
-
-void RaftChunk::readLock() const {}
 
 bool RaftChunk::isWriteLocked() {
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
@@ -246,11 +248,16 @@ bool RaftChunk::update(const std::shared_ptr<Revision>& item) {
 }
 
 bool RaftChunk::sendConnectRequest(const PeerId& peer,
-                                   proto::ChunkRequestMetadata& metadata) {
+                                   const proto::ChunkRequestMetadata& metadata,
+                                   proto::ConnectRequestType connect_type) {
   Message request, response;
   proto::ConnectResponse connect_response;
   connect_response.set_index(0);
-  request.impose<RaftNode::kConnectRequest>(metadata);
+
+  proto::RaftConnectRequest connect_request;
+  connect_request.mutable_metadata()->CopyFrom(metadata);
+  connect_request.set_connect_request_type(connect_type);
+  request.impose<RaftNode::kConnectRequest>(connect_request);
 
   // TODO(aqurai): Avoid infinite loop. Use Chord index to get chunk holder
   // if request fails.
@@ -325,18 +332,26 @@ LogicalTime RaftChunk::getLatestCommitTime() const {
 
 bool RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
   CHECK(raft_node_.isRunning()) << PeerId::self();
-  bool retrying = false;
   uint64_t serial_id = request_id_.getNewId();
   // TODO(aqurai): Limit number of retry attempts.
   while (raft_node_.isRunning()) {
-    if (raft_node_.sendInsertRequest(item, serial_id, retrying)) {
+    if (raft_node_.sendInsertRequest(item, serial_id)) {
       break;
     }
-    retrying = true;
     usleep(150 * kMillisecondsToMicroseconds);
   }
   return true;
 }
+
+void RaftChunk::insertCommitCallback(const common::Id& inserted_id) {
+  handleCommitInsert(inserted_id);
+}
+
+void RaftChunk::updateCommitCallback(const common::Id& updated_id) {
+  handleCommitUpdate(updated_id);
+}
+
+void RaftChunk::unlockCommitCallback() { handleCommitEnd(); }
 
 void RaftChunk::forceStopRaft() { raft_node_.stop(); }
 

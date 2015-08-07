@@ -26,6 +26,18 @@ void RaftNode::handleAbortNotification(
                                                             response);
 }
 
+bool RaftNode::isCommitIndexInCurrentTerm() const {
+  uint64_t current_term = getTerm();
+  LogReadAccess log_reader(data_);
+  ConstLogIterator it =
+      log_reader->getConstLogIteratorByIndex(log_reader->commitIndex());
+  CHECK(it != log_reader->cend());
+  if ((*it)->term() >= current_term) {
+    return true;
+  }
+  return false;
+}
+
 void RaftNode::updateHeartbeatTime() const {
   std::lock_guard<std::mutex> heartbeat_lock(last_heartbeat_mutex_);
   last_heartbeat_ = std::chrono::system_clock::now();
@@ -41,6 +53,16 @@ double RaftNode::getTimeSinceHeartbeatMs() {
   return static_cast<double>(
       std::chrono::duration_cast<std::chrono::milliseconds>(now - last_hb_time)
           .count());
+}
+
+bool RaftNode::hasPeer(const PeerId& peer) {
+  std::lock_guard<std::mutex> peer_lock(peer_mutex_);
+  return peer_list_.count(peer);
+}
+
+size_t RaftNode::numPeers() {
+  std::lock_guard<std::mutex> peer_lock(peer_mutex_);
+  return peer_list_.size();
 }
 
 void RaftNode::setAppendEntriesResponse(proto::AppendResponseStatus status,
@@ -70,6 +92,8 @@ const std::string RaftNode::getLogEntryTypeString(
     return "Entry type: unlock request";
   } else if (entry->has_insert_revision() || entry->has_revision_id()) {
     return "Entry type: insert revision";
+  } else if (entry->has_multi_chunk_transaction_info()) {
+    return "Entry type: multi-chunk-transaction info";
   } else {
     return "Entry type: other";
   }

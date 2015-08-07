@@ -231,7 +231,12 @@ bool Hub::try_request(const PeerId& peer, Message* request, Message* response) {
     CHECK(emplacement.second);
     found = emplacement.first;
   }
-  return found->second->try_request(request, response);
+  if (found->second->try_request(request, response)) {
+    return true;
+  } else {
+    peers_.erase(found);
+    return false;
+  }
 }
 
 void Hub::broadcast(Message* request_message,

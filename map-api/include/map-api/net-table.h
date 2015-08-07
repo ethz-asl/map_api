@@ -201,7 +201,9 @@ class NetTable {
 
   // RaftChunk RPC handlers.
   void handleRaftConnectRequest(const common::Id& chunk_id,
-                                const PeerId& sender, Message* response);
+                                const PeerId& sender,
+                                proto::ConnectRequestType connect_type,
+                                Message* response);
   void handleRaftInitRequest(const common::Id& chunk_id,
                              const proto::InitRequest& init_request,
                              const PeerId& sender, Message* response);
