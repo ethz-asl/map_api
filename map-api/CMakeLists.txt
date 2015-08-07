@@ -42,6 +42,7 @@ SET(CORE_SOURCE  src/internal/trackee-multimap.cc
                  src/legacy-chunk-data-stxxl-container.cc
                  src/logical-time.cc
                  src/message.cc
+                 src/multi-chunk-transaction.cc
                  src/net-table.cc
                  src/net-table-index.cc
                  src/net-table-manager.cc

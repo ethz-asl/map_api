@@ -18,6 +18,8 @@
 #include "./chunk.pb.h"
 #include "./raft.pb.h"
 
+DECLARE_bool(use_raft);
+
 namespace map_api {
 class ConstRevisionMap;
 class MutableRevisionMap;
@@ -199,7 +201,9 @@ class NetTable {
 
   // RaftChunk RPC handlers.
   void handleRaftConnectRequest(const common::Id& chunk_id,
-                                const PeerId& sender, Message* response);
+                                const PeerId& sender,
+                                proto::ConnectRequestType connect_type,
+                                Message* response);
   void handleRaftInitRequest(const common::Id& chunk_id,
                              const proto::InitRequest& init_request,
                              const PeerId& sender, Message* response);
@@ -226,6 +230,23 @@ class NetTable {
                               const PeerId& sender, Message* response);
   void handleRaftLeaveNotification(const common::Id& chunk_id,
                                    Message* response);
+
+  // Raft Multi-chunk commit RPCs
+  void handleRaftChunkTransactionInfo(const common::Id& chunk_id,
+                                      proto::ChunkTransactionInfo* info,
+                                      const PeerId& sender, Message* response);
+  void handleRaftQueryReadyToCommit(
+      const common::Id& chunk_id,
+      const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
+      Message* response);
+  void handleRaftCommitNotification(
+      const common::Id& chunk_id,
+      const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
+      Message* response);
+  void handleRaftAbortNotification(
+      const common::Id& chunk_id,
+      const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
+      Message* response);
 
  private:
   NetTable();

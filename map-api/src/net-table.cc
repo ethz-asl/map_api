@@ -394,7 +394,8 @@ ChunkBase* NetTable::connectTo(const common::Id& chunk_id, const PeerId& peer) {
   chunk_id.serialize(metadata.mutable_chunk_id());
 
   if (FLAGS_use_raft) {
-    RaftChunk::sendConnectRequest(peer, metadata);
+    RaftChunk::sendConnectRequest(peer, metadata,
+                                  proto::ConnectRequestType::FIRST_TIME_JOIN);
   } else {
     request.impose<LegacyChunk::kConnectRequest>(metadata);
     // TODO(tcies) add to local peer subset as well?
@@ -406,7 +407,8 @@ ChunkBase* NetTable::connectTo(const common::Id& chunk_id, const PeerId& peer) {
   ChunkMap::iterator found;
   while (true) {
     if (FLAGS_use_raft) {
-      RaftChunk::sendConnectRequest(peer, metadata);
+      RaftChunk::sendConnectRequest(peer, metadata,
+                                    proto::ConnectRequestType::FIRST_TIME_JOIN);
       usleep(100 * kMillisecondsToMicroseconds);
     }
     active_chunks_lock_.acquireReadLock();
@@ -717,6 +719,7 @@ void NetTable::handleSpatialIndexTrigger(
 
 void NetTable::handleRaftConnectRequest(const common::Id& chunk_id,
                                         const PeerId& sender,
+                                        proto::ConnectRequestType connect_type,
                                         Message* response) {
   CHECK_NOTNULL(response);
   ChunkMap::iterator found;
@@ -724,7 +727,7 @@ void NetTable::handleRaftConnectRequest(const common::Id& chunk_id,
   if (routingBasics(chunk_id, response, &found)) {
     RaftChunk* chunk = CHECK_NOTNULL(
         dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
-    chunk->handleRaftConnectRequest(sender, response);
+    chunk->handleRaftConnectRequest(sender, connect_type, response);
   }
   active_chunks_lock_.releaseReadLock();
 }
@@ -842,6 +845,59 @@ void NetTable::handleRaftLeaveNotification(const common::Id& chunk_id,
     RaftChunk* chunk =
         CHECK_NOTNULL(dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
     chunk->handleRaftLeaveNotification(response);
+  }
+}
+
+void NetTable::handleRaftChunkTransactionInfo(const common::Id& chunk_id,
+                                              proto::ChunkTransactionInfo* info,
+                                              const PeerId& sender,
+                                              Message* response) {
+  CHECK_NOTNULL(response);
+  ChunkMap::iterator found;
+  common::ScopedReadLock chunks_lock(&active_chunks_lock_);
+  if (routingBasics(chunk_id, response, &found)) {
+    RaftChunk* chunk =
+        CHECK_NOTNULL(dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
+    chunk->handleRaftChunkTransactionInfo(info, sender, response);
+  }
+}
+
+void NetTable::handleRaftQueryReadyToCommit(
+    const common::Id& chunk_id, const proto::MultiChunkTransactionQuery& query,
+    const PeerId& sender, Message* response) {
+  CHECK_NOTNULL(response);
+  ChunkMap::iterator found;
+  common::ScopedReadLock chunks_lock(&active_chunks_lock_);
+  if (routingBasics(chunk_id, response, &found)) {
+    RaftChunk* chunk =
+        CHECK_NOTNULL(dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
+    chunk->handleRaftQueryReadyToCommit(query, sender, response);
+  }
+}
+
+void NetTable::handleRaftCommitNotification(
+    const common::Id& chunk_id, const proto::MultiChunkTransactionQuery& query,
+    const PeerId& sender, Message* response) {
+  CHECK_NOTNULL(response);
+  ChunkMap::iterator found;
+  common::ScopedReadLock chunks_lock(&active_chunks_lock_);
+  if (routingBasics(chunk_id, response, &found)) {
+    RaftChunk* chunk =
+        CHECK_NOTNULL(dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
+    chunk->handleRaftCommitNotification(query, sender, response);
+  }
+}
+
+void NetTable::handleRaftAbortNotification(
+    const common::Id& chunk_id, const proto::MultiChunkTransactionQuery& query,
+    const PeerId& sender, Message* response) {
+  CHECK_NOTNULL(response);
+  ChunkMap::iterator found;
+  common::ScopedReadLock chunks_lock(&active_chunks_lock_);
+  if (routingBasics(chunk_id, response, &found)) {
+    RaftChunk* chunk =
+        CHECK_NOTNULL(dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
+    chunk->handleRaftAbortNotification(query, sender, response);
   }
 }
 

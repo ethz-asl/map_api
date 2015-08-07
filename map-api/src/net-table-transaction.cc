@@ -2,6 +2,10 @@
 
 #include <statistics/statistics.h>
 
+#include "map-api/raft-chunk.h"
+
+#include "./raft.pb.h"
+
 namespace map_api {
 
 NetTableTransaction::NetTableTransaction(const LogicalTime& begin_time,
@@ -72,10 +76,43 @@ bool NetTableTransaction::commit() {
   return true;
 }
 
-void NetTableTransaction::checkedCommit(const LogicalTime& time) {
+bool NetTableTransaction::checkedCommit(const LogicalTime& time) {
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
-    chunk_transaction.second->checkedCommit(time);
+    if (!chunk_transaction.second->checkedCommit(time)) {
+      return false;
+    }
   }
+  return true;
+}
+
+void NetTableTransaction::prepareMultiChunkTransactionInfo(
+    proto::MultiChunkTransactionInfo* info) {
+  CHECK(FLAGS_use_raft);
+  for (const TransactionPair& chunk_transaction : chunk_transactions_) {
+    proto::ChunkRequestMetadata chunk_metadata;
+    chunk_metadata.set_table(table_->name());
+    chunk_transaction.second->chunk_->id().serialize(
+        chunk_metadata.mutable_chunk_id());
+    info->add_chunk_list()->CopyFrom(chunk_metadata);
+
+    // TODO(aqurai): To be removed. (Issue #2466)
+    const PeerId& leader = CHECK_NOTNULL(
+        dynamic_cast<RaftChunk*>(chunk_transaction.first))  // NOLINT
+                               ->raft_node_.getLeader();
+    CHECK(leader.isValid());
+    info->add_leader_id(leader.ipPort());
+  }
+}
+
+bool NetTableTransaction::sendMultiChunkTransactionInfo(
+    const proto::MultiChunkTransactionInfo& info) {
+  CHECK(FLAGS_use_raft);
+  for (const TransactionPair& chunk_transaction : chunk_transactions_) {
+    if (!chunk_transaction.second->sendMultiChunkTransactionInfo(info)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 // Deadlocks in lock() are prevented by imposing a global ordering on chunks,
@@ -84,6 +121,7 @@ void NetTableTransaction::lock() {
   size_t i = 0u;
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
     chunk_transaction.first->writeLock();
+    chunk_transaction.second->locked_by_transaction_ = true;
     ++i;
   }
   statistics::StatsCollector stat("map_api::NetTableTransaction::lock - " +
@@ -93,7 +131,23 @@ void NetTableTransaction::lock() {
 
 void NetTableTransaction::unlock() {
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
-    chunk_transaction.first->unlock();
+    if (chunk_transaction.second->locked_by_transaction_) {
+      chunk_transaction.first->unlock();
+      chunk_transaction.second->locked_by_transaction_ = false;
+    }
+  }
+}
+
+void NetTableTransaction::unlock(bool is_success) {
+  CHECK(FLAGS_use_raft);
+  for (const TransactionPair& chunk_transaction : chunk_transactions_) {
+    if (chunk_transaction.second->locked_by_transaction_) {
+      // TODO(aqurai): Add a function to ChunkBase and avoid dynamic_cast?
+      CHECK_NOTNULL(
+          dynamic_cast<RaftChunk*>(chunk_transaction.first))  // NOLINT
+          ->unlock(is_success);
+      chunk_transaction.second->locked_by_transaction_ = false;
+    }
   }
 }
 

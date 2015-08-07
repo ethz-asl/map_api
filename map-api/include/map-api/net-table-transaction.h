@@ -59,12 +59,17 @@ class NetTableTransaction {
    * Commit with specified time and under the guarantee that the required
    * sub-transactions are locked and checked.
    */
-  void checkedCommit(const LogicalTime& time);
+  bool checkedCommit(const LogicalTime& time);
+
+  void prepareMultiChunkTransactionInfo(proto::MultiChunkTransactionInfo* info);
+  bool sendMultiChunkTransactionInfo(
+      const proto::MultiChunkTransactionInfo& info);
   /**
    * Locks each chunk write-affected by this transaction
    */
   void lock();
   void unlock();
+  void unlock(bool is_success);
   /**
    * Checks all sub-transactions.
    * Returns false if any sub-check fails.

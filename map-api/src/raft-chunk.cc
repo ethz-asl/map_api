@@ -30,9 +30,10 @@ bool RaftChunk::init(const common::Id& id,
   // TODO(aqurai): init new data container here.
   data_container_.reset(raft_node_.data_);
   CHECK(data_container_->init(descriptor));
-  initialized_ = true;
   raft_node_.chunk_id_ = id_;
   raft_node_.table_name_ = descriptor->name();
+  raft_node_.initializeMultiChunkTransactionManager();
+  initialized_ = true;
   return true;
 }
 
@@ -118,7 +119,11 @@ bool RaftChunk::insert(const LogicalTime& time,
   }
 }
 
-void RaftChunk::writeLock() {
+void RaftChunk::writeLock() { raftChunkLock(); }
+
+void RaftChunk::readLock() const { raftChunkLock(); }
+
+void RaftChunk::raftChunkLock() const {
   CHECK(raft_node_.isRunning());
   std::lock_guard<std::mutex> lock_mutex(write_lock_mutex_);
   VLOG(3) << PeerId::self() << " Attempting lock for chunk " << id()
@@ -152,14 +157,14 @@ void RaftChunk::writeLock() {
           << ". Current depth: " << chunk_write_lock_depth_;
 }
 
-void RaftChunk::readLock() const {}
-
 bool RaftChunk::isWriteLocked() {
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
   return is_raft_chunk_lock_acquired_;
 }
 
-void RaftChunk::unlock() const {
+void RaftChunk::unlock() const { unlock(true); }
+
+void RaftChunk::unlock(bool proceed_transaction) const {
   CHECK(raft_node_.isRunning());
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
   VLOG(3) << PeerId::self() << " Attempting unlock for chunk " << id()
@@ -176,7 +181,8 @@ void RaftChunk::unlock() const {
         << " Failed on " << PeerId::self();
     serial_id = request_id_.getNewId();
     while (raft_node_.isRunning()) {
-      if (raft_node_.sendChunkUnlockRequest(serial_id, lock_log_index_, true)) {
+      if (raft_node_.sendChunkUnlockRequest(serial_id, lock_log_index_,
+                                            proceed_transaction) > 0) {
         break;
       }
       usleep(500 * kMillisecondsToMicroseconds);
@@ -224,7 +230,7 @@ int RaftChunk::requestParticipation(const PeerId& peer) {
   return 0;
 }
 
-void RaftChunk::update(const std::shared_ptr<Revision>& item) {
+bool RaftChunk::update(const std::shared_ptr<Revision>& item) {
   CHECK(item != nullptr);
   CHECK_EQ(id(), item->getChunkId());
   writeLock();
@@ -233,16 +239,25 @@ void RaftChunk::update(const std::shared_ptr<Revision>& item) {
   CHECK(raft_node_.isRunning());
   if (raftInsertRequest(item)) {
     syncLatestCommitTime(*item);
+    unlock();
+    return true;
+  } else {
+    unlock();
+    return false;
   }
-  unlock();
 }
 
 bool RaftChunk::sendConnectRequest(const PeerId& peer,
-                                   proto::ChunkRequestMetadata& metadata) {
+                                   const proto::ChunkRequestMetadata& metadata,
+                                   proto::ConnectRequestType connect_type) {
   Message request, response;
   proto::ConnectResponse connect_response;
   connect_response.set_index(0);
-  request.impose<RaftNode::kConnectRequest>(metadata);
+
+  proto::RaftConnectRequest connect_request;
+  connect_request.mutable_metadata()->CopyFrom(metadata);
+  connect_request.set_connect_request_type(connect_type);
+  request.impose<RaftNode::kConnectRequest>(connect_request);
 
   // TODO(aqurai): Avoid infinite loop. Use Chord index to get chunk holder
   // if request fails.
@@ -262,7 +277,20 @@ bool RaftChunk::sendConnectRequest(const PeerId& peer,
   return false;
 }
 
-void RaftChunk::bulkInsertLocked(const MutableRevisionMap& items,
+bool RaftChunk::sendChunkTransactionInfo(proto::ChunkTransactionInfo* info) {
+  CHECK(raft_node_.isRunning()) << PeerId::self();
+  uint64_t serial_id = request_id_.getNewId();
+  // TODO(aqurai): Limit number of retry attempts.
+  while (raft_node_.isRunning()) {
+    if (raft_node_.sendChunkTransactionInfo(info, serial_id)) {
+      return true;
+    }
+    usleep(150 * kMillisecondsToMicroseconds);
+  }
+  return false;
+}
+
+bool RaftChunk::bulkInsertLocked(const MutableRevisionMap& items,
                                  const LogicalTime& time) {
   std::vector<proto::PatchRequest> insert_requests;
   for (const MutableRevisionMap::value_type& item : items) {
@@ -272,27 +300,29 @@ void RaftChunk::bulkInsertLocked(const MutableRevisionMap& items,
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareBulkInsert(time, items);
   for (const ConstRevisionMap::value_type& item : items) {
-    raftInsertRequest(item.second);
+    if (!raftInsertRequest(item.second)) {
+      return false;
+    }
   }
+  return true;
 }
 
-void RaftChunk::updateLocked(const LogicalTime& time,
+bool RaftChunk::updateLocked(const LogicalTime& time,
                              const std::shared_ptr<Revision>& item) {
   CHECK(item != nullptr);
   CHECK_EQ(id(), item->getChunkId());
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareUpdate(time, item);
-  // TODO(aqurai): No return? What to do on fail?
-  raftInsertRequest(item);
+  return raftInsertRequest(item);
 }
 
-void RaftChunk::removeLocked(const LogicalTime& time,
+bool RaftChunk::removeLocked(const LogicalTime& time,
                              const std::shared_ptr<Revision>& item) {
   CHECK(item != nullptr);
   CHECK_EQ(id(), item->getChunkId());
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareUpdate(time, item);
-  raftInsertRequest(item);
+  return raftInsertRequest(item);
 }
 
 LogicalTime RaftChunk::getLatestCommitTime() const {
@@ -302,17 +332,26 @@ LogicalTime RaftChunk::getLatestCommitTime() const {
 
 bool RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
   CHECK(raft_node_.isRunning()) << PeerId::self();
-  bool retrying = false;
   uint64_t serial_id = request_id_.getNewId();
+  // TODO(aqurai): Limit number of retry attempts.
   while (raft_node_.isRunning()) {
-    if (raft_node_.sendInsertRequest(item, serial_id, retrying)) {
+    if (raft_node_.sendInsertRequest(item, serial_id)) {
       break;
     }
-    retrying = true;
     usleep(150 * kMillisecondsToMicroseconds);
   }
   return true;
 }
+
+void RaftChunk::insertCommitCallback(const common::Id& inserted_id) {
+  handleCommitInsert(inserted_id);
+}
+
+void RaftChunk::updateCommitCallback(const common::Id& updated_id) {
+  handleCommitUpdate(updated_id);
+}
+
+void RaftChunk::unlockCommitCallback() { handleCommitEnd(); }
 
 void RaftChunk::forceStopRaft() { raft_node_.stop(); }
 

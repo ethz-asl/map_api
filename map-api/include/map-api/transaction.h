@@ -78,7 +78,11 @@ class Transaction {
   void remove(const IdType& id, NetTable* table);
 
   // TRANSACTION OPERATIONS
+  void prepareForCommit();
   bool commit();
+  bool multiChunkCommit();
+  void unlockAllChunks(bool is_success);
+  void prepareMultiChunkTransactionInfo(proto::MultiChunkTransactionInfo* info);
   inline LogicalTime getCommitTime() const { return commit_time_; }
   using Conflict = ChunkTransaction::Conflict;
   using Conflicts = ChunkTransaction::Conflicts;

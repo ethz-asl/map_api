@@ -8,22 +8,25 @@
 namespace map_api {
 
 void RaftChunk::setStateFollowerAndStartRaft() {
-    raft_node_.state_ = RaftNode::State::FOLLOWER;
-    VLOG(2) << PeerId::self() << ": Starting Raft node as follower for chunk "
-            << id_.printString();
-    raft_node_.start();
+  // Leader sends init request when committing join entry. It only sends
+  // already committed entries. Hence last log index + 1 is this peer's join
+  // index.
+  raft_node_.join_log_index_ = raft_node_.data_->lastLogIndex() + 1;
+  raft_node_.state_ = RaftNode::State::JOINING;
+  VLOG(2) << PeerId::self() << ": Starting Raft node as JOINING for chunk "
+          << id_.printString();
+  raft_node_.start();
 }
 
 void RaftChunk::setStateLeaderAndStartRaft() {
     raft_node_.state_ = RaftNode::State::LEADER;
+    raft_node_.leader_id_ = PeerId::self();
     VLOG(2) << PeerId::self() << ": Starting Raft node as leader for chunk "
             << id_.printString();
     raft_node_.start();
 }
 
-int RaftChunk::peerSize() const {
-  return raft_node_.num_peers_;
-}
+int RaftChunk::peerSize() const { return raft_node_.numPeers(); }
 
 inline void RaftChunk::syncLatestCommitTime(const Revision& item) {
   std::lock_guard<std::mutex> lock(latest_commit_time_mutex_);
@@ -33,11 +36,12 @@ inline void RaftChunk::syncLatestCommitTime(const Revision& item) {
   }
 }
 
-inline void RaftChunk::handleRaftConnectRequest(const PeerId& sender,
-                                                Message* response) {
+inline void RaftChunk::handleRaftConnectRequest(
+    const PeerId& sender, proto::ConnectRequestType connect_type,
+    Message* response) {
   CHECK_NOTNULL(response);
   if (raft_node_.isRunning()) {
-    raft_node_.handleConnectRequest(sender, response);
+    raft_node_.handleConnectRequest(sender, connect_type, response);
   } else {
     response->decline();
   }
@@ -47,7 +51,7 @@ inline void RaftChunk::handleRaftLeaveRequest(const PeerId& sender,
                                               uint64_t serial_id,
                                               Message* response) {
   CHECK_NOTNULL(response);
-  if (raft_node_.isRunning()) {
+  if (raft_node_.isRunning() && raft_node_.hasPeer(sender)) {
     raft_node_.handleLeaveRequest(sender, serial_id, response);
   } else {
     response->decline();
@@ -58,7 +62,7 @@ void RaftChunk::handleRaftChunkLockRequest(const PeerId& sender,
                                            uint64_t serial_id,
                                            Message* response) {
   CHECK_NOTNULL(response);
-  if (raft_node_.isRunning()) {
+  if (raft_node_.isRunning() && raft_node_.hasPeer(sender)) {
     raft_node_.handleChunkLockRequest(sender, serial_id, response);
   } else {
     response->decline();
@@ -71,7 +75,7 @@ void RaftChunk::handleRaftChunkUnlockRequest(const PeerId& sender,
                                              bool proceed_commits,
                                              Message* response) {
   CHECK_NOTNULL(response);
-  if (raft_node_.isRunning()) {
+  if (raft_node_.isRunning() && raft_node_.hasPeer(sender)) {
     raft_node_.handleChunkUnlockRequest(sender, serial_id, lock_index,
                                         proceed_commits, response);
   } else {
@@ -82,8 +86,9 @@ void RaftChunk::handleRaftChunkUnlockRequest(const PeerId& sender,
 inline void RaftChunk::handleRaftInsertRequest(proto::InsertRequest* request,
                                                const PeerId& sender,
                                                Message* response) {
+  CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
-  if (raft_node_.isRunning()) {
+  if (raft_node_.isRunning() && raft_node_.hasPeer(sender)) {
     raft_node_.handleInsertRequest(request, sender, response);
   } else {
     response->decline();
@@ -93,7 +98,11 @@ inline void RaftChunk::handleRaftInsertRequest(proto::InsertRequest* request,
 inline void RaftChunk::handleRaftAppendRequest(
     proto::AppendEntriesRequest* request, const PeerId& sender,
     Message* response) {
+  CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
+  // No need to check hasPeer() because a new peer can send this request about
+  // which this peer doesn't know yet. This is safe because handleAppendRequest
+  // checks for log and term consistency.
   if (raft_node_.isRunning()) {
     raft_node_.handleAppendRequest(request, sender, response);
   } else {
@@ -105,6 +114,9 @@ inline void RaftChunk::handleRaftRequestVote(const proto::VoteRequest& request,
                                              const PeerId& sender,
                                              Message* response) {
   CHECK_NOTNULL(response);
+  // No need to check hasPeer() because a new peer can send this request about
+  // which this peer doesn't know yet. This is safe because handleRequestVote
+  // checks for log and term consistency.
   if (raft_node_.isRunning()) {
     raft_node_.handleRequestVote(request, sender, response);
   } else {
@@ -117,6 +129,46 @@ inline void RaftChunk::handleRaftQueryState(const proto::QueryState& request,
   CHECK_NOTNULL(response);
   if (raft_node_.isRunning()) {
     raft_node_.handleQueryState(request, response);
+  } else {
+    response->decline();
+  }
+}
+
+inline void RaftChunk::handleRaftChunkTransactionInfo(
+    proto::ChunkTransactionInfo* info, const PeerId& sender,
+    Message* response) {
+  if (raft_node_.isRunning()) {
+    raft_node_.handleChunkTransactionInfo(info, sender, response);
+  } else {
+    response->decline();
+  }
+}
+
+inline void RaftChunk::handleRaftQueryReadyToCommit(
+    const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
+    Message* response) {
+  if (raft_node_.isRunning()) {
+    raft_node_.handleQueryReadyToCommit(query, sender, response);
+  } else {
+    response->decline();
+  }
+}
+
+inline void RaftChunk::handleRaftCommitNotification(
+    const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
+    Message* response) {
+  if (raft_node_.isRunning()) {
+    raft_node_.handleCommitNotification(query, sender, response);
+  } else {
+    response->decline();
+  }
+}
+
+inline void RaftChunk::handleRaftAbortNotification(
+    const proto::MultiChunkTransactionQuery& query, const PeerId& sender,
+    Message* response) {
+  if (raft_node_.isRunning()) {
+    raft_node_.handleAbortNotification(query, sender, response);
   } else {
     response->decline();
   }
