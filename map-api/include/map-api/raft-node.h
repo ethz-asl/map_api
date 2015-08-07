@@ -156,7 +156,7 @@ class RaftNode {
       Message* response);
 
   // Not ready if entries from older leader pending commit.
-  inline bool checkReadyToHandleChunkRequests() const;
+  inline bool isCommitIndexInCurrentTerm() const;
 
   // ====================================================
   // RPCs for heartbeat, leader election, log replication
@@ -345,8 +345,7 @@ class RaftNode {
   bool sendChunkTransactionInfo(proto::ChunkTransactionInfo* info,
                                 uint64_t serial_id);
   // New revision request.
-  bool sendInsertRequest(const Revision::ConstPtr& item, uint64_t serial_id,
-                             bool is_retry_attempt);
+  bool sendInsertRequest(const Revision::ConstPtr& item, uint64_t serial_id);
 
   bool waitAndCheckCommit(uint64_t index, uint64_t append_term,
                           uint64_t serial_id);
@@ -354,19 +353,20 @@ class RaftNode {
   bool sendLeaveRequest(uint64_t serial_id);
   void sendLeaveSuccessNotification(const PeerId& peer);
 
-  proto::RaftChunkRequestResponse processChunkLockRequest(
-      const PeerId& sender, uint64_t serial_id, bool is_retry_attempt);
-  proto::RaftChunkRequestResponse processChunkUnlockRequest(
-      const PeerId& sender, uint64_t serial_id, bool is_retry_attempt,
-      uint64_t lock_index, uint64_t proceed_commits);
-  proto::RaftChunkRequestResponse processChunkTransactionInfo(
+  void processChunkLockRequest(const PeerId& sender, uint64_t serial_id,
+                               proto::RaftChunkRequestResponse* response);
+  void processChunkUnlockRequest(const PeerId& sender, uint64_t serial_id,
+                                 uint64_t lock_index, uint64_t proceed_commits,
+                                 proto::RaftChunkRequestResponse* response);
+  void processChunkTransactionInfo(
       const PeerId& sender, uint64_t serial_id, uint64_t num_entries,
-      proto::MultiChunkTransactionInfo* unowned_multi_chunk_info_ptr);
-  proto::RaftChunkRequestResponse processInsertRequest(
-      const PeerId& sender, uint64_t serial_id, bool is_retry_attempt,
-      proto::Revision* unowned_revision_pointer);
-  proto::RaftChunkRequestResponse processLeaveRequest(const PeerId& sender,
-                                                      uint64_t serial_id);
+      proto::MultiChunkTransactionInfo* unowned_multi_chunk_info_ptr,
+      proto::RaftChunkRequestResponse* response);
+  void processInsertRequest(const PeerId& sender, uint64_t serial_id,
+                            proto::Revision* unowned_revision_pointer,
+                            proto::RaftChunkRequestResponse* response);
+  void processLeaveRequest(const PeerId& sender, uint64_t serial_id,
+                           proto::RaftChunkRequestResponse* response);
 
   inline const std::string getLogEntryTypeString(
       const std::shared_ptr<proto::RaftLogEntry>& entry) const;
