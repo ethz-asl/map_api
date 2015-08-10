@@ -26,7 +26,7 @@ void RaftNode::handleAbortNotification(
                                                             response);
 }
 
-bool RaftNode::checkReadyToHandleChunkRequests() const {
+bool RaftNode::isCommitIndexInCurrentTerm() const {
   uint64_t current_term = getTerm();
   LogReadAccess log_reader(data_);
   ConstLogIterator it =

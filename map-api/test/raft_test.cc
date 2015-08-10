@@ -519,8 +519,6 @@ TEST_F(ConsensusFixture, MultiChunkTransaction) {
 
     IPC::barrier(FORCE_STOP_RAFT, kProcesses - 1);
     NetTableManager::instance().forceStopAllRaftChunks();
-    IPC::barrier(DIE, kProcesses - 1);
-
   } else {
     IPC::barrier(INIT_PEERS, kProcesses - 1);
     IPC::barrier(PUSH_CHUNK_ID, kProcesses - 1);
@@ -537,7 +535,6 @@ TEST_F(ConsensusFixture, MultiChunkTransaction) {
 
     IPC::barrier(FORCE_STOP_RAFT, kProcesses - 1);
     NetTableManager::instance().forceStopAllRaftChunks();
-    IPC::barrier(DIE, kProcesses - 1);
   }
 }
 

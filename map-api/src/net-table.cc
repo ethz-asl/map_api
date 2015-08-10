@@ -859,13 +859,12 @@ void NetTable::handleRaftChunkTransactionInfo(const common::Id& chunk_id,
                                               Message* response) {
   CHECK_NOTNULL(response);
   ChunkMap::iterator found;
-  active_chunks_lock_.acquireReadLock();
+  common::ScopedReadLock chunks_lock(&active_chunks_lock_);
   if (routingBasics(chunk_id, response, &found)) {
     RaftChunk* chunk =
         CHECK_NOTNULL(dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
     chunk->handleRaftChunkTransactionInfo(info, sender, response);
   }
-  active_chunks_lock_.releaseReadLock();
 }
 
 void NetTable::handleRaftQueryReadyToCommit(
@@ -873,13 +872,12 @@ void NetTable::handleRaftQueryReadyToCommit(
     const PeerId& sender, Message* response) {
   CHECK_NOTNULL(response);
   ChunkMap::iterator found;
-  active_chunks_lock_.acquireReadLock();
+  common::ScopedReadLock chunks_lock(&active_chunks_lock_);
   if (routingBasics(chunk_id, response, &found)) {
     RaftChunk* chunk =
         CHECK_NOTNULL(dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
     chunk->handleRaftQueryReadyToCommit(query, sender, response);
   }
-  active_chunks_lock_.releaseReadLock();
 }
 
 void NetTable::handleRaftCommitNotification(
@@ -887,13 +885,12 @@ void NetTable::handleRaftCommitNotification(
     const PeerId& sender, Message* response) {
   CHECK_NOTNULL(response);
   ChunkMap::iterator found;
-  active_chunks_lock_.acquireReadLock();
+  common::ScopedReadLock chunks_lock(&active_chunks_lock_);
   if (routingBasics(chunk_id, response, &found)) {
     RaftChunk* chunk =
         CHECK_NOTNULL(dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
     chunk->handleRaftCommitNotification(query, sender, response);
   }
-  active_chunks_lock_.releaseReadLock();
 }
 
 void NetTable::handleRaftAbortNotification(
@@ -901,13 +898,12 @@ void NetTable::handleRaftAbortNotification(
     const PeerId& sender, Message* response) {
   CHECK_NOTNULL(response);
   ChunkMap::iterator found;
-  active_chunks_lock_.acquireReadLock();
+  common::ScopedReadLock chunks_lock(&active_chunks_lock_);
   if (routingBasics(chunk_id, response, &found)) {
     RaftChunk* chunk =
         CHECK_NOTNULL(dynamic_cast<RaftChunk*>(found->second.get()));  // NOLINT
     chunk->handleRaftAbortNotification(query, sender, response);
   }
-  active_chunks_lock_.releaseReadLock();
 }
 
 bool NetTable::routingBasics(const common::Id& chunk_id, Message* response,

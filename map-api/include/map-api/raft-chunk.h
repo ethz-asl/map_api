@@ -113,11 +113,11 @@ class RaftChunk : public ChunkBase {
 
   bool raftInsertRequest(const Revision::ConstPtr& item);
 
-  void commitInsertCallback(const common::Id& inserted_id);
+  void insertCommitCallback(const common::Id& inserted_id);
 
-  void commitUpdateCallback(const common::Id& updated_id);
+  void updateCommitCallback(const common::Id& updated_id);
 
-  void commitUnlockCallback();
+  void unlockCommitCallback();
 
   void forceStopRaft();
 

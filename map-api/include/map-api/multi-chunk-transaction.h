@@ -26,7 +26,7 @@ class MultiChunkTransaction {
  private:
   enum class State {
     INACTIVE,
-    LOCKED,
+    WAITING_FOR_ENTRIES,
     RECEIVED_ALL_ENTRIES,
     AWAIT_COMMIT,
     COMMITTED,
@@ -43,14 +43,12 @@ class MultiChunkTransaction {
   };
 
   explicit MultiChunkTransaction(const common::Id& id);
-  void initMultiChunkTransaction(
-      const proto::MultiChunkTransactionInfo multi_chunk_data,
-      uint num_entries);
-  void clearMultiChunkTransaction();
+  void initNewMultiChunkTransaction(
+      proto::MultiChunkTransactionInfo* unowned_multi_chunk_info,
+      size_t num_entries);
+  void clear();
 
-  void notifyReceivedRevisionIfActive();
-  void notifyUnlockAndCommitReceived();
-  // When unlock is not received but commit because other chunks are ready.
+  void notifyReceivedRevision();
   void notifyProceedCommit(NotificationMode mode);
   void notifyCommitSuccess();
   void notifyAbort(NotificationMode mode);
@@ -67,6 +65,11 @@ class MultiChunkTransaction {
       std::unique_lock<std::mutex>* lock);
   void sendCommitNotification();
   void sendAbortNotification();
+
+  void prepareQuery(
+      const proto::ChunkRequestMetadata& destination_chunk_metadata,
+      proto::MultiChunkTransactionQuery* query);
+
   template <const char* message_type>
   bool sendMessage(const common::Id& chunk_id,
                    const proto::MultiChunkTransactionQuery& query);
@@ -87,13 +90,13 @@ class MultiChunkTransaction {
   // State during a transaction.
   State state_;
   common::Id current_transaction_id_;
-  uint num_revisions_received_;
-  uint num_revision_entries_;
+  size_t num_revisions_received_;
+  size_t num_revision_entries_;
   std::unordered_map<common::Id, OtherChunkStatus> other_chunk_status_;
   std::unordered_set<common::Id> older_commits_;
   // Don't send notification RPCs when committing on a new joining peer.
   bool notifications_enable_;
-  std::mutex mutex_;
+  std::mutex state_mutex_;
 
   // TODO(aqurai): To be removed. (Issue #2466)
   std::unordered_map<common::Id, PeerId> other_chunk_leaders_;
