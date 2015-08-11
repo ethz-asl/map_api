@@ -5,12 +5,15 @@
 #define MAP_API_APP_TEMPLATES_H_
 
 #include <memory>
+#include <string>
 
+#include <glog/logging.h>
 #include <multiagent-mapping-common/unique-id.h>
+
+#include "map-api/revision.h"
 
 namespace map_api {
 class NetTable;
-class Revision;
 
 template <typename ObjectType>
 NetTable* tableForType();
@@ -23,9 +26,14 @@ NetTable* tableForType();
 template <typename ObjectType>
 std::shared_ptr<ObjectType> objectFromRevision(
     const map_api::Revision& revision);
+template <>
+std::shared_ptr<std::string> objectFromRevision<std::string>(
+    const map_api::Revision& revision);
 
 template <typename ObjectType>
 void objectToRevision(const ObjectType& object, map_api::Revision* revision);
+template <>
+void objectToRevision(const std::string& object, map_api::Revision* revision);
 
 template <typename TrackeeType, typename TrackerType, typename TrackerIdType>
 TrackerIdType determineTracker(const TrackeeType& trackee);
@@ -35,7 +43,9 @@ TrackerIdType determineTracker(const TrackeeType& trackee);
   std::shared_ptr<Type> objectFromRevision<Type>(const Revision& revision) { \
     std::shared_ptr<Type> result(new Type);                                  \
     ProtoType proto;                                                         \
-    revision.get(0, &proto);                                                 \
+    CHECK_EQ(revision.customFieldCount(), 1);                                \
+    constexpr int kUniqueFieldIndex = 0;                                     \
+    revision.get(kUniqueFieldIndex, &proto);                                 \
     result->deserialize(proto);                                              \
     return result;                                                           \
   }                                                                          \
@@ -44,7 +54,9 @@ TrackerIdType determineTracker(const TrackeeType& trackee);
     CHECK_NOTNULL(revision);                                                 \
     ProtoType proto;                                                         \
     object.serialize(&proto);                                                \
-    revision->set(0, proto);                                                 \
+    CHECK_EQ(revision->customFieldCount(), 1);                               \
+    constexpr int kUniqueFieldIndex = 0;                                     \
+    revision->set(kUniqueFieldIndex, proto);                                 \
   }
 
 #define MAP_API_SIMPLE_TYPE_WITH_ID_REVISION_CONVERSION(Type, ProtoType,     \
@@ -53,7 +65,9 @@ TrackerIdType determineTracker(const TrackeeType& trackee);
   std::shared_ptr<Type> objectFromRevision<Type>(const Revision& revision) { \
     std::shared_ptr<Type> result(new Type);                                  \
     ProtoType proto;                                                         \
-    revision.get(0, &proto);                                                 \
+    CHECK_EQ(revision.customFieldCount(), 1);                                \
+    constexpr int kUniqueFieldIndex = 0;                                     \
+    revision.get(kUniqueFieldIndex, &proto);                                 \
     result->deserialize(revision.getId<IdType>(), proto);                    \
     return result;                                                           \
   }                                                                          \
@@ -62,7 +76,9 @@ TrackerIdType determineTracker(const TrackeeType& trackee);
     CHECK_NOTNULL(revision);                                                 \
     ProtoType proto;                                                         \
     object.serialize(&proto);                                                \
-    revision->set(0, proto);                                                 \
+    CHECK_EQ(revision->customFieldCount(), 1);                               \
+    constexpr int kUniqueFieldIndex = 0;                                     \
+    revision->set(kUniqueFieldIndex, proto);                                 \
     revision->setId(object.id());                                            \
   }
 
