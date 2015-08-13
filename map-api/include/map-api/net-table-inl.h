@@ -31,33 +31,10 @@ void NetTable::lockFind(int key, const ValueType& value,
 template <typename IdType>
 std::shared_ptr<const Revision> NetTable::getById(const IdType& id,
                                                   const LogicalTime& time) {
-  // Before brute-forcing all chunks, see whether the item happens to be in
-  // the chunk where we last retrieved an item from.
   std::shared_ptr<const Revision> result;
-  {
-    std::lock_guard<std::mutex> lock(m_chunk_last_read_from_);
-    if (chunk_last_read_from_.isValid()) {
-      common::ScopedReadLock lock(&active_chunks_lock_);
-      ChunkMap::const_iterator found =
-          active_chunks_.find(chunk_last_read_from_);
-      if (found != active_chunks_.end()) {
-        result = found->second->constData()->getById(id, time);
-        if (static_cast<bool>(result)) {
-          return result;
-        }
-      }
-    }
-  }
-
   forEachActiveChunkUntil([&](const ChunkBase& chunk) {
     result = chunk.constData()->getById(id, time);
-    if (static_cast<bool>(result)) {
-      std::lock_guard<std::mutex> lock(m_chunk_last_read_from_);
-      chunk_last_read_from_ = chunk.id();
-      return true;
-    } else {
-      return false;
-    }
+    return static_cast<bool>(result);
   });
   return result;
 }
