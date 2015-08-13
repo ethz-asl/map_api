@@ -286,6 +286,9 @@ class NetTable {
   PeerIdSet new_chunk_listeners_;
 
   NewChunkTrackerMap new_chunk_trackers_;
+
+  common::Id chunk_last_read_from_;
+  std::mutex m_chunk_last_read_from_;
 };
 
 }  // namespace map_api
