@@ -31,7 +31,6 @@ void NetTable::lockFind(int key, const ValueType& value,
 template <typename IdType>
 std::shared_ptr<const Revision> NetTable::getById(const IdType& id,
                                                   const LogicalTime& time) {
-
   // Before brute-forcing all chunks, see whether the item happens to be in
   // the chunk where we last retrieved an item from.
   std::shared_ptr<const Revision> result;
