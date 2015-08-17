@@ -9,7 +9,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 ############
 # PROTOBUF #
 ############
-add_definitions(--std=c++11)
+add_definitions(--std=c++11 -Wno-unknown-pragmas)
 
 SET(PROTO_DEFNS proto/chord-index.proto 
                 proto/core.proto
