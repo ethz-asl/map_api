@@ -13,6 +13,10 @@
 #include "map-api/net-table-transaction.h"
 #include "map-api/workspace.h"
 
+namespace visual_inertial_mapping {
+class VIMapView;
+}  // namespace visual_inertial_mapping
+
 namespace map_api {
 class CacheBase;
 class ChunkBase;
@@ -28,6 +32,7 @@ class Transaction {
   friend class CacheBase;
   template <typename IdType, typename Value, typename DerivedValue>
   friend class Cache;
+  friend class visual_inertial_mapping::VIMapView;  // FIXME(tcies) Clean up!
 
  public:
   Transaction(const std::shared_ptr<Workspace>& workspace,
