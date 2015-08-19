@@ -134,7 +134,7 @@ char* MultiprocessFixture::timedFGetS(char* out_buffer, int size,
   std::thread thread(fGetSThread, out_buffer, size, stream, &mutex, &cv,
                      &result);
   thread.detach();
-  if (cv.wait_for(lock, std::chrono::milliseconds(10000)) ==
+  if (cv.wait_for(lock, std::chrono::milliseconds(30000)) ==
       std::cv_status::no_timeout) {
     return result;
   } else {
