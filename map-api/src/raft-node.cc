@@ -833,6 +833,9 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
           ++follower_next_index;
           entry_replicated_signal_.notify_all();
           append_success = (follower_next_index > last_log_index);
+        } else {
+          // Regular heartbeat, no log entries appended.
+          append_success = true;
         }
       } else if (append_response.response() ==
                  proto::AppendResponseStatus::REJECTED) {
