@@ -20,7 +20,7 @@ DECLARE_int32(request_timeout);
 
 DEFINE_int32(election_timeout_minimum, 500,
              "Minimum of the election timeout range");
-DEFINE_int32(election_timeout_maximum, 1500,
+DEFINE_int32(election_timeout_maximum, 750,
              "Maximum of the election timeout range");
 
 namespace map_api {
@@ -48,6 +48,19 @@ const char RaftNode::kConnectResponse[] = "raft_node_connect_response";
 const char RaftNode::kInitRequest[] = "raft_node_init_response";
 const char RaftNode::kQueryState[] = "raft_node_query_state";
 const char RaftNode::kQueryStateResponse[] = "raft_node_query_state_response";
+
+const std::string RaftNode::kRaftLogEntryAddPeer = "Raft log entry add peer";
+const std::string RaftNode::kRaftLogEntryRemovePeer =
+    "Raft log entry remove peer";
+const std::string RaftNode::kRaftLogEntryLockRequest =
+    "Raft log entry lock request";
+const std::string RaftNode::kRaftLogEntryUnlockRequest =
+    "Raft log entry unlock request";
+const std::string RaftNode::kRaftLogEntryInsertRevision =
+    "Raft log entry insert revision";
+const std::string RaftNode::kRaftLogEntryRaftTransactionInfo =
+    "Raft log entry multi-chunk-transaction info";
+const std::string RaftNode::kRaftLogEntryOther = "Raft log entry other";
 
 MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntries, proto::AppendEntriesRequest);
 MAP_API_PROTO_MESSAGE(RaftNode::kAppendEntriesResponse,
@@ -943,6 +956,9 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
         if (this_tracker->status == PeerStatus::AVAILABLE) {
           this_tracker->status = PeerStatus::OFFLINE;
           VLOG(1) << PeerId::self() << ": Failed sendAppendEntries to " << peer;
+          if (peer_disconnection_detected_callback_) {
+            std::thread(peer_disconnection_detected_callback_, peer).detach();
+          }
         } else {
           this_tracker->status = PeerStatus::OFFLINE;
           // this_tracker->tracker_run = false;
@@ -1154,7 +1170,8 @@ uint64_t RaftNode::leaderAppendLogEntryLocked(
   new_entry->set_term(current_term);
   log_writer->appendLogEntry(new_entry);
   if (leader_entry_appended_callback_) {
-    std::thread(leader_entry_appended_callback_, new_entry->index()).detach();
+    std::thread(leader_entry_appended_callback_, new_entry->index(),
+                getLogEntryTypeString(new_entry)).detach();
   }
   new_entries_signal_.notify_all();
   VLOG_EVERY_N(1, 10) << "Adding entry to log with index "
@@ -1233,7 +1250,8 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
     log_writer->setCommitIndex(log_writer->commitIndex() + 1);
     entry_committed_signal_.notify_all();
     if (leader_entry_committed_callback_) {
-      std::thread(leader_entry_committed_callback_, (*it)->index()).detach();
+      std::thread(leader_entry_committed_callback_, (*it)->index(),
+                  getLogEntryTypeString((*it))).detach();
     }
     VLOG_EVERY_N(2, 10) << PeerId::self() << ": Commit index increased to "
                         << log_writer->commitIndex()

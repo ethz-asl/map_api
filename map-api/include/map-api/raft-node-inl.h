@@ -83,19 +83,19 @@ void RaftNode::setAppendEntriesResponse(proto::AppendResponseStatus status,
 const std::string RaftNode::getLogEntryTypeString(
     const std::shared_ptr<proto::RaftLogEntry>& entry) const {
   if (entry->has_add_peer()) {
-    return "Entry type: add peer";
+    return kRaftLogEntryAddPeer;
   } else if (entry->has_remove_peer()) {
-    return "Entry type: remove peer";
+    return kRaftLogEntryRemovePeer;
   } else if (entry->has_lock_peer()) {
-    return "Entry type: lock request";
+    return kRaftLogEntryLockRequest;
   } else if (entry->has_unlock_peer()) {
-    return "Entry type: unlock request";
+    return kRaftLogEntryUnlockRequest;
   } else if (entry->has_insert_revision() || entry->has_revision_id()) {
-    return "Entry type: insert revision";
+    return kRaftLogEntryInsertRevision;
   } else if (entry->has_multi_chunk_transaction_info()) {
-    return "Entry type: multi-chunk-transaction info";
+    return kRaftLogEntryRaftTransactionInfo;
   } else {
-    return "Entry type: other";
+    return kRaftLogEntryOther;
   }
 }
 

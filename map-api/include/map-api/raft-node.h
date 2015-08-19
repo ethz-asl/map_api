@@ -109,6 +109,14 @@ class RaftNode {
   static const char kConnectResponse[];
   static const char kInitRequest[];
 
+  static const std::string kRaftLogEntryAddPeer;
+  static const std::string kRaftLogEntryRemovePeer;
+  static const std::string kRaftLogEntryLockRequest;
+  static const std::string kRaftLogEntryUnlockRequest;
+  static const std::string kRaftLogEntryInsertRevision;
+  static const std::string kRaftLogEntryRaftTransactionInfo;
+  static const std::string kRaftLogEntryOther;
+
  private:
   friend class ConsensusFixture;
   friend class benchmarks::RaftBenchmarkTests;
@@ -395,8 +403,11 @@ class RaftNode {
   std::function<void(const uint64_t term)> lost_leadership_callback_;
   std::function<void(const uint64_t term)> elected_as_leader_callback_;
   std::function<void(void)> new_leader_found_callback_;
-  std::function<void(const uint64_t index)> leader_entry_appended_callback_;
-  std::function<void(const uint64_t index)> leader_entry_committed_callback_;
+  std::function<void(const uint64_t index, const std::string& entry_type)>
+      leader_entry_appended_callback_;
+  std::function<void(const uint64_t index, const std::string& entry_type)>
+      leader_entry_committed_callback_;
+  std::function<void(const PeerId& peer)> peer_disconnection_detected_callback_;
 };
 
 }  // namespace map_api
