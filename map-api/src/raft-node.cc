@@ -958,6 +958,9 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
           ++follower_next_index;
           entry_replicated_signal_.notify_all();
           append_success = (follower_next_index > last_log_index);
+        } else {
+          // Regular heartbeat, no log entries appended.
+          append_success = true;
         }
       } else if (append_response.response() ==
                  proto::AppendResponseStatus::REJECTED) {
@@ -1357,7 +1360,6 @@ void RaftNode::manageIncompleteTransaction(const LogWriteAccess& log_writer,
   std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
   entry->set_unlock_peer(peer.ipPort());
   entry->set_unlock_lock_index(raft_chunk_lock_.lock_entry_index());
-  entry->set_sender(PeerId::self().ipPort());
 
   if (multi_chunk_transaction_manager_->isReadyToCommit()) {
     VLOG(1)

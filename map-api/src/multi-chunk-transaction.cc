@@ -202,14 +202,14 @@ void MultiChunkTransaction::sendQueryReadyToCommit(
 
     for (int i = 0; i < multi_chunk_data_->chunk_list_size(); ++i) {
       common::Id chunk_id(multi_chunk_data_->chunk_list(i).chunk_id());
-      if (!ready_chunks.count(chunk_id)) {
+      if (!ready_chunks.count(chunk_id) && chunk_id != my_chunk_id_) {
         proto::MultiChunkTransactionQuery query;
         prepareQuery(multi_chunk_data_->chunk_list(i), &query);
 
-        std::future<bool> result;
-        std::async(std::launch::async,
-                   &MultiChunkTransaction::sendMessage<kIsReadyToCommit>, this,
-                   chunk_id, query);
+        std::future<bool> result =
+            std::async(std::launch::async,
+                       &MultiChunkTransaction::sendMessage<kIsReadyToCommit>,
+                       this, chunk_id, query);
         response_map.emplace(chunk_id, std::move(result));
       }
     }
