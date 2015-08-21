@@ -209,7 +209,8 @@ void NetTable::followTrackedChunksOfItem(const common::Id& item_id,
 void NetTable::autoFollowTrackedChunks() {
   // I suggest to leave this message here as a warning to future generations
   // that might have similarly terrible ideas.
-  LOG(FATAL) << "autoFollowTrackedChunks is flawed since it can cause the "
+  LOG(FATAL)
+      << "autoFollowTrackedChunks is flawed since it can cause the "
       << "presence of an inconsistent set of chunks in concurrent views. "
       << "Revision::fetchTrackedChunks() should instead be called at the "
       << "beginning of transactions.";

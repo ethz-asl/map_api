@@ -22,18 +22,18 @@ namespace map_api {
 
 Transaction::Transaction(const std::shared_ptr<Workspace>& workspace,
                          const LogicalTime& begin_time)
-: workspace_(workspace),
-  begin_time_(begin_time),
-  chunk_tracking_disabled_(false) {
+    : workspace_(workspace),
+      begin_time_(begin_time),
+      chunk_tracking_disabled_(false) {
   CHECK(begin_time < LogicalTime::sample());
 }
 Transaction::Transaction()
-: Transaction(std::shared_ptr<Workspace>(new Workspace),
-              LogicalTime::sample()) {}
+    : Transaction(std::shared_ptr<Workspace>(new Workspace),
+                  LogicalTime::sample()) {}
 Transaction::Transaction(const std::shared_ptr<Workspace>& workspace)
-: Transaction(workspace, LogicalTime::sample()) {}
+    : Transaction(workspace, LogicalTime::sample()) {}
 Transaction::Transaction(const LogicalTime& begin_time)
-: Transaction(std::shared_ptr<Workspace>(new Workspace), begin_time) {}
+    : Transaction(std::shared_ptr<Workspace>(new Workspace), begin_time) {}
 
 void Transaction::dumpChunk(NetTable* table, ChunkBase* chunk,
                             ConstRevisionMap* result) {
@@ -103,9 +103,9 @@ std::string Transaction::printCacheStatistics() const {
   std::stringstream ss;
   ss << "Transaction cache statistics:" << std::endl;
   for (const CacheMap::value_type& cache_pair : attached_caches_) {
-    ss << "\t " << cache_pair.second->underlyingTableName() << " cached: "
-        << cache_pair.second->numCachedItems() << "/"
-        << cache_pair.second->size() << std::endl;
+    ss << "\t " << cache_pair.second->underlyingTableName()
+       << " cached: " << cache_pair.second->numCachedItems() << "/"
+       << cache_pair.second->size() << std::endl;
   }
   return ss.str();
 }
@@ -131,7 +131,7 @@ bool Transaction::commit() {
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     if (!net_table_transaction.second->check()) {
       for (const TransactionPair& net_table_transaction :
-          net_table_transactions_) {
+           net_table_transactions_) {
         net_table_transaction.second->unlock();
       }
       return false;
@@ -149,7 +149,7 @@ bool Transaction::commit() {
 void Transaction::merge(const std::shared_ptr<Transaction>& merge_transaction,
                         ConflictMap* conflicts) {
   CHECK(merge_transaction.get() != nullptr) << "Merge requires an initiated "
-      "transaction";
+                                               "transaction";
   CHECK_NOTNULL(conflicts);
   conflicts->clear();
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
@@ -225,8 +225,8 @@ void Transaction::ensureAccessIsCache(NetTable* table) const {
     access_mode_[table] = TableAccessMode::kCache;
   } else {
     CHECK(found->second == TableAccessMode::kCache)
-                << "Access mode for table " << table->name() << " is already direct, "
-                "may not attach cache.";
+        << "Access mode for table " << table->name() << " is already direct, "
+                                                        "may not attach cache.";
   }
 }
 
@@ -240,9 +240,9 @@ void Transaction::ensureAccessIsDirect(NetTable* table) const {
       lock.unlock();
       std::lock_guard<std::mutex> lock(access_type_mutex_);
       CHECK(cache_access_override_.find(std::this_thread::get_id()) !=
-          cache_access_override_.end())
-      << "Access mode for table " << table->name()
-      << " is already by cache, may not access directly.";
+            cache_access_override_.end())
+          << "Access mode for table " << table->name()
+          << " is already by cache, may not access directly.";
     }
   }
 }
@@ -253,11 +253,11 @@ void Transaction::pushNewChunkIdsToTrackers() {
   }
   // tracked table -> tracked chunks -> tracking table -> tracking item
   typedef std::unordered_map<NetTable*,
-      NetTableTransaction::TrackedChunkToTrackersMap>
-  TrackeeToTrackerMap;
+                             NetTableTransaction::TrackedChunkToTrackersMap>
+      TrackeeToTrackerMap;
   TrackeeToTrackerMap net_table_chunk_trackers;
   for (const TransactionMap::value_type& table_transaction :
-      net_table_transactions_) {
+       net_table_transactions_) {
     table_transaction.second->getChunkTrackers(
         &net_table_chunk_trackers[table_transaction.first]);
   }
@@ -267,27 +267,27 @@ void Transaction::pushNewChunkIdsToTrackers() {
   typedef std::unordered_map<NetTable*, ItemToTrackeeMap> TrackerToTrackeeMap;
   TrackerToTrackeeMap table_item_chunks_to_push;
   for (const TrackeeToTrackerMap::value_type& net_table_trackers :
-      net_table_chunk_trackers) {
+       net_table_chunk_trackers) {
     for (const NetTableTransaction::TrackedChunkToTrackersMap::value_type&
-        chunk_trackers : net_table_trackers.second) {
+             chunk_trackers : net_table_trackers.second) {
       for (const ChunkTransaction::TableToIdMultiMap::value_type& tracker :
-          chunk_trackers.second) {
+           chunk_trackers.second) {
         table_item_chunks_to_push[tracker.first][tracker.second]
-                                                 [net_table_trackers.first]
-                                                  .emplace(chunk_trackers.first);
+                                 [net_table_trackers.first]
+                                     .emplace(chunk_trackers.first);
       }
     }
   }
 
   for (const TrackerToTrackeeMap::value_type& table_chunks_to_push :
-      table_item_chunks_to_push) {
+       table_item_chunks_to_push) {
     for (const ItemToTrackeeMap::value_type& item_chunks_to_push :
-        table_chunks_to_push.second) {
+         table_chunks_to_push.second) {
       // TODO(tcies) keeping track of tracker chunks could optimize this, as
       // the faster getById() overload could be used.
       CHECK(item_chunks_to_push.first.isValid())
-                  << "Invalid tracker ID for trackee from "
-                  << "table " << table_chunks_to_push.first->name();
+          << "Invalid tracker ID for trackee from "
+          << "table " << table_chunks_to_push.first->name();
       std::shared_ptr<const Revision> original_tracker =
           getById(item_chunks_to_push.first, table_chunks_to_push.first);
       std::shared_ptr<Revision> updated_tracker =
