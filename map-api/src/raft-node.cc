@@ -1223,6 +1223,10 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
   }
 
   if (ready_to_commit) {
+    if (leader_entry_committed_callback_) {
+      std::thread(leader_entry_committed_callback_, (*it)->index(),
+                  getLogEntryTypeString((*it))).detach();
+    }
     if ((*it)->has_add_peer()) {
       leaderAddPeer(PeerId((*it)->add_peer()), log_writer, current_term,
                     (*it)->is_rejoin_peer());
@@ -1249,10 +1253,6 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
     multiChunkTransactionInfoCommit(*it);
     log_writer->setCommitIndex(log_writer->commitIndex() + 1);
     entry_committed_signal_.notify_all();
-    if (leader_entry_committed_callback_) {
-      std::thread(leader_entry_committed_callback_, (*it)->index(),
-                  getLogEntryTypeString((*it))).detach();
-    }
     VLOG_EVERY_N(2, 10) << PeerId::self() << ": Commit index increased to "
                         << log_writer->commitIndex()
                         << " With replication count " << replication_count

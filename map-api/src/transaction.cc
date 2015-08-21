@@ -140,44 +140,15 @@ bool Transaction::commit() {
 
 bool Transaction::multiChunkCommit() {
   CHECK(FLAGS_use_raft);
-  prepareForCommit();
 
-  proto::MultiChunkTransactionInfo commit_info;
-  prepareMultiChunkTransactionInfo(&commit_info);
-
-  timing::Timer timer("map_api::Transaction::commit - lock");
-  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
-    net_table_transaction.second->lock();
-    bool result = net_table_transaction.second->sendMultiChunkTransactionInfo(
-        commit_info);
-    if (!result) {
-      unlockAllChunks(false);
-      return false;
-    }
+  if (!prepareOrUnlockAll()) {
+    return false;
   }
-  timer.Stop();
-
-  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
-    if (!net_table_transaction.second->check()) {
-      unlockAllChunks(false);
-      return false;
-    }
+  if (!checkOrUnlockAll()) {
+    return false;
   }
-
-  commit_time_ = LogicalTime::sample();
-  VLOG(3) << "Commit from " << begin_time_ << " to " << commit_time_;
-  std::vector<std::future<bool>> responses;
-  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
-    std::future<bool> success =
-        std::async(std::launch::async, &NetTableTransaction::checkedCommit,
-                   net_table_transaction.second, commit_time_);
-    responses.push_back(std::move(success));
-  }
-  for (std::future<bool>& response : responses) {
-    if (!response.get()) {
-      unlockAllChunks(false);
-      return false;
-    }
+  if (!commitRevisionsOrUnlockAll()) {
+    return false;
   }
 
   // At this point, all chunks have received all their respective transactions.
@@ -363,6 +334,58 @@ void Transaction::pushNewChunkIdsToTrackers() {
       update(table_chunks_to_push.first, updated_tracker);
     }
   }
+}
+
+bool Transaction::prepareOrUnlockAll() {
+  prepareForCommit();
+
+  proto::MultiChunkTransactionInfo commit_info;
+  prepareMultiChunkTransactionInfo(&commit_info);
+  timing::Timer timer("map_api::Transaction::commit - lock");
+  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
+    net_table_transaction.second->lock();
+    bool result = net_table_transaction.second->sendMultiChunkTransactionInfo(
+        commit_info);
+    if (!result) {
+      LOG(WARNING) << "Aborting multiChunkCommit because info commit failed";
+      unlockAllChunks(false);
+      return false;
+    }
+  }
+  timer.Stop();
+  return true;
+}
+
+bool Transaction::checkOrUnlockAll() {
+  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
+    if (!net_table_transaction.second->check()) {
+      LOG(WARNING) << "Aborting multiChunkCommit because check failed";
+      unlockAllChunks(false);
+      return false;
+    }
+  }
+  return true;
+}
+
+bool Transaction::commitRevisionsOrUnlockAll() {
+  commit_time_ = LogicalTime::sample();
+  VLOG(3) << "Commit from " << begin_time_ << " to " << commit_time_;
+  std::vector<std::future<bool>> responses;
+  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
+    std::future<bool> success =
+        std::async(std::launch::async, &NetTableTransaction::checkedCommit,
+                   net_table_transaction.second, commit_time_);
+    responses.push_back(std::move(success));
+  }
+  for (std::future<bool>& response : responses) {
+    if (!response.get()) {
+      LOG(WARNING)
+          << "Aborting multiChunkCommit because sending revisions failed";
+      unlockAllChunks(false);
+      return false;
+    }
+  }
+  return true;
 }
 
 }  // namespace map_api */

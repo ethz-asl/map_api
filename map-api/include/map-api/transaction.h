@@ -24,10 +24,16 @@ namespace proto {
 class Revision;
 }  // namespace proto
 
+namespace benchmarks {
+// Forward declaration necessary for friending this class.
+class RaftBenchmarkTests;
+}  // namespace benchmarks
+
 class Transaction {
   friend class CacheBase;
   template <typename IdType, typename Value, typename DerivedValue>
   friend class Cache;
+  friend class benchmarks::RaftBenchmarkTests;
 
  public:
   Transaction(const std::shared_ptr<Workspace>& workspace,
@@ -130,6 +136,11 @@ class Transaction {
   void pushNewChunkIdsToTrackers();
   friend class ProtoTableFileIO;
   inline void disableChunkTracking() { chunk_tracking_disabled_ = true; }
+
+  // Multi Chunk Transaction related methods.
+  bool prepareOrUnlockAll();
+  bool checkOrUnlockAll();
+  bool commitRevisionsOrUnlockAll();
 
   /**
    * A global ordering of tables prevents deadlocks (resource hierarchy
