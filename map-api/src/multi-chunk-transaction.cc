@@ -202,7 +202,7 @@ void MultiChunkTransaction::sendQueryReadyToCommit(
 
     for (int i = 0; i < multi_chunk_data_->chunk_list_size(); ++i) {
       common::Id chunk_id(multi_chunk_data_->chunk_list(i).chunk_id());
-      if (!ready_chunks.count(chunk_id) && chunk_is != my_chunk_id_) {
+      if (!ready_chunks.count(chunk_id) && chunk_id != my_chunk_id_) {
         proto::MultiChunkTransactionQuery query;
         prepareQuery(multi_chunk_data_->chunk_list(i), &query);
 
