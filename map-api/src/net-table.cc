@@ -207,34 +207,12 @@ void NetTable::followTrackedChunksOfItem(const common::Id& item_id,
 }
 
 void NetTable::autoFollowTrackedChunks() {
-  VLOG(5) << "Auto-following " << name();
-  // First make sure that all chunks will be followed.
-  attachTriggerToCurrentAndFutureChunks([this](
-      const common::IdSet& insertions, const common::IdSet& updates,
-      ChunkBase* chunk) { fetchAllCallback(insertions, updates, chunk); });
-  attachCallbackToChunkAcquisition([this](ChunkBase* chunk) {
-    // TODO(tcies) huge hack - fix! Add function to transaction to extract
-    // all ids from a given chunk.
-    ConstRevisionMap revisions;
-    chunk->dumpItems(map_api::LogicalTime::sample(), &revisions);
-
-    common::IdSet ids;
-    for (const ConstRevisionMap::value_type& id_revision : revisions) {
-      CHECK(ids.emplace(id_revision.first).second);
-    }
-
-    fetchAllCallback(ids, common::IdSet(), chunk);
-  });
-  // Fetch all tracked chunks for existing items.
-  for (const ChunkMap::value_type& id_chunk : active_chunks_) {
-    ChunkBase* chunk = id_chunk.second.get();
-    Transaction transaction;
-    ConstRevisionMap all_items;
-    transaction.dumpChunk(this, chunk, &all_items);
-    for (const ConstRevisionMap::value_type& id_revision : all_items) {
-      id_revision.second->fetchTrackedChunks();
-    }
-  }
+  // I suggest to leave this message here as a warning to future generations
+  // that might have similarly terrible ideas.
+  LOG(FATAL) << "autoFollowTrackedChunks is flawed since it can cause the "
+      << "presence of an inconsistent set of chunks in concurrent views. "
+      << "Revision::fetchTrackedChunks() should instead be called at the "
+      << "beginning of transactions.";
 }
 
 void NetTable::registerChunkInSpace(
@@ -720,21 +698,6 @@ void NetTable::attachTriggers(ChunkBase* chunk) {
       });
     }
   }
-}
-
-void NetTable::fetchAllCallback(const common::IdSet& insertions,
-                                const common::IdSet& updates,
-                                ChunkBase* chunk) {
-  VLOG(5) << "Fetch callback called!";
-  common::IdSet changes(insertions.begin(), insertions.end());
-  changes.insert(updates.begin(), updates.end());
-  for (const common::Id& item_id : changes) {
-    Transaction transaction;
-    std::shared_ptr<const Revision> revision =
-        transaction.getById(item_id, this, chunk);
-    revision->fetchTrackedChunks();
-  }
-  VLOG(5) << "Fetch callback complete!";
 }
 
 void NetTable::leaveIndices() {
