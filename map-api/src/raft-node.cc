@@ -18,10 +18,13 @@
 
 DECLARE_int32(request_timeout);
 
+DEFINE_int32(election_timeout_minimum, 500,
+             "Minimum of the election timeout range");
+DEFINE_int32(election_timeout_maximum, 1500,
+             "Maximum of the election timeout range");
+
 namespace map_api {
 
-// TODO(aqurai): decide good values for these
-constexpr int kHeartbeatTimeoutMs = 500;
 constexpr int kHeartbeatSendPeriodMs = 200;
 constexpr int kJoinResponseTimeoutMs = 1000;
 // Maximum number of yet-to-be-committed entries allowed in the log.
@@ -185,13 +188,12 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
       // should either have same/higher term or more updated log.
       current_term_ = request_term;
       leader_id_ = sender;
-      election_timeout_ms_ = setElectionTimeout();
       if (state_ == State::LEADER || state_ == State::CANDIDATE) {
         state_ = State::FOLLOWER;
         follower_trackers_run_ = false;
       }
-      VLOG(1) << " *** Leader changed to " << sender << " in term "
-              << request_term << " for chunk " << chunk_id_;
+      VLOG(1) << " *** " << PeerId::self() << " eader changed to " << sender
+              << " in term " << request_term << " for chunk " << chunk_id_;
       if (new_leader_found_callback_) {
         std::thread(new_leader_found_callback_).detach();
       }
@@ -213,6 +215,10 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
     }
   }
   updateHeartbeatTime();
+  if (sender_changed) {
+    // Timeout should be updated only after updating heartbeat time.
+    election_timeout_ms_ = setElectionTimeout();
+  }
 
   // ==============================
   // Append/commit new log entries.
@@ -524,9 +530,11 @@ void RaftNode::stateManagerThread() {
     if (state_ == State::JOINING) {
       usleep(election_timeout_ms_ * kMillisecondsToMicroseconds);
     } else if (state == State::FOLLOWER) {
-      if (getTimeSinceHeartbeatMs() > election_timeout_ms_) {
-        VLOG(1) << "Follower: " << PeerId::self()
-                << " : Heartbeat timed out for chunk " << chunk_id_;
+      double time_since_heartbeat = getTimeSinceHeartbeatMs();
+      if (time_since_heartbeat > election_timeout_ms_) {
+        VLOG(1) << "Follower: " << PeerId::self() << " : Heartbeat timed out "
+                << time_since_heartbeat << " vs. " << election_timeout_ms_
+                << " for chunk " << chunk_id_;
         election_timeout = true;
       } else {
         usleep(election_timeout_ms_ * kMillisecondsToMicroseconds);
@@ -553,7 +561,7 @@ void RaftNode::stateManagerThread() {
         }
       }
       if (lost_leadership_callback_) {
-        std::thread(lost_leadership_callback_).detach();
+        std::thread(lost_leadership_callback_, current_term).detach();
       }
       VLOG(1) << "Peer " << PeerId::self() << " Lost leadership of chunk "
               << chunk_id_;
@@ -828,7 +836,7 @@ void RaftNode::conductElection() {
             << " Elected as the leader of chunk " << chunk_id_ << " for term "
             << current_term_ << " with " << num_votes + 1 << " votes. ***";
     if (elected_as_leader_callback_) {
-      std::thread(elected_as_leader_callback_).detach();
+      std::thread(elected_as_leader_callback_, current_term_).detach();
     }
   } else if (state_ == State::CANDIDATE) {
     // This peer doesn't win the election.
@@ -998,8 +1006,8 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
 int RaftNode::setElectionTimeout() {
   std::random_device rd;
   std::mt19937 gen(rd());
-  std::uniform_int_distribution<> dist(kHeartbeatTimeoutMs,
-                                       3 * kHeartbeatTimeoutMs);
+  std::uniform_int_distribution<> dist(FLAGS_election_timeout_minimum,
+                                       FLAGS_election_timeout_maximum);
   return dist(gen);
 }
 
@@ -1643,7 +1651,7 @@ bool RaftNode::sendLeaveRequest(uint64_t serial_id) {
           break;
         }
       }
-      usleep(kHeartbeatTimeoutMs * kMillisecondsToMicroseconds);
+      usleep(FLAGS_election_timeout_minimum * kMillisecondsToMicroseconds);
     }
   }
   if (numPeers() == 0) {

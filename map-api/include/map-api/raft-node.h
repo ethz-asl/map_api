@@ -392,8 +392,8 @@ class RaftNode {
   // ==================
   // Hooks for testing.
   // ==================
-  std::function<void(void)> lost_leadership_callback_;
-  std::function<void(void)> elected_as_leader_callback_;
+  std::function<void(const uint64_t term)> lost_leadership_callback_;
+  std::function<void(const uint64_t term)> elected_as_leader_callback_;
   std::function<void(void)> new_leader_found_callback_;
   std::function<void(const uint64_t index)> leader_entry_appended_callback_;
   std::function<void(const uint64_t index)> leader_entry_committed_callback_;
