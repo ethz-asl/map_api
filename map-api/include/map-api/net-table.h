@@ -257,10 +257,6 @@ class NetTable {
 
   void attachTriggers(ChunkBase* chunk);
 
-  // Complements autoFollowTrackedChunks.
-  void fetchAllCallback(const common::IdSet& insertions,
-                        const common::IdSet& updates, ChunkBase* chunk);
-
   void leaveIndices();
 
   void getChunkHolders(const common::Id& chunk_id,
