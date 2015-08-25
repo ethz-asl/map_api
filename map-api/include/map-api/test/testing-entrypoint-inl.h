@@ -19,7 +19,6 @@ void MapApiTestEntryPoint::customInit() {
                             std::ofstream::out | std::ofstream::trunc);
   }
 }
-
 }  // namespace map_api
 
 #endif  // MAP_API_TESTING_ENTRYPOINT_INL_H_
