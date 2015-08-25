@@ -607,9 +607,10 @@ void ChordIndex::leaveClean() {
       unlock(predecessor);
     }
     unlock(successor);
-    VLOG(1) << own_key_ << " left ring topo";
+    VLOG(1) << PeerId::self() << " - " << own_key_ << " left chord index";
   } else {
-    VLOG(1) << "Last peer left chord index";
+    VLOG(1) << "Last peer: " << PeerId::self() << " - " << own_key_
+            << " left chord index";
   }
   unlock();
 }

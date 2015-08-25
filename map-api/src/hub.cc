@@ -207,8 +207,7 @@ void Hub::request(const PeerId& peer, Message* request, Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
   std::lock_guard<std::mutex> lock(peer_mutex_);
-  std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
-      peers_.find(peer);
+  PeerMap::iterator found = peers_.find(peer);
   if (found == peers_.end()) {
     std::pair<PeerMap::iterator, bool> emplacement = peers_.emplace(
         peer, std::unique_ptr<Peer>(new Peer(peer, *context_, ZMQ_REQ)));
@@ -229,7 +228,12 @@ bool Hub::try_request(const PeerId& peer, Message* request, Message* response) {
     CHECK(emplacement.second);
     found = emplacement.first;
   }
-  return found->second->try_request(request, response);
+  if (found->second->try_request(request, response)) {
+    return true;
+  } else {
+    peers_.erase(found);
+    return false;
+  }
 }
 
 void Hub::broadcast(Message* request_message,
