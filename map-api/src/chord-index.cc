@@ -508,7 +508,8 @@ void ChordIndex::leave() {
 
   // TODO(aqurai): Check if this has to be uncommented.
   // CHECK_EQ(kCleanJoin, FLAGS_join_mode) << "Stabilize leave deprecated";
-  VLOG(1) << own_key_ << "Attempting to leave chord ring.";
+  VLOG(1) << PeerId::self() << " - " << own_key_
+          << " Attempting to leave chord ring.";
   leaveClean();
   // TODO(tcies) unhack! "Ensures" that pending requests resolve
   usleep(FLAGS_simulated_lag_ms * 100000 + 100000);
@@ -950,7 +951,8 @@ void ChordIndex::appendDataToReplicator(size_t replicator_index,
 
 void ChordIndex::attemptDataRecovery(const Key& from) {
   CHECK(FLAGS_enable_replication);
-  VLOG(1) << PeerId::self() << "Attempting chord data recovery";
+  VLOG(1) << PeerId::self() << " - " << own_key_
+          << " Attempting chord data recovery";
   replication_ready_condition_.wait();
   DataMap to_append;
   replicated_data_lock_.acquireReadLock();
@@ -1200,10 +1202,10 @@ void ChordIndex::lockMonitorThread() {
     if (lock_holder_cv_.wait_for(node_lock,
                                  std::chrono::milliseconds(timeout_ms)) ==
         std::cv_status::timeout) {
-      node_lock_holder_ = PeerId();
-      node_locked_ = false;
       LOG(WARNING) << own_key_ << ": Lock held by " << hash(node_lock_holder_)
                    << " ( " << node_lock_holder_ << " ) timed out.";
+      node_lock_holder_ = PeerId();
+      node_locked_ = false;
       break;
     }
   }
