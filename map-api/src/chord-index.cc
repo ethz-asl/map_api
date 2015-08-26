@@ -20,7 +20,18 @@ DEFINE_bool(enable_replication, true, "enable chord replication");
 
 namespace map_api {
 
-ChordIndex::~ChordIndex() {}
+ChordIndex::~ChordIndex() {
+  while (node_locked_) {
+    usleep(100);
+  }
+  std::unique_lock<std::mutex> lock(node_lock_);
+  if (lock_monitor_thread_.joinable()) {
+    LOG(WARNING) << "Lock monitor thread not jointed before call to leave()";
+    lock_monitor_thread_.join();
+  }
+  CHECK(!stabilizer_.joinable());
+  CHECK(!lock_monitor_thread_.joinable());
+}
 
 bool ChordIndex::handleGetClosestPrecedingFinger(
     const Key& key, PeerId* result) {
@@ -422,11 +433,21 @@ bool ChordIndex::lock(const PeerId& subject) {
   if (subject == PeerId::self()) {
     return lock();
   }
+  uint16_t retry_count = 0;
   while (true) {
-    if (lockRpc(subject) != RpcStatus::SUCCESS) {
-      usleep(10 * kMillisecondsToMicroseconds);
-    } else {
+    RpcStatus rpc_status = lockRpc(subject);
+    if (rpc_status == RpcStatus::SUCCESS) {
       break;
+    } else if (rpc_status == RpcStatus::DECLINED) {
+      VLOG_EVERY_N(1, 5) << PeerId::self() << ": Waiting to lock " << subject
+                         << "  " << retry_count;
+      usleep(10 * kMillisecondsToMicroseconds);
+    } else {  // RPC failed.
+      return false;
+    }
+    ++retry_count;
+    if (retry_count > 100) {
+      return false;
     }
   }
   return true;
