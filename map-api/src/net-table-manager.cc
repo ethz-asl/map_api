@@ -462,8 +462,11 @@ void NetTableManager::handleRoutedNetTableChordRequests(const Message& request,
   request.extract<NetTableIndex::kRoutedChordRequest>(&routed_request);
   CHECK(routed_request.has_table_name());
   TableMap::iterator table;
-  CHECK(findTable(routed_request.table_name(), &table));
-  table->second->handleRoutedNetTableChordRequests(request, response);
+  if (findTable(routed_request.table_name(), &table)) {
+    table->second->handleRoutedNetTableChordRequests(request, response);
+  } else {
+    response->impose<Message::kDecline>();
+  }
 }
 
 void NetTableManager::handleRoutedSpatialChordRequests(const Message& request,
