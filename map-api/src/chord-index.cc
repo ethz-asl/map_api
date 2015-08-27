@@ -211,6 +211,8 @@ bool ChordIndex::handleInitReplicator(int index, DataMap* data,
     return false;
   }
   CHECK_LT(index, kNumReplications);
+  VLOG(2) << PeerId::self() << " Replicating data of " << peer << " at index "
+          << index;
   common::ScopedWriteLock replicated_data_lock(&replicated_data_lock_);
   replicated_data_[index].clear();
   replicated_data_[index].swap(*data);
