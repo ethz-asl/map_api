@@ -27,6 +27,8 @@
 #include "./chord-index.pb.h"
 #include "map-api/peer-id.h"
 
+DECLARE_int32(request_timeout);
+
 namespace map_api {
 
 /**
@@ -46,9 +48,10 @@ class ChordIndex {
   // TODO(tcies) in the long term, public functions
   // shouldn't expose these kinds of typedefs unless e.g. a serialization
   // method is given as well
-  // static constexpr size_t kSuccessorListSize = 3; TODO(tcies) later
   static constexpr size_t kNumReplications = 3;
-  static constexpr uint64_t kLockTimeoutMs = 10000;
+  // Larger than request timeout, to prevent timeout when attempting to lock
+  // 2 peers.
+  uint64_t kLockTimeoutMs = 3 * FLAGS_request_timeout;
 
   virtual ~ChordIndex();
 

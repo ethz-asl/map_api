@@ -52,8 +52,6 @@ namespace map_api {
 const char Hub::kDiscovery[] = "map_api_hub_discovery";
 const char Hub::kReady[] = "map_api_hub_ready";
 
-Hub::HandlerMap Hub::handlers_;
-
 bool Hub::init(bool* is_first_peer) {
   CHECK_NOTNULL(is_first_peer);
   context_.reset(new zmq::context_t());
@@ -211,8 +209,7 @@ void Hub::request(const PeerId& peer, Message* request, Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
   std::lock_guard<std::mutex> lock(peer_mutex_);
-  std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
-      peers_.find(peer);
+  PeerMap::iterator found = peers_.find(peer);
   if (found == peers_.end()) {
     std::pair<PeerMap::iterator, bool> emplacement = peers_.emplace(
         peer, std::unique_ptr<Peer>(new Peer(peer, *context_, ZMQ_REQ)));
@@ -384,9 +381,9 @@ void Hub::listenThread(Hub* self) {
       LogicalTime::synchronize(LogicalTime(query.logical_time()));
 
       // Query handler
-      HandlerMap::iterator handler = handlers_.find(query.type());
-      if (handler == handlers_.end()) {
-        for (const HandlerMap::value_type& handler : handlers_) {
+      HandlerMap::iterator handler = self->handlers_.find(query.type());
+      if (handler == self->handlers_.end()) {
+        for (const HandlerMap::value_type& handler : self->handlers_) {
           LOG(INFO) << handler.first;
         }
         LOG(FATAL) << "Handler for message type " << query.type()

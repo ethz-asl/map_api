@@ -20,7 +20,10 @@ DEFINE_bool(enable_replication, false, "enable chord replication");
 
 namespace map_api {
 
-ChordIndex::~ChordIndex() {}
+ChordIndex::~ChordIndex() {
+  CHECK(!stabilizer_.joinable());
+  CHECK(!lock_monitor_thread_.joinable());
+}
 
 bool ChordIndex::handleGetClosestPrecedingFinger(
     const Key& key, PeerId* result) {
@@ -67,12 +70,6 @@ bool ChordIndex::handleLock(const PeerId& requester) {
   } else {
     node_locked_ = true;
     node_lock_holder_ = requester;
-    CHECK(!lock_monitor_thread_running_);
-    if (lock_monitor_thread_.joinable()) {
-      LOG(WARNING) << own_key_ << " unlocked earlier due to timeout.";
-      lock_monitor_thread_.join();
-    }
-    lock_monitor_thread_ = std::thread(&ChordIndex::lockMonitorThread, this);
 
     VLOG(3) << hash(requester) << " locked " << own_key_;
     return true;
@@ -91,8 +88,6 @@ bool ChordIndex::handleUnlock(const PeerId& requester) {
     node_locked_ = false;
     lock.unlock();
     lock_holder_cv_.notify_all();
-    CHECK(lock_monitor_thread_.joinable());
-    lock_monitor_thread_.join();
     VLOG(3) << hash(requester) << " unlocked " << own_key_;
     return true;
   }
@@ -216,6 +211,8 @@ bool ChordIndex::handleInitReplicator(int index, DataMap* data,
     return false;
   }
   CHECK_LT(index, kNumReplications);
+  VLOG(2) << PeerId::self() << " Replicating data of " << peer << " at index "
+          << index;
   common::ScopedWriteLock replicated_data_lock(&replicated_data_lock_);
   replicated_data_[index].clear();
   replicated_data_[index].swap(*data);
@@ -407,7 +404,7 @@ bool ChordIndex::lock() {
     if (!node_locked_) {
       node_locked_ = true;
       node_lock_holder_ = PeerId::self();
-      VLOG(3) << own_key_ << " locked to self";
+      VLOG(3) << PeerId::self() << " - " << own_key_ << " locked to self";
       node_lock_.unlock();
       break;
     } else {
@@ -422,11 +419,21 @@ bool ChordIndex::lock(const PeerId& subject) {
   if (subject == PeerId::self()) {
     return lock();
   }
+  uint16_t retry_count = 0;
   while (true) {
-    if (lockRpc(subject) != RpcStatus::SUCCESS) {
-      usleep(10 * kMillisecondsToMicroseconds);
-    } else {
+    RpcStatus rpc_status = lockRpc(subject);
+    if (rpc_status == RpcStatus::SUCCESS) {
       break;
+    } else if (rpc_status == RpcStatus::DECLINED) {
+      VLOG_EVERY_N(1, 20) << PeerId::self() << ": Waiting to lock " << subject
+                          << "  " << retry_count;
+      usleep(10 * kMillisecondsToMicroseconds);
+    } else {  // RPC failed.
+      return false;
+    }
+    ++retry_count;
+    if (retry_count > 100) {
+      return false;
     }
   }
   return true;
@@ -437,7 +444,7 @@ void ChordIndex::unlock() {
   CHECK(node_locked_);
   CHECK(node_lock_holder_ == PeerId::self());
   node_locked_ = false;
-  VLOG(3) << own_key_ << " unlocked self";
+  VLOG(3) << PeerId::self() << " - " << own_key_ << " unlocked self";
 }
 
 bool ChordIndex::unlock(const PeerId& subject) {
@@ -508,12 +515,22 @@ void ChordIndex::leave() {
 
   // TODO(aqurai): Check if this has to be uncommented.
   // CHECK_EQ(kCleanJoin, FLAGS_join_mode) << "Stabilize leave deprecated";
+  VLOG(1) << PeerId::self() << " - " << own_key_
+          << " Attempting to leave chord ring.";
   leaveClean();
   // TODO(tcies) unhack! "Ensures" that pending requests resolve
   usleep(FLAGS_simulated_lag_ms * 100000 + 100000);
   initialized_ = false;
   initialized_cv_.notify_all();
   integrated_ = false;
+
+  while (node_locked_) {
+    usleep(100);
+  }
+  std::unique_lock<std::mutex> lock(node_lock_);
+  if (lock_monitor_thread_.joinable()) {
+    lock_monitor_thread_.join();
+  }
 }
 
 void ChordIndex::leaveClean() {
@@ -606,9 +623,10 @@ void ChordIndex::leaveClean() {
       unlock(predecessor);
     }
     unlock(successor);
-    VLOG(3) << own_key_ << " left ring topo";
+    VLOG(1) << PeerId::self() << " - " << own_key_ << " left chord index";
   } else {
-    VLOG(3) << "Last peer left chord index";
+    VLOG(1) << "Last peer: " << PeerId::self() << " - " << own_key_
+            << " left chord index";
   }
   unlock();
 }
@@ -674,33 +692,7 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
         self->replaceDisconnectedSuccessor();
       } else {
         self->lock();
-        // Note that we do isIn from-exclusive and to-exclusive
         if (successor_predecessor != PeerId::self() &&
-            isIn(hash(successor_predecessor), own_key, successor_key + 1)) {
-          self->unlock();
-          // Someone joined in between.
-          // TODO(aqurai): Check if this case ever happens after joinBetween
-          // impl.
-          VLOG(2) << self->own_key_ << ": " << hash(successor_predecessor)
-                  << " joined in between me and my successor " << successor_key;
-          bool proceed = false;
-          proceed = self->lock(successor_predecessor);
-          if (proceed) {
-            self->data_lock_.acquireWriteLock();
-            proceed = self->fetchResponsibilitiesRpc(successor_predecessor,
-                                                     &self->data_);
-            self->data_lock_.releaseWriteLock();
-          }
-          if (proceed) {
-            self->registerPeer(successor_predecessor, &self->successor_);
-            proceed = self->notifyRpc(successor_predecessor, PeerId::self(),
-                                      proto::NotifySenderType::PREDECESSOR);
-          }
-          self->unlock(successor_predecessor);
-          if (!proceed) {
-            continue;
-          }
-        } else if (successor_predecessor != PeerId::self() &&
                    isIn(own_key, hash(successor_predecessor),
                         successor_key + 1)) {
           self->unlock();
@@ -974,7 +966,8 @@ void ChordIndex::appendDataToReplicator(size_t replicator_index,
 
 void ChordIndex::attemptDataRecovery(const Key& from) {
   CHECK(FLAGS_enable_replication);
-  VLOG(1) << PeerId::self() << "Attempting chord data recovery";
+  VLOG(1) << PeerId::self() << " - " << own_key_
+          << " Attempting chord data recovery";
   replication_ready_condition_.wait();
   DataMap to_append;
   replicated_data_lock_.acquireReadLock();
@@ -1036,6 +1029,8 @@ void ChordIndex::init() {
     replicators_[i] = PeerId();
   }
   lock_monitor_thread_running_ = false;
+  CHECK(!lock_monitor_thread_.joinable());
+  lock_monitor_thread_ = std::thread(&ChordIndex::lockMonitorThread, this);
 }
 
 void ChordIndex::registerPeer(
@@ -1214,24 +1209,34 @@ void ChordIndex::handleNotifyCommon(std::shared_ptr<ChordPeer> peer,
 }
 
 void ChordIndex::lockMonitorThread() {
+  VLOG(2) << PeerId::self() << " - " << own_key_
+          << " Starting lock monitor thread";
   lock_monitor_thread_running_ = true;
-  VLOG(4) << own_key_ << " Starting lock monitor thread";
-  std::unique_lock<std::mutex> node_lock(node_lock_);
 
   // cv.waitfor is not happy with a const var for some reason.
   uint64_t timeout_ms = kLockTimeoutMs;
-  while (node_locked_) {
-    if (lock_holder_cv_.wait_for(node_lock,
-                                 std::chrono::milliseconds(timeout_ms)) ==
-        std::cv_status::timeout) {
-      node_lock_holder_ = PeerId();
-      node_locked_ = false;
-      LOG(WARNING) << own_key_ << ": Lock held by " << hash(node_lock_holder_)
-                   << " timed out.";
-      break;
+
+  while (!terminate_) {
+    std::unique_lock<std::mutex> node_lock(node_lock_);
+    if (node_locked_ && node_lock_holder_ != PeerId::self()) {
+      if (lock_holder_cv_.wait_for(node_lock,
+                                   std::chrono::milliseconds(timeout_ms)) ==
+          std::cv_status::timeout) {
+        LOG(WARNING) << own_key_ << ": Lock held by " << hash(node_lock_holder_)
+                     << " ( " << node_lock_holder_ << " ) timed out.";
+        node_lock_holder_ = PeerId();
+        node_locked_ = false;
+      }
+      node_lock.unlock();
+      usleep(100 * kMillisecondsToMicroseconds);
+    } else {
+      node_lock.unlock();
+      usleep(200 * kMillisecondsToMicroseconds);
     }
-  }
-  VLOG(4) << own_key_ << " Stopping lock monitor thread";
+  }  // while (!terminate_)
+
+  VLOG(2) << PeerId::self() << " - " << own_key_
+          << " Stopping lock monitor thread";
   lock_monitor_thread_running_ = false;
 }
 
