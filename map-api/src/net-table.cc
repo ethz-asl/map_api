@@ -400,7 +400,7 @@ ChunkBase* NetTable::connectTo(const common::Id& chunk_id, const PeerId& peer) {
     request.impose<LegacyChunk::kConnectRequest>(metadata);
     // TODO(tcies) add to local peer subset as well?
     VLOG(5) << "Connecting to " << peer << " for chunk " << chunk_id;
-    Hub::instance().request(peer, &request, &response);
+    Hub::instance().try_request(peer, &request, &response);
     CHECK(response.isType<Message::kAck>()) << response.type();
   }
   // Wait for connect handle thread of other peer to succeed.
