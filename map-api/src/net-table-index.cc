@@ -48,8 +48,15 @@ void NetTableIndex::announcePosession(const common::Id& chunk_id) {
 void NetTableIndex::renouncePosession(const common::Id& chunk_id) {
   std::string peers_string;
   proto::PeerList peers;
-  // TODO(aqurai): Repeat until success or return false.
-  CHECK(retrieveData(chunk_id.hexString(), &peers_string));
+
+  for (int i = 0; !retrieveData(chunk_id.hexString(), &peers_string); ++i) {
+    CHECK_LT(i, 1000) << "Retrieval of chunk" << chunk_id
+                      << " from index "
+                         "timed out during renouncePosession!";
+    // corresponds to one second of topology turmoil
+    usleep(1000);
+  }
+
   CHECK(peers.ParseFromString(peers_string));
 
   bool found = false;
@@ -62,8 +69,16 @@ void NetTableIndex::renouncePosession(const common::Id& chunk_id) {
   }
   LOG_IF(ERROR, !found)
       << "Tried to renounce possession that was not announced!";
-  // TODO(aqurai): Repeat until success or return false.
-  CHECK(addData(chunk_id.hexString(), peers.SerializeAsString()));
+  for (int i = 0; !addData(chunk_id.hexString(), peers.SerializeAsString());
+       ++i) {
+    if (i > 1000) {
+      LOG(ERROR) << "Renounce possession of " << chunk_id << " from index "
+                                                             "timed out!";
+      break;
+    }
+    // corresponds to one second of topology turmoil
+    usleep(1000);
+  }
 }
 
 const char NetTableIndex::kRoutedChordRequest[] =
