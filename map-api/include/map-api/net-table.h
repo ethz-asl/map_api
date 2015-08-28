@@ -24,6 +24,11 @@ namespace map_api {
 class ConstRevisionMap;
 class MutableRevisionMap;
 
+namespace benchmarks {
+// Forward declaration necessary for friending this class.
+class DhtBenchmarkTests;
+}
+
 inline std::string humanReadableBytes(double size) {
   int i = 0;
   const char* units[] = {"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"};
@@ -43,6 +48,7 @@ class NetTable {
   friend class NetTableTransaction;
   friend class SpatialIndexTest;
   friend class Workspace;
+  friend class benchmarks::DhtBenchmarkTests;
   FRIEND_TEST(NetTableFixture, RemoteUpdate);
   FRIEND_TEST(NetTableFixture, Grind);
   FRIEND_TEST(NetTableFixture, SaveAndRestoreTableFromFile);
