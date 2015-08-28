@@ -63,8 +63,8 @@ bool Peer::try_request_for(int timeout_ms, Message* request,
       socket_.setsockopt(ZMQ_RCVTIMEO, &timeout_ms, sizeof(timeout_ms));
       CHECK(socket_.send(message));
       if (!socket_.recv(&message)) {
-        LOG(WARNING) << "Try-request of type " << request->type() <<
-            " failed for peer " << address_;
+        LOG(WARNING) << PeerId::self() << " Try-request of type "
+                     << request->type() << " failed for peer " << address_;
         return false;
       }
     }

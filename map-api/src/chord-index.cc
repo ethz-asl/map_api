@@ -642,18 +642,21 @@ PeerId ChordIndex::closestPrecedingFinger(const Key& key) {
     result = PeerId::self();
   } else {
     result = successor_->id;
-    if (FLAGS_enable_fingers) {
-      for (size_t i = 0; i < kNumFingers; ++i) {
-        if (!fingers_[i].peer->isValid() || fingers_[i].is_self) {
-          continue;
-        }
-        if (!isIn(key, own_key_, fingers_[i].peer->key)) {
-          result = fingers_[i].peer->id;
-        } else {
-          break;
-        }
-      }
-    }
+    // TODO(aqurai): Integrate this better with handleGetClosestPrecedingFinger
+    // and getPredecessor. If a finger peer is not present anymore, this causes
+    // problem.
+    //    if (FLAGS_enable_fingers) {
+    //      for (size_t i = 0; i < kNumFingers; ++i) {
+    //        if (!fingers_[i].peer->isValid() || fingers_[i].is_self) {
+    //          continue;
+    //        }
+    //        if (!isIn(key, own_key_, fingers_[i].peer->key)) {
+    //          result = fingers_[i].peer->id;
+    //        } else {
+    //          break;
+    //        }
+    //      }
+    //    }
   }
   return result;
 }
@@ -733,14 +736,14 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
       }
     }
 
-    if (FLAGS_enable_fingers) {
+    if (FLAGS_enable_fingers && !self->terminate_) {
       self->fixFinger(fix_finger_index);
       ++fix_finger_index;
       if (fix_finger_index == kNumFingers) {
         fix_finger_index = 0;
       }
     }
-    if (FLAGS_enable_replication) {
+    if (FLAGS_enable_replication && !self->terminate_) {
       self->fixReplicators();
     }
     usleep(FLAGS_stabilize_interval_ms * kMillisecondsToMicroseconds);
@@ -942,8 +945,7 @@ void ChordIndex::appendDataToAllReplicators(const DataMap& data) {
   CHECK(FLAGS_enable_replication);
   for (size_t i = 0; i < kNumReplications; ++i) {
     // Detached.
-    std::async(std::launch::async, &ChordIndex::appendDataToReplicator, this, i,
-               data);
+    std::thread(&ChordIndex::appendDataToReplicator, this, i, data).detach();
   }
 }
 
@@ -1106,7 +1108,7 @@ bool ChordIndex::addDataLocally(
   // Releasing lock here so the update callback can do whatever it wants to.
   data_lock_.releaseWriteLock();
   localUpdateCallback(key, old_value, value);
-  if (FLAGS_enable_replication) {
+  if (FLAGS_enable_replication && !terminate_) {
     DataMap data;
     data[key] = value;
     appendDataToAllReplicators(data);
