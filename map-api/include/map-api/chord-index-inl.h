@@ -22,7 +22,7 @@ ChordIndex::Key ChordIndex::hash(const DataType& data) {
   return key_union.key;
 }
 
-bool ChordIndex::isForceStopped() { return force_stop_chord_; }
+bool ChordIndex::isForceStopped() { return is_force_stopped_; }
 }  // namespace map_api
 
 #endif  // MAP_API_CHORD_INDEX_INL_H_

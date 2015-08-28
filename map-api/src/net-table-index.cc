@@ -357,6 +357,9 @@ bool NetTableIndex::getClosestPrecedingFingerRpc(
   if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
     return false;
   }
+  if (response.isType<Message::kInvalid>()) {
+    return false;
+  }
   CHECK(response.isType<kPeerResponse>());
   *result = PeerId(response.serialized());
   return true;
@@ -369,6 +372,9 @@ bool NetTableIndex::getSuccessorRpc(const PeerId& to, PeerId* result) {
   if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
     return false;
   }
+  if (response.isType<Message::kInvalid>()) {
+    return false;
+  }
   CHECK(response.isType<kPeerResponse>());
   *result = PeerId(response.serialized());
   return true;
@@ -379,6 +385,9 @@ bool NetTableIndex::getPredecessorRpc(const PeerId& to, PeerId* result) {
   Message request, response;
   request.impose<kGetPredecessorRequest>();
   if (rpc(to, request, &response) != RpcStatus::SUCCESS) {
+    return false;
+  }
+  if (response.isType<Message::kInvalid>()) {
     return false;
   }
   CHECK(response.isType<kPeerResponse>());

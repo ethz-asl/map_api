@@ -510,6 +510,9 @@ bool ChordIndex::lockPeersInArgOrder(const PeerId& subject_1,
 }
 
 void ChordIndex::leave() {
+  if (is_force_stopped_) {
+    return;
+  }
   terminate_ = true;
   stabilizer_.join();
 
@@ -1220,6 +1223,7 @@ void ChordIndex::handleNotifyCommon(std::shared_ptr<ChordPeer> peer,
 void ChordIndex::forceStopChordIndex() {
   force_stop_chord_ = true;
   leave();
+  is_force_stopped_ = true;
 }
 
 void ChordIndex::lockMonitorThread() {

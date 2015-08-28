@@ -31,6 +31,11 @@ DECLARE_int32(request_timeout);
 
 namespace map_api {
 
+namespace benchmarks {
+// Forward declaration necessary for friending this class.
+class DhtBenchmarkTests;
+}
+
 /**
  * This is the base class for all distributed indices. It implements distributed
  * key lookup via the Chord protocol, with m fixed to 16 TODO(tcies) flex?.
@@ -42,6 +47,8 @@ namespace map_api {
  * TODO(tcies) key responsibility & replication - will be quite a challenge
  */
 class ChordIndex {
+  friend class benchmarks::DhtBenchmarkTests;
+
  public:
   typedef uint16_t Key;
   typedef std::unordered_map<std::string, std::string> DataMap;
@@ -129,6 +136,8 @@ class ChordIndex {
   void leave();
   void leaveClean();
 
+  // Simulates peer disconnect.
+  void forceStopChordIndex();
   inline bool isForceStopped();
 
   template <typename DataType>
@@ -250,9 +259,6 @@ class ChordIndex {
   void handleNotifyCommon(std::shared_ptr<ChordPeer> peer,
                           proto::NotifySenderType sender_type);
 
-  // Simulates peer disconnect.
-  void forceStopChordIndex();
-
   /**
    * A finger and a successor list item may point to the same peer, yet peer
    * invalidation is more efficient if centralized. Propagation of the info
@@ -298,6 +304,7 @@ class ChordIndex {
   volatile bool terminate_ = false;
 
   bool force_stop_chord_ = false;
+  bool is_force_stopped_ = false;
 
   // TODO(tcies) data stats: Has it already been requested?
   DataMap data_;
