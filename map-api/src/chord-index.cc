@@ -534,6 +534,9 @@ void ChordIndex::leave() {
 }
 
 void ChordIndex::leaveClean() {
+  if (force_stop_chord_) {
+    return;
+  }
   PeerId predecessor, successor;
   // 1. acquire locks
   while (true) {
@@ -945,7 +948,7 @@ void ChordIndex::appendDataToAllReplicators(const DataMap& data) {
   CHECK(FLAGS_enable_replication);
   for (size_t i = 0; i < kNumReplications; ++i) {
     // Detached.
-    std::thread(&ChordIndex::appendDataToReplicator, this, i, data).detach();
+    // std::thread(&ChordIndex::appendDataToReplicator, this, i, data).detach();
   }
 }
 
@@ -954,7 +957,7 @@ void ChordIndex::appendDataToReplicator(size_t replicator_index,
   CHECK(FLAGS_enable_replication);
   std::unique_lock<std::mutex> replicator_peer_lock(replicator_peer_mutex_);
   const PeerId peer = replicators_[replicator_index];
-  if (!peer.isValid()) {
+  if (!peer.isValid() || terminate_) {
     return;
   }
   replicator_peer_lock.unlock();
@@ -963,13 +966,17 @@ void ChordIndex::appendDataToReplicator(size_t replicator_index,
   if (!appendToReplicatorRpc(peer, replicator_index, data)) {
     replicator_peer_lock.lock();
     replicators_[replicator_index] = PeerId();
+    LOG(WARNING) << PeerId::self()
+                 << ": Failed to replicate data on replicator "
+                 << replicator_index << ". Terminate is "
+                 << (terminate_ ? "True" : "False");
   }
 }
 
 void ChordIndex::attemptDataRecovery(const Key& from) {
   CHECK(FLAGS_enable_replication);
-  VLOG(1) << PeerId::self() << " - " << own_key_
-          << " Attempting chord data recovery";
+  LOG(WARNING) << PeerId::self() << " - " << own_key_
+               << " Attempting chord data recovery";
   replication_ready_condition_.wait();
   DataMap to_append;
   replicated_data_lock_.acquireReadLock();
@@ -1208,6 +1215,11 @@ void ChordIndex::handleNotifyCommon(std::shared_ptr<ChordPeer> peer,
     VLOG(3) << own_key_ << " changed successor to " << peer->key
             << " by notification";
   }
+}
+
+void ChordIndex::forceStopChordIndex() {
+  force_stop_chord_ = true;
+  leave();
 }
 
 void ChordIndex::lockMonitorThread() {

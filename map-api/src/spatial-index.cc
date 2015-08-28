@@ -259,6 +259,10 @@ MAP_API_PROTO_MESSAGE(SpatialIndex::kAppendReplicationDataRequest,
 void SpatialIndex::handleRoutedRequest(const Message& routed_request_message,
                                        Message* response) {
   CHECK_NOTNULL(response);
+  if (isForceStopped()) {
+    response->impose<Message::kInvalid>();
+    return;
+  }
   proto::RoutedChordRequest routed_request;
   routed_request_message.extract<kRoutedChordRequest>(&routed_request);
   CHECK(routed_request.has_serialized_message());

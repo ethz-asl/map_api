@@ -21,6 +21,8 @@ ChordIndex::Key ChordIndex::hash(const DataType& data) {
   key_union.hash_result = std::hash<DataType>()(data);
   return key_union.key;
 }
+
+bool ChordIndex::isForceStopped() { return force_stop_chord_; }
 }  // namespace map_api
 
 #endif  // MAP_API_CHORD_INDEX_INL_H_

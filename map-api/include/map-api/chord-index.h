@@ -129,6 +129,8 @@ class ChordIndex {
   void leave();
   void leaveClean();
 
+  inline bool isForceStopped();
+
   template <typename DataType>
   static Key hash(const DataType& data);
 
@@ -248,6 +250,9 @@ class ChordIndex {
   void handleNotifyCommon(std::shared_ptr<ChordPeer> peer,
                           proto::NotifySenderType sender_type);
 
+  // Simulates peer disconnect.
+  void forceStopChordIndex();
+
   /**
    * A finger and a successor list item may point to the same peer, yet peer
    * invalidation is more efficient if centralized. Propagation of the info
@@ -291,6 +296,8 @@ class ChordIndex {
 
   std::thread stabilizer_;
   volatile bool terminate_ = false;
+
+  bool force_stop_chord_ = false;
 
   // TODO(tcies) data stats: Has it already been requested?
   DataMap data_;

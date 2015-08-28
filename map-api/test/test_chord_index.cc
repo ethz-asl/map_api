@@ -182,6 +182,10 @@ void TestChordIndex::staticInit() {
 void TestChordIndex::staticHandleGetClosestPrecedingFinger(
     const Message& request, Message* response) {
   CHECK_NOTNULL(response);
+  if (instance().force_stop_chord_) {
+    response->impose<Message::kInvalid>();
+    return;
+  }
   instance().updateLastHeard(request.sender());
   Key key;
   std::istringstream key_ss(request.serialized());
@@ -198,8 +202,12 @@ void TestChordIndex::staticHandleGetClosestPrecedingFinger(
 
 void TestChordIndex::staticHandleGetSuccessor(const Message& request,
                                               Message* response) {
-  CHECK(request.isType<kGetSuccessorRequest>());
   CHECK_NOTNULL(response);
+  if (instance().force_stop_chord_) {
+    response->impose<Message::kInvalid>();
+    return;
+  }
+  CHECK(request.isType<kGetSuccessorRequest>());
   instance().updateLastHeard(request.sender());
   PeerId successor;
   if (!instance().handleGetSuccessor(&successor)) {
@@ -211,8 +219,12 @@ void TestChordIndex::staticHandleGetSuccessor(const Message& request,
 
 void TestChordIndex::staticHandleGetPredecessor(const Message& request,
                                                 Message* response) {
-  CHECK(request.isType<kGetPredecessorRequest>());
   CHECK_NOTNULL(response);
+  if (instance().force_stop_chord_) {
+    response->impose<Message::kInvalid>();
+    return;
+  }
+  CHECK(request.isType<kGetPredecessorRequest>());
   instance().updateLastHeard(request.sender());
   PeerId predecessor;
   if (!instance().handleGetPredecessor(&predecessor)) {
@@ -225,6 +237,10 @@ void TestChordIndex::staticHandleGetPredecessor(const Message& request,
 void TestChordIndex::staticHandleLock(const Message& request,
                                       Message* response) {
   CHECK_NOTNULL(response);
+  if (instance().force_stop_chord_) {
+    response->impose<Message::kInvalid>();
+    return;
+  }
   PeerId requester(request.sender());
   instance().updateLastHeard(request.sender());
   if (instance().handleLock(requester)) {
@@ -237,6 +253,10 @@ void TestChordIndex::staticHandleLock(const Message& request,
 void TestChordIndex::staticHandleUnlock(const Message& request,
                                         Message* response) {
   CHECK_NOTNULL(response);
+  if (instance().force_stop_chord_) {
+    response->impose<Message::kInvalid>();
+    return;
+  }
   PeerId requester(request.sender());
   instance().updateLastHeard(request.sender());
   if (instance().handleUnlock(requester)) {
@@ -249,6 +269,10 @@ void TestChordIndex::staticHandleUnlock(const Message& request,
 void TestChordIndex::staticHandleNotify(const Message& request,
                                         Message* response) {
   CHECK_NOTNULL(response);
+  if (instance().force_stop_chord_) {
+    response->impose<Message::kInvalid>();
+    return;
+  }
   proto::NotifyRequest notify_request;
   instance().updateLastHeard(request.sender());
   request.extract<kNotifyRequest>(&notify_request);
@@ -263,6 +287,10 @@ void TestChordIndex::staticHandleNotify(const Message& request,
 void TestChordIndex::staticHandleReplace(const Message& request,
                                          Message* response) {
   CHECK_NOTNULL(response);
+  if (instance().force_stop_chord_) {
+    response->impose<Message::kInvalid>();
+    return;
+  }
   instance().updateLastHeard(request.sender());
   proto::ReplaceRequest replace_request;
   request.extract<kReplaceRequest>(&replace_request);
@@ -277,6 +305,10 @@ void TestChordIndex::staticHandleReplace(const Message& request,
 void TestChordIndex::staticHandleAddData(const Message& request,
                                          Message* response) {
   CHECK_NOTNULL(response);
+  if (instance().force_stop_chord_) {
+    response->impose<Message::kInvalid>();
+    return;
+  }
   instance().updateLastHeard(request.sender());
   proto::AddDataRequest add_data_request;
   request.extract<kAddDataRequest>(&add_data_request);
@@ -293,6 +325,10 @@ void TestChordIndex::staticHandleAddData(const Message& request,
 void TestChordIndex::staticHandleRetrieveData(const Message& request,
                                               Message* response) {
   CHECK_NOTNULL(response);
+  if (instance().force_stop_chord_) {
+    response->impose<Message::kInvalid>();
+    return;
+  }
   instance().updateLastHeard(request.sender());
   std::string key, value;
   request.extract<kRetrieveDataRequest>(&key);
@@ -306,6 +342,10 @@ void TestChordIndex::staticHandleRetrieveData(const Message& request,
 void TestChordIndex::staticHandleFetchResponsibilities(const Message& request,
                                                        Message* response) {
   CHECK_NOTNULL(response);
+  if (instance().force_stop_chord_) {
+    response->impose<Message::kInvalid>();
+    return;
+  }
   instance().updateLastHeard(request.sender());
   DataMap data;
   PeerId requester = PeerId(request.sender());
@@ -329,6 +369,10 @@ void TestChordIndex::staticHandleFetchResponsibilities(const Message& request,
 void TestChordIndex::staticHandlePushResponsibilities(const Message& request,
                                                       Message* response) {
   CHECK_NOTNULL(response);
+  if (instance().force_stop_chord_) {
+    response->impose<Message::kInvalid>();
+    return;
+  }
   instance().updateLastHeard(request.sender());
   DataMap data;
   proto::FetchResponsibilitiesResponse push_request;
@@ -346,6 +390,10 @@ void TestChordIndex::staticHandlePushResponsibilities(const Message& request,
 void TestChordIndex::staticHandleInitReplicator(const Message& request,
                                                 Message* response) {
   CHECK_NOTNULL(response);
+  if (instance().force_stop_chord_) {
+    response->impose<Message::kInvalid>();
+    return;
+  }
   instance().updateLastHeard(request.sender());
   DataMap data;
   proto::FetchResponsibilitiesResponse init_request;
@@ -364,6 +412,10 @@ void TestChordIndex::staticHandleInitReplicator(const Message& request,
 void TestChordIndex::staticHandleAppendOnReplicator(const Message& request,
                                                     Message* response) {
   CHECK_NOTNULL(response);
+  if (instance().force_stop_chord_) {
+    response->impose<Message::kInvalid>();
+    return;
+  }
   instance().updateLastHeard(request.sender());
   DataMap data;
   proto::FetchResponsibilitiesResponse replication_request;
