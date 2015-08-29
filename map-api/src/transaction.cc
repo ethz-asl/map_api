@@ -58,6 +58,7 @@ void Transaction::dumpActiveChunks(NetTable* table, ConstRevisionMap* result) {
 }
 
 bool Transaction::fetchAllChunksTrackedByItemsInTable(NetTable* const table) {
+  CHECK_NOTNULL(table);
   std::vector<common::Id> item_ids;
   enableDirectAccess();
   getAvailableIds(table, &item_ids);
