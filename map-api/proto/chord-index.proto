@@ -8,6 +8,7 @@ message ReplaceRequest {
 message AddDataRequest {
   optional bytes key = 1;
   optional bytes value = 2;
+  optional uint32 replicator_index = 3;
 }
 
 message FetchResponsibilitiesResponse {
