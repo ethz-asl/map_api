@@ -545,6 +545,9 @@ ChordIndex::RpcStatus SpatialIndex::rpc(const PeerId& to,
   if (response->isType<Message::kDecline>()) {
     return RpcStatus::DECLINED;
   }
+  if (response->isType<Message::kInvalid>()) {
+    return RpcStatus::RPC_FAILED;
+  }
   return RpcStatus::SUCCESS;
 }
 
