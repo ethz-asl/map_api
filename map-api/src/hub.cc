@@ -21,6 +21,7 @@
 #include <map-api/ipc.h>
 #include <map-api/logical-time.h>
 #include <map-api/server-discovery.h>
+#include <multiagent-mapping-common/delayed-notification.h>
 #include <multiagent-mapping-common/internal/unique-id.h>
 #include <multiagent-mapping-common/plain-file-logger.h>
 
@@ -402,6 +403,10 @@ void Hub::listenThread(Hub* self) {
                   << " from " << query.sender();
         }
       }
+      common::DelayedNotification dn(7000, [&]() {
+        LOG(WARNING) << PeerId::self() << " delay in handling req request "
+                     << query.type() << " from " << query.sender();
+      });
       handler->second(query, &response);
       if (VLOG_IS_ON(4)) {
         if (FLAGS_map_api_hub_filter_handle_debug_output != "") {

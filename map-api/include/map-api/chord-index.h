@@ -327,6 +327,12 @@ class ChordIndex {
   std::condition_variable lock_holder_cv_;
   std::thread lock_monitor_thread_;
   std::atomic<bool> lock_monitor_thread_running_;
+
+  // ==================
+  // Hooks for testing.
+  // ==================
+  std::function<void(const Key own_key)> successor_failure_detected_callback_;
+  std::function<void(const Key own_key)> data_recovery_attempted_callback_;
 };
 
 }  // namespace map_api
