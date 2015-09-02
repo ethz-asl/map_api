@@ -10,6 +10,9 @@
 const std::string kCleanJoin("clean");
 const std::string kStabilizeJoin("stabilize");
 
+const std::string kUniformFingers("clean");
+const std::string kExponentialFingers("stabilize");
+
 DEFINE_string(join_mode, kCleanJoin,
               ("Can be " + kCleanJoin + " or " + kStabilizeJoin).c_str());
 DEFINE_uint64(stabilize_interval_ms, 1500,
@@ -17,6 +20,10 @@ DEFINE_uint64(stabilize_interval_ms, 1500,
 DECLARE_int32(simulated_lag_ms);
 DEFINE_bool(enable_fingers, true, "enable chord fingers");
 DEFINE_bool(enable_replication, true, "enable chord replication");
+DEFINE_string(finger_mode, kUniformFingers,
+              (kUniformFingers + " for uniformly spaced fingers, " +
+               kExponentialFingers +
+               " for exponentially spaced fingers").c_str());
 
 namespace map_api {
 
@@ -1015,9 +1022,18 @@ void ChordIndex::init() {
   own_key_ = hash(PeerId::self());
   self_.reset(new ChordPeer(PeerId::self()));
   //  LOG(INFO) << "Self key is " << self_->key;
-  for (size_t i = 0; i < kNumFingers; ++i) {
-    fingers_[i].base_key = own_key_ + (1 << i);  // overflow intended
-    fingers_[i].peer.reset(new ChordPeer());
+  if (FLAGS_finger_mode == kUniformFingers) {
+    const Key key_max = (1 << (sizeof(Key) * 8)) - 1;
+    const Key segment = (key_max + 1) / (sizeof(Key) * 8);
+    for (size_t i = 0; i < kNumFingers; ++i) {
+      fingers_[i].base_key = own_key_ + i * segment + 1;  // overflow intended
+      fingers_[i].peer.reset(new ChordPeer());
+    }
+  } else if (FLAGS_finger_mode == kExponentialFingers) {
+    for (size_t i = 0; i < kNumFingers; ++i) {
+      fingers_[i].base_key = own_key_ + (1 << i);  // overflow intended
+      fingers_[i].peer.reset(new ChordPeer());
+    }
   }
   terminate_ = false;
   stabilizer_ = std::thread(stabilizeThread, this);
