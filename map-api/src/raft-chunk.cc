@@ -145,7 +145,7 @@ void RaftChunk::raftChunkLock() const {
           serial_id = request_id_.getNewId();
         }
       }
-      usleep(1000 * kMillisecondsToMicroseconds);
+      usleep(500 * kMillisecondsToMicroseconds);
     }
     CHECK(raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self()));
 
