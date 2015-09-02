@@ -186,7 +186,8 @@ class SpatialIndex : public ChordIndex {
   virtual bool initReplicatorRpc(const PeerId& to, size_t index,
                                  const DataMap& data) final override;
   virtual bool appendToReplicatorRpc(const PeerId& to, size_t index,
-                                     const DataMap& data) final override;
+                                     const std::string& key,
+                                     const std::string& value) final override;
 
   virtual void localUpdateCallback(const std::string& key,
                                    const std::string& old_value,

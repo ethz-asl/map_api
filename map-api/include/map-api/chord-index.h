@@ -78,9 +78,9 @@ class ChordIndex {
   bool handleFetchResponsibilities(
       const PeerId& requester, DataMap* responsibilities);
   bool handlePushResponsibilities(const DataMap& responsibilities);
-  bool handleInitReplicator(int index, DataMap* data, const PeerId& peer);
-  bool handleAppendToReplicator(int index, const DataMap& data,
-                                const PeerId& peer);
+  bool handleInitReplicator(int index, const DataMap& data, const PeerId& peer);
+  bool handleAppendToReplicator(int index, const std::string& key,
+                                const std::string& value);
 
   // ====================
   // HIGH-LEVEL FUNCTIONS
@@ -193,7 +193,8 @@ class ChordIndex {
   virtual bool initReplicatorRpc(const PeerId& to, size_t index,
                                  const DataMap& data) = 0;
   virtual bool appendToReplicatorRpc(const PeerId& to, size_t index,
-                                     const DataMap& data) = 0;
+                                     const std::string& key,
+                                     const std::string& value) = 0;
 
   // This function gets executed after data that is allocated locally (i.e. not
   // on another peer) gets updated. Derived classes can use this to implement
@@ -211,10 +212,13 @@ class ChordIndex {
 
   void fixReplicators();
 
-  void appendDataToAllReplicators(const DataMap& data);
-  void appendDataToReplicator(size_t replicator_index, const DataMap& data);
+  void refreshAllReplicators(const DataMap& data);
+  void refreshReplicator(size_t replicator_index, const DataMap& data);
   // Not Guaranteed to always recover all data.
   void attemptDataRecovery(const Key& from);
+
+  void appendToReplicatorLocally(size_t index, const std::string& key,
+                                 const std::string& value);
 
   struct ChordPeer {
     PeerId id;
