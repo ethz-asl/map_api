@@ -10,13 +10,20 @@
 const std::string kCleanJoin("clean");
 const std::string kStabilizeJoin("stabilize");
 
+const std::string kUniformFingers("clean");
+const std::string kExponentialFingers("stabilize");
+
 DEFINE_string(join_mode, kCleanJoin,
               ("Can be " + kCleanJoin + " or " + kStabilizeJoin).c_str());
 DEFINE_uint64(stabilize_interval_ms, 1500,
               "Interval of stabilization in milliseconds");
 DECLARE_int32(simulated_lag_ms);
-DEFINE_bool(enable_fingers, false, "enable chord fingers");
-DEFINE_bool(enable_replication, false, "enable chord replication");
+DEFINE_bool(enable_fingers, true, "enable chord fingers");
+DEFINE_bool(enable_replication, true, "enable chord replication");
+DEFINE_string(finger_mode, kUniformFingers,
+              (kUniformFingers + " for uniformly spaced fingers, " +
+               kExponentialFingers +
+               " for exponentially spaced fingers").c_str());
 
 namespace map_api {
 
@@ -204,7 +211,7 @@ bool ChordIndex::handlePushResponsibilities(const DataMap& responsibilities) {
   return true;
 }
 
-bool ChordIndex::handleInitReplicator(int index, DataMap* data,
+bool ChordIndex::handleInitReplicator(int index, const DataMap& data,
                                       const PeerId& peer) {
   CHECK(FLAGS_enable_replication);
   if (!replication_ready_) {
@@ -214,21 +221,18 @@ bool ChordIndex::handleInitReplicator(int index, DataMap* data,
   VLOG(2) << PeerId::self() << " Replicating data of " << peer << " at index "
           << index;
   common::ScopedWriteLock replicated_data_lock(&replicated_data_lock_);
-  replicated_data_[index].clear();
-  replicated_data_[index].swap(*data);
+  replicated_data_[index].insert(data.begin(), data.end());
   replicated_peers_[index] = peer;
   return true;
 }
 
-bool ChordIndex::handleAppendToReplicator(int index, const DataMap& data,
-                                          const PeerId& peer) {
-  CHECK(FLAGS_enable_replication);
-  CHECK_LT(index, kNumReplications);
-  common::ScopedWriteLock replicated_data_lock(&replicated_data_lock_);
-  if (replicated_peers_[index] != peer) {
-    return false;
+bool ChordIndex::handleAppendToReplicator(int index, const std::string& key,
+                                          const std::string& value) {
+  if (!waitUntilInitialized()) {
+    // TODO(tcies) re-introduce request_status
+    LOG(FATAL) << "Need to implement request status for departed peers.";
   }
-  replicated_data_[index].insert(data.begin(), data.end());
+  appendToReplicatorLocally(index, key, value);
   return true;
 }
 
@@ -238,11 +242,47 @@ bool ChordIndex::addData(const std::string& key, const std::string& value) {
   if (!findSuccessor(chord_key, &successor)) {
     return false;
   }
+  bool add_data_result = false;
   if (successor == PeerId::self()) {
-    return addDataLocally(key, value);
+    add_data_result = addDataLocally(key, value);
   } else {
-    return addDataRpc(successor, key, value);
+    add_data_result = addDataRpc(successor, key, value);
   }
+  if (!add_data_result) {
+    LOG(ERROR) << PeerId::self() << ": add data request failed to "
+               << successor;
+    return false;
+  }
+
+  // Append to replicators
+  if (!FLAGS_enable_replication) {
+    return add_data_result;
+  }
+
+  for (size_t i = 0; i < kNumReplications; ++i) {
+    PeerId replicator_i;
+    if (successor == PeerId::self()) {
+      common::ScopedReadLock peer_lock(&peer_lock_);
+      replicator_i = successor_->id;
+    } else {
+      if (!getSuccessorRpc(successor, &replicator_i)) {
+        LOG(ERROR) << "Failed to get address of replicator " << i;
+        return add_data_result;
+      }
+    }
+
+    // Successor can be self for the first peer.
+    if (replicator_i == PeerId::self()) {
+      break;
+    }
+    if (!appendToReplicatorRpc(replicator_i, i, key, value)) {
+      LOG(ERROR) << "Failed to append data to replicator " << i << ", "
+                 << replicator_i;
+      return add_data_result;
+    }
+    successor = replicator_i;
+  }
+  return add_data_result;
 }
 
 bool ChordIndex::retrieveData(const std::string& key, std::string* value) {
@@ -941,16 +981,15 @@ void ChordIndex::fixReplicators() {
   }
 }
 
-void ChordIndex::appendDataToAllReplicators(const DataMap& data) {
+void ChordIndex::refreshAllReplicators(const DataMap& data) {
   CHECK(FLAGS_enable_replication);
   for (size_t i = 0; i < kNumReplications; ++i) {
-    // Detached.
-    std::thread(&ChordIndex::appendDataToReplicator, this, i, data).detach();
+    std::thread(&ChordIndex::refreshReplicator, this, i, data).detach();
   }
 }
 
-void ChordIndex::appendDataToReplicator(size_t replicator_index,
-                                        const DataMap& data) {
+void ChordIndex::refreshReplicator(size_t replicator_index,
+                                   const DataMap& data) {
   CHECK(FLAGS_enable_replication);
   std::unique_lock<std::mutex> replicator_peer_lock(replicator_peer_mutex_);
   const PeerId peer = replicators_[replicator_index];
@@ -960,7 +999,7 @@ void ChordIndex::appendDataToReplicator(size_t replicator_index,
   replicator_peer_lock.unlock();
 
   // Invalidate replicator id if rpc fails or request declined.
-  if (!appendToReplicatorRpc(peer, replicator_index, data)) {
+  if (!initReplicatorRpc(peer, replicator_index, data)) {
     replicator_peer_lock.lock();
     replicators_[replicator_index] = PeerId();
   }
@@ -983,10 +1022,20 @@ void ChordIndex::attemptDataRecovery(const Key& from) {
   replicated_data_lock_.releaseReadLock();
   VLOG(1) << PeerId::self() << "Recovering " << to_append.size() << " items.";
 
-  common::ScopedWriteLock data_lock(&data_lock_);
-  data_.insert(to_append.begin(), to_append.end());
+  {
+    common::ScopedWriteLock data_lock(&data_lock_);
+    data_.insert(to_append.begin(), to_append.end());
+  }
 
-  appendDataToAllReplicators(to_append);
+  refreshAllReplicators(to_append);
+}
+
+void ChordIndex::appendToReplicatorLocally(size_t index, const std::string& key,
+                                           const std::string& value) {
+  CHECK(FLAGS_enable_replication);
+  CHECK_LT(index, kNumReplications);
+  common::ScopedWriteLock replicated_data_lock(&replicated_data_lock_);
+  replicated_data_[index].emplace(key, value);
 }
 
 void ChordIndex::integrateThread(ChordIndex* self) {
@@ -1015,9 +1064,18 @@ void ChordIndex::init() {
   own_key_ = hash(PeerId::self());
   self_.reset(new ChordPeer(PeerId::self()));
   //  LOG(INFO) << "Self key is " << self_->key;
-  for (size_t i = 0; i < kNumFingers; ++i) {
-    fingers_[i].base_key = own_key_ + (1 << i);  // overflow intended
-    fingers_[i].peer.reset(new ChordPeer());
+  if (FLAGS_finger_mode == kUniformFingers) {
+    const Key key_max = (1 << (sizeof(Key) * 8)) - 1;
+    const Key segment = (key_max + 1) / (sizeof(Key) * 8);
+    for (size_t i = 0; i < kNumFingers; ++i) {
+      fingers_[i].base_key = own_key_ + i * segment + 1;  // overflow intended
+      fingers_[i].peer.reset(new ChordPeer());
+    }
+  } else if (FLAGS_finger_mode == kExponentialFingers) {
+    for (size_t i = 0; i < kNumFingers; ++i) {
+      fingers_[i].base_key = own_key_ + (1 << i);  // overflow intended
+      fingers_[i].peer.reset(new ChordPeer());
+    }
   }
   terminate_ = false;
   stabilizer_ = std::thread(stabilizeThread, this);
@@ -1108,11 +1166,6 @@ bool ChordIndex::addDataLocally(
   // Releasing lock here so the update callback can do whatever it wants to.
   data_lock_.releaseWriteLock();
   localUpdateCallback(key, old_value, value);
-  if (FLAGS_enable_replication && !terminate_) {
-    DataMap data;
-    data[key] = value;
-    appendDataToAllReplicators(data);
-  }
   return true;
 }
 
