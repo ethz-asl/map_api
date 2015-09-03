@@ -1,5 +1,7 @@
 #include "map-api/spatial-index-cell-data.h"
 
+#include <algorithm>
+
 #include <glog/logging.h>
 
 #include "map-api/peer-id.h"

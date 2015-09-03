@@ -9,7 +9,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 ############
 # PROTOBUF #
 ############
-add_definitions(--std=c++11)
+add_definitions(--std=c++11 -Wno-unknown-pragmas)
 
 SET(PROTO_DEFNS proto/chord-index.proto 
                 proto/core.proto
@@ -24,7 +24,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 #############
 
 # Core Library available to all applications
-SET(CORE_SOURCE  src/internal/trackee-multimap.cc
+SET(CORE_SOURCE  src/app-templates.cc
                  src/cache-base.cc
                  src/chord-index.cc
                  src/chunk-base.cc
@@ -34,6 +34,7 @@ SET(CORE_SOURCE  src/internal/trackee-multimap.cc
                  src/core.cc
                  src/file-discovery.cc
                  src/hub.cc
+                 src/internal/trackee-multimap.cc
                  src/ipc.cc
                  src/legacy-chunk.cc
                  src/legacy-chunk-data-container-base.cc

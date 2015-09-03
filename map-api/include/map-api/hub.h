@@ -138,7 +138,7 @@ class Hub final {
    */
   typedef std::unordered_map<
       std::string, std::function<void(const Message&, Message*)> > HandlerMap;
-  static HandlerMap handlers_;
+  HandlerMap handlers_;
 
   std::unique_ptr<Discovery> discovery_;
 };
