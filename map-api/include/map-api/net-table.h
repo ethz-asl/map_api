@@ -84,7 +84,10 @@ class NetTable {
   template <typename IdType>
   void followTrackedChunksOfItem(const IdType& item, ChunkBase* tracker_chunk);
   // Do the above automatically for all created and received items.
-  void autoFollowTrackedChunks();
+  void autoFollowTrackedChunks() __attribute__((deprecated(
+      "This function is evil! Tracked chunks should be manually fetched "
+      "by the user in a controlled manner. Otherwise, this messes with "
+      "views!")));
 
   // SPATIAL INDEX CHUNK MANAGEMENT
   void registerChunkInSpace(const common::Id& chunk_id,
@@ -313,10 +316,6 @@ class NetTable {
   std::function<common::Id(const Revision&)> trackerDeterminerFactory();
 
   void attachTriggers(ChunkBase* chunk);
-
-  // Complements autoFollowTrackedChunks.
-  void fetchAllCallback(const common::IdSet& insertions,
-                        const common::IdSet& updates, ChunkBase* chunk);
 
   void leaveIndices();
 
