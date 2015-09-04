@@ -1291,6 +1291,13 @@ void RaftNode::applySingleRevisionCommit(
         entry->mutable_revision_id());
     entry->set_logical_time(insert_revision->getUpdateTime().serialize());
     data_->checkAndPatch(insert_revision);
+    if (insert_revision->getInsertTime() == insert_revision->getUpdateTime()) {
+      // This is a new entry.
+      commit_insert_callback_(insert_revision->getId<common::Id>());
+    } else {
+      // This is an update for an existing entry.
+      commit_update_callback_(insert_revision->getId<common::Id>());
+    }
   }
 }
 
@@ -1350,6 +1357,7 @@ void RaftNode::bulkApplyLockedRevisions(const LogWriteAccess& log_writer,
        it != log_writer->end() && it != it_end; ++it) {
     applySingleRevisionCommit(*it);
   }
+  commit_unlock_callback_();
 }
 
 bool RaftNode::giveUpLeadership() {

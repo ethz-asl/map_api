@@ -326,6 +326,11 @@ class RaftNode {
   void bulkApplyLockedRevisions(const LogWriteAccess& log_writer,
                                 uint64_t lock_index, uint64_t unlock_index);
 
+  // Commit Insert/update callbacks
+  std::function<void(const common::Id& inserted_id)> commit_insert_callback_;
+  std::function<void(const common::Id& inserted_id)> commit_update_callback_;
+  std::function<void(void)> commit_unlock_callback_;
+
   std::condition_variable entry_replicated_signal_;
   std::condition_variable entry_committed_signal_;
 

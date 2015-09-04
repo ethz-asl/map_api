@@ -34,6 +34,13 @@ bool RaftChunk::init(const common::Id& id,
   raft_node_.table_name_ = descriptor->name();
   raft_node_.initializeMultiChunkTransactionManager();
   initialized_ = true;
+  // Setup callbacks for triggers.
+  raft_node_.commit_insert_callback_ =
+      std::bind(&RaftChunk::insertCommitCallback, this, std::placeholders::_1);
+  raft_node_.commit_update_callback_ =
+      std::bind(&RaftChunk::updateCommitCallback, this, std::placeholders::_1);
+  raft_node_.commit_unlock_callback_ =
+      std::bind(&RaftChunk::unlockCommitCallback, this);
   return true;
 }
 
@@ -344,14 +351,22 @@ bool RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
 }
 
 void RaftChunk::insertCommitCallback(const common::Id& inserted_id) {
-  handleCommitInsert(inserted_id);
+  if (!is_raft_chunk_lock_acquired_) {
+    handleCommitInsert(inserted_id);
+  }
 }
 
 void RaftChunk::updateCommitCallback(const common::Id& updated_id) {
-  handleCommitUpdate(updated_id);
+  if (!is_raft_chunk_lock_acquired_) {
+    handleCommitUpdate(updated_id);
+  }
 }
 
-void RaftChunk::unlockCommitCallback() { handleCommitEnd(); }
+void RaftChunk::unlockCommitCallback() {
+  if (!is_raft_chunk_lock_acquired_) {
+    handleCommitEnd();
+  }
+}
 
 void RaftChunk::forceStopRaft() { raft_node_.stop(); }
 
