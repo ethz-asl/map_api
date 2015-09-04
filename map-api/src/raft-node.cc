@@ -26,6 +26,8 @@ DEFINE_int32(election_timeout_maximum, 750,
 namespace map_api {
 
 constexpr int kHeartbeatSendPeriodMs = 200;
+// Time to wait for various raft processes, e.g. commit of an entry.
+constexpr int kRaftWaitTimeMs = 5;
 constexpr int kJoinResponseTimeoutMs = 1000;
 // Maximum number of yet-to-be-committed entries allowed in the log.
 constexpr int kMaxLogQueueLength = 50;
@@ -205,7 +207,7 @@ void RaftNode::handleAppendRequest(proto::AppendEntriesRequest* append_request,
         state_ = State::FOLLOWER;
         follower_trackers_run_ = false;
       }
-      VLOG(1) << " *** " << PeerId::self() << " eader changed to " << sender
+      VLOG(1) << " *** " << PeerId::self() << " Leader changed to " << sender
               << " in term " << request_term << " for chunk " << chunk_id_;
       if (new_leader_found_callback_) {
         std::thread(new_leader_found_callback_).detach();
@@ -570,7 +572,7 @@ void RaftNode::stateManagerThread() {
           std::mutex wait_mutex;
           std::unique_lock<std::mutex> wait_lock(wait_mutex);
           entry_replicated_signal_.wait_for(
-              wait_lock, std::chrono::milliseconds(kHeartbeatSendPeriodMs));
+              wait_lock, std::chrono::milliseconds(kRaftWaitTimeMs));
         }
       }
       if (lost_leadership_callback_) {
@@ -1625,7 +1627,7 @@ bool RaftNode::waitAndCheckCommit(uint64_t index, uint64_t append_term,
     std::unique_lock<std::mutex> wait_lock(wait_mutex);
     // Wait time limit to avoid deadlocks.
     entry_committed_signal_.wait_for(
-        wait_lock, std::chrono::milliseconds(kHeartbeatSendPeriodMs));
+        wait_lock, std::chrono::milliseconds(kRaftWaitTimeMs));
   }
   if (!isRunning()) {
     return false;
