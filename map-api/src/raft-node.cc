@@ -1316,15 +1316,20 @@ void RaftNode::chunkLockEntryCommit(const LogWriteAccess& log_writer,
     const PeerId queue_front = lock_queue_.front();
     CHECK(lock_peer == queue_front) << "lock_peer " << lock_peer
                                     << " queue front " << queue_front;
-    CHECK(raft_chunk_lock_.writeLock(lock_peer, entry->index()));
+    CHECK(raft_chunk_lock_.writeLock(lock_peer, entry->index()))
+        << raft_chunk_lock_.holder();
     lock_queue_.pop();
   }
   if (entry->has_lock_peer()) {
     const PeerId lock_peer = PeerId(entry->lock_peer());
-    if (!raft_chunk_lock_.writeLock(lock_peer, entry->index())) {
+    if (!lock_queue_.empty() || raft_chunk_lock_.isLocked()) {
       lock_queue_.push(lock_peer);
       VLOG(3) << PeerId::self() << chunk_id_ << ": " << lock_peer
               << " Added to lock queue. entry index = " << entry->index();
+    } else {
+      CHECK(raft_chunk_lock_.writeLock(lock_peer, entry->index()));
+      VLOG(3) << PeerId::self() << chunk_id_ << ": " << lock_peer
+              << " Locked chunk. entry index = " << entry->index();
     }
   }
   if (entry->has_unlock_peer()) {
@@ -1748,14 +1753,14 @@ void RaftNode::processChunkLockRequest(
   }
   uint64_t index = 0;
   std::lock_guard<std::mutex> chunk_lock(chunk_lock_mutex_);
-  if (!raft_chunk_lock_.isLocked()) {
+  if (raft_chunk_lock_.isLockHolder(sender)) {
+    index = raft_chunk_lock_.lock_entry_index();
+  } else {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
     entry->set_lock_peer(sender.ipPort());
     entry->set_sender(sender.ipPort());
     entry->set_sender_serial_id(serial_id);
     index = leaderAppendLogEntry(entry);
-  } else if (raft_chunk_lock_.isLockHolder(sender)) {
-    index = raft_chunk_lock_.lock_entry_index();
   }
   response->set_entry_index(index);
 }
