@@ -207,10 +207,6 @@ bool Hub::registerHandler(
 }
 
 void Hub::request(const PeerId& peer, Message* request, Message* response) {
-  {
-    std::lock_guard<std::mutex> lk(send_count_mutex);
-    ++send_count;
-  }
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
   std::lock_guard<std::mutex> lock(peer_mutex_);
@@ -225,10 +221,6 @@ void Hub::request(const PeerId& peer, Message* request, Message* response) {
 }
 
 bool Hub::try_request(const PeerId& peer, Message* request, Message* response) {
-  {
-    std::lock_guard<std::mutex> lk(send_count_mutex);
-    ++send_count;
-  }
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
   std::lock_guard<std::mutex> lock(peer_mutex_);
@@ -342,7 +334,6 @@ std::string Hub::ownAddressBeforePort() {
 }
 
 void Hub::listenThread(Hub* self) {
-  bool logit = false;
   const unsigned int kMinPort = 1024;
   const unsigned int kMaxPort = 65536;
   zmq::socket_t server(*(self->context_), ZMQ_REP);
@@ -376,36 +367,7 @@ void Hub::listenThread(Hub* self) {
   int timeOutMs = 100;
   server.setsockopt(ZMQ_RCVTIMEO, &timeOutMs, sizeof(timeOutMs));
 
-  std::ofstream* handler_dur, *handle_rate, *send_rate;
-  typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
-  uint64_t message_count = 0;
-  TimePoint begin = std::chrono::system_clock::now();
-
   while (true) {
-    if (!logit && PeerId::self().isValid()) {
-      //      logit = true;
-      //      std::stringstream dur_ss, rate_ss, send_rate_ss;
-      //
-      //      dur_ss << "raft_tests/handle_duration_" << PeerId::self();
-      //      rate_ss << "raft_tests/handler_rate_" << PeerId::self();
-      //      send_rate_ss << "raft_tests/send_rate_" << PeerId::self();
-      //
-      //      handler_dur = new std::ofstream (dur_ss.str(), std::ios::out |
-      // std::ios::trunc);
-      //      handle_rate = new std::ofstream (rate_ss.str(), std::ios::out |
-      // std::ios::trunc);
-      //      send_rate = new std::ofstream (send_rate_ss.str(), std::ios::out |
-      // std::ios::trunc);
-      //
-      //      (*handler_dur) << " ----------- handle time" << std::endl <<
-      // PeerId::self() << "\n ----------------------" << std::endl;
-      //      (*handle_rate) << " ----------- handle rate per sec " << std::endl
-      // << PeerId::self() << "\n ----------------------" << std::endl;
-      //      (*send_rate) << " ----------- send rate per sec " << std::endl <<
-      // PeerId::self() << "\n ----------------------" << std::endl;
-      //
-      //      LOG(WARNING) << PeerId::self() << "created files";
-    }
     try {
       zmq::message_t request;
       if (!server.recv(&request)) {
@@ -446,13 +408,7 @@ void Hub::listenThread(Hub* self) {
                      << query.type() << " from " << query.sender();
       });
 
-      TimePoint h_begin = std::chrono::system_clock::now();
       handler->second(query, &response);
-      TimePoint h_end = std::chrono::system_clock::now();
-      double handle_duration = static_cast<double>(
-          std::chrono::duration_cast<std::chrono::nanoseconds>(h_end - h_begin)
-              .count());
-      if (logit) (*handler_dur) << handle_duration << std::endl;
 
       if (VLOG_IS_ON(4)) {
         if (FLAGS_map_api_hub_filter_handle_debug_output != "") {
@@ -480,26 +436,6 @@ void Hub::listenThread(Hub* self) {
             << request.size() << " "<< serialized_response.size() << std::endl;
 
         network_log_file.Flush();
-      }
-
-      TimePoint now = std::chrono::system_clock::now();
-      double duration = static_cast<double>(
-          std::chrono::duration_cast<std::chrono::milliseconds>(now - begin)
-              .count());
-      if (duration > 1000) {
-        if (logit)
-          (*handle_rate) << (message_count * 1000 / duration) << std::endl;
-        message_count = 0;
-        {
-          std::lock_guard<std::mutex> lk(self->send_count_mutex);
-          if (logit)
-            (*send_rate) << (self->send_count * 1000 / duration) << std::endl;
-          self->send_count = 0;
-        }
-
-        begin = std::chrono::system_clock::now();
-      } else {
-        ++message_count;
       }
 
       usleep(1e3 * FLAGS_simulated_lag_ms);
