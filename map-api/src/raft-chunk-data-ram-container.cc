@@ -216,6 +216,9 @@ proto::RaftLogEntry* RaftChunkDataRamContainer::RaftLog::copyWithoutRevision(
   if ((*it)->has_lock_peer()) {
     entry->set_lock_peer((*it)->lock_peer());
   }
+  if ((*it)->has_queued_lock_peer()) {
+    entry->set_queued_lock_peer((*it)->queued_lock_peer());
+  }
   if ((*it)->has_unlock_peer()) {
     entry->set_unlock_peer((*it)->unlock_peer());
   }

@@ -136,17 +136,24 @@ void RaftChunk::raftChunkLock() const {
     CHECK_EQ(lock_log_index_, 0);
     serial_id = request_id_.getNewId();
     while (raft_node_.isRunning()) {
-      lock_log_index_ = raft_node_.sendChunkLockRequest(serial_id);
-      if (lock_log_index_ > 0) {
-        if (raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self())) {
-          break;
-        } else {
-          // Someone else has the lock. Try with a new Id.
-          serial_id = request_id_.getNewId();
-        }
+      if (raft_node_.sendChunkLockRequest(serial_id) > 0) {
+        break;
       }
-      usleep(500 * kMillisecondsToMicroseconds);
+      VLOG(3) << PeerId::self() << "Request unsuccessful for locking chunk "
+              << id_;
+      usleep(150 * kMillisecondsToMicroseconds);
     }
+
+    // Lock is not immediately granted on commit if there is a queue.
+    while (raft_node_.isRunning() &&
+           !raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self())) {
+      VLOG_EVERY_N(2, 50) << PeerId::self()
+                          << "Waiting in queue for locking chunk " << id_
+                          << ". Current lock holder "
+                          << raft_node_.raft_chunk_lock_.holder();
+      usleep(20 * kMillisecondsToMicroseconds);
+    }
+    lock_log_index_ = raft_node_.raft_chunk_lock_.lock_entry_index();
     CHECK(raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self()));
 
     if (lock_log_index_ > 0) {

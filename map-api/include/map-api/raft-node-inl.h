@@ -107,6 +107,24 @@ void RaftNode::fillMetadata(RequestType* destination) const {
       destination->mutable_metadata()->mutable_chunk_id());
 }
 
+void RaftNode::grantChunkLockFromQueue(const LogWriteAccess& log_writer,
+                                       const uint64_t current_term) {
+  if (!raft_chunk_lock_.isLocked() && !lock_queue_.empty()) {
+    while (!lock_queue_.empty()) {
+      const PeerId lock_contender = lock_queue_.front();
+      if (hasPeer(lock_contender) || PeerId::self() == lock_contender) {
+        std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
+        entry->set_queued_lock_peer(lock_contender.ipPort());
+        leaderAppendLogEntryLocked(log_writer, entry, current_term);
+        VLOG(3) << PeerId::self() << chunk_id_
+                << ": Granting lock from queue to " << lock_contender
+                << " with entry index " << entry->index();
+        return;
+      }
+    }
+  }
+}
+
 }  // namespace map_api
 
 #endif  // MAP_API_RAFT_NODE_INL_H_

@@ -877,11 +877,13 @@ void RaftNode::conductElection() {
 
 void RaftNode::initChunkData(const proto::InitRequest& init_request) {
   LogWriteAccess log_writer(data_);
-  std::lock_guard<std::mutex> peer_lock(peer_mutex_);
-  peer_list_.clear();
-  log_writer->clear();
-  for (int i = 0; i < init_request.peer_address_size(); ++i) {
-    peer_list_.insert(PeerId(init_request.peer_address(i)));
+  {
+    std::lock_guard<std::mutex> peer_lock(peer_mutex_);
+    peer_list_.clear();
+    log_writer->clear();
+    for (int i = 0; i < init_request.peer_address_size(); ++i) {
+      peer_list_.insert(PeerId(init_request.peer_address(i)));
+    }
   }
   for (int i = 0; i < init_request.serialized_items_size(); ++i) {
     std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
@@ -1225,6 +1227,7 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
   }
 
   if (ready_to_commit) {
+    bool was_chunk_locked = raft_chunk_lock_.isLocked();
     if (leader_entry_committed_callback_) {
       std::thread(leader_entry_committed_callback_, (*it)->index(),
                   getLogEntryTypeString((*it))).detach();
@@ -1259,6 +1262,12 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
                         << log_writer->commitIndex()
                         << " With replication count " << replication_count
                         << " and term " << (*it)->term();
+
+    bool is_chunk_locked = raft_chunk_lock_.isLocked();
+    if (was_chunk_locked && !is_chunk_locked) {
+      // If chunk lock was released in this commit, grant lock from queue.
+      grantChunkLockFromQueue(log_writer, current_term);
+    }
 
     // TODO(aqurai): Send notification to quitting peers after zerommq crash
     // issue is resolved.
@@ -1298,8 +1307,25 @@ void RaftNode::applySingleRevisionCommit(
 
 void RaftNode::chunkLockEntryCommit(const LogWriteAccess& log_writer,
     const std::shared_ptr<proto::RaftLogEntry>& entry) {
+  if (entry->has_queued_lock_peer()) {
+    const PeerId lock_peer = PeerId(entry->queued_lock_peer());
+    VLOG(3) << PeerId::self() << chunk_id_
+            << ": committing grant lock from queue entry for " << lock_peer
+            << " with index " << entry->index();
+    CHECK(!lock_queue_.empty()) << PeerId::self();
+    const PeerId queue_front = lock_queue_.front();
+    CHECK(lock_peer == queue_front) << "lock_peer " << lock_peer
+                                    << " queue front " << queue_front;
+    CHECK(raft_chunk_lock_.writeLock(lock_peer, entry->index()));
+    lock_queue_.pop();
+  }
   if (entry->has_lock_peer()) {
-    raft_chunk_lock_.writeLock(PeerId(entry->lock_peer()), entry->index());
+    const PeerId lock_peer = PeerId(entry->lock_peer());
+    if (!raft_chunk_lock_.writeLock(lock_peer, entry->index())) {
+      lock_queue_.push(lock_peer);
+      VLOG(3) << PeerId::self() << chunk_id_ << ": " << lock_peer
+              << " Added to lock queue. entry index = " << entry->index();
+    }
   }
   if (entry->has_unlock_peer()) {
     if (!raft_chunk_lock_.isLockHolder(PeerId(entry->unlock_peer()))) {
