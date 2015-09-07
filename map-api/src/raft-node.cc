@@ -18,9 +18,9 @@
 
 DECLARE_int32(request_timeout);
 
-DEFINE_int32(election_timeout_minimum, 500,
+DEFINE_int32(election_timeout_minimum, 2000,
              "Minimum of the election timeout range");
-DEFINE_int32(election_timeout_maximum, 750,
+DEFINE_int32(election_timeout_maximum, 2750,
              "Maximum of the election timeout range");
 
 namespace map_api {
@@ -102,7 +102,8 @@ RaftNode::RaftNode()
       state_thread_running_(false),
       is_exiting_(false),
       leave_requested_(false),
-      last_vote_request_term_(0) {
+      last_vote_request_term_(0),
+      last_log_index_for_follower_trackers_(0) {
   election_timeout_ms_ = setElectionTimeout();
   VLOG(2) << "Peer " << PeerId::self()
           << ": Election timeout = " << election_timeout_ms_;
@@ -906,11 +907,6 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
   proto::AppendEntriesRequest append_entries;
   proto::AppendEntriesResponse append_response;
 
-  // This lock is only used for waiting on a condition variable
-  // (new_entries_signal_), which is notified when there is a new log entry.
-  std::mutex wait_mutex;
-  std::unique_lock<std::mutex> wait_lock(wait_mutex);
-
   while (follower_trackers_run_ && this_tracker->tracker_run) {
     bool append_success = false;
     while (!append_success && follower_trackers_run_ &&
@@ -1019,8 +1015,16 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
     }  //  while (!append_successs && follower_trackers_run_)
 
     if (follower_trackers_run_ && this_tracker->tracker_run) {
-      new_entries_signal_.wait_for(
-          wait_lock, std::chrono::milliseconds(kHeartbeatSendPeriodMs));
+      std::unique_lock<std::mutex> wait_lock(follower_tracker_wait_mutex_);
+      if (last_log_index_for_follower_trackers_ < follower_next_index &&
+          commit_index_for_follower_trackers_ <= follower_commit_index) {
+        tracker_wakeup_signal_.wait_for(wait_lock, std::chrono::milliseconds(
+                                                       kHeartbeatSendPeriodMs),
+                                        [&]() {
+          return commit_index_for_follower_trackers_ > follower_commit_index ||
+                 last_log_index_for_follower_trackers_ >= follower_next_index;
+        });
+      }
     }
   }  // while (follower_trackers_run_)
 }
@@ -1179,7 +1183,11 @@ uint64_t RaftNode::leaderAppendLogEntryLocked(
     std::thread(leader_entry_appended_callback_, new_entry->index(),
                 getLogEntryTypeString(new_entry)).detach();
   }
-  new_entries_signal_.notify_all();
+  {
+    std::lock_guard<std::mutex> tracker_mutex(follower_tracker_wait_mutex_);
+    last_log_index_for_follower_trackers_ = log_writer->lastLogIndex();
+  }
+  tracker_wakeup_signal_.notify_all();
   VLOG_EVERY_N(1, 200) << "Adding entry to log with index "
                        << new_entry->index() << " to chunk " << chunk_id_ << " "
                        << numPeers();
@@ -1272,6 +1280,12 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
       // If chunk lock was released in this commit, grant lock from queue.
       grantChunkLockFromQueue(log_writer, current_term);
     }
+
+    {
+      std::lock_guard<std::mutex> tracker_mutex(follower_tracker_wait_mutex_);
+      commit_index_for_follower_trackers_ = log_writer->commitIndex();
+    }
+    tracker_wakeup_signal_.notify_all();
 
     // TODO(aqurai): Send notification to quitting peers after zerommq crash
     // issue is resolved.

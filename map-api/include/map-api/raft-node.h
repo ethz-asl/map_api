@@ -20,6 +20,8 @@
  * 3. peer_mutex_
  * 4. follower_tracker_mutex_
  * 5. last_heartbeat_mutex_
+ * 6. last_log_index_mutex_- to be used only in leaderAppendLogEntryLocked
+ *                            and followerTrackerThread, and NO WHERE else.
  *
  * --------------------------------------------------------------
  *  TODO List at this point
@@ -281,7 +283,15 @@ class RaftNode {
 
   std::atomic<bool> follower_trackers_run_;
   std::atomic<uint64_t> last_vote_request_term_;
-  std::atomic<uint64_t> last_log_index_for_follower_tracker_;
+  // Used only to decide to check if new log entries are available, otherwise
+  // the thread sleeps for heart beat period / until new entry signal.
+  // Can be inconsistent. Use LogReadAccess->lastLogIndex() to read last log
+  // index.
+  // and LogReadAccess->commitIndex() to read commit index.
+  uint64_t last_log_index_for_follower_trackers_;
+  uint64_t commit_index_for_follower_trackers_;
+  std::mutex follower_tracker_wait_mutex_;
+  std::condition_variable tracker_wakeup_signal_;
   void followerTrackerThread(const PeerId& peer, uint64_t term,
                              FollowerTracker* const my_tracker);
 
@@ -294,7 +304,6 @@ class RaftNode {
   // Index will always be sequential, unique.
   // Leader will overwrite follower logs where index+term doesn't match.
 
-  std::condition_variable new_entries_signal_;
   // Expects write lock for log_mutex to be acquired.
   uint64_t leaderAppendLogEntryLocked(
       const LogWriteAccess& log_writer,
