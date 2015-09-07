@@ -141,9 +141,6 @@ class Hub final {
   HandlerMap handlers_;
 
   std::unique_ptr<Discovery> discovery_;
-
-  std::mutex send_count_mutex;
-  uint64_t send_count = 0;
 };
 
 }  // namespace map_api

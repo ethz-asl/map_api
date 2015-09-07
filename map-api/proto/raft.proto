@@ -12,14 +12,15 @@ message RaftLogEntry {
   optional string add_peer = 6;
   optional string remove_peer = 7;
   optional string lock_peer = 8;
-  optional string unlock_peer = 9;
-  optional bool unlock_proceed_commits = 10;
-  optional uint64 unlock_lock_index = 11;
-  optional MultiChunkTransactionInfo multi_chunk_transaction_info = 12;
-  optional uint64 multi_chunk_transaction_num_entries = 13;
-  optional common.proto.Id revision_id = 14;
-  optional uint64 logical_time = 15;
-  optional bool is_rejoin_peer = 16;
+  optional string queued_lock_peer = 9;
+  optional string unlock_peer = 10;
+  optional bool unlock_proceed_commits = 11;
+  optional uint64 unlock_lock_index = 12;
+  optional MultiChunkTransactionInfo multi_chunk_transaction_info = 13;
+  optional uint64 multi_chunk_transaction_num_entries = 14;
+  optional common.proto.Id revision_id = 15;
+  optional uint64 logical_time = 16;
+  optional bool is_rejoin_peer = 17;
 }
 
 message AppendEntriesRequest {

@@ -35,6 +35,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
+#include <queue>
 #include <set>
 #include <string>
 #include <thread>
@@ -360,6 +361,12 @@ class RaftNode {
   };
   DistributedRaftChunkLock raft_chunk_lock_;
   std::mutex chunk_lock_mutex_;
+
+  // Not protected by a mutex because this is only accessed from
+  // follower/leader commit functions.
+  std::queue<PeerId> lock_queue_;
+  inline void grantChunkLockFromQueue(const LogWriteAccess& log_writer,
+                                      const uint64_t current_term);
 
   // Raft Chunk Requests.
   uint64_t sendChunkLockRequest(uint64_t serial_id);
