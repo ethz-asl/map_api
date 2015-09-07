@@ -9,6 +9,8 @@
 #include "map-api/hub.h"
 #include "map-api/message.h"
 
+DEFINE_bool(print_lock_time, false, "--");
+
 namespace map_api {
 
 RaftChunk::RaftChunk()
@@ -131,6 +133,7 @@ void RaftChunk::writeLock() { raftChunkLock(); }
 void RaftChunk::readLock() const { raftChunkLock(); }
 
 void RaftChunk::raftChunkLock() const {
+  RaftNode::TimePoint begin = std::chrono::system_clock::now();
   CHECK(raft_node_.isRunning());
   std::lock_guard<std::mutex> lock_mutex(write_lock_mutex_);
   VLOG(3) << PeerId::self() << " Attempting lock for chunk " << id()
@@ -169,6 +172,12 @@ void RaftChunk::raftChunkLock() const {
   }
   VLOG(3) << PeerId::self() << " acquired lock for chunk " << id()
           << ". Current depth: " << chunk_write_lock_depth_;
+  RaftNode::TimePoint end = std::chrono::system_clock::now();
+  double dur =
+      static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(
+          end - begin).count());
+  if (FLAGS_print_lock_time)
+    LOG(WARNING) << "Time to lock chunk " << id_ << ": " << dur;
 }
 
 bool RaftChunk::isWriteLocked() {
@@ -179,6 +188,7 @@ bool RaftChunk::isWriteLocked() {
 void RaftChunk::unlock() const { unlock(true); }
 
 void RaftChunk::unlock(bool proceed_transaction) const {
+  RaftNode::TimePoint end, begin;
   CHECK(raft_node_.isRunning());
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
   VLOG(3) << PeerId::self() << " Attempting unlock for chunk " << id()
@@ -194,6 +204,7 @@ void RaftChunk::unlock(bool proceed_transaction) const {
     CHECK(raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self()))
         << " Failed on " << PeerId::self();
     serial_id = request_id_.getNewId();
+    RaftNode::TimePoint begin = std::chrono::system_clock::now();
     while (raft_node_.isRunning()) {
       if (raft_node_.sendChunkUnlockRequest(serial_id, lock_log_index_,
                                             proceed_transaction) > 0) {
@@ -201,11 +212,18 @@ void RaftChunk::unlock(bool proceed_transaction) const {
       }
       usleep(500 * kMillisecondsToMicroseconds);
     }
+    RaftNode::TimePoint end = std::chrono::system_clock::now();
     CHECK(!raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self()));
     lock_log_index_ = 0;
     is_raft_chunk_lock_acquired_ = false;
     chunk_lock_attempted_ = false;
   }
+
+  double dur =
+      static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(
+          end - begin).count());
+  if (FLAGS_print_lock_time)
+    LOG(WARNING) << "Time to Unlock chunk " << id_ << ": " << dur;
 }
 
 int RaftChunk::requestParticipation() {

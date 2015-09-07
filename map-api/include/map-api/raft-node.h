@@ -281,6 +281,7 @@ class RaftNode {
 
   std::atomic<bool> follower_trackers_run_;
   std::atomic<uint64_t> last_vote_request_term_;
+  std::atomic<uint64_t> last_log_index_for_follower_tracker_;
   void followerTrackerThread(const PeerId& peer, uint64_t term,
                              FollowerTracker* const my_tracker);
 

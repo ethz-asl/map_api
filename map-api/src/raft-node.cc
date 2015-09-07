@@ -571,8 +571,10 @@ void RaftNode::stateManagerThread() {
         if (follower_trackers_run_) {
           std::mutex wait_mutex;
           std::unique_lock<std::mutex> wait_lock(wait_mutex);
-          entry_replicated_signal_.wait_for(
-              wait_lock, std::chrono::milliseconds(kRaftWaitTimeMs));
+          if (numPeers() > 0) {
+            entry_replicated_signal_.wait_for(wait_lock,
+                                              std::chrono::milliseconds(1));
+          }
         }
       }
       if (lost_leadership_callback_) {
@@ -1178,13 +1180,22 @@ uint64_t RaftNode::leaderAppendLogEntryLocked(
                 getLogEntryTypeString(new_entry)).detach();
   }
   new_entries_signal_.notify_all();
-  VLOG_EVERY_N(1, 10) << "Adding entry to log with index "
-                      << new_entry->index();
+  VLOG_EVERY_N(1, 200) << "Adding entry to log with index "
+                       << new_entry->index() << " to chunk " << chunk_id_ << " "
+                       << numPeers();
   return new_entry->index();
 }
 
 void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
   LogWriteAccess log_writer(data_);
+
+  ConstLogIterator it =
+      log_writer->getConstLogIteratorByIndex(log_writer->commitIndex() + 1);
+  if (it == log_writer->cend()) {
+    return;
+  }
+  CHECK_LE(log_writer->commitIndex() + 1, log_writer->lastLogIndex());
+
   uint replication_count = 0;
   {
     std::lock_guard<std::mutex> tracker_lock(follower_tracker_mutex_);
@@ -1202,13 +1213,6 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
                << PeerId::self() << " for entry index "
                << log_writer->commitIndex() + 1;
   }
-
-  ConstLogIterator it =
-      log_writer->getConstLogIteratorByIndex(log_writer->commitIndex() + 1);
-  if (it == log_writer->cend()) {
-    return;
-  }
-  CHECK_LE(log_writer->commitIndex() + 1, log_writer->lastLogIndex());
 
   // Commit entries from older leaders only if they are replicated on all peers,
   // because otherwise they can potentially be overwritten by new leaders.

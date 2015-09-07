@@ -403,10 +403,10 @@ void Hub::listenThread(Hub* self) {
                   << " from " << query.sender();
         }
       }
-      common::DelayedNotification dn(7000, [&]() {
+      /*common::DelayedNotification dn(7000, [&]() {
         LOG(WARNING) << PeerId::self() << " delay in handling req request "
                      << query.type() << " from " << query.sender();
-      });
+      });*/
 
       handler->second(query, &response);
 
