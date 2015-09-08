@@ -386,6 +386,8 @@ class RaftNode {
                                 uint64_t serial_id);
   // New revision request.
   bool sendInsertRequest(const Revision::ConstPtr& item, uint64_t serial_id);
+  bool sendBulkInsertRequest(const MutableRevisionMap& items,
+                             uint64_t serial_id);
 
   bool waitAndCheckCommit(uint64_t index, uint64_t append_term,
                           uint64_t serial_id);
@@ -405,6 +407,9 @@ class RaftNode {
   void processInsertRequest(const PeerId& sender, uint64_t serial_id,
                             proto::Revision* unowned_revision_pointer,
                             proto::RaftChunkRequestResponse* response);
+  void processBulkInsertRequest(const PeerId& sender, uint64_t serial_id,
+                                proto::InsertRequest* insert_request,
+                                proto::RaftChunkRequestResponse* response);
   void processLeaveRequest(const PeerId& sender, uint64_t serial_id,
                            proto::RaftChunkRequestResponse* response);
 

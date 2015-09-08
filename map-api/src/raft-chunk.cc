@@ -9,6 +9,8 @@
 #include "map-api/hub.h"
 #include "map-api/message.h"
 
+DEFINE_bool(enable_raft_bulk_insert, false, "Enable bulk append");
+
 namespace map_api {
 
 RaftChunk::RaftChunk()
@@ -313,12 +315,16 @@ bool RaftChunk::bulkInsertLocked(const MutableRevisionMap& items,
   }
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareBulkInsert(time, items);
-  for (const ConstRevisionMap::value_type& item : items) {
-    if (!raftInsertRequest(item.second)) {
-      return false;
+  if (!FLAGS_enable_raft_bulk_insert) {
+    for (const ConstRevisionMap::value_type& item : items) {
+      if (!raftInsertRequest(item.second)) {
+        return false;
+      }
     }
+    return true;
+  } else {
+    return raftBulkInsertRequest(items);
   }
-  return true;
 }
 
 bool RaftChunk::updateLocked(const LogicalTime& time,
@@ -335,7 +341,7 @@ bool RaftChunk::removeLocked(const LogicalTime& time,
   CHECK(item != nullptr);
   CHECK_EQ(id(), item->getChunkId());
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
-      ->checkAndPrepareUpdate(time, item);
+      ->checkAndPrepareRemove(time, item);
   return raftInsertRequest(item);
 }
 
@@ -350,6 +356,19 @@ bool RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
   // TODO(aqurai): Limit number of retry attempts.
   while (raft_node_.isRunning()) {
     if (raft_node_.sendInsertRequest(item, serial_id)) {
+      break;
+    }
+    usleep(150 * kMillisecondsToMicroseconds);
+  }
+  return true;
+}
+
+bool RaftChunk::raftBulkInsertRequest(const MutableRevisionMap& items) {
+  CHECK(raft_node_.isRunning()) << PeerId::self();
+  uint64_t serial_id = request_id_.getNewId();
+  // TODO(aqurai): Limit number of retry attempts.
+  while (raft_node_.isRunning()) {
+    if (raft_node_.sendBulkInsertRequest(items, serial_id)) {
       break;
     }
     usleep(150 * kMillisecondsToMicroseconds);
