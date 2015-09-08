@@ -18,9 +18,9 @@
 
 DECLARE_int32(request_timeout);
 
-DEFINE_int32(election_timeout_minimum, 2000,
+DEFINE_int32(election_timeout_minimum, 500,
              "Minimum of the election timeout range");
-DEFINE_int32(election_timeout_maximum, 2750,
+DEFINE_int32(election_timeout_maximum, 750,
              "Maximum of the election timeout range");
 
 namespace map_api {
@@ -491,6 +491,7 @@ bool RaftNode::sendInitRequest(const PeerId& peer,
     CHECK(!entry.has_insert_revision()) << "Index = " << (*it)->index()
                                         << ", commit index = "
                                         << log_writer->commitIndex();
+    CHECK_EQ(0, entry.bulk_insert_revision_size());
     if ((*it)->has_revision_id()) {
       // Sending only committed entries, so revision will be in history, not
       // log.
@@ -501,8 +502,22 @@ bool RaftNode::sendInitRequest(const PeerId& peer,
       entry.clear_revision_id();
       entry.clear_logical_time();
     }
+    if ((*it)->bulk_inserted_revision_id_list_size() > 0) {
+      for (int i = 0; i < (*it)->bulk_inserted_revision_id_list_size(); ++i) {
+        entry.mutable_bulk_insert_revision()->AddAllocated(CHECK_NOTNULL(
+            data_->getByIdImpl(
+                       common::Id((*it)->bulk_inserted_revision_id_list(i)),
+                       LogicalTime((*it)->logical_time()))
+                .get())->underlying_revision_.get());
+      }
+      entry.clear_bulk_inserted_revision_id_list();
+      entry.clear_logical_time();
+    }
     init_request.add_serialized_items(entry.SerializeAsString());
     entry.release_insert_revision();
+    while (entry.bulk_insert_revision_size() > 0) {
+      entry.mutable_bulk_insert_revision()->ReleaseLast();
+    }
   }
   peer_lock.unlock();
   request.impose<kInitRequest>(init_request);
@@ -992,6 +1007,11 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
           VLOG(1) << PeerId::self() << ": " << peer << " appears offline.";
         }
         append_entries.mutable_log_entry()->release_insert_revision();
+        while (append_entries.log_entry().bulk_insert_revision_size() > 0) {
+          append_entries.mutable_log_entry()
+              ->mutable_bulk_insert_revision()
+              ->ReleaseLast();
+        }
         continue;
       }
       this_tracker->status = PeerStatus::AVAILABLE;
