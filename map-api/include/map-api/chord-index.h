@@ -149,12 +149,6 @@ class ChordIndex {
     RPC_FAILED
   };
 
- protected:
-  /**
-   * Returns index of finger which is counter-clockwise closest to key.
-   */
-  PeerId closestPrecedingFinger(const Key& key);
-
   /**
    * Check whether key is is same as from_inclusive or between from_inclusive
    * and to_exclusive, clockwise. In particular, returns true if from_inclusive
@@ -162,6 +156,12 @@ class ChordIndex {
    */
   static bool isIn(const Key& key, const Key& from_inclusive,
                    const Key& to_exclusive);
+
+ protected:
+  /**
+   * Returns index of finger which is counter-clockwise closest to key.
+   */
+  PeerId closestPrecedingFinger(const Key& key);
 
  private:
   friend class TestChordIndex;
