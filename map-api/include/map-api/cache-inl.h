@@ -7,8 +7,7 @@
 #include <glog/logging.h>
 #include <timing/timer.h>
 
-DEFINE_bool(map_api_prefetch_cache, false,
-            "Will prefetch the entire cache at construction.");
+DECLARE_bool(map_api_prefetch_cache);
 
 namespace map_api {
 
