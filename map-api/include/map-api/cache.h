@@ -157,6 +157,7 @@ class Cache : public CacheBase,
    * Mutex MUST be locked prior to calling the getRevisionLocked functions.
    */
   std::shared_ptr<const Revision> getRevisionLocked(const IdType& id) const;
+  void prefetchAllRevisionsLocked() const;
   virtual void prepareForCommit() override;
 
   struct ValueHolder {

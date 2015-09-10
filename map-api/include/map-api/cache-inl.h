@@ -7,6 +7,9 @@
 #include <glog/logging.h>
 #include <timing/timer.h>
 
+DEFINE_bool(map_api_prefetch_cache, false,
+            "Will prefetch the entire cache at construction.");
+
 namespace map_api {
 
 template <typename IdType, typename Value, typename DerivedValue>
@@ -22,6 +25,10 @@ Cache<IdType, Value, DerivedValue>::Cache(
   CHECK_NOTNULL(chunk_manager.get());
 
   transaction_.get()->attachCache(underlying_table_, this);
+
+  if (FLAGS_map_api_prefetch_cache) {
+    prefetchAllRevisionsLocked();
+  }
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
@@ -138,6 +145,13 @@ Cache<IdType, Value, DerivedValue>::getRevisionLocked(const IdType& id) const {
     found = insertion.first;
   }
   return found->second;
+}
+
+template <typename IdType, typename Value, typename DerivedValue>
+void Cache<IdType, Value, DerivedValue>::prefetchAllRevisionsLocked() const {
+  CRTable::RevisionMap revisions =
+      transaction_.get()->dumpActiveChunks(underlying_table_);
+  revisions_.swap(revisions);
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
