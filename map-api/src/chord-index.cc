@@ -18,8 +18,8 @@ DEFINE_string(join_mode, kCleanJoin,
 DEFINE_uint64(stabilize_interval_ms, 1500,
               "Interval of stabilization in milliseconds");
 DECLARE_int32(simulated_lag_ms);
-DEFINE_bool(enable_fingers, true, "enable chord fingers");
-DEFINE_bool(enable_replication, true, "enable chord replication");
+DEFINE_bool(enable_fingers, false, "enable chord fingers");
+DEFINE_bool(enable_replication, false, "enable chord replication");
 DEFINE_string(finger_mode, kUniformFingers,
               (kUniformFingers + " for uniformly spaced fingers, " +
                kExponentialFingers +
@@ -873,9 +873,12 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
   PeerId candidate_predecessor_predecessor;
   while (candidate_predecessor != successor_->id) {
     ++i;
-    if (i > 20) {
+    if (i > 100) {
       LOG(WARNING) << "apparently inf loop in replaceDisconnectedSuccessor on "
                    << PeerId::self();
+    }
+    if (i > 1000) {
+      break;
     }
     peer_lock_.releaseReadLock();
     bool response = getPredecessorRpc(candidate_predecessor,
