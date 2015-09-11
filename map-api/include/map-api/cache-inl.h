@@ -1,6 +1,7 @@
 #ifndef MAP_API_CACHE_INL_H_
 #define MAP_API_CACHE_INL_H_
 
+#include <set>
 #include <utility>
 #include <vector>
 
@@ -8,8 +9,10 @@
 #include <timing/timer.h>
 
 DECLARE_bool(map_api_prefetch_cache);
+DECLARE_bool(insert_into_existing_chunk);
 
 namespace map_api {
+class ChunkBase;
 
 template <typename IdType, typename Value, typename DerivedValue>
 Cache<IdType, Value, DerivedValue>::Cache(
@@ -160,6 +163,8 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
   int num_dirty_items = 0;
   int num_checked_items = 0;
   int num_cached_items = 0;
+  std::set<common::Id> chunks;
+  underlying_table_->getActiveChunkIds(&chunks);
   for (const typename CacheMap::value_type& cached_pair : cache_) {
     CRTable::RevisionMap::iterator corresponding_revision =
         revisions_.find(cached_pair.first);
@@ -171,7 +176,13 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
       objectToRevision(cached_pair.first,
                        Factory::getReferenceToDerived(cached_pair.second.value),
                        insertion.get());
-      transaction_.get()->insert(chunk_manager_.get(), insertion);
+      if (FLAGS_insert_into_existing_chunk && !chunks.empty()) {
+        transaction_.get()->insert(underlying_table_,
+                                   underlying_table_->getChunk(*chunks.begin()),
+                                   insertion);
+      } else {
+        transaction_.get()->insert(chunk_manager_.get(), insertion);
+      }
     } else {
       // Only verify objects that have been accessed in a read-write way.
       ++num_cached_items;
