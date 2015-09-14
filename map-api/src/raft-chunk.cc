@@ -128,9 +128,27 @@ bool RaftChunk::insert(const LogicalTime& time,
   }
 }
 
-void RaftChunk::writeLock() { raftChunkLock(); }
+void RaftChunk::writeLock() {
+  while (raft_node_.isRunning()) {
+    if (!raft_node_.is_read_locked_) {
+      break;
+    }
+    usleep(1000);
+  }
+  raftChunkLock();
+}
 
-void RaftChunk::readLock() const { raftChunkLock(); }
+void RaftChunk::readLock() const {
+  while (raft_node_.isRunning()) {
+    if (!raft_node_.raft_chunk_lock_.isLocked() && !chunk_lock_attempted_) {
+      break;
+    }
+    usleep(1000);
+  }
+  std::lock_guard<std::mutex> read_lock(raft_node_.read_lock_mutex_);
+  ++raft_node_.read_lock_depth;
+  raft_node_.is_read_locked_ = true;
+}
 
 void RaftChunk::raftChunkLock() const {
   CHECK(raft_node_.isRunning());
@@ -181,6 +199,22 @@ bool RaftChunk::isWriteLocked() {
 void RaftChunk::unlock() const { unlock(true); }
 
 void RaftChunk::unlock(bool proceed_transaction) const {
+  {
+    std::lock_guard<std::mutex> read_lock(raft_node_.read_lock_mutex_);
+    bool ret = false;
+    if (raft_node_.read_lock_depth > 0) {
+      --raft_node_.read_lock_depth;
+      CHECK(!raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self()));
+      ret = true;
+    }
+    if (raft_node_.read_lock_depth == 0) {
+      raft_node_.is_read_locked_ = false;
+    }
+    if (ret) {
+      return;
+    }
+  }
+
   CHECK(raft_node_.isRunning());
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
   VLOG(3) << PeerId::self() << " Attempting unlock for chunk " << id()

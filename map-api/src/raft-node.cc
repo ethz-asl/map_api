@@ -18,19 +18,19 @@
 
 DECLARE_int32(request_timeout);
 
-DEFINE_int32(election_timeout_minimum, 500,
+DEFINE_int32(election_timeout_minimum, 2000,
              "Minimum of the election timeout range");
-DEFINE_int32(election_timeout_maximum, 750,
+DEFINE_int32(election_timeout_maximum, 2750,
              "Maximum of the election timeout range");
 
 namespace map_api {
 
-constexpr int kHeartbeatSendPeriodMs = 200;
+constexpr int kHeartbeatSendPeriodMs = 1200;
 // Time to wait for various raft processes, e.g. commit of an entry.
 constexpr int kRaftWaitTimeMs = 5;
 constexpr int kJoinResponseTimeoutMs = 1000;
 // Maximum number of yet-to-be-committed entries allowed in the log.
-constexpr int kMaxLogQueueLength = 50;
+constexpr int kMaxLogQueueLength = 2000;
 
 const char RaftNode::kAppendEntries[] = "raft_node_append_entries";
 const char RaftNode::kAppendEntriesResponse[] = "raft_node_append_response";
@@ -103,7 +103,8 @@ RaftNode::RaftNode()
       is_exiting_(false),
       leave_requested_(false),
       last_vote_request_term_(0),
-      last_log_index_for_follower_trackers_(0) {
+      last_log_index_for_follower_trackers_(0),
+      is_read_locked_(false) {
   election_timeout_ms_ = setElectionTimeout();
   VLOG(2) << "Peer " << PeerId::self()
           << ": Election timeout = " << election_timeout_ms_;
@@ -1142,6 +1143,9 @@ proto::AppendResponseStatus RaftNode::followerAppendNewEntries(
 void RaftNode::followerCommitNewEntries(const LogWriteAccess& log_writer,
                                         uint64_t request_commit_index,
                                         State state) {
+  if (is_read_locked_) {
+    return;
+  }
   CHECK_LE(log_writer->commitIndex(), log_writer->lastLogIndex());
   if (log_writer->commitIndex() < request_commit_index &&
       log_writer->commitIndex() < log_writer->lastLogIndex()) {
