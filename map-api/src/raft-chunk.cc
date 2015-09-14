@@ -9,6 +9,8 @@
 #include "map-api/hub.h"
 #include "map-api/message.h"
 
+DEFINE_bool(enable_raft_bulk_insert, false, "Enable bulk append");
+
 namespace map_api {
 
 RaftChunk::RaftChunk()
@@ -34,6 +36,13 @@ bool RaftChunk::init(const common::Id& id,
   raft_node_.table_name_ = descriptor->name();
   raft_node_.initializeMultiChunkTransactionManager();
   initialized_ = true;
+  // Setup callbacks for triggers.
+  raft_node_.commit_insert_callback_ =
+      std::bind(&RaftChunk::insertCommitCallback, this, std::placeholders::_1);
+  raft_node_.commit_update_callback_ =
+      std::bind(&RaftChunk::updateCommitCallback, this, std::placeholders::_1);
+  raft_node_.commit_unlock_callback_ =
+      std::bind(&RaftChunk::unlockCommitCallback, this);
   return true;
 }
 
@@ -119,9 +128,27 @@ bool RaftChunk::insert(const LogicalTime& time,
   }
 }
 
-void RaftChunk::writeLock() { raftChunkLock(); }
+void RaftChunk::writeLock() {
+  while (raft_node_.isRunning()) {
+    if (!raft_node_.is_read_locked_) {
+      break;
+    }
+    usleep(1000);
+  }
+  raftChunkLock();
+}
 
-void RaftChunk::readLock() const { raftChunkLock(); }
+void RaftChunk::readLock() const {
+  while (raft_node_.isRunning()) {
+    if (!raft_node_.raft_chunk_lock_.isLocked() && !chunk_lock_attempted_) {
+      break;
+    }
+    usleep(1000);
+  }
+  std::lock_guard<std::mutex> read_lock(raft_node_.read_lock_mutex_);
+  ++raft_node_.read_lock_depth;
+  raft_node_.is_read_locked_ = true;
+}
 
 void RaftChunk::raftChunkLock() const {
   CHECK(raft_node_.isRunning());
@@ -172,6 +199,22 @@ bool RaftChunk::isWriteLocked() {
 void RaftChunk::unlock() const { unlock(true); }
 
 void RaftChunk::unlock(bool proceed_transaction) const {
+  {
+    std::lock_guard<std::mutex> read_lock(raft_node_.read_lock_mutex_);
+    bool ret = false;
+    if (raft_node_.read_lock_depth > 0) {
+      --raft_node_.read_lock_depth;
+      CHECK(!raft_node_.raft_chunk_lock_.isLockHolder(PeerId::self()));
+      ret = true;
+    }
+    if (raft_node_.read_lock_depth == 0) {
+      raft_node_.is_read_locked_ = false;
+    }
+    if (ret) {
+      return;
+    }
+  }
+
   CHECK(raft_node_.isRunning());
   std::lock_guard<std::mutex> lock(write_lock_mutex_);
   VLOG(3) << PeerId::self() << " Attempting unlock for chunk " << id()
@@ -306,12 +349,16 @@ bool RaftChunk::bulkInsertLocked(const MutableRevisionMap& items,
   }
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
       ->checkAndPrepareBulkInsert(time, items);
-  for (const ConstRevisionMap::value_type& item : items) {
-    if (!raftInsertRequest(item.second)) {
-      return false;
+  if (!FLAGS_enable_raft_bulk_insert) {
+    for (const ConstRevisionMap::value_type& item : items) {
+      if (!raftInsertRequest(item.second)) {
+        return false;
+      }
     }
+    return true;
+  } else {
+    return raftBulkInsertRequest(items);
   }
-  return true;
 }
 
 bool RaftChunk::updateLocked(const LogicalTime& time,
@@ -328,7 +375,7 @@ bool RaftChunk::removeLocked(const LogicalTime& time,
   CHECK(item != nullptr);
   CHECK_EQ(id(), item->getChunkId());
   static_cast<RaftChunkDataRamContainer*>(data_container_.get())
-      ->checkAndPrepareUpdate(time, item);
+      ->checkAndPrepareRemove(time, item);
   return raftInsertRequest(item);
 }
 
@@ -350,15 +397,36 @@ bool RaftChunk::raftInsertRequest(const Revision::ConstPtr& item) {
   return true;
 }
 
+bool RaftChunk::raftBulkInsertRequest(const MutableRevisionMap& items) {
+  CHECK(raft_node_.isRunning()) << PeerId::self();
+  uint64_t serial_id = request_id_.getNewId();
+  // TODO(aqurai): Limit number of retry attempts.
+  while (raft_node_.isRunning()) {
+    if (raft_node_.sendBulkInsertRequest(items, serial_id)) {
+      break;
+    }
+    usleep(150 * kMillisecondsToMicroseconds);
+  }
+  return true;
+}
+
 void RaftChunk::insertCommitCallback(const common::Id& inserted_id) {
-  handleCommitInsert(inserted_id);
+  if (!is_raft_chunk_lock_acquired_) {
+    handleCommitInsert(inserted_id);
+  }
 }
 
 void RaftChunk::updateCommitCallback(const common::Id& updated_id) {
-  handleCommitUpdate(updated_id);
+  if (!is_raft_chunk_lock_acquired_) {
+    handleCommitUpdate(updated_id);
+  }
 }
 
-void RaftChunk::unlockCommitCallback() { handleCommitEnd(); }
+void RaftChunk::unlockCommitCallback() {
+  if (!is_raft_chunk_lock_acquired_) {
+    handleCommitEnd();
+  }
+}
 
 void RaftChunk::forceStopRaft() { raft_node_.stop(); }
 

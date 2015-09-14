@@ -239,6 +239,10 @@ proto::RaftLogEntry* RaftChunkDataRamContainer::RaftLog::copyWithoutRevision(
   if ((*it)->has_revision_id()) {
     entry->mutable_revision_id()->CopyFrom((*it)->revision_id());
   }
+  if ((*it)->bulk_inserted_revision_id_list_size() > 0) {
+    entry->mutable_bulk_inserted_revision_id_list()->CopyFrom(
+        (*it)->bulk_inserted_revision_id_list());
+  }
   if ((*it)->has_logical_time()) {
     entry->set_logical_time((*it)->logical_time());
   }

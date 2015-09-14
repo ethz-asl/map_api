@@ -9,18 +9,20 @@ message RaftLogEntry {
   optional string sender = 3;
   optional uint64 sender_serial_id = 4;
   optional Revision insert_revision = 5;
-  optional string add_peer = 6;
-  optional string remove_peer = 7;
-  optional string lock_peer = 8;
-  optional string queued_lock_peer = 9;
-  optional string unlock_peer = 10;
-  optional bool unlock_proceed_commits = 11;
-  optional uint64 unlock_lock_index = 12;
-  optional MultiChunkTransactionInfo multi_chunk_transaction_info = 13;
-  optional uint64 multi_chunk_transaction_num_entries = 14;
-  optional common.proto.Id revision_id = 15;
-  optional uint64 logical_time = 16;
-  optional bool is_rejoin_peer = 17;
+  repeated Revision bulk_insert_revision = 6;
+  optional string add_peer = 7;
+  optional string remove_peer = 8;
+  optional string lock_peer = 9;
+  optional string queued_lock_peer = 10;
+  optional string unlock_peer = 11;
+  optional bool unlock_proceed_commits = 12;
+  optional uint64 unlock_lock_index = 13;
+  optional MultiChunkTransactionInfo multi_chunk_transaction_info = 14;
+  optional uint64 multi_chunk_transaction_num_entries = 15;
+  optional common.proto.Id revision_id = 16;
+  repeated common.proto.Id bulk_inserted_revision_id_list = 17;
+  optional uint64 logical_time = 18;
+  optional bool is_rejoin_peer = 19;
 }
 
 message AppendEntriesRequest {
@@ -99,6 +101,7 @@ message InsertRequest {
   optional ChunkRequestMetadata metadata = 1;
   optional uint64 serial_id = 2;
   optional Revision revision = 3;
+  repeated Revision bulk_insert_revision = 4;
 }
 
 message LockRequest {

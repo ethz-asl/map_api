@@ -20,6 +20,8 @@
  * 3. peer_mutex_
  * 4. follower_tracker_mutex_
  * 5. last_heartbeat_mutex_
+ * 6. last_log_index_mutex_- to be used only in leaderAppendLogEntryLocked
+ *                            and followerTrackerThread, and NO WHERE else.
  *
  * --------------------------------------------------------------
  *  TODO List at this point
@@ -281,6 +283,15 @@ class RaftNode {
 
   std::atomic<bool> follower_trackers_run_;
   std::atomic<uint64_t> last_vote_request_term_;
+  // Used only to decide to check if new log entries are available, otherwise
+  // the thread sleeps for heart beat period / until new entry signal.
+  // Can be inconsistent. Use LogReadAccess->lastLogIndex() to read last log
+  // index.
+  // and LogReadAccess->commitIndex() to read commit index.
+  uint64_t last_log_index_for_follower_trackers_;
+  uint64_t commit_index_for_follower_trackers_;
+  std::mutex follower_tracker_wait_mutex_;
+  std::condition_variable tracker_wakeup_signal_;
   void followerTrackerThread(const PeerId& peer, uint64_t term,
                              FollowerTracker* const my_tracker);
 
@@ -293,7 +304,6 @@ class RaftNode {
   // Index will always be sequential, unique.
   // Leader will overwrite follower logs where index+term doesn't match.
 
-  std::condition_variable new_entries_signal_;
   // Expects write lock for log_mutex to be acquired.
   uint64_t leaderAppendLogEntryLocked(
       const LogWriteAccess& log_writer,
@@ -326,6 +336,11 @@ class RaftNode {
       const std::shared_ptr<proto::RaftLogEntry>& entry);
   void bulkApplyLockedRevisions(const LogWriteAccess& log_writer,
                                 uint64_t lock_index, uint64_t unlock_index);
+
+  // Commit Insert/update callbacks
+  std::function<void(const common::Id& inserted_id)> commit_insert_callback_;
+  std::function<void(const common::Id& inserted_id)> commit_update_callback_;
+  std::function<void(void)> commit_unlock_callback_;
 
   std::condition_variable entry_replicated_signal_;
   std::condition_variable entry_committed_signal_;
@@ -371,6 +386,8 @@ class RaftNode {
                                 uint64_t serial_id);
   // New revision request.
   bool sendInsertRequest(const Revision::ConstPtr& item, uint64_t serial_id);
+  bool sendBulkInsertRequest(const MutableRevisionMap& items,
+                             uint64_t serial_id);
 
   bool waitAndCheckCommit(uint64_t index, uint64_t append_term,
                           uint64_t serial_id);
@@ -390,6 +407,9 @@ class RaftNode {
   void processInsertRequest(const PeerId& sender, uint64_t serial_id,
                             proto::Revision* unowned_revision_pointer,
                             proto::RaftChunkRequestResponse* response);
+  void processBulkInsertRequest(const PeerId& sender, uint64_t serial_id,
+                                proto::InsertRequest* insert_request,
+                                proto::RaftChunkRequestResponse* response);
   void processLeaveRequest(const PeerId& sender, uint64_t serial_id,
                            proto::RaftChunkRequestResponse* response);
 
@@ -415,6 +435,10 @@ class RaftNode {
   std::function<void(const uint64_t index, const std::string& entry_type)>
       leader_entry_committed_callback_;
   std::function<void(const PeerId& peer)> peer_disconnection_detected_callback_;
+
+  std::mutex read_lock_mutex_;
+  std::atomic<bool> is_read_locked_;
+  uint64_t read_lock_depth = 0;
 };
 
 }  // namespace map_api

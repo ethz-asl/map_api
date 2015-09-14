@@ -18,19 +18,19 @@
 
 DECLARE_int32(request_timeout);
 
-DEFINE_int32(election_timeout_minimum, 500,
+DEFINE_int32(election_timeout_minimum, 2000,
              "Minimum of the election timeout range");
-DEFINE_int32(election_timeout_maximum, 750,
+DEFINE_int32(election_timeout_maximum, 2750,
              "Maximum of the election timeout range");
 
 namespace map_api {
 
-constexpr int kHeartbeatSendPeriodMs = 200;
+constexpr int kHeartbeatSendPeriodMs = 1200;
 // Time to wait for various raft processes, e.g. commit of an entry.
 constexpr int kRaftWaitTimeMs = 5;
 constexpr int kJoinResponseTimeoutMs = 1000;
 // Maximum number of yet-to-be-committed entries allowed in the log.
-constexpr int kMaxLogQueueLength = 50;
+constexpr int kMaxLogQueueLength = 2000;
 
 const char RaftNode::kAppendEntries[] = "raft_node_append_entries";
 const char RaftNode::kAppendEntriesResponse[] = "raft_node_append_response";
@@ -102,7 +102,9 @@ RaftNode::RaftNode()
       state_thread_running_(false),
       is_exiting_(false),
       leave_requested_(false),
-      last_vote_request_term_(0) {
+      last_vote_request_term_(0),
+      last_log_index_for_follower_trackers_(0),
+      is_read_locked_(false) {
   election_timeout_ms_ = setElectionTimeout();
   VLOG(2) << "Peer " << PeerId::self()
           << ": Election timeout = " << election_timeout_ms_;
@@ -378,8 +380,16 @@ void RaftNode::handleChunkUnlockRequest(const PeerId& sender,
 void RaftNode::handleInsertRequest(proto::InsertRequest* request,
                                    const PeerId& sender, Message* response) {
   proto::RaftChunkRequestResponse insert_response;
-  processInsertRequest(sender, request->serial_id(),
-                       request->release_revision(), &insert_response);
+  if (request->bulk_insert_revision_size() > 0) {
+    CHECK(!request->has_revision());
+    processBulkInsertRequest(sender, request->serial_id(), request,
+                             &insert_response);
+  }
+  if (request->has_revision()) {
+    CHECK_EQ(0, request->bulk_insert_revision_size());
+    processInsertRequest(sender, request->serial_id(),
+                         request->release_revision(), &insert_response);
+  }
   response->impose<kRaftChunkRequestResponse>(insert_response);
 }
 
@@ -482,6 +492,7 @@ bool RaftNode::sendInitRequest(const PeerId& peer,
     CHECK(!entry.has_insert_revision()) << "Index = " << (*it)->index()
                                         << ", commit index = "
                                         << log_writer->commitIndex();
+    CHECK_EQ(0, entry.bulk_insert_revision_size());
     if ((*it)->has_revision_id()) {
       // Sending only committed entries, so revision will be in history, not
       // log.
@@ -492,8 +503,22 @@ bool RaftNode::sendInitRequest(const PeerId& peer,
       entry.clear_revision_id();
       entry.clear_logical_time();
     }
+    if ((*it)->bulk_inserted_revision_id_list_size() > 0) {
+      for (int i = 0; i < (*it)->bulk_inserted_revision_id_list_size(); ++i) {
+        entry.mutable_bulk_insert_revision()->AddAllocated(CHECK_NOTNULL(
+            data_->getByIdImpl(
+                       common::Id((*it)->bulk_inserted_revision_id_list(i)),
+                       LogicalTime((*it)->logical_time()))
+                .get())->underlying_revision_.get());
+      }
+      entry.clear_bulk_inserted_revision_id_list();
+      entry.clear_logical_time();
+    }
     init_request.add_serialized_items(entry.SerializeAsString());
     entry.release_insert_revision();
+    while (entry.bulk_insert_revision_size() > 0) {
+      entry.mutable_bulk_insert_revision()->ReleaseLast();
+    }
   }
   peer_lock.unlock();
   request.impose<kInitRequest>(init_request);
@@ -571,8 +596,10 @@ void RaftNode::stateManagerThread() {
         if (follower_trackers_run_) {
           std::mutex wait_mutex;
           std::unique_lock<std::mutex> wait_lock(wait_mutex);
-          entry_replicated_signal_.wait_for(
-              wait_lock, std::chrono::milliseconds(kRaftWaitTimeMs));
+          if (numPeers() > 0) {
+            entry_replicated_signal_.wait_for(wait_lock,
+                                              std::chrono::milliseconds(1));
+          }
         }
       }
       if (lost_leadership_callback_) {
@@ -904,11 +931,6 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
   proto::AppendEntriesRequest append_entries;
   proto::AppendEntriesResponse append_response;
 
-  // This lock is only used for waiting on a condition variable
-  // (new_entries_signal_), which is notified when there is a new log entry.
-  std::mutex wait_mutex;
-  std::unique_lock<std::mutex> wait_lock(wait_mutex);
-
   while (follower_trackers_run_ && this_tracker->tracker_run) {
     bool append_success = false;
     while (!append_success && follower_trackers_run_ &&
@@ -950,6 +972,23 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
             log_entry->set_allocated_insert_revision(
                 (*it)->mutable_insert_revision());
           }
+          if ((*it)->bulk_insert_revision_size() > 0) {
+            for (int i = 0; i < (*it)->bulk_insert_revision_size(); ++i) {
+              log_entry->mutable_bulk_insert_revision()->AddAllocated(
+                  (*it)->mutable_bulk_insert_revision(i));
+            }
+          } else if ((*it)->bulk_inserted_revision_id_list_size() > 0) {
+            for (int i = 0; i < (*it)->bulk_inserted_revision_id_list_size();
+                 ++i) {
+              log_entry->mutable_bulk_insert_revision()->AddAllocated(
+                  CHECK_NOTNULL(
+                      data_->getByIdImpl(
+                                 common::Id(
+                                     (*it)->bulk_inserted_revision_id_list(i)),
+                                 LogicalTime((*it)->logical_time())).get())
+                      ->underlying_revision_.get());
+            }
+          }
           append_entries.set_allocated_log_entry(log_entry);
           append_entries.set_previous_log_index((*(it - 1))->index());
           append_entries.set_previous_log_term((*(it - 1))->term());
@@ -969,12 +1008,22 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
           VLOG(1) << PeerId::self() << ": " << peer << " appears offline.";
         }
         append_entries.mutable_log_entry()->release_insert_revision();
+        while (append_entries.log_entry().bulk_insert_revision_size() > 0) {
+          append_entries.mutable_log_entry()
+              ->mutable_bulk_insert_revision()
+              ->ReleaseLast();
+        }
         continue;
       }
       this_tracker->status = PeerStatus::AVAILABLE;
       // The call to release is necessary to prevent prevent the allocated
       // memory being deleted during append_entries.Clear().
       append_entries.mutable_log_entry()->release_insert_revision();
+      while (append_entries.log_entry().bulk_insert_revision_size() > 0) {
+        append_entries.mutable_log_entry()
+            ->mutable_bulk_insert_revision()
+            ->ReleaseLast();
+      }
 
       follower_commit_index = append_response.commit_index();
       if (append_response.response() == proto::AppendResponseStatus::SUCCESS ||
@@ -1017,8 +1066,16 @@ void RaftNode::followerTrackerThread(const PeerId& peer, uint64_t term,
     }  //  while (!append_successs && follower_trackers_run_)
 
     if (follower_trackers_run_ && this_tracker->tracker_run) {
-      new_entries_signal_.wait_for(
-          wait_lock, std::chrono::milliseconds(kHeartbeatSendPeriodMs));
+      std::unique_lock<std::mutex> wait_lock(follower_tracker_wait_mutex_);
+      if (last_log_index_for_follower_trackers_ < follower_next_index &&
+          commit_index_for_follower_trackers_ <= follower_commit_index) {
+        tracker_wakeup_signal_.wait_for(wait_lock, std::chrono::milliseconds(
+                                                       kHeartbeatSendPeriodMs),
+                                        [&]() {
+          return commit_index_for_follower_trackers_ > follower_commit_index ||
+                 last_log_index_for_follower_trackers_ >= follower_next_index;
+        });
+      }
     }
   }  // while (follower_trackers_run_)
 }
@@ -1086,6 +1143,9 @@ proto::AppendResponseStatus RaftNode::followerAppendNewEntries(
 void RaftNode::followerCommitNewEntries(const LogWriteAccess& log_writer,
                                         uint64_t request_commit_index,
                                         State state) {
+  if (is_read_locked_) {
+    return;
+  }
   CHECK_LE(log_writer->commitIndex(), log_writer->lastLogIndex());
   if (log_writer->commitIndex() < request_commit_index &&
       log_writer->commitIndex() < log_writer->lastLogIndex()) {
@@ -1177,14 +1237,27 @@ uint64_t RaftNode::leaderAppendLogEntryLocked(
     std::thread(leader_entry_appended_callback_, new_entry->index(),
                 getLogEntryTypeString(new_entry)).detach();
   }
-  new_entries_signal_.notify_all();
-  VLOG_EVERY_N(1, 10) << "Adding entry to log with index "
-                      << new_entry->index();
+  {
+    std::lock_guard<std::mutex> tracker_mutex(follower_tracker_wait_mutex_);
+    last_log_index_for_follower_trackers_ = log_writer->lastLogIndex();
+  }
+  tracker_wakeup_signal_.notify_all();
+  VLOG_EVERY_N(1, 200) << "Adding entry to log with index "
+                       << new_entry->index() << " to chunk " << chunk_id_ << " "
+                       << numPeers();
   return new_entry->index();
 }
 
 void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
   LogWriteAccess log_writer(data_);
+
+  ConstLogIterator it =
+      log_writer->getConstLogIteratorByIndex(log_writer->commitIndex() + 1);
+  if (it == log_writer->cend()) {
+    return;
+  }
+  CHECK_LE(log_writer->commitIndex() + 1, log_writer->lastLogIndex());
+
   uint replication_count = 0;
   {
     std::lock_guard<std::mutex> tracker_lock(follower_tracker_mutex_);
@@ -1202,13 +1275,6 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
                << PeerId::self() << " for entry index "
                << log_writer->commitIndex() + 1;
   }
-
-  ConstLogIterator it =
-      log_writer->getConstLogIteratorByIndex(log_writer->commitIndex() + 1);
-  if (it == log_writer->cend()) {
-    return;
-  }
-  CHECK_LE(log_writer->commitIndex() + 1, log_writer->lastLogIndex());
 
   // Commit entries from older leaders only if they are replicated on all peers,
   // because otherwise they can potentially be overwritten by new leaders.
@@ -1269,6 +1335,12 @@ void RaftNode::leaderCommitReplicatedEntries(uint64_t current_term) {
       grantChunkLockFromQueue(log_writer, current_term);
     }
 
+    {
+      std::lock_guard<std::mutex> tracker_mutex(follower_tracker_wait_mutex_);
+      commit_index_for_follower_trackers_ = log_writer->commitIndex();
+    }
+    tracker_wakeup_signal_.notify_all();
+
     // TODO(aqurai): Send notification to quitting peers after zerommq crash
     // issue is resolved.
     // There is a crash if one attempts to send message to a peer after a
@@ -1302,6 +1374,24 @@ void RaftNode::applySingleRevisionCommit(
         entry->mutable_revision_id());
     entry->set_logical_time(insert_revision->getUpdateTime().serialize());
     data_->checkAndPatch(insert_revision);
+    if (insert_revision->getInsertTime() == insert_revision->getUpdateTime()) {
+      // This is a new entry.
+      commit_insert_callback_(insert_revision->getId<common::Id>());
+    } else {
+      // This is an update for an existing entry.
+      commit_update_callback_(insert_revision->getId<common::Id>());
+    }
+  } else if (entry->bulk_insert_revision_size() > 0) {
+    while (entry->bulk_insert_revision_size() > 0) {
+      const std::shared_ptr<Revision> insert_revision =
+          Revision::fromProto(std::unique_ptr<proto::Revision>(
+              entry->mutable_bulk_insert_revision()->ReleaseLast()));
+      insert_revision->getId<common::Id>().serialize(
+          entry->add_bulk_inserted_revision_id_list());
+      entry->set_logical_time(insert_revision->getUpdateTime().serialize());
+      data_->checkAndPatch(insert_revision);
+      commit_insert_callback_(insert_revision->getId<common::Id>());
+    }
   }
 }
 
@@ -1383,6 +1473,7 @@ void RaftNode::bulkApplyLockedRevisions(const LogWriteAccess& log_writer,
        it != log_writer->end() && it != it_end; ++it) {
     applySingleRevisionCommit(*it);
   }
+  commit_unlock_callback_();
 }
 
 bool RaftNode::giveUpLeadership() {
@@ -1645,6 +1736,54 @@ bool RaftNode::sendInsertRequest(const Revision::ConstPtr& item,
   return false;
 }
 
+bool RaftNode::sendBulkInsertRequest(const MutableRevisionMap& items,
+                                     uint64_t serial_id) {
+  State append_state;
+  PeerId leader_id;
+  uint64_t append_term;
+  uint64_t index = 0;
+  {
+    std::lock_guard<std::mutex> state_lock(state_mutex_);
+    append_state = state_;
+    leader_id = leader_id_;
+    append_term = current_term_;
+  }
+
+  proto::InsertRequest insert_request;
+  for (const ConstRevisionMap::value_type& item : items) {
+    insert_request.add_bulk_insert_revision()->Swap(
+        item.second->copyToProtoPtr());
+  }
+  CHECK_EQ(insert_request.bulk_insert_revision_size(), items.size());
+
+  if (append_state == State::LEADER) {
+    proto::RaftChunkRequestResponse response;
+    processBulkInsertRequest(PeerId::self(), serial_id, &insert_request,
+                             &response);
+    index = response.entry_index();
+  } else if (append_state == State::FOLLOWER && leader_id.isValid()) {
+    Message request, response;
+
+    proto::RaftChunkRequestResponse insert_response;
+    fillMetadata(&insert_request);
+    insert_request.set_serial_id(serial_id);
+    CHECK_EQ(insert_request.bulk_insert_revision_size(), items.size());
+    request.impose<kInsertRequest>(insert_request);
+    if (!Hub::instance().try_request(leader_id, &request, &response)) {
+      VLOG(1) << "Bulk insert request might have failed.";
+      return false;
+    }
+    if (response.isType<kRaftChunkRequestResponse>()) {
+      response.extract<kRaftChunkRequestResponse>(&insert_response);
+      index = insert_response.entry_index();
+    }
+  }
+  if (index > 0 && waitAndCheckCommit(index, append_term, serial_id)) {
+    return true;
+  }
+  return false;
+}
+
 bool RaftNode::waitAndCheckCommit(uint64_t index, uint64_t append_term,
                                   uint64_t serial_id) {
   while (isRunning()) {
@@ -1836,6 +1975,32 @@ void RaftNode::processInsertRequest(const PeerId& sender, uint64_t serial_id,
   entry->set_allocated_insert_revision(unowned_revision_pointer);
   entry->set_sender(sender.ipPort());
   entry->set_sender_serial_id(serial_id);
+  uint64_t index = leaderAppendLogEntry(entry);
+  response->set_entry_index(index);
+}
+
+void RaftNode::processBulkInsertRequest(
+    const PeerId& sender, uint64_t serial_id,
+    proto::InsertRequest* insert_request,
+    proto::RaftChunkRequestResponse* response) {
+  CHECK_NOTNULL(response);
+  if (!isCommitIndexInCurrentTerm()) {
+    response->set_entry_index(0);
+    return;
+  }
+  if (!raft_chunk_lock_.isLockHolder(sender)) {
+    // TODO(aqurai): Change it to FATAL after enforcing it on sender side.
+    LOG(ERROR) << "Insert request from a non lock holder peer " << sender
+               << " for chunk " << chunk_id_ << ". lock holder is "
+               << raft_chunk_lock_.holder();
+    response->set_entry_index(0);
+    return;
+  }
+  std::shared_ptr<proto::RaftLogEntry> entry(new proto::RaftLogEntry);
+  entry->set_sender(sender.ipPort());
+  entry->set_sender_serial_id(serial_id);
+  entry->mutable_bulk_insert_revision()->Swap(
+      insert_request->mutable_bulk_insert_revision());
   uint64_t index = leaderAppendLogEntry(entry);
   response->set_entry_index(index);
 }
