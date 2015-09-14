@@ -15,7 +15,7 @@ class Peer {
  public:
   const PeerId& address() const;
 
-  void request(Message* request, Message* response);
+  bool request(Message* request, Message* response);
 
   /**
    * Unlike request, doesn't terminate if the request times out.

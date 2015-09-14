@@ -141,6 +141,13 @@ class Hub final {
   HandlerMap handlers_;
 
   std::unique_ptr<Discovery> discovery_;
+
+  std::mutex non_responding_mutex_;
+  std::unordered_set<PeerId> non_responding_peers_;
+
+  bool isNonResponding(const PeerId& peer);
+  void addToNonResponding(const PeerId& peer);
+  void removeFromNonResponding(const PeerId& peer);
 };
 
 }  // namespace map_api

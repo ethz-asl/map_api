@@ -209,6 +209,9 @@ bool Hub::registerHandler(
 void Hub::request(const PeerId& peer, Message* request, Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
+  if (isNonResponding(peer)) {
+    return;
+  }
   std::lock_guard<std::mutex> lock(peer_mutex_);
   PeerMap::iterator found = peers_.find(peer);
   if (found == peers_.end()) {
@@ -217,12 +220,18 @@ void Hub::request(const PeerId& peer, Message* request, Message* response) {
     CHECK(emplacement.second);
     found = emplacement.first;
   }
-  found->second->request(request, response);
+  if (!found->second->request(request, response)) {
+    addToNonResponding(peer);
+    LOG(WARNING) << "Message " << request->DebugString() << " timed out!";
+  }
 }
 
 bool Hub::try_request(const PeerId& peer, Message* request, Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
+  if (isNonResponding(peer)) {
+    return false;
+  }
   std::lock_guard<std::mutex> lock(peer_mutex_);
   PeerMap::iterator found = peers_.find(peer);
   if (found == peers_.end()) {
@@ -234,6 +243,7 @@ bool Hub::try_request(const PeerId& peer, Message* request, Message* response) {
   if (found->second->try_request(request, response)) {
     return true;
   } else {
+    addToNonResponding(peer);
     peers_.erase(found);
     return false;
   }
@@ -248,6 +258,9 @@ void Hub::broadcast(Message* request_message,
   std::set<PeerId> peers;
   getPeers(&peers);
   for (const PeerId& peer : peers) {
+    if (isNonResponding(peer)) {
+      continue;
+    }
     request(peer, request_message, &(*responses)[peer]);
   }
 }
@@ -390,6 +403,7 @@ void Hub::listenThread(Hub* self) {
         LOG(FATAL) << "Handler for message type " << query.type()
                    << " not registered";
       }
+      self->removeFromNonResponding(query.sender());
       Message response;
       if (VLOG_IS_ON(4)) {
         if (FLAGS_map_api_hub_filter_handle_debug_output != "") {
@@ -443,6 +457,21 @@ void Hub::listenThread(Hub* self) {
     }
   }
   server.close();
+}
+
+bool Hub::isNonResponding(const PeerId& peer) {
+  std::lock_guard<std::mutex> lock(non_responding_mutex_);
+  return non_responding_peers_.count(peer);
+}
+
+void Hub::addToNonResponding(const PeerId& peer) {
+  std::lock_guard<std::mutex> lock(non_responding_mutex_);
+  non_responding_peers_.emplace(peer);
+}
+
+void Hub::removeFromNonResponding(const PeerId& peer) {
+  std::lock_guard<std::mutex> lock(non_responding_mutex_);
+  non_responding_peers_.erase(peer);
 }
 
 }  // namespace map_api

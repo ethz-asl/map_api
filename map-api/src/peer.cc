@@ -33,11 +33,10 @@ Peer::Peer(const PeerId& address, zmq::context_t& context, int socket_type)
 
 const PeerId& Peer::address() const { return address_; }
 
-void Peer::request(Message* request, Message* response) {
+bool Peer::request(Message* request, Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
-  CHECK(try_request(request, response)) << "Message " <<
-      request->DebugString() << " timed out!";
+  return (try_request(request, response));
 }
 
 bool Peer::try_request(Message* request, Message* response) {
