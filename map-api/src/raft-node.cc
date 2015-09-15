@@ -92,8 +92,6 @@ void RaftNode::fillMetadata<proto::ChunkRequestMetadata>(
   this->chunk_id_.serialize(destination->mutable_chunk_id());
 }
 
-const PeerId kInvalidId = PeerId();
-
 RaftNode::RaftNode()
     : leader_id_(PeerId()),
       state_(State::FOLLOWER),

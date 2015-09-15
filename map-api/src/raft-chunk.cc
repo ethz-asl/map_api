@@ -9,7 +9,7 @@
 #include "map-api/hub.h"
 #include "map-api/message.h"
 
-DEFINE_bool(enable_raft_bulk_insert, false, "Enable bulk append");
+DEFINE_bool(enable_raft_bulk_insert, false, "Enable bulk insert");
 
 namespace map_api {
 
