@@ -10,8 +10,8 @@
 const std::string kCleanJoin("clean");
 const std::string kStabilizeJoin("stabilize");
 
-const std::string kUniformFingers("clean");
-const std::string kExponentialFingers("stabilize");
+const std::string kUniformFingers("uniform");
+const std::string kExponentialFingers("exponential");
 
 DEFINE_string(join_mode, kCleanJoin,
               ("Can be " + kCleanJoin + " or " + kStabilizeJoin).c_str());
@@ -722,7 +722,6 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
     }
   }
 
-  int fix_finger_index = 0;
   while (!self->terminate_) {
     // Avoid holding lock during RPC.
     self->peer_lock_.acquireReadLock();
