@@ -15,11 +15,12 @@ class NetTableManager;
  */
 class Core final {
  public:
-  /**
-   * Get singleton instance of Map Api Core
-   * Returns a null pointer if not initialized.
-   */
+  // Returns null iff core is not initialized yet. Waits on initialized_mutex_.
   static Core* instance();
+  // Returns null if core is not initialized, or if initialized_mutex_ is
+  // locked.
+  static Core* instanceNoWait();
+
   static void initializeInstance();
   /**
    * Initializer
@@ -34,6 +35,14 @@ class Core final {
    * own address from discovery file.
    */
   void kill();
+  /**
+   * Same as kill, but makes sure each chunk has at least one other peer. Use
+   * this only if you are sure that your data will be picked up by other peers.
+   */
+  void killOnceShared();
+  // The following can malfunction if the only other peer leaves in the middle
+  // of the execution of this function.
+  void killOnceSharedUnlessAlone();
 
   // NetTableManager& tableManager();
   // const NetTableManager& tableManager() const;

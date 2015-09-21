@@ -1,29 +1,38 @@
-#include <map-api/net-table-transaction.h>
+#include "map-api/net-table-transaction.h"
+
 #include <statistics/statistics.h>
 
 namespace map_api {
 
-NetTableTransaction::NetTableTransaction(NetTable* table)
-: NetTableTransaction(LogicalTime::sample(), table) {}
-
-NetTableTransaction::NetTableTransaction(
-    const LogicalTime& begin_time, NetTable* table) : begin_time_(begin_time),
-        table_(table) {
+NetTableTransaction::NetTableTransaction(const LogicalTime& begin_time,
+                                         NetTable* table,
+                                         const Workspace& workspace)
+    : begin_time_(begin_time),
+      table_(table),
+      workspace_(Workspace::TableInterface(workspace, table)) {
   CHECK(begin_time < LogicalTime::sample());
 }
 
-CRTable::RevisionMap NetTableTransaction::dumpChunk(Chunk* chunk) {
+void NetTableTransaction::dumpChunk(const ChunkBase* chunk,
+                                    ConstRevisionMap* result) {
   CHECK_NOTNULL(chunk);
-  return transactionOf(chunk)->dumpChunk();
+  if (workspace_.contains(chunk->id())) {
+    transactionOf(chunk)->dumpChunk(result);
+  } else {
+    result->clear();
+  }
 }
 
-CRTable::RevisionMap NetTableTransaction::dumpActiveChunks() {
-  CRTable::RevisionMap result;
-  table_->dumpActiveChunks(begin_time_, &result);
-  return result;
+void NetTableTransaction::dumpActiveChunks(ConstRevisionMap* result) {
+  CHECK_NOTNULL(result);
+  workspace_.forEachChunk([&, this](const ChunkBase& chunk) {
+    ConstRevisionMap chunk_revisions;
+    dumpChunk(&chunk, &chunk_revisions);
+    result->insert(chunk_revisions.begin(), chunk_revisions.end());
+  });
 }
 
-void NetTableTransaction::insert(Chunk* chunk,
+void NetTableTransaction::insert(ChunkBase* chunk,
                                  std::shared_ptr<Revision> revision) {
   CHECK_NOTNULL(chunk);
   transactionOf(chunk)->insert(revision);
@@ -43,12 +52,12 @@ void NetTableTransaction::update(std::shared_ptr<Revision> revision) {
     LOG(FATAL) << "Chunk id of revision to update invalid, yet revision " << id
                << " can't be found among uncommitted.";
   }
-  Chunk* chunk = table_->getChunk(revision->getChunkId());
+  ChunkBase* chunk = table_->getChunk(revision->getChunkId());
   transactionOf(chunk)->update(revision);
 }
 
 void NetTableTransaction::remove(std::shared_ptr<Revision> revision) {
-  Chunk* chunk = table_->getChunk(revision->getChunkId());
+  ChunkBase* chunk = table_->getChunk(revision->getChunkId());
   transactionOf(chunk)->remove(revision);
 }
 
@@ -129,14 +138,18 @@ size_t NetTableTransaction::numChangedItems() const {
   return result;
 }
 
-ChunkTransaction* NetTableTransaction::transactionOf(Chunk* chunk) const {
+ChunkTransaction* NetTableTransaction::transactionOf(const ChunkBase* chunk)
+    const {
   CHECK_NOTNULL(chunk);
-  TransactionMap::iterator chunk_transaction = chunk_transactions_.find(chunk);
+  // Const cast needed, as transactions map has non-const key.
+  ChunkBase* mutable_chunk = const_cast<ChunkBase*>(chunk);
+  TransactionMap::iterator chunk_transaction =
+      chunk_transactions_.find(mutable_chunk);
   if (chunk_transaction == chunk_transactions_.end()) {
     std::shared_ptr<ChunkTransaction> transaction(
-        new ChunkTransaction(begin_time_, chunk, table_));
+        new ChunkTransaction(begin_time_, mutable_chunk, table_));
     std::pair<TransactionMap::iterator, bool> inserted =
-        chunk_transactions_.insert(std::make_pair(chunk, transaction));
+        chunk_transactions_.insert(std::make_pair(mutable_chunk, transaction));
     CHECK(inserted.second);
     chunk_transaction = inserted.first;
   }

@@ -14,6 +14,8 @@ class PeerId;
  * Regulates discovery through /tmp/mapapi-discovery.txt .
  */
 class FileDiscovery final : public Discovery {
+  friend class FileDiscoveryTest;
+
  public:
   static const char kFileName[];
 
@@ -40,6 +42,8 @@ class FileDiscovery final : public Discovery {
   FileDiscovery(const FileDiscovery&) = delete;
   FileDiscovery& operator=(const FileDiscovery&) = delete;
   friend class Hub;
+
+  bool force_unlocked_once_;
 };
 
 }  // namespace map_api

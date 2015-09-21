@@ -1,8 +1,11 @@
 #ifndef MAP_API_PEER_HANDLER_H_
 #define MAP_API_PEER_HANDLER_H_
 
+#include <condition_variable>
+#include <mutex>
 #include <unordered_map>
 #include <set>
+#include <string>
 
 #include "map-api/peer-id.h"
 
@@ -24,6 +27,8 @@ class PeerHandler {
                  std::unordered_map<PeerId, Message>* responses);
 
   bool empty() const;
+  // If empty, print "info" (if != "") to LOG(INFO), then block until empty.
+  void awaitNonEmpty(const std::string& info) const;
   /**
    * Allows user to view peers, e.g. for ConnectResponse
    * TODO(simon) is this cheap? What else to fill ConnectResponse with
@@ -53,6 +58,8 @@ class PeerHandler {
 
  private:
   std::set<PeerId> peers_;  // std::set to ensure uniform ordering
+  mutable std::mutex mutex_;
+  mutable std::condition_variable cv_;
 };
 
 } /* namespace map_api */

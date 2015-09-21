@@ -16,27 +16,26 @@ namespace map_api {
 
 void NetTableFixture::SetUp() {
   MapApiFixture::SetUp();
-  std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
+  std::shared_ptr<TableDescriptor> descriptor(new TableDescriptor);
   descriptor->setName(kTableName);
   descriptor->addField<int>(kFieldName);
-  table_ = NetTableManager::instance().addTable(
-      GetParam() ? CRTable::Type::CRU : CRTable::Type::CR, &descriptor);
+  table_ = NetTableManager::instance().addTable(descriptor);
 }
 
 size_t NetTableFixture::count() {
-  CRTable::RevisionMap results;
+  ConstRevisionMap results;
   table_->dumpActiveChunksAtCurrentTime(&results);
   return results.size();
 }
 
-void NetTableFixture::increment(const common::Id& id, Chunk* chunk,
+void NetTableFixture::increment(const common::Id& id, ChunkBase* chunk,
                                 NetTableTransaction* transaction) {
   CHECK_NOTNULL(chunk);
   CHECK_NOTNULL(transaction);
-  CRTable::RevisionMap chunk_dump = transaction->dumpChunk(chunk);
-  CRTable::RevisionMap::iterator found = chunk_dump.find(id);
-  std::shared_ptr<Revision> to_update =
-      std::make_shared<Revision>(*found->second);
+  ConstRevisionMap chunk_dump;
+  transaction->dumpChunk(chunk, &chunk_dump);
+  ConstRevisionMap::iterator found = chunk_dump.find(id);
+  std::shared_ptr<Revision> to_update = found->second->copyForWrite();
   int transient_value;
   to_update->get(kFieldName, &transient_value);
   ++transient_value;
@@ -45,14 +44,14 @@ void NetTableFixture::increment(const common::Id& id, Chunk* chunk,
 }
 
 void NetTableFixture::increment(NetTable* table, const common::Id& id,
-                                Chunk* chunk, Transaction* transaction) {
+                                ChunkBase* chunk, Transaction* transaction) {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(chunk);
   CHECK_NOTNULL(transaction);
-  CRTable::RevisionMap chunk_dump = transaction->dumpChunk(table, chunk);
-  CRTable::RevisionMap::iterator found = chunk_dump.find(id);
-  std::shared_ptr<Revision> to_update =
-      std::make_shared<Revision>(*found->second);
+  ConstRevisionMap chunk_dump;
+  transaction->dumpChunk(table, chunk, &chunk_dump);
+  ConstRevisionMap::iterator found = chunk_dump.find(id);
+  std::shared_ptr<Revision> to_update = found->second->copyForWrite();
   int transient_value;
   to_update->get(kFieldName, &transient_value);
   ++transient_value;
@@ -60,7 +59,7 @@ void NetTableFixture::increment(NetTable* table, const common::Id& id,
   transaction->update(table, to_update);
 }
 
-common::Id NetTableFixture::insert(int n, Chunk* chunk) {
+common::Id NetTableFixture::insert(int n, ChunkBase* chunk) {
   common::Id insert_id;
   generateId(&insert_id);
   std::shared_ptr<Revision> to_insert = table_->getTemplate();
@@ -81,7 +80,10 @@ common::Id NetTableFixture::insert(int n, ChunkTransaction* transaction) {
 }
 
 void NetTableFixture::insert(int n, common::Id* id, Transaction* transaction) {
-  CHECK_NOTNULL(id);
+  common::Id id_obj;
+  if (!id) {
+    id = &id_obj;
+  }
   CHECK_NOTNULL(transaction);
   generateId(id);
   std::shared_ptr<Revision> to_insert = table_->getTemplate();
@@ -93,17 +95,15 @@ void NetTableFixture::insert(int n, common::Id* id, Transaction* transaction) {
 void NetTableFixture::update(int n, const common::Id& id,
                              Transaction* transaction) {
   CHECK_NOTNULL(transaction);
-  std::shared_ptr<Revision> to_update =
-      std::make_shared<Revision>(*transaction->getById(id, table_, chunk_));
-  to_update->set(kFieldName, n);
-  transaction->update(table_, to_update);
+  std::shared_ptr<const Revision> to_update =
+      transaction->getById(id, table_, chunk_);
+  ASSERT_TRUE(to_update != nullptr);
+  std::shared_ptr<Revision> update = to_update->copyForWrite();
+  update->set(kFieldName, n);
+  transaction->update(table_, update);
 }
 
 const std::string NetTableFixture::kTableName = "chunk_test_table";
-
-// Parameter true / false tests CRU / CR tables.
-INSTANTIATE_TEST_CASE_P(Default, NetTableFixture,
-                        ::testing::Values(false, true));
 
 }  // namespace map_api
 

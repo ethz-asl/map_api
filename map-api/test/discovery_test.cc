@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <signal.h>
+#include <sys/file.h>
 
 #include "map-api/file-discovery.h"
 #include "map-api/hub.h"
@@ -73,6 +74,30 @@ TEST_P(DiscoveryTest, ThreadSafety) {
 
 INSTANTIATE_TEST_CASE_P(DiscoveryInstances, DiscoveryTest,
                         ::testing::Values("file", "server"));
+
+class FileDiscoveryTest : public DiscoveryTest {
+ public:
+  void fakeZombieLockFile() {
+    int lock_file =
+        open(FileDiscovery::kLockFileName, O_WRONLY | O_EXCL | O_CREAT, 0);
+    CHECK_NE(lock_file, -1);
+    CHECK_NE(close(lock_file), -1) << errno;
+  }
+
+  void clearFakeZombieLockFile() {
+    CHECK_NE(unlink(FileDiscovery::kLockFileName), -1);
+  }
+};
+
+TEST_P(FileDiscoveryTest, DiscoveryLockTimeout) {
+  fakeZombieLockFile();
+  std::set<PeerId> peers;
+  EXPECT_DEATH(Hub::instance().getPeers(&peers), "^");
+  clearFakeZombieLockFile();
+}
+
+INSTANTIATE_TEST_CASE_P(FileDiscoveryInstance, FileDiscoveryTest,
+                        ::testing::Values("file"));
 
 }  // namespace map_api
 

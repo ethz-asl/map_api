@@ -17,10 +17,7 @@ namespace map_api {
  * sense because A's operations per transaction are less complex, thus
  * faster executed, and A gets to lock first.
  */
-TEST_P(NetTableFixture, NetTableTransactions) {
-  if (!GetParam()) {
-    return;
-  }
+TEST_F(NetTableFixture, NetTableTransactions) {
   enum Processes {
     ROOT,
     A,
@@ -33,7 +30,7 @@ TEST_P(NetTableFixture, NetTableTransactions) {
   };
   int kCycles = 10;
   common::Id ab_chunk_id, b_chunk_id, ab_id, b_id;
-  Chunk* ab_chunk, *b_chunk;
+  ChunkBase* ab_chunk, *b_chunk;
   if (getSubprocessId() == ROOT) {
     ab_chunk = table_->newChunk();
     b_chunk = table_->newChunk();
@@ -52,7 +49,8 @@ TEST_P(NetTableFixture, NetTableTransactions) {
 
     IPC::barrier(SYNC, 2);
     IPC::barrier(DIE, 2);
-    NetTableTransaction reader(table_);
+    Workspace workspace;
+    NetTableTransaction reader(LogicalTime::sample(), table_, workspace);
     std::shared_ptr<const Revision> ab_item = reader.getById(ab_id);
     std::shared_ptr<const Revision> b_item = reader.getById(b_id);
     EXPECT_TRUE(ab_item->verifyEqual(kFieldName, 2 * kCycles));
@@ -68,7 +66,8 @@ TEST_P(NetTableFixture, NetTableTransactions) {
     ab_chunk = table_->getChunk(ab_chunk_id);
     for (int i = 0; i < kCycles; ++i) {
       while (true) {
-        NetTableTransaction attempt(table_);
+        Workspace workspace;
+        NetTableTransaction attempt(LogicalTime::sample(), table_, workspace);
         increment(ab_id, ab_chunk, &attempt);
         std::shared_ptr<Revision> to_insert = table_->getTemplate();
         common::Id insert_id;
@@ -94,7 +93,8 @@ TEST_P(NetTableFixture, NetTableTransactions) {
     b_chunk = table_->getChunk(b_chunk_id);
     for (int i = 0; i < kCycles; ++i) {
       while (true) {
-        NetTableTransaction attempt(table_);
+        Workspace workspace;
+        NetTableTransaction attempt(LogicalTime::sample(), table_, workspace);
         increment(ab_id, ab_chunk, &attempt);
         increment(b_id, b_chunk, &attempt);
         if (attempt.commit()) {
@@ -107,10 +107,7 @@ TEST_P(NetTableFixture, NetTableTransactions) {
   LOG(INFO) << PeerId::self() << " done";
 }
 
-TEST_P(NetTableFixture, Transactions) {
-  if (!GetParam()) {
-    return;
-  }
+TEST_F(NetTableFixture, Transactions) {
   enum Processes {
     ROOT,
     A,
@@ -127,15 +124,14 @@ TEST_P(NetTableFixture, Transactions) {
     kSecondTableFieldName
   };
 
-  std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
+  std::shared_ptr<TableDescriptor> descriptor(new TableDescriptor);
   descriptor->setName(kSecondTableName);
   descriptor->addField<int>(kSecondTableFieldName);
-  NetTable* second_table =
-      NetTableManager::instance().addTable(CRTable::Type::CRU, &descriptor);
+  NetTable* second_table = NetTableManager::instance().addTable(descriptor);
   ASSERT_TRUE(second_table);
 
   common::Id ab_chunk_id, b_chunk_id, ab_id, b_id;
-  Chunk* ab_chunk, *b_chunk;
+  ChunkBase* ab_chunk, *b_chunk;
 
   if (getSubprocessId() == ROOT) {
     ab_chunk = table_->newChunk();
@@ -206,11 +202,10 @@ TEST_P(NetTableFixture, Transactions) {
       while (true) {
         Transaction attempt;
         increment(table_, ab_id, ab_chunk, &attempt);
-        CRTable::RevisionMap chunk_dump =
-            attempt.dumpChunk(second_table, b_chunk);
-        CRTable::RevisionMap::iterator found = chunk_dump.find(b_id);
-        std::shared_ptr<Revision> to_update =
-            std::make_shared<Revision>(*found->second);
+        ConstRevisionMap chunk_dump;
+        attempt.dumpChunk(second_table, b_chunk, &chunk_dump);
+        ConstRevisionMap::iterator found = chunk_dump.find(b_id);
+        std::shared_ptr<Revision> to_update = found->second->copyForWrite();
         int transient_value;
         to_update->get(kSecondTableFieldName, &transient_value);
         ++transient_value;
@@ -225,11 +220,8 @@ TEST_P(NetTableFixture, Transactions) {
   }
 }
 
-TEST_P(NetTableFixture, CommitTime) {
-  if (!GetParam()) {
-    return;
-  }
-  Chunk* chunk = table_->newChunk();
+TEST_F(NetTableFixture, CommitTime) {
+  ChunkBase* chunk = table_->newChunk();
   Transaction transaction;
   // TODO(tcies) factor insertion into a NetTableTest function
   std::shared_ptr<Revision> to_insert_1 = table_->getTemplate();
@@ -244,10 +236,10 @@ TEST_P(NetTableFixture, CommitTime) {
   transaction.insert(table_, chunk, to_insert_1);
   transaction.insert(table_, chunk, to_insert_2);
   ASSERT_TRUE(transaction.commit());
-  CRTable::RevisionMap retrieved;
+  ConstRevisionMap retrieved;
   chunk->dumpItems(LogicalTime::sample(), &retrieved);
   ASSERT_EQ(2u, retrieved.size());
-  CRTable::RevisionMap::iterator it = retrieved.begin();
+  ConstRevisionMap::iterator it = retrieved.begin();
   LogicalTime time_1 = it->second->getInsertTime();
   ++it;
   LogicalTime time_2 = it->second->getInsertTime();
@@ -255,10 +247,7 @@ TEST_P(NetTableFixture, CommitTime) {
   // TODO(tcies) also test update times, and times accross multiple chunks
 }
 
-TEST_P(NetTableFixture, ChunkLookup) {
-  if (GetParam()) {
-    return;  // independent of updateability
-  }
+TEST_F(NetTableFixture, ChunkLookup) {
   enum Processes {
     MASTER,
     SLAVE
@@ -268,8 +257,8 @@ TEST_P(NetTableFixture, ChunkLookup) {
     CHUNK_CREATED,
     DIE
   };
-  Chunk* chunk;
-  CRTable::RevisionMap results;
+  ChunkBase* chunk;
+  ConstRevisionMap results;
   if (getSubprocessId() == MASTER) {
     launchSubprocess(SLAVE);
     IPC::barrier(INIT, 1);
@@ -294,6 +283,123 @@ TEST_P(NetTableFixture, ChunkLookup) {
   IPC::barrier(DIE, 1);
 }
 
+TEST_F(NetTableFixture, ListenToChunksFromPeer) {
+  enum Processes {
+    MASTER,
+    SLAVE
+  };
+  enum Barriers {
+    ADDRESS_SHARED,
+    LISTENING,
+    CHUNKS_CREATED,
+    DIE
+  };
+  if (getSubprocessId() == MASTER) {
+    launchSubprocess(SLAVE);
+    IPC::barrier(ADDRESS_SHARED, 1);
+    PeerId peer = IPC::pop<PeerId>();
+    table_->listenToChunksFromPeer(peer);
+    IPC::barrier(LISTENING, 1);
+    IPC::barrier(CHUNKS_CREATED, 1);
+    usleep(50000);  // Should suffice for auto-fetching.
+    IPC::barrier(DIE, 1);
+    EXPECT_EQ(2u, table_->numActiveChunks());
+  }
+  if (getSubprocessId() == SLAVE) {
+    IPC::push(PeerId::self());
+    IPC::barrier(ADDRESS_SHARED, 1);
+    table_->newChunk();
+    IPC::barrier(LISTENING, 1);
+    table_->newChunk();
+    IPC::barrier(CHUNKS_CREATED, 1);
+    IPC::barrier(DIE, 1);
+  }
+}
+
+TEST_F(NetTableFixture, ListenToNewPeersOfTable) {
+  enum Processes {
+    MASTER,
+    SLAVE
+  };
+  enum Barriers {
+    CHUNK_CREATED,
+    DIE
+  };
+  if (getSubprocessId() == MASTER) {
+    // Currently, it is only possible to listen to peers joining the table
+    // in the future.
+    NetTableManager::instance().listenToPeersJoiningTable(table_->name());
+    launchSubprocess(SLAVE);
+    IPC::barrier(CHUNK_CREATED, 1);
+    usleep(50000);  // Should suffice for auto-fetching.
+    IPC::barrier(DIE, 1);
+    EXPECT_EQ(1u, table_->numActiveChunks());
+  }
+  if (getSubprocessId() == SLAVE) {
+    table_->newChunk();
+    IPC::barrier(CHUNK_CREATED, 1);
+    IPC::barrier(DIE, 1);
+  }
+}
+
+class LeaveOnceSharedTest : public NetTableFixture {
+ public:
+  virtual void TearDownImpl() override {
+    if (getSubprocessId() == 0) {
+      map_api::Core::instance()->kill();
+    } else {
+      map_api::Core::instance()->killOnceShared();
+    }
+  }
+};
+
+// This actually doesn't require the slave to run killOnceShared(), as the
+// chunk is fully shared inside the newChunk() call, but let's keep this here
+// in case things are redesigned in the future.
+TEST_F(LeaveOnceSharedTest, LeaveOnceSharedListening) {
+  enum Processes {
+    MASTER,
+    SLAVE
+  };
+  if (getSubprocessId() == MASTER) {
+    // Currently, it is only possible to listen to peers joining the table
+    // in the future.
+    NetTableManager::instance().listenToPeersJoiningTable(table_->name());
+    launchSubprocess(SLAVE);
+    sleep(1);  // Should suffice for auto-fetching.
+    EXPECT_EQ(1u, table_->numActiveChunks());
+  }
+  if (getSubprocessId() == SLAVE) {
+    table_->newChunk();
+  }
+}
+
+TEST_F(LeaveOnceSharedTest, LeaveOnceSharedRequesting) {
+  enum Processes {
+    MASTER,
+    SLAVE
+  };
+  enum Barriers {
+    ID_SHARED
+  };
+  if (getSubprocessId() == MASTER) {
+    // Currently, it is only possible to listen to peers joining the table
+    // in the future.
+    launchSubprocess(SLAVE);
+    IPC::barrier(ID_SHARED, 1);
+    chunk_id_ = IPC::pop<common::Id>();
+    table_->getChunk(chunk_id_);
+    EXPECT_EQ(1u, table_->numActiveChunks());
+    // Avoid situation where slave remains being last peer of some chunk after
+    // all.
+    usleep(50000);
+  }
+  if (getSubprocessId() == SLAVE) {
+    IPC::push(table_->newChunk()->id());
+    IPC::barrier(ID_SHARED, 1);
+  }
+}
+
 class NetTableChunkTrackingTest : public NetTableFixture {
  protected:
   enum Processes {
@@ -315,11 +421,10 @@ class NetTableChunkTrackingTest : public NetTableFixture {
 
   void SetUp() {
     NetTableFixture::SetUp();
-    std::unique_ptr<TableDescriptor> descriptor(new TableDescriptor);
+    std::shared_ptr<TableDescriptor> descriptor(new TableDescriptor);
     descriptor->setName(kTrackeeTableName);
     descriptor->addField<common::Id>(kParent);
-    trackee_table_ =
-        NetTableManager::instance().addTable(CRTable::Type::CR, &descriptor);
+    trackee_table_ = NetTableManager::instance().addTable(descriptor);
     trackee_table_->pushNewChunkIdsToTracker(table_, get_tracker);
     generateIdFromInt(1, &master_chunk_id_);
     generateIdFromInt(1, &master_item_id_);
@@ -335,7 +440,7 @@ class NetTableChunkTrackingTest : public NetTableFixture {
 
   void insert_trackees(Transaction* transaction) {
     for (size_t i = 0; i < kNumTrackeeChunks; ++i) {
-      Chunk* trackee_chunk = trackee_table_->newChunk();
+      ChunkBase* trackee_chunk = trackee_table_->newChunk();
       std::shared_ptr<Revision> to_insert = trackee_table_->getTemplate();
       common::Id id;
       generateId(&id);
@@ -345,13 +450,20 @@ class NetTableChunkTrackingTest : public NetTableFixture {
     }
   }
 
-  void fetch_trackees(Transaction* transaction) {
+  void fetch_trackees() {
+    Transaction transaction;
     chunk_ = table_->getChunk(master_chunk_id_);
     EXPECT_NE(chunk_, nullptr);
     std::shared_ptr<const Revision> master_item =
-        transaction->getById(master_item_id_, table_, chunk_);
+        transaction.getById(master_item_id_, table_, chunk_);
     EXPECT_NE(master_item.get(), nullptr);
     master_item->fetchTrackedChunks();
+  }
+
+  void follow_trackees() {
+    chunk_ = table_->getChunk(master_chunk_id_);
+    ASSERT_NE(chunk_, nullptr);
+    table_->followTrackedChunksOfItem(master_item_id_, chunk_);
   }
 
   NetTable* trackee_table_;
@@ -362,10 +474,7 @@ const std::string NetTableChunkTrackingTest::kTrackeeTableName =
     "trackee_table";
 const size_t NetTableChunkTrackingTest::kNumTrackeeChunks = 10;
 
-INSTANTIATE_TEST_CASE_P(Default, NetTableChunkTrackingTest,
-                        ::testing::Values(true));
-
-TEST_P(NetTableChunkTrackingTest, ChunkTrackingSameTransaction) {
+TEST_F(NetTableChunkTrackingTest, ChunkTrackingSameTransaction) {
   enum Barriers {
     INIT,
     SLAVE_DONE,
@@ -376,8 +485,7 @@ TEST_P(NetTableChunkTrackingTest, ChunkTrackingSameTransaction) {
     IPC::barrier(INIT, 1);
     IPC::barrier(SLAVE_DONE, 1);
     EXPECT_EQ(0u, trackee_table_->numActiveChunks());
-    Transaction master_transaction;
-    fetch_trackees(&master_transaction);
+    fetch_trackees();
     EXPECT_EQ(kNumTrackeeChunks, trackee_table_->numActiveChunks());
     EXPECT_EQ(kNumTrackeeChunks, trackee_table_->numItems());
   }
@@ -392,7 +500,7 @@ TEST_P(NetTableChunkTrackingTest, ChunkTrackingSameTransaction) {
   IPC::barrier(DIE, 1);
 }
 
-TEST_P(NetTableChunkTrackingTest, ChunkTrackingDifferentTransaction) {
+TEST_F(NetTableChunkTrackingTest, ChunkTrackingDifferentTransaction) {
   enum Barriers {
     INIT,
     TRACKER_DONE,
@@ -403,12 +511,10 @@ TEST_P(NetTableChunkTrackingTest, ChunkTrackingDifferentTransaction) {
     launchSubprocess(SLAVE);
     IPC::barrier(INIT, 1);
     IPC::barrier(TRACKER_DONE, 1);
-    Transaction master_transaction_1;
-    fetch_trackees(&master_transaction_1);
+    fetch_trackees();
     EXPECT_EQ(0u, trackee_table_->numActiveChunks());
     IPC::barrier(TRACKEES_DONE, 1);
-    Transaction master_transaction_2;
-    fetch_trackees(&master_transaction_2);
+    fetch_trackees();
     EXPECT_EQ(kNumTrackeeChunks, trackee_table_->numActiveChunks());
     EXPECT_EQ(kNumTrackeeChunks, trackee_table_->numItems());
   }
@@ -426,19 +532,86 @@ TEST_P(NetTableChunkTrackingTest, ChunkTrackingDifferentTransaction) {
   IPC::barrier(DIE, 1);
 }
 
-TEST_P(NetTableFixture, GetAllIdsNoNewChunkRaceConditionThreads) {
+TEST_F(NetTableChunkTrackingTest, FollowTrackedChunks) {
+  enum Barriers {
+    INIT,
+    TRACKER_DONE,
+    TRACKER_READ,
+    TRACKEES_DONE,
+    DIE
+  };
+  if (getSubprocessId() == MASTER) {
+    launchSubprocess(SLAVE);
+    IPC::barrier(INIT, 1);
+    IPC::barrier(TRACKER_DONE, 1);
+    follow_trackees();
+    EXPECT_EQ(0u, trackee_table_->numActiveChunks());
+    IPC::barrier(TRACKER_READ, 1);
+    IPC::barrier(TRACKEES_DONE, 1);
+    chunk_->waitForTriggerCompletion();
+    EXPECT_EQ(kNumTrackeeChunks, trackee_table_->numActiveChunks());
+    EXPECT_EQ(kNumTrackeeChunks, trackee_table_->numItems());
+  }
+  if (getSubprocessId() == SLAVE) {
+    IPC::barrier(INIT, 1);
+    Transaction slave_transaction_1;
+    insert_master_item(&slave_transaction_1);
+    EXPECT_TRUE(slave_transaction_1.commit());
+    IPC::barrier(TRACKER_DONE, 1);
+    IPC::barrier(TRACKER_READ, 1);
+    Transaction slave_transaction_2;
+    insert_trackees(&slave_transaction_2);
+    EXPECT_TRUE(slave_transaction_2.commit());
+    IPC::barrier(TRACKEES_DONE, 1);
+  }
+  IPC::barrier(DIE, 1);
+}
+
+TEST_F(NetTableChunkTrackingTest, AutoFollowTrackedChunks) {
+  enum Barriers {
+    INIT,
+    TRACKER_DONE,
+    TRACKER_READ,
+    TRACKEES_DONE,
+    DIE
+  };
+  if (getSubprocessId() == MASTER) {
+    table_->autoFollowTrackedChunks();
+    launchSubprocess(SLAVE);
+    IPC::barrier(INIT, 1);
+    IPC::barrier(TRACKER_DONE, 1);
+    chunk_ = table_->getChunk(master_chunk_id_);
+    chunk_->waitForTriggerCompletion();
+    EXPECT_EQ(0u, trackee_table_->numActiveChunks());
+    IPC::barrier(TRACKER_READ, 1);
+    IPC::barrier(TRACKEES_DONE, 1);
+    chunk_->waitForTriggerCompletion();
+    EXPECT_EQ(kNumTrackeeChunks, trackee_table_->numActiveChunks());
+    EXPECT_EQ(kNumTrackeeChunks, trackee_table_->numItems());
+  }
+  if (getSubprocessId() == SLAVE) {
+    IPC::barrier(INIT, 1);
+    Transaction slave_transaction_1;
+    insert_master_item(&slave_transaction_1);
+    EXPECT_TRUE(slave_transaction_1.commit());
+    IPC::barrier(TRACKER_DONE, 1);
+    IPC::barrier(TRACKER_READ, 1);
+    Transaction slave_transaction_2;
+    insert_trackees(&slave_transaction_2);
+    EXPECT_TRUE(slave_transaction_2.commit());
+    IPC::barrier(TRACKEES_DONE, 1);
+  }
+  IPC::barrier(DIE, 1);
+}
+
+TEST_F(NetTableFixture, GetAllIdsNoNewChunkRaceConditionThreads) {
   constexpr size_t kNumPushers = 50;
   constexpr size_t kItemsToPush = 100;
-
-  if (!GetParam()) {
-    // No need for separate CR test.
-    return;
-  }
 
   auto push_items = [this]() {
     for (size_t i = 0u; i < kItemsToPush; ++i) {
       Transaction transaction;
-      Chunk* chunk = table_->newChunk();
+      ChunkBase* chunk = table_->newChunk();
       std::shared_ptr<Revision> to_insert = table_->getTemplate();
       common::Id id;
       generateId(&id);

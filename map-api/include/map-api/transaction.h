@@ -11,10 +11,11 @@
 
 #include "map-api/logical-time.h"
 #include "map-api/net-table-transaction.h"
+#include "map-api/workspace.h"
 
 namespace map_api {
 class CacheBase;
-class Chunk;
+class ChunkBase;
 class ChunkManagerBase;
 class NetTable;
 class Revision;
@@ -29,7 +30,11 @@ class Transaction {
   friend class Cache;
 
  public:
+  Transaction(const std::shared_ptr<Workspace>& workspace,
+              const LogicalTime& begin_time);
+  // Defaults: Full workspace, current time.
   Transaction();
+  explicit Transaction(const std::shared_ptr<Workspace>& workspace);
   explicit Transaction(const LogicalTime& begin_time);
 
   // READ
@@ -44,9 +49,9 @@ class Transaction {
                                           NetTable* table) const;
   template <typename IdType>
   std::shared_ptr<const Revision> getById(const IdType& id, NetTable* table,
-                                          Chunk* chunk) const;
-  CRTable::RevisionMap dumpChunk(NetTable* table, Chunk* chunk);
-  CRTable::RevisionMap dumpActiveChunks(NetTable* table);
+                                          ChunkBase* chunk) const;
+  void dumpChunk(NetTable* table, ChunkBase* chunk, ConstRevisionMap* result);
+  void dumpActiveChunks(NetTable* table, ConstRevisionMap* result);
   template <typename IdType>
   void getAvailableIds(NetTable* table, std::vector<IdType>* ids);
   /**
@@ -54,11 +59,12 @@ class Transaction {
    * fundamentally differing from getById or dumpChunk.
    */
   template <typename ValueType>
-  CRTable::RevisionMap find(int key, const ValueType& value, NetTable* table);
+  void find(int key, const ValueType& value, NetTable* table,
+            ConstRevisionMap* result);
 
   // WRITE
-  void insert(
-      NetTable* table, Chunk* chunk, std::shared_ptr<Revision> revision);
+  void insert(NetTable* table, ChunkBase* chunk,
+              std::shared_ptr<Revision> revision);
   /**
    * Uses ChunkManager to auto-size chunks.
    */
@@ -69,7 +75,7 @@ class Transaction {
   void remove(NetTable* table, std::shared_ptr<Revision> revision);
   // slow
   template <typename IdType>
-  void remove(NetTable* table, const common::UniqueId<IdType>& id);
+  void remove(const IdType& id, NetTable* table);
 
   // TRANSACTION OPERATIONS
   bool commit();
@@ -98,6 +104,7 @@ class Transaction {
 
   // STATISTICS
   size_t numChangedItems() const;
+  std::string printCacheStatistics() const;
 
   // MISCELLANEOUS
   template <typename TrackerIdType>
@@ -133,6 +140,7 @@ class Transaction {
       NetTableOrdering> TransactionMap;
   typedef TransactionMap::value_type TransactionPair;
   mutable TransactionMap net_table_transactions_;
+  std::shared_ptr<Workspace> workspace_;
   LogicalTime begin_time_, commit_time_;
 
   // direct access vs. caching

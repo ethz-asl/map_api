@@ -2,6 +2,7 @@
 #define MAP_API_CACHE_INL_H_
 
 #include <set>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -37,7 +38,7 @@ template <typename IdType, typename Value, typename DerivedValue>
 Cache<IdType, Value, DerivedValue>::~Cache() {}
 
 template <typename IdType, typename Value, typename DerivedValue>
-Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) {
+Value& Cache<IdType, Value, DerivedValue>::getMutable(const IdType& id) {
   LockGuard lock(mutex_);
   typename CacheMap::iterator found = this->cache_.find(id);
   if (found == this->cache_.end()) {
@@ -58,7 +59,8 @@ Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) {
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
-const Value& Cache<IdType, Value, DerivedValue>::get(const IdType& id) const {
+typename Cache<IdType, Value, DerivedValue>::ConstRefReturnType
+Cache<IdType, Value, DerivedValue>::get(const IdType& id) const {
   LockGuard lock(mutex_);
   typename CacheMap::iterator found = this->cache_.find(id);
   if (found == this->cache_.end()) {
@@ -99,7 +101,6 @@ bool Cache<IdType, Value, DerivedValue>::insert(const IdType& id,
 
 template <typename IdType, typename Value, typename DerivedValue>
 void Cache<IdType, Value, DerivedValue>::erase(const IdType& id) {
-  CHECK(underlying_table_->type() == CRTable::Type::CRU);
   LockGuard lock(mutex_);
   cache_.erase(id);
   available_ids_.removeId(id);
@@ -121,6 +122,18 @@ void Cache<IdType, Value, DerivedValue>::getAllAvailableIds(
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
+std::string Cache<IdType, Value, DerivedValue>::underlyingTableName() const {
+  LockGuard lock(mutex_);
+  return underlying_table_->name();
+}
+
+template <typename IdType, typename Value, typename DerivedValue>
+size_t Cache<IdType, Value, DerivedValue>::numCachedItems() const {
+  LockGuard lock(mutex_);
+  return cache_.size();
+}
+
+template <typename IdType, typename Value, typename DerivedValue>
 size_t Cache<IdType, Value, DerivedValue>::size() const {
   LockGuard lock(mutex_);
   return available_ids_.getAllIds().size();
@@ -135,7 +148,7 @@ bool Cache<IdType, Value, DerivedValue>::empty() const {
 template <typename IdType, typename Value, typename DerivedValue>
 std::shared_ptr<const Revision>
 Cache<IdType, Value, DerivedValue>::getRevisionLocked(const IdType& id) const {
-  typedef CRTable::RevisionMap::iterator RevisionIterator;
+  typedef ConstRevisionMap::iterator RevisionIterator;
   RevisionIterator found = revisions_.find(id);
   if (found == revisions_.end()) {
     std::shared_ptr<const Revision> revision =
@@ -166,7 +179,7 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
   std::set<common::Id> chunks;
   underlying_table_->getActiveChunkIds(&chunks);
   for (const typename CacheMap::value_type& cached_pair : cache_) {
-    CRTable::RevisionMap::iterator corresponding_revision =
+    ConstRevisionMap::iterator corresponding_revision =
         revisions_.find(cached_pair.first);
     if (corresponding_revision == revisions_.end()) {
       // All items that were in the db before must have been gotten through
@@ -189,8 +202,7 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
       if (cached_pair.second.dirty == ValueHolder::DirtyState::kDirty) {
         // Convert the object to the revision and then compare if it has changed.
         std::shared_ptr<map_api::Revision> update_revision =
-            std::make_shared<map_api::Revision>(
-                *corresponding_revision->second);
+            corresponding_revision->second->copyForWrite();
         objectToRevision(cached_pair.first,
                          Factory::getReferenceToDerived(
                              cached_pair.second.value),
@@ -203,8 +215,7 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
               objectFromRevision<typename Factory::ElementType>(
                   *corresponding_revision->second);
           std::shared_ptr<map_api::Revision> reserialized_revision =
-              std::make_shared < map_api::Revision
-                  > (*corresponding_revision->second);
+              corresponding_revision->second->copyForWrite();
           objectToRevision(cached_pair.first,
                            *value, reserialized_revision.get());
 
@@ -224,8 +235,7 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
     if (revisions_.find(id) == revisions_.end()) {
       continue;
     }
-    std::shared_ptr<Revision> to_remove =
-        std::make_shared<Revision>(*getRevisionLocked(id));
+    std::shared_ptr<Revision> to_remove = getRevisionLocked(id)->copyForWrite();
     transaction_.get()->remove(underlying_table_, to_remove);
   }
   staged_ = true;
@@ -243,7 +253,7 @@ getAvailableIdsLocked() const {
                           ordered_available_ids_.end());
     double total_seconds = timer.Stop();
     ids_fetched_ = true;
-    VLOG(3) << "Got " << available_ids_.size() << " ids for table "
+    VLOG(5) << "Got " << available_ids_.size() << " ids for table "
             << underlying_table_->name() << " in " << total_seconds << "s";
   }
 }

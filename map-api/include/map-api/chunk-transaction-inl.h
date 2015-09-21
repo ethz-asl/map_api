@@ -2,15 +2,16 @@
 #define MAP_API_CHUNK_TRANSACTION_INL_H_
 
 #include <string>
+#include <vector>
 
-#include "map-api/chunk.h"
+#include <multiagent-mapping-common/unique-id.h>
 
 namespace map_api {
 
 template <typename ValueType>
 void ChunkTransaction::addConflictCondition(int key, const ValueType& value) {
   std::shared_ptr<Revision> value_holder =
-      chunk_->underlying_table_->getTemplate();
+      chunk_->data_container_->getTemplate();
   value_holder->set(key, value);
   conflict_conditions_.push_back(ConflictCondition(key, value_holder));
 }
@@ -21,10 +22,40 @@ std::shared_ptr<const Revision> ChunkTransaction::getById(const IdType& id) {
   if (result != nullptr) {
     return result;
   }
+
+  LogicalTime get_time = begin_time_;
+  ItemTimes::const_iterator found =
+      previously_committed_.find(id.template toIdType<common::Id>());
+  if (found != previously_committed_.end()) {
+    get_time = found->second;
+  }
+
   chunk_->readLock();
-  result = chunk_->underlying_table_->getById(id, begin_time_);
+  result = chunk_->data_container_->getById(id, get_time);
   chunk_->unlock();
   return result;
+}
+
+template <typename IdType>
+void ChunkTransaction::getAvailableIds(std::unordered_set<IdType>* ids) {
+  CHECK_NOTNULL(ids)->clear();
+  std::vector<IdType> id_vector;
+  chunk_->constData()->getAvailableIds(begin_time_, &id_vector);
+  ids->insert(id_vector.begin(), id_vector.end());
+  // Remove items removed in previous commits.
+  for (ItemTimes::const_iterator it = previously_committed_.begin();
+       it != previously_committed_.end(); ++it) {
+    typename std::unordered_set<IdType>::iterator found =
+        ids->find(it->first.toIdType<IdType>());
+    if (found != ids->end()) {
+      // Returns nullptr if object has been removed by given time.
+      std::shared_ptr<const Revision> item =
+          chunk_->data_container_->getById(it->first, it->second);
+      if (!item) {
+        ids->erase(found);
+      }
+    }
+  }
 }
 
 template <typename IdType>
@@ -44,10 +75,11 @@ std::shared_ptr<const Revision> ChunkTransaction::getByIdFromUncommitted(
 template <typename ValueType>
 std::shared_ptr<const Revision> ChunkTransaction::findUnique(
     int key, const ValueType& value) {
-  // FIXME(tcies) also search in uncommitted
+  // FIXME(tcies) Also search in uncommitted.
+  // FIXME(tcies) Also search in previously committed.
   chunk_->readLock();
   std::shared_ptr<const Revision> result =
-      chunk_->underlying_table_->findUnique(key, value, begin_time_);
+      chunk_->data_container_->findUnique(key, value, begin_time_);
   chunk_->unlock();
   return result;
 }

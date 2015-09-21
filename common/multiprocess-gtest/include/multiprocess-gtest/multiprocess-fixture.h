@@ -11,6 +11,7 @@
 #include <gtest/gtest.h>
 
 DECLARE_uint64(subprocess_id);
+DECLARE_bool(multiprocess_verbose);
 
 namespace common {
 
@@ -36,8 +37,8 @@ class MultiprocessFixture : public ::testing::Test {
    * Gathers results from subprocesses, forwarding them to stdout if verbose and
    * propagating failures.
    */
-  void harvest(bool verbose = true);
-  void harvest(uint64_t subprocess_id, bool verbose);
+  void harvest();
+  void harvest(uint64_t subprocess_id);
 
   /**
    * Because in some situations in harvesting it occurs that fgets() hangs

@@ -1,8 +1,9 @@
-#include <map-api/chord-index.h>
+#include "map-api/chord-index.h"
+
 #include <type_traits>
 
-#include <glog/logging.h>
 #include <gflags/gflags.h>
+#include <glog/logging.h>
 
 const std::string kCleanJoin("clean");
 const std::string kStabilizeJoin("stabilize");
@@ -480,6 +481,10 @@ void ChordIndex::leaveClean() {
   unlock();
 }
 
+void ChordIndex::localUpdateCallback(const std::string& /*key*/,
+                                     const std::string& /*old_value*/,
+                                     const std::string& /*new_value*/) {}
+
 PeerId ChordIndex::closestPrecedingFinger(
     const Key& key) {
   peer_lock_.acquireReadLock();
@@ -621,8 +626,11 @@ bool ChordIndex::waitUntilInitialized() {
 bool ChordIndex::addDataLocally(
     const std::string& key, const std::string& value) {
   data_lock_.acquireWriteLock();
+  const std::string old_value = data_[key];
   data_[key] = value;
+  // Releasing lock here so the update callback can do whatever it wants to.
   data_lock_.releaseWriteLock();
+  localUpdateCallback(key, old_value, value);
   return true;
 }
 
@@ -644,7 +652,7 @@ bool ChordIndex::handleNotifyClean(const PeerId& peer_id) {
   CHECK(node_locked_);
   CHECK_EQ(peer_id, node_lock_holder_);
   peer_lock_.acquireReadLock();
-  CHECK(peers_.find(peer_id) == peers_.end());
+  CHECK(peers_.find(peer_id) == peers_.end()) << peer_id;
   std::shared_ptr<ChordPeer> peer(new ChordPeer(peer_id));
   handleNotifyCommon(peer);
   CHECK_GT(peer.use_count(), 1);

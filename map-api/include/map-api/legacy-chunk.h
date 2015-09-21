@@ -1,5 +1,5 @@
-#ifndef MAP_API_CHUNK_H_
-#define MAP_API_CHUNK_H_
+#ifndef MAP_API_LEGACY_CHUNK_H_
+#define MAP_API_LEGACY_CHUNK_H_
 
 #include <condition_variable>
 #include <memory>
@@ -7,15 +7,22 @@
 #include <set>
 #include <thread>
 #include <unordered_set>
+#include <vector>
 
-#include "./chunk.pb.h"
-#include "map-api/cr-table.h"
-#include "map-api/peer-handler.h"
-#include "map-api/reader-writer-lock.h"
+#include <multiagent-mapping-common/condition.h>
+#include <multiagent-mapping-common/reader-writer-lock.h>
 #include <multiagent-mapping-common/unique-id.h>
 
+#include "map-api/chunk-base.h"
+#include "map-api/chunk-data-container-base.h"
+#include "map-api/logical-time.h"
+#include "map-api/peer-handler.h"
+#include "./chunk.pb.h"
+
 namespace map_api {
+class ConstRevisionMap;
 class Message;
+class MutableRevisionMap;
 class Revision;
 
 /**
@@ -43,65 +50,62 @@ class Revision;
  * Chunk ownership may be relinquished at any time, automatically relinquishing
  * access to the latest data in the chunk and the right to modify it.
  *
- * For the time being, Chunks are NOT robust to sudden loss of connectivity -
- * this could be fixed by adapting a consensus protocol such as Raft.
+ * Legacy chunks are NOT robust to sudden loss of connectivity -
+ * this should be fixed with Raft chunks.
  */
-class Chunk {
+class LegacyChunk : public ChunkBase {
   friend class ChunkTransaction;
-  typedef std::function<void(const std::unordered_set<common::Id>& insertions,
-                             const std::unordered_set<common::Id>& updates)>
-      TriggerCallback;
 
  public:
-  bool init(const common::Id& id, CRTable* underlying_table, bool initialize);
+  virtual ~LegacyChunk();
+
+  bool init(const common::Id& id, std::shared_ptr<TableDescriptor> descriptor,
+            bool initialize);
+  virtual void initializeNewImpl(
+      const common::Id& id,
+      const std::shared_ptr<TableDescriptor>& descriptor) override;
   bool init(const common::Id& id, const proto::InitRequest& request,
-            const PeerId& sender, CRTable* underlying_table);
+            const PeerId& sender, std::shared_ptr<TableDescriptor> descriptor);
 
-  inline common::Id id() const;
+  virtual void dumpItems(const LogicalTime& time, ConstRevisionMap* items) const
+      override;
+  virtual size_t numItems(const LogicalTime& time) const override;
+  virtual size_t itemsSizeBytes(const LogicalTime& time) const override;
 
-  void dumpItems(const LogicalTime& time, CRTable::RevisionMap* items);
-  size_t numItems(const LogicalTime& time);
-  size_t itemsSizeBytes(const LogicalTime& time);
+  virtual void getCommitTimes(const LogicalTime& sample_time,
+                              std::set<LogicalTime>* commit_times) const
+      override;
 
-  void getCommitTimes(const LogicalTime& sample_time,
-                      std::set<LogicalTime>* commit_times);
+  virtual bool insert(const LogicalTime& time,
+                      const std::shared_ptr<Revision>& item) override;
 
-  bool insert(const LogicalTime& time, const std::shared_ptr<Revision>& item);
-
-  int peerSize() const;
+  virtual int peerSize() const override;
 
   void enableLockLogging();
 
-  void writeLock();
+  // Non-const intended to avoid accidental write-lock while reading.
+  virtual void writeLock() override;
 
-  void readLock();
+  virtual void readLock() const override;
 
-  bool isLocked();
+  virtual bool isWriteLocked() override;
 
-  void unlock();
+  virtual void unlock() const override;
 
   /**
    * Requests all peers in MapApiHub to participate in a given chunk.
    * At the moment, this is not disputable by the other peers.
    */
-  int requestParticipation();
-  int requestParticipation(const PeerId& peer);
+  virtual int requestParticipation() override;
+  virtual int requestParticipation(const PeerId& peer) override;
 
   /**
    * Update: First locks chunk, then sends update to all peers for patching.
    * Requires underlying table to be CRU (verified).
    */
-  void update(const std::shared_ptr<Revision>& item);
+  virtual void update(const std::shared_ptr<Revision>& item) override;
 
-  /**
-   * Starts tracking insertions / updates after a lock request. The callback is
-   * then called at an unlock request. The tracked insertions and updates are
-   * passed. Note: If the sets are empty, the lock has probably been acquired
-   * to modify chunk peers.
-   */
-  void attachTrigger(const TriggerCallback& callback);
-
-  inline LogicalTime getLatestCommitTime();
+  virtual LogicalTime getLatestCommitTime() const override;
 
   static const char kConnectRequest[];
   static const char kInitRequest[];
@@ -116,12 +120,12 @@ class Chunk {
   /**
    * insert and update for transactions.
    */
-  void bulkInsertLocked(const CRTable::NonConstRevisionMap& items,
-                        const LogicalTime& time);
-  void updateLocked(const LogicalTime& time,
-                    const std::shared_ptr<Revision>& item);
-  void removeLocked(const LogicalTime& time,
-                    const std::shared_ptr<Revision>& item);
+  virtual void bulkInsertLocked(const MutableRevisionMap& items,
+                                const LogicalTime& time) override;
+  virtual void updateLocked(const LogicalTime& time,
+                            const std::shared_ptr<Revision>& item) override;
+  virtual void removeLocked(const LogicalTime& time,
+                            const std::shared_ptr<Revision>& item) override;
 
   /**
    * Adds a peer to the chunk swarm by sending it an init request. Assumes
@@ -170,14 +174,15 @@ class Chunk {
    * defers distributed write lock requests until unlocking or denies them
    * altogether.
    */
-  void distributedReadLock();
+  void distributedReadLock() const;
 
+  // Non-const intended to avoid accidental write-lock while reading.
   void distributedWriteLock();
 
-  void distributedUnlock();
+  void distributedUnlock() const;
 
   template <typename RequestType>
-  void fillMetadata(RequestType* destination);
+  void fillMetadata(RequestType* destination) const;
 
   /**
    * Returns true iff lock status is WRITE_LOCKED and lock holder is self.
@@ -186,15 +191,13 @@ class Chunk {
    * context where that lock is already acquired, and recursive_mutex isn't
    * compatible with conditional_variable)
    */
-  bool isWriter(const PeerId& peer);
+  bool isWriter(const PeerId& peer) const;
 
   void initRequestSetData(proto::InitRequest* request);
   void initRequestSetPeers(proto::InitRequest* request);
   void prepareInitRequest(Message* request);
 
   inline void syncLatestCommitTime(const Revision& item);
-
-  void leave();  // May only be used by NetTable.
 
   /**
    * ====================================================================
@@ -206,7 +209,7 @@ class Chunk {
    * Handles insert requests
    */
   void handleConnectRequest(const PeerId& peer, Message* response);
-  static void handleConnectRequestThread(Chunk* self, const PeerId& peer);
+  static void handleConnectRequestThread(LegacyChunk* self, const PeerId& peer);
   void handleInsertRequest(const std::shared_ptr<Revision>& item,
                            Message* response);
   void handleLeaveRequest(const PeerId& leaver, Message* response);
@@ -219,17 +222,14 @@ class Chunk {
 
   void awaitInitialized() const;
 
-  common::Id id_;
+  virtual void leaveImpl() override;
+  virtual void awaitShared() override;
+
   PeerHandler peers_;
-  CRTable* underlying_table_;
-  DistributedRWLock lock_;
-  std::function<void(const std::unordered_set<common::Id>& insertions,
-                     const std::unordered_set<common::Id>& updates)> trigger_;
-  std::mutex trigger_mutex_;
-  std::unordered_set<common::Id> trigger_insertions_, trigger_updates_;
-  std::mutex add_peer_mutex_;
-  ReaderWriterMutex leave_lock_;
-  volatile bool initialized_ = false;
+  mutable DistributedRWLock lock_;
+  mutable std::mutex add_peer_mutex_;
+  common::ReaderWriterMutex leave_lock_;
+  common::Condition initialized_;
   volatile bool relinquished_ = false;
   bool log_locking_ = false;
   size_t self_rank_;
@@ -243,19 +243,19 @@ class Chunk {
     WRITE_ATTEMPT,
     WRITE_SUCCESS
   };
-  LockState current_state_;
+  mutable LockState current_state_;
   typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
-  TimePoint current_state_start_;
+  mutable TimePoint current_state_start_;
   TimePoint global_start_;
   std::thread::id main_thread_id_;
 
-  void startState(LockState new_state);
+  void startState(LockState new_state) const;
   void logStateDuration(LockState state, const TimePoint& start,
                         const TimePoint& end) const;
 };
 
 }  // namespace map_api
 
-#include "map-api/chunk-inl.h"
+#include "map-api/legacy-chunk-inl.h"
 
-#endif  // MAP_API_CHUNK_H_
+#endif  // MAP_API_LEGACY_CHUNK_H_

@@ -13,6 +13,15 @@ Core Core::instance_;
 MAP_API_REVISION_PROTOBUF(TableDescriptor);
 
 Core* Core::instance() {
+  std::unique_lock<std::mutex> lock(instance_.initialized_mutex_);
+  if (instance_.initialized_) {
+    return &instance_;
+  } else {
+    return nullptr;
+  }
+}
+
+Core* Core::instanceNoWait() {
   if (!instance_.initialized_mutex_.try_lock()) {
     return nullptr;
   } else {
@@ -51,14 +60,33 @@ void Core::init() {
   // ready metatable
   table_manager_.init(is_first_peer);
   initialized_ = true;
+  VLOG(1) << "Map API instance running at address " << PeerId::self();
 }
 
 bool Core::isInitialized() const { return initialized_; }
 
 void Core::kill() {
+  VLOG(1) << "Killing Map API instance at address " << PeerId::self();
   table_manager_.kill();
   hub_.kill();
   initialized_ = false;  // TODO(tcies) re-order?
+}
+
+void Core::killOnceShared() {
+  VLOG(1) << "Killing (once shared) Map API instance at " << PeerId::self();
+  table_manager_.killOnceShared();
+  hub_.kill();
+  initialized_ = false;
+}
+
+void Core::killOnceSharedUnlessAlone() {
+  std::set<PeerId> peers;
+  hub_.getPeers(&peers);
+  if (peers.empty()) {
+    kill();
+  } else {
+    killOnceShared();
+  }
 }
 
 Core::~Core() {

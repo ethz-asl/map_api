@@ -38,7 +38,7 @@ class ServerDiscovery final : public Discovery {
   /**
    * May only be used by the Hub
    */
-  ServerDiscovery(const std::string& address, zmq::context_t& context);
+  ServerDiscovery(const PeerId& address, zmq::context_t& context);
   ServerDiscovery(const ServerDiscovery&) = delete;
   ServerDiscovery& operator=(const ServerDiscovery&) = delete;
   friend class Hub;

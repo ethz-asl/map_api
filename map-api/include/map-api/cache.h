@@ -1,17 +1,18 @@
 #ifndef MAP_API_CACHE_H_
 #define MAP_API_CACHE_H_
 #include <mutex>
+#include <string>
 #include <unordered_set>
 #include <vector>
 
-#include <map-api/app-templates.h>
-#include <map-api/cache-base.h>
-#include <map-api/cr-table.h>  // CRTable::RevisionMap
-#include <map-api/revision.h>
-#include <map-api/transaction.h>
 #include <multiagent-mapping-common/mapped-container-base.h>
 #include <multiagent-mapping-common/traits.h>
 #include <multiagent-mapping-common/unique-id.h>
+
+#include "map-api/app-templates.h"
+#include "map-api/cache-base.h"
+#include "map-api/revision-map.h"
+#include "map-api/transaction.h"
 
 namespace map_api {
 namespace traits {
@@ -116,14 +117,16 @@ template <typename IdType, typename Value, typename DerivedValue = Value>
 class Cache : public CacheBase,
               public common::MappedContainerBase<IdType, Value> {
  public:
+  typedef typename common::IsPointerType<Value>::const_ref_type
+      ConstRefReturnType;
   typedef std::shared_ptr<Cache<IdType, Value, DerivedValue> > Ptr;
   typedef std::shared_ptr<const Cache<IdType, Value, DerivedValue> > ConstPtr;
 
   Cache(const std::shared_ptr<Transaction>& transaction, NetTable* const table,
         const std::shared_ptr<ChunkManagerBase>& chunk_manager);
   virtual ~Cache();
-  Value& get(const IdType& id);
-  const Value& get(const IdType& id) const;
+  Value& getMutable(const IdType& id);
+  ConstRefReturnType get(const IdType& id) const;
   std::shared_ptr<const Revision> getRevision(const IdType& id) const;
   /**
    * Inserted objects will live in cache_, but not in revisions_.
@@ -146,8 +149,10 @@ class Cache : public CacheBase,
    */
   void getAllAvailableIds(std::vector<IdType>* available_ids) const;
 
-  size_t size() const;
+  virtual size_t size() const;
   bool empty() const;
+  virtual size_t numCachedItems() const;
+  virtual std::string underlyingTableName() const;
 
  private:
   static constexpr bool kIsPointer = common::IsPointerType<Value>::value;
@@ -176,7 +181,7 @@ class Cache : public CacheBase,
   typedef std::vector<IdType> IdVector;
 
   mutable CacheMap cache_;
-  mutable CRTable::RevisionMap revisions_;
+  mutable ConstRevisionMap revisions_;
   IdSet removals_;
   NetTable* underlying_table_;
   std::shared_ptr<ChunkManagerBase> chunk_manager_;

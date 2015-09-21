@@ -8,16 +8,19 @@
 #include <vector>
 
 #include <gtest/gtest_prod.h>
+#include <multiagent-mapping-common/reader-first-reader-writer-lock.h>
 
+#include "map-api/chunk-data-container-base.h"
 #include "map-api/app-templates.h"
-#include "map-api/chunk.h"
-#include "map-api/cr-table.h"
+#include "map-api/chunk-base.h"
 #include "map-api/net-table-index.h"
-#include "map-api/revision.h"
-#include "map-api/reader-writer-lock.h"
 #include "map-api/spatial-index.h"
+#include "./chunk.pb.h"
 
 namespace map_api {
+class ConstRevisionMap;
+class MutableRevisionMap;
+
 inline std::string humanReadableBytes(double size) {
   int i = 0;
   const char* units[] = {"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"};
@@ -36,6 +39,7 @@ class NetTable {
   friend class NetTableManager;
   friend class NetTableTransaction;
   friend class SpatialIndexTest;
+  friend class Workspace;
   FRIEND_TEST(NetTableFixture, RemoteUpdate);
   FRIEND_TEST(NetTableFixture, Grind);
   FRIEND_TEST(NetTableFixture, SaveAndRestoreTableFromFile);
@@ -45,13 +49,12 @@ class NetTable {
 
   // BASICS
   const std::string& name() const;
-  const CRTable::Type& type() const;
   std::shared_ptr<Revision> getTemplate() const;
 
   // BASIC CHUNK MANAGEMENT
-  Chunk* newChunk();
-  Chunk* newChunk(const common::Id& chunk_id);
-  Chunk* getChunk(const common::Id& chunk_id);
+  ChunkBase* newChunk();
+  ChunkBase* newChunk(const common::Id& chunk_id);
+  ChunkBase* getChunk(const common::Id& chunk_id);
 
   // HIERARCHICAL CHUNK MANAGEMENT
   void pushNewChunkIdsToTracker(
@@ -67,6 +70,12 @@ class NetTable {
   // then use Transaction::overrideTrackerIdentificationMethod() to set the
   // method to obtain the tracker for a given item.
   void pushNewChunkIdsToTracker(NetTable* table_of_tracking_item);
+  // Attaches trigger involving fetchTrackedChunks() to updates of given item.
+  // TODO(tcies) batch these for all followed items of the chunk?
+  template <typename IdType>
+  void followTrackedChunksOfItem(const IdType& item, ChunkBase* tracker_chunk);
+  // Do the above automatically for all created and received items.
+  void autoFollowTrackedChunks();
 
   // SPATIAL INDEX CHUNK MANAGEMENT
   void registerChunkInSpace(const common::Id& chunk_id,
@@ -79,28 +88,33 @@ class NetTable {
       std::unordered_set<common::Id>* chunk_ids);
   void getChunksInBoundingBox(const SpatialIndex::BoundingBox& bounding_box);
   void getChunksInBoundingBox(const SpatialIndex::BoundingBox& bounding_box,
-                              std::unordered_set<Chunk*>* chunks);
-  typedef std::function<void(const std::unordered_set<common::Id>& insertions,
-                             const std::unordered_set<common::Id>& updates,
-                             Chunk* chunk)> TriggerCallbackWithChunkPointer;
+                              std::unordered_set<ChunkBase*>* chunks);
+  inline SpatialIndex& spatial_index() {
+    return *CHECK_NOTNULL(spatial_index_.get());
+  }
 
   // TRIGGER RELATED
+  typedef std::function<void(const std::unordered_set<common::Id>& insertions,
+                             const std::unordered_set<common::Id>& updates,
+                             ChunkBase* chunk)> TriggerCallbackWithChunkPointer;
+  typedef std::function<void(ChunkBase* chunk)> ChunkAcquisitionCallback;
   // Will bind to Chunk* the pointer of the current chunk.
-  void attachTriggerOnChunkAcquisition(
+  void attachTriggerToCurrentAndFutureChunks(
       const TriggerCallbackWithChunkPointer& trigger);
+  void attachCallbackToChunkAcquisition(
+      const ChunkAcquisitionCallback& callback);
   // Returns false if peer not reachable.
-  bool listenToChunksFromPeer(const PeerId& peer) const;
+  bool listenToChunksFromPeer(const PeerId& peer);
   void handleListenToChunksFromPeer(const PeerId& listener, Message* response);
   static const char kPushNewChunksRequest[];
 
   // ITEM RETRIEVAL
   // (locking all chunks)
   template <typename ValueType>
-  CRTable::RevisionMap lockFind(int key, const ValueType& value,
-                                const LogicalTime& time);
-  void dumpActiveChunks(const LogicalTime& time,
-                        CRTable::RevisionMap* destination);
-  void dumpActiveChunksAtCurrentTime(CRTable::RevisionMap* destination);
+  void lockFind(int key, const ValueType& value, const LogicalTime& time,
+                ConstRevisionMap* destination) const;
+  void dumpActiveChunks(const LogicalTime& time, ConstRevisionMap* destination);
+  void dumpActiveChunksAtCurrentTime(ConstRevisionMap* destination);
   template <typename IdType>
   void getAvailableIds(const LogicalTime& time,
                        std::vector<IdType>* ids);
@@ -108,7 +122,7 @@ class NetTable {
   /**
    * Connects to the given chunk via the given peer.
    */
-  Chunk* connectTo(const common::Id& chunk_id, const PeerId& peer);
+  ChunkBase* connectTo(const common::Id& chunk_id, const PeerId& peer);
 
   bool structureMatch(std::unique_ptr<TableDescriptor>* descriptor) const;
 
@@ -126,7 +140,12 @@ class NetTable {
 
   void kill();
 
+  // Make sure all chunks have at least one other peer.
+  void killOnceShared();
+
   void leaveAllChunks();
+
+  void leaveAllChunksOnceShared();
 
   std::string getStatistics();
 
@@ -135,7 +154,7 @@ class NetTable {
   /**
    * Chunks are owned by the table, this function does not leak.
    */
-  void getActiveChunks(std::set<Chunk*>* chunks) const;
+  void getActiveChunks(std::set<ChunkBase*>* chunks) const;
 
   /**
    * ========================
@@ -169,13 +188,20 @@ class NetTable {
   void handleRoutedSpatialChordRequests(const Message& request,
                                         Message* response);
 
+  void handleAnnounceToListeners(const PeerId& announcer,
+                                 Message* response);
+  static const char kAnnounceToListeners[];
+
+  void handleSpatialIndexTrigger(const proto::SpatialIndexTrigger& trigger);
+
  private:
   NetTable();
   NetTable(const NetTable&) = delete;
   NetTable& operator =(const NetTable&) = delete;
 
-  bool init(CRTable::Type type, std::unique_ptr<TableDescriptor>* descriptor);
+  bool init(std::shared_ptr<TableDescriptor> descriptor);
 
+  // Interface for NetTableManager:
   void createIndex();
   void joinIndex(const PeerId& entry_point);
   void createSpatialIndex(const SpatialIndex::BoundingBox& bounds,
@@ -183,8 +209,12 @@ class NetTable {
   void joinSpatialIndex(const SpatialIndex::BoundingBox& bounds,
                         const std::vector<size_t>& subdivision,
                         const PeerId& entry_point);
+  void announceToListeners(const PeerIdList& listeners);
 
-  bool insert(const LogicalTime& time, Chunk* chunk,
+  typedef std::unordered_map<common::Id, std::unique_ptr<ChunkBase>> ChunkMap;
+  ChunkBase* addInitializedChunk(std::unique_ptr<ChunkBase>&& chunk);
+
+  bool insert(const LogicalTime& time, ChunkBase* chunk,
               const std::shared_ptr<Revision>& query);
   /**
    * Must not change the chunk id. TODO(tcies) immutable fields of Revisions
@@ -196,13 +226,20 @@ class NetTable {
    * TODO(tcies) probably requires mutex on a data level
    */
   template <typename IdType>
-  std::shared_ptr<const Revision> getByIdInconsistent(const IdType& id,
-                                                      const LogicalTime& time);
+  std::shared_ptr<const Revision> getById(const IdType& id,
+                                          const LogicalTime& time);
 
   void readLockActiveChunks();
   void unlockActiveChunks();
 
-  typedef std::unordered_map<common::Id, std::unique_ptr<Chunk> > ChunkMap;
+  // Read-locks active_chunks_lock_ and passes each active chunk to action
+  // individually.
+  void forEachActiveChunk(
+      const std::function<void(const ChunkBase& chunk)>& action) const;
+  // Same as the above, but breaks if the function returns true.
+  void forEachActiveChunkUntil(const std::function<
+      bool(const ChunkBase& chunk)>& action) const;  // NOLINT
+
   bool routingBasics(
       const common::Id& chunk_id, Message* response, ChunkMap::iterator* found);
 
@@ -215,17 +252,36 @@ class NetTable {
   template <typename TrackeeType, typename TrackerType, typename TrackerIdType>
   std::function<common::Id(const Revision&)> trackerDeterminerFactory();
 
-  CRTable::Type type_;
-  std::unique_ptr<CRTable> cache_;
+  void attachTriggers(ChunkBase* chunk);
+
+  // Complements autoFollowTrackedChunks.
+  void fetchAllCallback(const common::IdSet& insertions,
+                        const common::IdSet& updates, ChunkBase* chunk);
+
+  void leaveIndices();
+
+  void getChunkHolders(const common::Id& chunk_id,
+                       std::unordered_set<PeerId>* peers);
+  void joinChunkHolders(const common::Id& chunk_id);
+  void leaveChunkHolders(const common::Id& chunk_id);
+
+  std::shared_ptr<TableDescriptor> descriptor_;
   ChunkMap active_chunks_;
-  mutable ReaderWriterMutex active_chunks_lock_;
+  // See issue #2391 for why we need a reader-first RW mutex here.
+  mutable common::ReaderFirstReaderWriterMutex active_chunks_lock_;
 
   // DO NOT USE FROM HANDLER THREAD (else TODO(tcies) mutex)
   std::unique_ptr<NetTableIndex> index_;
   std::unique_ptr<SpatialIndex> spatial_index_;
-  ReaderWriterMutex index_lock_;
+  common::ReaderWriterMutex index_lock_;
 
-  TriggerCallbackWithChunkPointer trigger_to_attach_on_chunk_acquisition_;
+  std::vector<TriggerCallbackWithChunkPointer>
+      triggers_to_attach_to_future_chunks_;
+  std::mutex m_triggers_to_attach_;
+
+  std::vector<ChunkAcquisitionCallback> chunk_acquisition_callbacks_;
+  std::mutex m_chunk_acquisition_callbacks_;
+
   std::mutex m_new_chunk_listeners_;
   PeerIdSet new_chunk_listeners_;
 

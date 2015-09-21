@@ -7,7 +7,11 @@
 namespace map_api {
 
 void PeerHandler::add(const PeerId& peer) {
-  peers_.insert(peer);
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    peers_.insert(peer);
+  }
+  cv_.notify_all();
 }
 
 void PeerHandler::broadcast(
@@ -15,21 +19,34 @@ void PeerHandler::broadcast(
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(responses);
   responses->clear();
-  // TODO(tcies) parallelize using std::future
+  std::lock_guard<std::mutex> lock(mutex_);
   for (const PeerId& peer : peers_) {
     Hub::instance().request(peer, request, &(*responses)[peer]);
   }
 }
 
 bool PeerHandler::empty() const {
+  std::lock_guard<std::mutex> lock(mutex_);
   return peers_.empty();
 }
 
+void PeerHandler::awaitNonEmpty(const std::string& info) const {
+  std::unique_lock<std::mutex> lock(mutex_);
+  while (peers_.empty()) {
+    if (info != "") {
+      LOG(INFO) << info;
+    }
+    cv_.wait(lock);
+  }
+}
+
 const std::set<PeerId>& PeerHandler::peers() const {
+  std::lock_guard<std::mutex> lock(mutex_);
   return peers_;
 }
 
 void PeerHandler::remove(const PeerId& peer) {
+  std::lock_guard<std::mutex> lock(mutex_);
   std::set<PeerId>::iterator found = peers_.find(peer);
   if (found == peers_.end()) {
     std::stringstream report;
@@ -47,10 +64,14 @@ void PeerHandler::request(
     Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
-  std::set<PeerId>::iterator found = peers_.find(peer);
-  if (found == peers_.end()) {
-    found = peers_.insert(peer).first;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::set<PeerId>::iterator found = peers_.find(peer);
+    if (found == peers_.end()) {
+      found = peers_.insert(peer).first;
+    }
   }
+  cv_.notify_all();
   Hub::instance().request(peer, request, response);
 }
 
@@ -59,14 +80,19 @@ bool PeerHandler::try_request(const PeerId& peer, Message* request,
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
   CHECK_NE(peer, PeerId::self());
-  std::set<PeerId>::iterator found = peers_.find(peer);
-  if (found == peers_.end()) {
-    found = peers_.insert(peer).first;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::set<PeerId>::iterator found = peers_.find(peer);
+    if (found == peers_.end()) {
+      found = peers_.insert(peer).first;
+    }
   }
+  cv_.notify_all();
   return Hub::instance().try_request(peer, request, response);
 }
 
 size_t PeerHandler::size() const {
+  std::lock_guard<std::mutex> lock(mutex_);
   return peers_.size();
 }
 

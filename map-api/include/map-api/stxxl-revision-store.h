@@ -63,11 +63,11 @@ class STXXLRevisionStore {
     STLContainerInputStream<BlockSize, ContainerType> input_stream(
         block_information.block_index, block_information.byte_offset,
         &proto_revision_pool_);
-    std::shared_ptr<proto::Revision> proto_in(new proto::Revision);
 
+    std::unique_ptr<proto::Revision> proto_in(new proto::Revision);
     bool status = input_stream.ReadMessage(proto_in.get());
+    *revision = Revision::fromProto(std::move(proto_in));
 
-    revision->reset(new Revision(proto_in));
     CHECK_EQ(revision_info.insert_time_, (*revision)->getInsertTime());
     return status;
   }

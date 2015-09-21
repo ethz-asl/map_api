@@ -1,4 +1,6 @@
 #include <map-api/hub.h>
+
+#include <chrono>
 #include <ifaddrs.h>
 #include <iostream>  // NOLINT
 #include <fstream>   // NOLINT
@@ -20,6 +22,7 @@
 #include <map-api/logical-time.h>
 #include <map-api/server-discovery.h>
 #include <multiagent-mapping-common/internal/unique-id.h>
+#include <multiagent-mapping-common/plain-file-logger.h>
 
 const std::string kFileDiscovery = "file";
 const std::string kServerDiscovery = "server";
@@ -36,14 +39,18 @@ DEFINE_string(discovery_server, "127.0.0.1:5050",
               "server-discovery");
 DEFINE_string(announce_ip, "", "IP to use for discovery announcement");
 DEFINE_int32(discovery_timeout_ms, 100, "Timeout specific for first contact.");
+DEFINE_bool(map_api_network_log, false, "Log network activity.");
 DECLARE_int32(simulated_lag_ms);
+
+DEFINE_string(
+    map_api_hub_filter_handle_debug_output, "",
+    "Filter the debug "
+    "output of the handle thread to message types containing this string.");
 
 namespace map_api {
 
 const char Hub::kDiscovery[] = "map_api_hub_discovery";
 const char Hub::kReady[] = "map_api_hub_ready";
-
-Hub::HandlerMap Hub::handlers_;
 
 bool Hub::init(bool* is_first_peer) {
   CHECK_NOTNULL(is_first_peer);
@@ -52,7 +59,8 @@ bool Hub::init(bool* is_first_peer) {
   if (FLAGS_discovery_mode == kFileDiscovery) {
     discovery_.reset(new FileDiscovery());
   } else if (FLAGS_discovery_mode == kServerDiscovery) {
-    discovery_.reset(new ServerDiscovery(FLAGS_discovery_server, *context_));
+    discovery_.reset(
+        new ServerDiscovery(PeerId(FLAGS_discovery_server), *context_));
   } else {
     LOG(FATAL) << "Specified discovery mode unknown";
   }
@@ -83,8 +91,8 @@ bool Hub::init(bool* is_first_peer) {
     // don't attempt to connect if already connected
     if (peers_.find(peer) != peers_.end()) continue;
 
-    peers_.insert(std::make_pair(peer, std::unique_ptr<Peer>(new Peer(
-                                           peer.ipPort(), *context_, ZMQ_REQ))));
+    peers_.insert(std::make_pair(
+        peer, std::unique_ptr<Peer>(new Peer(peer, *context_, ZMQ_REQ))));
 
     // connection request is sent outside the peer_mutex_ lock to avoid
     // deadlocks where two peers try to connect to each other:
@@ -140,9 +148,10 @@ void Hub::kill() {
   // unbind and re-enter server
   terminate_ = true;
   listener_.join();
-  // disconnect from peers (no need to lock as listener should be only other
-  // thread)
-  peers_.clear();
+  {
+    std::lock_guard<std::mutex> lock(peer_mutex_);
+    peers_.clear();
+  }
   // destroy context
   discovery_->lock();
   discovery_->leave();
@@ -197,20 +206,14 @@ bool Hub::registerHandler(
 void Hub::request(const PeerId& peer, Message* request, Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
+  std::lock_guard<std::mutex> lock(peer_mutex_);
   std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
       peers_.find(peer);
   if (found == peers_.end()) {
-    std::lock_guard<std::mutex> lock(peer_mutex_);
-    // double-checked locking pattern
-    std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
-        peers_.find(peer);
-    if (found == peers_.end()) {
-      std::pair<PeerMap::iterator, bool> emplacement = peers_.emplace(
-          peer,
-          std::unique_ptr<Peer>(new Peer(peer.ipPort(), *context_, ZMQ_REQ)));
-      CHECK(emplacement.second);
-      found = emplacement.first;
-    }
+    std::pair<PeerMap::iterator, bool> emplacement = peers_.emplace(
+        peer, std::unique_ptr<Peer>(new Peer(peer, *context_, ZMQ_REQ)));
+    CHECK(emplacement.second);
+    found = emplacement.first;
   }
   found->second->request(request, response);
 }
@@ -218,21 +221,13 @@ void Hub::request(const PeerId& peer, Message* request, Message* response) {
 bool Hub::try_request(const PeerId& peer, Message* request, Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
+  std::lock_guard<std::mutex> lock(peer_mutex_);
   PeerMap::iterator found = peers_.find(peer);
   if (found == peers_.end()) {
-    LOG(INFO) << "couldn't find " << peer << " among " << peers_.size();
-    for (const PeerMap::value_type& peer : peers_) {
-      LOG(INFO) << peer.first;
-    }
-    std::lock_guard<std::mutex> lock(peer_mutex_);
-    // double-checked locking pattern
-    std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
-        peers_.find(peer);
-    if (found == peers_.end()) {
-      found = peers_.insert(std::make_pair(peer, std::unique_ptr<Peer>(new Peer(
-                                                     peer.ipPort(), *context_,
-                                                     ZMQ_REQ)))).first;
-    }
+    std::pair<PeerMap::iterator, bool> emplacement = peers_.emplace(
+        peer, std::unique_ptr<Peer>(new Peer(peer, *context_, ZMQ_REQ)));
+    CHECK(emplacement.second);
+    found = emplacement.first;
   }
   return found->second->try_request(request, response);
 }
@@ -246,7 +241,6 @@ void Hub::broadcast(Message* request_message,
   std::set<PeerId> peers;
   getPeers(&peers);
   for (const PeerId& peer : peers) {
-    VLOG(3) << "Requesting " << peer;
     request(peer, request_message, &(*responses)[peer]);
   }
 }
@@ -272,21 +266,22 @@ bool Hub::isReady(const PeerId& peer) {
 
 void Hub::discoveryHandler(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
-  // lock peer set lock so we can write without a race condition
-  instance().peer_mutex_.lock();
-  instance().peers_.insert(
-      std::make_pair(PeerId(request.sender()),
-                     std::unique_ptr<Peer>(new Peer(
-                         request.sender(), *instance().context_, ZMQ_REQ))));
-  instance().peer_mutex_.unlock();
-  // ack by resend
-  response->impose<Message::kAck>();
+
+  PeerId peer = request.sender();
+  std::thread([peer]() {
+                std::lock_guard<std::mutex> lock(instance().peer_mutex_);
+                instance().peers_.insert(std::make_pair(
+                    PeerId(peer), std::unique_ptr<Peer>(new Peer(
+                                      peer, *instance().context_, ZMQ_REQ))));
+              }).detach();
+
+  response->ack();
 }
 
 void Hub::readyHandler(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
   CHECK(request.isType<kReady>());
-  if (Core::instance() == nullptr) {
+  if (Core::instanceNoWait() == nullptr) {
     response->decline();
   } else {
     response->ack();
@@ -382,24 +377,55 @@ void Hub::listenThread(Hub* self) {
       LogicalTime::synchronize(LogicalTime(query.logical_time()));
 
       // Query handler
-      HandlerMap::iterator handler = handlers_.find(query.type());
-      if (handler == handlers_.end()) {
-        for (const HandlerMap::value_type& handler : handlers_) {
+      HandlerMap::iterator handler = self->handlers_.find(query.type());
+      if (handler == self->handlers_.end()) {
+        for (const HandlerMap::value_type& handler : self->handlers_) {
           LOG(INFO) << handler.first;
         }
         LOG(FATAL) << "Handler for message type " << query.type()
                    << " not registered";
       }
       Message response;
-      VLOG(3) << PeerId::self() << " received request " << query.type();
+      if (VLOG_IS_ON(4)) {
+        if (FLAGS_map_api_hub_filter_handle_debug_output != "") {
+          if (query.type().find(FLAGS_map_api_hub_filter_handle_debug_output) !=
+              std::string::npos) {
+            VLOG(4) << PeerId::self() << " received request " << query.type()
+                    << " from " << query.sender();
+          }
+        } else {
+          VLOG(4) << PeerId::self() << " received request " << query.type()
+                  << " from " << query.sender();
+        }
+      }
       handler->second(query, &response);
-      VLOG(3) << PeerId::self() << " handled request " << query.type();
+      if (VLOG_IS_ON(4)) {
+        if (FLAGS_map_api_hub_filter_handle_debug_output != "") {
+          if (query.type().find(FLAGS_map_api_hub_filter_handle_debug_output) !=
+              std::string::npos) {
+            VLOG(4) << PeerId::self() << " handled request " << query.type();
+          }
+        } else {
+          VLOG(4) << PeerId::self() << " handled request " << query.type();
+        }
+      }
+
       response.set_sender(PeerId::self().ipPort());
       response.set_logical_time(LogicalTime::sample().serialize());
       std::string serialized_response = response.SerializeAsString();
       zmq::message_t response_message(serialized_response.size());
       memcpy(reinterpret_cast<void*>(response_message.data()),
              serialized_response.c_str(), serialized_response.size());
+
+      if (FLAGS_map_api_network_log) {
+        common::PlainFileLogger network_log_file("net_log_" + PeerId::self().ipPort());
+        std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch());
+        network_log_file << ms.count() << " " << query.type() << " "
+            << request.size() << " "<< serialized_response.size() << std::endl;
+
+        network_log_file.Flush();
+      }
 
       usleep(1e3 * FLAGS_simulated_lag_ms);
       Peer::simulateBandwidth(response_message.size());

@@ -8,16 +8,35 @@
 
 namespace map_api {
 
-Revision::Revision(const std::shared_ptr<proto::Revision>& revision)
-    : underlying_revision_(revision) {}
+std::shared_ptr<Revision> Revision::copyForWrite() const {
+  std::unique_ptr<proto::Revision> copy(
+      new proto::Revision(*underlying_revision_));
+  return fromProto(std::move(copy));
+}
 
-Revision::Revision(const Revision& other)
-    : underlying_revision_(new proto::Revision(*other.underlying_revision_)) {}
+std::shared_ptr<Revision> Revision::fromProto(
+    std::unique_ptr<proto::Revision>&& revision_proto) {
+  std::shared_ptr<Revision> result(new Revision);
+  result->underlying_revision_ = std::move(revision_proto);
+  return std::move(result);
+}
+
+std::shared_ptr<Revision> Revision::fromProtoString(
+    const std::string& revision_proto_string) {
+  std::shared_ptr<Revision> result(new Revision);
+  result->underlying_revision_.reset(new proto::Revision);
+  CHECK(result->underlying_revision_->ParseFromString(revision_proto_string));
+  return std::move(result);
+}
 
 void Revision::addField(int index, proto::Type type) {
   CHECK_EQ(underlying_revision_->custom_field_values_size(), index)
       << "Custom fields must be added in-order!";
   underlying_revision_->add_custom_field_values()->set_type(type);
+}
+void Revision::removeLastField() {
+  CHECK_GT(underlying_revision_->custom_field_values_size(), 0);
+  underlying_revision_->mutable_custom_field_values()->RemoveLast();
 }
 
 bool Revision::hasField(int index) const {
@@ -142,13 +161,14 @@ bool Revision::fetchTrackedChunks() const {
   LOG_IF(WARNING, trackee_multimap.empty())
       << "Fetch tracked chunks called, but no tracked chunks!";
   for (const TrackeeMultimap::value_type& table_trackees : trackee_multimap) {
-    VLOG(3) << "Fetching tracked chunks from table "
-            << table_trackees.first->name();
+    VLOG(3) << "Fetching " << table_trackees.second.size()
+            << " tracked chunks from table " << table_trackees.first->name();
     for (const common::Id& chunk_id : table_trackees.second) {
       if (table_trackees.first->getChunk(chunk_id) == nullptr) {
         success = false;
       }
     }
+    VLOG(3) << "Done.";
   }
   return success;
 }
@@ -163,7 +183,7 @@ MAP_API_TYPE_ENUM(int32_t, proto::Type::INT32);
 MAP_API_TYPE_ENUM(uint32_t, proto::Type::UINT32);
 MAP_API_TYPE_ENUM(bool, proto::Type::INT32);
 MAP_API_TYPE_ENUM(common::Id, proto::Type::HASH128);
-MAP_API_TYPE_ENUM(sm::HashId, proto::Type::HASH128);
+MAP_API_TYPE_ENUM(aslam::HashId, proto::Type::HASH128);
 MAP_API_TYPE_ENUM(int64_t, proto::Type::INT64);
 MAP_API_TYPE_ENUM(uint64_t, proto::Type::UINT64);
 MAP_API_TYPE_ENUM(LogicalTime, proto::Type::UINT64);
@@ -198,7 +218,7 @@ MAP_API_REVISION_SET(common::Id /*value*/) {
   field->set_string_value(value.hexString());
   return true;
 }
-MAP_API_REVISION_SET(sm::HashId /*value*/) {
+MAP_API_REVISION_SET(aslam::HashId /*value*/) {
   field->set_string_value(value.hexString());
   return true;
 }
@@ -257,7 +277,7 @@ MAP_API_REVISION_GET(bool /*value*/) {
   *value = field.int_value() != 0;
   return true;
 }
-MAP_API_REVISION_GET(sm::HashId /*value*/) {
+MAP_API_REVISION_GET(aslam::HashId /*value*/) {
   if (!value->fromHexString(field.string_value())) {
     LOG(FATAL) << "Failed to parse Hash id from string \""
                << field.string_value() << "\"";

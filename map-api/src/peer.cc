@@ -18,23 +18,20 @@ DEFINE_int32(simulated_bandwidth_kbps, 0,
 
 namespace map_api {
 
-Peer::Peer(const std::string& address, zmq::context_t& context,
-           int socket_type)
-: address_(address), socket_(context, socket_type) {
+Peer::Peer(const PeerId& address, zmq::context_t& context, int socket_type)
+    : address_(address), socket_(context, socket_type) {
   std::lock_guard<std::mutex> lock(socket_mutex_);
   try {
     const int linger_ms = FLAGS_socket_linger_ms;
     socket_.setsockopt(ZMQ_LINGER, &linger_ms, sizeof(linger_ms));
-    socket_.connect(("tcp://" + address).c_str());
+    socket_.connect(("tcp://" + address.ipPort()).c_str());
   }
   catch (const std::exception& e) {  // NOLINT
     LOG(FATAL) << "Connection to " << address << " failed";
   }
 }
 
-std::string Peer::address() const {
-  return address_;
-}
+const PeerId& Peer::address() const { return address_; }
 
 void Peer::request(Message* request, Message* response) {
   CHECK_NOTNULL(request);

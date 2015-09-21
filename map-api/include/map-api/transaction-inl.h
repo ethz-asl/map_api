@@ -6,10 +6,11 @@
 namespace map_api {
 
 template <typename ValueType>
-CRTable::RevisionMap Transaction::find(int key, const ValueType& value,
-                                       NetTable* table) {
+void Transaction::find(int key, const ValueType& value, NetTable* table,
+                       ConstRevisionMap* result) {
   CHECK_NOTNULL(table);
-  return this->transactionOf(table)->find(key, value);
+  CHECK_NOTNULL(result);
+  return this->transactionOf(table)->find(key, value, result);
 }
 
 template <typename IdType>
@@ -22,7 +23,7 @@ std::shared_ptr<const Revision> Transaction::getById(const IdType& id,
 template <typename IdType>
 std::shared_ptr<const Revision> Transaction::getById(const IdType& id,
                                                      NetTable* table,
-                                                     Chunk* chunk) const {
+                                                     ChunkBase* chunk) const {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(chunk);
   return transactionOf(table)->getById(id, chunk);
@@ -36,7 +37,7 @@ void Transaction::getAvailableIds(NetTable* table,
 }
 
 template <typename IdType>
-void Transaction::remove(NetTable* table, const common::UniqueId<IdType>& id) {
+void Transaction::remove(const IdType& id, NetTable* table) {
   return transactionOf(CHECK_NOTNULL(table))->remove(id);
 }
 

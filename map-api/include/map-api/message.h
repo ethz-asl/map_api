@@ -9,6 +9,7 @@
 #include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 
 #include "map-api/message.h"
+#include "map-api/peer-id.h"
 #include "./core.pb.h"
 
 namespace map_api {
@@ -40,6 +41,11 @@ class Message : public proto::HubMessage {
 
   template <const char* message_type>
   bool isType() const;
+
+  inline bool isOk() const { return isType<kAck>(); }
+
+  inline PeerId sender() const { return PeerId(proto::HubMessage::sender()); }
+  inline void setSender(const PeerId& peer_id) { set_sender(peer_id.ipPort()); }
 
   /**
    * General-purpose message types

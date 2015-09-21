@@ -1,6 +1,6 @@
 #include <glog/logging.h>
 
-#include "map-api/cru-table.h"
+#include "map-api/table-descriptor.h"
 
 /**
  * A test table revealing some more internals than a typical table, such as
@@ -12,10 +12,10 @@ class TestTable {
   static CachedTableType& instance() {
     static CachedTableType table;
     if (!table.isInitialized()) {
-      std::unique_ptr<map_api::TableDescriptor> descriptor(
+      std::shared_ptr<map_api::TableDescriptor> descriptor(
           new map_api::TableDescriptor);
       descriptor->setName("test_table");
-      table.init(&descriptor);
+      table.init(descriptor);
     }
     return table;
   }

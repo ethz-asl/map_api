@@ -7,14 +7,15 @@
 
 #include <gtest/gtest_prod.h>
 
-#include "map-api/chunk.h"
 #include "map-api/chunk-transaction.h"
 #include "map-api/logical-time.h"
 #include "map-api/net-table.h"
-#include "map-api/revision.h"
+#include "map-api/workspace.h"
 
 namespace map_api {
-class Chunk;
+class ChunkBase;
+class ConstRevisionMap;
+class Revision;
 
 class NetTableTransaction {
   friend class Transaction;
@@ -22,30 +23,31 @@ class NetTableTransaction {
   FRIEND_TEST(NetTableFixture, NetTableTransactions);
 
  private:
-  explicit NetTableTransaction(NetTable* table);
-  NetTableTransaction(const LogicalTime& begin_time, NetTable* table);
+  NetTableTransaction(const LogicalTime& begin_time, NetTable* table,
+                      const Workspace& workspace);
 
   // READ (see transaction.h)
   template <typename IdType>
   std::shared_ptr<const Revision> getById(const IdType& id) const;
   template <typename IdType>
-  std::shared_ptr<const Revision> getById(const IdType& id, Chunk* chunk) const;
+  std::shared_ptr<const Revision> getById(const IdType& id,
+                                          ChunkBase* chunk) const;
   template <typename IdType>
   std::shared_ptr<const Revision> getByIdFromUncommitted(const IdType& id)
       const;
-  CRTable::RevisionMap dumpChunk(Chunk* chunk);
-  CRTable::RevisionMap dumpActiveChunks();
+  void dumpChunk(const ChunkBase* chunk, ConstRevisionMap* result);
+  void dumpActiveChunks(ConstRevisionMap* result);
   template <typename ValueType>
-  CRTable::RevisionMap find(int key, const ValueType& value);
+  void find(int key, const ValueType& value, ConstRevisionMap* result);
   template <typename IdType>
   void getAvailableIds(std::vector<IdType>* ids);
 
   // WRITE (see transaction.h)
-  void insert(Chunk* chunk, std::shared_ptr<Revision> revision);
+  void insert(ChunkBase* chunk, std::shared_ptr<Revision> revision);
   void update(std::shared_ptr<Revision> revision);
   void remove(std::shared_ptr<Revision> revision);
   template <typename IdType>
-  void remove(const common::UniqueId<IdType>& id);
+  void remove(const IdType& id);
 
   // TRANSACTION OPERATIONS
   /**
@@ -74,10 +76,10 @@ class NetTableTransaction {
   size_t numChangedItems() const;
 
   // INTERNAL
-  ChunkTransaction* transactionOf(Chunk* chunk) const;
+  ChunkTransaction* transactionOf(const ChunkBase* chunk) const;
   template <typename IdType>
-  Chunk* chunkOf(const IdType& id,
-                 std::shared_ptr<const Revision>* latest) const;
+  ChunkBase* chunkOf(const IdType& id,
+                     std::shared_ptr<const Revision>* latest) const;
 
   typedef std::unordered_map<common::Id, ChunkTransaction::TableToIdMultiMap>
       TrackedChunkToTrackersMap;
@@ -94,17 +96,18 @@ class NetTableTransaction {
    * solution)
    */
   struct ChunkOrdering {
-    inline bool operator()(const Chunk* a, const Chunk* b) const {
+    inline bool operator()(const ChunkBase* a, const ChunkBase* b) const {
       return CHECK_NOTNULL(a)->id() < CHECK_NOTNULL(b)->id();
     }
   };
 
-  typedef std::map<Chunk*, std::shared_ptr<ChunkTransaction>, ChunkOrdering>
-  TransactionMap;
+  typedef std::map<ChunkBase*, std::shared_ptr<ChunkTransaction>, ChunkOrdering>
+      TransactionMap;
   typedef TransactionMap::value_type TransactionPair;
   mutable TransactionMap chunk_transactions_;
   LogicalTime begin_time_;
   NetTable* table_;
+  Workspace::TableInterface workspace_;
 
   NetTable::NewChunkTrackerMap push_new_chunk_ids_to_tracker_overrides_;
 };

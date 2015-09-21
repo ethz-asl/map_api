@@ -33,3 +33,11 @@ tools/lint/autolintc
 .cproject
 .settings
 CATKIN_IGNORE
+
+*.mat
+*.csv
+*.asv
+*.jpg
+
+# MacOS Desktop Services Store
+.DS_Store

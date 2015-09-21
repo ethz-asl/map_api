@@ -4,6 +4,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include <glog/logging.h>
@@ -15,21 +16,40 @@
 namespace map_api {
 class TrackeeMultimap;
 
+// Friending parametrized templated test cases seems to miss from gtest_prod.h.
+namespace gtest_case_ProtoSTLStream_ {
+template <typename gtest_TypeParam_>
+class ProtoAutoSerializationWorks;
+}  // gtest_case_ProtoSTLStream_
+
 class Revision {
-  friend class Chunk;
-  friend class CRTable;
-  friend class CRTableRamMap;
-  friend class CRUTable;
+  friend class LegacyChunk;
+  friend class ChunkDataContainerBase;
+  friend class LegacyChunkDataContainerBase;
   template<int BlockSize>
   friend class STXXLRevisionStore;
+  friend class TrackeeMultimap;
   friend class Transaction;
+
+  // Friending parametrized templated test cases seems to miss from
+  // gtest_prod.h.
+  template <typename gtest_TypeParam_>
+  friend class gtest_case_ProtoSTLStream_::ProtoAutoSerializationWorks;
 
  public:
   typedef std::vector<char> Blob;
+  typedef std::shared_ptr<Revision> Ptr;
+  typedef std::shared_ptr<const Revision> ConstPtr;
 
-  explicit Revision(const std::shared_ptr<proto::Revision>& revision);
-  explicit Revision(const Revision& other);
   Revision& operator=(const Revision& other) = delete;
+
+  // Constructor and assignment replacements.
+  std::shared_ptr<Revision> copyForWrite() const;
+  // You need to use std::move() for the unique_ptr of the following.
+  static std::shared_ptr<Revision> fromProto(
+      std::unique_ptr<proto::Revision>&& revision_proto);
+  static std::shared_ptr<Revision> fromProtoString(
+      const std::string& revision_proto_string);
 
   template <typename FieldType>
   static proto::Type getProtobufTypeEnum();
@@ -37,6 +57,7 @@ class Revision {
   void addField(int index, proto::Type type);
   template <typename FieldType>
   void addField(int index);
+  void removeLastField();
 
   /**
    * Does not check type - type is checked with get/set. Nothing that can be
@@ -113,10 +134,6 @@ class Revision {
 
   inline int byteSize() const { return underlying_revision_->ByteSize(); }
 
-  inline bool parse(const std::string& origin) {
-    return underlying_revision_->ParseFromString(origin);
-  }
-
   inline int customFieldCount() const {
     return underlying_revision_->custom_field_values_size();
   }
@@ -130,6 +147,8 @@ class Revision {
   bool fetchTrackedChunks() const;
 
  private:
+  Revision() = default;
+
   inline void setInsertTime(const LogicalTime& time) {
     underlying_revision_->set_insert_time(time.serialize());
   }
@@ -149,7 +168,7 @@ class Revision {
   template <typename FieldType>
   bool get(const proto::TableField& field, FieldType* value) const;
 
-  std::shared_ptr<proto::Revision> underlying_revision_;
+  std::unique_ptr<proto::Revision> underlying_revision_;
 };
 
 /**
