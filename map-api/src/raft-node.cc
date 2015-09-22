@@ -60,6 +60,8 @@ const std::string RaftNode::kRaftLogEntryUnlockRequest =
     "Raft log entry unlock request";
 const std::string RaftNode::kRaftLogEntryInsertRevision =
     "Raft log entry insert revision";
+const std::string RaftNode::kRaftLogEntryBulkInsertRevision =
+    "Raft log entry bulk insert revision";
 const std::string RaftNode::kRaftLogEntryRaftTransactionInfo =
     "Raft log entry multi-chunk-transaction info";
 const std::string RaftNode::kRaftLogEntryOther = "Raft log entry other";
@@ -489,10 +491,6 @@ bool RaftNode::sendInitRequest(const PeerId& peer,
       break;
     }
     proto::RaftLogEntry entry(**it);
-    CHECK(!entry.has_insert_revision()) << "Index = " << (*it)->index()
-                                        << ", commit index = "
-                                        << log_writer->commitIndex();
-    CHECK_EQ(0, entry.bulk_insert_revision_size());
     if ((*it)->has_revision_id()) {
       // Sending only committed entries, so revision will be in history, not
       // log.

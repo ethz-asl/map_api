@@ -209,10 +209,10 @@ bool Hub::registerHandler(
 void Hub::request(const PeerId& peer, Message* request, Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
+  std::lock_guard<std::mutex> lock(peer_mutex_);
   if (isNonResponding(peer)) {
     return;
   }
-  std::lock_guard<std::mutex> lock(peer_mutex_);
   PeerMap::iterator found = peers_.find(peer);
   if (found == peers_.end()) {
     std::pair<PeerMap::iterator, bool> emplacement = peers_.emplace(
@@ -229,10 +229,10 @@ void Hub::request(const PeerId& peer, Message* request, Message* response) {
 bool Hub::try_request(const PeerId& peer, Message* request, Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
+  std::lock_guard<std::mutex> lock(peer_mutex_);
   if (isNonResponding(peer)) {
     return false;
   }
-  std::lock_guard<std::mutex> lock(peer_mutex_);
   PeerMap::iterator found = peers_.find(peer);
   if (found == peers_.end()) {
     std::pair<PeerMap::iterator, bool> emplacement = peers_.emplace(
@@ -258,9 +258,6 @@ void Hub::broadcast(Message* request_message,
   std::set<PeerId> peers;
   getPeers(&peers);
   for (const PeerId& peer : peers) {
-    if (isNonResponding(peer)) {
-      continue;
-    }
     request(peer, request_message, &(*responses)[peer]);
   }
 }

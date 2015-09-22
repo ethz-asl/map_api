@@ -722,7 +722,7 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
     }
   }
 
-  int fix_finger_index = 0;
+  int replace_disconnected_successor_count = 0;
   while (!self->terminate_) {
     // Avoid holding lock during RPC.
     self->peer_lock_.acquireReadLock();
@@ -741,6 +741,15 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
         if (!self->replaceDisconnectedSuccessor()) {
           LOG(ERROR) << PeerId::self()
                      << ": replaceDisconnectedSuccessor FAILED";
+          ++replace_disconnected_successor_count;
+        } else {
+          replace_disconnected_successor_count = 0;
+        }
+        // Give time to fix_fingers before concluding no other peers left.
+        if (replace_disconnected_successor_count > 5) {
+          common::ScopedWriteLock peer_lock(&self->peer_lock_);
+          self->successor_ = self->self_;
+          self->predecessor_ = self->self_;
         }
       } else {
         self->lock();
@@ -817,8 +826,17 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
   PeerId candidate_predecessor;
 
   peer_lock_.acquireReadLock();
-  const PeerId self_successor = successor_->id;
+  const PeerId disconnected_successor = successor_->id;
   size_t finger_index = 0;
+
+  // If the successor was the only other peer
+  if (successor_->id == predecessor_->id) {
+    peer_lock_.releaseReadLock();
+    common::ScopedWriteLock peer_lock(&peer_lock_);
+    successor_ = self_;
+    predecessor_ = self_;
+    return true;
+  }
 
   // Get the peer corresponding to the lowest finger that is alive.
   for (size_t i = 0; i < kNumFingers; ++i) {
@@ -832,6 +850,9 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
       LOG(ERROR) << "i = " << i << ". finger = " << fingers_[i].peer->id
                  << ". successor = " << successor_->id;
       to = successor_->id;
+    }
+    if (to == PeerId::self()) {
+      continue;
     }
     peer_lock_.releaseReadLock();
     bool response = getPredecessorRpc(to, &candidate_predecessor);

@@ -117,6 +117,7 @@ class RaftNode {
   static const std::string kRaftLogEntryLockRequest;
   static const std::string kRaftLogEntryUnlockRequest;
   static const std::string kRaftLogEntryInsertRevision;
+  static const std::string kRaftLogEntryBulkInsertRevision;
   static const std::string kRaftLogEntryRaftTransactionInfo;
   static const std::string kRaftLogEntryOther;
 
