@@ -34,6 +34,10 @@ void Revision::addField(int index, proto::Type type) {
       << "Custom fields must be added in-order!";
   underlying_revision_->add_custom_field_values()->set_type(type);
 }
+void Revision::removeLastField() {
+  CHECK_GT(underlying_revision_->custom_field_values_size(), 0);
+  underlying_revision_->mutable_custom_field_values()->RemoveLast();
+}
 
 bool Revision::hasField(int index) const {
   return index < underlying_revision_->custom_field_values_size();

@@ -57,6 +57,7 @@ class Revision {
   void addField(int index, proto::Type type);
   template <typename FieldType>
   void addField(int index);
+  void removeLastField();
 
   /**
    * Does not check type - type is checked with get/set. Nothing that can be
