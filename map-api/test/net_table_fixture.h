@@ -34,7 +34,8 @@ class NetTableFixture : public MapApiFixture {
   common::Id insert(int n, ChunkTransaction* transaction);
   void insert(int n, common::Id* id, Transaction* transaction);
 
-  void update(int n, const common::Id& id, Transaction* transaction);
+  template <typename IdType>
+  void update(int n, const IdType& id, Transaction* transaction);
 
   static const std::string kTableName;
   NetTable* table_;

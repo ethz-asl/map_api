@@ -92,7 +92,8 @@ void NetTableFixture::insert(int n, common::Id* id, Transaction* transaction) {
   transaction->insert(table_, chunk_, to_insert);
 }
 
-void NetTableFixture::update(int n, const common::Id& id,
+template <typename IdType>
+void NetTableFixture::update(int n, const IdType& id,
                              Transaction* transaction) {
   CHECK_NOTNULL(transaction);
   std::shared_ptr<const Revision> to_update =
