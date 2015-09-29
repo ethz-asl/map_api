@@ -15,12 +15,21 @@ class ThreadsafeCache
   typedef common::ThreadsafeCache<IdType, std::shared_ptr<const Revision>,
                                   ObjectType> BaseType;
 
+  // Reorder necessary. Sorry for the warning...
   ThreadsafeCache(Transaction* const transaction, NetTable* const table,
                   ChunkManagerBase* const chunk_manager)
       : transaction_interface_(transaction, table, chunk_manager),
         BaseType(&transaction_interface_) {}
 
  private:
+  virtual void rawToCacheImpl(const std::shared_ptr<const Revision>& raw,
+                              ObjectType* cached) final override {}
+
+  virtual void cacheToRawImpl(const ObjectType& cached,
+                              std::shared_ptr<const Revision>* raw)
+      final override {}
+
+  // Reorder necessary. Sorry for the warning...
   NetTableTransactionInterface<IdType> transaction_interface_;
 };
 

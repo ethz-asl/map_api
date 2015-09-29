@@ -102,7 +102,11 @@ TEST_F(NetTableFixture, Cache) {
   }
 }
 
-TEST(ThreadsafeCache, Test) { ThreadsafeCache<IntId, int> cache; }
+TEST_F(NetTableFixture, ThreadsafeCache) {
+  Transaction transaction;
+  ChunkManagerChunkSize manager(1024, table_);
+  ThreadsafeCache<IntId, int> cache(&transaction, table_, &manager);
+}
 
 }  // namespace map_api
 

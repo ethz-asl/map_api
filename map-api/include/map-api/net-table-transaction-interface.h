@@ -39,7 +39,7 @@ class NetTableTransactionInterface
     return transaction_->getUpdateEntry(id, table_);
   }
 
-  virtual const std::shared_ptr<const Revision>& get(const IdType& id) const
+  virtual const std::shared_ptr<const Revision> get(const IdType& id) const
       final override {
     return transaction_->getById(id, table_);
   }
@@ -48,7 +48,14 @@ class NetTableTransactionInterface
                       const std::shared_ptr<const Revision>& value)
       final override {
     CHECK_EQ(value->getId<IdType>(), id);
-    return transaction_->insert(chunk_manager_, value);
+    // Const casts are always unfortunate. To fix the following, however,
+    // changes would need to be made deep inside Map API. In particular, it
+    // would probably be best to split Revision into RevisionPayload and
+    // RevisionMetadata, such that transaction functions can take const
+    // payloads. At the moment these functions need to take non-const revisions
+    // in order to
+    return transaction_->insert(chunk_manager_,
+                                std::const_pointer_cast<Revision>(value));
   }
 
   virtual void erase(const IdType& id) final override {
