@@ -45,6 +45,8 @@ class NetTableTransaction {
   // WRITE (see transaction.h)
   void insert(ChunkBase* chunk, std::shared_ptr<Revision> revision);
   void update(std::shared_ptr<Revision> revision);
+  template <typename IdType>
+  std::shared_ptr<const Revision>& getUpdateEntry(const IdType& id);
   void remove(std::shared_ptr<Revision> revision);
   template <typename IdType>
   void remove(const IdType& id);

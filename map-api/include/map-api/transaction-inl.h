@@ -37,6 +37,12 @@ void Transaction::getAvailableIds(NetTable* table,
 }
 
 template <typename IdType>
+std::shared_ptr<const Revision>& Transaction::getUpdateEntry(const IdType& id,
+                                                             NetTable* table) {
+  return transactionOf(CHECK_NOTNULL(table))->getUpdateEntry(id);
+}
+
+template <typename IdType>
 void Transaction::remove(const IdType& id, NetTable* table) {
   return transactionOf(CHECK_NOTNULL(table))->remove(id);
 }

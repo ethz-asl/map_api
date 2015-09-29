@@ -8,6 +8,7 @@
 #include "map-api/chunk-manager.h"
 #include "map-api/ipc.h"
 #include "map-api/test/testing-entrypoint.h"
+#include "map-api/threadsafe-cache.h"
 #include "./net_table_fixture.h"
 
 namespace map_api {
@@ -100,6 +101,8 @@ TEST_F(NetTableFixture, Cache) {
     IPC::barrier(A_DONE, 1);
   }
 }
+
+TEST(ThreadsafeCache, Test) { ThreadsafeCache<IntId, int> cache; }
 
 }  // namespace map_api
 

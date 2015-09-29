@@ -2,6 +2,7 @@
 #define MAP_API_CHUNK_TRANSACTION_INL_H_
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <multiagent-mapping-common/unique-id.h>
@@ -56,6 +57,39 @@ void ChunkTransaction::getAvailableIds(std::unordered_set<IdType>* ids) {
       }
     }
   }
+}
+
+template <typename IdType>
+bool ChunkTransaction::getUpdateEntry(
+    const IdType& id, std::shared_ptr<const Revision>** result) {
+  CHECK_NOTNULL(result);
+  // Is there already a corresponding entry in the update map?
+  UpdateMap::iterator existing_entry = updates_.find(id);
+  if (existing_entry != updates_.end()) {
+    *result = existing_entry->second;
+    return true;
+  }
+  // Is there a corresponding entry in the insert map?
+  InsertMap::iterator existing_insert_entry = insertions_.find(id);
+  if (existing_insert_entry != insertions_.end()) {
+    *result = existing_insert_entry->second;
+    return true;
+  }
+
+  // If neither, but the corresponding item exists in this chunk, create a new
+  // update entry.
+  // TODO(tcies) should the available id list be cached?
+  std::unordered_set<IdType> ids_in_chunk;
+  getAvailableIds(&ids_in_chunk);
+  if (ids_in_chunk.count(id) != 0) {
+    std::pair<UpdateMap::iterator, bool> emplacement =
+        updates_.emplace(id, std::shared_ptr<const Revision>());
+    CHECK(emplacement.second);
+    *result = *emplacement.first;
+    return true;
+  }
+
+  return false;
 }
 
 template <typename IdType>

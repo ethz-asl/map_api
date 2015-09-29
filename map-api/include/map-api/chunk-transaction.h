@@ -49,6 +49,9 @@ class ChunkTransaction {
   // WRITE
   void insert(std::shared_ptr<Revision> revision);
   void update(std::shared_ptr<Revision> revision);
+  template <typename IdType>
+  bool getUpdateEntry(const IdType& id,
+                      std::shared_ptr<const Revision>** result);
   void remove(std::shared_ptr<Revision> revision);
   template <typename ValueType>
   void addConflictCondition(int key, const ValueType& value);
