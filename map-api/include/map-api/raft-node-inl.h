@@ -92,6 +92,9 @@ const std::string RaftNode::getLogEntryTypeString(
     return kRaftLogEntryUnlockRequest;
   } else if (entry->has_insert_revision() || entry->has_revision_id()) {
     return kRaftLogEntryInsertRevision;
+  } else if (entry->bulk_insert_revision_size() > 0 ||
+             entry->bulk_inserted_revision_id_list_size() > 0) {
+    return kRaftLogEntryBulkInsertRevision;
   } else if (entry->has_multi_chunk_transaction_info()) {
     return kRaftLogEntryRaftTransactionInfo;
   } else {

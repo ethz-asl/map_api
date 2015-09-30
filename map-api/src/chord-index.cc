@@ -10,16 +10,16 @@
 const std::string kCleanJoin("clean");
 const std::string kStabilizeJoin("stabilize");
 
-const std::string kUniformFingers("uniform");
-const std::string kExponentialFingers("exponential");
+const std::string kUniformFingers("clean");
+const std::string kExponentialFingers("stabilize");
 
 DEFINE_string(join_mode, kCleanJoin,
               ("Can be " + kCleanJoin + " or " + kStabilizeJoin).c_str());
 DEFINE_uint64(stabilize_interval_ms, 1500,
               "Interval of stabilization in milliseconds");
 DECLARE_int32(simulated_lag_ms);
-DEFINE_bool(enable_fingers, true, "enable chord fingers");
-DEFINE_bool(enable_replication, true, "enable chord replication");
+DEFINE_bool(enable_fingers, false, "enable chord fingers");
+DEFINE_bool(enable_replication, false, "enable chord replication");
 DEFINE_string(finger_mode, kUniformFingers,
               (kUniformFingers + " for uniformly spaced fingers, " +
                kExponentialFingers +
@@ -722,6 +722,7 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
     }
   }
 
+  int replace_disconnected_successor_count = 0;
   while (!self->terminate_) {
     // Avoid holding lock during RPC.
     self->peer_lock_.acquireReadLock();
@@ -740,6 +741,15 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
         if (!self->replaceDisconnectedSuccessor()) {
           LOG(ERROR) << PeerId::self()
                      << ": replaceDisconnectedSuccessor FAILED";
+          ++replace_disconnected_successor_count;
+        } else {
+          replace_disconnected_successor_count = 0;
+        }
+        // Give time to fix_fingers before concluding no other peers left.
+        if (replace_disconnected_successor_count > 5) {
+          common::ScopedWriteLock peer_lock(&self->peer_lock_);
+          self->successor_ = self->self_;
+          self->predecessor_ = self->self_;
         }
       } else {
         self->lock();
@@ -816,8 +826,17 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
   PeerId candidate_predecessor;
 
   peer_lock_.acquireReadLock();
-  const PeerId self_successor = successor_->id;
+  const PeerId disconnected_successor = successor_->id;
   size_t finger_index = 0;
+
+  // If the successor was the only other peer
+  if (successor_->id == predecessor_->id) {
+    peer_lock_.releaseReadLock();
+    common::ScopedWriteLock peer_lock(&peer_lock_);
+    successor_ = self_;
+    predecessor_ = self_;
+    return true;
+  }
 
   // Get the peer corresponding to the lowest finger that is alive.
   for (size_t i = 0; i < kNumFingers; ++i) {
@@ -831,6 +850,9 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
       LOG(ERROR) << "i = " << i << ". finger = " << fingers_[i].peer->id
                  << ". successor = " << successor_->id;
       to = successor_->id;
+    }
+    if (to == PeerId::self()) {
+      continue;
     }
     peer_lock_.releaseReadLock();
     bool response = getPredecessorRpc(to, &candidate_predecessor);
@@ -872,9 +894,12 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
   PeerId candidate_predecessor_predecessor;
   while (candidate_predecessor != successor_->id) {
     ++i;
-    if (i > 20) {
+    if (i > 100) {
       LOG(WARNING) << "apparently inf loop in replaceDisconnectedSuccessor on "
                    << PeerId::self();
+    }
+    if (i > 1000) {
+      break;
     }
     peer_lock_.releaseReadLock();
     bool response = getPredecessorRpc(candidate_predecessor,

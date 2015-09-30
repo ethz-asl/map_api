@@ -117,6 +117,7 @@ class RaftNode {
   static const std::string kRaftLogEntryLockRequest;
   static const std::string kRaftLogEntryUnlockRequest;
   static const std::string kRaftLogEntryInsertRevision;
+  static const std::string kRaftLogEntryBulkInsertRevision;
   static const std::string kRaftLogEntryRaftTransactionInfo;
   static const std::string kRaftLogEntryOther;
 
@@ -372,10 +373,6 @@ class RaftNode {
   DistributedRaftChunkLock raft_chunk_lock_;
   std::mutex chunk_lock_mutex_;
 
-  std::mutex read_lock_mutex_;
-  std::atomic<bool> is_read_locked_;
-  uint64_t read_lock_depth = 0;
-
   // Not protected by a mutex because this is only accessed from
   // follower/leader commit functions.
   std::queue<PeerId> lock_queue_;
@@ -439,6 +436,10 @@ class RaftNode {
   std::function<void(const uint64_t index, const std::string& entry_type)>
       leader_entry_committed_callback_;
   std::function<void(const PeerId& peer)> peer_disconnection_detected_callback_;
+
+  std::mutex read_lock_mutex_;
+  std::atomic<bool> is_read_locked_;
+  uint64_t read_lock_depth = 0;
 };
 
 }  // namespace map_api
