@@ -27,7 +27,14 @@ class ThreadsafeCache
 
   virtual void cacheToRawImpl(const ObjectType& cached,
                               std::shared_ptr<const Revision>* raw)
-      final override {}
+      final override {
+    IdType present_id = revision->getId<IdType>();
+    if (present_id.isValid()) {
+      CHECK_EQ(id, present_id);
+    } else {
+      revision->setId(id);
+    }
+  }
 
   // Reorder necessary. Sorry for the warning...
   NetTableTransactionInterface<IdType> transaction_interface_;
