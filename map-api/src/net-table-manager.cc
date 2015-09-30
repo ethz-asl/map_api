@@ -1,5 +1,9 @@
 #include "map-api/net-table-manager.h"
 
+#include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/io/zero_copy_stream.h>
+#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
+
 #include "map-api/chunk-transaction.h"
 #include "map-api/core.h"
 #include "map-api/hub.h"
@@ -539,7 +543,13 @@ void NetTableManager::handleRaftConnectRequest(const Message& request, Message* 
 void NetTableManager::handleRaftInitRequest(const Message& request, Message* response) {
   CHECK_NOTNULL(response);
   proto::InitRequest init_request;
-  request.extract<RaftNode::kInitRequest>(&init_request);
+
+  google::protobuf::io::ArrayInputStream raw_in(request.serialized().c_str(),
+                                                request.serialized().length());
+  google::protobuf::io::CodedInputStream coded_in(&raw_in);
+  coded_in.SetTotalBytesLimit(std::numeric_limits<int>::max(), -1);
+  init_request.ParseFromCodedStream(&coded_in);
+
   TableMap::iterator found;
   common::Id chunk_id;
   if (getTableChunkForRequestWithMetadataOrDecline(init_request, response,
