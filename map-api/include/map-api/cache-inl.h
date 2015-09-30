@@ -164,8 +164,8 @@ Cache<IdType, Value, DerivedValue>::getRevisionLocked(const IdType& id) const {
 
 template <typename IdType, typename Value, typename DerivedValue>
 void Cache<IdType, Value, DerivedValue>::prefetchAllRevisionsLocked() const {
-  CRTable::RevisionMap revisions =
-      transaction_.get()->dumpActiveChunks(underlying_table_);
+  ConstRevisionMap revisions;
+  transaction_.get()->dumpActiveChunks(underlying_table_, &revisions);
   revisions_.swap(revisions);
 }
 
