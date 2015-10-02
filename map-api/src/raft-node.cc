@@ -1139,6 +1139,9 @@ proto::AppendResponseStatus RaftNode::followerAppendNewEntries(
 void RaftNode::followerCommitNewEntries(const LogWriteAccess& log_writer,
                                         uint64_t request_commit_index,
                                         State state) {
+  // TODO(aqurai): This is a hacky read lock implementation. A good way is to
+  // not block all commits, but add revision entries to a queue. They should
+  // be applied when read lock is released.
   if (raft_chunk_lock_.isReadLocked()) {
     return;
   }
