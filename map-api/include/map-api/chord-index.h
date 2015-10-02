@@ -28,6 +28,7 @@
 #include "map-api/peer-id.h"
 
 DECLARE_int32(request_timeout);
+DECLARE_bool(enable_fingers);
 
 namespace map_api {
 
