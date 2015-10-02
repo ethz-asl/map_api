@@ -750,6 +750,7 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
           common::ScopedWriteLock peer_lock(&self->peer_lock_);
           self->successor_ = self->self_;
           self->predecessor_ = self->self_;
+          replace_disconnected_successor_count = 0;
         }
       } else {
         self->lock();
@@ -759,8 +760,7 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
           self->unlock();
           // Chord ring bypasses this peer. Can happen when this peer gets
           // disconnected for a while.
-          // TODO(aqurai): Verify and test this.
-          LOG(FATAL) << self->own_key_ << ": Successor " << successor_key
+          LOG(ERROR) << self->own_key_ << ": Successor " << successor_key
                      << " has predecessor " << hash(successor_predecessor)
                      << " bypassing this node in the ring. No tests written for"
                         "producing this, hence this  shouldnt happen.";
@@ -774,6 +774,7 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
       }
     }
 
+    // TODO(aqurai): Make this less frequent?
     if (FLAGS_enable_fingers && !self->terminate_) {
       for (size_t i = 0; i < kNumFingers; ++i) {
         self->fixFinger(i);
@@ -895,11 +896,10 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
   while (candidate_predecessor != successor_->id) {
     ++i;
     if (i > 100) {
-      LOG(WARNING) << "apparently inf loop in replaceDisconnectedSuccessor on "
-                   << PeerId::self();
-    }
-    if (i > 1000) {
-      break;
+      LOG(WARNING)
+          << "apparently infinite loop in replaceDisconnectedSuccessor on "
+          << PeerId::self();
+      return false;
     }
     peer_lock_.releaseReadLock();
     bool response = getPredecessorRpc(candidate_predecessor,
