@@ -2,6 +2,7 @@
 #define MAP_API_CACHE_INL_H_
 
 #include <set>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -9,7 +10,7 @@
 #include <timing/timer.h>
 
 DECLARE_bool(map_api_prefetch_cache);
-DECLARE_bool(insert_into_existing_chunk);
+DECLARE_bool(map_api_insert_into_existing_chunk);
 
 namespace map_api {
 class ChunkBase;
@@ -188,7 +189,7 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
       objectToRevision(cached_pair.first,
                        Factory::getReferenceToDerived(cached_pair.second.value),
                        insertion.get());
-      if (FLAGS_insert_into_existing_chunk && !chunks.empty()) {
+      if (FLAGS_map_api_insert_into_existing_chunk && !chunks.empty()) {
         transaction_.get()->insert(underlying_table_,
                                    underlying_table_->getChunk(*chunks.begin()),
                                    insertion);
