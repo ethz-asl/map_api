@@ -77,7 +77,7 @@ class RaftChunk : public ChunkBase {
 
   virtual void readLock() const override;
 
-  void raftChunkLock() const;
+  void raftChunkWriteLock() const;
 
   virtual bool isWriteLocked() override;
 

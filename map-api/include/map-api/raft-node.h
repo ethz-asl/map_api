@@ -355,18 +355,23 @@ class RaftNode {
    public:
     DistributedRaftChunkLock()
         : holder_(PeerId()),
-          is_locked_(false),
+          is_write_locked_(false),
+          is_read_locked_(false),
           lock_entry_index_(0) {}
     bool writeLock(const PeerId& peer, uint64_t index);
-    bool unlock();
-    uint64_t lock_entry_index() const;
-    bool isLocked() const;
+    bool releaseChunkWriteLock();
+    uint64_t write_lock_entry_index() const;
+    bool isWriteLocked() const;
     const PeerId& holder() const;
-    bool isLockHolder(const PeerId& peer) const;
+    bool isWriteLockHolder(const PeerId& peer) const;
+    bool localReadLock();
+    void releaseLocalReadLock();
+    bool isReadLocked() const;
 
    private:
     PeerId holder_;
-    bool is_locked_;
+    bool is_write_locked_;
+    bool is_read_locked_;
     uint64_t lock_entry_index_;
     mutable std::mutex mutex_;
   };

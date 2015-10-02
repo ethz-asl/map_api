@@ -513,7 +513,7 @@ TEST_F(ConsensusFixture, MultiChunkTransaction) {
     to_insert->set(kFieldName, 42);
     Transaction initial_insert;
     initial_insert.insert(table_, chunk, to_insert);
-    initial_insert.multiChunkCommit();
+    initial_insert.raftChunkCommit();
     IPC::push(insert_id);
     IPC::barrier(INITIAL_INSERT, kProcesses - 1);
 

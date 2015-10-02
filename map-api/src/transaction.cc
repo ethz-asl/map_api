@@ -125,10 +125,18 @@ void Transaction::prepareForCommit() {
   disableDirectAccess();
 }
 
+bool Transaction::commit() {
+  if (FLAGS_use_raft) {
+    return raftChunkCommit();
+  } else {
+    return legacyChunkCommit();
+  }
+}
+
 // Deadlocks are prevented by imposing a global ordering on
 // net_table_transactions_, and have the locks acquired in that order
 // (resource hierarchy solution)
-bool Transaction::commit() {
+bool Transaction::legacyChunkCommit() {
   prepareForCommit();
   timing::Timer timer("map_api::Transaction::commit - lock");
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
@@ -154,7 +162,7 @@ bool Transaction::commit() {
   return true;
 }
 
-bool Transaction::multiChunkCommit() {
+bool Transaction::raftChunkCommit() {
   CHECK(FLAGS_use_raft);
 
   if (!prepareOrUnlockAll()) {
