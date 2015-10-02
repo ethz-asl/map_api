@@ -92,7 +92,8 @@ class Transaction {
   // ======================
   void prepareForCommit();
   bool commit();
-  bool multiChunkCommit();
+  bool legacyChunkCommit();
+  bool raftChunkCommit();
   void unlockAllChunks(bool is_success);
   void prepareMultiChunkTransactionInfo(proto::MultiChunkTransactionInfo* info);
   inline LogicalTime getCommitTime() const { return commit_time_; }
