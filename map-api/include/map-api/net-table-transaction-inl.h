@@ -78,14 +78,15 @@ void NetTableTransaction::getAvailableIds(std::vector<IdType>* ids) {
 }
 
 template <typename IdType>
-std::shared_ptr<const Revision>& NetTableTransaction::getUpdateEntry(
+std::shared_ptr<const Revision>* NetTableTransaction::getMutableUpdateEntry(
     const IdType& id) {
   // Since we don't know what chunk the update entry is in, we will try all
   // chunks.
   for (TransactionMap::value_type& chunk_transaction : chunk_transactions_) {
     std::shared_ptr<const Revision>* chunk_update_entry;
-    if (chunk_transaction.second->getUpdateEntry(id, &chunk_update_entry)) {
-      return *chunk_update_entry;
+    if (chunk_transaction.second->getMutableUpdateEntry(id,
+                                                        &chunk_update_entry)) {
+      return chunk_update_entry;
     }
   }
   LOG(FATAL) << "Tried to update an item which doesn't exist!";

@@ -5,6 +5,8 @@
 
 #include <multiagent-mapping-common/mapped-container-base.h>
 
+#include "map-api/transaction.h"
+
 namespace map_api {
 
 template <typename IdType>
@@ -27,7 +29,10 @@ class NetTableTransactionInterface
 
   virtual void getAllAvailableIds(std::vector<IdType>* available_ids) const
       final override {
-    *CHECK_NOTNULL(available_ids) = available_ids_;
+    CHECK_NOTNULL(available_ids)->clear();
+    refresh();
+    available_ids->insert(available_ids->end(), available_ids_.begin(),
+                          available_ids_.end());
   }
 
   virtual size_t size() const final override { return available_ids_.size(); }
@@ -36,7 +41,7 @@ class NetTableTransactionInterface
 
   virtual std::shared_ptr<const Revision>& getMutable(const IdType& id)
       final override {
-    return transaction_->getUpdateEntry(id, table_);
+    return *transaction_->getMutableUpdateEntry(id, table_);
   }
 
   virtual const std::shared_ptr<const Revision> get(const IdType& id) const
@@ -47,29 +52,35 @@ class NetTableTransactionInterface
   virtual bool insert(const IdType& id,
                       const std::shared_ptr<const Revision>& value)
       final override {
-    CHECK_EQ(value->getId<IdType>(), id);
+    std::const_pointer_cast<Revision>(value)->setId<IdType>(id);
     // Const casts are always unfortunate. To fix the following, however,
     // changes would need to be made deep inside Map API. In particular, it
     // would probably be best to split Revision into RevisionPayload and
     // RevisionMetadata, such that transaction functions can take const
     // payloads. At the moment these functions need to take non-const revisions
     // in order to
-    return transaction_->insert(chunk_manager_,
-                                std::const_pointer_cast<Revision>(value));
+    transaction_->insert(chunk_manager_,
+                         std::const_pointer_cast<Revision>(value));
+    return true;
   }
 
   virtual void erase(const IdType& id) final override {
-    transaction_->remove(table_, id);
+    transaction_->remove(id, table_);
   }
 
-  void refresh() { transaction_->getAvailableIds(table_, &available_ids_); }
+  void refresh() const {
+    std::vector<IdType> available_ids;
+    transaction_->getAvailableIds(table_, &available_ids);
+    available_ids_.clear();
+    available_ids_.insert(available_ids.begin(), available_ids.end());
+  }
 
  private:
   Transaction* const transaction_;
   NetTable* const table_;
   ChunkManagerBase* const chunk_manager_;
 
-  std::vector<IdType> available_ids_;
+  mutable std::unordered_set<IdType> available_ids_;
 };
 
 }  // namespace map_api

@@ -3,10 +3,10 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "map-api/cache.h"
 #include "map-api/chunk-manager.h"
 #include "map-api/ipc.h"
 #include "map-api/test/testing-entrypoint.h"
+#include "map-api/threadsafe-cache.h"
 #include "./net_table_fixture.h"
 
 namespace map_api {
@@ -21,10 +21,9 @@ UNIQUE_ID_DEFINE_ID_HASH(map_api::IntId);
 namespace map_api {
 
 template <>
-std::shared_ptr<int> objectFromRevision(const Revision& revision) {
-  std::shared_ptr<int> object(new int);
-  revision.get(NetTableFixture::kFieldName, object.get());
-  return object;
+void objectFromRevision(const Revision& revision, int* result) {
+  CHECK_NOTNULL(result);
+  revision.get(NetTableFixture::kFieldName, result);
 }
 void objectToRevision(const int& object, Revision* revision) {
   CHECK_NOTNULL(revision)->set(NetTableFixture::kFieldName, object);
@@ -33,7 +32,7 @@ bool requiresUpdate(const int& object, const Revision& revision) {
   return !revision.verifyEqual(NetTableFixture::kFieldName, object);
 }
 
-typedef Cache<IntId, std::shared_ptr<int>> IntCache;
+typedef ThreadsafeCache<IntId, int> IntCache;
 
 template <typename CacheOrTransaction>
 struct IdType;
@@ -55,6 +54,7 @@ class CacheAndTransactionTest : public NetTableFixture {
 
   virtual void SetUp() {
     NetTableFixture::SetUp();
+    transaction_.reset(new Transaction);
     typeSetUp();
   }
 
@@ -67,21 +67,23 @@ class CacheAndTransactionTest : public NetTableFixture {
 
   void remove(const typename IdType<CacheOrTransaction>::type& id);
 
+  typedef NetTableTransactionInterface<
+      typename IdType<CacheOrTransaction>::type> InterfaceType;
+
   std::shared_ptr<Transaction> transaction_;
   std::shared_ptr<ChunkManagerChunkSize> manager_;
+  std::shared_ptr<InterfaceType> interface_;
   std::shared_ptr<IntCache> cache_;
 };
 
 template <>
 void CacheAndTransactionTest<Transaction>::typeSetUp() {
-  transaction_.reset(new Transaction);
+  chunk_ = table_->newChunk();
 }
 
 template <>
 void CacheAndTransactionTest<IntCache>::typeSetUp() {
-  transaction_.reset(new Transaction);
-  manager_.reset(new ChunkManagerChunkSize(kChunkSize, table_));
-  cache_.reset(new IntCache(transaction_, table_, manager_));
+  cache_ = transaction_->createCache<IntId, int>(table_);
 }
 
 template <>
@@ -95,7 +97,7 @@ template <>
 void CacheAndTransactionTest<IntCache>::insert(const int to_insert, IntId* id) {
   CHECK(cache_);
   generateId(CHECK_NOTNULL(id));
-  CHECK(cache_->insert(*id, std::make_shared<int>(to_insert)));
+  CHECK(cache_->insert(*id, to_insert));
 }
 
 template <>
@@ -109,7 +111,7 @@ template <>
 void CacheAndTransactionTest<IntCache>::update(const int new_value,
                                                const IntId& id) {
   CHECK(cache_);
-  cache_->getMutable(id) = std::make_shared<int>(new_value);
+  cache_->getMutable(id) = new_value;
 }
 
 template <>
@@ -133,12 +135,12 @@ TYPED_TEST(CacheAndTransactionTest, MultiCommit) {
 
   this->insert(1, &inserted_id_1);
   EXPECT_TRUE(this->transaction_->commit());
-  EXPECT_EQ(1u, this->count());
+  ASSERT_EQ(1u, this->count());
 
   this->insert(2, &inserted_id_2);
   this->update(3, inserted_id_1);
   EXPECT_TRUE(this->transaction_->commit());
-  EXPECT_EQ(2u, this->count());
+  ASSERT_EQ(2u, this->count());
 
   Transaction perturber;
   this->NetTableFixture::update(4, inserted_id_2, &perturber);

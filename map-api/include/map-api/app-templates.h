@@ -24,11 +24,10 @@ NetTable* tableForType();
   }
 
 template <typename ObjectType>
-std::shared_ptr<ObjectType> objectFromRevision(
-    const map_api::Revision& revision);
+void objectFromRevision(const map_api::Revision& revision, ObjectType* result);
 template <>
-std::shared_ptr<std::string> objectFromRevision<std::string>(
-    const map_api::Revision& revision);
+void objectFromRevision<std::string>(const map_api::Revision& revision,
+                                     std::string* result);
 
 template <typename ObjectType>
 void objectToRevision(const ObjectType& object, map_api::Revision* revision);

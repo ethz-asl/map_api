@@ -85,14 +85,16 @@ void Transaction::remove(NetTable* table, std::shared_ptr<Revision> revision) {
 }
 
 std::string Transaction::printCacheStatistics() const {
-  std::stringstream ss;
-  ss << "Transaction cache statistics:" << std::endl;
-  for (const CacheMap::value_type& cache_pair : attached_caches_) {
-    ss << "\t " << cache_pair.second->underlyingTableName() << " cached: "
-       << cache_pair.second->numCachedItems() << "/"
-       << cache_pair.second->size() << std::endl;
-  }
-  return ss.str();
+  //  std::stringstream ss;
+  //  ss << "Transaction cache statistics:" << std::endl;
+  //  for (const CacheMap::value_type& cache_pair : attached_caches_) {
+  //    ss << "\t " << cache_pair.second->underlyingTableName() << " cached: "
+  //       << cache_pair.second->numCachedItems() << "/"
+  //       << cache_pair.second->size() << std::endl;
+  //  }
+  //  return ss.str();
+  LOG(FATAL) << "Currently unsupported";
+  return std::string();
 }
 
 // Deadlocks are prevented by imposing a global ordering on
@@ -102,8 +104,8 @@ bool Transaction::commit() {
   if (FLAGS_blame_commit) {
     LOG(INFO) << "Transaction committed from:\n" << common::backtrace();
   }
-  for (const CacheMap::value_type& cache_pair : attached_caches_) {
-    cache_pair.second->prepareForCommit();
+  for (const CacheMap::value_type& cache_pair : caches_) {
+    cache_pair.second.cache->prepareForCommit();
   }
   enableDirectAccess();
   pushNewChunkIdsToTrackers();
@@ -173,7 +175,8 @@ void Transaction::attachCache(NetTable* table, CacheBase* cache) {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(cache);
   ensureAccessIsCache(table);
-  attached_caches_.emplace(table, cache);
+  // attached_caches_.emplace(table, cache);
+  CHECK(false);
 }
 
 void Transaction::enableDirectAccess() {
