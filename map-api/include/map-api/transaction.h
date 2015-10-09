@@ -30,8 +30,6 @@ class Revision;
 
 class Transaction {
   friend class CacheBase;
-  template <typename IdType, typename Value, typename DerivedValue>
-  friend class Cache;
   template <typename IdType, typename ObjectType>
   friend class ObjectCache;
 

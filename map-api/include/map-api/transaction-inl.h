@@ -6,6 +6,7 @@
 
 #include "map-api/chunk-manager.h"
 #include "map-api/net-table-transaction-interface.h"
+#include "map-api/object-cache.h"
 
 namespace map_api {
 

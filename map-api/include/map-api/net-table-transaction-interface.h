@@ -44,11 +44,14 @@ class NetTableTransactionInterface
     return *transaction_->getMutableUpdateEntry(id, table_);
   }
 
-  virtual const std::shared_ptr<const Revision> get(const IdType& id) const
+  virtual const std::shared_ptr<const Revision>& get(const IdType& id) const
       final override {
-    std::shared_ptr<const Revision> result = transaction_->getById(id, table_);
-    CHECK(result);
-    return result;
+    if (!live_objects_[id]) {
+      live_objects_[id].reset(new std::shared_ptr<const Revision>(
+          transaction_->getById(id, table_)));
+    }
+    CHECK(*live_objects_[id]);
+    return *live_objects_[id];
   }
 
   virtual bool insert(const IdType& id,
@@ -83,6 +86,9 @@ class NetTableTransactionInterface
   ChunkManagerBase* const chunk_manager_;
 
   mutable std::unordered_set<IdType> available_ids_;
+  // Double level so that refs to shared ptr don't become invalid.
+  mutable std::unordered_map<
+      IdType, std::unique_ptr<std::shared_ptr<const Revision>>> live_objects_;
 };
 
 }  // namespace map_api
