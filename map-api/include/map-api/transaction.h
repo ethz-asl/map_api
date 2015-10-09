@@ -67,6 +67,7 @@ class Transaction {
   template <typename ValueType>
   void find(int key, const ValueType& value, NetTable* table,
             ConstRevisionMap* result);
+  bool fetchAllChunksTrackedByItemsInTable(NetTable* const table);
 
   // WRITE
   void insert(NetTable* table, ChunkBase* chunk,
