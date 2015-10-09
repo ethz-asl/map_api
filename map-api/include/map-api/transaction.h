@@ -22,7 +22,7 @@ template <typename IdType>
 class NetTableTransactionInterface;
 class Revision;
 template <typename IdType, typename ObjectType>
-class ThreadsafeCache;
+class ObjectAndMetadataCache;
 
 namespace proto {
 class Revision;
@@ -33,7 +33,7 @@ class Transaction {
   template <typename IdType, typename Value, typename DerivedValue>
   friend class Cache;
   template <typename IdType, typename ObjectType>
-  friend class ThreadsafeCache;
+  friend class ObjectAndMetadataCache;
 
  public:
   Transaction(const std::shared_ptr<Workspace>& workspace,
@@ -119,7 +119,7 @@ class Transaction {
       const std::function<TrackerIdType(const Revision&)>&
           how_to_determine_tracker);
   template <typename IdType, typename ObjectType>
-  std::shared_ptr<ThreadsafeCache<IdType, ObjectType>> createCache(
+  std::shared_ptr<ObjectAndMetadataCache<IdType, ObjectType>> createCache(
       NetTable* table);
 
  private:

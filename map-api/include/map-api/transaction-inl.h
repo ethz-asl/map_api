@@ -60,8 +60,8 @@ void Transaction::overrideTrackerIdentificationMethod(
 }
 
 template <typename IdType, typename ObjectType>
-std::shared_ptr<ThreadsafeCache<IdType, ObjectType>> Transaction::createCache(
-    NetTable* table) {
+std::shared_ptr<ObjectAndMetadataCache<IdType, ObjectType>>
+Transaction::createCache(NetTable* table) {
   CHECK_NOTNULL(table);
   std::pair<CacheMap::iterator, bool> emplacement =
       caches_.emplace(table, CacheStruct());
@@ -69,8 +69,8 @@ std::shared_ptr<ThreadsafeCache<IdType, ObjectType>> Transaction::createCache(
 
   emplacement.first->second.chunk_manager.reset(
       new ChunkManagerChunkSize(kDefaultChunkSizeBytes, table));
-  std::shared_ptr<ThreadsafeCache<IdType, ObjectType>> result(
-      new ThreadsafeCache<IdType, ObjectType>(
+  std::shared_ptr<ObjectAndMetadataCache<IdType, ObjectType>> result(
+      new ObjectAndMetadataCache<IdType, ObjectType>(
           table,
           new NetTableTransactionInterface<IdType>(
               this, table, emplacement.first->second.chunk_manager.get())));

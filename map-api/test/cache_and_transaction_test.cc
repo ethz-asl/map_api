@@ -32,7 +32,7 @@ bool requiresUpdate(const int& object, const Revision& revision) {
   return !revision.verifyEqual(NetTableFixture::kFieldName, object);
 }
 
-typedef ThreadsafeCache<IntId, int> IntCache;
+typedef ObjectAndMetadataCache<IntId, int> IntCache;
 
 template <typename CacheOrTransaction>
 struct IdType;

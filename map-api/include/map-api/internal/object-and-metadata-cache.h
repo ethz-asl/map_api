@@ -1,5 +1,5 @@
-#ifndef MAP_API_THREADSAFE_CACHE_H_
-#define MAP_API_THREADSAFE_CACHE_H_
+#ifndef INTERNAL_OBJECT_AND_METADATA_CACHE_H_
+#define INTERNAL_OBJECT_AND_METADATA_CACHE_H_
 
 #include <string>
 
@@ -11,20 +11,20 @@
 namespace map_api {
 
 template <typename IdType, typename ObjectType>
-class ThreadsafeCache
-    : public common::ThreadsafeCache<IdType, std::shared_ptr<const Revision>,
-                                     ObjectType>,
+class ObjectAndMetadataCache
+    : public common::ObjectAndMetadataCache<
+          IdType, std::shared_ptr<const Revision>, ObjectType>,
       public CacheBase {
  public:
-  typedef common::ThreadsafeCache<IdType, std::shared_ptr<const Revision>,
-                                  ObjectType> BaseType;
+  typedef common::ObjectAndMetadataCache<
+      IdType, std::shared_ptr<const Revision>, ObjectType> BaseType;
 
-  virtual ~ThreadsafeCache() {}
+  virtual ~ObjectAndMetadataCache() {}
 
  private:
   // Takes ownership of the interface.
-  ThreadsafeCache(NetTable* table,
-                  NetTableTransactionInterface<IdType>* released_interface)
+  ObjectAndMetadataCache(
+      NetTable* table, NetTableTransactionInterface<IdType>* released_interface)
       : BaseType(CHECK_NOTNULL(released_interface)),
         table_(CHECK_NOTNULL(table)),
         transaction_interface_(released_interface) {}
@@ -62,4 +62,4 @@ class ThreadsafeCache
 
 }  // namespace map_api
 
-#endif  // MAP_API_THREADSAFE_CACHE_H_
+#endif  // INTERNAL_OBJECT_AND_METADATA_CACHE_H_
