@@ -6,58 +6,41 @@
 #include <multiagent-mapping-common/threadsafe-cache.h>
 
 #include "map-api/cache-base.h"
+#include "map-api/internal/object-and-metadata.h"
 #include "map-api/net-table-transaction-interface.h"
 
 namespace map_api {
 
 template <typename IdType, typename ObjectType>
 class ObjectAndMetadataCache
-    : public common::ObjectAndMetadataCache<
-          IdType, std::shared_ptr<const Revision>, ObjectType>,
-      public CacheBase {
+    : public common::ThreadsafeCache<IdType, std::shared_ptr<const Revision>,
+                                     ObjectAndMetadata<ObjectType>> {
  public:
-  typedef common::ObjectAndMetadataCache<
-      IdType, std::shared_ptr<const Revision>, ObjectType> BaseType;
+  typedef common::ThreadsafeCache<IdType, std::shared_ptr<const Revision>,
+                                  ObjectAndMetadata<ObjectType>> BaseType;
 
   virtual ~ObjectAndMetadataCache() {}
 
  private:
   // Takes ownership of the interface.
-  ObjectAndMetadataCache(
-      NetTable* table, NetTableTransactionInterface<IdType>* released_interface)
-      : BaseType(CHECK_NOTNULL(released_interface)),
-        table_(CHECK_NOTNULL(table)),
-        transaction_interface_(released_interface) {}
-  friend class Transaction;
+  explicit ObjectAndMetadataCache(
+      NetTableTransactionInterface<IdType>* interface)
+      : BaseType(CHECK_NOTNULL(interface)) {}
+  friend class ObjectCache<IdType, ObjectType>;
 
   virtual void rawToCacheImpl(const std::shared_ptr<const Revision>& raw,
-                              ObjectType* cached) const final override {
-    objectFromRevision(*raw, CHECK_NOTNULL(cached));
+                              ObjectAndMetadata<ObjectType>* cached) const
+      final override {
+    CHECK_NOTNULL(cached);
+    cached->deserialize(*raw);
   }
 
-  virtual void cacheToRawImpl(const ObjectType& cached,
+  virtual void cacheToRawImpl(const ObjectAndMetadata<ObjectType>& cached,
                               std::shared_ptr<const Revision>* raw) const
       final override {
     CHECK_NOTNULL(raw);
-    std::shared_ptr<Revision> result = table_->getTemplate();
-    objectToRevision(cached, result.get());
-    *raw = result;
+    cached.serialize(raw);
   }
-
-  virtual std::string underlyingTableName() const final override {
-    return table_->name();
-  }
-
-  virtual void prepareForCommit() final override { this->flush(); }
-
-  virtual size_t numCachedItems() const final override {
-    LOG(FATAL) << "This is bogus.";
-  }
-
-  virtual size_t size() const final override { return BaseType::size(); }
-
-  NetTable* const table_;
-  std::unique_ptr<NetTableTransactionInterface<IdType>> transaction_interface_;
 };
 
 }  // namespace map_api

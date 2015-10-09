@@ -73,6 +73,8 @@ class Revision {
   template <typename FieldType>
   bool get(int index, FieldType* value) const;
 
+  void clearCustomFieldValues();
+
   inline LogicalTime getInsertTime() const {
     return LogicalTime(underlying_revision_->insert_time());
   }

@@ -105,7 +105,7 @@ bool Transaction::commit() {
     LOG(INFO) << "Transaction committed from:\n" << common::backtrace();
   }
   for (const CacheMap::value_type& cache_pair : caches_) {
-    cache_pair.second.cache->prepareForCommit();
+    cache_pair.second->prepareForCommit();
   }
   enableDirectAccess();
   pushNewChunkIdsToTrackers();

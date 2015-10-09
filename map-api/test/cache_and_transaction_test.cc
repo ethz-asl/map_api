@@ -5,8 +5,8 @@
 
 #include "map-api/chunk-manager.h"
 #include "map-api/ipc.h"
+#include "map-api/object-cache.h"
 #include "map-api/test/testing-entrypoint.h"
-#include "map-api/threadsafe-cache.h"
 #include "./net_table_fixture.h"
 
 namespace map_api {
@@ -23,6 +23,7 @@ namespace map_api {
 template <>
 void objectFromRevision(const Revision& revision, int* result) {
   CHECK_NOTNULL(result);
+  CHECK(revision.hasField(NetTableFixture::kFieldName));
   revision.get(NetTableFixture::kFieldName, result);
 }
 void objectToRevision(const int& object, Revision* revision) {
@@ -32,7 +33,7 @@ bool requiresUpdate(const int& object, const Revision& revision) {
   return !revision.verifyEqual(NetTableFixture::kFieldName, object);
 }
 
-typedef ObjectAndMetadataCache<IntId, int> IntCache;
+typedef ObjectCache<IntId, int> IntCache;
 
 template <typename CacheOrTransaction>
 struct IdType;
@@ -72,7 +73,6 @@ class CacheAndTransactionTest : public NetTableFixture {
 
   std::shared_ptr<Transaction> transaction_;
   std::shared_ptr<ChunkManagerChunkSize> manager_;
-  std::shared_ptr<InterfaceType> interface_;
   std::shared_ptr<IntCache> cache_;
 };
 
@@ -84,6 +84,7 @@ void CacheAndTransactionTest<Transaction>::typeSetUp() {
 template <>
 void CacheAndTransactionTest<IntCache>::typeSetUp() {
   cache_ = transaction_->createCache<IntId, int>(table_);
+  chunk_ = cache_->chunk_manager_.getChunkForItem(*table_->getTemplate());
 }
 
 template <>
@@ -126,7 +127,7 @@ void CacheAndTransactionTest<IntCache>::remove(const IntId& id) {
   cache_->erase(id);
 }
 
-typedef ::testing::Types<IntCache, Transaction> AllTypes;
+typedef ::testing::Types<Transaction, IntCache> AllTypes;
 
 TYPED_TEST_CASE(CacheAndTransactionTest, AllTypes);
 

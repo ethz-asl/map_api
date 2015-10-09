@@ -82,8 +82,7 @@ class NetTableTransaction {
   // INTERNAL
   ChunkTransaction* transactionOf(const ChunkBase* chunk) const;
   template <typename IdType>
-  ChunkBase* chunkOf(const IdType& id,
-                     std::shared_ptr<const Revision>* latest) const;
+  ChunkBase* chunkOf(const IdType& id) const;
 
   typedef std::unordered_map<common::Id, ChunkTransaction::TableToIdMultiMap>
       TrackedChunkToTrackersMap;

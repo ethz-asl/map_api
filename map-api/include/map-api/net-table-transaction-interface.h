@@ -46,7 +46,9 @@ class NetTableTransactionInterface
 
   virtual const std::shared_ptr<const Revision> get(const IdType& id) const
       final override {
-    return transaction_->getById(id, table_);
+    std::shared_ptr<const Revision> result = transaction_->getById(id, table_);
+    CHECK(result);
+    return result;
   }
 
   virtual bool insert(const IdType& id,

@@ -47,6 +47,15 @@ proto::Type Revision::getFieldType(int index) const {
   return underlying_revision_->custom_field_values(index).type();
 }
 
+void Revision::clearCustomFieldValues() {
+  for (proto::TableField& custom_field :
+       *underlying_revision_->mutable_custom_field_values()) {
+    proto::Type type = custom_field.type();
+    custom_field.Clear();
+    custom_field.set_type(type);
+  }
+}
+
 bool Revision::operator==(const Revision& other) const {
   if (!structureMatch(other)) {
     return false;

@@ -1,6 +1,9 @@
 #ifndef INTERNAL_OBJECT_AND_METADATA_H_
 #define INTERNAL_OBJECT_AND_METADATA_H_
 
+#include "map-api/net-table.h"
+#include "map-api/revision.h"
+
 namespace map_api {
 
 // Splits a revision into object and metadata. Note that the revision stored
@@ -10,8 +13,24 @@ template <typename ObjectType>
 struct ObjectAndMetadata {
   ObjectType object;
   std::shared_ptr<Revision> metadata;
+
   void deserialize(const Revision& source) {
     objectFromRevision(source, &object);
+    metadata = source.copyForWrite();
+    metadata->clearCustomFieldValues();
+  }
+
+  void serialize(std::shared_ptr<const Revision>* destination) const {
+    CHECK_NOTNULL(destination);
+    std::shared_ptr<Revision> result = metadata->copyForWrite();
+    objectToRevision(object, result.get());
+    *destination = result;
+  }
+
+  void createForInsert(const ObjectType& _object, NetTable* table) {
+    CHECK_NOTNULL(table);
+    object = _object;
+    metadata = table->getTemplate();
   }
 };
 

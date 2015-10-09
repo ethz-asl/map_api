@@ -22,7 +22,7 @@ template <typename IdType>
 class NetTableTransactionInterface;
 class Revision;
 template <typename IdType, typename ObjectType>
-class ObjectAndMetadataCache;
+class ObjectCache;
 
 namespace proto {
 class Revision;
@@ -33,7 +33,7 @@ class Transaction {
   template <typename IdType, typename Value, typename DerivedValue>
   friend class Cache;
   template <typename IdType, typename ObjectType>
-  friend class ObjectAndMetadataCache;
+  friend class ObjectCache;
 
  public:
   Transaction(const std::shared_ptr<Workspace>& workspace,
@@ -119,8 +119,7 @@ class Transaction {
       const std::function<TrackerIdType(const Revision&)>&
           how_to_determine_tracker);
   template <typename IdType, typename ObjectType>
-  std::shared_ptr<ObjectAndMetadataCache<IdType, ObjectType>> createCache(
-      NetTable* table);
+  std::shared_ptr<ObjectCache<IdType, ObjectType>> createCache(NetTable* table);
 
  private:
   void attachCache(NetTable* table, CacheBase* cache);
@@ -172,11 +171,7 @@ class Transaction {
    * complicated.
    */
   mutable TableAccessModeMap access_mode_;
-  struct CacheStruct {
-    std::unique_ptr<ChunkManagerBase> chunk_manager;
-    std::shared_ptr<CacheBase> cache;
-  };
-  typedef std::unordered_map<NetTable*, CacheStruct> CacheMap;
+  typedef std::unordered_map<NetTable*, std::shared_ptr<CacheBase>> CacheMap;
   CacheMap caches_;
   /**
    * Cache must be able to access transaction directly, even though table

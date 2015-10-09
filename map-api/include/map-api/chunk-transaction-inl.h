@@ -84,7 +84,7 @@ bool ChunkTransaction::getMutableUpdateEntry(
   if (ids_in_chunk.count(id) != 0) {
     std::pair<UpdateMap::iterator, bool> emplacement =
         updates_.insert(std::make_pair(id.template toIdType<common::Id>(),
-                                       std::shared_ptr<Revision>()));
+                                       getById(id)->copyForWrite()));
     CHECK(emplacement.second);
     *result = reinterpret_cast<std::shared_ptr<const Revision>*>(
         &emplacement.first->second);
