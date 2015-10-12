@@ -57,6 +57,22 @@ void Transaction::dumpActiveChunks(NetTable* table, ConstRevisionMap* result) {
   }
 }
 
+bool Transaction::fetchAllChunksTrackedByItemsInTable(NetTable* const table) {
+  CHECK_NOTNULL(table);
+  std::vector<common::Id> item_ids;
+  enableDirectAccess();
+  getAvailableIds(table, &item_ids);
+
+  bool success = true;
+  for (const common::Id& item_id : item_ids) {
+    if (!getById(item_id, table)->fetchTrackedChunks()) {
+      success = false;
+    }
+  }
+  disableDirectAccess();
+  return success;
+}
+
 void Transaction::insert(NetTable* table, ChunkBase* chunk,
                          std::shared_ptr<Revision> revision) {
   CHECK_NOTNULL(table);
