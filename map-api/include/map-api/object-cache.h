@@ -20,6 +20,9 @@ template <typename IdType, typename ObjectType>
 class ObjectCache : public common::MappedContainerBase<IdType, ObjectType>,
                     public CacheBase {
  public:
+  // ==========================
+  // MAPPED CONTAINER INTERFACE
+  // ==========================
   virtual bool has(const IdType& id) const { return cache_.has(id); }
 
   virtual void getAllAvailableIds(std::vector<IdType>* available_ids) const {
@@ -45,6 +48,9 @@ class ObjectCache : public common::MappedContainerBase<IdType, ObjectType>,
 
   virtual void erase(const IdType& id) { cache_.erase(id); }
 
+  // ====================
+  // CACHE BASE INTERFACE
+  // ====================
   virtual std::string underlyingTableName() const { return table_->name(); }
 
   virtual void prepareForCommit() { cache_.flush(); }
@@ -52,6 +58,13 @@ class ObjectCache : public common::MappedContainerBase<IdType, ObjectType>,
   virtual size_t numCachedItems() const {
     LOG(FATAL) << "Not supported atm.";
     return 0u;
+  }
+
+  // =============
+  // OWN FUNCTIONS
+  // =============
+  void getTrackedChunks(const IdType& id, TrackeeMultimap* result) const {
+    cache_.get(id).metadata->getTrackedChunks(CHECK_NOTNULL(result));
   }
 
  private:

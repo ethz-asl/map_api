@@ -4,6 +4,8 @@
 #include <utility>
 #include <vector>
 
+#include <multiagent-mapping-common/accessors.h>
+
 #include "map-api/chunk-manager.h"
 #include "map-api/net-table-transaction-interface.h"
 #include "map-api/object-cache.h"
@@ -66,11 +68,16 @@ std::shared_ptr<ObjectCache<IdType, ObjectType>> Transaction::createCache(
   CHECK_NOTNULL(table);
   std::shared_ptr<ObjectCache<IdType, ObjectType>> result(
       new ObjectCache<IdType, ObjectType>(this, table));
-  std::pair<CacheMap::iterator, bool> emplacement =
-      caches_.emplace(table, result);
-  CHECK(emplacement.second);
+  CHECK(caches_.emplace(table, result).second);
 
   return result;
+}
+
+template <typename IdType, typename ObjectType>
+const ObjectCache<IdType, ObjectType>& Transaction::getCache(NetTable* table) {
+  CHECK_NOTNULL(table);
+  return static_cast<const ObjectCache<IdType, ObjectType>&>(
+      *common::getChecked(caches_, table));
 }
 
 template <typename IdType>

@@ -119,9 +119,10 @@ class Transaction {
           how_to_determine_tracker);
   template <typename IdType, typename ObjectType>
   std::shared_ptr<ObjectCache<IdType, ObjectType>> createCache(NetTable* table);
+  template <typename IdType, typename ObjectType>
+  const ObjectCache<IdType, ObjectType>& getCache(NetTable* table);
 
  private:
-  void attachCache(NetTable* table, CacheBase* cache);
   void enableDirectAccess();
   void disableDirectAccess();
 

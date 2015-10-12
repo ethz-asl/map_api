@@ -187,14 +187,6 @@ size_t Transaction::numChangedItems() const {
   return count;
 }
 
-void Transaction::attachCache(NetTable* table, CacheBase* cache) {
-  CHECK_NOTNULL(table);
-  CHECK_NOTNULL(cache);
-  ensureAccessIsCache(table);
-  // attached_caches_.emplace(table, cache);
-  CHECK(false);
-}
-
 void Transaction::enableDirectAccess() {
   std::lock_guard<std::mutex> lock(access_type_mutex_);
   CHECK(cache_access_override_.insert(std::this_thread::get_id()).second);
