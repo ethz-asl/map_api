@@ -151,6 +151,8 @@ class Transaction {
   bool checkOrUnlockAll();
   bool commitRevisionsOrUnlockAll();
 
+  FRIEND_TEST(ConsensusFixture, MultiChunkTransaction);
+
   // Commit implementations
   bool legacyChunkCommit();
   bool raftChunkCommit();

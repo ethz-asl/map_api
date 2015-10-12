@@ -14,8 +14,8 @@ DEFINE_bool(enable_raft_bulk_insert, false, "Enable bulk append");
 namespace map_api {
 
 RaftChunk::RaftChunk()
-    : chunk_lock_attempted_(false),
-      is_raft_chunk_lock_acquired_(false),
+    : write_lock_attempted_(false),
+      is_write_lock_acquired_(false),
       lock_log_index_(0),
       chunk_write_lock_depth_(0),
       self_read_lock_depth_(0),
@@ -130,12 +130,9 @@ bool RaftChunk::insert(const LogicalTime& time,
 }
 
 void RaftChunk::writeLock() {
-  std::lock_guard<std::mutex> lock_mutex(write_lock_mutex_);
-  while (raft_node_.isRunning()) {
-    if (!raft_node_.raft_chunk_lock_.isReadLocked()) {
-      break;
-    }
-    usleep(1000);
+  std::unique_lock<std::mutex> lock_mutex(chunk_lock_mutex_);
+  while (raft_node_.isRunning() && raft_node_.raft_chunk_lock_.isReadLocked()) {
+    chunk_lock_cv_.wait(lock_mutex);
   }
   raftChunkWriteLock();
 }
@@ -143,12 +140,12 @@ void RaftChunk::writeLock() {
 void RaftChunk::readLock() const {
   while (raft_node_.isRunning()) {
     {
-      std::lock_guard<std::mutex> lock_mutex(write_lock_mutex_);
+      std::lock_guard<std::mutex> lock_mutex(chunk_lock_mutex_);
       if (raft_node_.raft_chunk_lock_.isReadLocked()) {
         ++self_read_lock_depth_;
         return;
       }
-      if (!chunk_lock_attempted_ &&
+      if (!write_lock_attempted_ &&
           raft_node_.raft_chunk_lock_.localReadLock()) {
         ++self_read_lock_depth_;
         return;
@@ -162,9 +159,9 @@ void RaftChunk::raftChunkWriteLock() const {
   CHECK(raft_node_.isRunning());
   VLOG(3) << PeerId::self() << " Attempting lock for chunk " << id()
           << ". Current depth: " << chunk_write_lock_depth_;
-  chunk_lock_attempted_ = true;
+  write_lock_attempted_ = true;
   uint64_t serial_id = 0;
-  if (is_raft_chunk_lock_acquired_) {
+  if (is_write_lock_acquired_) {
     ++chunk_write_lock_depth_;
   } else {
     CHECK_EQ(lock_log_index_, 0);
@@ -191,7 +188,7 @@ void RaftChunk::raftChunkWriteLock() const {
     CHECK(raft_node_.raft_chunk_lock_.isWriteLockHolder(PeerId::self()));
 
     if (lock_log_index_ > 0) {
-      is_raft_chunk_lock_acquired_ = true;
+      is_write_lock_acquired_ = true;
     }
   }
   VLOG(3) << PeerId::self() << " acquired lock for chunk " << id()
@@ -199,21 +196,22 @@ void RaftChunk::raftChunkWriteLock() const {
 }
 
 bool RaftChunk::isWriteLocked() {
-  std::lock_guard<std::mutex> lock(write_lock_mutex_);
-  return is_raft_chunk_lock_acquired_;
+  std::lock_guard<std::mutex> lock(chunk_lock_mutex_);
+  return is_write_lock_acquired_;
 }
 
 void RaftChunk::unlock() const { unlock(true); }
 
 void RaftChunk::unlock(bool proceed_transaction) const {
   CHECK(raft_node_.isRunning());
-  std::lock_guard<std::mutex> lock(write_lock_mutex_);
+  std::lock_guard<std::mutex> lock(chunk_lock_mutex_);
 
   if (self_read_lock_depth_ > 0) {
     --self_read_lock_depth_;
     CHECK(!raft_node_.raft_chunk_lock_.isWriteLockHolder(PeerId::self()));
     if (self_read_lock_depth_ == 0) {
       raft_node_.raft_chunk_lock_.releaseLocalReadLock();
+      chunk_lock_cv_.notify_all();
     }
     return;
   }
@@ -221,7 +219,7 @@ void RaftChunk::unlock(bool proceed_transaction) const {
   VLOG(3) << PeerId::self() << " Attempting unlock for chunk " << id()
           << ". Current depth: " << chunk_write_lock_depth_;
   uint64_t serial_id = 0;
-  if (!is_raft_chunk_lock_acquired_) {
+  if (!is_write_lock_acquired_) {
     return;
   }
   if (chunk_write_lock_depth_ > 0) {
@@ -240,8 +238,9 @@ void RaftChunk::unlock(bool proceed_transaction) const {
     }
     CHECK(!raft_node_.raft_chunk_lock_.isWriteLockHolder(PeerId::self()));
     lock_log_index_ = 0;
-    is_raft_chunk_lock_acquired_ = false;
-    chunk_lock_attempted_ = false;
+    is_write_lock_acquired_ = false;
+    write_lock_attempted_ = false;
+    chunk_lock_cv_.notify_all();
   }
 }
 
@@ -412,19 +411,19 @@ bool RaftChunk::raftBulkInsertRequest(const MutableRevisionMap& items) {
 }
 
 void RaftChunk::insertCommitCallback(const common::Id& inserted_id) {
-  if (!is_raft_chunk_lock_acquired_) {
+  if (!is_write_lock_acquired_) {
     handleCommitInsert(inserted_id);
   }
 }
 
 void RaftChunk::updateCommitCallback(const common::Id& updated_id) {
-  if (!is_raft_chunk_lock_acquired_) {
+  if (!is_write_lock_acquired_) {
     handleCommitUpdate(updated_id);
   }
 }
 
 void RaftChunk::unlockCommitCallback() {
-  if (!is_raft_chunk_lock_acquired_) {
+  if (!is_write_lock_acquired_) {
     handleCommitEnd();
   }
 }
