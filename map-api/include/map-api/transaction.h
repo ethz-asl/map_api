@@ -92,8 +92,6 @@ class Transaction {
   // ======================
   void prepareForCommit();
   bool commit();
-  bool legacyChunkCommit();
-  bool raftChunkCommit();
   void unlockAllChunks(bool is_success);
   void prepareMultiChunkTransactionInfo(proto::MultiChunkTransactionInfo* info);
   inline LogicalTime getCommitTime() const { return commit_time_; }
@@ -152,6 +150,10 @@ class Transaction {
   bool prepareOrUnlockAll();
   bool checkOrUnlockAll();
   bool commitRevisionsOrUnlockAll();
+
+  // Commit implementations
+  bool legacyChunkCommit();
+  bool raftChunkCommit();
 
   /**
    * A global ordering of tables prevents deadlocks (resource hierarchy

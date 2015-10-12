@@ -109,62 +109,15 @@ void Transaction::prepareForCommit() {
   disableDirectAccess();
 }
 
+// Deadlocks are prevented by imposing a global ordering on
+// net_table_transactions_, and have the individual chunk locks acquired in
+// that order (resource hierarchy solution).
 bool Transaction::commit() {
   if (FLAGS_use_raft) {
     return raftChunkCommit();
   } else {
     return legacyChunkCommit();
   }
-}
-
-// Deadlocks are prevented by imposing a global ordering on
-// net_table_transactions_, and have the locks acquired in that order
-// (resource hierarchy solution)
-bool Transaction::legacyChunkCommit() {
-  prepareForCommit();
-  timing::Timer timer("map_api::Transaction::commit - lock");
-  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
-    net_table_transaction.second->lock();
-  }
-  timer.Stop();
-  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
-    if (!net_table_transaction.second->check()) {
-      unlockAllChunks(false);
-      return false;
-    }
-  }
-  commit_time_ = LogicalTime::sample();
-  VLOG(3) << "Commit from " << begin_time_ << " to " << commit_time_;
-  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
-    bool success = net_table_transaction.second->checkedCommit(commit_time_);
-    if (FLAGS_use_raft) {
-      net_table_transaction.second->unlock(success);
-    } else {
-      net_table_transaction.second->unlock();
-    }
-  }
-  return true;
-}
-
-bool Transaction::raftChunkCommit() {
-  CHECK(FLAGS_use_raft);
-
-  if (!prepareOrUnlockAll()) {
-    return false;
-  }
-  if (!checkOrUnlockAll()) {
-    return false;
-  }
-  if (!commitRevisionsOrUnlockAll()) {
-    return false;
-  }
-
-  // At this point, all chunks have received all their respective transactions.
-  // Any peer receiving unlock implies all other chunks are ready to commit.
-  // If the committing peer (this peer) fails at this point, the chunks can
-  // attempt to take the transaction forward themselves.
-  unlockAllChunks(true);
-  return true;
 }
 
 void Transaction::unlockAllChunks(bool is_success) {
@@ -393,6 +346,53 @@ bool Transaction::commitRevisionsOrUnlockAll() {
       return false;
     }
   }
+  return true;
+}
+
+bool Transaction::legacyChunkCommit() {
+  prepareForCommit();
+  timing::Timer timer("map_api::Transaction::commit - lock");
+  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
+    net_table_transaction.second->lock();
+  }
+  timer.Stop();
+  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
+    if (!net_table_transaction.second->check()) {
+      unlockAllChunks(false);
+      return false;
+    }
+  }
+  commit_time_ = LogicalTime::sample();
+  VLOG(3) << "Commit from " << begin_time_ << " to " << commit_time_;
+  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
+    bool success = net_table_transaction.second->checkedCommit(commit_time_);
+    if (FLAGS_use_raft) {
+      net_table_transaction.second->unlock(success);
+    } else {
+      net_table_transaction.second->unlock();
+    }
+  }
+  return true;
+}
+
+bool Transaction::raftChunkCommit() {
+  CHECK(FLAGS_use_raft);
+
+  if (!prepareOrUnlockAll()) {
+    return false;
+  }
+  if (!checkOrUnlockAll()) {
+    return false;
+  }
+  if (!commitRevisionsOrUnlockAll()) {
+    return false;
+  }
+
+  // At this point, all chunks have received all their respective transactions.
+  // Any peer receiving unlock implies all other chunks are ready to commit.
+  // If the committing peer (this peer) fails at this point, the chunks can
+  // attempt to take the transaction forward themselves.
+  unlockAllChunks(true);
   return true;
 }
 
