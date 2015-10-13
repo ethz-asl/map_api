@@ -75,12 +75,8 @@ bool Revision::operator==(const Revision& other) const {
   if (other.getChunkId() != getChunkId()) {
     return false;
   }
-  // Check custom fields.
-  int num_fields = underlying_revision_->custom_field_values_size();
-  for (int i = 0; i < num_fields; ++i) {
-    if (!fieldMatch(other, i)) {
-      return false;
-    }
+  if (!areAllCustomFieldsEqual(other)) {
+    return false;
   }
   return true;
 }
@@ -126,6 +122,15 @@ bool Revision::fieldMatch(const Revision& other, int key) const {
   }
   CHECK(false) << "Forgot switch case";
   return false;
+}
+
+bool Revision::areAllCustomFieldsEqual(const Revision& other) const {
+  for (int i = 0; i < underlying_revision_->custom_field_values_size(); ++i) {
+    if (!fieldMatch(other, i)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 std::string Revision::dumpToString() const {

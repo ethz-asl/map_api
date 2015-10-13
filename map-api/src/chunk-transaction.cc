@@ -103,12 +103,14 @@ bool ChunkTransaction::check() {
   for (const std::pair<const common::Id,
       std::shared_ptr<const Revision> >& item : updates_) {
     if (hasUpdateConflict(item.first, stamps)) {
+      VLOG(3) << "Update conflict in table " << table_->name();
       return false;
     }
   }
   for (const std::pair<const common::Id,
       std::shared_ptr<const Revision> >& item : removes_) {
     if (hasUpdateConflict(item.first, stamps)) {
+      VLOG(3) << "Remove conflict in table " << table_->name();
       return false;
     }
   }
@@ -117,6 +119,7 @@ bool ChunkTransaction::check() {
     chunk_->data_container_->findByRevision(item.key, *item.value_holder,
                                             LogicalTime::sample(), &dummy);
     if (!dummy.empty()) {
+      VLOG(3) << "Conflict condition in table " << table_->name();
       return false;
     }
   }
@@ -228,6 +231,8 @@ bool ChunkTransaction::hasUpdateConflict(const common::Id& item,
         return false;
       }
     }
+    VLOG(3) << "Item " << item << " conflicts. Stamp time " << db_stamp
+            << " versus begin time " << begin_time_;
     return true;
   }
   return false;

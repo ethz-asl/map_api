@@ -41,6 +41,14 @@ class ObjectAndMetadataCache
     CHECK_NOTNULL(raw);
     cached.serialize(raw);
   }
+
+  virtual bool shouldUpdateImpl(const std::shared_ptr<const Revision>& original,
+                                const std::shared_ptr<const Revision>& updated)
+      const {
+    CHECK(original);
+    CHECK(updated);
+    return !original->areAllCustomFieldsEqual(*updated);
+  }
 };
 
 }  // namespace map_api

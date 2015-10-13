@@ -121,6 +121,7 @@ class Revision {
    * Returns true if value at key is same as with other
    */
   bool fieldMatch(const Revision& other, int index) const;
+  bool areAllCustomFieldsEqual(const Revision& other) const;
 
   std::string dumpToString() const;
 

@@ -53,7 +53,10 @@ class ObjectCache : public common::MappedContainerBase<IdType, ObjectType>,
   // ====================
   virtual std::string underlyingTableName() const { return table_->name(); }
 
-  virtual void prepareForCommit() { cache_.flush(); }
+  virtual void prepareForCommit() {
+    VLOG(3) << "Flushing object cache for table " << table_->name() << "...";
+    cache_.flush();
+  }
 
   virtual size_t numCachedItems() const {
     LOG(FATAL) << "Not supported atm.";
