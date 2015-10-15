@@ -8,6 +8,7 @@
 
 #include "map-api/cache-base.h"
 #include "map-api/chunk-manager.h"
+#include "map-api/conflicts.h"
 #include "map-api/net-table.h"
 #include "map-api/net-table-manager.h"
 #include "map-api/net-table-transaction.h"
@@ -159,7 +160,7 @@ void Transaction::merge(const std::shared_ptr<Transaction>& merge_transaction,
     std::shared_ptr<NetTableTransaction> merge_net_table_transaction(
         new NetTableTransaction(merge_transaction->begin_time_,
                                 net_table_transaction.first, *workspace_));
-    ChunkTransaction::Conflicts sub_conflicts;
+    Conflicts sub_conflicts;
     net_table_transaction.second->merge(merge_net_table_transaction,
                                         &sub_conflicts);
     CHECK_EQ(
@@ -170,9 +171,8 @@ void Transaction::merge(const std::shared_ptr<Transaction>& merge_transaction,
           net_table_transaction.first, merge_net_table_transaction));
     }
     if (!sub_conflicts.empty()) {
-      std::pair<ConflictMap::iterator, bool> insert_result =
-          conflicts->insert(std::make_pair(net_table_transaction.first,
-                                           ChunkTransaction::Conflicts()));
+      std::pair<ConflictMap::iterator, bool> insert_result = conflicts->insert(
+          std::make_pair(net_table_transaction.first, Conflicts()));
       CHECK(insert_result.second);
       insert_result.first->second.swap(sub_conflicts);
     }

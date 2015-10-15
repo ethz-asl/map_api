@@ -31,6 +31,7 @@ class ObjectAndMetadataCache
   virtual void rawToCacheImpl(const std::shared_ptr<const Revision>& raw,
                               ObjectAndMetadata<ObjectType>* cached) const
       final override {
+    CHECK(raw);
     CHECK_NOTNULL(cached);
     cached->deserialize(*raw);
   }

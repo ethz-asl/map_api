@@ -43,11 +43,13 @@ class Revision {
 
   Revision& operator=(const Revision& other) = delete;
 
+  ~Revision();
+
   // Constructor and assignment replacements.
   std::shared_ptr<Revision> copyForWrite() const;
   // You need to use std::move() for the unique_ptr of the following.
   static std::shared_ptr<Revision> fromProto(
-      std::unique_ptr<proto::Revision>&& revision_proto);
+      const std::shared_ptr<proto::Revision>& revision_proto);
   static std::shared_ptr<Revision> fromProtoString(
       const std::string& revision_proto_string);
 
@@ -171,7 +173,7 @@ class Revision {
   template <typename FieldType>
   bool get(const proto::TableField& field, FieldType* value) const;
 
-  std::unique_ptr<proto::Revision> underlying_revision_;
+  std::shared_ptr<proto::Revision> underlying_revision_;
 };
 
 /**

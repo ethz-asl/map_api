@@ -14,6 +14,7 @@
 
 namespace map_api {
 class ChunkBase;
+class Conflicts;
 class ConstRevisionMap;
 class Revision;
 
@@ -76,7 +77,7 @@ class NetTableTransaction {
    */
   bool check();
   void merge(const std::shared_ptr<NetTableTransaction>& merge_transaction,
-             ChunkTransaction::Conflicts* conflicts);
+             Conflicts* conflicts);
   size_t numChangedItems() const;
 
   // INTERNAL

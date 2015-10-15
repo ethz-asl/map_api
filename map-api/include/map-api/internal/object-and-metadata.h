@@ -18,6 +18,9 @@ struct ObjectAndMetadata {
     objectFromRevision(source, &object);
     metadata = source.copyForWrite();
     metadata->clearCustomFieldValues();
+    VLOG(5) << metadata->dumpToString();
+    VLOG(5) << common::backtrace();
+    VLOG(5) << this;
   }
 
   void serialize(std::shared_ptr<const Revision>* destination) const {

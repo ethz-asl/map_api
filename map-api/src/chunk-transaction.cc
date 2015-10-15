@@ -4,6 +4,7 @@
 
 #include <multiagent-mapping-common/accessors.h>
 
+#include "map-api/conflicts.h"
 #include "map-api/net-table.h"
 
 namespace map_api {

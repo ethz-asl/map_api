@@ -17,6 +17,7 @@ namespace map_api {
 class CacheBase;
 class ChunkBase;
 class ChunkManagerBase;
+class ConflictMap;
 class NetTable;
 template <typename IdType>
 class NetTableTransactionInterface;
@@ -85,20 +86,6 @@ class Transaction {
   // TRANSACTION OPERATIONS
   bool commit();
   inline LogicalTime getCommitTime() const { return commit_time_; }
-  using Conflict = ChunkTransaction::Conflict;
-  using Conflicts = ChunkTransaction::Conflicts;
-  class ConflictMap
-      : public std::unordered_map<NetTable*, ChunkTransaction::Conflicts> {
-   public:
-    inline std::string debugString() const {
-      std::ostringstream ss;
-      for (const value_type& pair : *this) {
-        ss << pair.first->name() << ": " << pair.second.size() << " conflicts"
-           << std::endl;
-      }
-      return ss.str();
-    }
-  };
   /**
    * Merge_transaction will be filled with all insertions and non-conflicting
    * updates from this transaction, while the conflicting updates will be

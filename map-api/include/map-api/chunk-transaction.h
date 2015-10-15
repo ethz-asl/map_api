@@ -15,6 +15,7 @@
 
 namespace map_api {
 class ChunkBase;
+class Conflicts;
 
 /**
  * This class is somewhat weaker than the first transaction draft
@@ -62,12 +63,6 @@ class ChunkTransaction {
   bool commit();
   bool check();
   void checkedCommit(const LogicalTime& time);
-  struct Conflict {
-    const std::shared_ptr<const Revision> theirs;
-    const std::shared_ptr<const Revision> ours;
-  };
-  // constant splicing, linear iteration
-  typedef std::list<Conflict> Conflicts;
   /**
    * Merging and changeCount are not compatible with conflict conditions.
    */

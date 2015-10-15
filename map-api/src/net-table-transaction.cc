@@ -2,6 +2,8 @@
 
 #include <statistics/statistics.h>
 
+#include "map-api/conflicts.h"
+
 namespace map_api {
 
 NetTableTransaction::NetTableTransaction(const LogicalTime& begin_time,
@@ -108,7 +110,7 @@ bool NetTableTransaction::check() {
 
 void NetTableTransaction::merge(
     const std::shared_ptr<NetTableTransaction>& merge_transaction,
-    ChunkTransaction::Conflicts* conflicts) {
+    Conflicts* conflicts) {
   CHECK_NOTNULL(merge_transaction.get());
   CHECK_NOTNULL(conflicts);
   conflicts->clear();
@@ -116,7 +118,7 @@ void NetTableTransaction::merge(
     std::shared_ptr<ChunkTransaction> merge_chunk_transaction(
         new ChunkTransaction(merge_transaction->begin_time_,
                              chunk_transaction.first, table_));
-    ChunkTransaction::Conflicts sub_conflicts;
+    Conflicts sub_conflicts;
     chunk_transaction.second->merge(merge_chunk_transaction, &sub_conflicts);
     CHECK_EQ(chunk_transaction.second->numChangedItems(),
              merge_chunk_transaction->numChangedItems() + sub_conflicts.size());

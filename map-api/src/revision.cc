@@ -4,21 +4,24 @@
 #include <map-api/logical-time.h>
 #include <map-api/net-table-manager.h>
 #include <map-api/trackee-multimap.h>
+#include <multiagent-mapping-common/backtrace.h>
 #include <multiagent-mapping-common/unique-id.h>
 
 namespace map_api {
 
+Revision::~Revision() { LOG(ERROR) << common::backtrace(); }
+
 std::shared_ptr<Revision> Revision::copyForWrite() const {
-  std::unique_ptr<proto::Revision> copy(
+  std::shared_ptr<proto::Revision> copy(
       new proto::Revision(*underlying_revision_));
-  return fromProto(std::move(copy));
+  return fromProto(copy);
 }
 
 std::shared_ptr<Revision> Revision::fromProto(
-    std::unique_ptr<proto::Revision>&& revision_proto) {
+    const std::shared_ptr<proto::Revision>& revision_proto) {
   std::shared_ptr<Revision> result(new Revision);
-  result->underlying_revision_ = std::move(revision_proto);
-  return std::move(result);
+  result->underlying_revision_ = revision_proto;
+  return result;
 }
 
 std::shared_ptr<Revision> Revision::fromProtoString(
@@ -26,7 +29,7 @@ std::shared_ptr<Revision> Revision::fromProtoString(
   std::shared_ptr<Revision> result(new Revision);
   result->underlying_revision_.reset(new proto::Revision);
   CHECK(result->underlying_revision_->ParseFromString(revision_proto_string));
-  return std::move(result);
+  return result;
 }
 
 void Revision::addField(int index, proto::Type type) {
@@ -165,6 +168,9 @@ std::string Revision::dumpToString() const {
 }
 
 void Revision::getTrackedChunks(TrackeeMultimap* result) const {
+  LOG(INFO) << this;
+  LOG(INFO) << &underlying_revision_;
+  CHECK(underlying_revision_);
   CHECK_NOTNULL(result)->deserialize(*underlying_revision_);
 }
 
