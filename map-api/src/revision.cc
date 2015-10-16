@@ -7,7 +7,15 @@
 #include <multiagent-mapping-common/backtrace.h>
 #include <multiagent-mapping-common/unique-id.h>
 
+DEFINE_bool(rev_death, false, "");
+
 namespace map_api {
+
+Revision::~Revision() {
+  if (FLAGS_rev_death) {
+    LOG(ERROR) << common::backtrace();
+  }
+}
 
 std::shared_ptr<Revision> Revision::copyForWrite() const {
   std::shared_ptr<proto::Revision> copy(

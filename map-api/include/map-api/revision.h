@@ -7,11 +7,14 @@
 #include <type_traits>
 #include <vector>
 
+#include <gflags/gflags.h>
 #include <glog/logging.h>
 
 #include "./core.pb.h"
 #include "map-api/logical-time.h"
 #include <multiagent-mapping-common/unique-id.h>
+
+DECLARE_bool(rev_death);
 
 namespace map_api {
 class TrackeeMultimap;
@@ -40,6 +43,8 @@ class Revision {
   typedef std::vector<char> Blob;
   typedef std::shared_ptr<Revision> Ptr;
   typedef std::shared_ptr<const Revision> ConstPtr;
+
+  ~Revision();
 
   Revision& operator=(const Revision& other) = delete;
 
