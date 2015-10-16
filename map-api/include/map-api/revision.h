@@ -43,8 +43,6 @@ class Revision {
 
   Revision& operator=(const Revision& other) = delete;
 
-  ~Revision();
-
   // Constructor and assignment replacements.
   std::shared_ptr<Revision> copyForWrite() const;
   // You need to use std::move() for the unique_ptr of the following.

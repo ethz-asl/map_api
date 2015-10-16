@@ -9,8 +9,6 @@
 
 namespace map_api {
 
-Revision::~Revision() { LOG(ERROR) << common::backtrace(); }
-
 std::shared_ptr<Revision> Revision::copyForWrite() const {
   std::shared_ptr<proto::Revision> copy(
       new proto::Revision(*underlying_revision_));
