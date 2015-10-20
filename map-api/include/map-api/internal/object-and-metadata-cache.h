@@ -3,6 +3,7 @@
 
 #include <string>
 
+#include <multiagent-mapping-common/breakpoints.h>
 #include <multiagent-mapping-common/threadsafe-cache.h>
 
 #include "map-api/cache-base.h"
@@ -34,12 +35,6 @@ class ObjectAndMetadataCache
     CHECK(raw);
     CHECK_NOTNULL(cached);
     cached->deserialize(*raw);
-    if (FLAGS_rev_death) {
-      LOG(INFO) << cached->metadata->dumpToString();
-      LOG(INFO) << cached;
-      LOG(INFO) << cached->metadata.use_count();
-      LOG(INFO) << cached->metadata.get();
-    }
     CHECK(cached->metadata);
   }
 

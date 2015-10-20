@@ -257,7 +257,8 @@ void NetTableManager::listenToPeersJoiningTable(const std::string& table_name) {
     proto::PeerList listeners;
     current->get(kMetaTableListenersField, &listeners);
     listeners.add_peers(Hub::instance().ownAddress());
-    std::shared_ptr<Revision> next = current->copyForWrite();
+    std::shared_ptr<Revision> next;
+    current->copyForWrite(&next);
     next->set(kMetaTableListenersField, listeners);
     add_self_to_listeners.update(next);
     if (add_self_to_listeners.commit()) {

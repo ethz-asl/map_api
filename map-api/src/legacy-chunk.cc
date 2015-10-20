@@ -101,9 +101,10 @@ bool LegacyChunk::init(const common::Id& id,
     while (history_proto.revisions_size() > 0) {
       // using ReleaseLast allows zero-copy ownership transfer to the revision
       // object.
-      std::shared_ptr<Revision> data =
-          Revision::fromProto(std::unique_ptr<proto::Revision>(
-              history_proto.mutable_revisions()->ReleaseLast()));
+      std::shared_ptr<Revision> data;
+      Revision::fromProto(std::unique_ptr<proto::Revision>(
+                              history_proto.mutable_revisions()->ReleaseLast()),
+                          &data);
       CHECK(static_cast<LegacyChunkDataContainerBase*>(data_container_.get())
                 ->patch(data));
       // TODO(tcies) guarantee order, then only sync latest time

@@ -36,16 +36,10 @@ class ObjectCache : public common::MappedContainerBase<IdType, ObjectType>,
     if (table_->name() == "visual_inertial_mapping_mission_table") {
       VLOG(5) << "getMutable() on " << id;
     }
-    if (FLAGS_rev_death) {
-      LOG(INFO) << "Got a getMutable";
-    }
     return cache_.getMutable(id).object;
   }
 
   virtual const ObjectType& get(const IdType& id) const {
-    if (FLAGS_rev_death) {
-      LOG(INFO) << "Got a get";
-    }
     CHECK(cache_.get(id).metadata);
     return cache_.get(id).object;
   }
@@ -77,10 +71,7 @@ class ObjectCache : public common::MappedContainerBase<IdType, ObjectType>,
   // OWN FUNCTIONS
   // =============
   void getTrackedChunks(const IdType& id, TrackeeMultimap* result) const {
-    LOG(INFO) << "oje...";
     const ObjectAndMetadata<ObjectType>& object_metadata = cache_.get(id);
-    LOG(INFO) << &object_metadata;
-    LOG(INFO) << object_metadata.metadata.use_count();
     CHECK(object_metadata.metadata);
     object_metadata.metadata->getTrackedChunks(CHECK_NOTNULL(result));
   }

@@ -76,8 +76,15 @@ std::shared_ptr<ObjectCache<IdType, ObjectType>> Transaction::createCache(
 template <typename IdType, typename ObjectType>
 const ObjectCache<IdType, ObjectType>& Transaction::getCache(NetTable* table) {
   CHECK_NOTNULL(table);
-  return static_cast<const ObjectCache<IdType, ObjectType>&>(
-      *common::getChecked(caches_, table));
+  // This ABSOLUTELY MUST REMAIN A DYNAMIC_CAST!!! Previously, it was static,
+  // and resulted in a 3-day bug hunt.
+  const ObjectCache<IdType, ObjectType>* result =
+      dynamic_cast<const ObjectCache<IdType, ObjectType>*>(  // NOLINT
+          common::getChecked(caches_, table).get());
+  CHECK(result != nullptr) << "Requested cache type does not correspond to "
+                           << "cache type previously created for table "
+                           << table->name() << "!";
+  return *result;
 }
 
 template <typename IdType>

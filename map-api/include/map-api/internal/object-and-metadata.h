@@ -16,7 +16,7 @@ struct ObjectAndMetadata {
 
   void deserialize(const Revision& source) {
     objectFromRevision(source, &object);
-    metadata = source.copyForWrite();
+    source.copyForWrite(&metadata);
     metadata->clearCustomFieldValues();
     VLOG(5) << metadata->dumpToString();
     VLOG(5) << common::backtrace();
@@ -25,7 +25,8 @@ struct ObjectAndMetadata {
 
   void serialize(std::shared_ptr<const Revision>* destination) const {
     CHECK_NOTNULL(destination);
-    std::shared_ptr<Revision> result = metadata->copyForWrite();
+    std::shared_ptr<Revision> result;
+    metadata->copyForWrite(&result);
     objectToRevision(object, result.get());
     *destination = result;
   }

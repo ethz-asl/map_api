@@ -5,29 +5,32 @@
 #include <map-api/net-table-manager.h>
 #include <map-api/trackee-multimap.h>
 #include <multiagent-mapping-common/backtrace.h>
+#include <multiagent-mapping-common/breakpoints.h>
 #include <multiagent-mapping-common/unique-id.h>
-
-DEFINE_bool(rev_death, false, "");
 
 namespace map_api {
 
-Revision::~Revision() {
-  if (FLAGS_rev_death) {
-    LOG(ERROR) << common::backtrace();
-  }
-}
-
-std::shared_ptr<Revision> Revision::copyForWrite() const {
+void Revision::copyForWrite(std::shared_ptr<Revision>* result) const {
+  CHECK_NOTNULL(result);
   std::shared_ptr<proto::Revision> copy(
       new proto::Revision(*underlying_revision_));
-  return fromProto(copy);
+  return fromProto(copy, result);
 }
 
-std::shared_ptr<Revision> Revision::fromProto(
-    const std::shared_ptr<proto::Revision>& revision_proto) {
-  std::shared_ptr<Revision> result(new Revision);
-  result->underlying_revision_ = revision_proto;
-  return result;
+void Revision::fromProto(const std::shared_ptr<proto::Revision>& revision_proto,
+                         std::shared_ptr<Revision>* result) {
+  CHECK_NOTNULL(result);
+  // Because -> keeps dereferencing:
+  std::shared_ptr<Revision>& deref_result = *result;
+  deref_result.reset(new Revision);
+  (*result)->underlying_revision_ = revision_proto;
+}
+void Revision::fromProto(const std::shared_ptr<proto::Revision>& revision_proto,
+                         std::shared_ptr<const Revision>* result) {
+  CHECK_NOTNULL(result);
+  std::shared_ptr<Revision> non_const;
+  fromProto(revision_proto, &non_const);
+  *result = non_const;
 }
 
 std::shared_ptr<Revision> Revision::fromProtoString(

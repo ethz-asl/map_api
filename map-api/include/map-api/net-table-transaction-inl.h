@@ -85,8 +85,8 @@ std::shared_ptr<const Revision>* NetTableTransaction::getMutableUpdateEntry(
 template <typename IdType>
 void NetTableTransaction::remove(const IdType& id) {
   ChunkBase* chunk = chunkOf(id);
-  std::shared_ptr<Revision> remove_revision =
-      getById(id, chunk)->copyForWrite();
+  std::shared_ptr<Revision> remove_revision;
+  getById(id, chunk)->copyForWrite(&remove_revision);
   transactionOf(CHECK_NOTNULL(chunk))->remove(remove_revision);
 }
 

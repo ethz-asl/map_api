@@ -14,8 +14,6 @@
 #include "map-api/logical-time.h"
 #include <multiagent-mapping-common/unique-id.h>
 
-DECLARE_bool(rev_death);
-
 namespace map_api {
 class TrackeeMultimap;
 
@@ -44,15 +42,15 @@ class Revision {
   typedef std::shared_ptr<Revision> Ptr;
   typedef std::shared_ptr<const Revision> ConstPtr;
 
-  ~Revision();
-
   Revision& operator=(const Revision& other) = delete;
 
   // Constructor and assignment replacements.
-  std::shared_ptr<Revision> copyForWrite() const;
+  void copyForWrite(std::shared_ptr<Revision>* result) const;
   // You need to use std::move() for the unique_ptr of the following.
-  static std::shared_ptr<Revision> fromProto(
-      const std::shared_ptr<proto::Revision>& revision_proto);
+  static void fromProto(const std::shared_ptr<proto::Revision>& revision_proto,
+                        std::shared_ptr<Revision>* result);
+  static void fromProto(const std::shared_ptr<proto::Revision>& revision_proto,
+                        std::shared_ptr<const Revision>* result);
   static std::shared_ptr<Revision> fromProtoString(
       const std::string& revision_proto_string);
 
