@@ -5,9 +5,9 @@
 
 #include "map-api/chunk-manager.h"
 #include "map-api/ipc.h"
-#include "map-api/object-cache.h"
 #include "map-api/test/testing-entrypoint.h"
 #include "./net_table_fixture.h"
+#include "../include/map-api/threadsafe-cache.h"
 
 namespace map_api {
 
@@ -43,7 +43,7 @@ TEST_F(NetTableFixture, Cache) {
     A_DONE
   };
   std::shared_ptr<Transaction> transaction;
-  std::shared_ptr<ObjectCache<IntId, int>> cache;
+  std::shared_ptr<ThreadsafeCache<IntId, int>> cache;
   IntId kId[3];
   int kVal[3];
   for (int i = 0; i < 3; ++i) {

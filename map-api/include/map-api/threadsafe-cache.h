@@ -1,14 +1,14 @@
-#ifndef MAP_API_OBJECT_CACHE_H_
-#define MAP_API_OBJECT_CACHE_H_
+#ifndef MAP_API_THREADSAFE_CACHE_H_
+#define MAP_API_THREADSAFE_CACHE_H_
 
 #include <string>
 #include <vector>
 
 #include <gtest/gtest_prod.h>
 #include <multiagent-mapping-common/mapped-container-base.h>
+#include "internal/threadsafe-object-and-metadata-cache.h"
 
 #include "map-api/cache-base.h"
-#include "map-api/internal/object-and-metadata-cache.h"
 #include "map-api/net-table.h"
 #include "map-api/transaction.h"
 
@@ -17,8 +17,8 @@ namespace map_api {
 // This is a threadsafe MappedContainerBase implementation intended for use by
 // Map API applications. It can be obtained using Transaction::createCache().
 template <typename IdType, typename ObjectType>
-class ObjectCache : public common::MappedContainerBase<IdType, ObjectType>,
-                    public CacheBase {
+class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
+                        public CacheBase {
  public:
   // ==========================
   // MAPPED CONTAINER INTERFACE
@@ -62,11 +62,6 @@ class ObjectCache : public common::MappedContainerBase<IdType, ObjectType>,
     cache_.flush();
   }
 
-  virtual size_t numCachedItems() const {
-    LOG(FATAL) << "Not supported atm.";
-    return 0u;
-  }
-
   // =============
   // OWN FUNCTIONS
   // =============
@@ -77,7 +72,7 @@ class ObjectCache : public common::MappedContainerBase<IdType, ObjectType>,
   }
 
  private:
-  ObjectCache(Transaction* const transaction, NetTable* const table)
+  ThreadsafeCache(Transaction* const transaction, NetTable* const table)
       : table_(CHECK_NOTNULL(table)),
         chunk_manager_(kDefaultChunkSizeBytes, table),
         transaction_interface_(CHECK_NOTNULL(transaction), table,
@@ -90,9 +85,9 @@ class ObjectCache : public common::MappedContainerBase<IdType, ObjectType>,
   template <typename T>
   friend class CacheAndTransactionTest;
   NetTableTransactionInterface<IdType> transaction_interface_;
-  ObjectAndMetadataCache<IdType, ObjectType> cache_;
+  ThreadsafeObjectAndMetadataCache<IdType, ObjectType> cache_;
 };
 
 }  // namespace map_api
 
-#endif  // MAP_API_OBJECT_CACHE_H_
+#endif  // MAP_API_THREADSAFE_CACHE_H_

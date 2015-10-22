@@ -5,9 +5,9 @@
 
 #include "map-api/chunk-manager.h"
 #include "map-api/ipc.h"
-#include "map-api/object-cache.h"
 #include "map-api/test/testing-entrypoint.h"
 #include "./net_table_fixture.h"
+#include "../include/map-api/threadsafe-cache.h"
 
 namespace map_api {
 
@@ -33,7 +33,7 @@ bool requiresUpdate(const int& object, const Revision& revision) {
   return !revision.verifyEqual(NetTableFixture::kFieldName, object);
 }
 
-typedef ObjectCache<IntId, int> IntCache;
+typedef ThreadsafeCache<IntId, int> IntCache;
 
 template <typename CacheOrTransaction>
 struct IdType;

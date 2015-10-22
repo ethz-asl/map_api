@@ -23,7 +23,7 @@ template <typename IdType>
 class NetTableTransactionInterface;
 class Revision;
 template <typename IdType, typename ObjectType>
-class ObjectCache;
+class ThreadsafeCache;
 
 namespace proto {
 class Revision;
@@ -32,7 +32,7 @@ class Revision;
 class Transaction {
   friend class CacheBase;
   template <typename IdType, typename ObjectType>
-  friend class ObjectCache;
+  friend class ThreadsafeCache;
 
  public:
   Transaction(const std::shared_ptr<Workspace>& workspace,
@@ -96,7 +96,6 @@ class Transaction {
 
   // STATISTICS
   size_t numChangedItems() const;
-  std::string printCacheStatistics() const;
 
   // MISCELLANEOUS
   template <typename TrackerIdType>
@@ -105,9 +104,10 @@ class Transaction {
       const std::function<TrackerIdType(const Revision&)>&
           how_to_determine_tracker);
   template <typename IdType, typename ObjectType>
-  std::shared_ptr<ObjectCache<IdType, ObjectType>> createCache(NetTable* table);
+  std::shared_ptr<ThreadsafeCache<IdType, ObjectType>> createCache(
+      NetTable* table);
   template <typename IdType, typename ObjectType>
-  const ObjectCache<IdType, ObjectType>& getCache(NetTable* table);
+  const ThreadsafeCache<IdType, ObjectType>& getCache(NetTable* table);
 
  private:
   void enableDirectAccess();

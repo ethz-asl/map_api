@@ -17,7 +17,6 @@ class CacheBase {
  private:
   virtual std::string underlyingTableName() const = 0;
   virtual void prepareForCommit() = 0;
-  virtual size_t numCachedItems() const = 0;
   virtual size_t size() const = 0;
 };
 

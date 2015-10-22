@@ -8,7 +8,7 @@
 
 #include "map-api/chunk-manager.h"
 #include "map-api/net-table-transaction-interface.h"
-#include "map-api/object-cache.h"
+#include "map-api/threadsafe-cache.h"
 
 namespace map_api {
 
@@ -63,23 +63,23 @@ void Transaction::overrideTrackerIdentificationMethod(
 }
 
 template <typename IdType, typename ObjectType>
-std::shared_ptr<ObjectCache<IdType, ObjectType>> Transaction::createCache(
+std::shared_ptr<ThreadsafeCache<IdType, ObjectType>> Transaction::createCache(
     NetTable* table) {
   CHECK_NOTNULL(table);
-  std::shared_ptr<ObjectCache<IdType, ObjectType>> result(
-      new ObjectCache<IdType, ObjectType>(this, table));
+  std::shared_ptr<ThreadsafeCache<IdType, ObjectType>> result(
+      new ThreadsafeCache<IdType, ObjectType>(this, table));
   CHECK(caches_.emplace(table, result).second);
-
   return result;
 }
 
 template <typename IdType, typename ObjectType>
-const ObjectCache<IdType, ObjectType>& Transaction::getCache(NetTable* table) {
+const ThreadsafeCache<IdType, ObjectType>& Transaction::getCache(
+    NetTable* table) {
   CHECK_NOTNULL(table);
   // This ABSOLUTELY MUST REMAIN A DYNAMIC_CAST!!! Previously, it was static,
   // and resulted in a 3-day bug hunt.
-  const ObjectCache<IdType, ObjectType>* result =
-      dynamic_cast<const ObjectCache<IdType, ObjectType>*>(  // NOLINT
+  const ThreadsafeCache<IdType, ObjectType>* result =
+      dynamic_cast<const ThreadsafeCache<IdType, ObjectType>*>(  // NOLINT
           common::getChecked(caches_, table).get());
   CHECK(result != nullptr) << "Requested cache type does not correspond to "
                            << "cache type previously created for table "

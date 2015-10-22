@@ -58,12 +58,10 @@ class NetTableTransactionInterface
                       const std::shared_ptr<const Revision>& value)
       final override {
     std::const_pointer_cast<Revision>(value)->setId<IdType>(id);
-    // Const casts are always unfortunate. To fix the following, however,
-    // changes would need to be made deep inside Map API. In particular, it
-    // would probably be best to split Revision into RevisionPayload and
-    // RevisionMetadata, such that transaction functions can take const
-    // payloads. At the moment these functions need to take non-const revisions
-    // in order to
+    // Getting rid of this const cast should be possible, albeit painstaking.
+    // Possibilities:
+    // * Distinguish ConstRawType and MutableRawType in cache.
+    // * Do the data-metadata split at a lower level than ThreadsafeCache.
     transaction_->insert(chunk_manager_,
                          std::const_pointer_cast<Revision>(value));
     return true;
