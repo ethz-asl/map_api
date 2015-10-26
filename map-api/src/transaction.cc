@@ -57,6 +57,22 @@ void Transaction::dumpActiveChunks(NetTable* table, ConstRevisionMap* result) {
   }
 }
 
+bool Transaction::fetchAllChunksTrackedByItemsInTable(NetTable* const table) {
+  CHECK_NOTNULL(table);
+  std::vector<common::Id> item_ids;
+  enableDirectAccess();
+  getAvailableIds(table, &item_ids);
+
+  bool success = true;
+  for (const common::Id& item_id : item_ids) {
+    if (!getById(item_id, table)->fetchTrackedChunks()) {
+      success = false;
+    }
+  }
+  disableDirectAccess();
+  return success;
+}
+
 void Transaction::insert(NetTable* table, ChunkBase* chunk,
                          std::shared_ptr<Revision> revision) {
   CHECK_NOTNULL(table);
@@ -88,8 +104,8 @@ std::string Transaction::printCacheStatistics() const {
   std::stringstream ss;
   ss << "Transaction cache statistics:" << std::endl;
   for (const CacheMap::value_type& cache_pair : attached_caches_) {
-    ss << "\t " << cache_pair.second->underlyingTableName() << " cached: "
-       << cache_pair.second->numCachedItems() << "/"
+    ss << "\t " << cache_pair.second->underlyingTableName()
+       << " cached: " << cache_pair.second->numCachedItems() << "/"
        << cache_pair.second->size() << std::endl;
   }
   return ss.str();
