@@ -29,6 +29,7 @@ tools/lint/autolintc
 *.pyc
 
 # Eclipse.
+.pydevproject
 .project
 .cproject
 .settings
@@ -44,3 +45,7 @@ CMakeLists.txt.user
 
 # MacOS Desktop Services Store
 .DS_Store
+
+# Multiagent-mapping temporary files.
+.vi_command_history
+mapapi-discovery.txt
