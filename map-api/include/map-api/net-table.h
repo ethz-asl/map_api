@@ -7,8 +7,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include <aslam/common/reader-first-reader-writer-lock.h>
 #include <gtest/gtest_prod.h>
-#include <multiagent-mapping-common/reader-first-reader-writer-lock.h>
 
 #include "map-api/chunk-data-container-base.h"
 #include "map-api/app-templates.h"
@@ -267,12 +267,12 @@ class NetTable {
   std::shared_ptr<TableDescriptor> descriptor_;
   ChunkMap active_chunks_;
   // See issue #2391 for why we need a reader-first RW mutex here.
-  mutable common::ReaderFirstReaderWriterMutex active_chunks_lock_;
+  mutable aslam::ReaderFirstReaderWriterMutex active_chunks_lock_;
 
   // DO NOT USE FROM HANDLER THREAD (else TODO(tcies) mutex)
   std::unique_ptr<NetTableIndex> index_;
   std::unique_ptr<SpatialIndex> spatial_index_;
-  common::ReaderWriterMutex index_lock_;
+  aslam::ReaderWriterMutex index_lock_;
 
   std::vector<TriggerCallbackWithChunkPointer>
       triggers_to_attach_to_future_chunks_;
