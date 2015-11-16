@@ -292,16 +292,8 @@ void ChordIndex::cleanJoin(const PeerId& other) {
       continue;
     }
 
-    // locking must occur in order, in order to avoid deadlock
-    if (hash(predecessor) < hash(successor)) {
-      CHECK(lock(predecessor));
-      CHECK(lock(successor));
-    } else if (hash(predecessor) > hash(successor)) {
-      CHECK(lock(successor));
-      CHECK(lock(predecessor));
-    } else {
-      CHECK_EQ(predecessor, successor) << "Same hash of two different peers";
-      CHECK(lock(predecessor));
+    if (!tryLockInOrder({predecessor, successor})) {
+      continue;
     }
 
     PeerId successor_predecessor, predecessor_successor;
@@ -340,7 +332,7 @@ void ChordIndex::stabilizeJoin(const PeerId& other) {
   //  LOG(INFO) << PeerId::self() << " stabilize-joined " << other;
 }
 
-bool ChordIndex::lock() {
+void ChordIndex::lock() {
   while (true) {
     node_lock_.lock();
     if (!node_locked_) {
@@ -354,15 +346,26 @@ bool ChordIndex::lock() {
       usleep(1000);
     }
   }
-  return true;
 }
 
-bool ChordIndex::lock(const PeerId& subject) {
-  while (true) {
-    if (!lockRpc(subject)) {
-      usleep(1000);
-    } else {
-      break;
+bool ChordIndex::tryLock(const PeerId& subject) {
+  if (subject == PeerId::self()) {
+    lock();
+    return true;
+  }
+  return lockRpc(subject);
+}
+
+bool ChordIndex::tryLockInOrder(PeerIdList subjects) {
+  std::sort(subjects.begin(), subjects.end(),
+            [](const PeerId& a, const PeerId& b) { return hash(a) < hash(b); });
+  PeerIdList::iterator new_end = std::unique(subjects.begin(), subjects.end());
+  for (PeerIdList::iterator it = subjects.begin(); it != new_end; ++it) {
+    if (!tryLock(*it)) {
+      for (PeerIdList::iterator jt = subjects.begin(); jt != it; ++jt) {
+        unlock(*jt);
+        return false;
+      }
     }
   }
   return true;
@@ -386,7 +389,7 @@ void ChordIndex::leave() {
   CHECK_EQ(kCleanJoin, FLAGS_join_mode) << "Stabilize leave deprecated";
   leaveClean();
   // TODO(tcies) unhack! "Ensures" that pending requests resolve
-  usleep(FLAGS_simulated_lag_ms * 100000 + 100000);
+  // usleep(FLAGS_simulated_lag_ms * 100000 + 100000);
   initialized_ = false;
   initialized_cv_.notify_all();
   integrated_ = false;

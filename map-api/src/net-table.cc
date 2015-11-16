@@ -641,15 +641,21 @@ void NetTable::handleUpdateRequest(const common::Id& chunk_id,
 void NetTable::handleRoutedNetTableChordRequests(const Message& request,
                                                  Message* response) {
   aslam::ScopedReadLock lock(&index_lock_);
-  CHECK_NOTNULL(index_.get());
-  index_->handleRoutedRequest(request, response);
+  if (index_) {
+    index_->handleRoutedRequest(request, response);
+  } else {
+    response->decline();
+  }
 }
 
 void NetTable::handleRoutedSpatialChordRequests(const Message& request,
                                                 Message* response) {
   aslam::ScopedReadLock lock(&index_lock_);
-  CHECK_NOTNULL(spatial_index_.get());
-  spatial_index_->handleRoutedRequest(request, response);
+  if (spatial_index_) {
+    spatial_index_->handleRoutedRequest(request, response);
+  } else {
+    response->decline();
+  }
 }
 
 void NetTable::handleAnnounceToListeners(const PeerId& announcer,
