@@ -1,5 +1,6 @@
 #include "map-api/chord-index.h"
 
+#include <algorithm>
 #include <type_traits>
 
 #include <gflags/gflags.h>
@@ -380,7 +381,11 @@ void ChordIndex::unlock() {
 }
 
 void ChordIndex::unlock(const PeerId& subject) {
-  CHECK(unlockRpc(subject));
+  if (subject == PeerId::self()) {
+    unlock();
+  } else {
+    CHECK(unlockRpc(subject)) << subject << " " << hash(subject);
+  }
 }
 
 void ChordIndex::leave() {
@@ -403,46 +408,15 @@ void ChordIndex::leaveClean() {
     predecessor = predecessor_->id;
     successor = successor_->id;
     peer_lock_.releaseReadLock();
-    // in-order locking
-    if (hash(successor) <= hash(predecessor)) {
-      if (hash(successor) < hash(predecessor)) {
-        CHECK_NE(PeerId::self(), successor);
-        CHECK_NE(PeerId::self(), predecessor);
-        if (own_key_ > hash(successor)) {  // su ... pr, self
-          CHECK(lock(successor));
-          CHECK(lock(predecessor));
-          CHECK(lock());
-        } else {  // self, su ... pr
-          CHECK(lock());
-          CHECK(lock(successor));
-          CHECK(lock(predecessor));
-        }
-      } else {
-        CHECK_EQ(successor, predecessor);
-        if (own_key_ < hash(successor)) {  // self, su = pr
-          CHECK(lock());
-          CHECK(lock(successor));
-        } else if (hash(successor) < own_key_) {  // su = pr, self
-          CHECK(lock(successor));
-          CHECK(lock());
-        } else {  // su = pr = self
-          CHECK_EQ(PeerId::self(), predecessor);
-          CHECK(lock());
-        }
-      }
-    } else {  // general case: ... pr, self, su ...
-      CHECK_NE(PeerId::self(), successor);
-      CHECK_NE(PeerId::self(), predecessor);
-      CHECK(lock(predecessor));
-      CHECK(lock());
-      CHECK(lock(successor));
+
+    if (!tryLockInOrder({predecessor, PeerId::self(), successor})) {
+      continue;
     }
+
     // verify validity
     if (predecessor == PeerId::self()) {
-      if (successor_->id == PeerId::self() &&
-          predecessor_->id == PeerId::self()) {
-        break;
-      }
+      CHECK(successor == PeerId::self());
+      break;
     } else {
       bool predecessor_consistent, self_consistent, successor_consistent;
       PeerId predecessor_successor, successor_predecessor;
