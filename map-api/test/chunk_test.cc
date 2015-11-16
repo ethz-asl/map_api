@@ -10,13 +10,15 @@
 
 namespace map_api {
 
-TEST_F(NetTableFixture, NetInsert) {
+class ChunkTest : public NetTableFixture {};
+
+TEST_F(ChunkTest, NetInsert) {
   ChunkBase* chunk = table_->newChunk();
   ASSERT_TRUE(chunk);
   insert(42, chunk);
 }
 
-TEST_F(NetTableFixture, ParticipationRequest) {
+TEST_F(ChunkTest, ParticipationRequest) {
   enum SubProcesses {
     ROOT,
     A
@@ -44,7 +46,7 @@ TEST_F(NetTableFixture, ParticipationRequest) {
   }
 }
 
-TEST_F(NetTableFixture, FullJoinTwice) {
+TEST_F(ChunkTest, FullJoinTwice) {
   enum SubProcesses {
     ROOT,
     A,
@@ -96,7 +98,7 @@ TEST_F(NetTableFixture, FullJoinTwice) {
   }
 }
 
-TEST_F(NetTableFixture, RemoteInsert) {
+TEST_F(ChunkTest, RemoteInsert) {
   enum Subprocesses {
     ROOT,
     A
@@ -132,7 +134,7 @@ TEST_F(NetTableFixture, RemoteInsert) {
   }
 }
 
-TEST_F(NetTableFixture, Leave) {
+TEST_F(ChunkTest, Leave) {
   enum SubProcesses {
     ROOT,
     A
@@ -168,7 +170,7 @@ TEST_F(NetTableFixture, Leave) {
   }
 }
 
-TEST_F(NetTableFixture, RemoteUpdate) {
+TEST_F(ChunkTest, RemoteUpdate) {
   enum Subprocesses {
     ROOT,
     A
@@ -219,7 +221,7 @@ DEFINE_uint64(grind_processes, 10u,
 DEFINE_uint64(grind_cycles, 10u,
               "Total amount of insert-update cycles in ChunkTest.Grind");
 
-TEST_F(NetTableFixture, Grind) {
+TEST_F(ChunkTest, Grind) {
   const int kInsertUpdateCycles = FLAGS_grind_cycles;
   const uint64_t kProcesses = FLAGS_grind_processes;
   enum Barriers {
@@ -260,7 +262,7 @@ TEST_F(NetTableFixture, Grind) {
   }
 }
 
-TEST_F(NetTableFixture, ChunkTransactions) {
+TEST_F(ChunkTest, ChunkTransactions) {
   const uint64_t kProcesses = FLAGS_grind_processes;
   enum Barriers {
     INIT,
@@ -325,7 +327,7 @@ TEST_F(NetTableFixture, ChunkTransactions) {
   }
 }
 
-TEST_F(NetTableFixture, ChunkTransactionsConflictConditions) {
+TEST_F(ChunkTest, ChunkTransactionsConflictConditions) {
   const uint64_t kProcesses = FLAGS_grind_processes;
   const int kUniqueItems = 10;
   enum Barriers {
@@ -377,7 +379,7 @@ TEST_F(NetTableFixture, ChunkTransactionsConflictConditions) {
   }
 }
 
-TEST_F(NetTableFixture, Triggers) {
+TEST_F(ChunkTest, Triggers) {
   enum Processes {
     ROOT,
     A
@@ -467,7 +469,7 @@ TEST_F(NetTableFixture, Triggers) {
   }
 }
 
-TEST_F(NetTableFixture, SendHistory) {
+TEST_F(ChunkTest, SendHistory) {
   enum Processes {
     ROOT,
     A
@@ -521,7 +523,7 @@ TEST_F(NetTableFixture, SendHistory) {
   }
 }
 
-TEST_F(NetTableFixture, GetCommitTimes) {
+TEST_F(ChunkTest, GetCommitTimes) {
   chunk_ = table_->newChunk();
   Transaction first;
   common::Id id;
