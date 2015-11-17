@@ -70,8 +70,8 @@ bool ChordIndex::handleLock(const PeerId& requester) {
 
 bool ChordIndex::handleUnlock(const PeerId& requester) {
   if (!waitUntilInitialized()) {
-    // TODO(tcies) re-introduce request_status
-    LOG(ERROR) << "Not active any more! Clean solution?";
+    // A peer locked by someone else must not go inactive.
+    LOG(ERROR) << "Not active any more!";
   }
   std::lock_guard<std::mutex> lock(node_lock_);
   if (!node_locked_ || node_lock_holder_ != requester) {
@@ -229,8 +229,8 @@ PeerId ChordIndex::findSuccessor(const Key& key) {
         continue;
       }
       if (!getSuccessorRpc(predecessor, &result)) {
-        LOG(WARNING) << "Couldn't get successor immediately due to temporary "
-                     << "change in Chord ring topology.";
+        VLOG(3) << "Couldn't get successor immediately due to temporary "
+                << "change in Chord ring topology.";
         continue;
       }
       return result;
@@ -417,8 +417,6 @@ void ChordIndex::unlock(const PeerId& subject) {
 void ChordIndex::leave() {
   CHECK_EQ(kCleanJoin, FLAGS_join_mode) << "Stabilize leave deprecated";
   leaveClean();
-  // TODO(tcies) unhack! "Ensures" that pending requests resolve
-  // usleep(FLAGS_simulated_lag_ms * 100000 + 100000);
   stabilizer_.join();
   initialized_ = false;
   initialized_cv_.notify_all();

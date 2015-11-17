@@ -47,11 +47,13 @@ void NetTableIndex::announcePosession(const common::Id& chunk_id) {
 void NetTableIndex::renouncePosession(const common::Id& chunk_id) {
   std::string peers_string;
   proto::PeerList peers;
-  while (!retrieveData(chunk_id.hexString(), &peers_string)) {
-    LOG(WARNING)
+  constexpr size_t max_attempts = 1e4u;
+  for (size_t num_attempts = 0u;
+       !retrieveData(chunk_id.hexString(), &peers_string); ++num_attempts) {
+    usleep(1e3);
+    CHECK_LT(num_attempts, max_attempts)
         << "Failed to retrieve data about chunk " << chunk_id
-        << " from the net table index. If this message loops forever, the "
-        << "data has been lost!";
+        << " from the net table index. The data has been lost!";
   }
   CHECK(peers.ParseFromString(peers_string));
 
