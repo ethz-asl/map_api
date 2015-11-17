@@ -34,14 +34,14 @@ bool NetTable::init(std::shared_ptr<TableDescriptor> descriptor) {
 }
 
 void NetTable::createIndex() {
-  common::ScopedWriteLock lock(&index_lock_);
+  aslam::ScopedWriteLock lock(&index_lock_);
   CHECK(index_.get() == nullptr);
   index_.reset(new NetTableIndex(name()));
   index_->create();
 }
 
 void NetTable::joinIndex(const PeerId& entry_point) {
-  common::ScopedWriteLock lock(&index_lock_);
+  aslam::ScopedWriteLock lock(&index_lock_);
   CHECK(index_.get() == nullptr);
   index_.reset(new NetTableIndex(name()));
   index_->join(entry_point);
@@ -49,7 +49,7 @@ void NetTable::joinIndex(const PeerId& entry_point) {
 
 void NetTable::createSpatialIndex(const SpatialIndex::BoundingBox& bounds,
                                   const std::vector<size_t>& subdivision) {
-  common::ScopedWriteLock lock(&index_lock_);
+  aslam::ScopedWriteLock lock(&index_lock_);
   CHECK(spatial_index_.get() == nullptr);
   spatial_index_.reset(new SpatialIndex(name(), bounds, subdivision));
   spatial_index_->create();
@@ -58,7 +58,7 @@ void NetTable::createSpatialIndex(const SpatialIndex::BoundingBox& bounds,
 void NetTable::joinSpatialIndex(const SpatialIndex::BoundingBox& bounds,
                                 const std::vector<size_t>& subdivision,
                                 const PeerId& entry_point) {
-  common::ScopedWriteLock lock(&index_lock_);
+  aslam::ScopedWriteLock lock(&index_lock_);
   CHECK(spatial_index_.get() == nullptr);
   spatial_index_.reset(new SpatialIndex(name(), bounds, subdivision));
   spatial_index_->join(entry_point);
@@ -84,7 +84,7 @@ void NetTable::announceToListeners(const PeerIdList& listeners) {
 const std::string& NetTable::name() const { return descriptor_->name(); }
 
 ChunkBase* NetTable::addInitializedChunk(std::unique_ptr<ChunkBase>&& chunk) {
-  common::ScopedWriteLock lock(&active_chunks_lock_);
+  aslam::ScopedWriteLock lock(&active_chunks_lock_);
   std::pair<ChunkMap::iterator, bool> emplaced =
       active_chunks_.emplace(chunk->id(), std::move(chunk));
   CHECK(emplaced.second);
@@ -221,7 +221,7 @@ void NetTable::registerChunkInSpace(
   active_chunks_lock_.acquireReadLock();
   CHECK(active_chunks_.find(chunk_id) != active_chunks_.end());
   active_chunks_lock_.releaseReadLock();
-  common::ScopedReadLock lock(&index_lock_);
+  aslam::ScopedReadLock lock(&index_lock_);
   spatial_index_->announceChunk(chunk_id, bounding_box);
 }
 
@@ -231,7 +231,7 @@ void NetTable::getChunkReferencesInBoundingBox(
   CHECK_NOTNULL(chunk_ids);
   timing::Timer seek_timer("map_api::NetTable::getChunksInBoundingBox - seek");
   {
-    common::ScopedReadLock lock(&index_lock_);
+    aslam::ScopedReadLock lock(&index_lock_);
     spatial_index_->seekChunks(bounding_box, chunk_ids);
   }
   seek_timer.Stop();
@@ -265,7 +265,7 @@ void NetTable::attachTriggerToCurrentAndFutureChunks(
     const TriggerCallbackWithChunkPointer& callback) {
   CHECK(callback);
   // Make sure no chunks are added during the execution of this.
-  common::ScopedReadLock lock(&active_chunks_lock_);
+  aslam::ScopedReadLock lock(&active_chunks_lock_);
   // Make sure future chunks will get the trigger attached.
   {
     std::lock_guard<std::mutex> attach_lock(m_triggers_to_attach_);
@@ -285,7 +285,7 @@ void NetTable::attachCallbackToChunkAcquisition(
     const ChunkAcquisitionCallback& callback) {
   CHECK(callback);
   // Make sure no chunks are added during the execution of this.
-  common::ScopedReadLock lock(&active_chunks_lock_);
+  aslam::ScopedReadLock lock(&active_chunks_lock_);
   std::lock_guard<std::mutex> attach_lock(m_chunk_acquisition_callbacks_);
   chunk_acquisition_callbacks_.push_back(callback);
 }
@@ -307,7 +307,7 @@ bool NetTable::listenToChunksFromPeer(const PeerId& peer) {
 
 void NetTable::handleListenToChunksFromPeer(const PeerId& listener,
                                             Message* response) {
-  common::ScopedReadLock chunk_lock(&active_chunks_lock_);
+  aslam::ScopedReadLock chunk_lock(&active_chunks_lock_);
   std::set<ChunkBase*> chunks_to_share_now;
   // Assumes read lock can be recursive (which it currently can).
   getActiveChunks(&chunks_to_share_now);
@@ -523,7 +523,7 @@ void NetTable::unlockActiveChunks() {
 
 void NetTable::forEachActiveChunk(
     const std::function<void(const ChunkBase& chunk)>& action) const {
-  common::ScopedReadLock lock(&active_chunks_lock_);
+  aslam::ScopedReadLock lock(&active_chunks_lock_);
   for (const ChunkMap::value_type& chunk : active_chunks_) {
     action(*chunk.second);
   }
@@ -531,7 +531,7 @@ void NetTable::forEachActiveChunk(
 
 void NetTable::forEachActiveChunkUntil(const std::function<
     bool(const ChunkBase& chunk)>& action) const {  // NOLINT
-  common::ScopedReadLock lock(&active_chunks_lock_);
+  aslam::ScopedReadLock lock(&active_chunks_lock_);
   for (const ChunkMap::value_type& chunk : active_chunks_) {
     if (action(*chunk.second)) {
       break;
@@ -640,14 +640,14 @@ void NetTable::handleUpdateRequest(const common::Id& chunk_id,
 
 void NetTable::handleRoutedNetTableChordRequests(const Message& request,
                                                  Message* response) {
-  common::ScopedReadLock lock(&index_lock_);
+  aslam::ScopedReadLock lock(&index_lock_);
   CHECK_NOTNULL(index_.get());
   index_->handleRoutedRequest(request, response);
 }
 
 void NetTable::handleRoutedSpatialChordRequests(const Message& request,
                                                 Message* response) {
-  common::ScopedReadLock lock(&index_lock_);
+  aslam::ScopedReadLock lock(&index_lock_);
   CHECK_NOTNULL(spatial_index_.get());
   spatial_index_->handleRoutedRequest(request, response);
 }
@@ -725,20 +725,20 @@ void NetTable::leaveIndices() {
 void NetTable::getChunkHolders(const common::Id& chunk_id,
                                std::unordered_set<PeerId>* peers) {
   CHECK_NOTNULL(peers);
-  common::ScopedReadLock lock(&index_lock_);
+  aslam::ScopedReadLock lock(&index_lock_);
   CHECK_NOTNULL(index_.get());
   index_->seekPeers(chunk_id, peers);
 }
 
 void NetTable::joinChunkHolders(const common::Id& chunk_id) {
-  common::ScopedReadLock lock(&index_lock_);
+  aslam::ScopedReadLock lock(&index_lock_);
   CHECK_NOTNULL(index_.get());
   VLOG(5) << "Joining " << chunk_id.hexString() << " holders";
   index_->announcePosession(chunk_id);
 }
 
 void NetTable::leaveChunkHolders(const common::Id& chunk_id) {
-  common::ScopedReadLock lock(&index_lock_);
+  aslam::ScopedReadLock lock(&index_lock_);
   CHECK_NOTNULL(index_.get());
   VLOG(5) << "Leaving " << chunk_id.hexString() << " holders";
   index_->renouncePosession(chunk_id);
