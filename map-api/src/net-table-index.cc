@@ -47,7 +47,7 @@ void NetTableIndex::announcePosession(const common::Id& chunk_id) {
 void NetTableIndex::renouncePosession(const common::Id& chunk_id) {
   std::string peers_string;
   proto::PeerList peers;
-  constexpr size_t max_attempts = 1e4u;
+  constexpr size_t max_attempts = 1e4;
   for (size_t num_attempts = 0u;
        !retrieveData(chunk_id.hexString(), &peers_string); ++num_attempts) {
     usleep(1e3);
