@@ -47,7 +47,12 @@ void NetTableIndex::announcePosession(const common::Id& chunk_id) {
 void NetTableIndex::renouncePosession(const common::Id& chunk_id) {
   std::string peers_string;
   proto::PeerList peers;
-  CHECK(retrieveData(chunk_id.hexString(), &peers_string));
+  while (!retrieveData(chunk_id.hexString(), &peers_string)) {
+    LOG(WARNING)
+        << "Failed to retrieve data about chunk " << chunk_id
+        << " from the net table index. If this message loops forever, the "
+        << "data has been lost!";
+  }
   CHECK(peers.ParseFromString(peers_string));
 
   bool found = false;
@@ -58,7 +63,7 @@ void NetTableIndex::renouncePosession(const common::Id& chunk_id) {
       break;
     }
   }
-  LOG_IF(ERROR, !found)
+  LOG_IF(WARNING, !found)
       << "Tried to renounce possession that was not announced!";
   CHECK(addData(chunk_id.hexString(), peers.SerializeAsString()));
 }
@@ -271,9 +276,11 @@ bool NetTableIndex::rpc(
   routed_request.set_serialized_message(request.SerializeAsString());
   to_be_sent.impose<kRoutedChordRequest>(routed_request);
   if (!peers_.try_request(to, &to_be_sent, response)) {
+    VLOG(3) << "NetTableIndex RPC request to " << to << " failed.";
     return false;
   }
   if (response->isType<Message::kDecline>()) {
+    VLOG(3) << "NetTableIndex RPC request to " << to << " declined.";
     return false;
   }
   return true;

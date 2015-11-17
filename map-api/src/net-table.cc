@@ -710,6 +710,7 @@ void NetTable::attachTriggers(ChunkBase* chunk) {
 void NetTable::leaveIndices() {
   index_lock_.acquireReadLock();
   if (index_.get() != nullptr) {
+    VLOG(1) << PeerId::self() << " leaving index for table " << name();
     index_->leave();
     CHECK(index_lock_.upgradeToWriteLock());
     index_.reset();
