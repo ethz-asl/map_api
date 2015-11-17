@@ -7,8 +7,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include <aslam/common/reader-first-reader-writer-lock.h>
 #include <gtest/gtest_prod.h>
-#include <multiagent-mapping-common/reader-first-reader-writer-lock.h>
 
 #include "map-api/chunk-data-container-base.h"
 #include "map-api/app-templates.h"
@@ -75,7 +75,10 @@ class NetTable {
   template <typename IdType>
   void followTrackedChunksOfItem(const IdType& item, ChunkBase* tracker_chunk);
   // Do the above automatically for all created and received items.
-  void autoFollowTrackedChunks();
+  void autoFollowTrackedChunks() __attribute__((deprecated(
+      "This function is evil! Tracked chunks should be manually fetched "
+      "by the user in a controlled manner. Otherwise, this messes with "
+      "views!")));
 
   // SPATIAL INDEX CHUNK MANAGEMENT
   void registerChunkInSpace(const common::Id& chunk_id,
@@ -254,10 +257,6 @@ class NetTable {
 
   void attachTriggers(ChunkBase* chunk);
 
-  // Complements autoFollowTrackedChunks.
-  void fetchAllCallback(const common::IdSet& insertions,
-                        const common::IdSet& updates, ChunkBase* chunk);
-
   void leaveIndices();
 
   void getChunkHolders(const common::Id& chunk_id,
@@ -268,12 +267,12 @@ class NetTable {
   std::shared_ptr<TableDescriptor> descriptor_;
   ChunkMap active_chunks_;
   // See issue #2391 for why we need a reader-first RW mutex here.
-  mutable common::ReaderFirstReaderWriterMutex active_chunks_lock_;
+  mutable aslam::ReaderFirstReaderWriterMutex active_chunks_lock_;
 
   // DO NOT USE FROM HANDLER THREAD (else TODO(tcies) mutex)
   std::unique_ptr<NetTableIndex> index_;
   std::unique_ptr<SpatialIndex> spatial_index_;
-  common::ReaderWriterMutex index_lock_;
+  aslam::ReaderWriterMutex index_lock_;
 
   std::vector<TriggerCallbackWithChunkPointer>
       triggers_to_attach_to_future_chunks_;

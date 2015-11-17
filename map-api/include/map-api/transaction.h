@@ -42,7 +42,9 @@ class Transaction {
   explicit Transaction(const std::shared_ptr<Workspace>& workspace);
   explicit Transaction(const LogicalTime& begin_time);
 
+  // ====
   // READ
+  // ====
   inline LogicalTime getBeginTime() const { return begin_time_; }
   /**
    * By Id or chunk:
@@ -68,7 +70,9 @@ class Transaction {
             ConstRevisionMap* result);
   bool fetchAllChunksTrackedByItemsInTable(NetTable* const table);
 
+  // =====
   // WRITE
+  // =====
   void insert(NetTable* table, ChunkBase* chunk,
               std::shared_ptr<Revision> revision);
   /**
@@ -83,7 +87,9 @@ class Transaction {
   template <typename IdType>
   void remove(const IdType& id, NetTable* table);
 
+  // ======================
   // TRANSACTION OPERATIONS
+  // ======================
   bool commit();
   inline LogicalTime getCommitTime() const { return commit_time_; }
   /**
@@ -94,10 +100,14 @@ class Transaction {
   void merge(const std::shared_ptr<Transaction>& merge_transaction,
              ConflictMap* conflicts);
 
+  // ==========
   // STATISTICS
+  // ==========
   size_t numChangedItems() const;
 
+  // =============
   // MISCELLANEOUS
+  // =============
   template <typename TrackerIdType>
   void overrideTrackerIdentificationMethod(
       NetTable* trackee_table, NetTable* tracker_table,

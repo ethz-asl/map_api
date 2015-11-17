@@ -218,7 +218,7 @@ void LegacyChunk::leaveImpl() {
   // this must happen after acquring the write lock to avoid deadlocks, should
   // two peers try to leave at the same time.
   {
-    common::ScopedWriteLock lock(&leave_lock_);
+    aslam::ScopedWriteLock lock(&leave_lock_);
     CHECK(peers_.undisputableBroadcast(&request));
     relinquished_ = true;
   }
