@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include <multiagent-mapping-common/reader-writer-lock.h>
+#include <aslam/common/reader-writer-lock.h>
 
 #include "map-api/net-table.h"
 #include "map-api/table-descriptor.h"
@@ -142,7 +142,7 @@ class NetTableManager {
   ChunkBase* metatable_chunk_;
 
   TableMap tables_;
-  mutable common::ReaderWriterMutex tables_lock_;
+  mutable aslam::ReaderWriterMutex tables_lock_;
 
   NetTable* metatable_;
 };
