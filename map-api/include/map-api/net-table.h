@@ -34,14 +34,15 @@ inline std::string humanReadableBytes(double size) {
 }
 
 class NetTable {
+  friend class ChunkTest;
   friend class ChunkTransaction;
   friend class NetTableFixture;
   friend class NetTableManager;
   friend class NetTableTransaction;
   friend class SpatialIndexTest;
   friend class Workspace;
-  FRIEND_TEST(NetTableFixture, RemoteUpdate);
-  FRIEND_TEST(NetTableFixture, Grind);
+  FRIEND_TEST(ChunkTest, RemoteUpdate);
+  FRIEND_TEST(ChunkTest, Grind);
   FRIEND_TEST(NetTableFixture, SaveAndRestoreTableFromFile);
 
  public:
