@@ -20,7 +20,7 @@ class Revision;
 class NetTableTransaction {
   friend class Transaction;
   friend class NetTableFixture;
-  FRIEND_TEST(NetTableFixture, NetTableTransactions);
+  FRIEND_TEST(NetTableTest, NetTableTransactions);
 
  private:
   NetTableTransaction(const LogicalTime& begin_time, NetTable* table,
