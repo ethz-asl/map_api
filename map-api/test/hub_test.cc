@@ -9,7 +9,9 @@
 
 namespace map_api {
 
-TEST_F(MapApiFixture, LaunchTest) {
+class HubTest : public MapApiFixture {};
+
+TEST_F(HubTest, LaunchTest) {
   enum Processes {
     ROOT,
     SLAVE

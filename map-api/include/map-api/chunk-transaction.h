@@ -26,8 +26,8 @@ class ChunkTransaction {
   friend class Transaction;      // for internal typedefs
   friend class NetTableManager;  // metatable works directly with this
   friend class NetTableFixture;
-  FRIEND_TEST(NetTableFixture, ChunkTransactions);
-  FRIEND_TEST(NetTableFixture, ChunkTransactionsConflictConditions);
+  FRIEND_TEST(ChunkTest, ChunkTransactions);
+  FRIEND_TEST(ChunkTest, ChunkTransactionsConflictConditions);
 
  private:
   ChunkTransaction(ChunkBase* chunk, NetTable* table);
