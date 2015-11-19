@@ -329,7 +329,9 @@ void LegacyChunk::bulkInsertLocked(const MutableRevisionMap& items,
 void LegacyChunk::updateLocked(const LogicalTime& time,
                                const std::shared_ptr<Revision>& item) {
   CHECK(item != nullptr);
-  CHECK_EQ(id(), item->getChunkId());
+  CHECK_EQ(id(), item->getChunkId())
+      << "Corrupted item metadata for item with id "
+      << item->getId<common::Id>();
   proto::PatchRequest update_request;
   fillMetadata(&update_request);
   Message request;

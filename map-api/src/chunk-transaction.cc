@@ -73,8 +73,12 @@ void ChunkTransaction::remove(std::shared_ptr<Revision> revision) {
   CHECK(revision->structureMatch(*structure_reference_));
   common::Id id = revision->getId<common::Id>();
   CHECK(id.isValid());
-  CHECK(removes_.emplace(id, revision).second);
-  // TODO(tcies) situation uncommitted
+  InsertMap::iterator uncommited = insertions_.find(id);
+  if (uncommited != insertions_.end()) {
+    insertions_.erase(uncommited);
+  } else {
+    CHECK(removes_.emplace(id, revision).second);
+  }
 }
 
 bool ChunkTransaction::commit() {

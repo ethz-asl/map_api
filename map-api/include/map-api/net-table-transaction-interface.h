@@ -46,11 +46,10 @@ class NetTableTransactionInterface
 
   virtual const std::shared_ptr<const Revision>& get(const IdType& id) const
       final override {
-    if (!live_objects_[id]) {
-      live_objects_[id].reset(new std::shared_ptr<const Revision>);
-      *live_objects_[id] = transaction_->getById(id, table_);
-    }
+    live_objects_[id].reset(new std::shared_ptr<const Revision>);
+    *live_objects_[id] = transaction_->getById(id, table_);
     CHECK(*live_objects_[id]);
+    CHECK((*live_objects_[id])->getChunkId().isValid());
     return *live_objects_[id];
   }
 

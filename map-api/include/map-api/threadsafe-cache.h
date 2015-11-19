@@ -6,6 +6,7 @@
 
 #include <gtest/gtest_prod.h>
 #include <multiagent-mapping-common/mapped-container-base.h>
+#include <multiagent-mapping-common/monitor.h>
 #include "internal/threadsafe-object-and-metadata-cache.h"
 
 #include "map-api/cache-base.h"
@@ -47,6 +48,7 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
   virtual bool insert(const IdType& id, const ObjectType& value) {
     ObjectAndMetadata<ObjectType> insertion;
     insertion.createForInsert(value, table_);
+    insertions_.get()->emplace(id);
     return cache_.insert(id, insertion);
   }
 
@@ -60,6 +62,15 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
   virtual void prepareForCommit() {
     VLOG(3) << "Flushing object cache for table " << table_->name() << "...";
     cache_.flush();
+  }
+
+  virtual void discardCachedInsertions() {
+    typename common::Monitor<std::unordered_set<IdType>>::ThreadSafeAccess&&
+        insertions = insertions_.get();
+    for (const IdType& id : *insertions) {
+      cache_.discardCached(id);
+    }
+    insertions->clear();
   }
 
   // =============
@@ -77,7 +88,8 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
         chunk_manager_(kDefaultChunkSizeBytes, table),
         transaction_interface_(CHECK_NOTNULL(transaction), table,
                                &chunk_manager_),
-        cache_(&transaction_interface_) {}
+        cache_(&transaction_interface_),
+        insertions_(std::unordered_set<IdType>()) {}
   friend class Transaction;
 
   NetTable* const table_;
@@ -86,6 +98,7 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
   friend class CacheAndTransactionTest;
   NetTableTransactionInterface<IdType> transaction_interface_;
   ThreadsafeObjectAndMetadataCache<IdType, ObjectType> cache_;
+  common::Monitor<std::unordered_set<IdType>> insertions_;
 };
 
 }  // namespace map_api

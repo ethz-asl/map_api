@@ -114,6 +114,12 @@ bool Transaction::commit() {
   enableDirectAccess();
   pushNewChunkIdsToTrackers();
   disableDirectAccess();
+  // This must happen after chunk tracker resolution, since chunk tracker
+  // resolution might access the cache in read-mode, but we won't be able to
+  // fetch the proper metadata until after the commit!
+  for (const CacheMap::value_type& cache_pair : caches_) {
+    cache_pair.second->discardCachedInsertions();
+  }
   timing::Timer timer("map_api::Transaction::commit - lock");
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->lock();

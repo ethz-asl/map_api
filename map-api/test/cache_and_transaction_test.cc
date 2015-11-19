@@ -63,6 +63,8 @@ class CacheAndTransactionTest : public NetTableFixture {
 
   void insert(const int to_insert,
               typename IdType<CacheOrTransaction>::type* id);
+  void insert(const typename IdType<CacheOrTransaction>::type& id,
+              const int to_insert);
   void update(const int new_value,
               const typename IdType<CacheOrTransaction>::type& id);
 
@@ -99,6 +101,20 @@ void CacheAndTransactionTest<IntCache>::insert(const int to_insert, IntId* id) {
   CHECK(cache_);
   generateId(CHECK_NOTNULL(id));
   CHECK(cache_->insert(*id, to_insert));
+}
+
+template <>
+void CacheAndTransactionTest<Transaction>::insert(const typename common::Id& id,
+                                                  const int to_insert) {
+  CHECK(transaction_);
+  NetTableFixture::insert(to_insert, id, transaction_.get());
+}
+
+template <>
+void CacheAndTransactionTest<IntCache>::insert(const IntId& id,
+                                               const int to_insert) {
+  CHECK(cache_);
+  CHECK(cache_->insert(id, to_insert));
 }
 
 template <>
@@ -153,6 +169,24 @@ TYPED_TEST(CacheAndTransactionTest, MultiCommit) {
 
   this->update(5, inserted_id_2);
   EXPECT_FALSE(this->transaction_->commit());
+}
+
+TYPED_TEST(CacheAndTransactionTest, InsertErase) {
+  typename IdType<TypeParam>::type inserted_id_1;
+
+  this->insert(1, &inserted_id_1);
+  this->remove(inserted_id_1);
+  EXPECT_TRUE(this->transaction_->commit());
+  ASSERT_EQ(0u, this->count());
+}
+
+TYPED_TEST(CacheAndTransactionTest, InsertUpdate) {
+  typename IdType<TypeParam>::type inserted_id_1;
+
+  this->insert(1, &inserted_id_1);
+  this->update(2, inserted_id_1);
+  EXPECT_TRUE(this->transaction_->commit());
+  ASSERT_EQ(1u, this->count());
 }
 
 }  // namespace map_api
