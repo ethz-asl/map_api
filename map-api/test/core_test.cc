@@ -6,7 +6,7 @@
 
 namespace map_api {
 
-TEST(Core, validInit) {
+TEST(CoreTest, validInit) {
   Core* instance = Core::instance();
   EXPECT_EQ(nullptr, instance);
   Core::initializeInstance();
