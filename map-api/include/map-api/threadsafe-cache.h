@@ -34,9 +34,6 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
   virtual bool empty() const { return cache_.empty(); }
 
   virtual ObjectType& getMutable(const IdType& id) {
-    if (table_->name() == "visual_inertial_mapping_mission_table") {
-      VLOG(5) << "getMutable() on " << id;
-    }
     return cache_.getMutable(id).object;
   }
 
