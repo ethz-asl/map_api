@@ -8,8 +8,8 @@
 #include <thread>
 #include <unordered_map>
 
+#include <aslam/common/reader-writer-lock.h>
 #include <gtest/gtest_prod.h>
-#include <multiagent-mapping-common/reader-writer-lock.h>
 
 #include "map-api/peer-id.h"
 
@@ -86,8 +86,9 @@ class ChordIndex {
   /**
    * Argument-free versions (un)lock self
    */
-  bool lock();
-  bool lock(const PeerId& subject);
+  void lock();
+  bool tryLock(const PeerId& subject);
+  bool tryLockInOrder(PeerIdList subjects);
   void unlock();
   void unlock(const PeerId& subject);
 
@@ -207,7 +208,7 @@ class ChordIndex {
   SuccessorListItem successor_;
   std::shared_ptr<ChordPeer> predecessor_;
 
-  common::ReaderWriterMutex peer_lock_;
+  aslam::ReaderWriterMutex peer_lock_;
 
   FRIEND_TEST(ChordIndexTestInitialized, onePeerJoin);
   friend class ChordIndexTestInitialized;
@@ -230,7 +231,7 @@ class ChordIndex {
 
   // TODO(tcies) data stats: Has it already been requested?
   DataMap data_;
-  common::ReaderWriterMutex data_lock_;
+  aslam::ReaderWriterMutex data_lock_;
 
   std::mutex node_lock_;
   bool node_locked_ = false;

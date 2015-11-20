@@ -29,10 +29,14 @@ tools/lint/autolintc
 *.pyc
 
 # Eclipse.
+.pydevproject
 .project
 .cproject
 .settings
 CATKIN_IGNORE
+
+# QtCreator
+CMakeLists.txt.user
 
 *.mat
 *.csv
@@ -41,3 +45,7 @@ CATKIN_IGNORE
 
 # MacOS Desktop Services Store
 .DS_Store
+
+# Multiagent-mapping temporary files.
+.vi_command_history
+mapapi-discovery.txt

@@ -34,7 +34,9 @@ UNIQUE_ID_DEFINE_ID_HASH(map_api::IntId);
 
 namespace map_api {
 
-TEST_F(NetTableFixture, Cache) {
+class CacheTest : public NetTableFixture {};
+
+TEST_F(CacheTest, GeneralTest) {
   enum SubProcesses {
     ROOT,
     A

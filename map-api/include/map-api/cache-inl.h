@@ -1,5 +1,7 @@
 #ifndef MAP_API_CACHE_INL_H_
 #define MAP_API_CACHE_INL_H_
+
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -7,7 +9,11 @@
 #include <glog/logging.h>
 #include <timing/timer.h>
 
+DECLARE_bool(map_api_prefetch_cache);
+DECLARE_bool(map_api_insert_into_existing_chunk);
+
 namespace map_api {
+class ChunkBase;
 
 template <typename IdType, typename Value, typename DerivedValue>
 Cache<IdType, Value, DerivedValue>::Cache(
@@ -22,6 +28,10 @@ Cache<IdType, Value, DerivedValue>::Cache(
   CHECK_NOTNULL(chunk_manager.get());
 
   transaction_.get()->attachCache(underlying_table_, this);
+
+  if (FLAGS_map_api_prefetch_cache) {
+    prefetchAllRevisionsLocked();
+  }
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
@@ -153,12 +163,21 @@ Cache<IdType, Value, DerivedValue>::getRevisionLocked(const IdType& id) const {
 }
 
 template <typename IdType, typename Value, typename DerivedValue>
+void Cache<IdType, Value, DerivedValue>::prefetchAllRevisionsLocked() const {
+  ConstRevisionMap revisions;
+  transaction_.get()->dumpActiveChunks(underlying_table_, &revisions);
+  revisions_.swap(revisions);
+}
+
+template <typename IdType, typename Value, typename DerivedValue>
 void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
   LockGuard lock(mutex_);
   CHECK(!staged_) << "You cannot commit a transaction more than once.";
   int num_dirty_items = 0;
   int num_checked_items = 0;
   int num_cached_items = 0;
+  std::set<common::Id> chunks;
+  underlying_table_->getActiveChunkIds(&chunks);
   for (const typename CacheMap::value_type& cached_pair : cache_) {
     ConstRevisionMap::iterator corresponding_revision =
         revisions_.find(cached_pair.first);
@@ -170,7 +189,13 @@ void Cache<IdType, Value, DerivedValue>::prepareForCommit() {
       objectToRevision(cached_pair.first,
                        Factory::getReferenceToDerived(cached_pair.second.value),
                        insertion.get());
-      transaction_.get()->insert(chunk_manager_.get(), insertion);
+      if (FLAGS_map_api_insert_into_existing_chunk && !chunks.empty()) {
+        transaction_.get()->insert(underlying_table_,
+                                   underlying_table_->getChunk(*chunks.begin()),
+                                   insertion);
+      } else {
+        transaction_.get()->insert(chunk_manager_.get(), insertion);
+      }
     } else {
       // Only verify objects that have been accessed in a read-write way.
       ++num_cached_items;
