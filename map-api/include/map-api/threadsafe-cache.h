@@ -49,7 +49,15 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
     return cache_.insert(id, insertion);
   }
 
-  virtual void erase(const IdType& id) { cache_.erase(id); }
+  virtual void erase(const IdType& id) {
+    cache_.erase(id);
+    typename common::Monitor<std::unordered_set<IdType>>::ThreadSafeAccess&&
+        insertions = insertions_.get();
+    typename std::unordered_set<IdType>::iterator found = insertions->find(id);
+    if (found != insertions->end()) {
+      insertions->erase(found);
+    }
+  }
 
   // ====================
   // CACHE BASE INTERFACE
