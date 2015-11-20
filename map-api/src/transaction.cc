@@ -17,6 +17,8 @@
 #include "map-api/workspace.h"
 #include "./core.pb.h"
 
+DECLARE_bool(cache_blame_dirty);
+DECLARE_bool(cache_blame_insert);
 DEFINE_bool(blame_commit, false, "Print stack trace for every commit");
 
 namespace map_api {
@@ -71,6 +73,10 @@ bool Transaction::fetchAllChunksTrackedByItemsInTable(NetTable* const table) {
     }
   }
   disableDirectAccess();
+  refreshIdToChunkIdMaps();
+  // Id to chunk id maps must be refreshed first, otherwise getAvailableIds will
+  // nor work.
+  refreshAvailableIdsInCaches();
   return success;
 }
 
@@ -109,6 +115,9 @@ bool Transaction::commit() {
     LOG(INFO) << "Transaction committed from:\n" << common::backtrace();
   }
   for (const CacheMap::value_type& cache_pair : caches_) {
+    if (FLAGS_cache_blame_dirty || FLAGS_cache_blame_insert) {
+      std::cout << cache_pair.first->name() << " cache:" << std::endl;
+    }
     cache_pair.second->prepareForCommit();
   }
   enableDirectAccess();
@@ -178,6 +187,18 @@ size_t Transaction::numChangedItems() const {
     count += net_table_transaction.second->numChangedItems();
   }
   return count;
+}
+
+void Transaction::refreshIdToChunkIdMaps() {
+  for (TransactionPair& net_table_transaction : net_table_transactions_) {
+    net_table_transaction.second->refreshIdToChunkIdMap();
+  }
+}
+
+void Transaction::refreshAvailableIdsInCaches() {
+  for (const CacheMap::value_type& cache_pair : caches_) {
+    cache_pair.second->refreshAvailableIds();
+  }
 }
 
 void Transaction::enableDirectAccess() {

@@ -118,6 +118,12 @@ class Transaction {
       NetTable* table);
   template <typename IdType, typename ObjectType>
   const ThreadsafeCache<IdType, ObjectType>& getCache(NetTable* table);
+  // The following must be called if chunks are fetched after the transaction
+  // has been initialized, otherwise the new items can't be fetched by the
+  // transaction.
+  void refreshIdToChunkIdMaps();
+  // Same, for the caches.
+  void refreshAvailableIdsInCaches();
 
  private:
   void enableDirectAccess();

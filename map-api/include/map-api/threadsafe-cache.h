@@ -70,6 +70,8 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
     insertions->clear();
   }
 
+  virtual void refreshAvailableIds() { cache_.refreshAvailableIds(); }
+
   // =============
   // OWN FUNCTIONS
   // =============

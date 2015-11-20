@@ -177,8 +177,6 @@ std::string Revision::dumpToString() const {
 }
 
 void Revision::getTrackedChunks(TrackeeMultimap* result) const {
-  LOG(INFO) << this;
-  LOG(INFO) << &underlying_revision_;
   CHECK(underlying_revision_);
   CHECK_NOTNULL(result)->deserialize(*underlying_revision_);
 }
