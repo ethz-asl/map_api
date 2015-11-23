@@ -21,6 +21,7 @@ void Revision::fromProto(const std::shared_ptr<proto::Revision>& revision_proto,
                          std::shared_ptr<Revision>* result) {
   CHECK_NOTNULL(result);
   // Because -> keeps dereferencing:
+  // http://stackoverflow.com/questions/20583450/the-operator-return-value-of-smart-pointers/20583499#20583499
   std::shared_ptr<Revision>& deref_result = *result;
   deref_result.reset(new Revision);
   (*result)->underlying_revision_ = revision_proto;
@@ -177,8 +178,6 @@ std::string Revision::dumpToString() const {
 }
 
 void Revision::getTrackedChunks(TrackeeMultimap* result) const {
-  LOG(INFO) << this;
-  LOG(INFO) << &underlying_revision_;
   CHECK(underlying_revision_);
   CHECK_NOTNULL(result)->deserialize(*underlying_revision_);
 }

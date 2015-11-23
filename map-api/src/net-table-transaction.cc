@@ -4,6 +4,9 @@
 
 #include "map-api/conflicts.h"
 
+DEFINE_bool(map_api_dump_available_chunk_contents, false,
+            "Will print all available ids if enabled");
+
 namespace map_api {
 
 NetTableTransaction::NetTableTransaction(const LogicalTime& begin_time,
@@ -15,13 +18,7 @@ NetTableTransaction::NetTableTransaction(const LogicalTime& begin_time,
   CHECK_NOTNULL(table);
   CHECK(begin_time < LogicalTime::sample());
 
-  workspace_.forEachChunk([&, this](const ChunkBase& chunk) {
-    std::vector<common::Id> chunk_result;
-    chunk.constData()->getAvailableIds(begin_time, &chunk_result);
-    for (const common::Id& item_id : chunk_result) {
-      CHECK(item_id_to_chunk_id_map_.emplace(item_id, chunk.id()).second);
-    }
-  });
+  refreshIdToChunkIdMap();
 }
 
 void NetTableTransaction::dumpChunk(const ChunkBase* chunk,
@@ -162,6 +159,26 @@ ChunkTransaction* NetTableTransaction::transactionOf(const ChunkBase* chunk)
     chunk_transaction = inserted.first;
   }
   return chunk_transaction->second.get();
+}
+
+void NetTableTransaction::refreshIdToChunkIdMap() {
+  item_id_to_chunk_id_map_.clear();
+  if (FLAGS_map_api_dump_available_chunk_contents) {
+    std::cout << table_->name() << " chunk contents:" << std::endl;
+  }
+  workspace_.forEachChunk([&, this](const ChunkBase& chunk) {
+    std::vector<common::Id> chunk_result;
+    chunk.constData()->getAvailableIds(begin_time_, &chunk_result);
+    if (FLAGS_map_api_dump_available_chunk_contents) {
+      std::cout << "\tChunk " << chunk.id().hexString() << ":" << std::endl;
+    }
+    for (const common::Id& item_id : chunk_result) {
+      CHECK(item_id_to_chunk_id_map_.emplace(item_id, chunk.id()).second);
+      if (FLAGS_map_api_dump_available_chunk_contents) {
+        std::cout << "\t\tItem " << item_id.hexString() << std::endl;
+      }
+    }
+  });
 }
 
 void NetTableTransaction::getChunkTrackers(

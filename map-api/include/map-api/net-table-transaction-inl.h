@@ -97,9 +97,8 @@ void NetTableTransaction::overrideTrackerIdentificationMethod(
     return static_cast<common::Id>(how_to_determine_tracker(trackee));
   };
 
-  CHECK(push_new_chunk_ids_to_tracker_overrides_
-            .insert(std::make_pair(tracker_table, determine_map_api_tracker_id))
-            .second);
+  push_new_chunk_ids_to_tracker_overrides_[tracker_table] =
+      determine_map_api_tracker_id;
 }
 
 }  // namespace map_api

@@ -14,6 +14,9 @@ class NetTableTransactionInterface
     : public common::MappedContainerBase<IdType,
                                          std::shared_ptr<const Revision>> {
  public:
+  typedef common::MappedContainerBase<IdType, std::shared_ptr<const Revision>>
+      Base;
+
   NetTableTransactionInterface(Transaction* const transaction,
                                NetTable* const table,
                                ChunkManagerBase* const chunk_manager)
@@ -23,8 +26,10 @@ class NetTableTransactionInterface
     refresh();
   }
 
+  virtual ~NetTableTransactionInterface() {}
+
   virtual bool has(const IdType& id) const final override {
-    return available_ids_.count(id) != 0;
+    return available_ids_.count(id) != 0u;
   }
 
   virtual void getAllAvailableIds(std::vector<IdType>* available_ids) const
@@ -44,19 +49,20 @@ class NetTableTransactionInterface
     return *transaction_->getMutableUpdateEntry(id, table_);
   }
 
-  virtual const std::shared_ptr<const Revision>& get(const IdType& id) const
+  virtual typename Base::ConstRefReturnType get(const IdType& id) const
       final override {
-    if (!live_objects_[id]) {
-      live_objects_[id].reset(new std::shared_ptr<const Revision>);
-      *live_objects_[id] = transaction_->getById(id, table_);
-    }
-    CHECK(*live_objects_[id]);
-    return *live_objects_[id];
+    typename Base::ConstRefReturnType result =
+        transaction_->getById(id, table_);
+    CHECK(result) << "Missing item " << id << " from table " << table_->name();
+    CHECK(result->getChunkId().isValid());
+    return result;
   }
 
   virtual bool insert(const IdType& id,
                       const std::shared_ptr<const Revision>& value)
       final override {
+    CHECK(id.isValid());
+    CHECK(value);
     std::const_pointer_cast<Revision>(value)->setId<IdType>(id);
     // Getting rid of this const cast should be possible, albeit painstaking.
     // Possibilities:
@@ -84,9 +90,6 @@ class NetTableTransactionInterface
   ChunkManagerBase* const chunk_manager_;
 
   mutable std::unordered_set<IdType> available_ids_;
-  // Double level so that refs to shared ptr don't become invalid.
-  mutable std::unordered_map<
-      IdType, std::unique_ptr<std::shared_ptr<const Revision>>> live_objects_;
 };
 
 }  // namespace map_api

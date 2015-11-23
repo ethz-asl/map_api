@@ -90,6 +90,10 @@ class NetTableTransaction {
   ChunkTransaction* transactionOf(const ChunkBase* chunk) const;
   template <typename IdType>
   ChunkBase* chunkOf(const IdType& id) const;
+  // The following must be called if chunks are fetched after the transaction
+  // has been initialized, otherwise the new items can't be fetched by the
+  // transaction.
+  void refreshIdToChunkIdMap();
 
   typedef std::unordered_map<common::Id, ChunkTransaction::TableToIdMultiMap>
       TrackedChunkToTrackersMap;

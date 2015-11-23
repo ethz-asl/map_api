@@ -81,14 +81,14 @@ bool ChunkTransaction::getMutableUpdateEntry(
   // TODO(tcies) should the available id list be cached?
   std::unordered_set<IdType> ids_in_chunk;
   getAvailableIds(&ids_in_chunk);
-  if (ids_in_chunk.count(id) != 0) {
+  if (ids_in_chunk.count(id) != 0u) {
     std::shared_ptr<Revision> to_emplace;
     getById(id)->copyForWrite(&to_emplace);
-    std::pair<UpdateMap::iterator, bool> emplacement = updates_.insert(
+    std::pair<UpdateMap::iterator, bool> emplace_result = updates_.insert(
         std::make_pair(id.template toIdType<common::Id>(), to_emplace));
-    CHECK(emplacement.second);
+    CHECK(emplace_result.second);
     *result = reinterpret_cast<std::shared_ptr<const Revision>*>(
-        &emplacement.first->second);
+        &emplace_result.first->second);
     return true;
   }
 
