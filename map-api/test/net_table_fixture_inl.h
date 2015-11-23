@@ -61,27 +61,28 @@ void NetTableFixture::increment(NetTable* table, const common::Id& id,
   transaction->update(table, to_update);
 }
 
-common::Id NetTableFixture::insert(int n, ChunkBase* chunk) {
+common::Id NetTableFixture::insert(int value, ChunkBase* chunk) {
   common::Id insert_id;
   generateId(&insert_id);
   std::shared_ptr<Revision> to_insert = table_->getTemplate();
   to_insert->setId(insert_id);
-  to_insert->set(kFieldName, n);
+  to_insert->set(kFieldName, value);
   EXPECT_TRUE(table_->insert(LogicalTime::sample(), chunk, to_insert));
   return insert_id;
 }
 
-common::Id NetTableFixture::insert(int n, ChunkTransaction* transaction) {
+common::Id NetTableFixture::insert(int value, ChunkTransaction* transaction) {
   common::Id insert_id;
   generateId(&insert_id);
   std::shared_ptr<Revision> to_insert = table_->getTemplate();
   to_insert->setId(insert_id);
-  to_insert->set(kFieldName, n);
+  to_insert->set(kFieldName, value);
   transaction->insert(to_insert);
   return insert_id;
 }
 
-void NetTableFixture::insert(int n, common::Id* id, Transaction* transaction) {
+void NetTableFixture::insert(int value, common::Id* id,
+                             Transaction* transaction) {
   common::Id id_obj;
   if (!id) {
     id = &id_obj;
@@ -90,12 +91,21 @@ void NetTableFixture::insert(int n, common::Id* id, Transaction* transaction) {
   generateId(id);
   std::shared_ptr<Revision> to_insert = table_->getTemplate();
   to_insert->setId(*id);
-  to_insert->set(kFieldName, n);
+  to_insert->set(kFieldName, value);
+  transaction->insert(table_, chunk_, to_insert);
+}
+
+void NetTableFixture::insert(int value, const common::Id& id,
+                             Transaction* transaction) {
+  CHECK_NOTNULL(transaction);
+  std::shared_ptr<Revision> to_insert = table_->getTemplate();
+  to_insert->setId(id);
+  to_insert->set(kFieldName, value);
   transaction->insert(table_, chunk_, to_insert);
 }
 
 template <typename IdType>
-void NetTableFixture::update(int n, const IdType& id,
+void NetTableFixture::update(int new_value, const IdType& id,
                              Transaction* transaction) {
   CHECK_NOTNULL(transaction);
   std::shared_ptr<const Revision> to_update =
@@ -103,7 +113,7 @@ void NetTableFixture::update(int n, const IdType& id,
   ASSERT_TRUE(to_update != nullptr);
   std::shared_ptr<Revision> update;
   to_update->copyForWrite(&update);
-  update->set(kFieldName, n);
+  update->set(kFieldName, new_value);
   transaction->update(table_, update);
 }
 

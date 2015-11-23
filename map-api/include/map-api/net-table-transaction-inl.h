@@ -9,12 +9,8 @@ namespace map_api {
 template <typename IdType>
 std::shared_ptr<const Revision> NetTableTransaction::getById(const IdType& id)
     const {
-  std::shared_ptr<const Revision> uncommitted = getByIdFromUncommitted(id);
-  if (uncommitted) {
-    return uncommitted;
-  }
   ChunkBase* chunk = chunkOf(id);
-  if (!chunk || !workspace_.contains(chunk->id())) {
+  if (chunk == nullptr) {
     return std::shared_ptr<Revision>();
   }
   return getById(id, chunk);
@@ -28,20 +24,6 @@ std::shared_ptr<const Revision> NetTableTransaction::getById(
     return std::shared_ptr<Revision>();
   }
   return transactionOf(chunk)->getById(id);
-}
-
-template <typename IdType>
-std::shared_ptr<const Revision> NetTableTransaction::getByIdFromUncommitted(
-    const IdType& id) const {
-  std::shared_ptr<const Revision> result;
-  for (const TransactionMap::value_type& chunk_transaction :
-       chunk_transactions_) {
-    result = chunk_transaction.second->getByIdFromUncommitted(id);
-    if (result) {
-      return result;
-    }
-  }
-  return std::shared_ptr<const Revision>();
 }
 
 template <typename ValueType>
@@ -60,45 +42,43 @@ void NetTableTransaction::find(int key, const ValueType& value,
 template <typename IdType>
 void NetTableTransaction::getAvailableIds(std::vector<IdType>* ids) {
   CHECK_NOTNULL(ids)->clear();
-  workspace_.forEachChunk([&, this](const ChunkBase& chunk) {
-    std::unordered_set<IdType> chunk_result;
-    transactionOf(&chunk)->getAvailableIds(&chunk_result);
-    ids->insert(ids->end(), chunk_result.begin(), chunk_result.end());
-  });
+  ids->reserve(item_id_to_chunk_id_map_.size());
+  for (const ItemIdToChunkIdMap::value_type& item_chunk_ids :
+       item_id_to_chunk_id_map_) {
+    ids->push_back(item_chunk_ids.first.toIdType<IdType>());
+  }
 }
 
 template <typename IdType>
 std::shared_ptr<const Revision>* NetTableTransaction::getMutableUpdateEntry(
     const IdType& id) {
-  // Since we don't know what chunk the update entry is in, we will try all
-  // chunks.
-  for (TransactionMap::value_type& chunk_transaction : chunk_transactions_) {
-    std::shared_ptr<const Revision>* chunk_update_entry;
-    if (chunk_transaction.second->getMutableUpdateEntry(id,
-                                                        &chunk_update_entry)) {
-      return chunk_update_entry;
-    }
-  }
-  LOG(FATAL) << "Tried to update an item which doesn't exist!";
+  ChunkBase* chunk = chunkOf(id);
+  CHECK_NOTNULL(chunk);
+  CHECK(workspace_.contains(chunk->id()));
+  std::shared_ptr<const Revision>* result;
+  CHECK(transactionOf(chunk)->getMutableUpdateEntry(id, &result));
+  return result;
 }
 
 template <typename IdType>
 void NetTableTransaction::remove(const IdType& id) {
   ChunkBase* chunk = chunkOf(id);
+  CHECK_NOTNULL(chunk);
   std::shared_ptr<Revision> remove_revision;
   getById(id, chunk)->copyForWrite(&remove_revision);
-  transactionOf(CHECK_NOTNULL(chunk))->remove(remove_revision);
+  transactionOf(chunk)->remove(remove_revision);
 }
 
 template <typename IdType>
 ChunkBase* NetTableTransaction::chunkOf(const IdType& id) const {
-  // TODO(tcies) uncommitted
-  std::shared_ptr<const Revision> latest =
-      table_->getById(id, LogicalTime::sample());
-  if (!latest) {
+  common::Id common_id;
+  id.toHashId(&common_id);
+  ItemIdToChunkIdMap::const_iterator found =
+      item_id_to_chunk_id_map_.find(common_id);
+  if (found == item_id_to_chunk_id_map_.end()) {
     return nullptr;
   } else {
-    return table_->getChunk(latest->getChunkId());
+    return table_->getChunk(found->second);
   }
 }
 
@@ -117,9 +97,8 @@ void NetTableTransaction::overrideTrackerIdentificationMethod(
     return static_cast<common::Id>(how_to_determine_tracker(trackee));
   };
 
-  CHECK(push_new_chunk_ids_to_tracker_overrides_
-            .insert(std::make_pair(tracker_table, determine_map_api_tracker_id))
-            .second);
+  push_new_chunk_ids_to_tracker_overrides_[tracker_table] =
+      determine_map_api_tracker_id;
 }
 
 }  // namespace map_api

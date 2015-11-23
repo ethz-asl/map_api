@@ -27,15 +27,15 @@ class NetTableTransaction {
   NetTableTransaction(const LogicalTime& begin_time, NetTable* table,
                       const Workspace& workspace);
 
+  // ========================
   // READ (see transaction.h)
+  // ========================
   template <typename IdType>
   std::shared_ptr<const Revision> getById(const IdType& id) const;
+  // This will be minimally faster.
   template <typename IdType>
   std::shared_ptr<const Revision> getById(const IdType& id,
                                           ChunkBase* chunk) const;
-  template <typename IdType>
-  std::shared_ptr<const Revision> getByIdFromUncommitted(const IdType& id)
-      const;
   void dumpChunk(const ChunkBase* chunk, ConstRevisionMap* result);
   void dumpActiveChunks(ConstRevisionMap* result);
   template <typename ValueType>
@@ -43,7 +43,9 @@ class NetTableTransaction {
   template <typename IdType>
   void getAvailableIds(std::vector<IdType>* ids);
 
+  // =========================
   // WRITE (see transaction.h)
+  // =========================
   void insert(ChunkBase* chunk, std::shared_ptr<Revision> revision);
   void update(std::shared_ptr<Revision> revision);
   // The following function is very dangerous and shouldn't be used apart from
@@ -54,7 +56,9 @@ class NetTableTransaction {
   template <typename IdType>
   void remove(const IdType& id);
 
+  // ======================
   // TRANSACTION OPERATIONS
+  // ======================
   /**
    * Equivalent to lock(), if (check()) commit each sub-transaction, unlock()
    * Returns false if check fails.
@@ -80,10 +84,16 @@ class NetTableTransaction {
              Conflicts* conflicts);
   size_t numChangedItems() const;
 
+  // ========
   // INTERNAL
+  // ========
   ChunkTransaction* transactionOf(const ChunkBase* chunk) const;
   template <typename IdType>
   ChunkBase* chunkOf(const IdType& id) const;
+  // The following must be called if chunks are fetched after the transaction
+  // has been initialized, otherwise the new items can't be fetched by the
+  // transaction.
+  void refreshIdToChunkIdMap();
 
   typedef std::unordered_map<common::Id, ChunkTransaction::TableToIdMultiMap>
       TrackedChunkToTrackersMap;
@@ -112,6 +122,9 @@ class NetTableTransaction {
   LogicalTime begin_time_;
   NetTable* table_;
   Workspace::TableInterface workspace_;
+
+  typedef std::unordered_map<common::Id, common::Id> ItemIdToChunkIdMap;
+  ItemIdToChunkIdMap item_id_to_chunk_id_map_;
 
   NetTable::NewChunkTrackerMap push_new_chunk_ids_to_tracker_overrides_;
 };

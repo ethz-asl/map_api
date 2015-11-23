@@ -6,9 +6,10 @@
 
 #include <gtest/gtest_prod.h>
 #include <multiagent-mapping-common/mapped-container-base.h>
-#include "internal/threadsafe-object-and-metadata-cache.h"
+#include <multiagent-mapping-common/monitor.h>
 
 #include "map-api/cache-base.h"
+#include "map-api/internal/threadsafe-object-and-metadata-cache.h"
 #include "map-api/net-table.h"
 #include "map-api/transaction.h"
 
@@ -20,6 +21,7 @@ template <typename IdType, typename ObjectType>
 class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
                         public CacheBase {
  public:
+  typedef common::MappedContainerBase<IdType, ObjectType> Base;
   // ==========================
   // MAPPED CONTAINER INTERFACE
   // ==========================
@@ -33,13 +35,10 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
   virtual bool empty() const { return cache_.empty(); }
 
   virtual ObjectType& getMutable(const IdType& id) {
-    if (table_->name() == "visual_inertial_mapping_mission_table") {
-      VLOG(5) << "getMutable() on " << id;
-    }
     return cache_.getMutable(id).object;
   }
 
-  virtual const ObjectType& get(const IdType& id) const {
+  virtual typename Base::ConstRefReturnType get(const IdType& id) const {
     CHECK(cache_.get(id).metadata);
     return cache_.get(id).object;
   }
@@ -47,10 +46,19 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
   virtual bool insert(const IdType& id, const ObjectType& value) {
     ObjectAndMetadata<ObjectType> insertion;
     insertion.createForInsert(value, table_);
+    insertions_.get()->emplace(id);
     return cache_.insert(id, insertion);
   }
 
-  virtual void erase(const IdType& id) { cache_.erase(id); }
+  virtual void erase(const IdType& id) {
+    cache_.erase(id);
+    typename common::Monitor<std::unordered_set<IdType>>::ThreadSafeAccess&&
+        insertions = insertions_.get();
+    typename std::unordered_set<IdType>::iterator found = insertions->find(id);
+    if (found != insertions->end()) {
+      insertions->erase(found);
+    }
+  }
 
   // ====================
   // CACHE BASE INTERFACE
@@ -61,6 +69,17 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
     VLOG(3) << "Flushing object cache for table " << table_->name() << "...";
     cache_.flush();
   }
+
+  virtual void discardCachedInsertions() {
+    typename common::Monitor<std::unordered_set<IdType>>::ThreadSafeAccess&&
+        insertions = insertions_.get();
+    for (const IdType& id : *insertions) {
+      cache_.discardCached(id);
+    }
+    insertions->clear();
+  }
+
+  virtual void refreshAvailableIds() { cache_.refreshAvailableIds(); }
 
   // =============
   // OWN FUNCTIONS
@@ -77,15 +96,18 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
         chunk_manager_(kDefaultChunkSizeBytes, table),
         transaction_interface_(CHECK_NOTNULL(transaction), table,
                                &chunk_manager_),
-        cache_(&transaction_interface_) {}
+        cache_(&transaction_interface_),
+        insertions_(std::unordered_set<IdType>()) {}
+
+  template <typename T>
+  friend class CacheAndTransactionTest;
   friend class Transaction;
 
   NetTable* const table_;
   ChunkManagerChunkSize chunk_manager_;
-  template <typename T>
-  friend class CacheAndTransactionTest;
   NetTableTransactionInterface<IdType> transaction_interface_;
   ThreadsafeObjectAndMetadataCache<IdType, ObjectType> cache_;
+  common::Monitor<std::unordered_set<IdType>> insertions_;
 };
 
 }  // namespace map_api
