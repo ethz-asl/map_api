@@ -3,8 +3,8 @@
 
 #include <list>
 #include <memory>
-#include <string>
 #include <sstream>  // NOLINT
+#include <string>
 #include <unordered_map>
 
 #include "map-api/net-table.h"
@@ -17,7 +17,7 @@ struct Conflict {
   const std::shared_ptr<const Revision> ours;
 };
 
-// constant splicing, linear iteration
+// Choosing list for constant splicing, linear iteration is fine.
 class Conflicts : public std::list<Conflict> {};
 
 class ConflictMap : public std::unordered_map<NetTable*, Conflicts> {

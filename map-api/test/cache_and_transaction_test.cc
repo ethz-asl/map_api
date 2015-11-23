@@ -6,8 +6,8 @@
 #include "map-api/chunk-manager.h"
 #include "map-api/ipc.h"
 #include "map-api/test/testing-entrypoint.h"
+#include "map-api/threadsafe-cache.h"
 #include "./net_table_fixture.h"
-#include "../include/map-api/threadsafe-cache.h"
 
 namespace map_api {
 
@@ -51,8 +51,6 @@ struct IdType<Transaction> {
 template <typename CacheOrTransaction>
 class CacheAndTransactionTest : public NetTableFixture {
  protected:
-  static constexpr int kChunkSize = 1024;
-
   virtual void SetUp() {
     NetTableFixture::SetUp();
     transaction_.reset(new Transaction);
@@ -74,7 +72,6 @@ class CacheAndTransactionTest : public NetTableFixture {
       typename IdType<CacheOrTransaction>::type> InterfaceType;
 
   std::shared_ptr<Transaction> transaction_;
-  std::shared_ptr<ChunkManagerChunkSize> manager_;
   std::shared_ptr<IntCache> cache_;
 };
 
@@ -159,6 +156,7 @@ TYPED_TEST(CacheAndTransactionTest, MultiCommit) {
   EXPECT_TRUE(this->transaction_->commit());
   ASSERT_EQ(2u, this->count());
 
+  // The perturber introduces a conflict for a test below.
   Transaction perturber;
   this->NetTableFixture::update(4, inserted_id_2, &perturber);
   EXPECT_TRUE(perturber.commit());
@@ -167,6 +165,7 @@ TYPED_TEST(CacheAndTransactionTest, MultiCommit) {
   EXPECT_TRUE(this->transaction_->commit());
   EXPECT_EQ(1u, this->count());
 
+  // This should fail because of the conflict introduced by the perturber.
   this->update(5, inserted_id_2);
   EXPECT_FALSE(this->transaction_->commit());
 }

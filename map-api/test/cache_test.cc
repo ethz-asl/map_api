@@ -6,8 +6,8 @@
 #include "map-api/chunk-manager.h"
 #include "map-api/ipc.h"
 #include "map-api/test/testing-entrypoint.h"
+#include "map-api/threadsafe-cache.h"
 #include "./net_table_fixture.h"
-#include "../include/map-api/threadsafe-cache.h"
 
 namespace map_api {
 

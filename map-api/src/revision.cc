@@ -21,6 +21,7 @@ void Revision::fromProto(const std::shared_ptr<proto::Revision>& revision_proto,
                          std::shared_ptr<Revision>* result) {
   CHECK_NOTNULL(result);
   // Because -> keeps dereferencing:
+  // http://stackoverflow.com/questions/20583450/the-operator-return-value-of-smart-pointers/20583499#20583499
   std::shared_ptr<Revision>& deref_result = *result;
   deref_result.reset(new Revision);
   (*result)->underlying_revision_ = revision_proto;

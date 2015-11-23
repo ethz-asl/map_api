@@ -7,9 +7,9 @@
 #include <gtest/gtest_prod.h>
 #include <multiagent-mapping-common/mapped-container-base.h>
 #include <multiagent-mapping-common/monitor.h>
-#include "internal/threadsafe-object-and-metadata-cache.h"
 
 #include "map-api/cache-base.h"
+#include "map-api/internal/threadsafe-object-and-metadata-cache.h"
 #include "map-api/net-table.h"
 #include "map-api/transaction.h"
 
@@ -21,6 +21,7 @@ template <typename IdType, typename ObjectType>
 class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
                         public CacheBase {
  public:
+  typedef common::MappedContainerBase<IdType, ObjectType> Base;
   // ==========================
   // MAPPED CONTAINER INTERFACE
   // ==========================
@@ -37,7 +38,7 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
     return cache_.getMutable(id).object;
   }
 
-  virtual const ObjectType& get(const IdType& id) const {
+  virtual typename Base::ConstRefReturnType get(const IdType& id) const {
     CHECK(cache_.get(id).metadata);
     return cache_.get(id).object;
   }
@@ -97,12 +98,13 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
                                &chunk_manager_),
         cache_(&transaction_interface_),
         insertions_(std::unordered_set<IdType>()) {}
+
+  template <typename T>
+  friend class CacheAndTransactionTest;
   friend class Transaction;
 
   NetTable* const table_;
   ChunkManagerChunkSize chunk_manager_;
-  template <typename T>
-  friend class CacheAndTransactionTest;
   NetTableTransactionInterface<IdType> transaction_interface_;
   ThreadsafeObjectAndMetadataCache<IdType, ObjectType> cache_;
   common::Monitor<std::unordered_set<IdType>> insertions_;
