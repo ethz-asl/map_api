@@ -86,8 +86,9 @@ class ChordIndex {
   /**
    * Argument-free versions (un)lock self
    */
-  bool lock();
-  bool lock(const PeerId& subject);
+  void lock();
+  bool tryLock(const PeerId& subject);
+  bool tryLockInOrder(PeerIdList subjects);
   void unlock();
   void unlock(const PeerId& subject);
 
