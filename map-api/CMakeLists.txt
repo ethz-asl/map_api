@@ -71,6 +71,10 @@ target_link_libraries(discovery-server ${PROJECT_NAME})
 ##########
 # GTESTS #
 ##########
+catkin_add_gtest(test_cache_and_transaction_test 
+    test/cache_and_transaction_test.cc)
+target_link_libraries(test_cache_and_transaction_test ${PROJECT_NAME})
+
 catkin_add_gtest(test_cache_test test/cache_test.cc)
 target_link_libraries(test_cache_test ${PROJECT_NAME})
 

@@ -15,6 +15,7 @@
 
 namespace map_api {
 class ChunkBase;
+class Conflicts;
 
 /**
  * This class is somewhat weaker than the first transaction draft
@@ -49,6 +50,11 @@ class ChunkTransaction {
   // WRITE
   void insert(std::shared_ptr<Revision> revision);
   void update(std::shared_ptr<Revision> revision);
+  // The following function is very dangerous and shouldn't be used apart from
+  // where it needs to be used in caches.
+  template <typename IdType>
+  bool getMutableUpdateEntry(const IdType& id,
+                             std::shared_ptr<const Revision>** result);
   void remove(std::shared_ptr<Revision> revision);
   template <typename ValueType>
   void addConflictCondition(int key, const ValueType& value);
@@ -57,12 +63,6 @@ class ChunkTransaction {
   bool commit();
   bool check();
   void checkedCommit(const LogicalTime& time);
-  struct Conflict {
-    const std::shared_ptr<const Revision> theirs;
-    const std::shared_ptr<const Revision> ours;
-  };
-  // constant splicing, linear iteration
-  typedef std::list<Conflict> Conflicts;
   /**
    * Merging and changeCount are not compatible with conflict conditions.
    */
