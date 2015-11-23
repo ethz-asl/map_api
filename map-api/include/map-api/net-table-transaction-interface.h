@@ -3,7 +3,6 @@
 
 #include <vector>
 
-#include <multiagent-mapping-common/backtrace.h>
 #include <multiagent-mapping-common/mapped-container-base.h>
 
 #include "map-api/transaction.h"
@@ -50,8 +49,7 @@ class NetTableTransactionInterface
     live_objects_[id].reset(new std::shared_ptr<const Revision>);
     *live_objects_[id] = transaction_->getById(id, table_);
     CHECK(*live_objects_[id]) << "Missing item " << id << " from table "
-                              << table_->name() << " at "
-                              << common::backtrace();
+                              << table_->name();
     CHECK((*live_objects_[id])->getChunkId().isValid());
     return *live_objects_[id];
   }
