@@ -206,8 +206,8 @@ TEST_F(ChunkTest, RemoteUpdate) {
     IPC::barrier(A_JOINED, 1);
     table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(1u, results.size());
-    std::shared_ptr<Revision> revision =
-        results.begin()->second->copyForWrite();
+    std::shared_ptr<Revision> revision;
+    results.begin()->second->copyForWrite(&revision);
     revision->set(kFieldName, 21);
     EXPECT_TRUE(table_->update(revision));
 
@@ -252,8 +252,8 @@ TEST_F(ChunkTest, Grind) {
       insert(42, chunk);
       // update
         table_->dumpActiveChunksAtCurrentTime(&results);
-        std::shared_ptr<Revision> revision =
-            results.begin()->second->copyForWrite();
+        std::shared_ptr<Revision> revision;
+        results.begin()->second->copyForWrite(&revision);
         revision->set(kFieldName, 21);
         EXPECT_TRUE(table_->update(revision));
     }
@@ -316,7 +316,8 @@ TEST_F(ChunkTest, ChunkTransactions) {
             transaction.getById(item_id);
         to_update->get(kFieldName, &transient_value);
         ++transient_value;
-        std::shared_ptr<Revision> revision = to_update->copyForWrite();
+        std::shared_ptr<Revision> revision;
+        to_update->copyForWrite(&revision);
         revision->set(kFieldName, transient_value);
         transaction.update(revision);
       if (transaction.commit()) {
@@ -424,8 +425,8 @@ TEST_F(ChunkTest, Triggers) {
       id = *insertions.begin();
     }
     Transaction transaction;
-    std::shared_ptr<Revision> item =
-        transaction.getById(id, table_, chunk_)->copyForWrite();
+    std::shared_ptr<Revision> item;
+    transaction.getById(id, table_, chunk_)->copyForWrite(&item);
     item->get(kFieldName, &highest_value);
     if (highest_value < 10) {
       ++highest_value;
@@ -512,8 +513,9 @@ TEST_F(ChunkTest, SendHistory) {
     CHECK(insert_transaction.commit());
       IPC::push(LogicalTime::sample());
       Transaction update_transaction;
-      std::shared_ptr<Revision> to_update =
-          update_transaction.getById(item_id_, table_, chunk_)->copyForWrite();
+      std::shared_ptr<Revision> to_update;
+      update_transaction.getById(item_id_, table_, chunk_)
+          ->copyForWrite(&to_update);
       to_update->set(kFieldName, kAfter);
       update_transaction.update(table_, to_update);
       CHECK(update_transaction.commit());
