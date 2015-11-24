@@ -1,3 +1,4 @@
+#include "map-api/conflicts.h"
 #include "map-api/ipc.h"
 #include "map-api/test/testing-entrypoint.h"
 #include "map-api/transaction.h"
@@ -41,7 +42,7 @@ TEST_F(TransactionTest, TransactionMerge) {
     IPC::barrier(A_COMMITTED, 1);
     EXPECT_FALSE(transaction.commit());
     std::shared_ptr<Transaction> merge_transaction(new Transaction);
-    Transaction::ConflictMap conflicts;
+    ConflictMap conflicts;
     transaction.merge(merge_transaction, &conflicts);
     EXPECT_EQ(1u, merge_transaction->numChangedItems());
     EXPECT_EQ(1u, conflicts.size());

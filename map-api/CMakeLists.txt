@@ -24,7 +24,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 #############
 
 # Core Library available to all applications
-SET(CORE_SOURCE  src/internal/trackee-multimap.cc
+SET(CORE_SOURCE  src/app-templates.cc
                  src/cache-base.cc
                  src/chord-index.cc
                  src/chunk-base.cc
@@ -34,6 +34,7 @@ SET(CORE_SOURCE  src/internal/trackee-multimap.cc
                  src/core.cc
                  src/file-discovery.cc
                  src/hub.cc
+                 src/internal/trackee-multimap.cc
                  src/ipc.cc
                  src/legacy-chunk.cc
                  src/legacy-chunk-data-container-base.cc
@@ -70,6 +71,10 @@ target_link_libraries(discovery-server ${PROJECT_NAME})
 ##########
 # GTESTS #
 ##########
+catkin_add_gtest(test_cache_and_transaction_test 
+    test/cache_and_transaction_test.cc)
+target_link_libraries(test_cache_and_transaction_test ${PROJECT_NAME})
+
 catkin_add_gtest(test_cache_test test/cache_test.cc)
 target_link_libraries(test_cache_test ${PROJECT_NAME})
 

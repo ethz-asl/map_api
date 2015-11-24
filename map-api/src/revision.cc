@@ -4,21 +4,34 @@
 #include <map-api/logical-time.h>
 #include <map-api/net-table-manager.h>
 #include <map-api/trackee-multimap.h>
+#include <multiagent-mapping-common/backtrace.h>
+#include <multiagent-mapping-common/breakpoints.h>
 #include <multiagent-mapping-common/unique-id.h>
 
 namespace map_api {
 
-std::shared_ptr<Revision> Revision::copyForWrite() const {
-  std::unique_ptr<proto::Revision> copy(
+void Revision::copyForWrite(std::shared_ptr<Revision>* result) const {
+  CHECK_NOTNULL(result);
+  std::shared_ptr<proto::Revision> copy(
       new proto::Revision(*underlying_revision_));
-  return fromProto(std::move(copy));
+  return fromProto(copy, result);
 }
 
-std::shared_ptr<Revision> Revision::fromProto(
-    std::unique_ptr<proto::Revision>&& revision_proto) {
-  std::shared_ptr<Revision> result(new Revision);
-  result->underlying_revision_ = std::move(revision_proto);
-  return std::move(result);
+void Revision::fromProto(const std::shared_ptr<proto::Revision>& revision_proto,
+                         std::shared_ptr<Revision>* result) {
+  CHECK_NOTNULL(result);
+  // Because -> keeps dereferencing:
+  // http://stackoverflow.com/questions/20583450/the-operator-return-value-of-smart-pointers/20583499#20583499
+  std::shared_ptr<Revision>& deref_result = *result;
+  deref_result.reset(new Revision);
+  (*result)->underlying_revision_ = revision_proto;
+}
+void Revision::fromProto(const std::shared_ptr<proto::Revision>& revision_proto,
+                         std::shared_ptr<const Revision>* result) {
+  CHECK_NOTNULL(result);
+  std::shared_ptr<Revision> non_const;
+  fromProto(revision_proto, &non_const);
+  *result = non_const;
 }
 
 std::shared_ptr<Revision> Revision::fromProtoString(
@@ -26,13 +39,17 @@ std::shared_ptr<Revision> Revision::fromProtoString(
   std::shared_ptr<Revision> result(new Revision);
   result->underlying_revision_.reset(new proto::Revision);
   CHECK(result->underlying_revision_->ParseFromString(revision_proto_string));
-  return std::move(result);
+  return result;
 }
 
 void Revision::addField(int index, proto::Type type) {
   CHECK_EQ(underlying_revision_->custom_field_values_size(), index)
       << "Custom fields must be added in-order!";
   underlying_revision_->add_custom_field_values()->set_type(type);
+}
+void Revision::removeLastField() {
+  CHECK_GT(underlying_revision_->custom_field_values_size(), 0);
+  underlying_revision_->mutable_custom_field_values()->RemoveLast();
 }
 
 bool Revision::hasField(int index) const {
@@ -41,6 +58,15 @@ bool Revision::hasField(int index) const {
 
 proto::Type Revision::getFieldType(int index) const {
   return underlying_revision_->custom_field_values(index).type();
+}
+
+void Revision::clearCustomFieldValues() {
+  for (proto::TableField& custom_field :
+       *underlying_revision_->mutable_custom_field_values()) {
+    proto::Type type = custom_field.type();
+    custom_field.Clear();
+    custom_field.set_type(type);
+  }
 }
 
 bool Revision::operator==(const Revision& other) const {
@@ -62,12 +88,8 @@ bool Revision::operator==(const Revision& other) const {
   if (other.getChunkId() != getChunkId()) {
     return false;
   }
-  // Check custom fields.
-  int num_fields = underlying_revision_->custom_field_values_size();
-  for (int i = 0; i < num_fields; ++i) {
-    if (!fieldMatch(other, i)) {
-      return false;
-    }
+  if (!areAllCustomFieldsEqual(other)) {
+    return false;
   }
   return true;
 }
@@ -115,6 +137,15 @@ bool Revision::fieldMatch(const Revision& other, int key) const {
   return false;
 }
 
+bool Revision::areAllCustomFieldsEqual(const Revision& other) const {
+  for (int i = 0; i < underlying_revision_->custom_field_values_size(); ++i) {
+    if (!fieldMatch(other, i)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 std::string Revision::dumpToString() const {
   std::ostringstream dump_ss;
   dump_ss << "{" << std::endl;
@@ -147,6 +178,7 @@ std::string Revision::dumpToString() const {
 }
 
 void Revision::getTrackedChunks(TrackeeMultimap* result) const {
+  CHECK(underlying_revision_);
   CHECK_NOTNULL(result)->deserialize(*underlying_revision_);
 }
 

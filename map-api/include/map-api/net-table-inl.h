@@ -54,8 +54,8 @@ template <typename TrackeeType, typename TrackerType, typename TrackerIdType>
 std::function<common::Id(const Revision&)>
 NetTable::trackerDeterminerFactory() {
   return [](const Revision& trackee_revision) {  // NOLINT
-    std::shared_ptr<TrackeeType> trackee =
-        objectFromRevision<TrackeeType>(trackee_revision);
+    std::shared_ptr<TrackeeType> trackee;
+    objectFromRevision(trackee_revision, &trackee);
     TrackerIdType typed_tracker_id =
         determineTracker<TrackeeType, TrackerType, TrackerIdType>(*trackee);
     return static_cast<common::Id>(typed_tracker_id);
