@@ -53,7 +53,7 @@ class ChunkTransaction {
   // The following function is very dangerous and shouldn't be used apart from
   // where it needs to be used in caches.
   template <typename IdType>
-  bool getMutableUpdateEntry(const IdType& id,
+  void getMutableUpdateEntry(const IdType& id,
                              std::shared_ptr<const Revision>** result);
   void remove(std::shared_ptr<Revision> revision);
   template <typename ValueType>

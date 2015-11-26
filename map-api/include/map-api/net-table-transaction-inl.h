@@ -56,7 +56,7 @@ std::shared_ptr<const Revision>* NetTableTransaction::getMutableUpdateEntry(
   CHECK_NOTNULL(chunk);
   CHECK(workspace_.contains(chunk->id()));
   std::shared_ptr<const Revision>* result;
-  CHECK(transactionOf(chunk)->getMutableUpdateEntry(id, &result));
+  transactionOf(chunk)->getMutableUpdateEntry(id, &result);
   return result;
 }
 
