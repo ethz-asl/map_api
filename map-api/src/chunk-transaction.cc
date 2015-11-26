@@ -7,6 +7,8 @@
 #include "map-api/conflicts.h"
 #include "map-api/net-table.h"
 
+DECLARE_bool(map_api_blame_updates);
+
 namespace map_api {
 
 ChunkTransaction::ChunkTransaction(ChunkBase* chunk, NetTable* table)
@@ -142,6 +144,10 @@ void ChunkTransaction::checkedCommit(const LogicalTime& time) {
     }
   }
   chunk_->bulkInsertLocked(insertions_, time);
+
+  if (FLAGS_map_api_blame_updates) {
+    std::cout << "Updating " << updates_.size() << " items" << std::endl;
+  }
 
   for (const std::pair<const common::Id,
       std::shared_ptr<Revision> >& item : updates_) {
