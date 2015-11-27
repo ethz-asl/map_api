@@ -8,6 +8,7 @@
 
 #include "map-api/cache-base.h"
 #include "map-api/chunk-manager.h"
+#include "map-api/conflicts.h"
 #include "map-api/net-table.h"
 #include "map-api/net-table-manager.h"
 #include "map-api/net-table-transaction.h"
@@ -16,6 +17,8 @@
 #include "map-api/workspace.h"
 #include "./core.pb.h"
 
+DECLARE_bool(cache_blame_dirty);
+DECLARE_bool(cache_blame_insert);
 DEFINE_bool(blame_commit, false, "Print stack trace for every commit");
 
 namespace map_api {
@@ -70,6 +73,10 @@ bool Transaction::fetchAllChunksTrackedByItemsInTable(NetTable* const table) {
     }
   }
   disableDirectAccess();
+  refreshIdToChunkIdMaps();
+  // Id to chunk id maps must be refreshed first, otherwise getAvailableIds will
+  // nor work.
+  refreshAvailableIdsInCaches();
   return success;
 }
 
@@ -100,17 +107,6 @@ void Transaction::remove(NetTable* table, std::shared_ptr<Revision> revision) {
   transactionOf(CHECK_NOTNULL(table))->remove(revision);
 }
 
-std::string Transaction::printCacheStatistics() const {
-  std::stringstream ss;
-  ss << "Transaction cache statistics:" << std::endl;
-  for (const CacheMap::value_type& cache_pair : attached_caches_) {
-    ss << "\t " << cache_pair.second->underlyingTableName()
-       << " cached: " << cache_pair.second->numCachedItems() << "/"
-       << cache_pair.second->size() << std::endl;
-  }
-  return ss.str();
-}
-
 // Deadlocks are prevented by imposing a global ordering on
 // net_table_transactions_, and have the locks acquired in that order
 // (resource hierarchy solution)
@@ -118,12 +114,21 @@ bool Transaction::commit() {
   if (FLAGS_blame_commit) {
     LOG(INFO) << "Transaction committed from:\n" << common::backtrace();
   }
-  for (const CacheMap::value_type& cache_pair : attached_caches_) {
+  for (const CacheMap::value_type& cache_pair : caches_) {
+    if (FLAGS_cache_blame_dirty || FLAGS_cache_blame_insert) {
+      std::cout << cache_pair.first->name() << " cache:" << std::endl;
+    }
     cache_pair.second->prepareForCommit();
   }
   enableDirectAccess();
   pushNewChunkIdsToTrackers();
   disableDirectAccess();
+  // This must happen after chunk tracker resolution, since chunk tracker
+  // resolution might access the cache in read-mode, but we won't be able to
+  // fetch the proper metadata until after the commit!
+  for (const CacheMap::value_type& cache_pair : caches_) {
+    cache_pair.second->discardCachedInsertions();
+  }
   timing::Timer timer("map_api::Transaction::commit - lock");
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->lock();
@@ -157,7 +162,7 @@ void Transaction::merge(const std::shared_ptr<Transaction>& merge_transaction,
     std::shared_ptr<NetTableTransaction> merge_net_table_transaction(
         new NetTableTransaction(merge_transaction->begin_time_,
                                 net_table_transaction.first, *workspace_));
-    ChunkTransaction::Conflicts sub_conflicts;
+    Conflicts sub_conflicts;
     net_table_transaction.second->merge(merge_net_table_transaction,
                                         &sub_conflicts);
     CHECK_EQ(
@@ -168,9 +173,8 @@ void Transaction::merge(const std::shared_ptr<Transaction>& merge_transaction,
           net_table_transaction.first, merge_net_table_transaction));
     }
     if (!sub_conflicts.empty()) {
-      std::pair<ConflictMap::iterator, bool> insert_result =
-          conflicts->insert(std::make_pair(net_table_transaction.first,
-                                           ChunkTransaction::Conflicts()));
+      std::pair<ConflictMap::iterator, bool> insert_result = conflicts->insert(
+          std::make_pair(net_table_transaction.first, Conflicts()));
       CHECK(insert_result.second);
       insert_result.first->second.swap(sub_conflicts);
     }
@@ -185,11 +189,16 @@ size_t Transaction::numChangedItems() const {
   return count;
 }
 
-void Transaction::attachCache(NetTable* table, CacheBase* cache) {
-  CHECK_NOTNULL(table);
-  CHECK_NOTNULL(cache);
-  ensureAccessIsCache(table);
-  attached_caches_.emplace(table, cache);
+void Transaction::refreshIdToChunkIdMaps() {
+  for (TransactionPair& net_table_transaction : net_table_transactions_) {
+    net_table_transaction.second->refreshIdToChunkIdMap();
+  }
+}
+
+void Transaction::refreshAvailableIdsInCaches() {
+  for (const CacheMap::value_type& cache_pair : caches_) {
+    cache_pair.second->refreshAvailableIds();
+  }
 }
 
 void Transaction::enableDirectAccess() {
@@ -291,8 +300,8 @@ void Transaction::pushNewChunkIdsToTrackers() {
           << "table " << table_chunks_to_push.first->name();
       std::shared_ptr<const Revision> original_tracker =
           getById(item_chunks_to_push.first, table_chunks_to_push.first);
-      std::shared_ptr<Revision> updated_tracker =
-          original_tracker->copyForWrite();
+      std::shared_ptr<Revision> updated_tracker;
+      original_tracker->copyForWrite(&updated_tracker);
       TrackeeMultimap trackee_multimap;
       trackee_multimap.deserialize(*original_tracker->underlying_revision_);
       trackee_multimap.merge(item_chunks_to_push.second);

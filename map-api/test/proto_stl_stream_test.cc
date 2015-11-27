@@ -354,8 +354,9 @@ TYPED_TEST_P(ProtoSTLStream, InputStreamSkipWorks) {
 }
 
 TYPED_TEST_P(ProtoSTLStream, ProtoManualSerializationWorks) {
-  std::shared_ptr<map_api::Revision> revision_out = Revision::fromProto(
-      std::unique_ptr<proto::Revision>(new proto::Revision));
+  std::shared_ptr<map_api::Revision> revision_out;
+  Revision::fromProto(std::unique_ptr<proto::Revision>(new proto::Revision),
+                      &revision_out);
 
   revision_out->addField<std::string>(0);
   revision_out->addField<int>(1);
@@ -405,8 +406,9 @@ TYPED_TEST_P(ProtoSTLStream, ProtoManualSerializationWorks) {
 
 
 TYPED_TEST_P(ProtoSTLStream, ProtoAutoSerializationWorks) {
-  std::shared_ptr<map_api::Revision> revision_out = Revision::fromProto(
-      std::unique_ptr<proto::Revision>(new proto::Revision));
+  std::shared_ptr<map_api::Revision> revision_out;
+  Revision::fromProto(std::unique_ptr<proto::Revision>(new proto::Revision),
+                      &revision_out);
 
   revision_out->addField<std::string>(0);
   revision_out->addField<int>(1);
@@ -439,8 +441,8 @@ TYPED_TEST_P(ProtoSTLStream, ProtoAutoSerializationWorks) {
 
   std::unique_ptr<proto::Revision> proto_in(new proto::Revision);
   input_stream.ReadMessage(proto_in.get());
-  std::shared_ptr<Revision> revision_in =
-      Revision::fromProto(std::move(proto_in));
+  std::shared_ptr<Revision> revision_in;
+  Revision::fromProto(std::move(proto_in), &revision_in);
 
   EXPECT_TRUE(*revision_in == *revision_out);
 }

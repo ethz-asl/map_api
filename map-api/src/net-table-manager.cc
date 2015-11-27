@@ -210,7 +210,7 @@ NetTable* NetTableManager::addTable(
 
 NetTable& NetTableManager::getTable(const std::string& name) {
   CHECK(Core::instance() != nullptr) << "Map API not initialized!";
-  common::ScopedReadLock lock(&tables_lock_);
+  aslam::ScopedReadLock lock(&tables_lock_);
   TableMap::iterator found = tables_.find(name);
   // TODO(tcies) load table schema from metatable if not active
   CHECK(found != tables_.end()) << "Table not found: " << name;
@@ -239,7 +239,7 @@ bool NetTableManager::hasTable(const std::string& name) const {
 void NetTableManager::tableList(std::vector<std::string>* tables) const {
   CHECK_NOTNULL(tables);
   tables->clear();
-  common::ScopedReadLock lock(&tables_lock_);
+  aslam::ScopedReadLock lock(&tables_lock_);
   for (const std::pair<const std::string, std::unique_ptr<NetTable> >& pair :
        tables_) {
     tables->push_back(pair.first);
@@ -257,7 +257,8 @@ void NetTableManager::listenToPeersJoiningTable(const std::string& table_name) {
     proto::PeerList listeners;
     current->get(kMetaTableListenersField, &listeners);
     listeners.add_peers(Hub::instance().ownAddress());
-    std::shared_ptr<Revision> next = current->copyForWrite();
+    std::shared_ptr<Revision> next;
+    current->copyForWrite(&next);
     next->set(kMetaTableListenersField, listeners);
     add_self_to_listeners.update(next);
     if (add_self_to_listeners.commit()) {
@@ -323,7 +324,7 @@ void NetTableManager::handleConnectRequest(const Message& request,
   const std::string& table = metadata.table();
   common::Id chunk_id(metadata.chunk_id());
   CHECK_NOTNULL(Core::instance());
-  common::ScopedReadLock lock(&instance().tables_lock_);
+  aslam::ScopedReadLock lock(&instance().tables_lock_);
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator
   found = instance().tables_.find(table);
   if (found == instance().tables_.end()) {
@@ -462,8 +463,11 @@ void NetTableManager::handleRoutedNetTableChordRequests(const Message& request,
   request.extract<NetTableIndex::kRoutedChordRequest>(&routed_request);
   CHECK(routed_request.has_table_name());
   TableMap::iterator table;
-  CHECK(findTable(routed_request.table_name(), &table));
-  table->second->handleRoutedNetTableChordRequests(request, response);
+  if (findTable(routed_request.table_name(), &table)) {
+    table->second->handleRoutedNetTableChordRequests(request, response);
+  } else {
+    response->decline();
+  }
 }
 
 void NetTableManager::handleRoutedSpatialChordRequests(const Message& request,
@@ -473,8 +477,11 @@ void NetTableManager::handleRoutedSpatialChordRequests(const Message& request,
   request.extract<SpatialIndex::kRoutedChordRequest>(&routed_request);
   CHECK(routed_request.has_table_name());
   TableMap::iterator table;
-  CHECK(findTable(routed_request.table_name(), &table));
-  table->second->handleRoutedSpatialChordRequests(request, response);
+  if (findTable(routed_request.table_name(), &table)) {
+    table->second->handleRoutedSpatialChordRequests(request, response);
+  } else {
+    response->decline();
+  }
 }
 
 bool NetTableManager::syncTableDefinition(const TableDescriptor& descriptor,
@@ -542,7 +549,7 @@ bool NetTableManager::syncTableDefinition(const TableDescriptor& descriptor,
 bool NetTableManager::findTable(const std::string& table_name,
                                 TableMap::iterator* found) {
   CHECK_NOTNULL(found);
-  common::ScopedReadLock lock(&instance().tables_lock_);
+  aslam::ScopedReadLock lock(&instance().tables_lock_);
   *found = instance().tables_.find(table_name);
   if (*found == instance().tables_.end()) {
     return false;

@@ -10,13 +10,15 @@
 
 namespace map_api {
 
-TEST_F(NetTableFixture, NetInsert) {
+class ChunkTest : public NetTableFixture {};
+
+TEST_F(ChunkTest, NetInsert) {
   ChunkBase* chunk = table_->newChunk();
   ASSERT_TRUE(chunk);
   insert(42, chunk);
 }
 
-TEST_F(NetTableFixture, ParticipationRequest) {
+TEST_F(ChunkTest, ParticipationRequest) {
   enum SubProcesses {
     ROOT,
     A
@@ -44,7 +46,7 @@ TEST_F(NetTableFixture, ParticipationRequest) {
   }
 }
 
-TEST_F(NetTableFixture, FullJoinTwice) {
+TEST_F(ChunkTest, FullJoinTwice) {
   enum SubProcesses {
     ROOT,
     A,
@@ -96,7 +98,7 @@ TEST_F(NetTableFixture, FullJoinTwice) {
   }
 }
 
-TEST_F(NetTableFixture, RemoteInsert) {
+TEST_F(ChunkTest, RemoteInsert) {
   enum Subprocesses {
     ROOT,
     A
@@ -132,7 +134,7 @@ TEST_F(NetTableFixture, RemoteInsert) {
   }
 }
 
-TEST_F(NetTableFixture, Leave) {
+TEST_F(ChunkTest, Leave) {
   enum SubProcesses {
     ROOT,
     A
@@ -168,7 +170,7 @@ TEST_F(NetTableFixture, Leave) {
   }
 }
 
-TEST_F(NetTableFixture, RemoteUpdate) {
+TEST_F(ChunkTest, RemoteUpdate) {
   enum Subprocesses {
     ROOT,
     A
@@ -204,8 +206,8 @@ TEST_F(NetTableFixture, RemoteUpdate) {
     IPC::barrier(A_JOINED, 1);
     table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(1u, results.size());
-    std::shared_ptr<Revision> revision =
-        results.begin()->second->copyForWrite();
+    std::shared_ptr<Revision> revision;
+    results.begin()->second->copyForWrite(&revision);
     revision->set(kFieldName, 21);
     EXPECT_TRUE(table_->update(revision));
 
@@ -219,7 +221,7 @@ DEFINE_uint64(grind_processes, 10u,
 DEFINE_uint64(grind_cycles, 10u,
               "Total amount of insert-update cycles in ChunkTest.Grind");
 
-TEST_F(NetTableFixture, Grind) {
+TEST_F(ChunkTest, Grind) {
   const int kInsertUpdateCycles = FLAGS_grind_cycles;
   const uint64_t kProcesses = FLAGS_grind_processes;
   enum Barriers {
@@ -250,8 +252,8 @@ TEST_F(NetTableFixture, Grind) {
       insert(42, chunk);
       // update
         table_->dumpActiveChunksAtCurrentTime(&results);
-        std::shared_ptr<Revision> revision =
-            results.begin()->second->copyForWrite();
+        std::shared_ptr<Revision> revision;
+        results.begin()->second->copyForWrite(&revision);
         revision->set(kFieldName, 21);
         EXPECT_TRUE(table_->update(revision));
     }
@@ -260,7 +262,7 @@ TEST_F(NetTableFixture, Grind) {
   }
 }
 
-TEST_F(NetTableFixture, ChunkTransactions) {
+TEST_F(ChunkTest, ChunkTransactions) {
   const uint64_t kProcesses = FLAGS_grind_processes;
   enum Barriers {
     INIT,
@@ -314,7 +316,8 @@ TEST_F(NetTableFixture, ChunkTransactions) {
             transaction.getById(item_id);
         to_update->get(kFieldName, &transient_value);
         ++transient_value;
-        std::shared_ptr<Revision> revision = to_update->copyForWrite();
+        std::shared_ptr<Revision> revision;
+        to_update->copyForWrite(&revision);
         revision->set(kFieldName, transient_value);
         transaction.update(revision);
       if (transaction.commit()) {
@@ -325,7 +328,7 @@ TEST_F(NetTableFixture, ChunkTransactions) {
   }
 }
 
-TEST_F(NetTableFixture, ChunkTransactionsConflictConditions) {
+TEST_F(ChunkTest, ChunkTransactionsConflictConditions) {
   const uint64_t kProcesses = FLAGS_grind_processes;
   const int kUniqueItems = 10;
   enum Barriers {
@@ -377,7 +380,7 @@ TEST_F(NetTableFixture, ChunkTransactionsConflictConditions) {
   }
 }
 
-TEST_F(NetTableFixture, Triggers) {
+TEST_F(ChunkTest, Triggers) {
   enum Processes {
     ROOT,
     A
@@ -422,8 +425,8 @@ TEST_F(NetTableFixture, Triggers) {
       id = *insertions.begin();
     }
     Transaction transaction;
-    std::shared_ptr<Revision> item =
-        transaction.getById(id, table_, chunk_)->copyForWrite();
+    std::shared_ptr<Revision> item;
+    transaction.getById(id, table_, chunk_)->copyForWrite(&item);
     item->get(kFieldName, &highest_value);
     if (highest_value < 10) {
       ++highest_value;
@@ -467,7 +470,7 @@ TEST_F(NetTableFixture, Triggers) {
   }
 }
 
-TEST_F(NetTableFixture, SendHistory) {
+TEST_F(ChunkTest, SendHistory) {
   enum Processes {
     ROOT,
     A
@@ -510,8 +513,9 @@ TEST_F(NetTableFixture, SendHistory) {
     CHECK(insert_transaction.commit());
       IPC::push(LogicalTime::sample());
       Transaction update_transaction;
-      std::shared_ptr<Revision> to_update =
-          update_transaction.getById(item_id_, table_, chunk_)->copyForWrite();
+      std::shared_ptr<Revision> to_update;
+      update_transaction.getById(item_id_, table_, chunk_)
+          ->copyForWrite(&to_update);
       to_update->set(kFieldName, kAfter);
       update_transaction.update(table_, to_update);
       CHECK(update_transaction.commit());
@@ -521,7 +525,7 @@ TEST_F(NetTableFixture, SendHistory) {
   }
 }
 
-TEST_F(NetTableFixture, GetCommitTimes) {
+TEST_F(ChunkTest, GetCommitTimes) {
   chunk_ = table_->newChunk();
   Transaction first;
   common::Id id;
