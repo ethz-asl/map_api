@@ -207,7 +207,8 @@ TEST_F(NetTableTest, Transactions) {
         ConstRevisionMap chunk_dump;
         attempt.dumpChunk(second_table, b_chunk, &chunk_dump);
         ConstRevisionMap::iterator found = chunk_dump.find(b_id);
-        std::shared_ptr<Revision> to_update = found->second->copyForWrite();
+        std::shared_ptr<Revision> to_update;
+        found->second->copyForWrite(&to_update);
         int transient_value;
         to_update->get(kSecondTableFieldName, &transient_value);
         ++transient_value;

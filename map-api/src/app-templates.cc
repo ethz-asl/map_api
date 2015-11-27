@@ -6,13 +6,12 @@
 namespace map_api {
 
 template <>
-std::shared_ptr<std::string> objectFromRevision<std::string>(
-    const map_api::Revision& revision) {
-  std::shared_ptr<std::string> result(new std::string);
+void objectFromRevision<std::string>(const map_api::Revision& revision,
+                                     std::string* result) {
+  CHECK_NOTNULL(result);
   CHECK_EQ(revision.customFieldCount(), 1);
   constexpr int kUniqueFieldIndex = 0;
-  revision.get(kUniqueFieldIndex, result.get());
-  return result;
+  revision.get(kUniqueFieldIndex, result);
 }
 
 template <>
