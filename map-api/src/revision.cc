@@ -183,6 +183,13 @@ void Revision::getTrackedChunks(TrackeeMultimap* result) const {
 }
 
 bool Revision::fetchTrackedChunks() const {
+  return fetchTrackedChunks(nullptr);
+}
+
+bool Revision::fetchTrackedChunks(TrackeeMultimap* newly_fetched_chunks) const {
+  if (newly_fetched_chunks) {
+    newly_fetched_chunks->clear();
+  }
   bool success = true;
   TrackeeMultimap trackee_multimap;
   getTrackedChunks(&trackee_multimap);
@@ -191,10 +198,12 @@ bool Revision::fetchTrackedChunks() const {
   for (const TrackeeMultimap::value_type& table_trackees : trackee_multimap) {
     VLOG(3) << "Fetching " << table_trackees.second.size()
             << " tracked chunks from table " << table_trackees.first->name();
-    for (const common::Id& chunk_id : table_trackees.second) {
-      if (table_trackees.first->getChunk(chunk_id) == nullptr) {
-        success = false;
-      }
+    if (!table_trackees.first->ensureHasChunks(
+             table_trackees.second,
+             newly_fetched_chunks
+                 ? &(*newly_fetched_chunks)[table_trackees.first]
+                 : nullptr)) {
+      success = false;
     }
     VLOG(3) << "Done.";
   }

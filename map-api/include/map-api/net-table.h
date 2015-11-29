@@ -56,6 +56,10 @@ class NetTable {
   ChunkBase* newChunk();
   ChunkBase* newChunk(const common::Id& chunk_id);
   ChunkBase* getChunk(const common::Id& chunk_id);
+  ChunkBase* getChunk(const common::Id& chunk_id, bool* had_to_fetch_chunk);
+  // newly_fetched_chunks may be set to nullptr.
+  bool ensureHasChunks(const common::IdSet& chunks_to_ensure,
+                       common::IdSet* newly_fetched_chunks);
 
   // HIERARCHICAL CHUNK MANAGEMENT
   void pushNewChunkIdsToTracker(

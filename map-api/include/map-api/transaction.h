@@ -69,6 +69,9 @@ class Transaction {
   void find(int key, const ValueType& value, NetTable* table,
             ConstRevisionMap* result);
   bool fetchAllChunksTrackedByItemsInTable(NetTable* const table);
+  template <typename IdType>
+  void fetchAllChunksTrackedBy(const IdType& id, NetTable* const table,
+                               TrackeeMultimap* newly_fetched_chunks);
 
   // =====
   // WRITE
