@@ -44,6 +44,8 @@ class NetTableManager {
 
   void tableList(std::vector<std::string>* tables) const;
 
+  void printStatistics() const;
+
   void listenToPeersJoiningTable(const std::string& table_name);
 
   void kill();
