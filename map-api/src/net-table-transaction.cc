@@ -5,7 +5,10 @@
 #include "map-api/conflicts.h"
 
 DEFINE_bool(map_api_dump_available_chunk_contents, false,
-            "Will print all available ids if enabled");
+            "Will print all available ids if enabled.");
+
+DEFINE_bool(map_api_blame_updates, false,
+            "Print update counts per chunk per table.");
 
 namespace map_api {
 
@@ -78,6 +81,9 @@ bool NetTableTransaction::commit() {
 }
 
 void NetTableTransaction::checkedCommit(const LogicalTime& time) {
+  if (FLAGS_map_api_blame_updates) {
+    std::cout << "Updates in table " << table_->name() << ":" << std::endl;
+  }
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
     chunk_transaction.second->checkedCommit(time);
   }
