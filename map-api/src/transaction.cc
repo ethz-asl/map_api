@@ -293,20 +293,21 @@ void Transaction::pushNewChunkIdsToTrackers() {
        table_item_chunks_to_push) {
     for (const ItemToTrackeeMap::value_type& item_chunks_to_push :
          table_chunks_to_push.second) {
-      // TODO(tcies) keeping track of tracker chunks could optimize this, as
-      // the faster getById() overload could be used.
       CHECK(item_chunks_to_push.first.isValid())
           << "Invalid tracker ID for trackee from "
           << "table " << table_chunks_to_push.first->name();
       std::shared_ptr<const Revision> original_tracker =
           getById(item_chunks_to_push.first, table_chunks_to_push.first);
-      std::shared_ptr<Revision> updated_tracker;
-      original_tracker->copyForWrite(&updated_tracker);
+
       TrackeeMultimap trackee_multimap;
       trackee_multimap.deserialize(*original_tracker->underlying_revision_);
-      trackee_multimap.merge(item_chunks_to_push.second);
-      trackee_multimap.serialize(updated_tracker->underlying_revision_.get());
-      update(table_chunks_to_push.first, updated_tracker);
+      // Update only if set of trackees has changed.
+      if (trackee_multimap.merge(item_chunks_to_push.second)) {
+        std::shared_ptr<Revision> updated_tracker;
+        original_tracker->copyForWrite(&updated_tracker);
+        trackee_multimap.serialize(updated_tracker->underlying_revision_.get());
+        update(table_chunks_to_push.first, updated_tracker);
+      }
     }
   }
 }

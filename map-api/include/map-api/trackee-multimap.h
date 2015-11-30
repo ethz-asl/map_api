@@ -21,7 +21,8 @@ class TrackeeMultimap
   void serialize(proto::Revision* proto) const;
   void serialize(Revision* revision) const;
 
-  void merge(const TrackeeMultimap& other);
+  // Returns true if the merge results in a change, false otherwise.
+  bool merge(const TrackeeMultimap& other);
 
   bool hasOverlap(const TrackeeMultimap& other) const;
 
