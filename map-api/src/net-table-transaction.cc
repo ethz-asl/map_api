@@ -5,10 +5,10 @@
 #include "map-api/conflicts.h"
 
 DEFINE_bool(map_api_dump_available_chunk_contents, false,
-            "Will print all available ids if enabled");
+            "Will print all available ids if enabled.");
 
 DEFINE_bool(map_api_blame_updates, false,
-            "Print update counts per chunk per table");
+            "Print update counts per chunk per table.");
 
 namespace map_api {
 
