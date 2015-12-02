@@ -140,6 +140,7 @@ bool Revision::fieldMatch(const Revision& other, int key) const {
 bool Revision::areAllCustomFieldsEqual(const Revision& other) const {
   for (int i = 0; i < underlying_revision_->custom_field_values_size(); ++i) {
     if (!fieldMatch(other, i)) {
+      VLOG(4) << "Custom field " << i << " diverges!";
       return false;
     }
   }
@@ -208,6 +209,37 @@ bool Revision::fetchTrackedChunks(TrackeeMultimap* newly_fetched_chunks) const {
     VLOG(3) << "Done.";
   }
   return success;
+}
+
+bool Revision::tryAutoMerge(const Revision& conflicting_revision) {
+  if (!areAllCustomFieldsEqual(conflicting_revision)) {
+    VLOG(3) << "Custom fields diverge!";
+    return false;
+  }
+
+  common::Id id, conflicting_id;
+  id.deserialize(underlying_revision_->id());
+  conflicting_id.deserialize(conflicting_revision.underlying_revision_->id());
+  CHECK_EQ(id, conflicting_id);
+  CHECK_EQ(underlying_revision_->insert_time(),
+           conflicting_revision.underlying_revision_->insert_time());
+  CHECK_GT(underlying_revision_->update_time(),
+           conflicting_revision.underlying_revision_->update_time());
+  CHECK(!underlying_revision_->removed());
+  CHECK(!conflicting_revision.underlying_revision_->removed());
+  id.deserialize(underlying_revision_->chunk_id());
+  conflicting_id.deserialize(
+      conflicting_revision.underlying_revision_->chunk_id());
+  CHECK_EQ(id, conflicting_id);
+
+  TrackeeMultimap tracked_chunks, conflicting_tracked_chunks;
+  tracked_chunks.deserialize(*underlying_revision_);
+  conflicting_tracked_chunks.deserialize(
+      *conflicting_revision.underlying_revision_);
+
+  tracked_chunks.merge(conflicting_tracked_chunks);
+  tracked_chunks.serialize(underlying_revision_.get());
+  return true;
 }
 
 /**

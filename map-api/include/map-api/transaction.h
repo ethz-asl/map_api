@@ -95,6 +95,10 @@ class Transaction {
   // ======================
   bool commit();
   inline LogicalTime getCommitTime() const { return commit_time_; }
+  // Requires ObjectType to have function
+  // std::string getComparisonString(const ObjectType&) const;
+  template <typename ObjectType>
+  std::string debugConflictsInTable(NetTable* table);
   /**
    * Merge_transaction will be filled with all insertions and non-conflicting
    * updates from this transaction, while the conflicting updates will be

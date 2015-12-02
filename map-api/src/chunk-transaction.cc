@@ -107,11 +107,13 @@ bool ChunkTransaction::check() {
       return false;
     }
   }
-  for (const std::pair<const common::Id,
-      std::shared_ptr<const Revision> >& item : updates_) {
+  for (UpdateMap::value_type& item : updates_) {
     if (hasUpdateConflict(item.first, stamps)) {
       VLOG(4) << "Update conflict in table " << table_->name();
-      return false;
+      VLOG(4) << "Checking if conflict can be auto-merged...";
+      if (!tryAutoMerge(stamps, &item)) {
+        return false;
+      }
     }
   }
   for (const std::pair<const common::Id,
@@ -234,7 +236,7 @@ bool ChunkTransaction::hasUpdateConflict(const common::Id& item,
                                          const ItemTimes& db_stamps) const {
   const LogicalTime db_stamp = getChecked(db_stamps, item);
   if (db_stamp >= begin_time_) {
-    // Allow conflicts only if they come from a previous commit of the same
+    // Allow conflicts if they come from a previous commit of the same
     // transaction.
     ItemTimes::const_iterator found = previously_committed_.find(item);
     if (found != previously_committed_.end()) {
@@ -265,6 +267,15 @@ void ChunkTransaction::getTrackers(
       trackers->emplace(table_tracker_getter.first, id);
     }
   }
+}
+
+bool ChunkTransaction::tryAutoMerge(const ItemTimes& db_stamps,
+                                    UpdateMap::value_type* item) {
+  const LogicalTime db_stamp = getChecked(db_stamps, item->first);
+  std::shared_ptr<const Revision> conflicting_revision =
+      chunk_->data_container_->getById(item->first, db_stamp);
+  CHECK(conflicting_revision);
+  return item->second->tryAutoMerge(*conflicting_revision);
 }
 
 }  // namespace map_api

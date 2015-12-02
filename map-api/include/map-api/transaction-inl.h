@@ -1,12 +1,14 @@
 #ifndef MAP_API_TRANSACTION_INL_H_
 #define MAP_API_TRANSACTION_INL_H_
 
+#include <string>
 #include <utility>
 #include <vector>
 
 #include <multiagent-mapping-common/accessors.h>
 
 #include "map-api/chunk-manager.h"
+#include "map-api/conflicts.h"
 #include "map-api/net-table-transaction-interface.h"
 #include "map-api/threadsafe-cache.h"
 
@@ -66,6 +68,15 @@ void Transaction::fetchAllChunksTrackedBy(
 template <typename IdType>
 void Transaction::remove(const IdType& id, NetTable* table) {
   return transactionOf(CHECK_NOTNULL(table))->remove(id);
+}
+
+template <typename ObjectType>
+std::string Transaction::debugConflictsInTable(NetTable* table) {
+  CHECK(table);
+  std::shared_ptr<Transaction> dummy;
+  ConflictMap conflicts;
+  merge(dummy, &conflicts);
+  return conflicts.debugConflictsInTable<ObjectType>(table);
 }
 
 template <typename TrackerIdType>

@@ -30,6 +30,26 @@ class ConflictMap : public std::unordered_map<NetTable*, Conflicts> {
     }
     return ss.str();
   }
+
+  // Requires ObjectType to have function
+  // std::string getComparisonString(const ObjectType&) const;
+  template <typename ObjectType>
+  std::string debugConflictsInTable(NetTable* table) {
+    CHECK(table);
+    iterator found = find(table);
+    if (found == end()) {
+      return "There are no conflicts in table " + table->name() + "!\n";
+    }
+    for (const Conflict& conflict : found->second) {
+      ObjectType our_object, their_object;
+      objectFromRevision(*conflict.ours, &our_object);
+      objectFromRevision(*conflict.theirs, &their_object);
+      return "For object " + conflict.ours->getId<common::Id>().printString() +
+             " of table " + table->name() +
+             " the attempted commit compares to the conflict as follows:\n" +
+             our_object.getComparisonString(their_object) + "\n";
+    }
+  }
 };
 
 }  // namespace map_api
