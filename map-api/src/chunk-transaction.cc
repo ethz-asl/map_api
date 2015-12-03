@@ -274,8 +274,14 @@ bool ChunkTransaction::tryAutoMerge(const ItemTimes& db_stamps,
   const LogicalTime db_stamp = getChecked(db_stamps, item->first);
   std::shared_ptr<const Revision> conflicting_revision =
       chunk_->data_container_->getById(item->first, db_stamp);
+  std::shared_ptr<const Revision> original_revision =
+      chunk_->data_container_->getById(item->first, db_stamp.justBefore());
   CHECK(conflicting_revision);
-  return item->second->tryAutoMerge(*conflicting_revision);
+  // Original revision must exist, since db_stamp > begin_time_ and the
+  // transaction wouldn't know about the item unless it existed before
+  // begin_time_.
+  CHECK(original_revision);
+  return item->second->tryAutoMerge(*conflicting_revision, *original_revision);
 }
 
 }  // namespace map_api

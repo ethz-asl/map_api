@@ -211,10 +211,23 @@ bool Revision::fetchTrackedChunks(TrackeeMultimap* newly_fetched_chunks) const {
   return success;
 }
 
-bool Revision::tryAutoMerge(const Revision& conflicting_revision) {
+bool Revision::tryAutoMerge(const Revision& conflicting_revision,
+                            const Revision& original_revision) {
   if (!areAllCustomFieldsEqual(conflicting_revision)) {
-    VLOG(3) << "Custom fields diverge!";
-    return false;
+    bool this_innovates = !areAllCustomFieldsEqual(original_revision);
+    bool conflict_innovates =
+        !conflicting_revision.areAllCustomFieldsEqual(original_revision);
+
+    if (this_innovates && conflict_innovates) {
+      VLOG(3) << "Custom fields innovated by both diverge!";
+      return false;
+    } else {
+      if (conflict_innovates) {
+        underlying_revision_->mutable_custom_field_values()
+            ->CopyFrom(conflicting_revision.underlying_revision_
+                           ->custom_field_values())
+      }
+    }
   }
 
   common::Id id, conflicting_id;

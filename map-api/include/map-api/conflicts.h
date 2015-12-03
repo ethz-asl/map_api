@@ -40,15 +40,18 @@ class ConflictMap : public std::unordered_map<NetTable*, Conflicts> {
     if (found == end()) {
       return "There are no conflicts in table " + table->name() + "!\n";
     }
+    std::string result;
     for (const Conflict& conflict : found->second) {
       ObjectType our_object, their_object;
       objectFromRevision(*conflict.ours, &our_object);
       objectFromRevision(*conflict.theirs, &their_object);
-      return "For object " + conflict.ours->getId<common::Id>().printString() +
-             " of table " + table->name() +
-             " the attempted commit compares to the conflict as follows:\n" +
-             our_object.getComparisonString(their_object) + "\n";
+      result += "For object " +
+                conflict.ours->getId<common::Id>().printString() +
+                " of table " + table->name() +
+                " the attempted commit compares to the conflict as follows:\n" +
+                getComparisonString(our_object, their_object) + "\n";
     }
+    return result;
   }
 };
 

@@ -73,7 +73,7 @@ void Transaction::remove(const IdType& id, NetTable* table) {
 template <typename ObjectType>
 std::string Transaction::debugConflictsInTable(NetTable* table) {
   CHECK(table);
-  std::shared_ptr<Transaction> dummy;
+  std::shared_ptr<Transaction> dummy(new Transaction);
   ConflictMap conflicts;
   merge(dummy, &conflicts);
   return conflicts.debugConflictsInTable<ObjectType>(table);
