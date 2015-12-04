@@ -223,9 +223,8 @@ bool Revision::tryAutoMerge(const Revision& conflicting_revision,
       return false;
     } else {
       if (conflict_innovates) {
-        underlying_revision_->mutable_custom_field_values()
-            ->CopyFrom(conflicting_revision.underlying_revision_
-                           ->custom_field_values())
+        underlying_revision_->mutable_custom_field_values()->CopyFrom(
+            conflicting_revision.underlying_revision_->custom_field_values());
       }
     }
   }
@@ -236,8 +235,6 @@ bool Revision::tryAutoMerge(const Revision& conflicting_revision,
   CHECK_EQ(id, conflicting_id);
   CHECK_EQ(underlying_revision_->insert_time(),
            conflicting_revision.underlying_revision_->insert_time());
-  CHECK_GT(underlying_revision_->update_time(),
-           conflicting_revision.underlying_revision_->update_time());
   CHECK(!underlying_revision_->removed());
   CHECK(!conflicting_revision.underlying_revision_->removed());
   id.deserialize(underlying_revision_->chunk_id());

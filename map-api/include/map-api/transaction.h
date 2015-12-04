@@ -112,6 +112,20 @@ class Transaction {
   // ==========
   size_t numChangedItems() const;
 
+  // ======
+  // CACHES
+  // ======
+  template <typename IdType, typename ObjectType>
+  std::shared_ptr<ThreadsafeCache<IdType, ObjectType>> createCache(
+      NetTable* table);
+  template <typename IdType, typename ObjectType>
+  const ThreadsafeCache<IdType, ObjectType>& getCache(NetTable* table);
+  template <typename IdType, typename ObjectType>
+  void setCacheUpdateFilter(
+      const std::function<bool(const ObjectType& original,  // NOLINT
+                               const ObjectType& innovation)>& update_filter,
+      NetTable* table);
+
   // =============
   // MISCELLANEOUS
   // =============
@@ -120,11 +134,6 @@ class Transaction {
       NetTable* trackee_table, NetTable* tracker_table,
       const std::function<TrackerIdType(const Revision&)>&
           how_to_determine_tracker);
-  template <typename IdType, typename ObjectType>
-  std::shared_ptr<ThreadsafeCache<IdType, ObjectType>> createCache(
-      NetTable* table);
-  template <typename IdType, typename ObjectType>
-  const ThreadsafeCache<IdType, ObjectType>& getCache(NetTable* table);
   // The following must be called if chunks are fetched after the transaction
   // has been initialized, otherwise the new items can't be fetched by the
   // transaction.
@@ -152,6 +161,9 @@ class Transaction {
                                                          NetTable* table);
   template <typename IdType>
   friend class NetTableTransactionInterface;
+
+  template <typename IdType, typename ObjectType>
+  ThreadsafeCache<IdType, ObjectType>* getMutableCache(NetTable* table);
 
   /**
    * A global ordering of tables prevents deadlocks (resource hierarchy

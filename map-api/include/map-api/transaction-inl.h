@@ -79,6 +79,32 @@ std::string Transaction::debugConflictsInTable(NetTable* table) {
   return conflicts.debugConflictsInTable<ObjectType>(table);
 }
 
+template <typename IdType, typename ObjectType>
+std::shared_ptr<ThreadsafeCache<IdType, ObjectType>> Transaction::createCache(
+    NetTable* table) {
+  CHECK_NOTNULL(table);
+  std::shared_ptr<ThreadsafeCache<IdType, ObjectType>> result(
+      new ThreadsafeCache<IdType, ObjectType>(this, table));
+  CHECK(caches_.emplace(table, result).second);
+  return result;
+}
+
+template <typename IdType, typename ObjectType>
+const ThreadsafeCache<IdType, ObjectType>& Transaction::getCache(
+    NetTable* table) {
+  return *getMutableCache<IdType, ObjectType>(table);
+}
+
+template <typename IdType, typename ObjectType>
+void Transaction::setCacheUpdateFilter(
+    const std::function<bool(const ObjectType& original,  // NOLINT
+                             const ObjectType& innovation)>& update_filter,
+    NetTable* table) {
+  ThreadsafeCache<IdType, ObjectType>* cache =
+      getMutableCache<IdType, ObjectType>(table);
+  cache->setUpdateFilter(update_filter);
+}
+
 template <typename TrackerIdType>
 void Transaction::overrideTrackerIdentificationMethod(
     NetTable* trackee_table, NetTable* tracker_table,
@@ -93,35 +119,25 @@ void Transaction::overrideTrackerIdentificationMethod(
   disableDirectAccess();
 }
 
-template <typename IdType, typename ObjectType>
-std::shared_ptr<ThreadsafeCache<IdType, ObjectType>> Transaction::createCache(
-    NetTable* table) {
-  CHECK_NOTNULL(table);
-  std::shared_ptr<ThreadsafeCache<IdType, ObjectType>> result(
-      new ThreadsafeCache<IdType, ObjectType>(this, table));
-  CHECK(caches_.emplace(table, result).second);
-  return result;
-}
-
-template <typename IdType, typename ObjectType>
-const ThreadsafeCache<IdType, ObjectType>& Transaction::getCache(
-    NetTable* table) {
-  CHECK_NOTNULL(table);
-  // This ABSOLUTELY MUST REMAIN A DYNAMIC_CAST!!! Previously, it was static,
-  // and resulted in a 3-day bug hunt.
-  const ThreadsafeCache<IdType, ObjectType>* result =
-      dynamic_cast<const ThreadsafeCache<IdType, ObjectType>*>(  // NOLINT
-          common::getChecked(caches_, table).get());
-  CHECK(result != nullptr) << "Requested cache type does not correspond to "
-                           << "cache type previously created for table "
-                           << table->name() << "!";
-  return *result;
-}
-
 template <typename IdType>
 std::shared_ptr<const Revision>* Transaction::getMutableUpdateEntry(
     const IdType& id, NetTable* table) {
   return transactionOf(CHECK_NOTNULL(table))->getMutableUpdateEntry(id);
+}
+
+template <typename IdType, typename ObjectType>
+ThreadsafeCache<IdType, ObjectType>* Transaction::getMutableCache(
+    NetTable* table) {
+  CHECK_NOTNULL(table);
+  // This ABSOLUTELY MUST REMAIN A DYNAMIC_CAST!!! Previously, it was static,
+  // and resulted in a 3-day bug hunt.
+  ThreadsafeCache<IdType, ObjectType>* result =
+      dynamic_cast<ThreadsafeCache<IdType, ObjectType>*>(  // NOLINT
+          common::getChecked(caches_, table).get());
+  CHECK(result != nullptr) << "Requested cache type does not correspond to "
+                           << "cache type previously created for table "
+                           << table->name() << "!";
+  return result;
 }
 
 }  // namespace map_api
