@@ -138,18 +138,10 @@ ChunkBase* NetTable::newChunk(const common::Id& chunk_id) {
 }
 
 ChunkBase* NetTable::getChunk(const common::Id& chunk_id) {
-  bool had_to_fetch_chunk;
-  return getChunk(chunk_id, &had_to_fetch_chunk);
-}
-
-ChunkBase* NetTable::getChunk(const common::Id& chunk_id,
-                              bool* had_to_fetch_chunk) {
-  CHECK_NOTNULL(had_to_fetch_chunk);
   timing::Timer timer("map_api::NetTable::getChunk");
   active_chunks_lock_.acquireReadLock();
   ChunkMap::iterator found = active_chunks_.find(chunk_id);
   if (found == active_chunks_.end()) {
-    *had_to_fetch_chunk = true;
     // look in index and connect to peers that claim to have the data
     // (for now metatable only)
     std::unordered_set<PeerId> peers;
@@ -165,8 +157,6 @@ ChunkBase* NetTable::getChunk(const common::Id& chunk_id,
     active_chunks_lock_.acquireReadLock();
     found = active_chunks_.find(chunk_id);
     CHECK(found != active_chunks_.end());
-  } else {
-    *had_to_fetch_chunk = false;
   }
   ChunkBase* result = found->second.get();
   active_chunks_lock_.releaseReadLock();
@@ -174,20 +164,12 @@ ChunkBase* NetTable::getChunk(const common::Id& chunk_id,
   return result;
 }
 
-bool NetTable::ensureHasChunks(const common::IdSet& chunks_to_ensure,
-                               common::IdSet* newly_fetched_chunks) {
+bool NetTable::ensureHasChunks(const common::IdSet& chunks_to_ensure) {
   bool success = true;
-  if (newly_fetched_chunks) {
-    newly_fetched_chunks->clear();
-  }
   for (const common::Id& chunk_id : chunks_to_ensure) {
-    bool had_to_fetch_chunk;
-    if (!getChunk(chunk_id, &had_to_fetch_chunk)) {
+    if (!getChunk(chunk_id)) {
       success = false;
       continue;
-    }
-    if (had_to_fetch_chunk && newly_fetched_chunks) {
-      newly_fetched_chunks->emplace(chunk_id);
     }
   }
   return success;

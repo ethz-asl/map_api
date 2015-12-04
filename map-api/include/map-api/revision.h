@@ -151,8 +151,6 @@ class Revision {
 
   void getTrackedChunks(TrackeeMultimap* result) const;
   bool fetchTrackedChunks() const;
-  // newly_fetched_chunks may be set to nullptr.
-  bool fetchTrackedChunks(TrackeeMultimap* newly_fetched_chunks) const;
 
   bool tryAutoMerge(const Revision& conflicting_revision,
                     const Revision& original_revision);

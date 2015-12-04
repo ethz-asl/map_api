@@ -70,8 +70,7 @@ class Transaction {
             ConstRevisionMap* result);
   bool fetchAllChunksTrackedByItemsInTable(NetTable* const table);
   template <typename IdType>
-  void fetchAllChunksTrackedBy(const IdType& id, NetTable* const table,
-                               TrackeeMultimap* newly_fetched_chunks);
+  void fetchAllChunksTrackedBy(const IdType& id, NetTable* const table);
 
   // =====
   // WRITE
@@ -95,8 +94,11 @@ class Transaction {
   // ======================
   bool commit();
   inline LogicalTime getCommitTime() const { return commit_time_; }
-  // Requires ObjectType to have function
-  // std::string getComparisonString(const ObjectType&) const;
+  // Requires specialization of
+  // std::string getComparisonString(const ObjectType& a, const ObjectType& b);
+  // or
+  // std::string ObjectType::getComparisonString(const ObjectType&) const;
+  // Note that the latter will be correctly called for shared pointers.
   template <typename ObjectType>
   std::string debugConflictsInTable(NetTable* table);
   /**

@@ -46,18 +46,16 @@ void Transaction::getAvailableIds(NetTable* table,
 }
 
 template <typename IdType>
-void Transaction::fetchAllChunksTrackedBy(
-    const IdType& id, NetTable* const table,
-    TrackeeMultimap* newly_fetched_chunks) {
+void Transaction::fetchAllChunksTrackedBy(const IdType& id,
+                                          NetTable* const table) {
   CHECK_NOTNULL(table);
-  CHECK_NOTNULL(newly_fetched_chunks);
 
   enableDirectAccess();
   std::shared_ptr<const Revision> tracker = getById(id, table);
   CHECK(tracker);
   disableDirectAccess();
 
-  CHECK(tracker->fetchTrackedChunks(newly_fetched_chunks));
+  CHECK(tracker->fetchTrackedChunks());
 
   refreshIdToChunkIdMaps();
   // Id to chunk id maps must be refreshed first, otherwise getAvailableIds will

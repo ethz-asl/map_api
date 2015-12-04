@@ -93,10 +93,10 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
   // Add a function to determine whether updates should be applied back to the
   // cache (true = will be applied).
   // Attention, this will be very expensive, since it will add two conversions
-  // per item!
-  typedef std::function<bool(const ObjectType& original,  // NOLINT
-                             const ObjectType& innovation)> UpdateFilter;
-  void setUpdateFilter(const UpdateFilter& update_filter) {
+  // per item! Prefer to use const correctness if possible.
+  void setUpdateFilter(
+      const std::function<bool(const ObjectType& original,  // NOLINT
+                               const ObjectType& innovation)>& update_filter) {
     CHECK(update_filter);
     cache_.setUpdateFilter([&update_filter](
         const std::shared_ptr<const Revision>& original_revision,

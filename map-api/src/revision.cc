@@ -184,13 +184,6 @@ void Revision::getTrackedChunks(TrackeeMultimap* result) const {
 }
 
 bool Revision::fetchTrackedChunks() const {
-  return fetchTrackedChunks(nullptr);
-}
-
-bool Revision::fetchTrackedChunks(TrackeeMultimap* newly_fetched_chunks) const {
-  if (newly_fetched_chunks) {
-    newly_fetched_chunks->clear();
-  }
   bool success = true;
   TrackeeMultimap trackee_multimap;
   getTrackedChunks(&trackee_multimap);
@@ -199,11 +192,7 @@ bool Revision::fetchTrackedChunks(TrackeeMultimap* newly_fetched_chunks) const {
   for (const TrackeeMultimap::value_type& table_trackees : trackee_multimap) {
     VLOG(3) << "Fetching " << table_trackees.second.size()
             << " tracked chunks from table " << table_trackees.first->name();
-    if (!table_trackees.first->ensureHasChunks(
-             table_trackees.second,
-             newly_fetched_chunks
-                 ? &(*newly_fetched_chunks)[table_trackees.first]
-                 : nullptr)) {
+    if (!table_trackees.first->ensureHasChunks(table_trackees.second)) {
       success = false;
     }
     VLOG(3) << "Done.";
@@ -247,8 +236,9 @@ bool Revision::tryAutoMerge(const Revision& conflicting_revision,
   conflicting_tracked_chunks.deserialize(
       *conflicting_revision.underlying_revision_);
 
-  tracked_chunks.merge(conflicting_tracked_chunks);
-  tracked_chunks.serialize(underlying_revision_.get());
+  if (tracked_chunks.merge(conflicting_tracked_chunks)) {
+    tracked_chunks.serialize(underlying_revision_.get());
+  }
   return true;
 }
 
