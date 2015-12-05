@@ -152,8 +152,19 @@ class Revision {
   void getTrackedChunks(TrackeeMultimap* result) const;
   bool fetchTrackedChunks() const;
 
+  // Returns true if merge succeeded. If false is returned, revision_at_hand
+  // must be unchanged! TODO(tcies) enforce by design?
+  typedef std::function<bool(const Revision& conflicting_revision,  // NOLINT
+                             const Revision& original_revision,
+                             Revision* revision_at_hand)> AutoMergePolicy;
+  static bool defaultAutoMergePolicy(const Revision& conflicting_revision,
+                                     const Revision& original_revision,
+                                     Revision* revision_at_hand);
+  // Succeeds if either the default merge policy or any of the custom merge
+  // policies succeed.
   bool tryAutoMerge(const Revision& conflicting_revision,
-                    const Revision& original_revision);
+                    const Revision& original_revision,
+                    const std::vector<AutoMergePolicy>& custom_merge_policies);
 
  private:
   Revision() = default;
