@@ -202,19 +202,20 @@ bool Revision::fetchTrackedChunks() const {
 
 bool Revision::tryAutoMerge(const Revision& conflicting_revision,
                             const Revision& original_revision) {
-  if (!areAllCustomFieldsEqual(conflicting_revision)) {
-    bool this_innovates = !areAllCustomFieldsEqual(original_revision);
-    bool conflict_innovates =
-        !conflicting_revision.areAllCustomFieldsEqual(original_revision);
+  const bool conflict_innovates =
+      !conflicting_revision.areAllCustomFieldsEqual(original_revision);
+  if (conflict_innovates) {
+    const bool this_innovates = !areAllCustomFieldsEqual(original_revision);
 
-    if (this_innovates && conflict_innovates) {
-      VLOG(3) << "Custom fields innovated by both diverge!";
+    // When both versions innovate, we fail the transaction per default, even
+    // if the innovations are equal. This makes it more easy to test proper
+    // functioning of transactions.
+    if (this_innovates) {
+      VLOG(3) << "Custom fields innovated by both!";
       return false;
     } else {
-      if (conflict_innovates) {
-        underlying_revision_->mutable_custom_field_values()->CopyFrom(
-            conflicting_revision.underlying_revision_->custom_field_values());
-      }
+      underlying_revision_->mutable_custom_field_values()->CopyFrom(
+          conflicting_revision.underlying_revision_->custom_field_values());
     }
   }
 
