@@ -140,6 +140,7 @@ bool Revision::fieldMatch(const Revision& other, int key) const {
 bool Revision::areAllCustomFieldsEqual(const Revision& other) const {
   for (int i = 0; i < underlying_revision_->custom_field_values_size(); ++i) {
     if (!fieldMatch(other, i)) {
+      VLOG(4) << "Custom field " << i << " diverges!";
       return false;
     }
   }
@@ -191,14 +192,55 @@ bool Revision::fetchTrackedChunks() const {
   for (const TrackeeMultimap::value_type& table_trackees : trackee_multimap) {
     VLOG(3) << "Fetching " << table_trackees.second.size()
             << " tracked chunks from table " << table_trackees.first->name();
-    for (const common::Id& chunk_id : table_trackees.second) {
-      if (table_trackees.first->getChunk(chunk_id) == nullptr) {
-        success = false;
-      }
+    if (!table_trackees.first->ensureHasChunks(table_trackees.second)) {
+      success = false;
     }
     VLOG(3) << "Done.";
   }
   return success;
+}
+
+bool Revision::tryAutoMerge(const Revision& conflicting_revision,
+                            const Revision& original_revision) {
+  const bool conflict_innovates =
+      !conflicting_revision.areAllCustomFieldsEqual(original_revision);
+  if (conflict_innovates) {
+    const bool this_innovates = !areAllCustomFieldsEqual(original_revision);
+
+    // When both versions innovate, we fail the transaction per default, even
+    // if the innovations are equal. This makes it more easy to test proper
+    // functioning of transactions.
+    if (this_innovates) {
+      VLOG(3) << "Custom fields innovated by both!";
+      return false;
+    } else {
+      underlying_revision_->mutable_custom_field_values()->CopyFrom(
+          conflicting_revision.underlying_revision_->custom_field_values());
+    }
+  }
+
+  common::Id id, conflicting_id;
+  id.deserialize(underlying_revision_->id());
+  conflicting_id.deserialize(conflicting_revision.underlying_revision_->id());
+  CHECK_EQ(id, conflicting_id);
+  CHECK_EQ(underlying_revision_->insert_time(),
+           conflicting_revision.underlying_revision_->insert_time());
+  CHECK(!underlying_revision_->removed());
+  CHECK(!conflicting_revision.underlying_revision_->removed());
+  id.deserialize(underlying_revision_->chunk_id());
+  conflicting_id.deserialize(
+      conflicting_revision.underlying_revision_->chunk_id());
+  CHECK_EQ(id, conflicting_id);
+
+  TrackeeMultimap tracked_chunks, conflicting_tracked_chunks;
+  tracked_chunks.deserialize(*underlying_revision_);
+  conflicting_tracked_chunks.deserialize(
+      *conflicting_revision.underlying_revision_);
+
+  if (tracked_chunks.merge(conflicting_tracked_chunks)) {
+    tracked_chunks.serialize(underlying_revision_.get());
+  }
+  return true;
 }
 
 /**

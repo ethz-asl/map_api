@@ -164,6 +164,17 @@ ChunkBase* NetTable::getChunk(const common::Id& chunk_id) {
   return result;
 }
 
+bool NetTable::ensureHasChunks(const common::IdSet& chunks_to_ensure) {
+  bool success = true;
+  for (const common::Id& chunk_id : chunks_to_ensure) {
+    if (!getChunk(chunk_id)) {
+      success = false;
+      continue;
+    }
+  }
+  return success;
+}
+
 void NetTable::pushNewChunkIdsToTracker(
     NetTable* table_of_tracking_item,
     const std::function<common::Id(const Revision&)>&

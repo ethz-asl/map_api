@@ -152,6 +152,9 @@ class Revision {
   void getTrackedChunks(TrackeeMultimap* result) const;
   bool fetchTrackedChunks() const;
 
+  bool tryAutoMerge(const Revision& conflicting_revision,
+                    const Revision& original_revision);
+
  private:
   Revision() = default;
 
