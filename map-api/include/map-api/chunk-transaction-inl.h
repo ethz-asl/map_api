@@ -58,7 +58,7 @@ void ChunkTransaction::getAvailableIds(std::unordered_set<IdType>* ids) {
 }
 
 template <typename IdType>
-bool ChunkTransaction::getMutableUpdateEntry(
+void ChunkTransaction::getMutableUpdateEntry(
     const IdType& id, std::shared_ptr<const Revision>** result) {
   CHECK_NOTNULL(result);
   // Is there already a corresponding entry in the update map?
@@ -66,33 +66,24 @@ bool ChunkTransaction::getMutableUpdateEntry(
   if (existing_entry != updates_.end()) {
     *result = reinterpret_cast<std::shared_ptr<const Revision>*>(
         &existing_entry->second);
-    return true;
+    return;
   }
   // Is there a corresponding entry in the insert map?
   InsertMap::iterator existing_insert_entry = insertions_.find(id);
   if (existing_insert_entry != insertions_.end()) {
     *result = reinterpret_cast<std::shared_ptr<const Revision>*>(
         &existing_insert_entry->second);
-    return true;
+    return;
   }
 
-  // If neither, but the corresponding item exists in this chunk, create a new
-  // update entry.
-  // TODO(tcies) should the available id list be cached?
-  std::unordered_set<IdType> ids_in_chunk;
-  getAvailableIds(&ids_in_chunk);
-  if (ids_in_chunk.count(id) != 0u) {
-    std::shared_ptr<Revision> to_emplace;
-    getById(id)->copyForWrite(&to_emplace);
-    std::pair<UpdateMap::iterator, bool> emplace_result = updates_.insert(
-        std::make_pair(id.template toIdType<common::Id>(), to_emplace));
-    CHECK(emplace_result.second);
-    *result = reinterpret_cast<std::shared_ptr<const Revision>*>(
-        &emplace_result.first->second);
-    return true;
-  }
-
-  return false;
+  // If neither, create a new update entry.
+  std::shared_ptr<Revision> to_emplace;
+  getById(id)->copyForWrite(&to_emplace);
+  std::pair<UpdateMap::iterator, bool> emplace_result = updates_.insert(
+      std::make_pair(id.template toIdType<common::Id>(), to_emplace));
+  CHECK(emplace_result.second);
+  *result = reinterpret_cast<std::shared_ptr<const Revision>*>(
+      &emplace_result.first->second);
 }
 
 template <typename IdType>
