@@ -1,5 +1,7 @@
 #include "map-api/net-table-manager.h"
 
+#include <iostream>  // NOLINT
+
 #include "map-api/chunk-transaction.h"
 #include "map-api/core.h"
 #include "map-api/hub.h"
@@ -243,6 +245,14 @@ void NetTableManager::tableList(std::vector<std::string>* tables) const {
   for (const std::pair<const std::string, std::unique_ptr<NetTable> >& pair :
        tables_) {
     tables->push_back(pair.first);
+  }
+}
+
+void NetTableManager::printStatistics() const {
+  aslam::ScopedReadLock lock(&tables_lock_);
+  for (const std::pair<const std::string, std::unique_ptr<NetTable> >& pair :
+       tables_) {
+    std::cout << pair.second->getStatistics() << std::endl;
   }
 }
 

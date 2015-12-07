@@ -117,6 +117,12 @@ target_link_libraries(test_proto_stl_stream_test ${PROJECT_NAME})
 catkin_add_gtest(test_workspace_test test/workspace_test.cc)
 target_link_libraries(test_workspace_test ${PROJECT_NAME})
 
+#############
+# QTCREATOR #
+#############
+FILE(GLOB_RECURSE LibFiles "include/*")
+add_custom_target(headers SOURCES ${LibFiles})
+
 ##########
 # EXPORT #
 ##########
