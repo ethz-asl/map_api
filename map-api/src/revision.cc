@@ -253,13 +253,13 @@ bool Revision::defaultAutoMergePolicy(const Revision& conflicting_revision,
 bool Revision::tryAutoMerge(
     const Revision& conflicting_revision, const Revision& original_revision,
     const std::vector<AutoMergePolicy>& custom_merge_policies) {
-  if (defaultAutoMergePolicy(conflicting_revision, original_revision, this)) {
-    return true;
-  }
   for (const AutoMergePolicy& policy : custom_merge_policies) {
     if (policy(conflicting_revision, original_revision, this)) {
       return true;
     }
+  }
+  if (defaultAutoMergePolicy(conflicting_revision, original_revision, this)) {
+    return true;
   }
   return false;
 }
