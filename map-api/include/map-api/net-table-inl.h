@@ -82,6 +82,35 @@ void NetTable::followTrackedChunksOfItem(const IdType& item_id,
   followTrackedChunksOfItem(item_id, tracker_chunk);
 }
 
+template <typename ObjectType>
+void NetTable::addHeterogenousAutoMergePolicySymetrically(
+    const typename AutoMergePolicy<ObjectType>::Type& auto_merge_policy) {
+  addAutoMergePolicy([auto_merge_policy](const Revision& conflicting_revision,
+                                         const Revision& original_revision,
+                                         Revision* revision_at_hand) {
+    CHECK_NOTNULL(revision_at_hand);
+    std::shared_ptr<ObjectType> conflicting_object, original_object,
+        object_at_hand;
+    objectFromRevision(conflicting_revision, &conflicting_object);
+    objectFromRevision(original_revision, &original_object);
+    objectFromRevision(*revision_at_hand, &object_at_hand);
+
+    if (auto_merge_policy(*conflicting_object, *original_object,
+                          object_at_hand.get())) {
+      objectToRevision(object_at_hand, revision_at_hand);
+      return true;
+    }
+
+    if (auto_merge_policy(*object_at_hand, *original_object,
+                          conflicting_object.get())) {
+      objectToRevision(conflicting_object, revision_at_hand);
+      return true;
+    }
+
+    return false;
+  });
+}
+
 }  // namespace map_api
 
 #endif  // MAP_API_NET_TABLE_INL_H_
