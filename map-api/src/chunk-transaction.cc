@@ -271,6 +271,7 @@ void ChunkTransaction::getTrackers(
 
 bool ChunkTransaction::tryAutoMerge(const ItemTimes& db_stamps,
                                     UpdateMap::value_type* item) {
+  CHECK(item);
   const LogicalTime db_stamp = getChecked(db_stamps, item->first);
   std::shared_ptr<const Revision> conflicting_revision =
       chunk_->data_container_->getById(item->first, db_stamp);
