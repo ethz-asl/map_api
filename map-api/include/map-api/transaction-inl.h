@@ -70,7 +70,7 @@ void Transaction::remove(const IdType& id, NetTable* table) {
 
 template <typename ObjectType>
 std::string Transaction::debugConflictsInTable(NetTable* table) {
-  CHECK(table);
+  CHECK_NOTNULL(table);
   std::shared_ptr<Transaction> dummy(new Transaction);
   ConflictMap conflicts;
   merge(dummy, &conflicts);
@@ -98,6 +98,7 @@ void Transaction::setCacheUpdateFilter(
     const std::function<bool(const ObjectType& original,  // NOLINT
                              const ObjectType& innovation)>& update_filter,
     NetTable* table) {
+  CHECK_NOTNULL(table);
   ThreadsafeCache<IdType, ObjectType>* cache =
       getMutableCache<IdType, ObjectType>(table);
   cache->setUpdateFilter(update_filter);
