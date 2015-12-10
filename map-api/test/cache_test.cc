@@ -32,7 +32,27 @@ UNIQUE_ID_DEFINE_ID_HASH(map_api::IntId);
 
 namespace map_api {
 
-class CacheTest : public NetTableFixture {};
+class CacheTest : public NetTableFixture {
+ protected:
+  virtual void SetUp() {
+    NetTableFixture::SetUp();
+    for (int i = 0; i < 3; ++i) {
+      generateIdFromInt(i + 1, &int_id_[i]);
+      int_val_[i] = i;
+    }
+  }
+
+  void initCacheView() {
+    transaction_.reset(new Transaction);
+    cache_ = transaction_->createCache<IntId, int>(table_);
+  }
+
+  std::shared_ptr<Transaction> transaction_;
+  std::shared_ptr<ThreadsafeCache<IntId, int>> cache_;
+
+  IntId int_id_[3];
+  int int_val_[3];
+};
 
 TEST_F(CacheTest, GeneralTest) {
   enum SubProcesses {
@@ -44,53 +64,57 @@ TEST_F(CacheTest, GeneralTest) {
     ROOT_INSERTED,
     A_DONE
   };
-  std::shared_ptr<Transaction> transaction;
-  std::shared_ptr<ThreadsafeCache<IntId, int>> cache;
-  IntId kId[3];
-  int kVal[3];
-  for (int i = 0; i < 3; ++i) {
-    generateIdFromInt(i + 1, &kId[i]);
-    kVal[i] = i;
-  }
+
   std::vector<IntId> id_result;
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
-    transaction.reset(new Transaction);
-    cache = transaction->createCache<IntId, int>(table_);
-    cache->getAllAvailableIds(&id_result);
+    initCacheView();
+    cache_->getAllAvailableIds(&id_result);
     EXPECT_TRUE(id_result.empty());
     for (int i = 0; i < 3; ++i) {
-      EXPECT_FALSE(cache->has(kId[i]));
+      EXPECT_FALSE(cache_->has(int_id_[i]));
     }
-    EXPECT_TRUE(cache->insert(kId[0], kVal[0]));
-    EXPECT_TRUE(transaction->commit());
+    EXPECT_TRUE(cache_->insert(int_id_[0], int_val_[0]));
+    EXPECT_TRUE(transaction_->commit());
     IPC::barrier(INIT, 1);
     table_->shareAllChunks();
     IPC::barrier(ROOT_INSERTED, 1);
     IPC::barrier(A_DONE, 1);
 
-    transaction.reset(new Transaction);
-    cache = transaction->createCache<IntId, int>(table_);
-    cache->getAllAvailableIds(&id_result);
+    initCacheView();
+    cache_->getAllAvailableIds(&id_result);
     EXPECT_EQ(2u, id_result.size());
-    ASSERT_TRUE(cache->has(kId[0]));
-    ASSERT_TRUE(cache->has(kId[1]));
-    EXPECT_FALSE(cache->has(kId[2]));
-    EXPECT_EQ(kVal[2], cache->get(kId[0]));
-    EXPECT_EQ(kVal[1], cache->get(kId[1]));
+    ASSERT_TRUE(cache_->has(int_id_[0]));
+    ASSERT_TRUE(cache_->has(int_id_[1]));
+    EXPECT_FALSE(cache_->has(int_id_[2]));
+    EXPECT_EQ(int_val_[2], cache_->get(int_id_[0]));
+    EXPECT_EQ(int_val_[1], cache_->get(int_id_[1]));
   }
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 1);
     IPC::barrier(ROOT_INSERTED, 1);
-    transaction.reset(new Transaction);
-    cache = transaction->createCache<IntId, int>(table_);
-    CHECK(cache->has(kId[0]));
-    cache->getMutable(kId[0]) = kVal[2];
-    CHECK(cache->insert(kId[1], kVal[1]));
-    CHECK(transaction->commit());
+    initCacheView();
+    CHECK(cache_->has(int_id_[0]));
+    cache_->getMutable(int_id_[0]) = int_val_[2];
+    CHECK(cache_->insert(int_id_[1], int_val_[1]));
+    CHECK(transaction_->commit());
     table_->shareAllChunks();
     IPC::barrier(A_DONE, 1);
   }
+}
+
+TEST_F(CacheTest, HadBeenUpdatedAtBeginTime) {
+  initCacheView();
+  EXPECT_TRUE(cache_->insert(int_id_[0], int_val_[0]));
+  EXPECT_TRUE(transaction_->commit());
+
+  initCacheView();
+  EXPECT_FALSE(cache_->hadBeenUpdatedAtBeginTime(int_id_[0]));
+  cache_->getMutable(int_id_[0]) = int_val_[1];
+  EXPECT_TRUE(transaction_->commit());
+
+  initCacheView();
+  EXPECT_TRUE(cache_->hadBeenUpdatedAtBeginTime(int_id_[0]));
 }
 
 }  // namespace map_api
