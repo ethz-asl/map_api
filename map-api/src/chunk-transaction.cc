@@ -4,7 +4,10 @@
 
 #include <multiagent-mapping-common/accessors.h>
 
+#include "map-api/conflicts.h"
 #include "map-api/net-table.h"
+
+DECLARE_bool(map_api_blame_updates);
 
 namespace map_api {
 
@@ -72,8 +75,12 @@ void ChunkTransaction::remove(std::shared_ptr<Revision> revision) {
   CHECK(revision->structureMatch(*structure_reference_));
   common::Id id = revision->getId<common::Id>();
   CHECK(id.isValid());
-  CHECK(removes_.emplace(id, revision).second);
-  // TODO(tcies) situation uncommitted
+  InsertMap::iterator uncommited = insertions_.find(id);
+  if (uncommited != insertions_.end()) {
+    insertions_.erase(uncommited);
+  } else {
+    CHECK(removes_.emplace(id, revision).second);
+  }
 }
 
 bool ChunkTransaction::commit() {
@@ -103,12 +110,14 @@ bool ChunkTransaction::check() {
   for (const std::pair<const common::Id,
       std::shared_ptr<const Revision> >& item : updates_) {
     if (hasUpdateConflict(item.first, stamps)) {
+      VLOG(4) << "Update conflict in table " << table_->name();
       return false;
     }
   }
   for (const std::pair<const common::Id,
       std::shared_ptr<const Revision> >& item : removes_) {
     if (hasUpdateConflict(item.first, stamps)) {
+      VLOG(4) << "Remove conflict in table " << table_->name();
       return false;
     }
   }
@@ -117,6 +126,7 @@ bool ChunkTransaction::check() {
     chunk_->data_container_->findByRevision(item.key, *item.value_holder,
                                             LogicalTime::sample(), &dummy);
     if (!dummy.empty()) {
+      VLOG(4) << "Conflict condition in table " << table_->name();
       return false;
     }
   }
@@ -134,6 +144,10 @@ void ChunkTransaction::checkedCommit(const LogicalTime& time) {
     }
   }
   chunk_->bulkInsertLocked(insertions_, time);
+
+  if (FLAGS_map_api_blame_updates) {
+    std::cout << "Updating " << updates_.size() << " items" << std::endl;
+  }
 
   for (const std::pair<const common::Id,
       std::shared_ptr<Revision> >& item : updates_) {
@@ -228,6 +242,8 @@ bool ChunkTransaction::hasUpdateConflict(const common::Id& item,
         return false;
       }
     }
+    VLOG(3) << "Item " << item << " conflicts. Stamp time " << db_stamp
+            << " versus begin time " << begin_time_;
     return true;
   }
   return false;
