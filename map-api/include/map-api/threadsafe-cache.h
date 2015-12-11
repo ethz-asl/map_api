@@ -93,7 +93,7 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
 
   // Unfortunately, since this depends on the Id type, it can't be a virtual
   // function of ChunkBase.
-  bool hadBeenUpdatedAtBeginTime(const IdType& id) const {
+  bool hadBeenUpdatedBeforeThisTransaction(const IdType& id) const {
     const ObjectAndMetadata<ObjectType>& cached = cache_.get(id);
     return cached.metadata->hasBeenUpdated();
   }
