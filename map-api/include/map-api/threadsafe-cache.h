@@ -96,6 +96,26 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
   bool hadBeenUpdatedBeforeThisTransaction(const IdType& id) const {
     const ObjectAndMetadata<ObjectType>& cached = cache_.get(id);
     return cached.metadata->hasBeenUpdated();
+}
+
+  // Add a function to determine whether updates should be applied back to the
+  // cache (true = will be applied).
+  // Attention, this will be very expensive, since it will add two conversions
+  // per item! Prefer to use const correctness if possible.
+  void setUpdateFilter(
+      const std::function<bool(const ObjectType& original,  // NOLINT
+                               const ObjectType& innovation)>& update_filter) {
+    CHECK(update_filter);
+    cache_.setUpdateFilter([&update_filter](
+        const std::shared_ptr<const Revision>& original_revision,
+        const std::shared_ptr<const Revision>& innovation_revision) {
+      CHECK(original_revision);
+      CHECK(innovation_revision);
+      ObjectType original, innovation;
+      objectFromRevision(*original_revision, &original);
+      objectFromRevision(*innovation_revision, &innovation);
+      return update_filter(original, innovation);
+    });
   }
 
  private:
