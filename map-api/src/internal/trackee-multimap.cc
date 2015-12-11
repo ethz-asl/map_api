@@ -44,17 +44,22 @@ void TrackeeMultimap::serialize(Revision* revision) const {
   serialize(revision->underlying_revision_.get());
 }
 
-void TrackeeMultimap::merge(const TrackeeMultimap& other) {
+bool TrackeeMultimap::merge(const TrackeeMultimap& other) {
+  bool has_change = false;
   for (const value_type& table_trackees : other) {
     iterator found = find(table_trackees.first);
     if (found == end()) {
       emplace(table_trackees);
+      has_change = true;
     } else {
       for (const common::Id& trackee : table_trackees.second) {
-        found->second.emplace(trackee);
+        if (found->second.emplace(trackee).second) {
+          has_change = true;
+        }
       }
     }
   }
+  return has_change;
 }
 
 bool TrackeeMultimap::hasOverlap(const TrackeeMultimap& other) const {

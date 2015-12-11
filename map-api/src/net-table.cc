@@ -164,6 +164,17 @@ ChunkBase* NetTable::getChunk(const common::Id& chunk_id) {
   return result;
 }
 
+bool NetTable::ensureHasChunks(const common::IdSet& chunks_to_ensure) {
+  bool success = true;
+  for (const common::Id& chunk_id : chunks_to_ensure) {
+    if (!getChunk(chunk_id)) {
+      success = false;
+      continue;
+    }
+  }
+  return success;
+}
+
 void NetTable::pushNewChunkIdsToTracker(
     NetTable* table_of_tracking_item,
     const std::function<common::Id(const Revision&)>&
@@ -214,6 +225,17 @@ void NetTable::autoFollowTrackedChunks() {
       << "presence of an inconsistent set of chunks in concurrent views. "
       << "Revision::fetchTrackedChunks() should instead be called at the "
       << "beginning of transactions.";
+}
+
+const std::vector<Revision::AutoMergePolicy>& NetTable::getAutoMergePolicies()
+    const {
+  return auto_merge_policies_;
+}
+
+void NetTable::addAutoMergePolicy(
+    const Revision::AutoMergePolicy& auto_merge_policy) {
+  CHECK(auto_merge_policy);
+  auto_merge_policies_.push_back(auto_merge_policy);
 }
 
 void NetTable::registerChunkInSpace(
@@ -641,15 +663,21 @@ void NetTable::handleUpdateRequest(const common::Id& chunk_id,
 void NetTable::handleRoutedNetTableChordRequests(const Message& request,
                                                  Message* response) {
   aslam::ScopedReadLock lock(&index_lock_);
-  CHECK_NOTNULL(index_.get());
-  index_->handleRoutedRequest(request, response);
+  if (index_) {
+    index_->handleRoutedRequest(request, response);
+  } else {
+    response->decline();
+  }
 }
 
 void NetTable::handleRoutedSpatialChordRequests(const Message& request,
                                                 Message* response) {
   aslam::ScopedReadLock lock(&index_lock_);
-  CHECK_NOTNULL(spatial_index_.get());
-  spatial_index_->handleRoutedRequest(request, response);
+  if (spatial_index_) {
+    spatial_index_->handleRoutedRequest(request, response);
+  } else {
+    response->decline();
+  }
 }
 
 void NetTable::handleAnnounceToListeners(const PeerId& announcer,
@@ -704,6 +732,7 @@ void NetTable::attachTriggers(ChunkBase* chunk) {
 void NetTable::leaveIndices() {
   index_lock_.acquireReadLock();
   if (index_.get() != nullptr) {
+    VLOG(1) << PeerId::self() << " leaving index for table " << name();
     index_->leave();
     CHECK(index_lock_.upgradeToWriteLock());
     index_.reset();

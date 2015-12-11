@@ -1,5 +1,7 @@
 #include "map-api/net-table-manager.h"
 
+#include <iostream>  // NOLINT
+
 #include "map-api/chunk-transaction.h"
 #include "map-api/core.h"
 #include "map-api/hub.h"
@@ -246,6 +248,14 @@ void NetTableManager::tableList(std::vector<std::string>* tables) const {
   }
 }
 
+void NetTableManager::printStatistics() const {
+  aslam::ScopedReadLock lock(&tables_lock_);
+  for (const std::pair<const std::string, std::unique_ptr<NetTable> >& pair :
+       tables_) {
+    std::cout << pair.second->getStatistics() << std::endl;
+  }
+}
+
 void NetTableManager::listenToPeersJoiningTable(const std::string& table_name) {
   NetTable* metatable = &getTable(kMetaTableName);
   // TODO(tcies) Define default merging for metatable.
@@ -257,7 +267,8 @@ void NetTableManager::listenToPeersJoiningTable(const std::string& table_name) {
     proto::PeerList listeners;
     current->get(kMetaTableListenersField, &listeners);
     listeners.add_peers(Hub::instance().ownAddress());
-    std::shared_ptr<Revision> next = current->copyForWrite();
+    std::shared_ptr<Revision> next;
+    current->copyForWrite(&next);
     next->set(kMetaTableListenersField, listeners);
     add_self_to_listeners.update(next);
     if (add_self_to_listeners.commit()) {
@@ -462,8 +473,11 @@ void NetTableManager::handleRoutedNetTableChordRequests(const Message& request,
   request.extract<NetTableIndex::kRoutedChordRequest>(&routed_request);
   CHECK(routed_request.has_table_name());
   TableMap::iterator table;
-  CHECK(findTable(routed_request.table_name(), &table));
-  table->second->handleRoutedNetTableChordRequests(request, response);
+  if (findTable(routed_request.table_name(), &table)) {
+    table->second->handleRoutedNetTableChordRequests(request, response);
+  } else {
+    response->decline();
+  }
 }
 
 void NetTableManager::handleRoutedSpatialChordRequests(const Message& request,
@@ -473,8 +487,11 @@ void NetTableManager::handleRoutedSpatialChordRequests(const Message& request,
   request.extract<SpatialIndex::kRoutedChordRequest>(&routed_request);
   CHECK(routed_request.has_table_name());
   TableMap::iterator table;
-  CHECK(findTable(routed_request.table_name(), &table));
-  table->second->handleRoutedSpatialChordRequests(request, response);
+  if (findTable(routed_request.table_name(), &table)) {
+    table->second->handleRoutedSpatialChordRequests(request, response);
+  } else {
+    response->decline();
+  }
 }
 
 bool NetTableManager::syncTableDefinition(const TableDescriptor& descriptor,
