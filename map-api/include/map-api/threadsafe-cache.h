@@ -91,6 +91,7 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
     object_metadata.metadata->getTrackedChunks(CHECK_NOTNULL(result));
   }
 
+
   // Add a function to determine whether updates should be applied back to the
   // cache (true = will be applied).
   // Attention, this will be very expensive, since it will add two conversions
