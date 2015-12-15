@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include <timing/timer.h>
+
 namespace map_api {
 
 template <typename IdType>
@@ -20,6 +22,7 @@ template <typename IdType>
 std::shared_ptr<const Revision> NetTableTransaction::getById(
     const IdType& id, ChunkBase* chunk) const {
   CHECK_NOTNULL(chunk);
+  timing::Timer timer("0000 getById");
   if (!workspace_.contains(chunk->id())) {
     return std::shared_ptr<Revision>();
   }
