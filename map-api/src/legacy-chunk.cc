@@ -49,7 +49,8 @@ MAP_API_PROTO_MESSAGE(LegacyChunk::kLeaveRequest, proto::ChunkRequestMetadata);
 MAP_API_PROTO_MESSAGE(LegacyChunk::kLockRequest, proto::ChunkRequestMetadata);
 MAP_API_PROTO_MESSAGE(LegacyChunk::kNewPeerRequest, proto::NewPeerRequest);
 MAP_API_PROTO_MESSAGE(LegacyChunk::kUnlockRequest, proto::ChunkRequestMetadata);
-MAP_API_PROTO_MESSAGE(LegacyChunk::kUpdateRequest, proto::PatchRequest);
+MAP_API_COMPRESSED_PROTO_MESSAGE(LegacyChunk::kUpdateRequest,
+                                 proto::PatchRequest);
 
 const char LegacyChunk::kLockSequenceFile[] = "meas_lock_sequence.txt";
 
