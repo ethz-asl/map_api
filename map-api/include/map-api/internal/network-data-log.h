@@ -2,35 +2,33 @@
 #define INTERNAL_NETWORK_DATA_LOG_H_
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
+#include <multiagent-mapping-common/plain-file-logger.h>
+
 namespace map_api {
+namespace internal {
 
 class NetworkDataLog {
  public:
-  NetworkDataLog();
+  explicit NetworkDataLog(const std::string& prefix);
 
-  void log(const size_t time, const size_t bytes, const std::string& type);
+  void log(const size_t bytes, const std::string& type);
 
-  static void getCumSum(const std::string& file_name,
-                        Eigen::Matrix2Xi* cum_sum);
-
-  static void getCumSumForType(const std::string& file_name,
-                               const std::string& type,
-                               Eigen::Matrix2Xi* cum_sum);
+  typedef std::unordered_map<std::string, Eigen::Matrix2Xd> TypeCumSums;
+  static void getCumSums(const std::string& file_name, TypeCumSums* cum_sums);
 
  private:
   struct Line {
-    size_t time, bytes;
+    double time, bytes;
     std::string type;
   };
 
-  static void deserialize(const std::string& file_name,
-                          std::vector<Line>* result);
-
-  std::string file_name_;
+  common::PlainFileLogger logger_;
 };
 
+}  // namespace internal
 }  // namespace map_api
 
 #endif  // INTERNAL_NETWORK_DATA_LOG_H_

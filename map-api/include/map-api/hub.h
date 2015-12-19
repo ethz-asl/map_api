@@ -118,6 +118,11 @@ class Hub final {
    * Thread for listening to peers
    */
   static void listenThread(Hub* self);
+
+  void logIncoming(const size_t size, const std::string& type);
+  void logOutgoing(const size_t size, const std::string& type);
+  friend class Peer;
+
   std::thread listener_;
   std::mutex condVarMutex_;
   std::condition_variable listenerStatus_;
@@ -141,6 +146,9 @@ class Hub final {
   HandlerMap handlers_;
 
   std::unique_ptr<Discovery> discovery_;
+
+  std::unique_ptr<internal::NetworkDataLog> data_log_in_, data_log_out_;
+  std::mutex m_in_log_, m_out_log_;
 };
 
 }  // namespace map_api
