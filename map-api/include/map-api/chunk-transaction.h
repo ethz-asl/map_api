@@ -8,6 +8,9 @@
 
 #include <gtest/gtest_prod.h>
 
+#include "map-api/internal/chunk-view.h"
+#include "map-api/internal/combined-view.h"
+#include "map-api/internal/delta-view.h"
 #include "map-api/logical-time.h"
 #include "map-api/net-table.h"
 #include "map-api/revision.h"
@@ -38,9 +41,6 @@ class ChunkTransaction {
   // READ
   template <typename IdType>
   std::shared_ptr<const Revision> getById(const IdType& id);
-  template <typename IdType>
-  std::shared_ptr<const Revision> getByIdFromUncommitted(const IdType& id)
-      const;
   template <typename ValueType>
   std::shared_ptr<const Revision> findUnique(int key, const ValueType& value);
   void dumpChunk(ConstRevisionMap* result);
@@ -97,9 +97,6 @@ class ChunkTransaction {
 
   bool tryAutoMerge(const ItemTimes& db_stamps, UpdateMap::value_type* item);
 
-  InsertMap insertions_;
-  UpdateMap updates_;
-  RemoveMap removes_;
   ConflictVector conflict_conditions_;
 
   LogicalTime begin_time_;
@@ -107,7 +104,11 @@ class ChunkTransaction {
 
   ChunkBase* chunk_;
   NetTable* table_;
-  std::shared_ptr<const Revision> structure_reference_;
+  const std::shared_ptr<const Revision> structure_reference_;
+
+  internal::DeltaView delta_;
+  internal::ChunkView chunk_view_;
+  internal::CombinedView combined_view_;
 };
 
 }  // namespace map_api

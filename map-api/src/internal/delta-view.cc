@@ -2,8 +2,16 @@
 
 #include <multiagent-mapping-common/unique-id.h>
 
+#include "map-api/chunk-base.h"
+#include "map-api/conflicts.h"
+#include "map-api/net-table.h"
+
+DECLARE_bool(map_api_blame_updates);
+
 namespace map_api {
 namespace internal {
+
+DeltaView::DeltaView(const NetTable& table) : table_(table) {}
 
 DeltaView::~DeltaView() {}
 
@@ -68,6 +76,171 @@ void DeltaView::remove(std::shared_ptr<Revision> revision) {
   } else {
     CHECK(removes_.emplace(id, revision).second);
   }
+}
+
+bool DeltaView::getMutableUpdateEntry(
+    const common::Id& id, std::shared_ptr<const Revision>** result) {
+  CHECK_NOTNULL(result);
+  // Is there already a corresponding entry in the update map?
+  UpdateMap::iterator existing_entry = updates_.find(id);
+  if (existing_entry != updates_.end()) {
+    *result = reinterpret_cast<std::shared_ptr<const Revision>*>(
+        &existing_entry->second);
+    return true;
+  }
+  // Is there a corresponding entry in the insert map?
+  InsertMap::iterator existing_insert_entry = insertions_.find(id);
+  if (existing_insert_entry != insertions_.end()) {
+    *result = reinterpret_cast<std::shared_ptr<const Revision>*>(
+        &existing_insert_entry->second);
+    return true;
+  }
+
+  CHECK_EQ(removes_.count(id), 0u);
+  return false;
+}
+
+bool DeltaView::hasConflictsAfterTryingToMerge(
+    const std::unordered_map<common::Id, LogicalTime>& potential_conflicts,
+    const ViewBase& original_view, const ViewBase& conflict_view) {
+  return traverseConflicts(kTryMergeOrBail, potential_conflicts, original_view,
+                           conflict_view, nullptr, nullptr);
+}
+
+void DeltaView::checkedCommitLocked(
+    const LogicalTime& commit_time, ChunkBase* locked_chunk,
+    std::unordered_map<common::Id, LogicalTime>* commit_history) {
+  CHECK(CHECK_NOTNULL(locked_chunk)->isWriteLocked());
+  CHECK_NOTNULL(commit_history);  // Don't clear!
+
+  insertions_.logCommitEvent(commit_time, commit_history);
+  locked_chunk->bulkInsertLocked(insertions_, commit_time);
+
+  if (FLAGS_map_api_blame_updates) {
+    std::cout << "Updating " << updates_.size() << " items" << std::endl;
+  }
+
+  for (const std::pair<const common::Id, std::shared_ptr<Revision> >& item :
+       updates_) {
+    locked_chunk->updateLocked(commit_time, item.second);
+  }
+
+  for (const std::pair<const common::Id, std::shared_ptr<Revision> >& item :
+       removes_) {
+    locked_chunk->removeLocked(commit_time, item.second);
+  }
+
+  for (RevisionEventMap* map :
+       std::vector<RevisionEventMap*>({&insertions_, &updates_, &removes_})) {
+    map->logCommitEvent(commit_time, commit_history);
+    map->clear();
+  }
+}
+
+void DeltaView::prepareManualMerge(
+    const std::unordered_map<common::Id, LogicalTime>& potential_conflicts,
+    const ViewBase& original_view, const ViewBase& conflict_view,
+    DeltaView* conflict_free_part, Conflicts* conflicts) {
+  CHECK_NOTNULL(conflict_free_part);
+  CHECK_NOTNULL(conflicts);
+  CHECK(!traverseConflicts(kPrepareManualMerge, potential_conflicts,
+                           original_view, conflict_view, conflict_free_part,
+                           conflicts));
+}
+
+size_t DeltaView::numChanges() const {
+  return insertions_.size() + updates_.size() + removes_.size();
+}
+
+void DeltaView::RevisionEventMap::logCommitEvent(
+    const LogicalTime& commit_time,
+    std::unordered_map<common::Id, LogicalTime>* commit_history) const {
+  CHECK_NOTNULL(commit_history);  // Don't clear!
+  for (const value_type& item : *this) {
+    (*commit_history)[item.first] = commit_time;
+  }
+}
+
+bool DeltaView::traverseConflicts(
+    const ConflictTraversalMode mode,
+    const std::unordered_map<common::Id, LogicalTime>& potential_conflicts,
+    const ViewBase& original_view, const ViewBase& conflict_view,
+    DeltaView* conflict_free_part, Conflicts* conflicts) {
+  if (mode == kPrepareManualMerge) {
+    CHECK_NOTNULL(conflict_free_part);
+    CHECK_NOTNULL(conflicts)->clear();
+  }
+
+  for (const InsertMap::value_type& item : insertions_) {
+    if (potential_conflicts.count(item.first) != 0u) {
+      if (mode == kTryMergeOrBail) {
+        VLOG(4) << "Tried to insert item " << item.first << " twice!";
+        return true;
+      } else {
+        CHECK(mode == kPrepareManualMerge);
+        conflicts->push_back({conflict_view.get(item.first), item.second});
+      }
+    } else {
+      if (mode == kPrepareManualMerge) {
+        conflict_free_part->insertions_.emplace(item);
+      }
+    }
+  }
+
+  for (UpdateMap::value_type& item : updates_) {
+    if (potential_conflicts.count(item.first) != 0u) {
+      if (mode == kTryMergeOrBail) {
+        VLOG(4) << "Update conflict!";
+        VLOG(4) << "Trying to auto-merge...";
+        if (!tryAutoMerge(original_view, conflict_view, &item)) {
+          return true;
+        }
+      } else {
+        CHECK(mode == kPrepareManualMerge);
+        conflicts->push_back({conflict_view.get(item.first), item.second});
+      }
+    } else {
+      if (mode == kPrepareManualMerge) {
+        conflict_free_part->updates_.emplace(item);
+      }
+    }
+  }
+
+  for (const RemoveMap::value_type& item : removes_) {
+    if (potential_conflicts.count(item.first) != 0u) {
+      if (mode == kTryMergeOrBail) {
+        // TODO(tcies) Not a problem if removed by both?
+        VLOG(4) << "Remove conflict!";
+        return true;
+      } else {
+        CHECK(mode == kPrepareManualMerge);
+        conflicts->push_back({conflict_view.get(item.first), item.second});
+      }
+    } else {
+      if (mode == kPrepareManualMerge) {
+        conflict_free_part->removes_.emplace(item);
+      }
+    }
+  }
+
+  return false;
+}
+
+bool DeltaView::tryAutoMerge(const ViewBase& original_view,
+                             const ViewBase& conflict_view,
+                             UpdateMap::value_type* item) const {
+  CHECK_NOTNULL(item);
+  std::shared_ptr<const Revision> conflicting_revision =
+      conflict_view.get(item->first);
+  std::shared_ptr<const Revision> original_revision =
+      original_view.get(item->first);
+  CHECK(conflicting_revision);
+  // Original revision must exist, since db_stamp > begin_time_ and the
+  // transaction wouldn't know about the item unless it existed before
+  // begin_time_.
+  CHECK(original_revision);
+  return item->second->tryAutoMerge(*conflicting_revision, *original_revision,
+                                    table_.getAutoMergePolicies());
 }
 
 }  // namespace internal

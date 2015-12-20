@@ -1,6 +1,8 @@
 #ifndef INTERNAL_CHUNK_VIEW_H_
 #define INTERNAL_CHUNK_VIEW_H_
 
+#include <unordered_map>
+
 #include "map-api/internal/view-base.h"
 #include "map-api/logical-time.h"
 
@@ -20,6 +22,11 @@ class ChunkView : public ViewBase {
   virtual bool has(const common::Id& id) const override;
   virtual std::shared_ptr<const Revision> get(const common::Id& id) const
       override;
+
+  // Asserts the chunk is write-locked.
+  void getPotentialConflicts(
+      const std::unordered_map<common::Id, LogicalTime>& own_continuous_updates,
+      std::unordered_map<common::Id, LogicalTime>* result) const;
 
  private:
   const ChunkBase& chunk_;
