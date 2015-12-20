@@ -95,6 +95,8 @@ class ChunkTransaction {
   };
   class ConflictVector : public std::vector<ConflictCondition> {};
 
+  bool tryAutoMerge(const ItemTimes& db_stamps, UpdateMap::value_type* item);
+
   InsertMap insertions_;
   UpdateMap updates_;
   RemoveMap removes_;

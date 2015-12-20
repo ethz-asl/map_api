@@ -48,16 +48,43 @@ class NetTable {
  public:
   static const std::string kChunkIdField;
 
+  // ======
   // BASICS
+  // ======
   const std::string& name() const;
   std::shared_ptr<Revision> getTemplate() const;
+  bool structureMatch(std::unique_ptr<TableDescriptor>* descriptor) const;
+  void kill();
+  // Make sure all chunks have at least one other peer.
+  void killOnceShared();
 
+  // ======================
   // BASIC CHUNK MANAGEMENT
+  // ======================
   ChunkBase* newChunk();
   ChunkBase* newChunk(const common::Id& chunk_id);
+  void getActiveChunkIds(std::set<common::Id>* chunk_ids) const;
   ChunkBase* getChunk(const common::Id& chunk_id);
+  void getActiveChunks(std::set<ChunkBase*>* chunks) const;
+  bool ensureHasChunks(const common::IdSet& chunks_to_ensure);
+  ChunkBase* connectTo(const common::Id& chunk_id, const PeerId& peer);
+  void shareAllChunks();
+  void shareAllChunks(const PeerId& peer);
+  void leaveAllChunks();
+  void leaveAllChunksOnceShared();
 
-  // HIERARCHICAL CHUNK MANAGEMENT
+  // =====
+  // STATS
+  // =====
+  size_t numActiveChunks() const;
+  size_t numActiveChunksItems();
+  size_t numItems() const;
+  size_t activeChunksItemsSizeBytes();
+  std::string getStatistics();
+
+  // ==============
+  // CHUNK TRACKING
+  // ==============
   void pushNewChunkIdsToTracker(
       NetTable* table_of_tracking_item,
       const std::function<common::Id(const Revision&)>&
@@ -81,7 +108,34 @@ class NetTable {
       "by the user in a controlled manner. Otherwise, this messes with "
       "views!")));
 
-  // SPATIAL INDEX CHUNK MANAGEMENT
+  // ==========================
+  // AUTOMATED CONFLICT MERGING
+  // ==========================
+  const std::vector<Revision::AutoMergePolicy>& getAutoMergePolicies() const;
+  void addAutoMergePolicy(const Revision::AutoMergePolicy& auto_merge_policy);
+  // Wraps the provided function in revision to object conversion. If the merge
+  // succeeded, the supplied function must return true.
+  // Use this if your merge policy is applied to a heterogeneous conflict
+  // (e.g. A only changed property 1, B only changed property 2) symmetrically
+  // (B changed property 1, A changed property 2). Note that per default,
+  // object_at_hand is ALWAYS the object committed later, since conflicts can't
+  // be predicted until they happen.
+  // Also, until the use case changes, it is assumed that object to revision
+  // conversions are implemented for shared pointers of ObjectType.
+  template <typename ObjectType>
+  struct AutoMergePolicy {
+    typedef std::function<bool(
+        const ObjectType const_conflict_object,  // NOLINT
+        const ObjectType original_object, ObjectType* mutable_conflict_object)>
+        Type;
+  };
+  template <typename ObjectType>
+  void addHeterogenousAutoMergePolicySymetrically(
+      const typename AutoMergePolicy<ObjectType>::Type& auto_merge_policy);
+
+  // ========================
+  // SPATIAL INDEX MANAGEMENT
+  // ========================
   void registerChunkInSpace(const common::Id& chunk_id,
                             const SpatialIndex::BoundingBox& bounding_box);
   template <typename IdType>
@@ -97,7 +151,9 @@ class NetTable {
     return *CHECK_NOTNULL(spatial_index_.get());
   }
 
-  // TRIGGER RELATED
+  // ========
+  // TRIGGERS
+  // ========
   typedef std::function<void(const std::unordered_set<common::Id>& insertions,
                              const std::unordered_set<common::Id>& updates,
                              ChunkBase* chunk)> TriggerCallbackWithChunkPointer;
@@ -112,7 +168,10 @@ class NetTable {
   void handleListenToChunksFromPeer(const PeerId& listener, Message* response);
   static const char kPushNewChunksRequest[];
 
-  // ITEM RETRIEVAL
+  // =====================
+  // DIRECT ITEM RETRIEVAL
+  // =====================
+  // TODO(tcies) make private or even remove #2979.
   // (locking all chunks)
   template <typename ValueType>
   void lockFind(int key, const ValueType& value, const LogicalTime& time,
@@ -123,49 +182,10 @@ class NetTable {
   void getAvailableIds(const LogicalTime& time,
                        std::vector<IdType>* ids);
 
-  /**
-   * Connects to the given chunk via the given peer.
-   */
-  ChunkBase* connectTo(const common::Id& chunk_id, const PeerId& peer);
-
-  bool structureMatch(std::unique_ptr<TableDescriptor>* descriptor) const;
-
-  size_t numActiveChunks() const;
-
-  size_t numActiveChunksItems();
-
-  size_t numItems() const;
-
-  size_t activeChunksItemsSizeBytes();
-
-  void shareAllChunks();
-
-  void shareAllChunks(const PeerId& peer);
-
-  void kill();
-
-  // Make sure all chunks have at least one other peer.
-  void killOnceShared();
-
-  void leaveAllChunks();
-
-  void leaveAllChunksOnceShared();
-
-  std::string getStatistics();
-
-  void getActiveChunkIds(std::set<common::Id>* chunk_ids) const;
-
-  /**
-   * Chunks are owned by the table, this function does not leak.
-   */
-  void getActiveChunks(std::set<ChunkBase*>* chunks) const;
-
-  /**
-   * ========================
-   * Diverse request handlers
-   * ========================
-   * TODO(tcies) somehow unify all routing to chunks? (yes, like chord)
-   */
+  // ================
+  // REQUEST HANDLERS
+  // ================
+  // TODO(tcies) somehow unify all routing to chunks? (yes, like chord)
   void handleConnectRequest(const common::Id& chunk_id, const PeerId& peer,
                             Message* response);
   void handleInitRequest(
@@ -286,6 +306,8 @@ class NetTable {
   PeerIdSet new_chunk_listeners_;
 
   NewChunkTrackerMap new_chunk_trackers_;
+
+  std::vector<Revision::AutoMergePolicy> auto_merge_policies_;
 };
 
 }  // namespace map_api

@@ -164,6 +164,17 @@ ChunkBase* NetTable::getChunk(const common::Id& chunk_id) {
   return result;
 }
 
+bool NetTable::ensureHasChunks(const common::IdSet& chunks_to_ensure) {
+  bool success = true;
+  for (const common::Id& chunk_id : chunks_to_ensure) {
+    if (!getChunk(chunk_id)) {
+      success = false;
+      continue;
+    }
+  }
+  return success;
+}
+
 void NetTable::pushNewChunkIdsToTracker(
     NetTable* table_of_tracking_item,
     const std::function<common::Id(const Revision&)>&
@@ -214,6 +225,17 @@ void NetTable::autoFollowTrackedChunks() {
       << "presence of an inconsistent set of chunks in concurrent views. "
       << "Revision::fetchTrackedChunks() should instead be called at the "
       << "beginning of transactions.";
+}
+
+const std::vector<Revision::AutoMergePolicy>& NetTable::getAutoMergePolicies()
+    const {
+  return auto_merge_policies_;
+}
+
+void NetTable::addAutoMergePolicy(
+    const Revision::AutoMergePolicy& auto_merge_policy) {
+  CHECK(auto_merge_policy);
+  auto_merge_policies_.push_back(auto_merge_policy);
 }
 
 void NetTable::registerChunkInSpace(
