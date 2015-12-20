@@ -34,7 +34,12 @@ SET(CORE_SOURCE  src/app-templates.cc
                  src/core.cc
                  src/file-discovery.cc
                  src/hub.cc
+                 src/internal/chunk-view.cc
+                 src/internal/combined-view.cc
+                 src/internal/delta-view.cc
+                 src/internal/overriding-view-base.cc
                  src/internal/trackee-multimap.cc
+                 src/internal/view-base.cc
                  src/ipc.cc
                  src/legacy-chunk.cc
                  src/legacy-chunk-data-container-base.cc
