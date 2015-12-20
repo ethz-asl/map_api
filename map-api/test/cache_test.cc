@@ -1,5 +1,3 @@
-#include <map-api/cache.h>
-
 #include <set>
 
 #include <glog/logging.h>
@@ -8,6 +6,7 @@
 #include "map-api/chunk-manager.h"
 #include "map-api/ipc.h"
 #include "map-api/test/testing-entrypoint.h"
+#include "map-api/threadsafe-cache.h"
 #include "./net_table_fixture.h"
 
 namespace map_api {
@@ -15,11 +14,10 @@ namespace map_api {
 UNIQUE_ID_DEFINE_ID(IntId);
 MAP_API_REVISION_UNIQUE_ID(IntId);
 
-template<>
-std::shared_ptr<int> objectFromRevision(const Revision& revision) {
-  std::shared_ptr<int> object(new int);
-  revision.get(NetTableFixture::kFieldName, object.get());
-  return object;
+template <>
+void objectFromRevision(const Revision& revision, int* result) {
+  CHECK_NOTNULL(result);
+  revision.get(NetTableFixture::kFieldName, result);
 }
 void objectToRevision(const int& object, Revision* revision) {
   CHECK_NOTNULL(revision)->set(NetTableFixture::kFieldName, object);
@@ -34,7 +32,40 @@ UNIQUE_ID_DEFINE_ID_HASH(map_api::IntId);
 
 namespace map_api {
 
-class CacheTest : public NetTableFixture {};
+class CacheTest : public NetTableFixture {
+ protected:
+  void initCacheView() {
+    transaction_.reset(new Transaction);
+    cache_ = transaction_->createCache<IntId, int>(table_);
+  }
+
+  std::shared_ptr<Transaction> transaction_;
+  std::shared_ptr<ThreadsafeCache<IntId, int>> cache_;
+
+  template <typename Type>
+  struct TestData {
+    template <int Index>
+    static Type get();
+  };
+
+  typedef TestData<IntId> IdData;
+  typedef TestData<int> IntData;
+};
+
+template <>
+template <int Index>
+IntId CacheTest::TestData<IntId>::get() {
+  IntId id;
+  static_assert(Index > 0, "0 or below would create an invalid id!");
+  generateIdFromInt(Index, &id);
+  return id;
+}
+
+template <>
+template <int Index>
+int CacheTest::TestData<int>::get() {
+  return Index;
+}
 
 TEST_F(CacheTest, GeneralTest) {
   enum SubProcesses {
@@ -46,61 +77,58 @@ TEST_F(CacheTest, GeneralTest) {
     ROOT_INSERTED,
     A_DONE
   };
-  constexpr int kKb = 1024;
-  std::shared_ptr<Transaction> transaction;
-  std::shared_ptr<ChunkManagerChunkSize> manager;
-  std::shared_ptr<Cache<IntId, std::shared_ptr<int>>> cache;
-  IntId kId[3];
-  std::shared_ptr<int> kVal[3];
-  for (int i = 0; i < 3; ++i) {
-    generateIdFromInt(i + 1, &kId[i]);
-    kVal[i].reset(new int(i));
-  }
+
   std::vector<IntId> id_result;
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
-    transaction.reset(new Transaction);
-    manager.reset(new ChunkManagerChunkSize(kKb, table_));
-    cache.reset(
-        new Cache<IntId, std::shared_ptr<int>>(transaction, table_, manager));
-    cache->getAllAvailableIds(&id_result);
+    initCacheView();
+    cache_->getAllAvailableIds(&id_result);
     EXPECT_TRUE(id_result.empty());
-    for (int i = 0; i < 3; ++i) {
-      EXPECT_FALSE(cache->has(kId[i]));
-    }
-    EXPECT_TRUE(cache->insert(kId[0], kVal[0]));
-    EXPECT_TRUE(transaction->commit());
+    EXPECT_FALSE(cache_->has(IdData::get<1>()));
+    EXPECT_FALSE(cache_->has(IdData::get<2>()));
+    EXPECT_FALSE(cache_->has(IdData::get<3>()));
+    EXPECT_TRUE(cache_->insert(IdData::get<1>(), IntData::get<1>()));
+    EXPECT_TRUE(transaction_->commit());
     IPC::barrier(INIT, 1);
-    manager->requestParticipationAllChunks();
+    table_->shareAllChunks();
     IPC::barrier(ROOT_INSERTED, 1);
     IPC::barrier(A_DONE, 1);
 
-    transaction.reset(new Transaction);
-    manager.reset(new ChunkManagerChunkSize(kKb, table_));
-    cache.reset(
-        new Cache<IntId, std::shared_ptr<int>>(transaction, table_, manager));
-    cache->getAllAvailableIds(&id_result);
+    initCacheView();
+    cache_->getAllAvailableIds(&id_result);
     EXPECT_EQ(2u, id_result.size());
-    ASSERT_TRUE(cache->has(kId[0]));
-    ASSERT_TRUE(cache->has(kId[1]));
-    EXPECT_FALSE(cache->has(kId[2]));
-    EXPECT_EQ(*kVal[2], *cache->get(kId[0]));
-    EXPECT_EQ(*kVal[1], *cache->get(kId[1]));
+    ASSERT_TRUE(cache_->has(IdData::get<1>()));
+    ASSERT_TRUE(cache_->has(IdData::get<2>()));
+    EXPECT_FALSE(cache_->has(IdData::get<3>()));
+    // As changed by process A:
+    EXPECT_EQ(IntData::get<3>(), cache_->get(IdData::get<1>()));
+    EXPECT_EQ(IntData::get<2>(), cache_->get(IdData::get<2>()));
   }
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 1);
     IPC::barrier(ROOT_INSERTED, 1);
-    transaction.reset(new Transaction);
-    manager.reset(new ChunkManagerChunkSize(kKb, table_));
-    cache.reset(
-        new Cache<IntId, std::shared_ptr<int>>(transaction, table_, manager));
-    CHECK(cache->has(kId[0]));
-    *cache->getMutable(kId[0]) = *kVal[2];
-    CHECK(cache->insert(kId[1], kVal[1]));
-    CHECK(transaction->commit());
-    manager->requestParticipationAllChunks();
+    initCacheView();
+    CHECK(cache_->has(IdData::get<1>()));
+    cache_->getMutable(IdData::get<1>()) = IntData::get<3>();
+    CHECK(cache_->insert(IdData::get<2>(), IntData::get<2>()));
+    CHECK(transaction_->commit());
+    table_->shareAllChunks();
     IPC::barrier(A_DONE, 1);
   }
+}
+
+TEST_F(CacheTest, hadBeenUpdatedBeforeThisTransaction) {
+  initCacheView();
+  EXPECT_TRUE(cache_->insert(IdData::get<1>(), IntData::get<1>()));
+  EXPECT_TRUE(transaction_->commit());
+
+  initCacheView();
+  EXPECT_FALSE(cache_->hadBeenUpdatedBeforeThisTransaction(IdData::get<1>()));
+  cache_->getMutable(IdData::get<1>()) = IntData::get<2>();
+  EXPECT_TRUE(transaction_->commit());
+
+  initCacheView();
+  EXPECT_TRUE(cache_->hadBeenUpdatedBeforeThisTransaction(IdData::get<1>()));
 }
 
 }  // namespace map_api

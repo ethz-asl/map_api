@@ -2,6 +2,7 @@
 #define MAP_API_CHUNK_TRANSACTION_INL_H_
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <multiagent-mapping-common/unique-id.h>
@@ -42,20 +43,47 @@ void ChunkTransaction::getAvailableIds(std::unordered_set<IdType>* ids) {
   std::vector<IdType> id_vector;
   chunk_->constData()->getAvailableIds(begin_time_, &id_vector);
   ids->insert(id_vector.begin(), id_vector.end());
-  // Remove items removed in previous commits.
+
+  // Add previously committed items.
   for (ItemTimes::const_iterator it = previously_committed_.begin();
        it != previously_committed_.end(); ++it) {
-    typename std::unordered_set<IdType>::iterator found =
-        ids->find(it->first.toIdType<IdType>());
-    if (found != ids->end()) {
-      // Returns nullptr if object has been removed by given time.
-      std::shared_ptr<const Revision> item =
-          chunk_->data_container_->getById(it->first, it->second);
-      if (!item) {
-        ids->erase(found);
-      }
+    std::shared_ptr<const Revision> item =
+        chunk_->data_container_->getById(it->first, it->second);
+    if (item) {  // False if item has been previously removed.
+      ids->emplace(it->first.toIdType<IdType>());
+    } else {
+      ids->erase(it->first.toIdType<IdType>());
     }
   }
+}
+
+template <typename IdType>
+void ChunkTransaction::getMutableUpdateEntry(
+    const IdType& id, std::shared_ptr<const Revision>** result) {
+  CHECK_NOTNULL(result);
+  // Is there already a corresponding entry in the update map?
+  UpdateMap::iterator existing_entry = updates_.find(id);
+  if (existing_entry != updates_.end()) {
+    *result = reinterpret_cast<std::shared_ptr<const Revision>*>(
+        &existing_entry->second);
+    return;
+  }
+  // Is there a corresponding entry in the insert map?
+  InsertMap::iterator existing_insert_entry = insertions_.find(id);
+  if (existing_insert_entry != insertions_.end()) {
+    *result = reinterpret_cast<std::shared_ptr<const Revision>*>(
+        &existing_insert_entry->second);
+    return;
+  }
+
+  // If neither, create a new update entry.
+  std::shared_ptr<Revision> to_emplace;
+  getById(id)->copyForWrite(&to_emplace);
+  std::pair<UpdateMap::iterator, bool> emplace_result = updates_.insert(
+      std::make_pair(id.template toIdType<common::Id>(), to_emplace));
+  CHECK(emplace_result.second);
+  *result = reinterpret_cast<std::shared_ptr<const Revision>*>(
+      &emplace_result.first->second);
 }
 
 template <typename IdType>

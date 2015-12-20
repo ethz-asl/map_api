@@ -66,7 +66,7 @@ class STXXLRevisionStore {
 
     std::unique_ptr<proto::Revision> proto_in(new proto::Revision);
     bool status = input_stream.ReadMessage(proto_in.get());
-    *revision = Revision::fromProto(std::move(proto_in));
+    Revision::fromProto(std::move(proto_in), revision);
 
     CHECK_EQ(revision_info.insert_time_, (*revision)->getInsertTime());
     return status;

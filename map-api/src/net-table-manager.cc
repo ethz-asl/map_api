@@ -1,5 +1,7 @@
 #include "map-api/net-table-manager.h"
 
+#include <iostream>  // NOLINT
+
 #include "map-api/chunk-transaction.h"
 #include "map-api/core.h"
 #include "map-api/hub.h"
@@ -246,6 +248,14 @@ void NetTableManager::tableList(std::vector<std::string>* tables) const {
   }
 }
 
+void NetTableManager::printStatistics() const {
+  aslam::ScopedReadLock lock(&tables_lock_);
+  for (const std::pair<const std::string, std::unique_ptr<NetTable> >& pair :
+       tables_) {
+    std::cout << pair.second->getStatistics() << std::endl;
+  }
+}
+
 void NetTableManager::listenToPeersJoiningTable(const std::string& table_name) {
   NetTable* metatable = &getTable(kMetaTableName);
   // TODO(tcies) Define default merging for metatable.
@@ -257,7 +267,8 @@ void NetTableManager::listenToPeersJoiningTable(const std::string& table_name) {
     proto::PeerList listeners;
     current->get(kMetaTableListenersField, &listeners);
     listeners.add_peers(Hub::instance().ownAddress());
-    std::shared_ptr<Revision> next = current->copyForWrite();
+    std::shared_ptr<Revision> next;
+    current->copyForWrite(&next);
     next->set(kMetaTableListenersField, listeners);
     add_self_to_listeners.update(next);
     if (add_self_to_listeners.commit()) {
