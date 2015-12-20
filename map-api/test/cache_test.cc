@@ -32,7 +32,40 @@ UNIQUE_ID_DEFINE_ID_HASH(map_api::IntId);
 
 namespace map_api {
 
-class CacheTest : public NetTableFixture {};
+class CacheTest : public NetTableFixture {
+ protected:
+  void initCacheView() {
+    transaction_.reset(new Transaction);
+    cache_ = transaction_->createCache<IntId, int>(table_);
+  }
+
+  std::shared_ptr<Transaction> transaction_;
+  std::shared_ptr<ThreadsafeCache<IntId, int>> cache_;
+
+  template <typename Type>
+  struct TestData {
+    template <int Index>
+    static Type get();
+  };
+
+  typedef TestData<IntId> IdData;
+  typedef TestData<int> IntData;
+};
+
+template <>
+template <int Index>
+IntId CacheTest::TestData<IntId>::get() {
+  IntId id;
+  static_assert(Index > 0, "0 or below would create an invalid id!");
+  generateIdFromInt(Index, &id);
+  return id;
+}
+
+template <>
+template <int Index>
+int CacheTest::TestData<int>::get() {
+  return Index;
+}
 
 TEST_F(CacheTest, GeneralTest) {
   enum SubProcesses {
@@ -44,53 +77,58 @@ TEST_F(CacheTest, GeneralTest) {
     ROOT_INSERTED,
     A_DONE
   };
-  std::shared_ptr<Transaction> transaction;
-  std::shared_ptr<ThreadsafeCache<IntId, int>> cache;
-  IntId kId[3];
-  int kVal[3];
-  for (int i = 0; i < 3; ++i) {
-    generateIdFromInt(i + 1, &kId[i]);
-    kVal[i] = i;
-  }
+
   std::vector<IntId> id_result;
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
-    transaction.reset(new Transaction);
-    cache = transaction->createCache<IntId, int>(table_);
-    cache->getAllAvailableIds(&id_result);
+    initCacheView();
+    cache_->getAllAvailableIds(&id_result);
     EXPECT_TRUE(id_result.empty());
-    for (int i = 0; i < 3; ++i) {
-      EXPECT_FALSE(cache->has(kId[i]));
-    }
-    EXPECT_TRUE(cache->insert(kId[0], kVal[0]));
-    EXPECT_TRUE(transaction->commit());
+    EXPECT_FALSE(cache_->has(IdData::get<1>()));
+    EXPECT_FALSE(cache_->has(IdData::get<2>()));
+    EXPECT_FALSE(cache_->has(IdData::get<3>()));
+    EXPECT_TRUE(cache_->insert(IdData::get<1>(), IntData::get<1>()));
+    EXPECT_TRUE(transaction_->commit());
     IPC::barrier(INIT, 1);
     table_->shareAllChunks();
     IPC::barrier(ROOT_INSERTED, 1);
     IPC::barrier(A_DONE, 1);
 
-    transaction.reset(new Transaction);
-    cache = transaction->createCache<IntId, int>(table_);
-    cache->getAllAvailableIds(&id_result);
+    initCacheView();
+    cache_->getAllAvailableIds(&id_result);
     EXPECT_EQ(2u, id_result.size());
-    ASSERT_TRUE(cache->has(kId[0]));
-    ASSERT_TRUE(cache->has(kId[1]));
-    EXPECT_FALSE(cache->has(kId[2]));
-    EXPECT_EQ(kVal[2], cache->get(kId[0]));
-    EXPECT_EQ(kVal[1], cache->get(kId[1]));
+    ASSERT_TRUE(cache_->has(IdData::get<1>()));
+    ASSERT_TRUE(cache_->has(IdData::get<2>()));
+    EXPECT_FALSE(cache_->has(IdData::get<3>()));
+    // As changed by process A:
+    EXPECT_EQ(IntData::get<3>(), cache_->get(IdData::get<1>()));
+    EXPECT_EQ(IntData::get<2>(), cache_->get(IdData::get<2>()));
   }
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 1);
     IPC::barrier(ROOT_INSERTED, 1);
-    transaction.reset(new Transaction);
-    cache = transaction->createCache<IntId, int>(table_);
-    CHECK(cache->has(kId[0]));
-    cache->getMutable(kId[0]) = kVal[2];
-    CHECK(cache->insert(kId[1], kVal[1]));
-    CHECK(transaction->commit());
+    initCacheView();
+    CHECK(cache_->has(IdData::get<1>()));
+    cache_->getMutable(IdData::get<1>()) = IntData::get<3>();
+    CHECK(cache_->insert(IdData::get<2>(), IntData::get<2>()));
+    CHECK(transaction_->commit());
     table_->shareAllChunks();
     IPC::barrier(A_DONE, 1);
   }
+}
+
+TEST_F(CacheTest, hadBeenUpdatedBeforeThisTransaction) {
+  initCacheView();
+  EXPECT_TRUE(cache_->insert(IdData::get<1>(), IntData::get<1>()));
+  EXPECT_TRUE(transaction_->commit());
+
+  initCacheView();
+  EXPECT_FALSE(cache_->hadBeenUpdatedBeforeThisTransaction(IdData::get<1>()));
+  cache_->getMutable(IdData::get<1>()) = IntData::get<2>();
+  EXPECT_TRUE(transaction_->commit());
+
+  initCacheView();
+  EXPECT_TRUE(cache_->hadBeenUpdatedBeforeThisTransaction(IdData::get<1>()));
 }
 
 }  // namespace map_api
