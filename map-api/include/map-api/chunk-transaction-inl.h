@@ -19,41 +19,16 @@ void ChunkTransaction::addConflictCondition(int key, const ValueType& value) {
 
 template <typename IdType>
 std::shared_ptr<const Revision> ChunkTransaction::getById(const IdType& id) {
-  std::shared_ptr<const Revision> result = getByIdFromUncommitted(id);
-  if (result != nullptr) {
-    return result;
-  }
-
-  LogicalTime get_time = begin_time_;
-  ItemTimes::const_iterator found =
-      previously_committed_.find(id.template toIdType<common::Id>());
-  if (found != previously_committed_.end()) {
-    get_time = found->second;
-  }
-
-  chunk_->readLock();
-  result = chunk_->data_container_->getById(id, get_time);
-  chunk_->unlock();
-  return result;
+  return combined_view_.get(id.template toIdType<common::Id>());
 }
 
 template <typename IdType>
 void ChunkTransaction::getAvailableIds(std::unordered_set<IdType>* ids) {
   CHECK_NOTNULL(ids)->clear();
-  std::vector<IdType> id_vector;
-  chunk_->constData()->getAvailableIds(begin_time_, &id_vector);
-  ids->insert(id_vector.begin(), id_vector.end());
-
-  // Add previously committed items.
-  for (ItemTimes::const_iterator it = previously_committed_.begin();
-       it != previously_committed_.end(); ++it) {
-    std::shared_ptr<const Revision> item =
-        chunk_->data_container_->getById(it->first, it->second);
-    if (item) {  // False if item has been previously removed.
-      ids->emplace(it->first.toIdType<IdType>());
-    } else {
-      ids->erase(it->first.toIdType<IdType>());
-    }
+  std::unordered_set<common::Id> common_ids;
+  combined_view_.getAvailableIds(&common_ids);
+  for (const common::Id& id : common_ids) {
+    ids->emplace(id.template toIdType<IdType>());
   }
 }
 

@@ -6,6 +6,7 @@
 
 namespace map_api {
 class ChunkBase;
+class ChunkTransaction;
 class Conflicts;
 
 namespace internal {
@@ -19,6 +20,9 @@ class DeltaView : public OverridingViewBase {
   // ==================
   virtual bool has(const common::Id& id) const override;
   virtual std::shared_ptr<const Revision> get(const common::Id& id) const
+      override;
+  virtual void dump(ConstRevisionMap* result) const override;
+  virtual void getAvailableIds(std::unordered_set<common::Id>* result) const
       override;
   // ============================
   // OVERRIDINGVIEWBASE INTERFACE
@@ -83,6 +87,7 @@ class DeltaView : public OverridingViewBase {
   InsertMap insertions_;
   UpdateMap updates_;
   RemoveMap removes_;
+  friend class ::map_api::ChunkTransaction;  // TODO(tcies) full split.
 
   // For debug printing and merge policies.
   const NetTable& table_;

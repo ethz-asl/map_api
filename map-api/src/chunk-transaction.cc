@@ -108,7 +108,7 @@ void ChunkTransaction::merge(
 size_t ChunkTransaction::numChangedItems() const {
   CHECK(conflict_conditions_.empty()) << "changeCount not compatible with "
                                          "conflict conditions";
-  return insertions_.size() + updates_.size() + removes_.size();
+  return delta_.numChanges();
 }
 
 void ChunkTransaction::getTrackers(
@@ -122,7 +122,7 @@ void ChunkTransaction::getTrackers(
     const std::function<common::Id(const Revision&)>& tracker_id_extractor =
         ((override_it != overrides.end()) ? (override_it->second)
                                           : (table_tracker_getter.second));
-    for (const InsertMap::value_type& insertion : insertions_) {
+    for (const InsertMap::value_type& insertion : delta_.insertions_) {
       common::Id id = tracker_id_extractor(*insertion.second);
       trackers->emplace(table_tracker_getter.first, id);
     }

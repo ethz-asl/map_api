@@ -32,6 +32,26 @@ std::shared_ptr<const Revision> DeltaView::get(const common::Id& id) const {
   }
 }
 
+void DeltaView::dump(ConstRevisionMap* result) const {
+  CHECK_NOTNULL(result)->clear();
+  for (const InsertMap::value_type& item : insertions_) {
+    result->emplace(item);
+  }
+  for (const UpdateMap::value_type& item : updates_) {
+    result->emplace(item);
+  }
+}
+
+void DeltaView::getAvailableIds(std::unordered_set<common::Id>* result) const {
+  CHECK_NOTNULL(result)->clear();
+  for (const InsertMap::value_type& item : insertions_) {
+    result->emplace(item.first);
+  }
+  for (const UpdateMap::value_type& item : updates_) {
+    result->emplace(item.first);
+  }
+}
+
 bool DeltaView::supresses(const common::Id& id) const {
   return removes_.count(id) != 0u;
 }

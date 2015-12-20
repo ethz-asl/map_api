@@ -2,6 +2,7 @@
 #define INTERNAL_VIEW_BASE_H_
 
 #include <memory>
+#include <unordered_set>
 
 namespace common {
 class Id;
@@ -19,7 +20,9 @@ class ViewBase {
 
   virtual bool has(const common::Id& id) const = 0;
   virtual std::shared_ptr<const Revision> get(const common::Id& id) const = 0;
-  virtual void dump(ConstRevisionMap* result);
+  virtual void dump(ConstRevisionMap* result) const = 0;
+  virtual void getAvailableIds(std::unordered_set<common::Id>* result)
+      const = 0;
 };
 
 }  // namespace internal

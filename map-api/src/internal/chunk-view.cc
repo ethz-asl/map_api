@@ -18,6 +18,19 @@ std::shared_ptr<const Revision> ChunkView::get(const common::Id& id) const {
   return chunk_.constData()->getById(id, view_time_);
 }
 
+void ChunkView::dump(ConstRevisionMap* result) const {
+  chunk_.constData()->dump(view_time_, result);
+}
+
+void ChunkView::getAvailableIds(std::unordered_set<common::Id>* result) const {
+  CHECK_NOTNULL(result)->clear();
+  std::vector<common::Id> id_vector;
+  chunk_.constData()->getAvailableIds(view_time_, &id_vector);
+  for (const common::Id& id : id_vector) {
+    result->emplace(id);
+  }
+}
+
 void ChunkView::getPotentialConflicts(
     const std::unordered_map<common::Id, LogicalTime>& own_continuous_updates,
     std::unordered_map<common::Id, LogicalTime>* result) const {

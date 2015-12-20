@@ -1,5 +1,9 @@
 #include "map-api/internal/combined-view.h"
 
+#include <glog/logging.h>
+
+#include "map-api/revision-map.h"
+
 namespace map_api {
 namespace internal {
 
@@ -24,6 +28,40 @@ std::shared_ptr<const Revision> CombinedView::get(const common::Id& id) const {
   }
 
   return std::shared_ptr<const Revision>();
+}
+
+void CombinedView::dump(ConstRevisionMap* result) const {
+  CHECK_NOTNULL(result)->clear();
+  override_view_.dump(result);
+
+  ConstRevisionMap unsupressed_complete_dump;
+  complete_view_.dump(&unsupressed_complete_dump);
+  for (ConstRevisionMap::iterator it = unsupressed_complete_dump.begin();
+       it != unsupressed_complete_dump.end();) {
+    if (override_view_.supresses(it->first)) {
+      it = unsupressed_complete_dump.erase(it);
+    } else {
+      ++it;
+    }
+  }
+}
+
+void CombinedView::getAvailableIds(std::unordered_set<common::Id>* result)
+    const {
+  CHECK_NOTNULL(result)->clear();
+  override_view_.getAvailableIds(result);
+
+  std::unordered_set<common::Id> all_unsupressed_ids;
+  complete_view_.getAvailableIds(&all_unsupressed_ids);
+  for (std::unordered_set<common::Id>::iterator it =
+           all_unsupressed_ids.begin();
+       it != all_unsupressed_ids.end();) {
+    if (override_view_.supresses(*it)) {
+      it = all_unsupressed_ids.erase(it);
+    } else {
+      ++it;
+    }
+  }
 }
 
 }  // namespace internal
