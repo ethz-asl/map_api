@@ -10,6 +10,7 @@
 
 #include <glog/logging.h>
 
+#include "map-api/internal/commit-future.h"
 #include "map-api/logical-time.h"
 #include "map-api/net-table-transaction.h"
 #include "map-api/workspace.h"
@@ -42,6 +43,17 @@ class Transaction {
   Transaction();
   explicit Transaction(const std::shared_ptr<Workspace>& workspace);
   explicit Transaction(const LogicalTime& begin_time);
+  // Build a transaction based on the promise that another transaction, which
+  // has not yet committed, will succeed in committing. Allows pipelining
+  // processing and network transmission.
+  typedef std::unordered_map<NetTable*, NetTableTransaction::CommitFutureTree>
+      CommitFutureTree;
+  explicit Transaction(const CommitFutureTree& commit_futures);
+  Transaction(const std::shared_ptr<Workspace>& workspace,
+              const LogicalTime& begin_time,
+              const CommitFutureTree* commit_futures);
+
+  ~Transaction();
 
   // ====
   // READ
@@ -97,8 +109,6 @@ class Transaction {
   // Blocks until checks are performed, but does not block on network
   // transmission. Since this will finalize the sub-transaction, parallel
   // commit can't currently be combined with multi-commit.
-  typedef std::unordered_map<
-      const NetTable*, NetTableTransaction::CommitFutureTree> CommitFutureTree;
   bool commitInParallel(CommitFutureTree* future_tree);
   void joinParallelCommitIfRunning();
   inline LogicalTime getCommitTime() const { return commit_time_; }
@@ -116,6 +126,7 @@ class Transaction {
    */
   void merge(const std::shared_ptr<Transaction>& merge_transaction,
              ConflictMap* conflicts);
+  void detachFutures();
 
   // ==========
   // STATISTICS
@@ -175,7 +186,7 @@ class Transaction {
   template <typename IdType, typename ObjectType>
   ThreadsafeCache<IdType, ObjectType>* getMutableCache(NetTable* table);
 
-  void commitImpl(const bool finalize_after_checking,
+  void commitImpl(const bool finalize_after_check,
                   std::promise<bool>* will_commit_succeed);
   void finalize();
 

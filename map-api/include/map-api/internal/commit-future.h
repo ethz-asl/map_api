@@ -14,6 +14,7 @@ class CommitFuture : public ViewBase {
  public:
   explicit CommitFuture(
       const ChunkTransaction& finalized_committing_transaction);
+  explicit CommitFuture(const CommitFuture& other);
   ~CommitFuture();
 
   // ==================
@@ -25,6 +26,7 @@ class CommitFuture : public ViewBase {
   virtual void dump(ConstRevisionMap* result) const override;
   virtual void getAvailableIds(std::unordered_set<common::Id>* result) const
       override;
+  virtual void discardKnownUpdates(UpdateTimes* update_times) const override;
 
  private:
   const ChunkTransaction& finalized_committing_transaction_;

@@ -21,6 +21,16 @@ void ChunkBase::initializeNew(
 
 common::Id ChunkBase::id() const { return id_; }
 
+void ChunkBase::getUpdateTimes(
+    std::unordered_map<common::Id, LogicalTime>* result) {
+  CHECK_NOTNULL(result)->clear();
+  ConstRevisionMap items;
+  constData()->dump(LogicalTime::sample(), &items);
+  for (const ConstRevisionMap::value_type& id_item : items) {
+    result->emplace(id_item.first, id_item.second->getUpdateTime());
+  }
+}
+
 ChunkBase::ConstDataAccess::ConstDataAccess(const ChunkBase& chunk)
     : chunk_(chunk) {
   chunk.readLock();

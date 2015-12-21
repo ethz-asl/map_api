@@ -41,8 +41,9 @@ class ChunkTransaction {
 
  private:
   ChunkTransaction(ChunkBase* chunk, NetTable* table);
-  ChunkTransaction(const LogicalTime& begin_time, ChunkBase* chunk,
-                   NetTable* table);
+  ChunkTransaction(const LogicalTime& begin_time,
+                   const internal::CommitFuture* commit_future,
+                   ChunkBase* chunk, NetTable* table);
 
   // ====
   // READ
@@ -84,6 +85,7 @@ class ChunkTransaction {
   size_t numChangedItems() const;
   inline void finalize() { finalized_ = true; }
   bool isFinalized() const { return finalized_; }
+  void detachFuture();
 
   // INTERNAL
   typedef std::unordered_multimap<NetTable*, common::Id> TableToIdMultiMap;
@@ -111,9 +113,9 @@ class ChunkTransaction {
   // The combined views are stacked as follows:
   internal::DeltaView delta_;
   internal::CommitHistoryView commit_history_view_;
-  internal::ChunkView chunk_view_;
+  std::unique_ptr<internal::ViewBase> original_view_;
 
-  internal::CombinedView view_before_delta_;
+  std::unique_ptr<internal::ViewBase> view_before_delta_;
   internal::CombinedView combined_view_;
 
   bool finalized_;

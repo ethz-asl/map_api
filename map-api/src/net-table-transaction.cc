@@ -14,13 +14,25 @@ DEFINE_bool(map_api_blame_updates, false,
 namespace map_api {
 
 NetTableTransaction::NetTableTransaction(const LogicalTime& begin_time,
-                                         NetTable* table,
-                                         const Workspace& workspace)
+                                         const Workspace& workspace,
+                                         const CommitFutureTree* commit_futures,
+                                         NetTable* table)
     : begin_time_(begin_time),
       table_(table),
-      workspace_(Workspace::TableInterface(workspace, table)) {
+      workspace_(Workspace::TableInterface(workspace, table)),
+      finalized_(false) {
   CHECK_NOTNULL(table);
   CHECK(begin_time < LogicalTime::sample());
+
+  if (commit_futures != nullptr) {
+    for (const CommitFutureTree::value_type& chunk_commit_futures :
+         *commit_futures) {
+      chunk_transactions_[chunk_commit_futures.first] =
+          std::shared_ptr<ChunkTransaction>(new ChunkTransaction(
+              begin_time, chunk_commit_futures.second.get(),
+              chunk_commit_futures.first, table));
+    }
+  }
 
   refreshIdToChunkIdMap();
 }
@@ -129,7 +141,7 @@ void NetTableTransaction::merge(
   conflicts->clear();
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
     std::shared_ptr<ChunkTransaction> merge_chunk_transaction(
-        new ChunkTransaction(merge_transaction->begin_time_,
+        new ChunkTransaction(merge_transaction->begin_time_, nullptr,
                              chunk_transaction.first, table_));
     Conflicts sub_conflicts;
     chunk_transaction.second->merge(merge_chunk_transaction, &sub_conflicts);
@@ -153,7 +165,12 @@ size_t NetTableTransaction::numChangedItems() const {
   return result;
 }
 
-void NetTableTransaction::finalize() { finalized_ = true; }
+void NetTableTransaction::finalize() {
+  finalized_ = true;
+  for (TransactionPair& chunk_transaction : chunk_transactions_) {
+    chunk_transaction.second->finalize();
+  }
+}
 
 void NetTableTransaction::buildCommitFutureTree(CommitFutureTree* result) {
   CHECK_NOTNULL(result)->clear();
@@ -161,6 +178,12 @@ void NetTableTransaction::buildCommitFutureTree(CommitFutureTree* result) {
        chunk_transactions_) {
     (*result)[chunk_transaction.first]
         .reset(new internal::CommitFuture(*chunk_transaction.second));
+  }
+}
+
+void NetTableTransaction::detachFutures() {
+  for (TransactionPair& chunk_transaction : chunk_transactions_) {
+    chunk_transaction.second->detachFuture();
   }
 }
 
@@ -174,7 +197,7 @@ ChunkTransaction* NetTableTransaction::transactionOf(const ChunkBase* chunk)
   if (chunk_transaction == chunk_transactions_.end()) {
     CHECK(!finalized_);
     std::shared_ptr<ChunkTransaction> transaction(
-        new ChunkTransaction(begin_time_, mutable_chunk, table_));
+        new ChunkTransaction(begin_time_, nullptr, mutable_chunk, table_));
     std::pair<TransactionMap::iterator, bool> inserted =
         chunk_transactions_.insert(std::make_pair(mutable_chunk, transaction));
     CHECK(inserted.second);

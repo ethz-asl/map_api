@@ -47,6 +47,18 @@ void CommitHistoryView::getAvailableIds(std::unordered_set<common::Id>* result)
   }
 }
 
+void CommitHistoryView::discardKnownUpdates(UpdateTimes* update_times) const {
+  CHECK_NOTNULL(update_times);
+  for (const History::value_type& known_update : commit_history_) {
+    UpdateTimes::const_iterator found = update_times->find(known_update.first);
+    if (found != update_times->end()) {
+      if (found->second <= known_update.second) {
+        update_times->erase(found);
+      }
+    }
+  }
+}
+
 bool CommitHistoryView::supresses(const common::Id& id) const {
   History::const_iterator found = commit_history_.find(id);
   if (found != commit_history_.end()) {

@@ -25,14 +25,28 @@ DEFINE_bool(blame_commit, false, "Print stack trace for every commit");
 namespace map_api {
 
 Transaction::Transaction(const std::shared_ptr<Workspace>& workspace,
-                         const LogicalTime& begin_time)
+                         const LogicalTime& begin_time,
+                         const CommitFutureTree* commit_futures)
     : workspace_(workspace),
       begin_time_(begin_time),
       chunk_tracking_disabled_(false),
       is_parallel_commit_running_(false),
       finalized_(false) {
   CHECK(begin_time < LogicalTime::sample());
+  if (commit_futures != nullptr) {
+    for (const CommitFutureTree::value_type& table_commit_futures :
+         *commit_futures) {
+      net_table_transactions_[table_commit_futures.first] =
+          std::shared_ptr<NetTableTransaction>(new NetTableTransaction(
+              begin_time, *workspace, &table_commit_futures.second,
+              table_commit_futures.first));
+    }
+  }
 }
+
+Transaction::Transaction(const std::shared_ptr<Workspace>& workspace,
+                         const LogicalTime& begin_time)
+    : Transaction(workspace, begin_time, nullptr) {}
 Transaction::Transaction()
     : Transaction(std::shared_ptr<Workspace>(new Workspace),
                   LogicalTime::sample()) {}
@@ -40,6 +54,11 @@ Transaction::Transaction(const std::shared_ptr<Workspace>& workspace)
     : Transaction(workspace, LogicalTime::sample()) {}
 Transaction::Transaction(const LogicalTime& begin_time)
     : Transaction(std::shared_ptr<Workspace>(new Workspace), begin_time) {}
+Transaction::Transaction(const CommitFutureTree& commit_futures)
+    : Transaction(std::shared_ptr<Workspace>(new Workspace),
+                  LogicalTime::sample(), &commit_futures) {}
+
+Transaction::~Transaction() { joinParallelCommitIfRunning(); }
 
 void Transaction::dumpChunk(NetTable* table, ChunkBase* chunk,
                             ConstRevisionMap* result) {
@@ -154,6 +173,12 @@ bool Transaction::commitInParallel(CommitFutureTree* future_tree) {
   }
 }
 
+void Transaction::joinParallelCommitIfRunning() {
+  std::unique_lock<std::mutex> lock(m_is_parallel_commit_running_);
+  cv_is_parallel_commit_running_.wait(
+      lock, [this] { return !is_parallel_commit_running_; });
+}
+
 void Transaction::merge(const std::shared_ptr<Transaction>& merge_transaction,
                         ConflictMap* conflicts) {
   CHECK(merge_transaction.get() != nullptr) << "Merge requires an initiated "
@@ -162,8 +187,8 @@ void Transaction::merge(const std::shared_ptr<Transaction>& merge_transaction,
   conflicts->clear();
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     std::shared_ptr<NetTableTransaction> merge_net_table_transaction(
-        new NetTableTransaction(merge_transaction->begin_time_,
-                                net_table_transaction.first, *workspace_));
+        new NetTableTransaction(merge_transaction->begin_time_, *workspace_,
+                                nullptr, net_table_transaction.first));
     Conflicts sub_conflicts;
     net_table_transaction.second->merge(merge_net_table_transaction,
                                         &sub_conflicts);
@@ -180,6 +205,12 @@ void Transaction::merge(const std::shared_ptr<Transaction>& merge_transaction,
       CHECK(insert_result.second);
       insert_result.first->second.swap(sub_conflicts);
     }
+  }
+}
+
+void Transaction::detachFutures() {
+  for (TransactionPair& table_transaction : net_table_transactions_) {
+    table_transaction.second->detachFutures();
   }
 }
 
@@ -224,7 +255,7 @@ NetTableTransaction* Transaction::transactionOf(NetTable* table) const {
   if (net_table_transaction == net_table_transactions_.end()) {
     CHECK(!finalized_);
     std::shared_ptr<NetTableTransaction> transaction(
-        new NetTableTransaction(begin_time_, table, *workspace_));
+        new NetTableTransaction(begin_time_, *workspace_, nullptr, table));
     std::pair<TransactionMap::iterator, bool> inserted =
         net_table_transactions_.insert(std::make_pair(table, transaction));
     CHECK(inserted.second);
@@ -318,7 +349,7 @@ void Transaction::pushNewChunkIdsToTrackers() {
   }
 }
 
-void Transaction::commitImpl(const bool finalize_after_fixing_tracks,
+void Transaction::commitImpl(const bool finalize_after_check,
                              std::promise<bool>* will_commit_succeed) {
   CHECK_NOTNULL(will_commit_succeed);
   if (FLAGS_blame_commit) {
@@ -333,10 +364,6 @@ void Transaction::commitImpl(const bool finalize_after_fixing_tracks,
   enableDirectAccess();
   pushNewChunkIdsToTrackers();
   disableDirectAccess();
-
-  if (finalize_after_fixing_tracks) {
-    finalize();
-  }
 
   // This must happen after chunk tracker resolution, since chunk tracker
   // resolution might access the cache in read-mode, but we won't be able to
@@ -356,8 +383,15 @@ void Transaction::commitImpl(const bool finalize_after_fixing_tracks,
            net_table_transactions_) {
         net_table_transaction.second->unlock();
       }
+      return;
     }
   }
+
+  if (finalize_after_check) {
+    finalize();
+    LOG(INFO) << "Finalized!";
+  }
+
   commit_time_ = LogicalTime::sample();
   // Promise must happen after setting commit_time_, since the begin time of the
   // subsequent transaction must be after the commit time.

@@ -8,7 +8,7 @@ namespace internal {
 
 class CombinedView : public ViewBase {
  public:
-  CombinedView(const ViewBase& complete_view,
+  CombinedView(const std::unique_ptr<ViewBase>& complete_view,
                const OverridingViewBase& override_view);
   ~CombinedView();
 
@@ -21,9 +21,11 @@ class CombinedView : public ViewBase {
   virtual void dump(ConstRevisionMap* result) const override;
   virtual void getAvailableIds(std::unordered_set<common::Id>* result) const
       override;
+  virtual void discardKnownUpdates(UpdateTimes* update_times) const override;
 
  private:
-  const ViewBase& complete_view_;
+  // Because the complete view can be swapped out.
+  const std::unique_ptr<ViewBase>& complete_view_;
   const OverridingViewBase& override_view_;
 };
 

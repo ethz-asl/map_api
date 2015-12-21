@@ -31,32 +31,15 @@ void ChunkView::getAvailableIds(std::unordered_set<common::Id>* result) const {
   }
 }
 
-void ChunkView::getPotentialConflicts(
-    const std::unordered_map<common::Id, LogicalTime>& own_continuous_updates,
-    std::unordered_map<common::Id, LogicalTime>* result) const {
-  CHECK_NOTNULL(result)->clear();
-
-  ConstRevisionMap contents;
-  chunk_.constData()->dump(LogicalTime::sample(), &contents);
-
-  for (const ConstRevisionMap::value_type& item : contents) {
-    LogicalTime update_time = item.second->getUpdateTime();
-    // Discard if update before view time.
-    if (update_time <= view_time_) {
-      continue;
+void ChunkView::discardKnownUpdates(UpdateTimes* update_times) const {
+  CHECK_NOTNULL(update_times);
+  for (UpdateTimes::iterator it = update_times->begin();
+       it != update_times->end();) {
+    if (it->second <= view_time_) {
+      it = update_times->erase(it);
+    } else {
+      ++it;
     }
-
-    // Discard if updated by this transaction in a previous commit.
-    typedef std::unordered_map<common::Id, LogicalTime> OwnUpdateMap;
-    OwnUpdateMap::const_iterator own_update =
-        own_continuous_updates.find(item.first);
-    if (own_update != own_continuous_updates.end()) {
-      if (update_time <= own_update->second) {
-        continue;
-      }
-    }
-
-    CHECK(result->emplace(item.first, update_time).second);
   }
 }
 

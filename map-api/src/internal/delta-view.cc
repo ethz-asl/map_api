@@ -52,6 +52,10 @@ void DeltaView::getAvailableIds(std::unordered_set<common::Id>* result) const {
   }
 }
 
+void DeltaView::discardKnownUpdates(UpdateTimes* update_times) const {
+  LOG(FATAL) << "This function should never be called on a delta view!";
+}
+
 bool DeltaView::supresses(const common::Id& id) const {
   return removes_.count(id) != 0u;
 }

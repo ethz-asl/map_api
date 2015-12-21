@@ -25,11 +25,7 @@ class ChunkView : public ViewBase {
   virtual void dump(ConstRevisionMap* result) const override;
   virtual void getAvailableIds(std::unordered_set<common::Id>* result) const
       override;
-
-  // Asserts the chunk is write-locked.
-  void getPotentialConflicts(
-      const std::unordered_map<common::Id, LogicalTime>& own_continuous_updates,
-      std::unordered_map<common::Id, LogicalTime>* result) const;
+  virtual void discardKnownUpdates(UpdateTimes* update_times) const override;
 
  private:
   const ChunkBase& chunk_;

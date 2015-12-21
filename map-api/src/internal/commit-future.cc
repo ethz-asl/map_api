@@ -11,6 +11,10 @@ CommitFuture::CommitFuture(
   CHECK(finalized_committing_transaction.isFinalized());
 }
 
+CommitFuture::CommitFuture(const CommitFuture& other)
+    : finalized_committing_transaction_(
+          other.finalized_committing_transaction_) {}
+
 CommitFuture::~CommitFuture() {}
 
 bool CommitFuture::has(const common::Id& id) const {
@@ -28,6 +32,10 @@ void CommitFuture::dump(ConstRevisionMap* result) const {
 void CommitFuture::getAvailableIds(std::unordered_set<common::Id>* result)
     const {
   finalized_committing_transaction_.getAvailableIds(result);
+}
+
+void CommitFuture::discardKnownUpdates(UpdateTimes* update_times) const {
+  LOG(FATAL) << "Detach futures from chunk transaction before committing!";
 }
 
 }  // namespace internal

@@ -28,8 +28,11 @@ class NetTableTransaction {
   FRIEND_TEST(NetTableTest, NetTableTransactions);
 
  private:
-  NetTableTransaction(const LogicalTime& begin_time, NetTable* table,
-                      const Workspace& workspace);
+  typedef std::unordered_map<
+      ChunkBase*, std::unique_ptr<internal::CommitFuture>> CommitFutureTree;
+
+  NetTableTransaction(const LogicalTime& begin_time, const Workspace& workspace,
+                      const CommitFutureTree* commit_futures, NetTable* table);
 
   // ========================
   // READ (see transaction.h)
@@ -89,9 +92,8 @@ class NetTableTransaction {
   size_t numChangedItems() const;
 
   void finalize();
-  typedef std::unordered_map<
-      ChunkBase*, std::unique_ptr<internal::CommitFuture>> CommitFutureTree;
   void buildCommitFutureTree(CommitFutureTree* result);
+  void detachFutures();
 
   // ========
   // INTERNAL
