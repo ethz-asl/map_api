@@ -15,7 +15,8 @@ SET(PROTO_DEFNS proto/chord-index.proto
                 proto/core.proto
                 proto/chunk.proto
                 proto/ipc.proto
-                proto/net-table.proto)
+                proto/net-table.proto
+                proto/rpc.proto)
 PROTOBUF_CATKIN_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
@@ -51,6 +52,7 @@ SET(CORE_SOURCE  src/app-templates.cc
                  src/peer-handler.cc
                  src/proto-table-file-io.cc
                  src/revision.cc
+				 src/rpc-command-registerer.cc
                  src/server-discovery.cc
                  src/spatial-index.cc
                  src/spatial-index-cell-data.cc
