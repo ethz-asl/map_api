@@ -27,7 +27,8 @@ Transaction::Transaction(const std::shared_ptr<Workspace>& workspace,
                          const LogicalTime& begin_time)
     : workspace_(workspace),
       begin_time_(begin_time),
-      chunk_tracking_disabled_(false) {
+      chunk_tracking_disabled_(false),
+      is_parallel_commit_running_(false) {
   CHECK(begin_time < LogicalTime::sample());
 }
 Transaction::Transaction()
@@ -111,45 +112,40 @@ void Transaction::remove(NetTable* table, std::shared_ptr<Revision> revision) {
 // net_table_transactions_, and have the locks acquired in that order
 // (resource hierarchy solution)
 bool Transaction::commit() {
-  if (FLAGS_blame_commit) {
-    LOG(INFO) << "Transaction committed from:\n" << common::backtrace();
-  }
-  for (const CacheMap::value_type& cache_pair : caches_) {
-    if (FLAGS_cache_blame_dirty || FLAGS_cache_blame_insert) {
-      std::cout << cache_pair.first->name() << " cache:" << std::endl;
+  std::promise<bool> will_commit_succeed;
+  commitImpl(&will_commit_succeed);
+  return will_commit_succeed.get_future().get();
+}
+
+bool Transaction::commitInParallel(CommitFutureTree* future_tree) {
+  CHECK_NOTNULL(future_tree);
+  finalize();
+  std::promise<bool> will_commit_succeed;
+  std::thread([this, &will_commit_succeed]() {
+                {
+                  std::lock_guard<std::mutex> lock(
+                      m_is_parallel_commit_running_);
+                  CHECK(!is_parallel_commit_running_);
+                  is_parallel_commit_running_ = true;
+                  cv_is_parallel_commit_running_.notify_all();
     }
-    cache_pair.second->prepareForCommit();
-  }
-  enableDirectAccess();
-  pushNewChunkIdsToTrackers();
-  disableDirectAccess();
-  // This must happen after chunk tracker resolution, since chunk tracker
-  // resolution might access the cache in read-mode, but we won't be able to
-  // fetch the proper metadata until after the commit!
-  for (const CacheMap::value_type& cache_pair : caches_) {
-    cache_pair.second->discardCachedInsertions();
-  }
-  timing::Timer timer("map_api::Transaction::commit - lock");
-  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
-    net_table_transaction.second->lock();
-  }
-  timer.Stop();
-  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
-    if (!net_table_transaction.second->check()) {
-      for (const TransactionPair& net_table_transaction :
-           net_table_transactions_) {
-        net_table_transaction.second->unlock();
-      }
-      return false;
+    commitImpl(&will_commit_succeed);
+    {
+      std::lock_guard<std::mutex> lock(m_is_parallel_commit_running_);
+      is_parallel_commit_running_ = false;
+      cv_is_parallel_commit_running_.notify_all();
     }
+              }).detach();
+  if (will_commit_succeed.get_future().get()) {
+    for (const TransactionPair& table_transaction : net_table_transactions_) {
+      NetTableTransaction::CommitFutureTree& subtree =
+          (*future_tree)[table_transaction.first];
+      table_transaction.second->buildCommitFutureTree(&subtree);
+    }
+    return true;
+  } else {
+    return false;
   }
-  commit_time_ = LogicalTime::sample();
-  VLOG(3) << "Commit from " << begin_time_ << " to " << commit_time_;
-  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
-    net_table_transaction.second->checkedCommit(commit_time_);
-    net_table_transaction.second->unlock();
-  }
-  return true;
 }
 
 void Transaction::merge(const std::shared_ptr<Transaction>& merge_transaction,
@@ -309,6 +305,51 @@ void Transaction::pushNewChunkIdsToTrackers() {
         update(table_chunks_to_push.first, updated_tracker);
       }
     }
+  }
+}
+
+void Transaction::commitImpl(std::promise<bool>* will_commit_succeed) {
+  CHECK_NOTNULL(will_commit_succeed);
+  if (FLAGS_blame_commit) {
+    LOG(INFO) << "Transaction committed from:\n" << common::backtrace();
+  }
+  for (const CacheMap::value_type& cache_pair : caches_) {
+    if (FLAGS_cache_blame_dirty || FLAGS_cache_blame_insert) {
+      std::cout << cache_pair.first->name() << " cache:" << std::endl;
+    }
+    cache_pair.second->prepareForCommit();
+  }
+  enableDirectAccess();
+  pushNewChunkIdsToTrackers();
+  disableDirectAccess();
+  // This must happen after chunk tracker resolution, since chunk tracker
+  // resolution might access the cache in read-mode, but we won't be able to
+  // fetch the proper metadata until after the commit!
+  for (const CacheMap::value_type& cache_pair : caches_) {
+    cache_pair.second->discardCachedInsertions();
+  }
+  timing::Timer timer("map_api::Transaction::commit - lock");
+  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
+    net_table_transaction.second->lock();
+  }
+  timer.Stop();
+  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
+    if (!net_table_transaction.second->check()) {
+      will_commit_succeed->set_value(false);
+      for (const TransactionPair& net_table_transaction :
+           net_table_transactions_) {
+        net_table_transaction.second->unlock();
+      }
+    }
+  }
+  commit_time_ = LogicalTime::sample();
+  // Promise must happen after setting commit_time_, since the begin time of the
+  // subsequent transaction must be after the commit time.
+  will_commit_succeed->set_value(true);
+  VLOG(3) << "Commit from " << begin_time_ << " to " << commit_time_;
+  for (const TransactionPair& net_table_transaction : net_table_transactions_) {
+    net_table_transaction.second->checkedCommit(commit_time_);
+    net_table_transaction.second->unlock();
   }
 }
 

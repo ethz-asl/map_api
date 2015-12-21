@@ -1,6 +1,7 @@
 #ifndef MAP_API_TRANSACTION_H_
 #define MAP_API_TRANSACTION_H_
 
+#include <future>
 #include <map>
 #include <memory>
 #include <string>
@@ -93,6 +94,13 @@ class Transaction {
   // TRANSACTION OPERATIONS
   // ======================
   bool commit();
+  // Blocks until checks are performed, but does not block on network
+  // transmission. Since this will finalize the sub-transaction, parallel
+  // commit can't currently be combined with multi-commit.
+  typedef std::unordered_map<
+      const NetTable*, NetTableTransaction::CommitFutureTree> CommitFutureTree;
+  bool commitInParallel(CommitFutureTree* future_tree);
+  void joinParallelCommitIfRunning();
   inline LogicalTime getCommitTime() const { return commit_time_; }
   // Requires specialization of
   // std::string getComparisonString(const ObjectType& a, const ObjectType& b);
@@ -167,6 +175,9 @@ class Transaction {
   template <typename IdType, typename ObjectType>
   ThreadsafeCache<IdType, ObjectType>* getMutableCache(NetTable* table);
 
+  void commitImpl(std::promise<bool>* will_commit_succeed);
+  void finalize();
+
   /**
    * A global ordering of tables prevents deadlocks (resource hierarchy
    * solution)
@@ -207,6 +218,12 @@ class Transaction {
   mutable std::mutex net_table_transactions_mutex_;
 
   bool chunk_tracking_disabled_;
+
+  bool is_parallel_commit_running_;
+  std::mutex m_is_parallel_commit_running_;
+  std::condition_variable cv_is_parallel_commit_running_;
+
+  bool finalized_;
 };
 
 }  // namespace map_api

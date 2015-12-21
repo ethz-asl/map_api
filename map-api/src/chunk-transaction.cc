@@ -22,28 +22,32 @@ ChunkTransaction::ChunkTransaction(const LogicalTime& begin_time,
       commit_history_view_(commit_history_, *chunk),
       chunk_view_(*chunk, begin_time),
       view_before_delta_(chunk_view_, commit_history_view_),
-      combined_view_(view_before_delta_, delta_) {
+      combined_view_(view_before_delta_, delta_),
+      finalized_(false) {
   CHECK(begin_time < LogicalTime::sample());
 }
 
-void ChunkTransaction::dumpChunk(ConstRevisionMap* result) {
+void ChunkTransaction::dumpChunk(ConstRevisionMap* result) const {
   CHECK_NOTNULL(result);
   combined_view_.dump(result);
 }
 
 void ChunkTransaction::insert(std::shared_ptr<Revision> revision) {
+  CHECK(!finalized_);
   CHECK_NOTNULL(revision.get());
   CHECK(revision->structureMatch(*structure_reference_));
   delta_.insert(revision);
 }
 
 void ChunkTransaction::update(std::shared_ptr<Revision> revision) {
+  CHECK(!finalized_);
   CHECK_NOTNULL(revision.get());
   CHECK(revision->structureMatch(*structure_reference_));
   delta_.update(revision);
 }
 
 void ChunkTransaction::remove(std::shared_ptr<Revision> revision) {
+  CHECK(!finalized_);
   CHECK_NOTNULL(revision.get());
   CHECK(revision->structureMatch(*structure_reference_));
   delta_.remove(revision);
@@ -61,6 +65,7 @@ bool ChunkTransaction::commit() {
 }
 
 bool ChunkTransaction::check() {
+  CHECK(!finalized_);  // Because checking can try to auto-merge.
   CHECK(chunk_->isWriteLocked());
   std::unordered_map<common::Id, LogicalTime> potential_conflicts;
   chunk_view_.getPotentialConflicts(commit_history_, &potential_conflicts);
@@ -124,7 +129,8 @@ void ChunkTransaction::getTrackers(
         ((override_it != overrides.end()) ? (override_it->second)
                                           : (table_tracker_getter.second));
     // TODO(tcies) add function to delta.
-    for (const InsertMap::value_type& insertion : delta_.insertions_) {
+    for (const internal::DeltaView::InsertMap::value_type& insertion :
+         delta_.insertions_) {
       common::Id id = tracker_id_extractor(*insertion.second);
       trackers->emplace(table_tracker_getter.first, id);
     }

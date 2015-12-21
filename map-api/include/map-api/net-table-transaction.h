@@ -84,6 +84,11 @@ class NetTableTransaction {
              Conflicts* conflicts);
   size_t numChangedItems() const;
 
+  void finalize();
+  typedef std::unordered_map<
+      ChunkBase*, std::unique_ptr<internal::CommitFuture>> CommitFutureTree;
+  void buildCommitFutureTree(CommitFutureTree* result);
+
   // ========
   // INTERNAL
   // ========

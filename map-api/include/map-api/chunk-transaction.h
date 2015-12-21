@@ -39,16 +39,21 @@ class ChunkTransaction {
   ChunkTransaction(const LogicalTime& begin_time, ChunkBase* chunk,
                    NetTable* table);
 
+  // ====
   // READ
+  // ====
   template <typename IdType>
-  std::shared_ptr<const Revision> getById(const IdType& id);
+  std::shared_ptr<const Revision> getById(const IdType& id) const;
   template <typename ValueType>
-  std::shared_ptr<const Revision> findUnique(int key, const ValueType& value);
-  void dumpChunk(ConstRevisionMap* result);
+  std::shared_ptr<const Revision> findUnique(int key,
+                                             const ValueType& value) const;
+  void dumpChunk(ConstRevisionMap* result) const;
   template <typename IdType>
-  void getAvailableIds(std::unordered_set<IdType>* ids);
+  void getAvailableIds(std::unordered_set<IdType>* ids) const;
 
+  // =====
   // WRITE
+  // =====
   void insert(std::shared_ptr<Revision> revision);
   void update(std::shared_ptr<Revision> revision);
   // The following function is very dangerous and shouldn't be used apart from
@@ -60,7 +65,9 @@ class ChunkTransaction {
   template <typename ValueType>
   void addConflictCondition(int key, const ValueType& value);
 
+  // ======================
   // TRANSACTION OPERATIONS
+  // ======================
   bool commit();
   bool check();
   void checkedCommit(const LogicalTime& time);
@@ -70,24 +77,14 @@ class ChunkTransaction {
   void merge(const std::shared_ptr<ChunkTransaction>& merge_transaction,
              Conflicts* conflicts);
   size_t numChangedItems() const;
+  inline void finalize() { finalized_ = true; }
+  bool isFinalized() const { return finalized_; }
 
   // INTERNAL
-  typedef std::unordered_map<common::Id, LogicalTime> ItemTimes;
-  void prepareCheck(const LogicalTime& check_time,
-                    ItemTimes* chunk_stamp) const;
-  bool hasUpdateConflict(const common::Id& item,
-                         const ItemTimes& db_stamps) const;
-
   typedef std::unordered_multimap<NetTable*, common::Id> TableToIdMultiMap;
   void getTrackers(const NetTable::NewChunkTrackerMap& overrides,
                    TableToIdMultiMap* trackers) const;
 
-  /**
-   * Strong typing of table operation maps.
-   */
-  class InsertMap : public MutableRevisionMap {};
-  class UpdateMap : public MutableRevisionMap {};
-  class RemoveMap : public MutableRevisionMap {};
   struct ConflictCondition {
     const int key;
     const std::shared_ptr<Revision> value_holder;
@@ -95,8 +92,6 @@ class ChunkTransaction {
         : key(_key), value_holder(_value_holder) {}
   };
   class ConflictVector : public std::vector<ConflictCondition> {};
-
-  bool tryAutoMerge(const ItemTimes& db_stamps, UpdateMap::value_type* item);
 
   ConflictVector conflict_conditions_;
 
@@ -115,6 +110,8 @@ class ChunkTransaction {
 
   internal::CombinedView view_before_delta_;
   internal::CombinedView combined_view_;
+
+  bool finalized_;
 };
 
 }  // namespace map_api

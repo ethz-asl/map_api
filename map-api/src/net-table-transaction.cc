@@ -149,6 +149,9 @@ size_t NetTableTransaction::numChangedItems() const {
   return result;
 }
 
+void NetTableTransaction::buildCommitFutureTree(CommitFutureTree* result) {
+  for (const TransactionMap::value_type&) }
+
 ChunkTransaction* NetTableTransaction::transactionOf(const ChunkBase* chunk)
     const {
   CHECK_NOTNULL(chunk);
