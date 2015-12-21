@@ -19,8 +19,10 @@ ChunkTransaction::ChunkTransaction(const LogicalTime& begin_time,
       table_(CHECK_NOTNULL(table)),
       structure_reference_(chunk_->constData()->getTemplate()),
       delta_(*table),
+      commit_history_view_(commit_history_, *chunk),
       chunk_view_(*chunk, begin_time),
-      combined_view_(chunk_view_, delta_) {
+      view_before_delta_(chunk_view_, commit_history_view_),
+      combined_view_(view_before_delta_, delta_) {
   CHECK(begin_time < LogicalTime::sample());
 }
 
@@ -61,12 +63,11 @@ bool ChunkTransaction::commit() {
 bool ChunkTransaction::check() {
   CHECK(chunk_->isWriteLocked());
   std::unordered_map<common::Id, LogicalTime> potential_conflicts;
-  chunk_view_.getPotentialConflicts(previously_committed_,
-                                    &potential_conflicts);
+  chunk_view_.getPotentialConflicts(commit_history_, &potential_conflicts);
 
   internal::ChunkView current_view_(*chunk_, LogicalTime::sample());
-  if (delta_.hasConflictsAfterTryingToMerge(potential_conflicts, chunk_view_,
-                                            current_view_)) {
+  if (delta_.hasConflictsAfterTryingToMerge(
+          potential_conflicts, view_before_delta_, current_view_)) {
     return false;
   }
 
@@ -84,7 +85,7 @@ bool ChunkTransaction::check() {
 }
 
 void ChunkTransaction::checkedCommit(const LogicalTime& time) {
-  delta_.checkedCommitLocked(time, chunk_, &previously_committed_);
+  delta_.checkedCommitLocked(time, chunk_, &commit_history_);
 }
 
 void ChunkTransaction::merge(
@@ -97,11 +98,11 @@ void ChunkTransaction::merge(
 
   chunk_->readLock();
   std::unordered_map<common::Id, LogicalTime> potential_conflicts;
-  chunk_view_.getPotentialConflicts(previously_committed_,
-                                    &potential_conflicts);
+  chunk_view_.getPotentialConflicts(commit_history_, &potential_conflicts);
   internal::ChunkView current_view_(*chunk_, LogicalTime::sample());
-  delta_.prepareManualMerge(potential_conflicts, chunk_view_, current_view_,
-                            &merge_transaction->delta_, conflicts);
+  delta_.prepareManualMerge(potential_conflicts, view_before_delta_,
+                            current_view_, &merge_transaction->delta_,
+                            conflicts);
   chunk_->unlock();
 }
 
@@ -122,6 +123,7 @@ void ChunkTransaction::getTrackers(
     const std::function<common::Id(const Revision&)>& tracker_id_extractor =
         ((override_it != overrides.end()) ? (override_it->second)
                                           : (table_tracker_getter.second));
+    // TODO(tcies) add function to delta.
     for (const InsertMap::value_type& insertion : delta_.insertions_) {
       common::Id id = tracker_id_extractor(*insertion.second);
       trackers->emplace(table_tracker_getter.first, id);

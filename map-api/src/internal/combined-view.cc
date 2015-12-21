@@ -22,8 +22,10 @@ std::shared_ptr<const Revision> CombinedView::get(const common::Id& id) const {
   if (override_view_.has(id)) {
     return override_view_.get(id);
   } else {
-    if (complete_view_.has(id) && !override_view_.supresses(id)) {
-      return complete_view_.get(id);
+    if (complete_view_.has(id)) {
+      if (!override_view_.supresses(id)) {
+        return complete_view_.get(id);
+      }
     }
   }
 
@@ -32,18 +34,20 @@ std::shared_ptr<const Revision> CombinedView::get(const common::Id& id) const {
 
 void CombinedView::dump(ConstRevisionMap* result) const {
   CHECK_NOTNULL(result)->clear();
-  override_view_.dump(result);
 
-  ConstRevisionMap unsupressed_complete_dump;
-  complete_view_.dump(&unsupressed_complete_dump);
-  for (ConstRevisionMap::iterator it = unsupressed_complete_dump.begin();
-       it != unsupressed_complete_dump.end();) {
+  ConstRevisionMap override_dump;
+  override_view_.dump(&override_dump);
+
+  complete_view_.dump(result);
+  for (ConstRevisionMap::iterator it = result->begin(); it != result->end();) {
     if (override_view_.supresses(it->first)) {
-      it = unsupressed_complete_dump.erase(it);
+      it = result->erase(it);
     } else {
       ++it;
     }
   }
+
+  result->insert(override_dump.begin(), override_dump.end());
 }
 
 void CombinedView::getAvailableIds(std::unordered_set<common::Id>* result)

@@ -35,12 +35,9 @@ void ChunkView::getPotentialConflicts(
     const std::unordered_map<common::Id, LogicalTime>& own_continuous_updates,
     std::unordered_map<common::Id, LogicalTime>* result) const {
   CHECK_NOTNULL(result)->clear();
-  CHECK(chunk_.isWriteLocked());
 
   ConstRevisionMap contents;
-  // same as "chunk_->dumpItems(LogicalTime::sample(), &contents);" without the
-  // locking (because that is already done)
-  chunk_.data_container_->dump(LogicalTime::sample(), &contents);
+  chunk_.constData()->dump(LogicalTime::sample(), &contents);
 
   for (const ConstRevisionMap::value_type& item : contents) {
     LogicalTime update_time = item.second->getUpdateTime();
