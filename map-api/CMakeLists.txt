@@ -36,6 +36,7 @@ SET(CORE_SOURCE  src/app-templates.cc
                  src/hub.cc
                  src/internal/chunk-view.cc
                  src/internal/combined-view.cc
+                 src/internal/commit-future.cc
                  src/internal/commit-history-view.cc
                  src/internal/delta-view.cc
                  src/internal/overriding-view-base.cc

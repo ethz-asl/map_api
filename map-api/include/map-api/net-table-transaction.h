@@ -18,6 +18,10 @@ class Conflicts;
 class ConstRevisionMap;
 class Revision;
 
+namespace internal {
+class CommitFuture;
+}  // namespace internal
+
 class NetTableTransaction {
   friend class Transaction;
   friend class NetTableFixture;
@@ -132,6 +136,8 @@ class NetTableTransaction {
   ItemIdToChunkIdMap item_id_to_chunk_id_map_;
 
   NetTable::NewChunkTrackerMap push_new_chunk_ids_to_tracker_overrides_;
+
+  bool finalized_;
 };
 
 }  // namespace map_api

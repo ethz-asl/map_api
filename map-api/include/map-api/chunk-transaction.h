@@ -21,12 +21,17 @@ namespace map_api {
 class ChunkBase;
 class Conflicts;
 
+namespace internal {
+class CommitFuture;
+}  // namespace internal
+
 /**
  * This class is somewhat weaker than the first transaction draft
  * (LocalTransaction, now deprecated) because conflict checking and
  * committing is handled in the Chunk class.
  */
 class ChunkTransaction {
+  friend class internal::CommitFuture;
   friend class NetTableTransaction;
   friend class Transaction;      // for internal typedefs
   friend class NetTableManager;  // metatable works directly with this

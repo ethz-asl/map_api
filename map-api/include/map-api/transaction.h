@@ -175,7 +175,8 @@ class Transaction {
   template <typename IdType, typename ObjectType>
   ThreadsafeCache<IdType, ObjectType>* getMutableCache(NetTable* table);
 
-  void commitImpl(std::promise<bool>* will_commit_succeed);
+  void commitImpl(const bool finalize_after_checking,
+                  std::promise<bool>* will_commit_succeed);
   void finalize();
 
   /**

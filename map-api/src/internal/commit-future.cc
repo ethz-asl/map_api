@@ -1,5 +1,7 @@
 #include "map-api/internal/commit-future.h"
 
+#include "map-api/chunk-transaction.h"
+
 namespace map_api {
 namespace internal {
 

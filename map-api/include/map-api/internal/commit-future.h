@@ -4,6 +4,8 @@
 #include "map-api/internal/overriding-view-base.h"
 
 namespace map_api {
+class ChunkTransaction;
+
 namespace internal {
 
 // Can replace a ChunkView in a transaction to signify that that transaction

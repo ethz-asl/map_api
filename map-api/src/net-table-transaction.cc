@@ -3,6 +3,7 @@
 #include <statistics/statistics.h>
 
 #include "map-api/conflicts.h"
+#include "map-api/internal/commit-future.h"
 
 DEFINE_bool(map_api_dump_available_chunk_contents, false,
             "Will print all available ids if enabled.");
@@ -46,12 +47,14 @@ void NetTableTransaction::dumpActiveChunks(ConstRevisionMap* result) {
 void NetTableTransaction::insert(ChunkBase* chunk,
                                  std::shared_ptr<Revision> revision) {
   CHECK_NOTNULL(chunk);
+  CHECK(!finalized_);
   transactionOf(chunk)->insert(revision);
   CHECK(item_id_to_chunk_id_map_.emplace(revision->getId<common::Id>(),
                                          chunk->id()).second);
 }
 
 void NetTableTransaction::update(std::shared_ptr<Revision> revision) {
+  CHECK(!finalized_);
   common::Id id = revision->getId<common::Id>();
   CHECK(id.isValid());
   ChunkBase* chunk = chunkOf(id);
@@ -63,6 +66,7 @@ void NetTableTransaction::update(std::shared_ptr<Revision> revision) {
 }
 
 void NetTableTransaction::remove(std::shared_ptr<Revision> revision) {
+  CHECK(!finalized_);
   ChunkBase* chunk = chunkOf(revision->getId<common::Id>());
   CHECK_NOTNULL(chunk);
   CHECK_EQ(chunk->id(), revision->getChunkId());
@@ -149,8 +153,16 @@ size_t NetTableTransaction::numChangedItems() const {
   return result;
 }
 
+void NetTableTransaction::finalize() { finalized_ = true; }
+
 void NetTableTransaction::buildCommitFutureTree(CommitFutureTree* result) {
-  for (const TransactionMap::value_type&) }
+  CHECK_NOTNULL(result)->clear();
+  for (const TransactionMap::value_type& chunk_transaction :
+       chunk_transactions_) {
+    (*result)[chunk_transaction.first]
+        .reset(new internal::CommitFuture(*chunk_transaction.second));
+  }
+}
 
 ChunkTransaction* NetTableTransaction::transactionOf(const ChunkBase* chunk)
     const {
@@ -160,6 +172,7 @@ ChunkTransaction* NetTableTransaction::transactionOf(const ChunkBase* chunk)
   TransactionMap::iterator chunk_transaction =
       chunk_transactions_.find(mutable_chunk);
   if (chunk_transaction == chunk_transactions_.end()) {
+    CHECK(!finalized_);
     std::shared_ptr<ChunkTransaction> transaction(
         new ChunkTransaction(begin_time_, mutable_chunk, table_));
     std::pair<TransactionMap::iterator, bool> inserted =
@@ -171,6 +184,7 @@ ChunkTransaction* NetTableTransaction::transactionOf(const ChunkBase* chunk)
 }
 
 void NetTableTransaction::refreshIdToChunkIdMap() {
+  CHECK(!finalized_);
   item_id_to_chunk_id_map_.clear();
   if (FLAGS_map_api_dump_available_chunk_contents) {
     std::cout << table_->name() << " chunk contents:" << std::endl;
