@@ -88,7 +88,7 @@ TEST_F(TransactionTest, MultiCommit) {
 }
 
 TEST_F(TransactionTest, TandemCommit) {
-  constexpr size_t kEnoughForARaceCondition = 20u;
+  constexpr size_t kEnoughForARaceCondition = 100u;
   for (size_t i = 0u; i < kEnoughForARaceCondition; ++i) {
     Transaction dependee;
     common::Id inserted_id_1, inserted_id_2;
