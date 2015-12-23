@@ -200,12 +200,15 @@ bool Revision::fetchTrackedChunks() const {
   return success;
 }
 
-bool Revision::tryAutoMerge(const Revision& conflicting_revision,
-                            const Revision& original_revision) {
+bool Revision::defaultAutoMergePolicy(const Revision& conflicting_revision,
+                                      const Revision& original_revision,
+                                      Revision* revision_at_hand) {
+  CHECK_NOTNULL(revision_at_hand);
   const bool conflict_innovates =
       !conflicting_revision.areAllCustomFieldsEqual(original_revision);
   if (conflict_innovates) {
-    const bool this_innovates = !areAllCustomFieldsEqual(original_revision);
+    const bool this_innovates =
+        !revision_at_hand->areAllCustomFieldsEqual(original_revision);
 
     // When both versions innovate, we fail the transaction per default, even
     // if the innovations are equal. This makes it more easy to test proper
@@ -214,33 +217,51 @@ bool Revision::tryAutoMerge(const Revision& conflicting_revision,
       VLOG(3) << "Custom fields innovated by both!";
       return false;
     } else {
-      underlying_revision_->mutable_custom_field_values()->CopyFrom(
-          conflicting_revision.underlying_revision_->custom_field_values());
+      revision_at_hand->underlying_revision_->mutable_custom_field_values()
+          ->CopyFrom(conflicting_revision.underlying_revision_
+                         ->custom_field_values());
     }
   }
 
   common::Id id, conflicting_id;
-  id.deserialize(underlying_revision_->id());
+  id.deserialize(revision_at_hand->underlying_revision_->id());
   conflicting_id.deserialize(conflicting_revision.underlying_revision_->id());
   CHECK_EQ(id, conflicting_id);
-  CHECK_EQ(underlying_revision_->insert_time(),
+  CHECK_EQ(revision_at_hand->underlying_revision_->insert_time(),
            conflicting_revision.underlying_revision_->insert_time());
-  CHECK(!underlying_revision_->removed());
+  CHECK(!revision_at_hand->underlying_revision_->removed());
   CHECK(!conflicting_revision.underlying_revision_->removed());
-  id.deserialize(underlying_revision_->chunk_id());
+  id.deserialize(revision_at_hand->underlying_revision_->chunk_id());
   conflicting_id.deserialize(
       conflicting_revision.underlying_revision_->chunk_id());
   CHECK_EQ(id, conflicting_id);
 
   TrackeeMultimap tracked_chunks, conflicting_tracked_chunks;
-  tracked_chunks.deserialize(*underlying_revision_);
+  tracked_chunks.deserialize(*revision_at_hand->underlying_revision_);
   conflicting_tracked_chunks.deserialize(
       *conflicting_revision.underlying_revision_);
 
   if (tracked_chunks.merge(conflicting_tracked_chunks)) {
-    tracked_chunks.serialize(underlying_revision_.get());
+    tracked_chunks.serialize(revision_at_hand->underlying_revision_.get());
   }
   return true;
+}
+
+// TODO(tcies): This should probably be more involved. Currently it's not
+// possible to merge chunk tracking and custom fields from a custom merge
+// policy.
+bool Revision::tryAutoMerge(
+    const Revision& conflicting_revision, const Revision& original_revision,
+    const std::vector<AutoMergePolicy>& custom_merge_policies) {
+  for (const AutoMergePolicy& policy : custom_merge_policies) {
+    if (policy(conflicting_revision, original_revision, this)) {
+      return true;
+    }
+  }
+  if (defaultAutoMergePolicy(conflicting_revision, original_revision, this)) {
+    return true;
+  }
+  return false;
 }
 
 /**

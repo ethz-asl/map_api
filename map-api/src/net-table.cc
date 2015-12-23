@@ -227,6 +227,17 @@ void NetTable::autoFollowTrackedChunks() {
       << "beginning of transactions.";
 }
 
+const std::vector<Revision::AutoMergePolicy>& NetTable::getAutoMergePolicies()
+    const {
+  return auto_merge_policies_;
+}
+
+void NetTable::addAutoMergePolicy(
+    const Revision::AutoMergePolicy& auto_merge_policy) {
+  CHECK(auto_merge_policy);
+  auto_merge_policies_.push_back(auto_merge_policy);
+}
+
 void NetTable::registerChunkInSpace(
     const common::Id& chunk_id, const SpatialIndex::BoundingBox& bounding_box) {
   active_chunks_lock_.acquireReadLock();

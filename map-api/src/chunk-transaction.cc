@@ -292,7 +292,8 @@ bool ChunkTransaction::tryAutoMerge(const ItemTimes& db_stamps,
   // transaction wouldn't know about the item unless it existed before
   // begin_time_.
   CHECK(original_revision);
-  return item->second->tryAutoMerge(*conflicting_revision, *original_revision);
+  return item->second->tryAutoMerge(*conflicting_revision, *original_revision,
+                                    table_->getAutoMergePolicies());
 }
 
 }  // namespace map_api
