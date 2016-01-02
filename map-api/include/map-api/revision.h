@@ -84,6 +84,10 @@ class Revision {
   inline LogicalTime getUpdateTime() const {
     return LogicalTime(underlying_revision_->update_time());
   }
+  inline bool hasBeenUpdated() const {
+    return underlying_revision_->update_time() >
+           underlying_revision_->insert_time();
+  }
   inline LogicalTime getModificationTime() const {
     return (underlying_revision_->has_update_time()) ? getUpdateTime()
                                                      : getInsertTime();
