@@ -69,6 +69,8 @@ class Transaction {
   void find(int key, const ValueType& value, NetTable* table,
             ConstRevisionMap* result);
   bool fetchAllChunksTrackedByItemsInTable(NetTable* const table);
+  template <typename IdType>
+  void fetchAllChunksTrackedBy(const IdType& id, NetTable* const table);
 
   // =====
   // WRITE
@@ -92,6 +94,13 @@ class Transaction {
   // ======================
   bool commit();
   inline LogicalTime getCommitTime() const { return commit_time_; }
+  // Requires specialization of
+  // std::string getComparisonString(const ObjectType& a, const ObjectType& b);
+  // or
+  // std::string ObjectType::getComparisonString(const ObjectType&) const;
+  // Note that the latter will be correctly called for shared pointers.
+  template <typename ObjectType>
+  std::string debugConflictsInTable(NetTable* table);
   /**
    * Merge_transaction will be filled with all insertions and non-conflicting
    * updates from this transaction, while the conflicting updates will be
@@ -105,6 +114,20 @@ class Transaction {
   // ==========
   size_t numChangedItems() const;
 
+  // ======
+  // CACHES
+  // ======
+  template <typename IdType, typename ObjectType>
+  std::shared_ptr<ThreadsafeCache<IdType, ObjectType>> createCache(
+      NetTable* table);
+  template <typename IdType, typename ObjectType>
+  const ThreadsafeCache<IdType, ObjectType>& getCache(NetTable* table);
+  template <typename IdType, typename ObjectType>
+  void setCacheUpdateFilter(
+      const std::function<bool(const ObjectType& original,  // NOLINT
+                               const ObjectType& innovation)>& update_filter,
+      NetTable* table);
+
   // =============
   // MISCELLANEOUS
   // =============
@@ -113,11 +136,6 @@ class Transaction {
       NetTable* trackee_table, NetTable* tracker_table,
       const std::function<TrackerIdType(const Revision&)>&
           how_to_determine_tracker);
-  template <typename IdType, typename ObjectType>
-  std::shared_ptr<ThreadsafeCache<IdType, ObjectType>> createCache(
-      NetTable* table);
-  template <typename IdType, typename ObjectType>
-  const ThreadsafeCache<IdType, ObjectType>& getCache(NetTable* table);
   // The following must be called if chunks are fetched after the transaction
   // has been initialized, otherwise the new items can't be fetched by the
   // transaction.
@@ -145,6 +163,9 @@ class Transaction {
                                                          NetTable* table);
   template <typename IdType>
   friend class NetTableTransactionInterface;
+
+  template <typename IdType, typename ObjectType>
+  ThreadsafeCache<IdType, ObjectType>* getMutableCache(NetTable* table);
 
   /**
    * A global ordering of tables prevents deadlocks (resource hierarchy

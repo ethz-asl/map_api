@@ -3,7 +3,7 @@
 
 #include <map-api/peer-id.h>
 
-namespace map_api{
+namespace map_api {
 
 uint64_t LogicalTime::current_ = 1u;
 std::mutex LogicalTime::current_mutex_;
@@ -24,9 +24,7 @@ LogicalTime LogicalTime::sample() {
   return time;
 }
 
-uint64_t LogicalTime::serialize() const{
-  return value_;
-}
+uint64_t LogicalTime::serialize() const { return value_; }
 
 void LogicalTime::synchronize(const LogicalTime& other_time) {
   std::lock_guard<std::mutex> lock(current_mutex_);
@@ -37,4 +35,6 @@ void LogicalTime::synchronize(const LogicalTime& other_time) {
       current_;
 }
 
-} // namespace map_api
+LogicalTime LogicalTime::justBefore() const { return LogicalTime(value_ - 1); }
+
+}  // namespace map_api
