@@ -37,6 +37,22 @@ void objectToRevision(const std::string& object, map_api::Revision* revision);
 template <typename TrackeeType, typename TrackerType, typename TrackerIdType>
 TrackerIdType determineTracker(const TrackeeType& trackee);
 
+template <typename ObjectType>
+std::string getComparisonString(const ObjectType& a, const ObjectType& b);
+
+template <typename ObjectType>
+std::string getComparisonString(const std::shared_ptr<ObjectType>& a,
+                                const std::shared_ptr<ObjectType>& b) {
+  CHECK(a);
+  CHECK(b);
+  return a->getComparisonString(*b);
+}
+
+template <typename ObjectType>
+std::string getComparisonString(const ObjectType& a, const ObjectType& b) {
+  return a.getComparisonString(b);
+}
+
 #define MAP_API_SIMPLE_TYPE_REVISION_CONVERSION(Type, ProtoType)    \
   template <>                                                       \
   void objectFromRevision(const Revision& revision, Type* result) { \

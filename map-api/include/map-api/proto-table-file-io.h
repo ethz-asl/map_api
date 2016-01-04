@@ -36,8 +36,13 @@ struct hash<map_api::RevisionStamp> {
 // Stores all revisions from a table to a file.
 namespace map_api {
 class ProtoTableFileIO {
-  std::ios_base::openmode kDefaultOpenmode =
+  static constexpr std::ios_base::openmode kDefaultOpenmode =
       std::fstream::binary | std::ios_base::in | std::ios_base::out;
+  static constexpr std::ios_base::openmode kReadOnlyOpenMode =
+      std::fstream::binary | std::ios_base::in;
+  static constexpr std::ios_base::openmode kTruncateOpenMode =
+      std::fstream::binary | std::ios_base::in | std::ios_base::out |
+      std::fstream::trunc;
 
  public:
   ProtoTableFileIO(const std::string& filename, map_api::NetTable* table);
@@ -65,6 +70,7 @@ class ProtoTableFileIO {
   map_api::NetTable* table_;
   std::fstream file_;
   std::unordered_set<RevisionStamp> already_stored_items_;
+  std::ios_base::openmode open_mode_;
 };
 }  // namespace map_api
 #endif  // MAP_API_PROTO_TABLE_FILE_IO_H_
