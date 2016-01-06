@@ -55,6 +55,9 @@ namespace map_api {
 const char Hub::kDiscovery[] = "map_api_hub_discovery";
 const char Hub::kReady[] = "map_api_hub_ready";
 
+const std::string Hub::kInDataLogPrefix = "map_api_incoming";
+const std::string Hub::kOutDataLogPrefix = "map_api_outgoing";
+
 bool Hub::init(bool* is_first_peer) {
   CHECK_NOTNULL(is_first_peer);
   context_.reset(new zmq::context_t());
@@ -69,8 +72,8 @@ bool Hub::init(bool* is_first_peer) {
   }
 
   if (FLAGS_map_api_log_network_data) {
-    data_log_in_.reset(new internal::NetworkDataLog("map_api_incoming"));
-    data_log_out_.reset(new internal::NetworkDataLog("map_api_outgoing"));
+    data_log_in_.reset(new internal::NetworkDataLog(kInDataLogPrefix));
+    data_log_out_.reset(new internal::NetworkDataLog(kOutDataLogPrefix));
   }
 
   // Handlers must be initialized before handler thread is started
@@ -444,6 +447,7 @@ void Hub::listenThread(Hub* self) {
 void Hub::logIncoming(const size_t size, const std::string& type) {
   if (FLAGS_map_api_log_network_data) {
     std::lock_guard<std::mutex> lock(m_in_log_);
+    CHECK(data_log_in_);
     data_log_in_->log(size, type);
   }
 }
@@ -451,6 +455,7 @@ void Hub::logIncoming(const size_t size, const std::string& type) {
 void Hub::logOutgoing(const size_t size, const std::string& type) {
   if (FLAGS_map_api_log_network_data) {
     std::lock_guard<std::mutex> lock(m_out_log_);
+    CHECK(data_log_out_);
     data_log_out_->log(size, type);
   }
 }

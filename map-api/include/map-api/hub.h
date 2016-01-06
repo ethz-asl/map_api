@@ -149,6 +149,8 @@ class Hub final {
 
   std::unique_ptr<internal::NetworkDataLog> data_log_in_, data_log_out_;
   std::mutex m_in_log_, m_out_log_;
+
+  static const std::string kInDataLogPrefix, kOutDataLogPrefix;
 };
 
 }  // namespace map_api
