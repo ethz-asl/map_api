@@ -28,13 +28,14 @@ void TableDescriptor::setSpatialIndex(const SpatialIndex::BoundingBox& extent,
 }
 
 std::shared_ptr<Revision> TableDescriptor::getTemplate() const {
-  std::shared_ptr<Revision> ret = Revision::fromProto(
-      std::unique_ptr<proto::Revision>(new proto::Revision));
+  std::shared_ptr<Revision> result;
+  Revision::fromProto(std::unique_ptr<proto::Revision>(new proto::Revision),
+                      &result);
   // add editable fields
   for (int i = 0; i < fields_size(); ++i) {
-    ret->addField(i, fields(i));
+    result->addField(i, fields(i));
   }
-  return ret;
+  return result;
 }
 
 } /* namespace map_api */

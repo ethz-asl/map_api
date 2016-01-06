@@ -186,7 +186,7 @@ class FieldTestWithoutInit
   }
 
   void getRevision(const common::Id& id) {
-    query_ = this->table_->getById(id, LogicalTime::sample())->copyForWrite();
+    this->table_->getById(id, LogicalTime::sample())->copyForWrite(&query_);
   }
 
   std::unique_ptr<typename TableDataType::TableType> table_;
@@ -211,7 +211,8 @@ template <typename TableDataType>
 class UpdateFieldTestWithInit : public FieldTestWithInit<TableDataType> {
  protected:
   bool updateRevision() {
-    std::shared_ptr<Revision> revision = this->query_->copyForWrite();
+    std::shared_ptr<Revision> revision;
+    this->query_->copyForWrite(&revision);
     this->table_->update(LogicalTime::sample(), revision);
     return true;
   }
@@ -279,8 +280,9 @@ TYPED_TEST(FieldTestWithInit, CreateRead) {
   common::Id inserted = this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
-  std::shared_ptr<Revision> rowFromTable =
-      this->table_->getById(inserted, LogicalTime::sample())->copyForWrite();
+  std::shared_ptr<Revision> rowFromTable;
+  this->table_->getById(inserted, LogicalTime::sample())
+      ->copyForWrite(&rowFromTable);
   ASSERT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
   rowFromTable->get(FieldTestTable<TypeParam>::kTestField, &dataFromTable);
@@ -300,8 +302,9 @@ TYPED_TEST(FieldTestWithInit, ReadInexistentRowData) {
   common::Id inserted = this->fillRevision();
   EXPECT_TRUE(this->insertRevision());
 
-  std::shared_ptr<Revision> rowFromTable =
-      this->table_->getById(inserted, LogicalTime::sample())->copyForWrite();
+  std::shared_ptr<Revision> rowFromTable;
+  this->table_->getById(inserted, LogicalTime::sample())
+      ->copyForWrite(&rowFromTable);
   EXPECT_TRUE(static_cast<bool>(rowFromTable));
   typename TypeParam::DataType dataFromTable;
   ::testing::FLAGS_gtest_death_test_style = "fast";
@@ -393,7 +396,8 @@ TYPED_TEST(CruMapIntTestWithInit, Remove) {
   this->table_->find(-1, 0, LogicalTime::sample(), &result);
   EXPECT_EQ(1u, result.size());
 
-  std::shared_ptr<Revision> revision = result.begin()->second->copyForWrite();
+  std::shared_ptr<Revision> revision;
+  result.begin()->second->copyForWrite(&revision);
   this->table_->remove(LogicalTime::sample(), revision);
 
   EXPECT_EQ(0, this->table_->count(-1, 0, LogicalTime::sample()));

@@ -4,25 +4,39 @@
 #include <map-api/logical-time.h>
 #include <map-api/net-table-manager.h>
 #include <map-api/trackee-multimap.h>
+#include <multiagent-mapping-common/backtrace.h>
+#include <multiagent-mapping-common/breakpoints.h>
 #include <multiagent-mapping-common/unique-id.h>
 
 namespace map_api {
 
-std::shared_ptr<Revision> Revision::copyForWrite() const {
-  std::unique_ptr<proto::Revision> copy(
+void Revision::copyForWrite(std::shared_ptr<Revision>* result) const {
+  CHECK_NOTNULL(result);
+  std::shared_ptr<proto::Revision> copy(
       new proto::Revision(*underlying_revision_));
-  return fromProto(std::move(copy));
+  return fromProto(copy, result);
 }
 
 proto::Revision* Revision::copyToProtoPtr() const {
   return new proto::Revision(*underlying_revision_);
 }
 
-std::shared_ptr<Revision> Revision::fromProto(
-    std::unique_ptr<proto::Revision>&& revision_proto) {
-  std::shared_ptr<Revision> result(new Revision);
-  result->underlying_revision_ = std::move(revision_proto);
-  return std::move(result);
+void Revision::fromProto(const std::shared_ptr<proto::Revision>& revision_proto,
+                         std::shared_ptr<Revision>* result) {
+  CHECK_NOTNULL(result);
+  // Because -> keeps dereferencing:
+  // http://stackoverflow.com/questions/20583450/the-operator-return-value-of-smart-pointers/20583499#20583499
+  std::shared_ptr<Revision>& deref_result = *result;
+  deref_result.reset(new Revision);
+  (*result)->underlying_revision_ = revision_proto;
+}
+
+void Revision::fromProto(const std::shared_ptr<proto::Revision>& revision_proto,
+                         std::shared_ptr<const Revision>* result) {
+  CHECK_NOTNULL(result);
+  std::shared_ptr<Revision> non_const;
+  fromProto(revision_proto, &non_const);
+  *result = non_const;
 }
 
 std::shared_ptr<Revision> Revision::fromProtoString(
@@ -30,13 +44,17 @@ std::shared_ptr<Revision> Revision::fromProtoString(
   std::shared_ptr<Revision> result(new Revision);
   result->underlying_revision_.reset(new proto::Revision);
   CHECK(result->underlying_revision_->ParseFromString(revision_proto_string));
-  return std::move(result);
+  return result;
 }
 
 void Revision::addField(int index, proto::Type type) {
   CHECK_EQ(underlying_revision_->custom_field_values_size(), index)
       << "Custom fields must be added in-order!";
   underlying_revision_->add_custom_field_values()->set_type(type);
+}
+void Revision::removeLastField() {
+  CHECK_GT(underlying_revision_->custom_field_values_size(), 0);
+  underlying_revision_->mutable_custom_field_values()->RemoveLast();
 }
 
 bool Revision::hasField(int index) const {
@@ -45,6 +63,15 @@ bool Revision::hasField(int index) const {
 
 proto::Type Revision::getFieldType(int index) const {
   return underlying_revision_->custom_field_values(index).type();
+}
+
+void Revision::clearCustomFieldValues() {
+  for (proto::TableField& custom_field :
+       *underlying_revision_->mutable_custom_field_values()) {
+    proto::Type type = custom_field.type();
+    custom_field.Clear();
+    custom_field.set_type(type);
+  }
 }
 
 bool Revision::operator==(const Revision& other) const {
@@ -66,12 +93,8 @@ bool Revision::operator==(const Revision& other) const {
   if (other.getChunkId() != getChunkId()) {
     return false;
   }
-  // Check custom fields.
-  int num_fields = underlying_revision_->custom_field_values_size();
-  for (int i = 0; i < num_fields; ++i) {
-    if (!fieldMatch(other, i)) {
-      return false;
-    }
+  if (!areAllCustomFieldsEqual(other)) {
+    return false;
   }
   return true;
 }
@@ -119,6 +142,16 @@ bool Revision::fieldMatch(const Revision& other, int key) const {
   return false;
 }
 
+bool Revision::areAllCustomFieldsEqual(const Revision& other) const {
+  for (int i = 0; i < underlying_revision_->custom_field_values_size(); ++i) {
+    if (!fieldMatch(other, i)) {
+      VLOG(4) << "Custom field " << i << " diverges!";
+      return false;
+    }
+  }
+  return true;
+}
+
 std::string Revision::dumpToString() const {
   std::ostringstream dump_ss;
   dump_ss << "{" << std::endl;
@@ -151,6 +184,7 @@ std::string Revision::dumpToString() const {
 }
 
 void Revision::getTrackedChunks(TrackeeMultimap* result) const {
+  CHECK(underlying_revision_);
   CHECK_NOTNULL(result)->deserialize(*underlying_revision_);
 }
 
@@ -163,14 +197,76 @@ bool Revision::fetchTrackedChunks() const {
   for (const TrackeeMultimap::value_type& table_trackees : trackee_multimap) {
     VLOG(3) << "Fetching " << table_trackees.second.size()
             << " tracked chunks from table " << table_trackees.first->name();
-    for (const common::Id& chunk_id : table_trackees.second) {
-      if (table_trackees.first->getChunk(chunk_id) == nullptr) {
-        success = false;
-      }
+    if (!table_trackees.first->ensureHasChunks(table_trackees.second)) {
+      success = false;
     }
     VLOG(3) << "Done.";
   }
   return success;
+}
+
+bool Revision::defaultAutoMergePolicy(const Revision& conflicting_revision,
+                                      const Revision& original_revision,
+                                      Revision* revision_at_hand) {
+  CHECK_NOTNULL(revision_at_hand);
+  const bool conflict_innovates =
+      !conflicting_revision.areAllCustomFieldsEqual(original_revision);
+  if (conflict_innovates) {
+    const bool this_innovates =
+        !revision_at_hand->areAllCustomFieldsEqual(original_revision);
+
+    // When both versions innovate, we fail the transaction per default, even
+    // if the innovations are equal. This makes it more easy to test proper
+    // functioning of transactions.
+    if (this_innovates) {
+      VLOG(3) << "Custom fields innovated by both!";
+      return false;
+    } else {
+      revision_at_hand->underlying_revision_->mutable_custom_field_values()
+          ->CopyFrom(conflicting_revision.underlying_revision_
+                         ->custom_field_values());
+    }
+  }
+
+  common::Id id, conflicting_id;
+  id.deserialize(revision_at_hand->underlying_revision_->id());
+  conflicting_id.deserialize(conflicting_revision.underlying_revision_->id());
+  CHECK_EQ(id, conflicting_id);
+  CHECK_EQ(revision_at_hand->underlying_revision_->insert_time(),
+           conflicting_revision.underlying_revision_->insert_time());
+  CHECK(!revision_at_hand->underlying_revision_->removed());
+  CHECK(!conflicting_revision.underlying_revision_->removed());
+  id.deserialize(revision_at_hand->underlying_revision_->chunk_id());
+  conflicting_id.deserialize(
+      conflicting_revision.underlying_revision_->chunk_id());
+  CHECK_EQ(id, conflicting_id);
+
+  TrackeeMultimap tracked_chunks, conflicting_tracked_chunks;
+  tracked_chunks.deserialize(*revision_at_hand->underlying_revision_);
+  conflicting_tracked_chunks.deserialize(
+      *conflicting_revision.underlying_revision_);
+
+  if (tracked_chunks.merge(conflicting_tracked_chunks)) {
+    tracked_chunks.serialize(revision_at_hand->underlying_revision_.get());
+  }
+  return true;
+}
+
+// TODO(tcies): This should probably be more involved. Currently it's not
+// possible to merge chunk tracking and custom fields from a custom merge
+// policy.
+bool Revision::tryAutoMerge(
+    const Revision& conflicting_revision, const Revision& original_revision,
+    const std::vector<AutoMergePolicy>& custom_merge_policies) {
+  for (const AutoMergePolicy& policy : custom_merge_policies) {
+    if (policy(conflicting_revision, original_revision, this)) {
+      return true;
+    }
+  }
+  if (defaultAutoMergePolicy(conflicting_revision, original_revision, this)) {
+    return true;
+  }
+  return false;
 }
 
 /**
