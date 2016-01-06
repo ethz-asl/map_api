@@ -30,4 +30,14 @@ void RpcCommandRegisterer::handleStatusRpc(const Message& request,
          command_response.command().c_str(), command_response.status());
   response->ack();
 }
+
+int RpcCommandRegisterer::commandRpc(const std::string& command,
+                                     const map_api::PeerId& peer) {
+  map_api::Message request, response;
+  request.impose<kCommandRequest>(command);
+  map_api::Hub::instance().request(peer, &request, &response);
+  CHECK(response.isType<map_api::Message::kAck>());
+  return common::kSuccess;
+}
+
 }  // namespace map_api
