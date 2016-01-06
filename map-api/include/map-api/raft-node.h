@@ -42,8 +42,8 @@
 #include <utility>
 #include <vector>
 
+#include <aslam/common/reader-writer-lock.h>
 #include <gtest/gtest_prod.h>
-#include <multiagent-mapping-common/reader-writer-lock.h>
 #include <multiagent-mapping-common/unique-id.h>
 
 #include "./raft.pb.h"

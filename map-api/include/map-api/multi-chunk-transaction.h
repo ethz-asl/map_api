@@ -6,8 +6,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include <aslam/common/reader-writer-lock.h>
 #include <multiagent-mapping-common/unique-id.h>
-#include <multiagent-mapping-common/reader-writer-lock.h>
 
 #include "./raft.pb.h"
 #include "map-api/peer-id.h"
@@ -101,7 +101,7 @@ class MultiChunkTransaction {
   // TODO(aqurai): To be removed. (Issue #2466)
   std::unordered_map<common::Id, PeerId> other_chunk_leaders_;
   const proto::MultiChunkTransactionInfo* multi_chunk_data_;
-  common::ReaderWriterMutex data_mutex_;
+  aslam::ReaderWriterMutex data_mutex_;
 };
 
 }  // namespace map_api

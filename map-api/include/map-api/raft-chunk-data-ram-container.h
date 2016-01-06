@@ -94,7 +94,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     inline uint64_t lastLogIndex() const { return back()->index(); }
     inline uint64_t lastLogTerm() const { return back()->term(); }
     inline uint64_t commitIndex() const { return commit_index_; }
-    inline common::ReaderWriterMutex* mutex() const { return &log_mutex_; }
+    inline aslam::ReaderWriterMutex* mutex() const { return &log_mutex_; }
 
     void appendLogEntry(const std::shared_ptr<proto::RaftLogEntry>& entry);
     inline void setCommitIndex(uint64_t value) { commit_index_ = value; }
@@ -104,7 +104,7 @@ class RaftChunkDataRamContainer : public ChunkDataContainerBase {
     friend class RaftChunkDataRamContainer;
     using std::vector<std::shared_ptr<proto::RaftLogEntry>>::push_back;
     std::unordered_map<std::string, uint64_t> serial_id_map_;
-    mutable common::ReaderWriterMutex log_mutex_;
+    mutable aslam::ReaderWriterMutex log_mutex_;
     uint64_t commit_index_;
   };
   RaftLog log_;

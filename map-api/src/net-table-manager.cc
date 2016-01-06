@@ -323,7 +323,7 @@ void NetTableManager::kill() {
 }
 
 void NetTableManager::forceStopAllRaftChunks() {
-  common::ScopedReadLock lock(&tables_lock_);
+  aslam::ScopedReadLock lock(&tables_lock_);
   for (const std::pair<const std::string, std::unique_ptr<NetTable> >& table :
        tables_) {
     table.second->forceStopAllRaftChunks();
