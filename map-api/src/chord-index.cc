@@ -1,6 +1,6 @@
 #include "map-api/chord-index.h"
 
-#include <future>
+#include <algorithm>
 #include <type_traits>
 
 #include <gflags/gflags.h>
@@ -68,8 +68,8 @@ bool ChordIndex::handleGetPredecessor(PeerId* result) {
 
 bool ChordIndex::handleLock(const PeerId& requester) {
   if (!waitUntilInitialized()) {
-    // TODO(tcies) re-introduce request_status
-    LOG(ERROR) << "Not active any more! Clean solution?";
+    VLOG(3) << own_key_ << " has become inactive, can't be locked!";
+    return false;
   }
   std::lock_guard<std::mutex> lock(node_lock_);
   if (node_locked_) {
@@ -85,11 +85,13 @@ bool ChordIndex::handleLock(const PeerId& requester) {
 
 bool ChordIndex::handleUnlock(const PeerId& requester) {
   if (!waitUntilInitialized()) {
-    // TODO(tcies) re-introduce request_status
-    LOG(ERROR) << "Not active any more! Clean solution?";
+    // A peer locked by someone else must not go inactive.
+    LOG(ERROR) << "Not active any more!";
   }
   std::unique_lock<std::mutex> lock(node_lock_);
   if (!node_locked_ || node_lock_holder_ != requester) {
+    VLOG(3) << "Unlock from " << hash(requester)
+            << " rejected due to incorrectness.";
     return false;
   } else {
     node_locked_ = false;
@@ -127,20 +129,14 @@ bool ChordIndex::handleReplace(const PeerId& old_peer, const PeerId& new_peer) {
   bool successor = old_peer == successor_->id;
   bool predecessor = old_peer == predecessor_->id;
   if (!successor && !predecessor) {  // could be both
+    VLOG(3) << "Replace rejected due to incorrectness.";
     return false;
   }
   std::lock_guard<std::mutex> lock(node_lock_);
-  if (successor) {
-    if (!node_locked_ || node_lock_holder_ != old_peer) {
-      peer_lock_.releaseReadLock();
-      return false;
-    }
-  }
-  if (predecessor) {
-    if (!node_locked_ || node_lock_holder_ != old_peer) {
-      peer_lock_.releaseReadLock();
-      return false;
-    }
+  if (!node_locked_ || node_lock_holder_ != old_peer) {
+    peer_lock_.releaseReadLock();
+    VLOG(3) << "Replace rejected because old peer is not lock holder.";
+    return false;
   }
   peer_lock_.releaseReadLock();  // registerPeer does writeLock
   if (successor) {
@@ -220,7 +216,7 @@ bool ChordIndex::handleInitReplicator(int index, const DataMap& data,
   CHECK_LT(index, kNumReplications);
   VLOG(2) << PeerId::self() << " Replicating data of " << peer << " at index "
           << index;
-  common::ScopedWriteLock replicated_data_lock(&replicated_data_lock_);
+  aslam::ScopedWriteLock replicated_data_lock(&replicated_data_lock_);
   replicated_data_[index].insert(data.begin(), data.end());
   replicated_peers_[index] = peer;
   return true;
@@ -262,7 +258,7 @@ bool ChordIndex::addData(const std::string& key, const std::string& value) {
   for (size_t i = 0; i < kNumReplications; ++i) {
     PeerId replicator_i;
     if (successor == PeerId::self()) {
-      common::ScopedReadLock peer_lock(&peer_lock_);
+      aslam::ScopedReadLock peer_lock(&peer_lock_);
       replicator_i = successor_->id;
     } else {
       if (!getSuccessorRpc(successor, &replicator_i)) {
@@ -400,8 +396,8 @@ bool ChordIndex::cleanJoin(const PeerId& other) {
       continue;
     }
 
-    if (!lockPeersInOrder(predecessor, successor)) {
-      return false;
+    if (!tryLockInOrder({predecessor, successor})) {
+      continue;
     }
 
     PeerId successor_predecessor, predecessor_successor;
@@ -437,8 +433,7 @@ bool ChordIndex::sendInitReplicatorRpc(const PeerId& to, int index) {
   return initReplicatorRpc(to, index, data);
 }
 
-
-bool ChordIndex::lock() {
+void ChordIndex::lock() {
   while (true) {
     node_lock_.lock();
     if (!node_locked_) {
@@ -452,28 +447,30 @@ bool ChordIndex::lock() {
       usleep(1000);
     }
   }
-  return true;
 }
 
-bool ChordIndex::lock(const PeerId& subject) {
+bool ChordIndex::tryLock(const PeerId& subject) {
   if (subject == PeerId::self()) {
-    return lock();
+    lock();
+    return true;
   }
-  uint16_t retry_count = 0;
-  while (true) {
-    RpcStatus rpc_status = lockRpc(subject);
-    if (rpc_status == RpcStatus::SUCCESS) {
-      break;
-    } else if (rpc_status == RpcStatus::DECLINED) {
-      VLOG_EVERY_N(1, 20) << PeerId::self() << ": Waiting to lock " << subject
-                          << "  " << retry_count;
-      usleep(10 * kMillisecondsToMicroseconds);
-    } else {  // RPC failed.
+  return lockRpc(subject) == RpcStatus::SUCCESS;
+}
+
+bool ChordIndex::tryLockInOrder(PeerIdList subjects) {
+  std::sort(subjects.begin(), subjects.end(),
+            [](const PeerId& a, const PeerId& b) { return hash(a) < hash(b); });
+  PeerIdList::iterator new_end = std::unique(subjects.begin(), subjects.end());
+  for (PeerIdList::iterator it = subjects.begin(); it != new_end; ++it) {
+    VLOG(3) << own_key_ << " trying to lock " << hash(*it);
+    if (!tryLock(*it)) {
+      for (PeerIdList::iterator jt = subjects.begin(); jt != it; ++jt) {
+        VLOG(3) << own_key_ << " unlocking " << hash(*jt);
+        unlock(*jt);
+      }
       return false;
-    }
-    ++retry_count;
-    if (retry_count > 100) {
-      return false;
+    } else {
+      VLOG(3) << own_key_ << " succeeded in locking " << hash(*it);
     }
   }
   return true;
@@ -495,23 +492,23 @@ bool ChordIndex::unlock(const PeerId& subject) {
   return unlockRpc(subject) == RpcStatus::SUCCESS;
 }
 
-bool ChordIndex::lockPeersInOrder(const PeerId& subject_1,
+/*bool ChordIndex::lockPeersInOrder(const PeerId& subject_1, 
                                   const PeerId& subject_2) {
   // Locking must occur in order in order to avoid deadlocks.
   if (hash(subject_1) < hash(subject_2)) {
-    if (!lock(subject_1)) {
+    if (!tryLock(subject_1)) {
       return false;
     }
-    if (!lock(subject_2)) {
+    if (!tryLock(subject_2)) {
       unlock(subject_1);
       return false;
     }
     return true;
   } else if (hash(subject_1) > hash(subject_2)) {
-    if (!lock(subject_2)) {
+    if (!tryLock(subject_2)) {
       return false;
     }
-    if (!lock(subject_1)) {
+    if (!tryLock(subject_1)) {
       unlock(subject_2);
       return false;
     }
@@ -521,7 +518,7 @@ bool ChordIndex::lockPeersInOrder(const PeerId& subject_1,
     return lock(subject_1);
   }
   return false;
-}
+}*/
 
 bool ChordIndex::unlockPeers(const PeerId& subject_1, const PeerId& subject_2) {
   bool unlock_result = unlock(subject_1);
@@ -534,14 +531,14 @@ bool ChordIndex::unlockPeers(const PeerId& subject_1, const PeerId& subject_2) {
 bool ChordIndex::lockPeersInArgOrder(const PeerId& subject_1,
                                      const PeerId& subject_2,
                                      const PeerId& subject_3) {
-  if (!lock(subject_1)) {
+  if (!tryLock(subject_1)) {
     return false;
   }
-  if (!lock(subject_2)) {
+  if (!tryLock(subject_2)) {
     unlock(subject_1);
     return false;
   }
-  if (!lock(subject_3)) {
+  if (!tryLock(subject_3)) {
     unlock(subject_1);
     unlock(subject_2);
     return false;
@@ -550,19 +547,12 @@ bool ChordIndex::lockPeersInArgOrder(const PeerId& subject_1,
 }
 
 void ChordIndex::leave() {
+  CHECK_EQ(kCleanJoin, FLAGS_join_mode) << "Stabilize leave deprecated";
   if (is_force_stopped_) {
     return;
   }
-  terminate_ = true;
-  stabilizer_.join();
-
-  // TODO(aqurai): Check if this has to be uncommented.
-  // CHECK_EQ(kCleanJoin, FLAGS_join_mode) << "Stabilize leave deprecated";
-  VLOG(1) << PeerId::self() << " - " << own_key_
-          << " Attempting to leave chord ring.";
   leaveClean();
-  // TODO(tcies) unhack! "Ensures" that pending requests resolve
-  usleep(FLAGS_simulated_lag_ms * 100000 + 100000);
+  stabilizer_.join();
   initialized_ = false;
   initialized_cv_.notify_all();
   integrated_ = false;
@@ -587,63 +577,31 @@ void ChordIndex::leaveClean() {
     predecessor = predecessor_->id;
     successor = successor_->id;
     peer_lock_.releaseReadLock();
-    // in-order locking
-    bool lock_result = false;
-    if (hash(successor) <= hash(predecessor)) {
-      if (hash(successor) < hash(predecessor)) {
-        CHECK_NE(PeerId::self(), successor);
-        CHECK_NE(PeerId::self(), predecessor);
-        if (own_key_ > hash(successor)) {  // su ... pr, self
-          lock_result =
-              lockPeersInArgOrder(successor, predecessor, PeerId::self());
-        } else {  // self, su ... pr
-          lock_result =
-              lockPeersInArgOrder(PeerId::self(), successor, predecessor);
-        }
-      } else {
-        CHECK_EQ(successor, predecessor);
-        if (own_key_ != hash(successor)) {  // self, su = pr or su = pr, self
-          lock_result = lockPeersInOrder(successor, PeerId::self());
-        } else {  // su = pr = self
-          CHECK_EQ(PeerId::self(), predecessor);
-          lock_result = lock();
-        }
-      }
-    } else {  // general case: ... pr, self, su ...
-      CHECK_NE(PeerId::self(), successor);
-      CHECK_NE(PeerId::self(), predecessor);
-      lock_result = lockPeersInArgOrder(predecessor, PeerId::self(), successor);
-    }
-    if (!lock_result) {
-      // TODO(aqurai) upper limit on continue loop and then exit?
+
+    if (!tryLockInOrder({predecessor, PeerId::self(), successor})) {
       continue;
     }
+
     // verify validity
     if (predecessor == PeerId::self()) {
-      if (successor_->id == PeerId::self() &&
-          predecessor_->id == PeerId::self()) {
-        break;
-      }
+      CHECK(successor == PeerId::self());
+      break;
     } else {
       bool predecessor_consistent, self_consistent, successor_consistent;
       PeerId predecessor_successor, successor_predecessor;
 
-      if (!getSuccessorRpc(predecessor, &predecessor_successor)) {
-        predecessor_consistent = false;
-      } else {
-        predecessor_consistent = PeerId::self() == predecessor_successor;
-      }
+      // The following request must not be declined due to locks.
+      CHECK(getSuccessorRpc(predecessor, &predecessor_successor));
+      predecessor_consistent = predecessor_successor == PeerId::self();
 
       peer_lock_.acquireReadLock();
       self_consistent = predecessor_->id == predecessor &&
           successor_->id == successor;
       peer_lock_.releaseReadLock();
 
-      if (!getPredecessorRpc(successor, &successor_predecessor)) {
-        successor_consistent = false;
-      } else {
-        successor_consistent = PeerId::self() == successor_predecessor;
-      }
+      // The following request must not be declined due to locks.
+      CHECK(getPredecessorRpc(successor, &successor_predecessor));
+      successor_consistent = successor_predecessor == PeerId::self();
 
       if (predecessor_consistent && self_consistent && successor_consistent) {
         break;
@@ -674,6 +632,7 @@ void ChordIndex::leaveClean() {
     VLOG(1) << "Last peer: " << PeerId::self() << " - " << own_key_
             << " left chord index";
   }
+  terminate_ = true;
   unlock();
 }
 
@@ -682,7 +641,7 @@ void ChordIndex::localUpdateCallback(const std::string& /*key*/,
                                      const std::string& /*new_value*/) {}
 
 PeerId ChordIndex::closestPrecedingFinger(const Key& key) {
-  common::ScopedReadLock peer_lock(&peer_lock_);
+  aslam::ScopedReadLock peer_lock(&peer_lock_);
   PeerId result;
   if (isIn(key, own_key_, successor_->key)) {
     result = PeerId::self();
@@ -747,7 +706,7 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
         }
         // Give time to fix_fingers before concluding no other peers left.
         if (replace_disconnected_successor_count > 5) {
-          common::ScopedWriteLock peer_lock(&self->peer_lock_);
+          aslam::ScopedWriteLock peer_lock(&self->peer_lock_);
           self->successor_ = self->self_;
           self->predecessor_ = self->self_;
           replace_disconnected_successor_count = 0;
@@ -765,7 +724,7 @@ void ChordIndex::stabilizeThread(ChordIndex* self) {
                      << " bypassing this node in the ring. No tests written for"
                         "producing this, hence this  shouldnt happen.";
           self->peer_lock_.releaseReadLock();
-          self->lockPeersInOrder(successor_predecessor, successor_id);
+          self->tryLockInOrder({successor_predecessor, successor_id});
           self->joinBetweenLockedPeers(successor_predecessor, successor_id);
           self->peer_lock_.acquireReadLock();
         } else {
@@ -833,7 +792,7 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
   // If the successor was the only other peer
   if (successor_->id == predecessor_->id) {
     peer_lock_.releaseReadLock();
-    common::ScopedWriteLock peer_lock(&peer_lock_);
+    aslam::ScopedWriteLock peer_lock(&peer_lock_);
     successor_ = self_;
     predecessor_ = self_;
     return true;
@@ -879,7 +838,7 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
             << " responded";
     return true;
   }
-  if (!lock(candidate)) {
+  if (!tryLock(candidate)) {
     LOG(ERROR) << PeerId::self() << ": Failed to lock candidate.";
     return false;
   }
@@ -911,7 +870,7 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
       unlock(candidate);
       candidate = candidate_predecessor;
       candidate_predecessor = candidate_predecessor_predecessor;
-      if (!lock(candidate)) {
+      if (!tryLock(candidate)) {
         LOG(ERROR) << PeerId::self() << ": Failed to lock candidate.";
         return false;
       }
@@ -949,7 +908,7 @@ bool ChordIndex::replaceDisconnectedSuccessor() {
 
 void ChordIndex::fixFinger(size_t finger_index) {
   if (finger_index == 0) {
-    common::ScopedWriteLock peer_lock(&peer_lock_);
+    aslam::ScopedWriteLock peer_lock(&peer_lock_);
     fingers_[0].peer = successor_;
     return;
   }
@@ -1069,7 +1028,7 @@ void ChordIndex::attemptDataRecovery(const Key& from) {
   VLOG(1) << PeerId::self() << "Recovering " << to_append.size() << " items.";
 
   {
-    common::ScopedWriteLock data_lock(&data_lock_);
+    aslam::ScopedWriteLock data_lock(&data_lock_);
     data_.insert(to_append.begin(), to_append.end());
   }
 
@@ -1080,7 +1039,7 @@ void ChordIndex::appendToReplicatorLocally(size_t index, const std::string& key,
                                            const std::string& value) {
   CHECK(FLAGS_enable_replication);
   CHECK_LT(index, kNumReplications);
-  common::ScopedWriteLock replicated_data_lock(&replicated_data_lock_);
+  aslam::ScopedWriteLock replicated_data_lock(&replicated_data_lock_);
   replicated_data_[index].emplace(key, value);
 }
 
@@ -1155,7 +1114,7 @@ void ChordIndex::registerPeer(
 }
 
 void ChordIndex::setFingerPeer(const PeerId& peer, size_t finger_index) {
-  common::ScopedWriteLock peer_lock(&peer_lock_);
+  aslam::ScopedWriteLock peer_lock(&peer_lock_);
   if (peer == PeerId::self()) {
     fingers_[finger_index].is_self = true;
     // Intentionally not sharing the pointer with self_.
@@ -1198,7 +1157,7 @@ bool ChordIndex::waitUntilInitialized() {
 }
 
 bool ChordIndex::areFingersReady() {
-  common::ScopedReadLock peer_lock(&peer_lock_);
+  aslam::ScopedReadLock peer_lock(&peer_lock_);
   for (size_t i = 0; i < kNumFingers; ++i) {
     if (!fingers_[i].peer->isValid()) {
       return false;

@@ -2,7 +2,7 @@
 
 #include <future>
 
-#include <multiagent-mapping-common/reader-writer-lock.h>
+#include <aslam/common/reader-writer-lock.h>
 
 #include "./raft.pb.h"
 #include "map-api/hub.h"
@@ -39,7 +39,7 @@ void MultiChunkTransaction::initNewMultiChunkTransaction(
     proto::MultiChunkTransactionInfo* unowned_multi_chunk_info,
     size_t num_entries) {
   std::lock_guard<std::mutex> lock(state_mutex_);
-  common::ScopedWriteLock data_lock(&data_mutex_);
+  aslam::ScopedWriteLock data_lock(&data_mutex_);
 
   VLOG(2) << "Multi chunk commit started on peer " << PeerId::self();
 
@@ -70,7 +70,7 @@ void MultiChunkTransaction::initNewMultiChunkTransaction(
 
 void MultiChunkTransaction::clear() {
   std::lock_guard<std::mutex> lock(state_mutex_);
-  common::ScopedWriteLock data_lock(&data_mutex_);
+  aslam::ScopedWriteLock data_lock(&data_mutex_);
   VLOG(2) << "Multi chunk commit finished on peer " << PeerId::self();
 
   state_ = State::INACTIVE;
@@ -197,7 +197,7 @@ void MultiChunkTransaction::sendQueryReadyToCommit(
   lock->unlock();
   std::map<common::Id, std::future<bool>> response_map;
   {
-    common::ScopedReadLock lock(&data_mutex_);
+    aslam::ScopedReadLock lock(&data_mutex_);
     CHECK_NOTNULL(multi_chunk_data_);
 
     for (int i = 0; i < multi_chunk_data_->chunk_list_size(); ++i) {
@@ -227,7 +227,7 @@ void MultiChunkTransaction::sendQueryReadyToCommit(
 }
 
 void MultiChunkTransaction::sendCommitNotification() {
-  common::ScopedReadLock lock(&data_mutex_);
+  aslam::ScopedReadLock lock(&data_mutex_);
   CHECK_NOTNULL(multi_chunk_data_);
   std::map<common::Id, std::future<bool>> response_map;
   for (int i = 0; i < multi_chunk_data_->chunk_list_size(); ++i) {
@@ -255,7 +255,7 @@ void MultiChunkTransaction::sendCommitNotification() {
 }
 
 void MultiChunkTransaction::sendAbortNotification() {
-  common::ScopedReadLock lock(&data_mutex_);
+  aslam::ScopedReadLock lock(&data_mutex_);
   CHECK_NOTNULL(multi_chunk_data_);
   std::map<common::Id, std::future<bool>> response_map;
   for (int i = 0; i < multi_chunk_data_->chunk_list_size(); ++i) {

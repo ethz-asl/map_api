@@ -20,8 +20,8 @@
 #include <thread>
 #include <unordered_map>
 
+#include <aslam/common/reader-writer-lock.h>
 #include <gtest/gtest_prod.h>
-#include <multiagent-mapping-common/reader-writer-lock.h>
 #include <multiagent-mapping-common/condition.h>
 
 #include "./chord-index.pb.h"
@@ -118,14 +118,15 @@ class ChordIndex {
   /**
    * Argument-free versions (un)lock self
    */
-  bool lock();
-  bool lock(const PeerId& subject);
+  void lock();
+  bool tryLock(const PeerId& subject);
+  bool tryLockInOrder(PeerIdList subjects);
   void unlock();
   bool unlock(const PeerId& subject);
   void lockMonitorThread();
   void updateLastHeard(const PeerId& peer);
 
-  bool lockPeersInOrder(const PeerId& subject_1, const PeerId& subject_2);
+  // bool lockPeersInOrder(const PeerId& subject_1, const PeerId& subject_2);  
   bool unlockPeers(const PeerId& subject_1, const PeerId& subject_2);
 
   bool lockPeersInArgOrder(const PeerId& subject_1, const PeerId& subject_2,
@@ -289,7 +290,8 @@ class ChordIndex {
   Finger fingers_[kNumFingers];
   SuccessorListItem successor_;
   std::shared_ptr<ChordPeer> predecessor_;
-  common::ReaderWriterMutex peer_lock_;
+
+  aslam::ReaderWriterMutex peer_lock_;
 
   FRIEND_TEST(ChordIndexTestInitialized, onePeerJoin);
   friend class ChordIndexTestInitialized;
@@ -313,14 +315,14 @@ class ChordIndex {
 
   // TODO(tcies) data stats: Has it already been requested?
   DataMap data_;
-  common::ReaderWriterMutex data_lock_;
+  aslam::ReaderWriterMutex data_lock_;
 
   // Data from other nodes replicated here.
   DataMap replicated_data_[kNumReplications];
   PeerId replicated_peers_[kNumReplications];
   std::atomic<bool> replication_ready_;
   common::Condition replication_ready_condition_;
-  common::ReaderWriterMutex replicated_data_lock_;
+  aslam::ReaderWriterMutex replicated_data_lock_;
 
   // Other nodes that replicate data of this node.
   PeerId replicators_[kNumReplications];

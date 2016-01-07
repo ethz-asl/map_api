@@ -112,7 +112,7 @@ void RaftNode::fillMetadata(RequestType* destination) const {
 
 void RaftNode::grantChunkLockFromQueue(const LogWriteAccess& log_writer,
                                        const uint64_t current_term) {
-  if (!raft_chunk_lock_.isLocked() && !lock_queue_.empty()) {
+  if (!raft_chunk_lock_.isWriteLocked() && !lock_queue_.empty()) {
     while (!lock_queue_.empty()) {
       const PeerId lock_contender = lock_queue_.front();
       if (hasPeer(lock_contender) || PeerId::self() == lock_contender) {

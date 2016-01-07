@@ -30,6 +30,8 @@ class LogicalTime {
    */
   static void synchronize(const LogicalTime& other_time);
 
+  LogicalTime justBefore() const;
+
   inline bool operator <(const LogicalTime& other) const;
   inline bool operator <=(const LogicalTime& other) const;
   inline bool operator >(const LogicalTime& other) const;
@@ -43,7 +45,7 @@ class LogicalTime {
   static std::mutex current_mutex_;
 };
 
-}  // namespace map_api
+}  //  namespace map_api
 
 namespace std {
 inline ostream& operator<<(ostream& out, const map_api::LogicalTime& time) {
@@ -57,7 +59,7 @@ struct hash<map_api::LogicalTime> {
     return std::hash<uint64_t>()(time.serialize());
   }
 };
-}  // namespace std
+}  //  namespace std
 
 #include "./logical-time-inl.h"
 

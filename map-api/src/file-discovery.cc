@@ -14,7 +14,7 @@
 #include "map-api/hub.h"
 
 DEFINE_bool(clear_discovery, false, "Will clear file discovery at startup.");
-DEFINE_double(discovery_timeout_seconds, 0.5, "Timeout for file discovery.");
+DEFINE_double(discovery_timeout_seconds, 10, "Timeout for file discovery.");
 
 namespace map_api {
 

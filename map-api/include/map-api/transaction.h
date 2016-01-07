@@ -17,8 +17,13 @@ namespace map_api {
 class CacheBase;
 class ChunkBase;
 class ChunkManagerBase;
+class ConflictMap;
 class NetTable;
+template <typename IdType>
+class NetTableTransactionInterface;
 class Revision;
+template <typename IdType, typename ObjectType>
+class ThreadsafeCache;
 
 namespace proto {
 class Revision;
@@ -31,8 +36,8 @@ class RaftBenchmarkTests;
 
 class Transaction {
   friend class CacheBase;
-  template <typename IdType, typename Value, typename DerivedValue>
-  friend class Cache;
+  template <typename IdType, typename ObjectType>
+  friend class ThreadsafeCache;
   friend class benchmarks::RaftBenchmarkTests;
 
  public:
@@ -69,6 +74,9 @@ class Transaction {
   template <typename ValueType>
   void find(int key, const ValueType& value, NetTable* table,
             ConstRevisionMap* result);
+  bool fetchAllChunksTrackedByItemsInTable(NetTable* const table);
+  template <typename IdType>
+  void fetchAllChunksTrackedBy(const IdType& id, NetTable* const table);
 
   // =====
   // WRITE
@@ -92,24 +100,16 @@ class Transaction {
   // ======================
   void prepareForCommit();
   bool commit();
-  bool multiChunkCommit();
   void unlockAllChunks(bool is_success);
   void prepareMultiChunkTransactionInfo(proto::MultiChunkTransactionInfo* info);
   inline LogicalTime getCommitTime() const { return commit_time_; }
-  using Conflict = ChunkTransaction::Conflict;
-  using Conflicts = ChunkTransaction::Conflicts;
-  class ConflictMap
-      : public std::unordered_map<NetTable*, ChunkTransaction::Conflicts> {
-   public:
-    inline std::string debugString() const {
-      std::ostringstream ss;
-      for (const value_type& pair : *this) {
-        ss << pair.first->name() << ": " << pair.second.size() << " conflicts"
-           << std::endl;
-      }
-      return ss.str();
-    }
-  };
+  // Requires specialization of
+  // std::string getComparisonString(const ObjectType& a, const ObjectType& b);
+  // or
+  // std::string ObjectType::getComparisonString(const ObjectType&) const;
+  // Note that the latter will be correctly called for shared pointers.
+  template <typename ObjectType>
+  std::string debugConflictsInTable(NetTable* table);
   /**
    * Merge_transaction will be filled with all insertions and non-conflicting
    * updates from this transaction, while the conflicting updates will be
@@ -122,7 +122,20 @@ class Transaction {
   // STATISTICS
   // ==========
   size_t numChangedItems() const;
-  std::string printCacheStatistics() const;
+
+  // ======
+  // CACHES
+  // ======
+  template <typename IdType, typename ObjectType>
+  std::shared_ptr<ThreadsafeCache<IdType, ObjectType>> createCache(
+      NetTable* table);
+  template <typename IdType, typename ObjectType>
+  const ThreadsafeCache<IdType, ObjectType>& getCache(NetTable* table);
+  template <typename IdType, typename ObjectType>
+  void setCacheUpdateFilter(
+      const std::function<bool(const ObjectType& original,  // NOLINT
+                               const ObjectType& innovation)>& update_filter,
+      NetTable* table);
 
   // =============
   // MISCELLANEOUS
@@ -132,9 +145,14 @@ class Transaction {
       NetTable* trackee_table, NetTable* tracker_table,
       const std::function<TrackerIdType(const Revision&)>&
           how_to_determine_tracker);
+  // The following must be called if chunks are fetched after the transaction
+  // has been initialized, otherwise the new items can't be fetched by the
+  // transaction.
+  void refreshIdToChunkIdMaps();
+  // Same, for the caches.
+  void refreshAvailableIdsInCaches();
 
  private:
-  void attachCache(NetTable* table, CacheBase* cache);
   void enableDirectAccess();
   void disableDirectAccess();
 
@@ -151,6 +169,23 @@ class Transaction {
   bool prepareOrUnlockAll();
   bool checkOrUnlockAll();
   bool commitRevisionsOrUnlockAll();
+
+  FRIEND_TEST(ConsensusFixture, DISABLED_MultiChunkTransaction);
+
+  // Commit implementations
+  bool legacyChunkCommit();
+  bool raftChunkCommit();
+
+  // The following function is very dangerous and shouldn't be used apart from
+  // where it needs to be used in caches.
+  template <typename IdType>
+  std::shared_ptr<const Revision>* getMutableUpdateEntry(const IdType& id,
+                                                         NetTable* table);
+  template <typename IdType>
+  friend class NetTableTransactionInterface;
+
+  template <typename IdType, typename ObjectType>
+  ThreadsafeCache<IdType, ObjectType>* getMutableCache(NetTable* table);
 
   /**
    * A global ordering of tables prevents deadlocks (resource hierarchy
@@ -180,8 +215,8 @@ class Transaction {
    * complicated.
    */
   mutable TableAccessModeMap access_mode_;
-  typedef std::unordered_map<NetTable*, CacheBase*> CacheMap;
-  CacheMap attached_caches_;
+  typedef std::unordered_map<NetTable*, std::shared_ptr<CacheBase>> CacheMap;
+  CacheMap caches_;
   /**
    * Cache must be able to access transaction directly, even though table
    * is in cache access mode. This on a per-thread basis.
