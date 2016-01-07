@@ -39,8 +39,9 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
   }
 
   virtual typename Base::ConstRefReturnType get(const IdType& id) const {
-    CHECK(cache_.get(id).metadata);
-    return cache_.get(id).object;
+    const ObjectAndMetadata<ObjectType>& cached = cache_.get(id);
+    CHECK(cached.metadata);
+    return cached.object;
   }
 
   virtual bool insert(const IdType& id, const ObjectType& value) {
@@ -89,6 +90,13 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
     CHECK(object_metadata.metadata);
     object_metadata.metadata->getTrackedChunks(CHECK_NOTNULL(result));
   }
+
+  // Unfortunately, since this depends on the Id type, it can't be a virtual
+  // function of ChunkBase.
+  bool hadBeenUpdatedBeforeThisTransaction(const IdType& id) const {
+    const ObjectAndMetadata<ObjectType>& cached = cache_.get(id);
+    return cached.metadata->hasBeenUpdated();
+}
 
   // Add a function to determine whether updates should be applied back to the
   // cache (true = will be applied).
