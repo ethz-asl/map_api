@@ -1,9 +1,13 @@
+#include "map-api/peer.h"
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <map-api/logical-time.h>
-#include <map-api/message.h>
-#include <map-api/peer.h>
-#include <map-api/peer-id.h>
+
+#include "map-api/hub.h"
+#include "map-api/internal/network-data-log.h"
+#include "map-api/logical-time.h"
+#include "map-api/message.h"
+#include "map-api/peer-id.h"
 
 DEFINE_int32(request_timeout, 10000,
              "Amount of milliseconds after which a "
@@ -58,7 +62,10 @@ bool Peer::try_request_for(int timeout_ms, Message* request,
     zmq::message_t message(buffer, size, NULL, NULL);
     {
       std::lock_guard<std::mutex> lock(socket_mutex_);
+
       usleep(1e3 * FLAGS_simulated_lag_ms);
+      Hub::instance().logOutgoing(size, request->type());
+
       simulateBandwidth(message.size());
       socket_.setsockopt(ZMQ_RCVTIMEO, &timeout_ms, sizeof(timeout_ms));
       CHECK(socket_.send(message));
@@ -72,6 +79,7 @@ bool Peer::try_request_for(int timeout_ms, Message* request,
     // message, which could be a quite common bug
     CHECK_GT(message.size(), 0u) << "Request was " << request->DebugString();
     CHECK(response->ParseFromArray(message.data(), message.size()));
+    Hub::instance().logIncoming(message.size(), response->type());
     LogicalTime::synchronize(LogicalTime(response->logical_time()));
   } catch(const zmq::error_t& e) {
     LOG(FATAL) << e.what() << ", request was " << request->DebugString() <<
