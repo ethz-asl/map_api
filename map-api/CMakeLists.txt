@@ -34,6 +34,7 @@ SET(CORE_SOURCE  src/app-templates.cc
                  src/core.cc
                  src/file-discovery.cc
                  src/hub.cc
+                 src/internal/network-data-log.cc
                  src/internal/trackee-multimap.cc
                  src/ipc.cc
                  src/legacy-chunk.cc
@@ -67,6 +68,9 @@ target_link_libraries(${PROJECT_NAME} pthread)
 cs_add_executable(discovery-server discovery-server/discovery-server.cc
                    ${PROTO_SRCS} ${PROTO_HDRS})
 target_link_libraries(discovery-server ${PROJECT_NAME})
+
+cs_add_executable(network-data-log-plotter src/network-data-log-plotter.cc)
+target_link_libraries(network-data-log-plotter ${PROJECT_NAME})
 
 ##########
 # GTESTS #
