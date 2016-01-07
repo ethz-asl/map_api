@@ -4,9 +4,9 @@
 #include <future>
 #include <random>
 
+#include <aslam/common/reader-writer-lock.h>
 #include <multiagent-mapping-common/condition.h>
 #include <multiagent-mapping-common/conversions.h>
-#include <multiagent-mapping-common/reader-writer-lock.h>
 
 #include "./chunk.pb.h"
 #include "./raft.pb.h"
@@ -1368,8 +1368,10 @@ void RaftNode::applySingleRevisionCommit(
     const std::shared_ptr<proto::RaftLogEntry>& entry) {
   // TODO(aqurai): Ensure all revision commits are locked.
   if (entry->has_insert_revision()) {
-    const std::shared_ptr<Revision> insert_revision = Revision::fromProto(
-        std::unique_ptr<proto::Revision>(entry->release_insert_revision()));
+    std::shared_ptr<Revision> insert_revision;
+    Revision::fromProto(
+        std::unique_ptr<proto::Revision>(entry->release_insert_revision()),
+        &insert_revision);
     insert_revision->getId<common::Id>().serialize(
         entry->mutable_revision_id());
     entry->set_logical_time(insert_revision->getUpdateTime().serialize());
@@ -1383,9 +1385,9 @@ void RaftNode::applySingleRevisionCommit(
     }
   } else if (entry->bulk_insert_revision_size() > 0) {
     while (entry->bulk_insert_revision_size() > 0) {
-      const std::shared_ptr<Revision> insert_revision =
+      std::shared_ptr<Revision> insert_revision;
           Revision::fromProto(std::unique_ptr<proto::Revision>(
-              entry->mutable_bulk_insert_revision()->ReleaseLast()));
+              entry->mutable_bulk_insert_revision()->ReleaseLast()), &insert_revision);
       insert_revision->getId<common::Id>().serialize(
           entry->add_bulk_inserted_revision_id_list());
       entry->set_logical_time(insert_revision->getUpdateTime().serialize());

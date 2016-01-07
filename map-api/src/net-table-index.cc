@@ -49,12 +49,13 @@ void NetTableIndex::renouncePosession(const common::Id& chunk_id) {
   std::string peers_string;
   proto::PeerList peers;
 
-  for (int i = 0; !retrieveData(chunk_id.hexString(), &peers_string); ++i) {
-    CHECK_LT(i, 1000) << "Retrieval of chunk" << chunk_id
-                      << " from index "
-                         "timed out during renouncePosession!";
-    // corresponds to one second of topology turmoil
-    usleep(1000);
+  constexpr size_t max_attempts = 1e4;
+  for (size_t num_attempts = 0u;
+       !retrieveData(chunk_id.hexString(), &peers_string); ++num_attempts) {
+    usleep(1e3);
+    CHECK_LT(num_attempts, max_attempts)
+        << "Failed to retrieve data about chunk " << chunk_id
+        << " from the net table index. The data has been lost!";
   }
 
   CHECK(peers.ParseFromString(peers_string));
@@ -67,7 +68,7 @@ void NetTableIndex::renouncePosession(const common::Id& chunk_id) {
       break;
     }
   }
-  LOG_IF(ERROR, !found)
+  LOG_IF(WARNING, !found)
       << "Tried to renounce possession that was not announced!";
   for (int i = 0; !addData(chunk_id.hexString(), peers.SerializeAsString());
        ++i) {
@@ -339,12 +340,14 @@ ChordIndex::RpcStatus NetTableIndex::rpc(const PeerId& to,
   routed_request.set_serialized_message(request.SerializeAsString());
   to_be_sent.impose<kRoutedChordRequest>(routed_request);
   if (!peers_.try_request(to, &to_be_sent, response)) {
+    VLOG(3) << "NetTableIndex RPC request to " << to << " failed.";
     return RpcStatus::RPC_FAILED;
   }
   if (response->isType<Message::kInvalid>()) {
     return RpcStatus::RPC_FAILED;
   }
   if (response->isType<Message::kDecline>()) {
+    VLOG(3) << "NetTableIndex RPC request to " << to << " declined.";
     return RpcStatus::DECLINED;
   }
   if (response->isType<Message::kInvalid>()) {

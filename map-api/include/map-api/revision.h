@@ -7,6 +7,7 @@
 #include <type_traits>
 #include <vector>
 
+#include <gflags/gflags.h>
 #include <glog/logging.h>
 
 #include "./core.pb.h"
@@ -47,11 +48,13 @@ class Revision {
   Revision& operator=(const Revision& other) = delete;
 
   // Constructor and assignment replacements.
-  std::shared_ptr<Revision> copyForWrite() const;
+  void copyForWrite(std::shared_ptr<Revision>* result) const;
   proto::Revision* copyToProtoPtr() const;
   // You need to use std::move() for the unique_ptr of the following.
-  static std::shared_ptr<Revision> fromProto(
-      std::unique_ptr<proto::Revision>&& revision_proto);
+  static void fromProto(const std::shared_ptr<proto::Revision>& revision_proto,
+                        std::shared_ptr<Revision>* result);
+  static void fromProto(const std::shared_ptr<proto::Revision>& revision_proto,
+                        std::shared_ptr<const Revision>* result);
   static std::shared_ptr<Revision> fromProtoString(
       const std::string& revision_proto_string);
 
@@ -77,11 +80,17 @@ class Revision {
   template <typename FieldType>
   bool get(int index, FieldType* value) const;
 
+  void clearCustomFieldValues();
+
   inline LogicalTime getInsertTime() const {
     return LogicalTime(underlying_revision_->insert_time());
   }
   inline LogicalTime getUpdateTime() const {
     return LogicalTime(underlying_revision_->update_time());
+  }
+  inline bool hasBeenUpdated() const {
+    return underlying_revision_->update_time() >
+           underlying_revision_->insert_time();
   }
   inline LogicalTime getModificationTime() const {
     return (underlying_revision_->has_update_time()) ? getUpdateTime()
@@ -123,6 +132,7 @@ class Revision {
    * Returns true if value at key is same as with other
    */
   bool fieldMatch(const Revision& other, int index) const;
+  bool areAllCustomFieldsEqual(const Revision& other) const;
 
   std::string dumpToString() const;
 
@@ -150,6 +160,20 @@ class Revision {
   void getTrackedChunks(TrackeeMultimap* result) const;
   bool fetchTrackedChunks() const;
 
+  // Returns true if merge succeeded. If false is returned, revision_at_hand
+  // must be unchanged! TODO(tcies) enforce by design?
+  typedef std::function<bool(const Revision& conflicting_revision,  // NOLINT
+                             const Revision& original_revision,
+                             Revision* revision_at_hand)> AutoMergePolicy;
+  static bool defaultAutoMergePolicy(const Revision& conflicting_revision,
+                                     const Revision& original_revision,
+                                     Revision* revision_at_hand);
+  // Succeeds if either the default merge policy or any of the custom merge
+  // policies succeed.
+  bool tryAutoMerge(const Revision& conflicting_revision,
+                    const Revision& original_revision,
+                    const std::vector<AutoMergePolicy>& custom_merge_policies);
+
  private:
   Revision() = default;
 
@@ -172,7 +196,7 @@ class Revision {
   template <typename FieldType>
   bool get(const proto::TableField& field, FieldType* value) const;
 
-  std::unique_ptr<proto::Revision> underlying_revision_;
+  std::shared_ptr<proto::Revision> underlying_revision_;
 };
 
 /**

@@ -478,7 +478,7 @@ TEST_F(NetTableFixture, TransactionAbortOnPeerDisconnect) {
   }
 }
 
-TEST_F(ConsensusFixture, MultiChunkTransaction) {
+TEST_F(ConsensusFixture, DISABLED_MultiChunkTransaction) {
   const uint64_t kProcesses = FLAGS_raft_chunk_processes;
   enum Barriers {
     INIT_PEERS,

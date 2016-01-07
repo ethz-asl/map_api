@@ -9,6 +9,7 @@
 
 #include "map-api/cache-base.h"
 #include "map-api/chunk-manager.h"
+#include "map-api/conflicts.h"
 #include "map-api/net-table.h"
 #include "map-api/net-table-manager.h"
 #include "map-api/net-table-transaction.h"
@@ -18,6 +19,8 @@
 #include "./core.pb.h"
 #include "./raft.pb.h"
 
+DECLARE_bool(cache_blame_dirty);
+DECLARE_bool(cache_blame_insert);
 DEFINE_bool(blame_commit, false, "Print stack trace for every commit");
 
 namespace map_api {
@@ -59,6 +62,26 @@ void Transaction::dumpActiveChunks(NetTable* table, ConstRevisionMap* result) {
   }
 }
 
+bool Transaction::fetchAllChunksTrackedByItemsInTable(NetTable* const table) {
+  CHECK_NOTNULL(table);
+  std::vector<common::Id> item_ids;
+  enableDirectAccess();
+  getAvailableIds(table, &item_ids);
+
+  bool success = true;
+  for (const common::Id& item_id : item_ids) {
+    if (!getById(item_id, table)->fetchTrackedChunks()) {
+      success = false;
+    }
+  }
+  disableDirectAccess();
+  refreshIdToChunkIdMaps();
+  // Id to chunk id maps must be refreshed first, otherwise getAvailableIds will
+  // nor work.
+  refreshAvailableIdsInCaches();
+  return success;
+}
+
 void Transaction::insert(NetTable* table, ChunkBase* chunk,
                          std::shared_ptr<Revision> revision) {
   CHECK_NOTNULL(table);
@@ -86,22 +109,14 @@ void Transaction::remove(NetTable* table, std::shared_ptr<Revision> revision) {
   transactionOf(CHECK_NOTNULL(table))->remove(revision);
 }
 
-std::string Transaction::printCacheStatistics() const {
-  std::stringstream ss;
-  ss << "Transaction cache statistics:" << std::endl;
-  for (const CacheMap::value_type& cache_pair : attached_caches_) {
-    ss << "\t " << cache_pair.second->underlyingTableName() << " cached: "
-       << cache_pair.second->numCachedItems() << "/"
-       << cache_pair.second->size() << std::endl;
-  }
-  return ss.str();
-}
-
 void Transaction::prepareForCommit() {
   if (FLAGS_blame_commit) {
     LOG(INFO) << "Transaction committed from:\n" << common::backtrace();
   }
-  for (const CacheMap::value_type& cache_pair : attached_caches_) {
+  for (const CacheMap::value_type& cache_pair : caches_) {
+    if (FLAGS_cache_blame_dirty || FLAGS_cache_blame_insert) {
+      std::cout << cache_pair.first->name() << " cache:" << std::endl;
+    }
     cache_pair.second->prepareForCommit();
   }
   enableDirectAccess();
@@ -152,7 +167,7 @@ void Transaction::merge(const std::shared_ptr<Transaction>& merge_transaction,
     std::shared_ptr<NetTableTransaction> merge_net_table_transaction(
         new NetTableTransaction(merge_transaction->begin_time_,
                                 net_table_transaction.first, *workspace_));
-    ChunkTransaction::Conflicts sub_conflicts;
+    Conflicts sub_conflicts;
     net_table_transaction.second->merge(merge_net_table_transaction,
                                         &sub_conflicts);
     CHECK_EQ(
@@ -163,9 +178,8 @@ void Transaction::merge(const std::shared_ptr<Transaction>& merge_transaction,
           net_table_transaction.first, merge_net_table_transaction));
     }
     if (!sub_conflicts.empty()) {
-      std::pair<ConflictMap::iterator, bool> insert_result =
-          conflicts->insert(std::make_pair(net_table_transaction.first,
-                                           ChunkTransaction::Conflicts()));
+      std::pair<ConflictMap::iterator, bool> insert_result = conflicts->insert(
+          std::make_pair(net_table_transaction.first, Conflicts()));
       CHECK(insert_result.second);
       insert_result.first->second.swap(sub_conflicts);
     }
@@ -180,11 +194,16 @@ size_t Transaction::numChangedItems() const {
   return count;
 }
 
-void Transaction::attachCache(NetTable* table, CacheBase* cache) {
-  CHECK_NOTNULL(table);
-  CHECK_NOTNULL(cache);
-  ensureAccessIsCache(table);
-  attached_caches_.emplace(table, cache);
+void Transaction::refreshIdToChunkIdMaps() {
+  for (TransactionPair& net_table_transaction : net_table_transactions_) {
+    net_table_transaction.second->refreshIdToChunkIdMap();
+  }
+}
+
+void Transaction::refreshAvailableIdsInCaches() {
+  for (const CacheMap::value_type& cache_pair : caches_) {
+    cache_pair.second->refreshAvailableIds();
+  }
 }
 
 void Transaction::enableDirectAccess() {
@@ -279,20 +298,21 @@ void Transaction::pushNewChunkIdsToTrackers() {
        table_item_chunks_to_push) {
     for (const ItemToTrackeeMap::value_type& item_chunks_to_push :
          table_chunks_to_push.second) {
-      // TODO(tcies) keeping track of tracker chunks could optimize this, as
-      // the faster getById() overload could be used.
       CHECK(item_chunks_to_push.first.isValid())
           << "Invalid tracker ID for trackee from "
           << "table " << table_chunks_to_push.first->name();
       std::shared_ptr<const Revision> original_tracker =
           getById(item_chunks_to_push.first, table_chunks_to_push.first);
-      std::shared_ptr<Revision> updated_tracker =
-          original_tracker->copyForWrite();
+
       TrackeeMultimap trackee_multimap;
       trackee_multimap.deserialize(*original_tracker->underlying_revision_);
-      trackee_multimap.merge(item_chunks_to_push.second);
-      trackee_multimap.serialize(updated_tracker->underlying_revision_.get());
-      update(table_chunks_to_push.first, updated_tracker);
+      // Update only if set of trackees has changed.
+      if (trackee_multimap.merge(item_chunks_to_push.second)) {
+        std::shared_ptr<Revision> updated_tracker;
+        original_tracker->copyForWrite(&updated_tracker);
+        trackee_multimap.serialize(updated_tracker->underlying_revision_.get());
+        update(table_chunks_to_push.first, updated_tracker);
+      }
     }
   }
 }
@@ -351,6 +371,14 @@ bool Transaction::commitRevisionsOrUnlockAll() {
 
 bool Transaction::legacyChunkCommit() {
   prepareForCommit();
+
+  // This must happen after chunk tracker resolution, since chunk tracker
+  // resolution might access the cache in read-mode, but we won't be able to
+  // fetch the proper metadata until after the commit!
+  for (const CacheMap::value_type& cache_pair : caches_) {
+    cache_pair.second->discardCachedInsertions();
+  }
+
   timing::Timer timer("map_api::Transaction::commit - lock");
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->lock();
@@ -381,6 +409,14 @@ bool Transaction::raftChunkCommit() {
   if (!prepareOrUnlockAll()) {
     return false;
   }
+
+  // This must happen after chunk tracker resolution, since chunk tracker
+  // resolution might access the cache in read-mode, but we won't be able to
+  // fetch the proper metadata until after the commit!
+  for (const CacheMap::value_type& cache_pair : caches_) {
+    cache_pair.second->discardCachedInsertions();
+  }
+
   if (!checkOrUnlockAll()) {
     return false;
   }

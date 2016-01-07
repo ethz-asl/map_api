@@ -7,8 +7,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include <aslam/common/reader-first-reader-writer-lock.h>
 #include <gtest/gtest_prod.h>
-#include <multiagent-mapping-common/reader-first-reader-writer-lock.h>
 
 #include "map-api/chunk-data-container-base.h"
 #include "map-api/app-templates.h"
@@ -42,6 +42,7 @@ inline std::string humanReadableBytes(double size) {
 }
 
 class NetTable {
+  friend class ChunkTest;
   friend class ChunkTransaction;
   friend class NetTableFixture;
   friend class NetTableManager;
@@ -49,23 +50,51 @@ class NetTable {
   friend class SpatialIndexTest;
   friend class Workspace;
   friend class benchmarks::DhtBenchmarkTests;
-  FRIEND_TEST(NetTableFixture, RemoteUpdate);
-  FRIEND_TEST(NetTableFixture, Grind);
+  FRIEND_TEST(ChunkTest, RemoteUpdate);
+  FRIEND_TEST(ChunkTest, Grind);
   FRIEND_TEST(NetTableFixture, SaveAndRestoreTableFromFile);
 
  public:
   static const std::string kChunkIdField;
 
+  // ======
   // BASICS
+  // ======
   const std::string& name() const;
   std::shared_ptr<Revision> getTemplate() const;
+  bool structureMatch(std::unique_ptr<TableDescriptor>* descriptor) const;
+  void kill();
+  // Make sure all chunks have at least one other peer.
+  void killOnceShared();
 
+  // ======================
   // BASIC CHUNK MANAGEMENT
+  // ======================
   ChunkBase* newChunk();
   ChunkBase* newChunk(const common::Id& chunk_id);
+  void getActiveChunkIds(std::set<common::Id>* chunk_ids) const;
   ChunkBase* getChunk(const common::Id& chunk_id);
+  void getActiveChunks(std::set<ChunkBase*>* chunks) const;
+  bool ensureHasChunks(const common::IdSet& chunks_to_ensure);
+  ChunkBase* connectTo(const common::Id& chunk_id, const PeerId& peer);
+  void shareAllChunks();
+  void shareAllChunks(const PeerId& peer);
+  void leaveAllChunks();
+  void leaveAllChunksOnceShared();
+  void forceStopAllRaftChunks();
 
-  // HIERARCHICAL CHUNK MANAGEMENT
+  // =====
+  // STATS
+  // =====
+  size_t numActiveChunks() const;
+  size_t numActiveChunksItems();
+  size_t numItems() const;
+  size_t activeChunksItemsSizeBytes();
+  std::string getStatistics();
+
+  // ==============
+  // CHUNK TRACKING
+  // ==============
   void pushNewChunkIdsToTracker(
       NetTable* table_of_tracking_item,
       const std::function<common::Id(const Revision&)>&
@@ -84,9 +113,39 @@ class NetTable {
   template <typename IdType>
   void followTrackedChunksOfItem(const IdType& item, ChunkBase* tracker_chunk);
   // Do the above automatically for all created and received items.
-  void autoFollowTrackedChunks();
+  void autoFollowTrackedChunks() __attribute__((deprecated(
+      "This function is evil! Tracked chunks should be manually fetched "
+      "by the user in a controlled manner. Otherwise, this messes with "
+      "views!")));
 
-  // SPATIAL INDEX CHUNK MANAGEMENT
+  // ==========================
+  // AUTOMATED CONFLICT MERGING
+  // ==========================
+  const std::vector<Revision::AutoMergePolicy>& getAutoMergePolicies() const;
+  void addAutoMergePolicy(const Revision::AutoMergePolicy& auto_merge_policy);
+  // Wraps the provided function in revision to object conversion. If the merge
+  // succeeded, the supplied function must return true.
+  // Use this if your merge policy is applied to a heterogeneous conflict
+  // (e.g. A only changed property 1, B only changed property 2) symmetrically
+  // (B changed property 1, A changed property 2). Note that per default,
+  // object_at_hand is ALWAYS the object committed later, since conflicts can't
+  // be predicted until they happen.
+  // Also, until the use case changes, it is assumed that object to revision
+  // conversions are implemented for shared pointers of ObjectType.
+  template <typename ObjectType>
+  struct AutoMergePolicy {
+    typedef std::function<bool(
+        const ObjectType const_conflict_object,  // NOLINT
+        const ObjectType original_object, ObjectType* mutable_conflict_object)>
+        Type;
+  };
+  template <typename ObjectType>
+  void addHeterogenousAutoMergePolicySymetrically(
+      const typename AutoMergePolicy<ObjectType>::Type& auto_merge_policy);
+
+  // ========================
+  // SPATIAL INDEX MANAGEMENT
+  // ========================
   void registerChunkInSpace(const common::Id& chunk_id,
                             const SpatialIndex::BoundingBox& bounding_box);
   template <typename IdType>
@@ -102,7 +161,9 @@ class NetTable {
     return *CHECK_NOTNULL(spatial_index_.get());
   }
 
-  // TRIGGER RELATED
+  // ========
+  // TRIGGERS
+  // ========
   typedef std::function<void(const std::unordered_set<common::Id>& insertions,
                              const std::unordered_set<common::Id>& updates,
                              ChunkBase* chunk)> TriggerCallbackWithChunkPointer;
@@ -117,7 +178,10 @@ class NetTable {
   void handleListenToChunksFromPeer(const PeerId& listener, Message* response);
   static const char kPushNewChunksRequest[];
 
-  // ITEM RETRIEVAL
+  // =====================
+  // DIRECT ITEM RETRIEVAL
+  // =====================
+  // TODO(tcies) make private or even remove #2979.
   // (locking all chunks)
   template <typename ValueType>
   void lockFind(int key, const ValueType& value, const LogicalTime& time,
@@ -128,51 +192,10 @@ class NetTable {
   void getAvailableIds(const LogicalTime& time,
                        std::vector<IdType>* ids);
 
-  /**
-   * Connects to the given chunk via the given peer.
-   */
-  ChunkBase* connectTo(const common::Id& chunk_id, const PeerId& peer);
-
-  bool structureMatch(std::unique_ptr<TableDescriptor>* descriptor) const;
-
-  size_t numActiveChunks() const;
-
-  size_t numActiveChunksItems();
-
-  size_t numItems() const;
-
-  size_t activeChunksItemsSizeBytes();
-
-  void shareAllChunks();
-
-  void shareAllChunks(const PeerId& peer);
-
-  void kill();
-
-  // Make sure all chunks have at least one other peer.
-  void killOnceShared();
-
-  void leaveAllChunks();
-
-  void forceStopAllRaftChunks();
-
-  void leaveAllChunksOnceShared();
-
-  std::string getStatistics();
-
-  void getActiveChunkIds(std::set<common::Id>* chunk_ids) const;
-
-  /**
-   * Chunks are owned by the table, this function does not leak.
-   */
-  void getActiveChunks(std::set<ChunkBase*>* chunks) const;
-
-  /**
-   * ========================
-   * Diverse request handlers
-   * ========================
-   * TODO(tcies) somehow unify all routing to chunks? (yes, like chord)
-   */
+  // ================
+  // REQUEST HANDLERS
+  // ================
+  // TODO(tcies) somehow unify all routing to chunks? (yes, like chord)
   void handleConnectRequest(const common::Id& chunk_id, const PeerId& peer,
                             Message* response);
   void handleInitRequest(
@@ -314,10 +337,6 @@ class NetTable {
 
   void attachTriggers(ChunkBase* chunk);
 
-  // Complements autoFollowTrackedChunks.
-  void fetchAllCallback(const common::IdSet& insertions,
-                        const common::IdSet& updates, ChunkBase* chunk);
-
   void leaveIndices();
 
   void getChunkHolders(const common::Id& chunk_id,
@@ -328,12 +347,12 @@ class NetTable {
   std::shared_ptr<TableDescriptor> descriptor_;
   ChunkMap active_chunks_;
   // See issue #2391 for why we need a reader-first RW mutex here.
-  mutable common::ReaderFirstReaderWriterMutex active_chunks_lock_;
+  mutable aslam::ReaderFirstReaderWriterMutex active_chunks_lock_;
 
   // DO NOT USE FROM HANDLER THREAD (else TODO(tcies) mutex)
   std::unique_ptr<NetTableIndex> index_;
   std::unique_ptr<SpatialIndex> spatial_index_;
-  common::ReaderWriterMutex index_lock_;
+  aslam::ReaderWriterMutex index_lock_;
 
   std::vector<TriggerCallbackWithChunkPointer>
       triggers_to_attach_to_future_chunks_;
@@ -346,6 +365,8 @@ class NetTable {
   PeerIdSet new_chunk_listeners_;
 
   NewChunkTrackerMap new_chunk_trackers_;
+
+  std::vector<Revision::AutoMergePolicy> auto_merge_policies_;
 };
 
 }  // namespace map_api
