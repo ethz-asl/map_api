@@ -1,8 +1,8 @@
 #include "map-api/rpc-command-registerer.h"
 
 #include "map-api/hub.h"
-
-#include "./rpc.pb.h"
+#include "map-api/message.h"
+#include "./command-rpc.pb.h"
 
 namespace map_api {
 const char RpcCommandRegisterer::kCommandRequest[] =
@@ -32,11 +32,11 @@ void RpcCommandRegisterer::handleStatusRpc(const Message& request,
 }
 
 int RpcCommandRegisterer::commandRpc(const std::string& command,
-                                     const map_api::PeerId& peer) {
-  map_api::Message request, response;
+                                     const PeerId& peer) {
+  Message request, response;
   request.impose<kCommandRequest>(command);
-  map_api::Hub::instance().request(peer, &request, &response);
-  CHECK(response.isType<map_api::Message::kAck>());
+  Hub::instance().request(peer, &request, &response);
+  CHECK(response.isType<Message::kAck>());
   return common::kSuccess;
 }
 

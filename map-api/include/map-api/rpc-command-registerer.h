@@ -5,21 +5,20 @@
 
 #include <multiagent-mapping-common/command-registerer.h>
 
-#include "map-api/message.h"
 
 namespace map_api {
+
+class Message;
+class PeerId;
+
 class RpcCommandRegisterer : public common::CommandRegisterer {
  public:
   RpcCommandRegisterer();
 
   void handleStatusRpc(const Message& request, Message* response);
 
-  static int commandRpc(const std::string& command,
-                        const map_api::PeerId& peer);
+  static int commandRpc(const std::string& command, const PeerId& peer);
 
-  /**
-   * Handler needs to be registered by application / executable.
-   */
   static const char kCommandRequest[];
   static const char kCommandResponse[];
 };

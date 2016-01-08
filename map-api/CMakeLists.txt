@@ -12,11 +12,11 @@ catkin_simple(ALL_DEPS_REQUIRED)
 add_definitions(--std=c++11 -Wno-unknown-pragmas)
 
 SET(PROTO_DEFNS proto/chord-index.proto 
+                proto/command-rpc.proto
                 proto/core.proto
                 proto/chunk.proto
                 proto/ipc.proto
-                proto/net-table.proto
-                proto/rpc.proto)
+                proto/net-table.proto)
 PROTOBUF_CATKIN_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
