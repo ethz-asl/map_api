@@ -12,6 +12,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 add_definitions(--std=c++11 -Wno-unknown-pragmas)
 
 SET(PROTO_DEFNS proto/chord-index.proto 
+                proto/command-rpc.proto
                 proto/core.proto
                 proto/chunk.proto
                 proto/ipc.proto
@@ -52,6 +53,7 @@ SET(CORE_SOURCE  src/app-templates.cc
                  src/peer-handler.cc
                  src/proto-table-file-io.cc
                  src/revision.cc
+                 src/rpc-command-registerer.cc
                  src/server-discovery.cc
                  src/spatial-index.cc
                  src/spatial-index-cell-data.cc
