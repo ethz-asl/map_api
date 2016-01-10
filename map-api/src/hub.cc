@@ -1,4 +1,4 @@
-#include <map-api/hub.h>
+#include "map-api/hub.h"
 
 #include <chrono>
 #include <ifaddrs.h>
@@ -15,14 +15,16 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "./core.pb.h"
-#include <map-api/core.h>
-#include <map-api/file-discovery.h>
-#include <map-api/ipc.h>
-#include <map-api/logical-time.h>
-#include <map-api/server-discovery.h>
 #include <multiagent-mapping-common/internal/unique-id.h>
 #include <multiagent-mapping-common/plain-file-logger.h>
+
+#include "./core.pb.h"
+#include "map-api/core.h"
+#include "map-api/file-discovery.h"
+#include "map-api/internal/network-data-log.h"
+#include "map-api/ipc.h"
+#include "map-api/logical-time.h"
+#include "map-api/server-discovery.h"
 
 const std::string kFileDiscovery = "file";
 const std::string kServerDiscovery = "server";
@@ -39,7 +41,6 @@ DEFINE_string(discovery_server, "127.0.0.1:5050",
               "server-discovery");
 DEFINE_string(announce_ip, "", "IP to use for discovery announcement");
 DEFINE_int32(discovery_timeout_ms, 100, "Timeout specific for first contact.");
-DEFINE_bool(map_api_network_log, false, "Log network activity.");
 DECLARE_int32(simulated_lag_ms);
 
 DEFINE_string(
@@ -47,10 +48,15 @@ DEFINE_string(
     "Filter the debug "
     "output of the handle thread to message types containing this string.");
 
+DEFINE_bool(map_api_log_network_data, false, "Will log map api network data.");
+
 namespace map_api {
 
 const char Hub::kDiscovery[] = "map_api_hub_discovery";
 const char Hub::kReady[] = "map_api_hub_ready";
+
+const std::string Hub::kInDataLogPrefix = "map_api_incoming";
+const std::string Hub::kOutDataLogPrefix = "map_api_outgoing";
 
 bool Hub::init(bool* is_first_peer) {
   CHECK_NOTNULL(is_first_peer);
@@ -64,6 +70,12 @@ bool Hub::init(bool* is_first_peer) {
   } else {
     LOG(FATAL) << "Specified discovery mode unknown";
   }
+
+  if (FLAGS_map_api_log_network_data) {
+    data_log_in_.reset(new internal::NetworkDataLog(kInDataLogPrefix));
+    data_log_out_.reset(new internal::NetworkDataLog(kOutDataLogPrefix));
+  }
+
   // Handlers must be initialized before handler thread is started
   registerHandler(kDiscovery, discoveryHandler);
   registerHandler(kReady, readyHandler);
@@ -376,6 +388,8 @@ void Hub::listenThread(Hub* self) {
       CHECK(query.ParseFromArray(request.data(), request.size()));
       LogicalTime::synchronize(LogicalTime(query.logical_time()));
 
+      self->logIncoming(request.size(), query.type());
+
       // Query handler
       HandlerMap::iterator handler = self->handlers_.find(query.type());
       if (handler == self->handlers_.end()) {
@@ -417,15 +431,7 @@ void Hub::listenThread(Hub* self) {
       memcpy(reinterpret_cast<void*>(response_message.data()),
              serialized_response.c_str(), serialized_response.size());
 
-      if (FLAGS_map_api_network_log) {
-        common::PlainFileLogger network_log_file("net_log_" + PeerId::self().ipPort());
-        std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::system_clock::now().time_since_epoch());
-        network_log_file << ms.count() << " " << query.type() << " "
-            << request.size() << " "<< serialized_response.size() << std::endl;
-
-        network_log_file.Flush();
-      }
+      self->logOutgoing(response_message.size(), response.type());
 
       usleep(1e3 * FLAGS_simulated_lag_ms);
       Peer::simulateBandwidth(response_message.size());
@@ -436,6 +442,22 @@ void Hub::listenThread(Hub* self) {
     }
   }
   server.close();
+}
+
+void Hub::logIncoming(const size_t size, const std::string& type) {
+  if (FLAGS_map_api_log_network_data) {
+    std::lock_guard<std::mutex> lock(m_in_log_);
+    CHECK(data_log_in_);
+    data_log_in_->log(size, type);
+  }
+}
+
+void Hub::logOutgoing(const size_t size, const std::string& type) {
+  if (FLAGS_map_api_log_network_data) {
+    std::lock_guard<std::mutex> lock(m_out_log_);
+    CHECK(data_log_out_);
+    data_log_out_->log(size, type);
+  }
 }
 
 }  // namespace map_api
