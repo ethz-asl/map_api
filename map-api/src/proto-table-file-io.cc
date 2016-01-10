@@ -18,16 +18,17 @@ ProtoTableFileIO::ProtoTableFileIO(const std::string& filename,
   zip_options_.buffer_size = kZipBufferSize;
   zip_options_.compression_level = kZipCompressionLevel;
 
-  read_only_mode_ = false;
-
   file_.open(filename, kDefaultOpenmode);
   if (!file_.is_open()) {
     file_.open(filename, kReadOnlyOpenMode);
     if (file_.is_open()) {
-      read_only_mode_ = true;
+      open_mode_ = kReadOnlyOpenMode;
     } else {
       file_.open(filename, kTruncateOpenMode);
+      open_mode_ = kTruncateOpenMode;
     }
+  } else {
+    open_mode_ = kDefaultOpenmode;
   }
   CHECK(file_.is_open()) << "Couldn't open file " << filename;
 }
@@ -54,7 +55,7 @@ bool ProtoTableFileIO::storeTableContents(
     const ConstRevisionMap& revisions,
     const std::vector<common::Id>& ids_to_store) {
   CHECK(file_.is_open());
-  CHECK(!read_only_mode_);
+  CHECK(open_mode_ & std::ios_base::out);
 
   for (const common::Id& revision_id : ids_to_store) {
     ConstRevisionMap::const_iterator it = revisions.find(revision_id);
