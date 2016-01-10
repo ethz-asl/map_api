@@ -70,7 +70,7 @@ class ProtoTableFileIO {
   map_api::NetTable* table_;
   std::fstream file_;
   std::unordered_set<RevisionStamp> already_stored_items_;
-  bool read_only_mode_;
+  std::ios_base::openmode open_mode_;
 };
 }  // namespace map_api
 #endif  // MAP_API_PROTO_TABLE_FILE_IO_H_

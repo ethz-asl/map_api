@@ -117,20 +117,6 @@ TEST_F(CacheTest, GeneralTest) {
   }
 }
 
-TEST_F(CacheTest, hadBeenUpdatedBeforeThisTransaction) {
-  initCacheView();
-  EXPECT_TRUE(cache_->insert(IdData::get<1>(), IntData::get<1>()));
-  EXPECT_TRUE(transaction_->commit());
-
-  initCacheView();
-  EXPECT_FALSE(cache_->hadBeenUpdatedBeforeThisTransaction(IdData::get<1>()));
-  cache_->getMutable(IdData::get<1>()) = IntData::get<2>();
-  EXPECT_TRUE(transaction_->commit());
-
-  initCacheView();
-  EXPECT_TRUE(cache_->hadBeenUpdatedBeforeThisTransaction(IdData::get<1>()));
-}
-
 }  // namespace map_api
 
 MAP_API_UNITTEST_ENTRYPOINT
