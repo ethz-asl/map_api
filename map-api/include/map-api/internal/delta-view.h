@@ -15,6 +15,7 @@ class DeltaView : public OverridingViewBase {
  public:
   explicit DeltaView(const NetTable& table);
   ~DeltaView();
+
   // ==================
   // VIEWBASE INTERFACE
   // ==================
@@ -24,10 +25,11 @@ class DeltaView : public OverridingViewBase {
   virtual void dump(ConstRevisionMap* result) const override;
   virtual void getAvailableIds(std::unordered_set<common::Id>* result) const
       override;
+
   // ============================
   // OVERRIDINGVIEWBASE INTERFACE
   // ============================
-  virtual bool supresses(const common::Id& id) const override;
+  virtual bool suppresses(const common::Id& id) const override;
 
   void insert(std::shared_ptr<Revision> revision);
   void update(std::shared_ptr<Revision> revision);
@@ -67,7 +69,7 @@ class DeltaView : public OverridingViewBase {
   class UpdateMap : public RevisionEventMap {};
   class RemoveMap : public RevisionEventMap {};
 
-  enum ConflictTraversalMode {
+  enum class ConflictTraversalMode {
     kTryMergeOrBail,
     kPrepareManualMerge
   };

@@ -62,7 +62,7 @@ class ChunkTransaction {
 
   // TRANSACTION OPERATIONS
   bool commit();
-  bool check();
+  bool hasNoConflicts();
   void checkedCommit(const LogicalTime& time);
   /**
    * Merging and changeCount are not compatible with conflict conditions.
@@ -109,7 +109,7 @@ class ChunkTransaction {
   internal::CommitHistoryView::History commit_history_;
 
   // The combined views are stacked as follows:
-  internal::DeltaView delta_;
+  internal::DeltaView delta_;  // Contains uncommitted changes.
   internal::CommitHistoryView commit_history_view_;
   internal::ChunkView chunk_view_;
 

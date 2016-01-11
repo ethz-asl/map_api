@@ -135,7 +135,7 @@ bool Transaction::commit() {
   }
   timer.Stop();
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
-    if (!net_table_transaction.second->check()) {
+    if (!net_table_transaction.second->hasNoConflicts()) {
       for (const TransactionPair& net_table_transaction :
            net_table_transactions_) {
         net_table_transaction.second->unlock();

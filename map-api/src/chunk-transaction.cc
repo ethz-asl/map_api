@@ -51,7 +51,7 @@ void ChunkTransaction::remove(std::shared_ptr<Revision> revision) {
 
 bool ChunkTransaction::commit() {
   chunk_->writeLock();
-  if (!check()) {
+  if (!hasNoConflicts()) {
     chunk_->unlock();
     return false;
   }
@@ -60,7 +60,7 @@ bool ChunkTransaction::commit() {
   return true;
 }
 
-bool ChunkTransaction::check() {
+bool ChunkTransaction::hasNoConflicts() {
   CHECK(chunk_->isWriteLocked());
   std::unordered_map<common::Id, LogicalTime> potential_conflicts;
   chunk_view_.getPotentialConflicts(commit_history_, &potential_conflicts);
@@ -71,7 +71,7 @@ bool ChunkTransaction::check() {
     return false;
   }
 
-  // TODO(tcies) embed in view concept?
+  // TODO(tcies) Embed in view concept?
   for (const ChunkTransaction::ConflictCondition& item : conflict_conditions_) {
     ConstRevisionMap dummy;
     chunk_->data_container_->findByRevision(item.key, *item.value_holder,
@@ -123,7 +123,7 @@ void ChunkTransaction::getTrackers(
     const std::function<common::Id(const Revision&)>& tracker_id_extractor =
         ((override_it != overrides.end()) ? (override_it->second)
                                           : (table_tracker_getter.second));
-    // TODO(tcies) add function to delta.
+    // TODO(tcies) Add function to delta.
     for (const InsertMap::value_type& insertion : delta_.insertions_) {
       common::Id id = tracker_id_extractor(*insertion.second);
       trackers->emplace(table_tracker_getter.first, id);
