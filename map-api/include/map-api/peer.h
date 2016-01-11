@@ -1,6 +1,7 @@
 #ifndef MAP_API_PEER_H_
 #define MAP_API_PEER_H_
 
+#include <memory>
 #include <mutex>
 #include <string>
 
@@ -10,6 +11,10 @@
 
 namespace map_api {
 class Message;
+
+namespace internal {
+class NetworkDataLog;
+}  // namespace internal
 
 class Peer {
  public:
@@ -39,6 +44,8 @@ class Peer {
   PeerId address_;
   zmq::socket_t socket_;
   std::mutex socket_mutex_;
+
+  static std::unique_ptr<internal::NetworkDataLog> outgoing_log_;
 };
 
 }  // namespace map_api
