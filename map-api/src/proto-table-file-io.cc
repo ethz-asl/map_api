@@ -20,8 +20,15 @@ ProtoTableFileIO::ProtoTableFileIO(const std::string& filename,
 
   file_.open(filename, kDefaultOpenmode);
   if (!file_.is_open()) {
-    file_.open(filename, std::fstream::binary | std::fstream::in |
-                             std::fstream::out | std::fstream::trunc);
+    file_.open(filename, kReadOnlyOpenMode);
+    if (file_.is_open()) {
+      open_mode_ = kReadOnlyOpenMode;
+    } else {
+      file_.open(filename, kTruncateOpenMode);
+      open_mode_ = kTruncateOpenMode;
+    }
+  } else {
+    open_mode_ = kDefaultOpenmode;
   }
   CHECK(file_.is_open()) << "Couldn't open file " << filename;
 }
@@ -30,7 +37,7 @@ ProtoTableFileIO::~ProtoTableFileIO() {}
 
 void ProtoTableFileIO::truncFile() {
   file_.close();
-  file_.open(file_name_, kDefaultOpenmode | std::ofstream::trunc);
+  file_.open(file_name_, kTruncateOpenMode);
 }
 
 bool ProtoTableFileIO::storeTableContents(const map_api::LogicalTime& time) {
@@ -48,6 +55,7 @@ bool ProtoTableFileIO::storeTableContents(
     const ConstRevisionMap& revisions,
     const std::vector<common::Id>& ids_to_store) {
   CHECK(file_.is_open());
+  CHECK(open_mode_ & std::ios_base::out);
 
   for (const common::Id& revision_id : ids_to_store) {
     ConstRevisionMap::const_iterator it = revisions.find(revision_id);
