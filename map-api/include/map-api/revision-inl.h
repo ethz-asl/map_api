@@ -41,19 +41,6 @@ bool Revision::set(proto::TableField* field, const FieldType& value) {
   CHECK_NOTNULL(field)->set_blob_value(value.SerializeAsString());
   return true;
 }
-MAP_API_REVISION_SET(std::string);     // NOLINT
-MAP_API_REVISION_SET(double);          // NOLINT
-MAP_API_REVISION_SET(int32_t);         // NOLINT
-MAP_API_REVISION_SET(uint32_t);        // NOLINT
-MAP_API_REVISION_SET(bool);            // NOLINT
-MAP_API_REVISION_SET(common::Id);      // NOLINT
-MAP_API_REVISION_SET(aslam::HashId);   // NOLINT
-MAP_API_REVISION_SET(int64_t);         // NOLINT
-MAP_API_REVISION_SET(uint64_t);        // NOLINT
-MAP_API_REVISION_SET(LogicalTime);     // NOLINT
-MAP_API_REVISION_SET(Revision);        // NOLINT
-MAP_API_REVISION_SET(testBlob);        // NOLINT
-MAP_API_REVISION_SET(Revision::Blob);  // NOLINT
 
 template <typename FieldType>
 bool Revision::get(const proto::TableField& field, FieldType* value) const {
@@ -65,19 +52,6 @@ bool Revision::get(const proto::TableField& field, FieldType* value) const {
   }
   return true;
 }
-MAP_API_REVISION_GET(std::string);     // NOLINT
-MAP_API_REVISION_GET(double);          // NOLINT
-MAP_API_REVISION_GET(int32_t);         // NOLINT
-MAP_API_REVISION_GET(uint32_t);        // NOLINT
-MAP_API_REVISION_GET(common::Id);      // NOLINT
-MAP_API_REVISION_GET(bool);            // NOLINT
-MAP_API_REVISION_GET(aslam::HashId);   // NOLINT
-MAP_API_REVISION_GET(int64_t);         // NOLINT
-MAP_API_REVISION_GET(uint64_t);        // NOLINT
-MAP_API_REVISION_GET(LogicalTime);     // NOLINT
-MAP_API_REVISION_GET(Revision);        // NOLINT
-MAP_API_REVISION_GET(testBlob);        // NOLINT
-MAP_API_REVISION_GET(Revision::Blob);  // NOLINT
 
 template <typename ExpectedType>
 bool Revision::verifyEqual(int index, const ExpectedType& expected) const {
@@ -85,6 +59,20 @@ bool Revision::verifyEqual(int index, const ExpectedType& expected) const {
   get(index, &value);
   return value == expected;
 }
+
+MAP_API_DECLARE_TYPE_SUPPORT(std::string);     // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(double);          // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(int32_t);         // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(uint32_t);        // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(common::Id);      // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(bool);            // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(aslam::HashId);   // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(int64_t);         // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(uint64_t);        // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(LogicalTime);     // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(Revision);        // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(testBlob);        // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(Revision::Blob);  // NOLINT
 
 }  // namespace map_api
 

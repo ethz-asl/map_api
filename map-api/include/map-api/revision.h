@@ -201,6 +201,10 @@ class Revision {
 /**
  * Convenience macros to specialize the above templates in one line.
  */
+#define MAP_API_DECLARE_TYPE_ENUM(TYPE) \
+  template <>                           \
+  proto::Type Revision::getProtobufTypeEnum<TYPE>()
+
 #define MAP_API_TYPE_ENUM(TYPE, ENUM)                 \
   template <>                                         \
   proto::Type Revision::getProtobufTypeEnum<TYPE>() { \
@@ -216,9 +220,11 @@ class Revision {
   template <>                      \
   bool Revision::get<TYPE>(const proto::TableField& field, TYPE* value) const
 
-/**
- * Same for UniqueId derivates
- */
+#define MAP_API_DECLARE_TYPE_SUPPORT(TypeName) \
+  MAP_API_DECLARE_TYPE_ENUM(TypeName);         \
+  MAP_API_REVISION_SET(TypeName);              \
+  MAP_API_REVISION_GET(TypeName)
+
 #define MAP_API_REVISION_UNIQUE_ID(TypeName)                          \
   MAP_API_TYPE_ENUM(TypeName, ::map_api::proto::Type::HASH128);       \
   MAP_API_REVISION_SET(TypeName) {                                    \
