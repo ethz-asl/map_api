@@ -260,6 +260,8 @@ And finally, if needed:
 bool success = view.commitChanges();
 ```
 
+If using this interface
+
 ### Triggers
 
 Dmap allows you to attach callbacks to network events:
@@ -301,10 +303,64 @@ Then, they can be fetched from any peer with
 `NetTable::getChunksInBoundingBox()`. Note that this assumes consensus on a
 global frame of reference for the bounding box coordinates.
 
-### Chunk dependencies between NetTables
+### Data dependencies between NetTables
 
+In many cases, you might have dependencies between items from different tables.
+For instance, if some type A points to several items of type B, you might want
+to add a mechanism that ensures that the items pointed to are available,
+especially since dmap does not allow search of individual items in the network
+for scalability reasons. Such dependencies can be comfortably added in dmap
+using *Chunk tracking*. For the above example, we would say that items of A 
+track chunks of B: A is the *tracker type*, B is the *trackee type*.
 
+If the dependency can be resolved only from information in a B item:
+```c++
+// In the cc file of your setup:
+namespace dmap {
+template <>
+TrackerIdType determineTracker<TrackeeType, TrackerType, TrackerIdType>(
+    const TrackeeType& trackee) {
+  // ...
+  return tracker_id;
+}
+template <>
+NetTable* tableForType<typename TrackerType>() {
+  return tracker_table;
+}
+}  // namespace dmap
 
-### Workspaces
+// During setup:
+trackee_table->
+    pushNewChunkIdsToTracker<TrackeeType, TrackerType, TrackerIdType>();
+```
+
+If more transaction-time information is needed:
+```c++
+// During setup:
+trackee_table->
+    pushNewChunkIdsToTracker(tracker_table);
+
+// Before committing the transaction:
+transaction.overrideTrackerIdentificationMethod(trackee_table, tracker_table,
+    [&identification_helpers](const Revision& trackee_revision){
+  // ...
+  return tracker_id;
+});
+```
+
+Either way, the transaction will now push chunk ids of newly created items in
+B to the corresponding items of A before committing the transaction. Note that
+this will update the A items even if they haven't been modified explicitly
+during the transaction.
+
+Tracked chunks can then be fetched, e.g. at the beginning of a transaction:
+
+```c++
+transaction.fetchAllChunksTrackedByItemsInTable(tracker_table);
+// or
+transaction.fetchAllChunksTrackedBy(tracker_id, tracker_table);
+```
 
 ### Auto-merging policies
+
+
