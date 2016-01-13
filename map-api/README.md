@@ -99,7 +99,12 @@ Since the latter doesn't scale well, we recommend to use it for prototyping or
 small-scale applications only. For large-scale applications, we recommend using
 [table triggers](#triggers) or [spatial indices](#spatial-indices).
 
-### Accessing items in replicated chunks
+Your application should ensure that chunks that are created are neither too
+big (takes a long time to transfer) nor too small (too much overhead for
+managing too many chunks). As a rule of thumb, a typical use case should
+involve only a handful of chunks per table.
+
+### Accessing and modifying items in replicated chunks
 
 *Note: If you are interested in developing dmap applications that are easy to
 use, it's a must to check out the chapter on 
@@ -110,7 +115,7 @@ setup.*
 To guarantee consistency and consensus we enforce access to dmap data through
 a specific interface we call a *Transaction*. If you are familiar with git, you
 should be able to get used to Transactions fairly quickly. Here is how to use
-them, assuming we have defined a table as above:
+them, assuming you have defined a table and gained access to chunks as above:
 
 ```c++
 dmap::Transaction transaction;
@@ -153,17 +158,152 @@ altogether. This can be achieved through careful design and
 [automated merging](#auto-merging-policies). You may also consider simply
 accepting commit failures and discarding changes, depending on your application.
 
-### Gaining access to chunks created by other peers
+Note that `insert()` is the only function which requires knowledge about chunks.
+The other functions browse all available chunks for the item in question. You
+can indeed abstract away chunks by using a `ChunkManager` for insertions. This
+class creates a new chunk for insertion whenever the size of the previous chunk
+exceeds a certain threshold.
+
+#### Notes on thread-safety
+
+Access to a single transaction is not thread-safe, you can however use
+multiple transaction within your application to make use of the dmap protocol
+within your application, just as if each transaction were owned by a different
+peer. Special care should be taken when getting access to new chunks: If this
+happens while a transaction is active, this could cause inconsistencies. We
+might ensure that each transaction has a fixed set of chunks it sees in future
+versions of dmap.
 
 ## Advanced concepts
 
 ### Application-defined views
 
+Dmap data access and modification can be abstraced down to only committing with
+application-defined views. The requirement for this is that you can represent
+data of your application in instances of `common::MappedContainerBase`
+from `multiagent-mapping-common/mapped-container-base.h`:
+
+```c++
+class AppData {
+  // ...
+  std::unique_ptr<common::MappedContainerBase<IdType1, DataType1>> container_1_;
+  std::unique_ptr<common::MappedContainerBase<IdType2, DataType2>> container_2_;
+  // ...
+};
+```
+
+Where `IdTypeX` is a strongly typed id type defined with `UNIQUE_ID_DEFINE_ID`
+from `multiagent-mapping-common/unique-id.h`. Note that you will also need to
+define the `std::hash` specialization using `UNIQUE_ID_DEFINE_ID_HASH`.
+
+Also note that at this point, your application does not yet depend on dmap.
+Indeed, you can create a non-distributed version of your app that will run
+faster locally by instantiating the mapped containers with 
+`common::HashMapContainer`, which is an interface to `std::unordered_map`.
+
+In order to "go distributed", you can now consolidate `AppData` and 
+`dmap::Transaction` using `Transaction::createCache`. We recommend doing this
+in a view class as follows:
+
+```c++
+class AppDataView {
+ public:
+  AppDataView() {
+    data_.container_1_.swap(
+        transaction_.createCache<IdType1, DataType1>(table_1));
+    data_.container_2_.swap(
+        transaction_.createCache<IdType2, DataType2>(table_2));
+    // ...
+  }
+  
+  AppData& data() {
+    return data_;
+  }
+  
+  bool commitChanges() {
+    return transaction_.commit();
+  }
+  
+ private:
+  AppData data_;
+  dmap::Transaction transaction_;
+};
+```
+
+For this to work, you will need to specialize 
+`dmap::objectFromRevision(const dmap::Revision&, ObjectType*)`
+and
+`dmap::objectToRevision(const ObjectType&, dmap::Revision*)`. You can find
+helpful macros for doing that in `dmap/app-templates.h`.
+
+Once you have set that up, access and modification reduces to:
+
+```c++
+AppDataView view;
+
+// Insert a data item (note: no need to serialize to protobuf explicitly!):
+IdType insert_id = view.data().container_.insert(some_object);
+
+// Read:
+SomeType some_result = view.data().container_.get(read_id).someConstOperation();
+
+// Update an item:
+view.data().container_.getMutable(update_id).someNonConstOperation();
+
+// Remove an item:
+view.data().container_.erase(remove_id);
+```
+
+And finally, if needed:
+
+```c++
+bool success = view.commitChanges();
+```
+
 ### Triggers
+
+Dmap allows you to attach callbacks to network events:
+
+```c++
+// Triggered after a remote commit:
+chunk->attachTrigger(commit_callback);
+table->attachTriggerToCurrentAndFutureChunks(commit_callback);
+
+// Triggered at chunk aquisition:
+table->attachCallbackToChunkAcquisition(new_chunk_callback);
+
+// Request a specific peer to share all its chunks of a table:
+table->listenToChunksFromPeer(peer_id);
+
+// Subscribe to all new chunks from a table:
+NetTableManager::listenToPeersJoiningTable(table_name);
+```
+
+Evidently, the callbacks will only be triggered for events after the callbacks
+have been specified.
 
 ### Spatial indices
 
+We have seen above how to access chunks from other peers by id. Dmap furthermore
+provides an interface to access chunks using a bounding box query in 3D space.
+A spatial index can be initiated for a table by extending the `TableDescriptor`
+at [table definition](#Defining-NetTables) time:
+
+```c++
+// TODO(tcies) adapt interface to doc
+std::vector<size_t> cell_dimensions_m({10u, 10u, 10u});
+descriptor->setSpatialIndex(cell_dimensions);
+```
+
+Chunks can be associated with a bounding box using 
+`NetTable::registerChunkInSpace()` or `NetTable::registerChunkOfItemInSpace()`.
+Then, they can be fetched from any peer with 
+`NetTable::getChunksInBoundingBox()`. Note that this assumes consensus on a
+global frame of reference for the bounding box coordinates.
+
 ### Chunk dependencies between NetTables
+
+
 
 ### Workspaces
 
