@@ -54,8 +54,8 @@ template <typename TrackeeType, typename TrackerType, typename TrackerIdType>
 std::function<common::Id(const Revision&)>
 NetTable::trackerDeterminerFactory() {
   return [](const Revision& trackee_revision) {  // NOLINT
-    std::shared_ptr<TrackeeType> trackee =
-        objectFromRevision<TrackeeType>(trackee_revision);
+    std::shared_ptr<TrackeeType> trackee;
+    objectFromRevision(trackee_revision, &trackee);
     TrackerIdType typed_tracker_id =
         determineTracker<TrackeeType, TrackerType, TrackerIdType>(*trackee);
     return static_cast<common::Id>(typed_tracker_id);
@@ -80,6 +80,35 @@ void NetTable::followTrackedChunksOfItem(const IdType& item_id,
   common::Id common_id;
   common_id.fromHashId(item_id.toHashId());
   followTrackedChunksOfItem(item_id, tracker_chunk);
+}
+
+template <typename ObjectType>
+void NetTable::addHeterogenousAutoMergePolicySymetrically(
+    const typename AutoMergePolicy<ObjectType>::Type& auto_merge_policy) {
+  addAutoMergePolicy([auto_merge_policy](const Revision& conflicting_revision,
+                                         const Revision& original_revision,
+                                         Revision* revision_at_hand) {
+    CHECK_NOTNULL(revision_at_hand);
+    std::shared_ptr<ObjectType> conflicting_object, original_object,
+        object_at_hand;
+    objectFromRevision(conflicting_revision, &conflicting_object);
+    objectFromRevision(original_revision, &original_object);
+    objectFromRevision(*revision_at_hand, &object_at_hand);
+
+    if (auto_merge_policy(*conflicting_object, *original_object,
+                          object_at_hand.get())) {
+      objectToRevision(object_at_hand, revision_at_hand);
+      return true;
+    }
+
+    if (auto_merge_policy(*object_at_hand, *original_object,
+                          conflicting_object.get())) {
+      objectToRevision(conflicting_object, revision_at_hand);
+      return true;
+    }
+
+    return false;
+  });
 }
 
 }  // namespace map_api

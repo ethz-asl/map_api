@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include <multiagent-mapping-common/reader-writer-lock.h>
+#include <aslam/common/reader-writer-lock.h>
 
 #include "map-api/net-table.h"
 #include "map-api/table-descriptor.h"
@@ -43,6 +43,8 @@ class NetTableManager {
   bool hasTable(const std::string& name) const;
 
   void tableList(std::vector<std::string>* tables) const;
+
+  void printStatistics() const;
 
   void listenToPeersJoiningTable(const std::string& table_name);
 
@@ -142,7 +144,7 @@ class NetTableManager {
   ChunkBase* metatable_chunk_;
 
   TableMap tables_;
-  mutable common::ReaderWriterMutex tables_lock_;
+  mutable aslam::ReaderWriterMutex tables_lock_;
 
   NetTable* metatable_;
 };
