@@ -102,7 +102,9 @@ small-scale applications only. For large-scale applications, we recommend using
 Your application should ensure that chunks that are created are neither too
 big (takes a long time to transfer) nor too small (too much overhead for
 managing too many chunks). As a rule of thumb, a typical use case should
-involve only a handful of chunks per table.
+involve only a handful of chunks per table. When using
+[application-defined views](#application-defined-views), chunk creation is
+hidden from the user.
 
 ### Accessing and modifying items in replicated chunks
 
@@ -178,7 +180,8 @@ versions of dmap.
 
 ### Application-defined views
 
-Dmap data access and modification can be abstraced down to only committing with
+Dmap data access and modification can be simplified down to hash map access and
+committing with
 application-defined views. The requirement for this is that you can represent
 data of your application in instances of `common::MappedContainerBase`
 from `multiagent-mapping-common/mapped-container-base.h`:
@@ -260,7 +263,9 @@ And finally, if needed:
 bool success = view.commitChanges();
 ```
 
-If using this interface
+If using this interface, care should be taken to avoid using `getMutable()` for
+const operations, since `getMutable()` will automatically flag the retrieved
+object as modified, which will lead to an update at commit-time.
 
 ### Triggers
 
@@ -357,10 +362,55 @@ Tracked chunks can then be fetched, e.g. at the beginning of a transaction:
 
 ```c++
 transaction.fetchAllChunksTrackedByItemsInTable(tracker_table);
-// or
+// or, for individual items:
 transaction.fetchAllChunksTrackedBy(tracker_id, tracker_table);
 ```
 
 ### Auto-merging policies
 
+As mentioned above, commit conflicts should be generally avoided by design.
+However, for situations where they can't be avoided, it's possible to specify
+auto-merging policies. 
 
+For instance, if an item contains some list that peers can add list-items to, a
+commit conflict would ensue if two peers would add different items at the same
+time. However, it could make sense in an application to not treat this as a
+conflict, but to instead just consolidate both additions (in fact, this is
+automatically done for [chunk tracking](#Data-dependencies-between-NetTables)).
+
+For this example, adding such a merge policy would be achieved using the
+following code (assuming `objectFromRevision()`, `objectToRevision()`, 
+`getObjectDiff()` and `applyObjectDiff()` are specialized for the item class in
+question):
+
+```c++
+// In the setup cc file:
+bool autoMergeList(const ItemDiff& conflicting_diff, ItemDiff* diff_at_hand) {
+  CHECK_NOTNULL(diff_at_hand);
+  
+  if (!conflicting_diff.onlyListHasChanged() || 
+      !diff_at_hand->onlyListHasChanged()) {
+    return false;
+  }
+  
+  const ListDiff conflicting_list_diff = conflicting_diff.getListDiff();
+  ListDiff list_diff_at_hand = diff_at_hand->getListDiff();
+  
+  // Make auto-merge fail if removals are present.
+  if (conflicting_list_diff.containsRemovals() || 
+      list_diff_at_hand.containsRemovals()) {
+    return false;
+  }
+  
+  list_diff_at_hand.consolidate(conflicting_list_diff);
+  diff_at_hand->setListDiff(list_diff_at_hand);
+  return true;
+}
+
+// During setup:
+// TODO(tcies) adapt interface to template on object type.
+table->addAutoMergePolicy(autoMergeList);
+```
+
+Note that several policies can be specified per table. Auto-merging will try
+them all until one succeeds.
