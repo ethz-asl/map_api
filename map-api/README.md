@@ -12,6 +12,10 @@ If you use dmap in your academic work, please cite:
 
 ## How to use dmap
 
+We provide the following UML diagram for reference throughout this documentation:
+
+![uml](https://raw.githubusercontent.com/ethz-asl/multiagent_mapping/feature/dmap-simplification/map-api/doc/dmap_uml.png?token=AD9KVE7sy34ge5ggJd-x0sl0q_pf0_vrks5WoL2KwA%3D%3D)
+
 Essentially, dmap provides a collection of distributed containers called 
 *NetTables*, where each NetTable contains several id-referenced serialized items
 of a user-defined type. These items can be shared with remote processes in a
@@ -31,8 +35,6 @@ NetTableManager  # Singleton. Manages access to and creation of NetTables.
 Chunks are collections of items that are always shared together. A peer can
 either have access to a chunk by replicating it entirely, or not have access to
 it at all.
-
-ADD A GRAPHIC REPRESENTING MULTIPLE PEERS
 
 We will now discuss how to define NetTables for custom types. We will then
 discuss the interface by which items that are available in replicated chunks are
