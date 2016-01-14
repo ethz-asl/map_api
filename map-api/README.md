@@ -10,205 +10,209 @@ If you use dmap in your academic work, please cite:
 }
 ```
 
+Dmap provides a way to share data containers with other agents, while 
+guaranteeing consensus on the state of the data and guaranteeing that the data
+can be viewed at a consistent state without blocking other agents from
+modifying the data concurrently. It also has some other neat features.
+
+For sake of example, let's assume you have a pose-graph class like this:
+
+```c++
+class PoseGraph {
+ public:
+  void buildFromEstimatorOutput();
+  void optimize();
+  void useForLocalization();
+  
+ private:
+  std::unordered_map<VertexId, Vertex> vertices_;
+  std::unordered_map<EdgeId, Edge> edges_;
+}
+```
+
+Then dmap allows you to go from single-agent code like this:
+
+```c++
+PoseGraph pose_graph;
+pose_graph.buildFromEstimatorOutput();
+pose_graph.optimize();
+// later...
+pose_graph.useForLocalization();
+```
+
+to multi-agent code like this:
+
+```c++
+// On agent 1:
+PoseGraphView pose_graph_view;
+pose_graph_view.pose_graph().buildFromEstimatorOutput()
+pose_graph_view.commit();
+
+// On agent 2:
+fetchDataFromOtherAgents();
+PoseGraphView pose_graph_view;
+pose_graph_view.pose_graph().optimize()
+pose_graph_view.commit();
+
+// On agent 3:
+fetchDataFromOtherAgents();
+PoseGraphView pose_graph_view;
+pose_graph_view.pose_graph().useForLocalization()
+```
+
+Better still, like this:
+
+```c++
+// Agent 1: Same as above.
+
+// Agent 2:
+createCallBackForWhenNewDataArrives([](){
+  PoseGraphView pose_graph_view;
+  pose_graph_view.pose_graph().optimize();
+  pose_graph_view.commit();
+});
+
+// Agent 3:
+createCallBackForWhenDataIsModified([](){
+  PoseGraphView pose_graph_view;
+  pose_graph_view.pose_graph().useOptimizedPartForLocalization();
+});
+```
+
+This can then scale to arbitrary numbers of peers (independently whether those
+peers are pose-graph producers or consumers). All the data is available to all
+the agents (there are ways to discover data based on location), even though no
+agent is forced to keep data it doesn't want to (thus technically enabling
+distribution of very-large scale maps on many peers). Furthermore, all the data
+is synchronized in a fashion very similar to git. Finally, all of this works 
+without a central entity.
+
 ## How to use dmap
 
 We provide the following UML diagram for reference throughout this documentation:
 
 ![uml](https://raw.githubusercontent.com/ethz-asl/multiagent_mapping/feature/dmap-simplification/map-api/doc/dmap_uml.png?token=AD9KVE7sy34ge5ggJd-x0sl0q_pf0_vrks5WoL2KwA%3D%3D)
 
-Essentially, dmap provides a collection of distributed containers called 
-*NetTables*, where each NetTable contains several id-referenced serialized items
-of a user-defined type. These items can be shared with remote processes in a
-decentralized version control scheme.
-
-The hierarchical data structure is as follows, where each object contains
-multiple objects of the class below:
-
-```bash
-NetTableManager  # Singleton. Manages access to and creation of NetTables.
-  NetTable       # Explained above. A NetTable can only store items of one type.
-    Chunk        # A collection of items that are shared together.
-      Item       # An item representation that contains its history.
-        Revision # A version of the item within its history.
-```
-
-Chunks are collections of items that are always shared together. A peer can
-either have access to a chunk by replicating it entirely, or not have access to
-it at all.
-
-We will now discuss how to define NetTables for custom types. We will then
-discuss the interface by which items that are available in replicated chunks are
-accessed. The interface guarantees:
-
-* Consensus among peers on the state of the chunk items.
-* Minimal block times on accesses through optimistic concurrency control.
-* A consistent view of items across NetTables, even though items can be modified at all times.
-
-At the same time the interface hides all the logic and protocol that are 
-necessary to make these guarantees.
-
-Finally, we will discuss how a peer can gain access to chunks that it doesn't
-currently replicate.
-
-### Defining NetTables
-
-To define dmap NetTables for your types, you need to specify how your type can
-be serialized into a dmap Revision. While there are many ways to do this, we
-recommend to specify a Google Protocol Buffer (protobuf) serialization. 
-With a protobuf type, you can simply define a table with the following code:
+In order to make use of dmap, your application should express its data, let's
+call it AppData, in terms of associative containers with ids as keys:
 
 ```c++
-// TODO(tcies) un-sharedptr, static functions of NetTableManager?
-// TODO(tcies) one-liner for single-field tables?
-std::shared_ptr<dmap::TableDescriptor> descriptor;
-descriptor->setName("table_name");
-descriptor->addField<ProtobufType>(0);
-dmap::NetTable* table = dmap::NetTableManager::instance().addTable(descriptor);
+class AppData {
+  // ...
+  std::unordered_map<IdType1, DataType1> container_1_;
+  std::unordered_map<IdType2, DataType2> container_2_;
+  // etc ...
+};
 ```
 
-Alternatively, you can define types composed of multiple sub-types:
-```c++
-enum Fields {
-  kName, kIndex, kValue
-}
-descriptor->addField<std::string>(kName);
-descriptor->addField<uint64_t>(kIndex);
-descriptor->addField<double>(kValue);
-```
-
-As you add a table through the NetTableManager, dmap verifies that your
-table description corresponds to table descriptions of the same table (
-identified by the name) on other peers. To scale, you should pick names that
-contain your package name / workspace.
-
-### Creating chunks or getting access to chunks created by other peers
-
-You can create chunks:
-```c++
-common::Id chunk_id;  // TODO(tcies) Type strongly?
-dmap::ChunkBase* chunk = table->newChunk(&chunk_id);  // Id is optional.
-```
-Access chunks by id (starting to replicate them if not doing so yet):
-```c++
-dmap::ChunkBase* chunk = table->getChunk(chunk_id);
-```
-Or simply access all chunks available on all peers:
-```c++
-table->replicateAllChunksInTheNetwork(chunk_id);  // TODO(tcies) implement.
-```
-
-Since the latter doesn't scale well, we recommend to use it for prototyping or
-small-scale applications only. For large-scale applications, we recommend using
-[table triggers](#triggers) or [spatial indices](#spatial-indices).
-
-Your application should ensure that chunks that are created are neither too
-big (takes a long time to transfer) nor too small (too much overhead for
-managing too many chunks). As a rule of thumb, a typical use case should
-involve only a handful of chunks per table. When using
-[application-defined views](#application-defined-views), chunk creation is
-hidden from the user.
-
-### Accessing and modifying items in replicated chunks
-
-*Note: If you are interested in developing dmap applications that are easy to
-use, it's a must to check out the chapter on 
-[application-defined views](#application-defined-views) after this one.
-They significantly simplify the interface presented here but require additional
-setup.*
-
-To guarantee consistency and consensus we enforce access to dmap data through
-a specific interface we call a *Transaction*. If you are familiar with git, you
-should be able to get used to Transactions fairly quickly. Here is how to use
-them, assuming you have defined a table and gained access to chunks as above:
+However, instead of using unordered maps, you will need to use 
+`common::MappedContainerBase`s and instead of using arbitrary id types, you will
+need to use id types derived from `common::Id`:
 
 ```c++
-dmap::Transaction transaction;
+#include <multiagent-mapping-common/mapped-container-base.h>
+#include <multiagent-mapping-common/unique-id.h>
 
-// Insert a Protocol Buffer:
-std::shared_ptr<Revision> insert_revision = table->getTemplate();
-revision->set(0, protobuf);
-IdType insert_id = transaction.insert<IdType>(table, chunk, revision);  // TODO(tcies) fix interface
+UNIQUE_ID_DEFINE_ID(IdType1);
+UNIQUE_ID_DEFINE_ID(IdType2);
 
-// Read protobuf with id read_id:
-std::shared_ptr<const Revision> read_revision = 
-    transaction.getById(read_id, table);
-ProtoType protobuf;
-read_revision->get(0, &protobuf);
-// TODO(tcies) We could so move away from shared pointers...
-
-// Update an item:
-std::shared_ptr<Revision> update_revision = read_revision.copyForWrite();
-update_revision->set(0, updated_protobuf);
-transaction.update(table, update_revision);
-
-// Remove an item:
-std::shared_ptr<Revision> remove_revision = read_revision.copyForWrite();
-transaction.remove(table, remove_revision);
-// Yes this is all very ugly.
-```
-
-Insertions, updates and removals don't get applied immediately; instead, you
-need to commit your changes:
-
-```c++
-bool success = transaction.commit();
-```
-
-A commit can fail if items that you update or remove have also been updated or
-removed by other peers during the scope of your transaction. If this is the
-case, you are in trouble. While we exhibit an interface to "manually" merge
-conflicts, which we won't document here, we recommend to avoid conflicts
-altogether. This can be achieved through careful design and 
-[automated merging](#auto-merging-policies). You may also consider simply
-accepting commit failures and discarding changes, depending on your application.
-
-Note that `insert()` is the only function which requires knowledge about chunks.
-The other functions browse all available chunks for the item in question. You
-can indeed abstract away chunks by using a `ChunkManager` for insertions. This
-class creates a new chunk for insertion whenever the size of the previous chunk
-exceeds a certain threshold.
-
-#### Notes on thread-safety
-
-Access to a single transaction is not thread-safe, you can however use
-multiple transaction within your application to make use of the dmap protocol
-within your application, just as if each transaction were owned by a different
-peer. Special care should be taken when getting access to new chunks: If this
-happens while a transaction is active, this could cause inconsistencies. We
-might ensure that each transaction has a fixed set of chunks it sees in future
-versions of dmap.
-
-## Advanced concepts
-
-### Application-defined views
-
-Dmap data access and modification can be simplified down to hash map access and
-committing with
-application-defined views. The requirement for this is that you can represent
-data of your application in instances of `common::MappedContainerBase`
-from `multiagent-mapping-common/mapped-container-base.h`:
-
-```c++
 class AppData {
   // ...
   std::unique_ptr<common::MappedContainerBase<IdType1, DataType1>> container_1_;
   std::unique_ptr<common::MappedContainerBase<IdType2, DataType2>> container_2_;
   // ...
 };
+
+// Outside of any namespace:
+UNIQUE_ID_DEFINE_ID_HASH(IdType1);
+UNIQUE_ID_DEFINE_ID_HASH(IdType2);
 ```
 
-Where `IdTypeX` is a strongly typed id type defined with `UNIQUE_ID_DEFINE_ID`
-from `multiagent-mapping-common/unique-id.h`. Note that you will also need to
-define the `std::hash` specialization using `UNIQUE_ID_DEFINE_ID_HASH`.
+While you can techincally just use `common::Id`s, we strongly recommend using
+strongly typed ids as provided by the above macros, as this will make it harder
+to make silly errors like passing the wrong id to functions.
 
-Also note that at this point, your application does not yet depend on dmap.
-Indeed, you can create a non-distributed version of your app that will run
-faster locally by instantiating the mapped containers with 
-`common::HashMapContainer`, which is an interface to `std::unordered_map`.
+At this point, you can continue to have a dmap-free version of your basic app,
+by instantiating the `common::MappedContainerBase`s with 
+`common::HashMapContainer`s, which are defined in the same header. The latter
+are essentially unordered maps. This allows you to easily switch between using
+and not using dmap, the latter of course being significantly faster.
 
-In order to "go distributed", you can now consolidate `AppData` and 
-`dmap::Transaction` using `Transaction::createCache`. We recommend doing this
-in a view class as follows:
+Now you will first need to [define how your data types can be translated into 
+the dmap-internal data representation](#Defining-type-to-revision-translations),
+`dmap::Revision`s. Then, we recommend you 
+[define a view class](#defining-view-classes) that will allow you to check out
+and commit the distributed map state like in the examples above.
+
+### Defining type-to-revision translations
+
+Depending on your type, you can choose to translate it into a protobuf or a
+composite revision. Protobuf revisions contain a single serialization string
+from an intermediate Google Protocol Buffer step. Composite revisions are like
+structs and can be composed of the types listed at the bottom of 
+`dmap/revision-inl.h`.
+We recommend to translate into protobuf revisions per default, and use
+composite revisions for special cases only.
+
+First, you will need to specialize 
+`dmap::objectFromRevision(const dmap::Revision&, ObjectType*)`
+and
+`dmap::objectToRevision(const ObjectType&, dmap::Revision*)` for your type. 
+
+If you go for protobuf revisions you can simply use the corresponding macro from 
+`dmap/app-templates.h`. Consult the macro expansion for the expected Protocol
+Buffer serialization and deserialization signatures.
+
+Otherwise, if you prefer composite revisions, your specializations should look
+similar to the following example:
+
+```c++
+enum Fields {
+  kIndex, kName, kValue
+};
+
+template<>
+dmap::objectFromRevision(const dmap::Revision& revision, DataType* object) {
+  revision.get(kIndex, &object->index);
+  revision.get(kName, &object->name);
+  revision.get(kValue, &object->value);
+}
+
+template<>
+dmap::objectToRevision(const DataType& object, dmap::Revision* revision) {
+  revision->set(kIndex, object.index);
+  revision->set(kName, object.name);
+  revision->set(kValue, object.value);
+}
+```
+
+Additionally to specializing these translations, you will need to initialize the
+dmap-internal containers while you initialize your application. These containers
+all called `dmap::NetTable`s.
+
+For protobuf revisions, this is as simple as:
+
+```c++
+// TODO(tcies) un-sharedptr, static functions of NetTableManager?
+std::shared_ptr<dmap::TableDescriptor> descriptor<ProtobufType>("table_name");
+dmap::NetTable* table = dmap::NetTableManager::instance().addTable(descriptor);
+```
+
+For composite revisions, you need to declare the individual fields:
+```c++
+std::shared_ptr<dmap::TableDescriptor> descriptor;
+descriptor->setName("table_name");
+descriptor->addField<std::string>(kName);
+descriptor->addField<uint64_t>(kIndex);
+descriptor->addField<double>(kValue);
+dmap::NetTable* table = dmap::NetTableManager::instance().addTable(descriptor);
+```
+
+As you add a table through the NetTableManager, dmap verifies that your
+table description corresponds to table descriptions of the same table (
+identified by the name) on other agents.
+
+### Defining view classes
 
 ```c++
 class AppDataView {
@@ -235,11 +239,7 @@ class AppDataView {
 };
 ```
 
-For this to work, you will need to specialize 
-`dmap::objectFromRevision(const dmap::Revision&, ObjectType*)`
-and
-`dmap::objectToRevision(const ObjectType&, dmap::Revision*)`. You can find
-helpful macros for doing that in `dmap/app-templates.h`.
+### The resulting interface
 
 Once you have set that up, access and modification reduces to:
 
@@ -268,6 +268,71 @@ bool success = view.commitChanges();
 If using this interface, care should be taken to avoid using `getMutable()` for
 const operations, since `getMutable()` will automatically flag the retrieved
 object as modified, which will lead to an update at commit-time.
+
+
+A commit can fail if items that you update or remove have also been updated or
+removed by other peers during the scope of your transaction. If this is the
+case, you are in trouble. While we exhibit an interface to "manually" merge
+conflicts, which we won't document here, we recommend to avoid conflicts
+altogether. This can be achieved through careful design and 
+[automated merging](#auto-merging-policies). You may also consider simply
+accepting commit failures and discarding changes, depending on your application.
+
+Note that `insert()` is the only function which requires knowledge about chunks.
+The other functions browse all available chunks for the item in question. You
+can indeed abstract away chunks by using a `ChunkManager` for insertions. This
+class creates a new chunk for insertion whenever the size of the previous chunk
+exceeds a certain threshold.
+
+### Getting access to data created by other agents
+
+At this point in the documentation, there is a choice for you. To quote 
+Morpheus:
+
+*This is your last chance. After this, there is no turning back. You don't learn
+about chunks -- the story ends, you wake up in your bed and can use dmap for
+small-scale applications. You learn about chunks -- you stay in Wonderland and I
+show you how dmap was designed to scale to arbitrary size.*
+
+
+
+You can create chunks:
+```c++
+common::Id chunk_id;  // TODO(tcies) Type strongly?
+dmap::ChunkBase* chunk = table->newChunk(&chunk_id);  // Id is optional.
+```
+Access chunks by id (starting to replicate them if not doing so yet):
+```c++
+dmap::ChunkBase* chunk = table->getChunk(chunk_id);
+```
+Or simply access all chunks available on all peers:
+```c++
+table->replicateAllChunksInTheNetwork(chunk_id);  // TODO(tcies) implement.
+```
+
+Since the latter doesn't scale well, we recommend to use it for prototyping or
+small-scale applications only. For large-scale applications, we recommend using
+[table triggers](#triggers) or [spatial indices](#spatial-indices).
+
+Your application should ensure that chunks that are created are neither too
+big (takes a long time to transfer) nor too small (too much overhead for
+managing too many chunks). As a rule of thumb, a typical use case should
+involve only a handful of chunks per table. When using
+[application-defined views](#application-defined-views), chunk creation is
+hidden from the user.
+
+#### Notes on thread-safety
+
+Access to a single transaction is not thread-safe, you can however use
+multiple transaction within your application to make use of the dmap protocol
+within your application, just as if each transaction were owned by a different
+peer. Special care should be taken when getting access to new chunks: If this
+happens while a transaction is active, this could cause inconsistencies. We
+might ensure that each transaction has a fixed set of chunks it sees in future
+versions of dmap.
+
+
+## Advanced concepts
 
 ### Triggers
 
