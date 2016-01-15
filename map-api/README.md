@@ -186,6 +186,8 @@ dmap::objectToRevision(const DataType& object, dmap::Revision* revision) {
 }
 ```
 
+#### Defining NetTables
+
 Additionally to specializing these translations, you will need to initialize the
 dmap-internal containers while you initialize your application. These containers
 all called `dmap::NetTable`s.
@@ -214,6 +216,23 @@ identified by the name) on other agents.
 
 ### Defining view classes
 
+Access to the dmap data structure is provided through so-called transactions.
+This access protocol guarantees two things:
+
+1. It ensures that all the data, as seen by the agent, is consistent, even if
+the data can change at any time due to activity by other agents. This is
+achieved by defining a view time: Changes applied to the data after this time
+will not be seen by the transaction instance.
+2. It ensures that changes applied by the agent will either be seen by other
+agents all at the same time or not at all.
+
+This protocol is very similar to git, where you check out a commit and will not
+see changes applied by your colleagues in the meantime until you check out a
+newer commit.
+
+In order to integrate dmap into your application with the least effort, we 
+recommend defining a class analogous to the following `AppDataView`:
+
 ```c++
 class AppDataView {
  public:
@@ -239,36 +258,24 @@ class AppDataView {
 };
 ```
 
-### The resulting interface
+By instantiating the `AppData` `common::MappedContainerBase`s with 
+`dmap::ThreadsafeCache`s, the `data_` member will now represent the state of
+the shared data as it is at construction time of the `transaction_` member.
 
-Once you have set that up, access and modification reduces to:
+### Things to consider when using dmap to modify shared map data
 
-```c++
-AppDataView view;
+#### Generally
 
-// Insert a data item (note: no need to serialize to protobuf explicitly!):
-IdType insert_id = view.data().container_.insert(some_object);
+* Opening a transaction does not incur network traffic, and is generally not 
+expensive.
+* `MappedContainerBase::getMutable()` should only be used in order to modify
+data, since every item thus accessed will be sent over the network at
+commit-time.
+* Transactions can be committed multiple times. This can be used to keep the
+shared data up to date when necessary. However, the view time will remain the
+same.
 
-// Read:
-SomeType some_result = view.data().container_.get(read_id).someConstOperation();
-
-// Update an item:
-view.data().container_.getMutable(update_id).someNonConstOperation();
-
-// Remove an item:
-view.data().container_.erase(remove_id);
-```
-
-And finally, if needed:
-
-```c++
-bool success = view.commitChanges();
-```
-
-If using this interface, care should be taken to avoid using `getMutable()` for
-const operations, since `getMutable()` will automatically flag the retrieved
-object as modified, which will lead to an update at commit-time.
-
+#### Commit failures
 
 A commit can fail if items that you update or remove have also been updated or
 removed by other peers during the scope of your transaction. If this is the
@@ -278,59 +285,59 @@ altogether. This can be achieved through careful design and
 [automated merging](#auto-merging-policies). You may also consider simply
 accepting commit failures and discarding changes, depending on your application.
 
-Note that `insert()` is the only function which requires knowledge about chunks.
-The other functions browse all available chunks for the item in question. You
-can indeed abstract away chunks by using a `ChunkManager` for insertions. This
-class creates a new chunk for insertion whenever the size of the previous chunk
-exceeds a certain threshold.
-
 ### Getting access to data created by other agents
 
-At this point in the documentation, there is a choice for you. To quote 
-Morpheus:
+Up until now we have made the assumption that the data we are intersted in is
+present on the agent at hand. This, however, is per default not the case for
+data that has been created by other agents. In order to scale, a design decision
+that has been made for dmap is that an agent shall only keep the data it is
+explicitly interested in.
+
+To that end, dmap organizes data in so-called chunks. At this point in the
+documentation, there is a choice for you. To quote Morpheus:
 
 *This is your last chance. After this, there is no turning back. You don't learn
 about chunks -- the story ends, you wake up in your bed and can use dmap for
 small-scale applications. You learn about chunks -- you stay in Wonderland and I
 show you how dmap was designed to scale to arbitrary size.*
 
+#### If you choose not to learn about chunks:
 
+All you need to know is how to grab all the data from the network:
 
-You can create chunks:
-```c++
-common::Id chunk_id;  // TODO(tcies) Type strongly?
-dmap::ChunkBase* chunk = table->newChunk(&chunk_id);  // Id is optional.
-```
-Access chunks by id (starting to replicate them if not doing so yet):
-```c++
-dmap::ChunkBase* chunk = table->getChunk(chunk_id);
-```
-Or simply access all chunks available on all peers:
 ```c++
 table->replicateAllChunksInTheNetwork(chunk_id);  // TODO(tcies) implement.
 ```
 
-Since the latter doesn't scale well, we recommend to use it for prototyping or
-small-scale applications only. For large-scale applications, we recommend using
-[table triggers](#triggers) or [spatial indices](#spatial-indices).
+#### If you choose to learn about chunks:
 
-Your application should ensure that chunks that are created are neither too
-big (takes a long time to transfer) nor too small (too much overhead for
-managing too many chunks). As a rule of thumb, a typical use case should
-involve only a handful of chunks per table. When using
-[application-defined views](#application-defined-views), chunk creation is
-hidden from the user.
+Chunks are groups of data from the same container that an agent can either have
+access to entirely, or not at all. Each chunk runs a consensus protocol which
+ensures that the most up-to-date shared state of the contained data is
+replicated on all agents. The reason for not sharing items individually
+is that there is overhead involved in the consensus protocol, and having more
+items in the same consensus group is less expensive.
 
-#### Notes on thread-safety
+Hence, the chunk size represents a middle ground between reducing the consensus
+protocol overhead and not forcing agents to maintain data that they are not
+interested in. When using a `dmap::ThreadsafeCache`, chunks are created
+automatically as new data is inserted: Chunks are filled up to a certain size,
+at which a new chunk is initialized for subsequent insertions.
 
-Access to a single transaction is not thread-safe, you can however use
-multiple transaction within your application to make use of the dmap protocol
-within your application, just as if each transaction were owned by a different
-peer. Special care should be taken when getting access to new chunks: If this
-happens while a transaction is active, this could cause inconsistencies. We
-might ensure that each transaction has a fixed set of chunks it sees in future
-versions of dmap.
+Each chunk has an id and if an id of a chunk is known it can be retrieved as
+follows:
 
+```c++
+table->getChunk(chunk_id);
+```
+
+The problem is that for many use cases, the chunk-ids are not known in advance.
+Hence, dmap provides interfaces to 
+[listen to new chunks from the entire network or specific peers](#triggers), 
+as well as to [perform queries in 3d space](#spatial-indices).
+
+Also, note that dmap provides an interface to
+[track data dependencies between tables](#data-dependencies-between-nettables).
 
 ## Advanced concepts
 
