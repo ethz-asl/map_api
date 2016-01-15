@@ -91,12 +91,6 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
     object_metadata.metadata->getTrackedChunks(CHECK_NOTNULL(result));
   }
 
-  // Unfortunately, since this depends on the Id type, it can't be a virtual
-  // function of ChunkBase.
-  bool hadBeenUpdatedBeforeThisTransaction(const IdType& id) const {
-    const ObjectAndMetadata<ObjectType>& cached = cache_.get(id);
-    return cached.metadata->hasBeenUpdated();
-}
 
   // Add a function to determine whether updates should be applied back to the
   // cache (true = will be applied).
