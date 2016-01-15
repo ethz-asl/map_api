@@ -10,10 +10,27 @@ If you use dmap in your academic work, please cite:
 }
 ```
 
-Dmap provides a way to share data containers with other agents, while 
-guaranteeing consensus on the state of the data and guaranteeing that the data
-can be viewed at a consistent state without blocking other agents from
-modifying the data concurrently. It also has some other neat features.
+## How to use dmap
+
+This manual is aimed at the reader who is inerested in 
+*implementing or extending* a library that uses dmap as a framework for sharing
+data between agents.
+
+If you are just using such a library, all that might be useful to you in this
+document can be found in 
+[this section](#Things-to-consider-when-using-dmap-to-modify-shared-map-data).
+
+If you want to understand how dmap works, this manual might be an interesting
+starting point before reading the paper.
+
+### Motivation
+
+In a nutshell, dmap is to multi-agent mapping agents what (git + github) is to
+code collaborators, except that it's fully peer-to-peer and doesn't force agents
+to replicate data they are not interested in (and doesn't have branches or
+commit messages).
+It has some additional features useful for multi-agent mapping like 3d querying
+and event callbacks.
 
 For sake of example, let's assume you have a pose-graph class like this:
 
@@ -87,14 +104,15 @@ distribution of very-large scale maps on many peers). Furthermore, all the data
 is synchronized in a fashion very similar to git. Finally, all of this works 
 without a central entity.
 
-## How to use dmap
+### Data structure
 
 We provide the following UML diagram for reference throughout this documentation:
 
 ![uml](https://raw.githubusercontent.com/ethz-asl/multiagent_mapping/feature/dmap-simplification/map-api/doc/dmap_uml.png?token=AD9KVE7sy34ge5ggJd-x0sl0q_pf0_vrks5WoL2KwA%3D%3D)
 
 In order to make use of dmap, your application should express its data, let's
-call it AppData, in terms of associative containers with ids as keys:
+call it AppData, in terms of **singleton** associative containers with ids as
+keys:
 
 ```c++
 class AppData {
@@ -136,7 +154,7 @@ At this point, you can continue to have a dmap-free version of your basic app,
 by instantiating the `common::MappedContainerBase`s with 
 `common::HashMapContainer`s, which are defined in the same header. The latter
 are essentially unordered maps. This allows you to easily switch between using
-and not using dmap, the latter of course being significantly faster.
+and not using dmap, the latter of course being faster in a single-agent setting.
 
 Now you will first need to [define how your data types can be translated into 
 the dmap-internal data representation](#Defining-type-to-revision-translations),
