@@ -24,7 +24,7 @@ class CombinedView : public ViewBase {
   virtual void discardKnownUpdates(UpdateTimes* update_times) const override;
 
  private:
-  // Because the complete view can be swapped out.
+  // Using unique_ptr because the complete view can be swapped out.
   const std::unique_ptr<ViewBase>& complete_view_;
   const OverridingViewBase& override_view_;
 };

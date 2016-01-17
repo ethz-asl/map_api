@@ -107,8 +107,9 @@ class Transaction {
   // ======================
   bool commit();
   // Blocks until checks are performed, but does not block on network
-  // transmission. Since this will finalize the sub-transaction, parallel
-  // commit can't currently be combined with multi-commit.
+  // transmission. Parallel commit can't currently be combined with
+  // multi-commit. Commit futures assume that the transactions they have been
+  // created from don't change any more.
   bool commitInParallel(CommitFutureTree* future_tree);
   void joinParallelCommitIfRunning();
   inline LogicalTime getCommitTime() const { return commit_time_; }

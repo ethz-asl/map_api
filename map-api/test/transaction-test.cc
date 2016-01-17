@@ -96,12 +96,13 @@ TEST_F(TransactionTest, TandemCommit) {
     insert(1, &inserted_id_1, &dependee);
     Transaction::CommitFutureTree commit_futures;
     ASSERT_TRUE(dependee.commitInParallel(&commit_futures));
-    // Does finalization work?
+    // Does finalization work? If so, this should check-fail.
     ASSERT_DEATH(update(2, inserted_id_1, &dependee), "^");
 
     Transaction depender(commit_futures);
     EXPECT_TRUE(static_cast<bool>(depender.getById(inserted_id_1, table_)));
     insert(2, &inserted_id_2, &depender);
+    // Should check-fail until parallel commit is joined.
     ASSERT_DEATH(depender.commit(), "^");
 
     // TODO(tcies) Automate depender commit?

@@ -353,7 +353,8 @@ void Transaction::commitImpl(const bool finalize_after_check,
                              std::promise<bool>* will_commit_succeed) {
   CHECK_NOTNULL(will_commit_succeed);
   if (FLAGS_blame_commit) {
-    LOG(INFO) << "Transaction committed from:\n" << common::backtrace();
+    LOG(INFO) << "Transaction committed from:" << std::endl
+              << common::backtrace();
   }
   for (const CacheMap::value_type& cache_pair : caches_) {
     if (FLAGS_cache_blame_dirty || FLAGS_cache_blame_insert) {
@@ -389,14 +390,13 @@ void Transaction::commitImpl(const bool finalize_after_check,
 
   if (finalize_after_check) {
     finalize();
-    LOG(INFO) << "Finalized!";
   }
 
   commit_time_ = LogicalTime::sample();
   // Promise must happen after setting commit_time_, since the begin time of the
   // subsequent transaction must be after the commit time.
   will_commit_succeed->set_value(true);
-  VLOG(3) << "Commit from " << begin_time_ << " to " << commit_time_;
+  VLOG(4) << "Commit from " << begin_time_ << " to " << commit_time_;
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->checkedCommit(commit_time_);
     net_table_transaction.second->unlock();
