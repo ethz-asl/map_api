@@ -7,7 +7,8 @@ namespace internal {
 
 CommitFuture::CommitFuture(
     const ChunkTransaction& finalized_committing_transaction) {
-  CHECK(finalized_committing_transaction.finalized_);
+  CHECK(finalized_committing_transaction.finalized_)
+      << "Base transaction of commit future must be finalized.";
   const DeltaView& finalized_delta = finalized_committing_transaction.delta_;
   std::unique_ptr<ViewBase> current_view(new ChunkView(
       *finalized_committing_transaction.chunk_, LogicalTime::sample()));
