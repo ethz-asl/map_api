@@ -188,7 +188,8 @@ class Transaction {
   ThreadsafeCache<IdType, ObjectType>* getMutableCache(NetTable* table);
 
   void commitImpl(const bool finalize_after_check,
-                  std::promise<bool>* will_commit_succeed);
+                  std::promise<bool>* will_commit_succeed,
+                  CommitFutureTree* future_tree);
   void finalize();
 
   /**

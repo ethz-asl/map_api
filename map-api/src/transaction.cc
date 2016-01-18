@@ -138,14 +138,14 @@ void Transaction::remove(NetTable* table, std::shared_ptr<Revision> revision) {
 // (resource hierarchy solution)
 bool Transaction::commit() {
   std::promise<bool> will_commit_succeed;
-  commitImpl(false, &will_commit_succeed);
+  commitImpl(false, &will_commit_succeed, nullptr);
   return will_commit_succeed.get_future().get();
 }
 
 bool Transaction::commitInParallel(CommitFutureTree* future_tree) {
   CHECK_NOTNULL(future_tree);
   std::promise<bool> will_commit_succeed;
-  std::thread([this, &will_commit_succeed]() {
+  std::thread([this, &will_commit_succeed, future_tree]() {
                 {
                   std::lock_guard<std::mutex> lock(
                       m_is_parallel_commit_running_);
@@ -153,7 +153,7 @@ bool Transaction::commitInParallel(CommitFutureTree* future_tree) {
                   is_parallel_commit_running_ = true;
                   cv_is_parallel_commit_running_.notify_all();
     }
-    commitImpl(true, &will_commit_succeed);
+    commitImpl(true, &will_commit_succeed, future_tree);
     CHECK(finalized_);
     {
       std::lock_guard<std::mutex> lock(m_is_parallel_commit_running_);
@@ -161,16 +161,7 @@ bool Transaction::commitInParallel(CommitFutureTree* future_tree) {
       cv_is_parallel_commit_running_.notify_all();
     }
               }).detach();
-  if (will_commit_succeed.get_future().get()) {
-    for (const TransactionPair& table_transaction : net_table_transactions_) {
-      NetTableTransaction::CommitFutureTree& subtree =
-          (*future_tree)[table_transaction.first];
-      table_transaction.second->buildCommitFutureTree(&subtree);
-    }
-    return true;
-  } else {
-    return false;
-  }
+  return will_commit_succeed.get_future().get();
 }
 
 void Transaction::joinParallelCommitIfRunning() {
@@ -350,7 +341,8 @@ void Transaction::pushNewChunkIdsToTrackers() {
 }
 
 void Transaction::commitImpl(const bool finalize_after_check,
-                             std::promise<bool>* will_commit_succeed) {
+                             std::promise<bool>* will_commit_succeed,
+                             CommitFutureTree* future_tree) {
   CHECK_NOTNULL(will_commit_succeed);
   if (FLAGS_blame_commit) {
     LOG(INFO) << "Transaction committed from:" << std::endl
@@ -390,6 +382,12 @@ void Transaction::commitImpl(const bool finalize_after_check,
 
   if (finalize_after_check) {
     finalize();
+  }
+  if (future_tree) {
+    for (const TransactionPair& table_transaction : net_table_transactions_) {
+      table_transaction.second->buildCommitFutureTree(
+          &(*future_tree)[table_transaction.first]);
+    }
   }
 
   commit_time_ = LogicalTime::sample();

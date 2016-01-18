@@ -2,6 +2,7 @@
 #define INTERNAL_COMMIT_FUTURE_H_
 
 #include "map-api/internal/overriding-view-base.h"
+#include "map-api/revision-map.h"
 
 namespace map_api {
 class ChunkTransaction;
@@ -29,7 +30,7 @@ class CommitFuture : public ViewBase {
   virtual void discardKnownUpdates(UpdateTimes* update_times) const override;
 
  private:
-  const ChunkTransaction& finalized_committing_transaction_;
+  ConstRevisionMap chunk_state_;
 };
 
 }  // namespace internal
