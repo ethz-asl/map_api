@@ -59,7 +59,7 @@ void CommitHistoryView::discardKnownUpdates(UpdateTimes* update_times) const {
   }
 }
 
-bool CommitHistoryView::supresses(const common::Id& id) const {
+bool CommitHistoryView::suppresses(const common::Id& id) const {
   History::const_iterator found = commit_history_.find(id);
   if (found != commit_history_.end()) {
     if (!chunk_.constData()->getById(id, found->second)) {

@@ -87,7 +87,7 @@ void NetTableTransaction::remove(std::shared_ptr<Revision> revision) {
 
 bool NetTableTransaction::commit() {
   lock();
-  if (!check()) {
+  if (!hasNoConflicts()) {
     unlock();
     return false;
   }
@@ -124,9 +124,9 @@ void NetTableTransaction::unlock() {
   }
 }
 
-bool NetTableTransaction::check() {
+bool NetTableTransaction::hasNoConflicts() {
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
-    if (!chunk_transaction.second->check()) {
+    if (!chunk_transaction.second->hasNoConflicts()) {
       return false;
     }
   }

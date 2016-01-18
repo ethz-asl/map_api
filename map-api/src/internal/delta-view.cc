@@ -56,7 +56,7 @@ void DeltaView::discardKnownUpdates(UpdateTimes* update_times) const {
   LOG(FATAL) << "This function should never be called on a delta view!";
 }
 
-bool DeltaView::supresses(const common::Id& id) const {
+bool DeltaView::suppresses(const common::Id& id) const {
   return removes_.count(id) != 0u;
 }
 
@@ -86,7 +86,7 @@ void DeltaView::update(std::shared_ptr<Revision> revision) {
 }
 
 void DeltaView::remove(std::shared_ptr<Revision> revision) {
-  common::Id id = revision->getId<common::Id>();
+  const common::Id id = revision->getId<common::Id>();
   CHECK(id.isValid());
 
   UpdateMap::iterator corresponding_update = updates_.find(id);
@@ -120,22 +120,23 @@ bool DeltaView::getMutableUpdateEntry(
     return true;
   }
 
-  CHECK_EQ(removes_.count(id), 0u);
   return false;
 }
 
 bool DeltaView::hasConflictsAfterTryingToMerge(
     const std::unordered_map<common::Id, LogicalTime>& potential_conflicts,
     const ViewBase& original_view, const ViewBase& conflict_view) {
-  return traverseConflicts(kTryMergeOrBail, potential_conflicts, original_view,
-                           conflict_view, nullptr, nullptr);
+  return traverseConflicts(ConflictTraversalMode::kTryMergeOrBail,
+                           potential_conflicts, original_view, conflict_view,
+                           nullptr, nullptr);
 }
 
 void DeltaView::checkedCommitLocked(
     const LogicalTime& commit_time, ChunkBase* locked_chunk,
     std::unordered_map<common::Id, LogicalTime>* commit_history) {
   CHECK(CHECK_NOTNULL(locked_chunk)->isWriteLocked());
-  CHECK_NOTNULL(commit_history);  // Don't clear!
+  // Don't clear, this may already contain history from previous commits!
+  CHECK_NOTNULL(commit_history);
 
   insertions_.logCommitEvent(commit_time, commit_history);
   locked_chunk->bulkInsertLocked(insertions_, commit_time);
@@ -166,10 +167,11 @@ void DeltaView::prepareManualMerge(
     const ViewBase& original_view, const ViewBase& conflict_view,
     DeltaView* conflict_free_part, Conflicts* conflicts) {
   CHECK_NOTNULL(conflict_free_part);
+  // Don't clear, this is shared across chunk transactions.
   CHECK_NOTNULL(conflicts);
-  CHECK(!traverseConflicts(kPrepareManualMerge, potential_conflicts,
-                           original_view, conflict_view, conflict_free_part,
-                           conflicts));
+  CHECK(!traverseConflicts(ConflictTraversalMode::kPrepareManualMerge,
+                           potential_conflicts, original_view, conflict_view,
+                           conflict_free_part, conflicts));
 }
 
 size_t DeltaView::numChanges() const {
@@ -190,22 +192,22 @@ bool DeltaView::traverseConflicts(
     const std::unordered_map<common::Id, LogicalTime>& potential_conflicts,
     const ViewBase& original_view, const ViewBase& conflict_view,
     DeltaView* conflict_free_part, Conflicts* conflicts) {
-  if (mode == kPrepareManualMerge) {
+  if (mode == ConflictTraversalMode::kPrepareManualMerge) {
     CHECK_NOTNULL(conflict_free_part);
     CHECK_NOTNULL(conflicts)->clear();
   }
 
   for (const InsertMap::value_type& item : insertions_) {
     if (potential_conflicts.count(item.first) != 0u) {
-      if (mode == kTryMergeOrBail) {
+      if (mode == ConflictTraversalMode::kTryMergeOrBail) {
         VLOG(4) << "Tried to insert item " << item.first << " twice!";
         return true;
       } else {
-        CHECK(mode == kPrepareManualMerge);
+        CHECK(mode == ConflictTraversalMode::kPrepareManualMerge);
         conflicts->push_back({conflict_view.get(item.first), item.second});
       }
     } else {
-      if (mode == kPrepareManualMerge) {
+      if (mode == ConflictTraversalMode::kPrepareManualMerge) {
         conflict_free_part->insertions_.emplace(item);
       }
     }
@@ -213,18 +215,18 @@ bool DeltaView::traverseConflicts(
 
   for (UpdateMap::value_type& item : updates_) {
     if (potential_conflicts.count(item.first) != 0u) {
-      if (mode == kTryMergeOrBail) {
+      if (mode == ConflictTraversalMode::kTryMergeOrBail) {
         VLOG(4) << "Update conflict!";
         VLOG(4) << "Trying to auto-merge...";
         if (!tryAutoMerge(original_view, conflict_view, &item)) {
           return true;
         }
       } else {
-        CHECK(mode == kPrepareManualMerge);
+        CHECK(mode == ConflictTraversalMode::kPrepareManualMerge);
         conflicts->push_back({conflict_view.get(item.first), item.second});
       }
     } else {
-      if (mode == kPrepareManualMerge) {
+      if (mode == ConflictTraversalMode::kPrepareManualMerge) {
         conflict_free_part->updates_.emplace(item);
       }
     }
@@ -232,16 +234,15 @@ bool DeltaView::traverseConflicts(
 
   for (const RemoveMap::value_type& item : removes_) {
     if (potential_conflicts.count(item.first) != 0u) {
-      if (mode == kTryMergeOrBail) {
-        // TODO(tcies) Not a problem if removed by both?
+      if (mode == ConflictTraversalMode::kTryMergeOrBail) {
         VLOG(4) << "Remove conflict!";
         return true;
       } else {
-        CHECK(mode == kPrepareManualMerge);
+        CHECK(mode == ConflictTraversalMode::kPrepareManualMerge);
         conflicts->push_back({conflict_view.get(item.first), item.second});
       }
     } else {
-      if (mode == kPrepareManualMerge) {
+      if (mode == ConflictTraversalMode::kPrepareManualMerge) {
         conflict_free_part->removes_.emplace(item);
       }
     }

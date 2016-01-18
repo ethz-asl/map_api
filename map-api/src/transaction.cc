@@ -378,7 +378,7 @@ void Transaction::commitImpl(const bool finalize_after_check,
   }
   timer.Stop();
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
-    if (!net_table_transaction.second->check()) {
+    if (!net_table_transaction.second->hasNoConflicts()) {
       will_commit_succeed->set_value(false);
       for (const TransactionPair& net_table_transaction :
            net_table_transactions_) {

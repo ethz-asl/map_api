@@ -28,10 +28,11 @@ class CommitHistoryView : public OverridingViewBase {
   virtual void getAvailableIds(std::unordered_set<common::Id>* result) const
       override;
   virtual void discardKnownUpdates(UpdateTimes* update_times) const override;
+
   // ============================
   // OVERRIDINGVIEWBASE INTERFACE
   // ============================
-  virtual bool supresses(const common::Id& id) const override;
+  virtual bool suppresses(const common::Id& id) const override;
 
  private:
   const std::unordered_map<common::Id, LogicalTime>& commit_history_;

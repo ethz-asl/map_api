@@ -81,12 +81,8 @@ class NetTableTransaction {
    */
   void lock();
   void unlock();
-  /**
-   * Checks all sub-transactions.
-   * Returns false if any sub-check fails.
-   * lock() MUST have been called
-   */
-  bool check();
+
+  bool hasNoConflicts();
   void merge(const std::shared_ptr<NetTableTransaction>& merge_transaction,
              Conflicts* conflicts);
   size_t numChangedItems() const;
