@@ -118,6 +118,7 @@ class ChunkTransaction {
   std::unique_ptr<internal::ViewBase> view_before_delta_;
   internal::CombinedView combined_view_;
 
+  // No more changes will be applied to the data once finalized.
   bool finalized_;
 };
 
