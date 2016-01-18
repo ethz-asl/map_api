@@ -47,6 +47,8 @@ class ChunkBase {
   virtual void getCommitTimes(const LogicalTime& sample_time,
                               std::set<LogicalTime>* commit_times) const = 0;
 
+  void getUpdateTimes(std::unordered_map<common::Id, LogicalTime>* result);
+
   virtual bool insert(const LogicalTime& time,
                       const std::shared_ptr<Revision>& item) = 0;
 

@@ -27,6 +27,7 @@ class CommitHistoryView : public OverridingViewBase {
   virtual void dump(ConstRevisionMap* result) const override;
   virtual void getAvailableIds(std::unordered_set<common::Id>* result) const
       override;
+  virtual void discardKnownUpdates(UpdateTimes* update_times) const override;
 
   // ============================
   // OVERRIDINGVIEWBASE INTERFACE

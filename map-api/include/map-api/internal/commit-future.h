@@ -1,16 +1,22 @@
-#ifndef INTERNAL_COMBINED_VIEW_H_
-#define INTERNAL_COMBINED_VIEW_H_
+#ifndef INTERNAL_COMMIT_FUTURE_H_
+#define INTERNAL_COMMIT_FUTURE_H_
 
 #include "map-api/internal/overriding-view-base.h"
+#include "map-api/revision-map.h"
 
 namespace map_api {
+class ChunkTransaction;
+
 namespace internal {
 
-class CombinedView : public ViewBase {
+// Can replace a ChunkView in a transaction to signify that that transaction
+// depends on another transaction that is committing in parallel.
+class CommitFuture : public ViewBase {
  public:
-  CombinedView(const std::unique_ptr<ViewBase>& complete_view,
-               const OverridingViewBase& override_view);
-  ~CombinedView();
+  explicit CommitFuture(
+      const ChunkTransaction& finalized_committing_transaction);
+  explicit CommitFuture(const CommitFuture& other);
+  ~CommitFuture();
 
   // ==================
   // VIEWBASE INTERFACE
@@ -24,12 +30,10 @@ class CombinedView : public ViewBase {
   virtual void discardKnownUpdates(UpdateTimes* update_times) const override;
 
  private:
-  // Using unique_ptr because the complete view can be swapped out.
-  const std::unique_ptr<ViewBase>& complete_view_;
-  const OverridingViewBase& override_view_;
+  ConstRevisionMap chunk_state_;
 };
 
 }  // namespace internal
 }  // namespace map_api
 
-#endif  // INTERNAL_COMBINED_VIEW_H_
+#endif  // INTERNAL_COMMIT_FUTURE_H_

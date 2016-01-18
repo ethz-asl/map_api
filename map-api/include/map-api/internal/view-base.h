@@ -2,6 +2,7 @@
 #define INTERNAL_VIEW_BASE_H_
 
 #include <memory>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace common {
@@ -10,6 +11,7 @@ class Id;
 
 namespace map_api {
 class ConstRevisionMap;
+class LogicalTime;
 class Revision;
 
 namespace internal {
@@ -23,6 +25,11 @@ class ViewBase {
   virtual void dump(ConstRevisionMap* result) const = 0;
   virtual void getAvailableIds(std::unordered_set<common::Id>* result)
       const = 0;
+
+  // From the supplied update times, discard the ones whose updates are
+  // incorporated by the view.
+  typedef std::unordered_map<common::Id, LogicalTime> UpdateTimes;
+  virtual void discardKnownUpdates(UpdateTimes* update_times) const = 0;
 };
 
 }  // namespace internal

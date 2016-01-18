@@ -5,14 +5,16 @@
 #include <multiagent-mapping-common/accessors.h>
 
 #include "map-api/conflicts.h"
+#include "map-api/internal/commit-future.h"
 #include "map-api/net-table.h"
 
 namespace map_api {
 
 ChunkTransaction::ChunkTransaction(ChunkBase* chunk, NetTable* table)
-    : ChunkTransaction(LogicalTime::sample(), chunk, table) {}
+    : ChunkTransaction(LogicalTime::sample(), nullptr, chunk, table) {}
 
 ChunkTransaction::ChunkTransaction(const LogicalTime& begin_time,
+                                   const internal::CommitFuture* commit_future,
                                    ChunkBase* chunk, NetTable* table)
     : begin_time_(begin_time),
       chunk_(CHECK_NOTNULL(chunk)),
@@ -20,30 +22,39 @@ ChunkTransaction::ChunkTransaction(const LogicalTime& begin_time,
       structure_reference_(chunk_->constData()->getTemplate()),
       delta_(*table),
       commit_history_view_(commit_history_, *chunk),
-      chunk_view_(*chunk, begin_time),
-      view_before_delta_(chunk_view_, commit_history_view_),
-      combined_view_(view_before_delta_, delta_) {
+      original_view_(commit_future
+                         ? static_cast<internal::ViewBase*>(
+                               new internal::CommitFuture(*commit_future))
+                         : static_cast<internal::ViewBase*>(
+                               new internal::ChunkView(*chunk, begin_time))),
+      view_before_delta_(
+          new internal::CombinedView(original_view_, commit_history_view_)),
+      combined_view_(view_before_delta_, delta_),
+      finalized_(false) {
   CHECK(begin_time < LogicalTime::sample());
 }
 
-void ChunkTransaction::dumpChunk(ConstRevisionMap* result) {
+void ChunkTransaction::dumpChunk(ConstRevisionMap* result) const {
   CHECK_NOTNULL(result);
   combined_view_.dump(result);
 }
 
 void ChunkTransaction::insert(std::shared_ptr<Revision> revision) {
+  CHECK(!finalized_);
   CHECK_NOTNULL(revision.get());
   CHECK(revision->structureMatch(*structure_reference_));
   delta_.insert(revision);
 }
 
 void ChunkTransaction::update(std::shared_ptr<Revision> revision) {
+  CHECK(!finalized_);
   CHECK_NOTNULL(revision.get());
   CHECK(revision->structureMatch(*structure_reference_));
   delta_.update(revision);
 }
 
 void ChunkTransaction::remove(std::shared_ptr<Revision> revision) {
+  CHECK(!finalized_);
   CHECK_NOTNULL(revision.get());
   CHECK(revision->structureMatch(*structure_reference_));
   delta_.remove(revision);
@@ -61,13 +72,15 @@ bool ChunkTransaction::commit() {
 }
 
 bool ChunkTransaction::hasNoConflicts() {
+  CHECK(!finalized_);  // Because checking can try to auto-merge.
   CHECK(chunk_->isWriteLocked());
-  std::unordered_map<common::Id, LogicalTime> potential_conflicts;
-  chunk_view_.getPotentialConflicts(commit_history_, &potential_conflicts);
+  std::unordered_map<common::Id, LogicalTime> update_times;
+  chunk_->getUpdateTimes(&update_times);
+  view_before_delta_->discardKnownUpdates(&update_times);
 
   internal::ChunkView current_view_(*chunk_, LogicalTime::sample());
-  if (delta_.hasConflictsAfterTryingToMerge(
-          potential_conflicts, view_before_delta_, current_view_)) {
+  if (delta_.hasConflictsAfterTryingToMerge(update_times, *view_before_delta_,
+                                            current_view_)) {
     return false;
   }
 
@@ -97,12 +110,13 @@ void ChunkTransaction::merge(
                                          "conditions";
 
   chunk_->readLock();
-  std::unordered_map<common::Id, LogicalTime> potential_conflicts;
-  chunk_view_.getPotentialConflicts(commit_history_, &potential_conflicts);
+  std::unordered_map<common::Id, LogicalTime> update_times;
+  chunk_->getUpdateTimes(&update_times);
+  view_before_delta_->discardKnownUpdates(&update_times);
+
   internal::ChunkView current_view_(*chunk_, LogicalTime::sample());
-  delta_.prepareManualMerge(potential_conflicts, view_before_delta_,
-                            current_view_, &merge_transaction->delta_,
-                            conflicts);
+  delta_.prepareManualMerge(update_times, *view_before_delta_, current_view_,
+                            &merge_transaction->delta_, conflicts);
   chunk_->unlock();
 }
 
@@ -110,6 +124,10 @@ size_t ChunkTransaction::numChangedItems() const {
   CHECK(conflict_conditions_.empty()) << "changeCount not compatible with "
                                          "conflict conditions";
   return delta_.numChanges();
+}
+
+void ChunkTransaction::detachFuture() {
+  original_view_.reset(new internal::ChunkView(*chunk_, begin_time_));
 }
 
 void ChunkTransaction::getTrackers(
@@ -124,7 +142,8 @@ void ChunkTransaction::getTrackers(
         ((override_it != overrides.end()) ? (override_it->second)
                                           : (table_tracker_getter.second));
     // TODO(tcies) Add function to delta.
-    for (const InsertMap::value_type& insertion : delta_.insertions_) {
+    for (const internal::DeltaView::InsertMap::value_type& insertion :
+         delta_.insertions_) {
       common::Id id = tracker_id_extractor(*insertion.second);
       trackers->emplace(table_tracker_getter.first, id);
     }

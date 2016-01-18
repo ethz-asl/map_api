@@ -18,14 +18,21 @@ class Conflicts;
 class ConstRevisionMap;
 class Revision;
 
+namespace internal {
+class CommitFuture;
+}  // namespace internal
+
 class NetTableTransaction {
   friend class Transaction;
   friend class NetTableFixture;
   FRIEND_TEST(NetTableTest, NetTableTransactions);
 
  private:
-  NetTableTransaction(const LogicalTime& begin_time, NetTable* table,
-                      const Workspace& workspace);
+  typedef std::unordered_map<
+      ChunkBase*, std::unique_ptr<internal::CommitFuture>> CommitFutureTree;
+
+  NetTableTransaction(const LogicalTime& begin_time, const Workspace& workspace,
+                      const CommitFutureTree* commit_futures, NetTable* table);
 
   // ========================
   // READ (see transaction.h)
@@ -80,6 +87,10 @@ class NetTableTransaction {
              Conflicts* conflicts);
   size_t numChangedItems() const;
 
+  void finalize();
+  void buildCommitFutureTree(CommitFutureTree* result);
+  void detachFutures();
+
   // ========
   // INTERNAL
   // ========
@@ -123,6 +134,8 @@ class NetTableTransaction {
   ItemIdToChunkIdMap item_id_to_chunk_id_map_;
 
   NetTable::NewChunkTrackerMap push_new_chunk_ids_to_tracker_overrides_;
+
+  bool finalized_;
 };
 
 }  // namespace map_api
