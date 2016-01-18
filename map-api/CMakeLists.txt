@@ -12,6 +12,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 add_definitions(--std=c++11 -Wno-unknown-pragmas)
 
 SET(PROTO_DEFNS proto/chord-index.proto 
+                proto/command-rpc.proto
                 proto/core.proto
                 proto/chunk.proto
                 proto/ipc.proto
@@ -39,6 +40,7 @@ SET(CORE_SOURCE  src/app-templates.cc
                  src/internal/commit-future.cc
                  src/internal/commit-history-view.cc
                  src/internal/delta-view.cc
+                 src/internal/network-data-log.cc
                  src/internal/overriding-view-base.cc
                  src/internal/trackee-multimap.cc
                  src/internal/view-base.cc
@@ -58,6 +60,7 @@ SET(CORE_SOURCE  src/app-templates.cc
                  src/peer-handler.cc
                  src/proto-table-file-io.cc
                  src/revision.cc
+                 src/rpc-command-registerer.cc
                  src/server-discovery.cc
                  src/spatial-index.cc
                  src/spatial-index-cell-data.cc
@@ -74,6 +77,9 @@ target_link_libraries(${PROJECT_NAME} pthread)
 cs_add_executable(discovery-server discovery-server/discovery-server.cc
                    ${PROTO_SRCS} ${PROTO_HDRS})
 target_link_libraries(discovery-server ${PROJECT_NAME})
+
+cs_add_executable(network-data-log-plotter src/network-data-log-plotter.cc)
+target_link_libraries(network-data-log-plotter ${PROJECT_NAME})
 
 ##########
 # GTESTS #
