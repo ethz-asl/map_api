@@ -87,6 +87,31 @@ TEST_F(TransactionTest, MultiCommit) {
   EXPECT_FALSE(transaction.commit());
 }
 
+TEST_F(TransactionTest, TandemCommit) {
+  constexpr size_t kEnoughForARaceCondition = 100u;
+  for (size_t i = 0u; i < kEnoughForARaceCondition; ++i) {
+    Transaction dependee;
+    common::Id inserted_id_1, inserted_id_2;
+
+    insert(1, &inserted_id_1, &dependee);
+    Transaction::CommitFutureTree commit_futures;
+    ASSERT_TRUE(dependee.commitInParallel(&commit_futures));
+    // Does finalization work? If so, this should check-fail.
+    ASSERT_DEATH(update(2, inserted_id_1, &dependee), "^");
+
+    Transaction depender(commit_futures);
+    EXPECT_TRUE(static_cast<bool>(depender.getById(inserted_id_1, table_)));
+    insert(2, &inserted_id_2, &depender);
+    // Should check-fail until parallel commit is joined.
+    ASSERT_DEATH(depender.commit(), "^");
+
+    // TODO(tcies) Automate depender commit?
+    dependee.joinParallelCommitIfRunning();
+    depender.detachFutures();
+    EXPECT_TRUE(depender.commit());
+  }
+}
+
 }  // namespace map_api
 
 MAP_API_UNITTEST_ENTRYPOINT

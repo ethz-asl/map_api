@@ -1,6 +1,7 @@
 #ifndef MAP_API_TRANSACTION_H_
 #define MAP_API_TRANSACTION_H_
 
+#include <future>
 #include <map>
 #include <memory>
 #include <string>
@@ -9,6 +10,7 @@
 
 #include <glog/logging.h>
 
+#include "map-api/internal/commit-future.h"
 #include "map-api/logical-time.h"
 #include "map-api/net-table-transaction.h"
 #include "map-api/workspace.h"
@@ -41,6 +43,17 @@ class Transaction {
   Transaction();
   explicit Transaction(const std::shared_ptr<Workspace>& workspace);
   explicit Transaction(const LogicalTime& begin_time);
+  // Build a transaction based on the promise that another transaction, which
+  // has not yet committed, will succeed in committing. Allows pipelining
+  // processing and network transmission.
+  typedef std::unordered_map<NetTable*, NetTableTransaction::CommitFutureTree>
+      CommitFutureTree;
+  explicit Transaction(const CommitFutureTree& commit_futures);
+  Transaction(const std::shared_ptr<Workspace>& workspace,
+              const LogicalTime& begin_time,
+              const CommitFutureTree* commit_futures);
+
+  ~Transaction();
 
   // ====
   // READ
@@ -93,6 +106,12 @@ class Transaction {
   // TRANSACTION OPERATIONS
   // ======================
   bool commit();
+  // Blocks until checks are performed, but does not block on network
+  // transmission. Parallel commit can't currently be combined with
+  // multi-commit. Commit futures assume that the transactions they have been
+  // created from don't change any more.
+  bool commitInParallel(CommitFutureTree* future_tree);
+  void joinParallelCommitIfRunning();
   inline LogicalTime getCommitTime() const { return commit_time_; }
   // Requires specialization of
   // std::string getComparisonString(const ObjectType& a, const ObjectType& b);
@@ -108,6 +127,7 @@ class Transaction {
    */
   void merge(const std::shared_ptr<Transaction>& merge_transaction,
              ConflictMap* conflicts);
+  void detachFutures();
 
   // ==========
   // STATISTICS
@@ -167,6 +187,11 @@ class Transaction {
   template <typename IdType, typename ObjectType>
   ThreadsafeCache<IdType, ObjectType>* getMutableCache(NetTable* table);
 
+  void commitImpl(const bool finalize_after_check,
+                  std::promise<bool>* will_commit_succeed,
+                  CommitFutureTree* future_tree);
+  void finalize();
+
   /**
    * A global ordering of tables prevents deadlocks (resource hierarchy
    * solution)
@@ -207,6 +232,12 @@ class Transaction {
   mutable std::mutex net_table_transactions_mutex_;
 
   bool chunk_tracking_disabled_;
+
+  bool is_parallel_commit_running_;
+  std::mutex m_is_parallel_commit_running_;
+  std::condition_variable cv_is_parallel_commit_running_;
+
+  bool finalized_;
 };
 
 }  // namespace map_api
