@@ -236,7 +236,7 @@ void LegacyChunk::writeLock() { distributedWriteLock(); }
 
 void LegacyChunk::readLock() const { distributedReadLock(); }
 
-bool LegacyChunk::isWriteLocked() {
+bool LegacyChunk::isWriteLocked() const {
   std::lock_guard<std::mutex> metalock(lock_.mutex);
   return isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id();
 }

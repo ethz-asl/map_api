@@ -52,6 +52,7 @@ void NetTableTransaction::getAvailableIds(std::vector<IdType>* ids) {
 template <typename IdType>
 std::shared_ptr<const Revision>* NetTableTransaction::getMutableUpdateEntry(
     const IdType& id) {
+  CHECK(!finalized_);
   ChunkBase* chunk = chunkOf(id);
   CHECK_NOTNULL(chunk);
   CHECK(workspace_.contains(chunk->id()));
@@ -62,6 +63,7 @@ std::shared_ptr<const Revision>* NetTableTransaction::getMutableUpdateEntry(
 
 template <typename IdType>
 void NetTableTransaction::remove(const IdType& id) {
+  CHECK(!finalized_);
   ChunkBase* chunk = chunkOf(id);
   CHECK_NOTNULL(chunk);
   std::shared_ptr<Revision> remove_revision;
@@ -89,6 +91,7 @@ void NetTableTransaction::overrideTrackerIdentificationMethod(
         how_to_determine_tracker) {
   CHECK_NOTNULL(tracker_table);
   CHECK(how_to_determine_tracker);
+  CHECK(!finalized_);
   CHECK_GT(table_->new_chunk_trackers().count(tracker_table), 0u)
       << "Attempted to override a tracker identification method which is "
       << "however not used for pushing new chunk ids.";
