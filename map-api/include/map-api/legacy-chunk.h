@@ -88,7 +88,7 @@ class LegacyChunk : public ChunkBase {
 
   virtual void readLock() const override;
 
-  virtual bool isWriteLocked() override;
+  virtual bool isWriteLocked() const override;
 
   virtual void unlock() const override;
 
