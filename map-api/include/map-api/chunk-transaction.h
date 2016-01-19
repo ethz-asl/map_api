@@ -8,6 +8,10 @@
 
 #include <gtest/gtest_prod.h>
 
+#include "map-api/internal/chunk-view.h"
+#include "map-api/internal/combined-view.h"
+#include "map-api/internal/commit-history-view.h"
+#include "map-api/internal/delta-view.h"
 #include "map-api/logical-time.h"
 #include "map-api/net-table.h"
 #include "map-api/revision.h"
@@ -17,12 +21,17 @@ namespace map_api {
 class ChunkBase;
 class Conflicts;
 
+namespace internal {
+class CommitFuture;
+}  // namespace internal
+
 /**
  * This class is somewhat weaker than the first transaction draft
  * (LocalTransaction, now deprecated) because conflict checking and
  * committing is handled in the Chunk class.
  */
 class ChunkTransaction {
+  friend class internal::CommitFuture;
   friend class NetTableTransaction;
   friend class Transaction;      // for internal typedefs
   friend class NetTableManager;  // metatable works directly with this
@@ -32,22 +41,25 @@ class ChunkTransaction {
 
  private:
   ChunkTransaction(ChunkBase* chunk, NetTable* table);
-  ChunkTransaction(const LogicalTime& begin_time, ChunkBase* chunk,
-                   NetTable* table);
+  ChunkTransaction(const LogicalTime& begin_time,
+                   const internal::CommitFuture* commit_future,
+                   ChunkBase* chunk, NetTable* table);
 
+  // ====
   // READ
+  // ====
   template <typename IdType>
-  std::shared_ptr<const Revision> getById(const IdType& id);
-  template <typename IdType>
-  std::shared_ptr<const Revision> getByIdFromUncommitted(const IdType& id)
-      const;
+  std::shared_ptr<const Revision> getById(const IdType& id) const;
   template <typename ValueType>
-  std::shared_ptr<const Revision> findUnique(int key, const ValueType& value);
-  void dumpChunk(ConstRevisionMap* result);
+  std::shared_ptr<const Revision> findUnique(int key,
+                                             const ValueType& value) const;
+  void dumpChunk(ConstRevisionMap* result) const;
   template <typename IdType>
-  void getAvailableIds(std::unordered_set<IdType>* ids);
+  void getAvailableIds(std::unordered_set<IdType>* ids) const;
 
+  // =====
   // WRITE
+  // =====
   void insert(std::shared_ptr<Revision> revision);
   void update(std::shared_ptr<Revision> revision);
   // The following function is very dangerous and shouldn't be used apart from
@@ -59,9 +71,11 @@ class ChunkTransaction {
   template <typename ValueType>
   void addConflictCondition(int key, const ValueType& value);
 
+  // ======================
   // TRANSACTION OPERATIONS
+  // ======================
   bool commit();
-  bool check();
+  bool hasNoConflicts();
   void checkedCommit(const LogicalTime& time);
   /**
    * Merging and changeCount are not compatible with conflict conditions.
@@ -69,24 +83,15 @@ class ChunkTransaction {
   void merge(const std::shared_ptr<ChunkTransaction>& merge_transaction,
              Conflicts* conflicts);
   size_t numChangedItems() const;
+  inline void finalize() { finalized_ = true; }
+  bool isFinalized() const { return finalized_; }
+  void detachFuture();
 
   // INTERNAL
-  typedef std::unordered_map<common::Id, LogicalTime> ItemTimes;
-  void prepareCheck(const LogicalTime& check_time,
-                    ItemTimes* chunk_stamp) const;
-  bool hasUpdateConflict(const common::Id& item,
-                         const ItemTimes& db_stamps) const;
-
   typedef std::unordered_multimap<NetTable*, common::Id> TableToIdMultiMap;
   void getTrackers(const NetTable::NewChunkTrackerMap& overrides,
                    TableToIdMultiMap* trackers) const;
 
-  /**
-   * Strong typing of table operation maps.
-   */
-  class InsertMap : public MutableRevisionMap {};
-  class UpdateMap : public MutableRevisionMap {};
-  class RemoveMap : public MutableRevisionMap {};
   struct ConflictCondition {
     const int key;
     const std::shared_ptr<Revision> value_holder;
@@ -95,19 +100,26 @@ class ChunkTransaction {
   };
   class ConflictVector : public std::vector<ConflictCondition> {};
 
-  bool tryAutoMerge(const ItemTimes& db_stamps, UpdateMap::value_type* item);
-
-  InsertMap insertions_;
-  UpdateMap updates_;
-  RemoveMap removes_;
   ConflictVector conflict_conditions_;
 
   LogicalTime begin_time_;
-  ItemTimes previously_committed_;
 
   ChunkBase* chunk_;
   NetTable* table_;
-  std::shared_ptr<const Revision> structure_reference_;
+  const std::shared_ptr<const Revision> structure_reference_;
+
+  internal::CommitHistoryView::History commit_history_;
+
+  // The combined views are stacked as follows:
+  internal::DeltaView delta_;  // Contains uncommitted changes.
+  internal::CommitHistoryView commit_history_view_;
+  std::unique_ptr<internal::ViewBase> original_view_;
+
+  std::unique_ptr<internal::ViewBase> view_before_delta_;
+  internal::CombinedView combined_view_;
+
+  // No more changes will be applied to the data once finalized.
+  bool finalized_;
 };
 
 }  // namespace map_api
