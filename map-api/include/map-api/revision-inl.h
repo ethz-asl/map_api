@@ -38,8 +38,7 @@ bool Revision::get(int index, FieldType* value) const {
 
 template <typename FieldType>
 bool Revision::set(proto::TableField* field, const FieldType& value) {
-  CHECK_NOTNULL(field)->set_blob_value(value.SerializeAsString());
-  return true;
+  return value.SerializeToString(CHECK_NOTNULL(field)->mutable_blob_value());
 }
 
 template <typename FieldType>

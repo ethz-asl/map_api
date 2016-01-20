@@ -10,29 +10,32 @@ If you use dmap in your academic work, please cite:
 }
 ```
 
-## How to use dmap
-
-This manual is aimed at the reader who is inerested in 
+This manual is aimed at the reader who is interested in 
 *implementing or extending* a library that uses dmap as a framework for sharing
 data between agents.
 
 If you are just using such a library, all that might be useful to you in this
 document can be found in 
-[this section](#Things-to-consider-when-using-dmap-to-modify-shared-map-data).
+[this section](#things-to-consider-when-using-dmap-to-modify-shared-map-data).
 
 If you want to understand how dmap works, this manual might be an interesting
 starting point before reading the paper.
 
-### Motivation
+## How to use dmap
 
-In a nutshell, dmap is to multi-agent mapping agents what (git + github) is to
+dmap is a fully decentralized data distribution framework that has been
+developed in order to allow multiple robots to share mapping data as they
+collaboratively map an environment.
+
+In a nutshell, dmap is to a multi-agent system what (git + github) is to
 code collaborators, except that it's fully peer-to-peer and doesn't force agents
 to replicate data they are not interested in (and doesn't have branches or
 commit messages).
 It has some additional features useful for multi-agent mapping like 3d querying
 and event callbacks.
 
-For sake of example, let's assume you have a pose-graph class like this:
+For sake of example, let's assume you are writing a multi-agent mapping 
+application and have a pose-graph class like this:
 
 ```c++
 class PoseGraph {
@@ -77,7 +80,7 @@ PoseGraphView pose_graph_view;
 pose_graph_view.pose_graph().useForLocalization()
 ```
 
-Better still, like this:
+or even using callbacks for asynchronous operation, like this:
 
 ```c++
 // Agent 1: Same as above.
@@ -100,9 +103,15 @@ This can then scale to arbitrary numbers of peers (independently whether those
 peers are pose-graph producers or consumers). All the data is available to all
 the agents (there are ways to discover data based on location), even though no
 agent is forced to keep data it doesn't want to (thus technically enabling
-distribution of very-large scale maps on many peers). Furthermore, all the data
-is synchronized in a fashion very similar to git. Finally, all of this works 
+distribution of very-large scale maps on many peers). Finally, all the data
+is synchronized in a fashion very similar to git and all of this works 
 without a central entity.
+
+Note the new class `PoseGraphView`. This is a data inteface that allows
+interaction with a consistent snapshot of the data, even though the
+"latest version" of the data might be updated by other agents in the meantime.
+This is equivalent to how a commit hash defines a "view" of the data in a git
+repository.
 
 ### Data structure
 
@@ -112,7 +121,7 @@ We provide the following UML diagram for reference throughout this documentation
 
 In order to make use of dmap, your application should express its data, let's
 call it AppData, in terms of **singleton** associative containers with ids as
-keys:
+keys (singleton means that there is a only a single such container per process):
 
 ```c++
 class AppData {
@@ -146,30 +155,45 @@ UNIQUE_ID_DEFINE_ID_HASH(IdType1);
 UNIQUE_ID_DEFINE_ID_HASH(IdType2);
 ```
 
-While you can techincally just use `common::Id`s, we strongly recommend using
+While you can techincally just use the `multiagent-mapping-common` base Id 
+class, `common::Id`, we strongly recommend using
 strongly typed ids as provided by the above macros, as this will make it harder
-to make silly errors like passing the wrong id to functions.
+to make silly errors like passing the wrong id type to functions.
 
 At this point, you can continue to have a dmap-free version of your basic app,
 by instantiating the `common::MappedContainerBase`s with 
 `common::HashMapContainer`s, which are defined in the same header. The latter
-are essentially unordered maps. This allows you to easily switch between using
-and not using dmap, the latter of course being faster in a single-agent setting.
+are essentially equivalent to `std::unordered_map`. This allows you to easily 
+switch between using and not using dmap, the latter of course being faster in a
+single-agent setting.
 
 Now you will first need to [define how your data types can be translated into 
-the dmap-internal data representation](#Defining-type-to-revision-translations),
-`dmap::Revision`s. Then, we recommend you 
-[define a view class](#defining-view-classes) that will allow you to check out
-and commit the distributed map state like in the examples above.
+the internal data representation of dmap](#Defining-type-to-revision-translations).
+Then, we recommend you 
+[define a view class](#defining-view-classes) similar to the example in the 
+intro that will allow you to check out and commit the distributed map state.
 
 ### Defining type-to-revision translations
 
-Depending on your type, you can choose to translate it into a protobuf or a
-composite revision. Protobuf revisions contain a single serialization string
-from an intermediate Google Protocol Buffer step. Composite revisions are like
-structs and can be composed of the types listed at the bottom of 
-`dmap/revision-inl.h`.
-We recommend to translate into protobuf revisions per default, and use
+*Revisions* are the internal representation of individual data items in dmap.
+They are called *Revisions* because data items are subject to change - a
+revision captures the state of a data item at a given time. The history of an
+item is represented by a sequence of revisions associated to a time, where the
+times are times when changes occurred and the revision corresponds to the new 
+state at that time.
+
+Consequently, you will need to define how the types of the data you want to
+distribute using dmap can be translated into these revisions.
+Depending on your type, you can choose to translate it into a *protobuf* or a
+*composite* revision. *Protobuf* revisions contain a single serialization string
+that is generated by 
+[Google Protocol Buffers](https://developers.google.com/protocol-buffers/) from
+an intermediate protocol buffer representation. A protocol buffer representation
+of a type is significantly more comfortable to implement than implementing a
+serialization directly.
+Alternatively, you can express your type as a *composite revisions* composed of
+the types listed at the bottom of `dmap/revision-inl.h`.
+We recommend to translate into protobuf revisions by default, and use
 composite revisions for special cases only.
 
 First, you will need to specialize 
@@ -206,9 +230,12 @@ dmap::objectToRevision(const DataType& object, dmap::Revision* revision) {
 
 #### Defining NetTables
 
-Additionally to specializing these translations, you will need to initialize the
-dmap-internal containers while you initialize your application. These containers
-all called `dmap::NetTable`s.
+For each data type, dmap has a container called `NetTable` which holds the
+history of all items of that type. In order to use these containers, you will
+need to initialize them with a unique name (that will be used for addressing
+data packets, so that the correct data arrives at the correct container on a
+remote peer) and a specification of the revision format (used for verifying that
+the correct data has arrived at a given container).
 
 For protobuf revisions, this is as simple as:
 
@@ -287,8 +314,8 @@ the shared data as it is at construction time of the `transaction_` member.
 * Opening a transaction does not incur network traffic, and is generally not 
 expensive.
 * `MappedContainerBase::getMutable()` should only be used in order to modify
-data, since every item thus accessed will be sent over the network at
-commit-time.
+data, since every item thus accessed will be marked as modified and consequently
+sent over the network at commit-time.
 * Transactions can be committed multiple times. This can be used to keep the
 shared data up to date when necessary. However, the view time will remain the
 same.
