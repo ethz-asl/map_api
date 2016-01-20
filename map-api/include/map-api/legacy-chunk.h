@@ -9,8 +9,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include <aslam/common/reader-writer-lock.h>
 #include <multiagent-mapping-common/condition.h>
-#include <multiagent-mapping-common/reader-writer-lock.h>
 #include <multiagent-mapping-common/unique-id.h>
 
 #include "map-api/chunk-base.h"
@@ -88,7 +88,7 @@ class LegacyChunk : public ChunkBase {
 
   virtual void readLock() const override;
 
-  virtual bool isWriteLocked() override;
+  virtual bool isWriteLocked() const override;
 
   virtual void unlock() const override;
 
@@ -228,7 +228,7 @@ class LegacyChunk : public ChunkBase {
   PeerHandler peers_;
   mutable DistributedRWLock lock_;
   mutable std::mutex add_peer_mutex_;
-  common::ReaderWriterMutex leave_lock_;
+  aslam::ReaderWriterMutex leave_lock_;
   common::Condition initialized_;
   volatile bool relinquished_ = false;
   bool log_locking_ = false;

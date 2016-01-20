@@ -14,27 +14,35 @@
 
 namespace map_api {
 class ChunkBase;
+class Conflicts;
 class ConstRevisionMap;
 class Revision;
+
+namespace internal {
+class CommitFuture;
+}  // namespace internal
 
 class NetTableTransaction {
   friend class Transaction;
   friend class NetTableFixture;
-  FRIEND_TEST(NetTableFixture, NetTableTransactions);
+  FRIEND_TEST(NetTableTest, NetTableTransactions);
 
  private:
-  NetTableTransaction(const LogicalTime& begin_time, NetTable* table,
-                      const Workspace& workspace);
+  typedef std::unordered_map<
+      ChunkBase*, std::unique_ptr<internal::CommitFuture>> CommitFutureTree;
 
+  NetTableTransaction(const LogicalTime& begin_time, const Workspace& workspace,
+                      const CommitFutureTree* commit_futures, NetTable* table);
+
+  // ========================
   // READ (see transaction.h)
+  // ========================
   template <typename IdType>
   std::shared_ptr<const Revision> getById(const IdType& id) const;
+  // This will be minimally faster.
   template <typename IdType>
   std::shared_ptr<const Revision> getById(const IdType& id,
                                           ChunkBase* chunk) const;
-  template <typename IdType>
-  std::shared_ptr<const Revision> getByIdFromUncommitted(const IdType& id)
-      const;
   void dumpChunk(const ChunkBase* chunk, ConstRevisionMap* result);
   void dumpActiveChunks(ConstRevisionMap* result);
   template <typename ValueType>
@@ -42,14 +50,22 @@ class NetTableTransaction {
   template <typename IdType>
   void getAvailableIds(std::vector<IdType>* ids);
 
+  // =========================
   // WRITE (see transaction.h)
+  // =========================
   void insert(ChunkBase* chunk, std::shared_ptr<Revision> revision);
   void update(std::shared_ptr<Revision> revision);
+  // The following function is very dangerous and shouldn't be used apart from
+  // where it needs to be used in caches.
+  template <typename IdType>
+  std::shared_ptr<const Revision>* getMutableUpdateEntry(const IdType& id);
   void remove(std::shared_ptr<Revision> revision);
   template <typename IdType>
   void remove(const IdType& id);
 
+  // ======================
   // TRANSACTION OPERATIONS
+  // ======================
   /**
    * Equivalent to lock(), if (check()) commit each sub-transaction, unlock()
    * Returns false if check fails.
@@ -65,21 +81,26 @@ class NetTableTransaction {
    */
   void lock();
   void unlock();
-  /**
-   * Checks all sub-transactions.
-   * Returns false if any sub-check fails.
-   * lock() MUST have been called
-   */
-  bool check();
+
+  bool hasNoConflicts();
   void merge(const std::shared_ptr<NetTableTransaction>& merge_transaction,
-             ChunkTransaction::Conflicts* conflicts);
+             Conflicts* conflicts);
   size_t numChangedItems() const;
 
+  void finalize();
+  void buildCommitFutureTree(CommitFutureTree* result);
+  void detachFutures();
+
+  // ========
   // INTERNAL
+  // ========
   ChunkTransaction* transactionOf(const ChunkBase* chunk) const;
   template <typename IdType>
-  ChunkBase* chunkOf(const IdType& id,
-                     std::shared_ptr<const Revision>* latest) const;
+  ChunkBase* chunkOf(const IdType& id) const;
+  // The following must be called if chunks are fetched after the transaction
+  // has been initialized, otherwise the new items can't be fetched by the
+  // transaction.
+  void refreshIdToChunkIdMap();
 
   typedef std::unordered_map<common::Id, ChunkTransaction::TableToIdMultiMap>
       TrackedChunkToTrackersMap;
@@ -109,7 +130,12 @@ class NetTableTransaction {
   NetTable* table_;
   Workspace::TableInterface workspace_;
 
+  typedef std::unordered_map<common::Id, common::Id> ItemIdToChunkIdMap;
+  ItemIdToChunkIdMap item_id_to_chunk_id_map_;
+
   NetTable::NewChunkTrackerMap push_new_chunk_ids_to_tracker_overrides_;
+
+  bool finalized_;
 };
 
 }  // namespace map_api

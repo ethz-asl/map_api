@@ -101,9 +101,10 @@ bool LegacyChunk::init(const common::Id& id,
     while (history_proto.revisions_size() > 0) {
       // using ReleaseLast allows zero-copy ownership transfer to the revision
       // object.
-      std::shared_ptr<Revision> data =
-          Revision::fromProto(std::unique_ptr<proto::Revision>(
-              history_proto.mutable_revisions()->ReleaseLast()));
+      std::shared_ptr<Revision> data;
+      Revision::fromProto(std::unique_ptr<proto::Revision>(
+                              history_proto.mutable_revisions()->ReleaseLast()),
+                          &data);
       CHECK(static_cast<LegacyChunkDataContainerBase*>(data_container_.get())
                 ->patch(data));
       // TODO(tcies) guarantee order, then only sync latest time
@@ -217,7 +218,7 @@ void LegacyChunk::leaveImpl() {
   // this must happen after acquring the write lock to avoid deadlocks, should
   // two peers try to leave at the same time.
   {
-    common::ScopedWriteLock lock(&leave_lock_);
+    aslam::ScopedWriteLock lock(&leave_lock_);
     CHECK(peers_.undisputableBroadcast(&request));
     relinquished_ = true;
   }
@@ -235,7 +236,7 @@ void LegacyChunk::writeLock() { distributedWriteLock(); }
 
 void LegacyChunk::readLock() const { distributedReadLock(); }
 
-bool LegacyChunk::isWriteLocked() {
+bool LegacyChunk::isWriteLocked() const {
   std::lock_guard<std::mutex> metalock(lock_.mutex);
   return isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id();
 }
@@ -328,7 +329,9 @@ void LegacyChunk::bulkInsertLocked(const MutableRevisionMap& items,
 void LegacyChunk::updateLocked(const LogicalTime& time,
                                const std::shared_ptr<Revision>& item) {
   CHECK(item != nullptr);
-  CHECK_EQ(id(), item->getChunkId());
+  CHECK_EQ(id(), item->getChunkId())
+      << "Corrupted item metadata for item with id "
+      << item->getId<common::Id>();
   proto::PatchRequest update_request;
   fillMetadata(&update_request);
   Message request;

@@ -21,6 +21,16 @@ void ChunkBase::initializeNew(
 
 common::Id ChunkBase::id() const { return id_; }
 
+void ChunkBase::getUpdateTimes(
+    std::unordered_map<common::Id, LogicalTime>* result) {
+  CHECK_NOTNULL(result)->clear();
+  ConstRevisionMap items;
+  constData()->dump(LogicalTime::sample(), &items);
+  for (const ConstRevisionMap::value_type& id_item : items) {
+    result->emplace(id_item.first, id_item.second->getUpdateTime());
+  }
+}
+
 ChunkBase::ConstDataAccess::ConstDataAccess(const ChunkBase& chunk)
     : chunk_(chunk) {
   chunk.readLock();
@@ -49,7 +59,7 @@ size_t ChunkBase::attachTrigger(const TriggerCallback& callback) {
 }
 
 void ChunkBase::waitForTriggerCompletion() {
-  common::ScopedWriteLock lock(&triggers_are_active_while_has_readers_);
+  aslam::ScopedWriteLock lock(&triggers_are_active_while_has_readers_);
 }
 
 void ChunkBase::handleCommitInsert(const common::Id& inserted_id) {

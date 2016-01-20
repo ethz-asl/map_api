@@ -12,6 +12,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 add_definitions(--std=c++11 -Wno-unknown-pragmas)
 
 SET(PROTO_DEFNS proto/chord-index.proto 
+                proto/command-rpc.proto
                 proto/core.proto
                 proto/chunk.proto
                 proto/ipc.proto
@@ -24,7 +25,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 #############
 
 # Core Library available to all applications
-SET(CORE_SOURCE  src/internal/trackee-multimap.cc
+SET(CORE_SOURCE  src/app-templates.cc
                  src/cache-base.cc
                  src/chord-index.cc
                  src/chunk-base.cc
@@ -34,6 +35,15 @@ SET(CORE_SOURCE  src/internal/trackee-multimap.cc
                  src/core.cc
                  src/file-discovery.cc
                  src/hub.cc
+                 src/internal/chunk-view.cc
+                 src/internal/combined-view.cc
+                 src/internal/commit-future.cc
+                 src/internal/commit-history-view.cc
+                 src/internal/delta-view.cc
+                 src/internal/network-data-log.cc
+                 src/internal/overriding-view-base.cc
+                 src/internal/trackee-multimap.cc
+                 src/internal/view-base.cc
                  src/ipc.cc
                  src/legacy-chunk.cc
                  src/legacy-chunk-data-container-base.cc
@@ -50,6 +60,7 @@ SET(CORE_SOURCE  src/internal/trackee-multimap.cc
                  src/peer-handler.cc
                  src/proto-table-file-io.cc
                  src/revision.cc
+                 src/rpc-command-registerer.cc
                  src/server-discovery.cc
                  src/spatial-index.cc
                  src/spatial-index-cell-data.cc
@@ -67,9 +78,16 @@ cs_add_executable(discovery-server discovery-server/discovery-server.cc
                    ${PROTO_SRCS} ${PROTO_HDRS})
 target_link_libraries(discovery-server ${PROJECT_NAME})
 
+cs_add_executable(network-data-log-plotter src/network-data-log-plotter.cc)
+target_link_libraries(network-data-log-plotter ${PROJECT_NAME})
+
 ##########
 # GTESTS #
 ##########
+catkin_add_gtest(test_cache_and_transaction_test 
+    test/cache_and_transaction_test.cc)
+target_link_libraries(test_cache_and_transaction_test ${PROJECT_NAME})
+
 catkin_add_gtest(test_cache_test test/cache_test.cc)
 target_link_libraries(test_cache_test ${PROJECT_NAME})
 
@@ -111,6 +129,12 @@ target_link_libraries(test_proto_stl_stream_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_workspace_test test/workspace_test.cc)
 target_link_libraries(test_workspace_test ${PROJECT_NAME})
+
+#############
+# QTCREATOR #
+#############
+FILE(GLOB_RECURSE LibFiles "include/*")
+add_custom_target(headers SOURCES ${LibFiles})
 
 ##########
 # EXPORT #

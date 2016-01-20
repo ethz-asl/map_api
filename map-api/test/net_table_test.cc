@@ -12,12 +12,14 @@
 
 namespace map_api {
 
+class NetTableTest : public NetTableFixture {};
+
 /**
  * Observation: A does all commits before B does all commits. This makes
  * sense because A's operations per transaction are less complex, thus
  * faster executed, and A gets to lock first.
  */
-TEST_F(NetTableFixture, NetTableTransactions) {
+TEST_F(NetTableTest, NetTableTransactions) {
   enum Processes {
     ROOT,
     A,
@@ -50,7 +52,8 @@ TEST_F(NetTableFixture, NetTableTransactions) {
     IPC::barrier(SYNC, 2);
     IPC::barrier(DIE, 2);
     Workspace workspace;
-    NetTableTransaction reader(LogicalTime::sample(), table_, workspace);
+    NetTableTransaction reader(LogicalTime::sample(), workspace, nullptr,
+                               table_);
     std::shared_ptr<const Revision> ab_item = reader.getById(ab_id);
     std::shared_ptr<const Revision> b_item = reader.getById(b_id);
     EXPECT_TRUE(ab_item->verifyEqual(kFieldName, 2 * kCycles));
@@ -67,7 +70,8 @@ TEST_F(NetTableFixture, NetTableTransactions) {
     for (int i = 0; i < kCycles; ++i) {
       while (true) {
         Workspace workspace;
-        NetTableTransaction attempt(LogicalTime::sample(), table_, workspace);
+        NetTableTransaction attempt(LogicalTime::sample(), workspace, nullptr,
+                                    table_);
         increment(ab_id, ab_chunk, &attempt);
         std::shared_ptr<Revision> to_insert = table_->getTemplate();
         common::Id insert_id;
@@ -94,7 +98,8 @@ TEST_F(NetTableFixture, NetTableTransactions) {
     for (int i = 0; i < kCycles; ++i) {
       while (true) {
         Workspace workspace;
-        NetTableTransaction attempt(LogicalTime::sample(), table_, workspace);
+        NetTableTransaction attempt(LogicalTime::sample(), workspace, nullptr,
+                                    table_);
         increment(ab_id, ab_chunk, &attempt);
         increment(b_id, b_chunk, &attempt);
         if (attempt.commit()) {
@@ -107,7 +112,7 @@ TEST_F(NetTableFixture, NetTableTransactions) {
   LOG(INFO) << PeerId::self() << " done";
 }
 
-TEST_F(NetTableFixture, Transactions) {
+TEST_F(NetTableTest, Transactions) {
   enum Processes {
     ROOT,
     A,
@@ -205,7 +210,8 @@ TEST_F(NetTableFixture, Transactions) {
         ConstRevisionMap chunk_dump;
         attempt.dumpChunk(second_table, b_chunk, &chunk_dump);
         ConstRevisionMap::iterator found = chunk_dump.find(b_id);
-        std::shared_ptr<Revision> to_update = found->second->copyForWrite();
+        std::shared_ptr<Revision> to_update;
+        found->second->copyForWrite(&to_update);
         int transient_value;
         to_update->get(kSecondTableFieldName, &transient_value);
         ++transient_value;
@@ -220,7 +226,7 @@ TEST_F(NetTableFixture, Transactions) {
   }
 }
 
-TEST_F(NetTableFixture, CommitTime) {
+TEST_F(NetTableTest, CommitTime) {
   ChunkBase* chunk = table_->newChunk();
   Transaction transaction;
   // TODO(tcies) factor insertion into a NetTableTest function
@@ -247,7 +253,7 @@ TEST_F(NetTableFixture, CommitTime) {
   // TODO(tcies) also test update times, and times accross multiple chunks
 }
 
-TEST_F(NetTableFixture, ChunkLookup) {
+TEST_F(NetTableTest, ChunkLookup) {
   enum Processes {
     MASTER,
     SLAVE
@@ -283,7 +289,7 @@ TEST_F(NetTableFixture, ChunkLookup) {
   IPC::barrier(DIE, 1);
 }
 
-TEST_F(NetTableFixture, ListenToChunksFromPeer) {
+TEST_F(NetTableTest, ListenToChunksFromPeer) {
   enum Processes {
     MASTER,
     SLAVE
@@ -316,7 +322,7 @@ TEST_F(NetTableFixture, ListenToChunksFromPeer) {
   }
 }
 
-TEST_F(NetTableFixture, ListenToNewPeersOfTable) {
+TEST_F(NetTableTest, ListenToNewPeersOfTable) {
   enum Processes {
     MASTER,
     SLAVE
@@ -342,7 +348,7 @@ TEST_F(NetTableFixture, ListenToNewPeersOfTable) {
   }
 }
 
-class LeaveOnceSharedTest : public NetTableFixture {
+class NetTableTestLeaveOnceShared : public NetTableTest {
  public:
   virtual void TearDownImpl() override {
     if (getSubprocessId() == 0) {
@@ -356,7 +362,7 @@ class LeaveOnceSharedTest : public NetTableFixture {
 // This actually doesn't require the slave to run killOnceShared(), as the
 // chunk is fully shared inside the newChunk() call, but let's keep this here
 // in case things are redesigned in the future.
-TEST_F(LeaveOnceSharedTest, LeaveOnceSharedListening) {
+TEST_F(NetTableTestLeaveOnceShared, LeaveOnceSharedListening) {
   enum Processes {
     MASTER,
     SLAVE
@@ -374,7 +380,7 @@ TEST_F(LeaveOnceSharedTest, LeaveOnceSharedListening) {
   }
 }
 
-TEST_F(LeaveOnceSharedTest, LeaveOnceSharedRequesting) {
+TEST_F(NetTableTestLeaveOnceShared, LeaveOnceSharedRequesting) {
   enum Processes {
     MASTER,
     SLAVE
@@ -400,7 +406,7 @@ TEST_F(LeaveOnceSharedTest, LeaveOnceSharedRequesting) {
   }
 }
 
-class NetTableChunkTrackingTest : public NetTableFixture {
+class NetTableTestChunkTracking : public NetTableTest {
  protected:
   enum Processes {
     MASTER,
@@ -470,11 +476,11 @@ class NetTableChunkTrackingTest : public NetTableFixture {
   common::Id master_chunk_id_, master_item_id_;
 };
 
-const std::string NetTableChunkTrackingTest::kTrackeeTableName =
+const std::string NetTableTestChunkTracking::kTrackeeTableName =
     "trackee_table";
-const size_t NetTableChunkTrackingTest::kNumTrackeeChunks = 10;
+const size_t NetTableTestChunkTracking::kNumTrackeeChunks = 10;
 
-TEST_F(NetTableChunkTrackingTest, ChunkTrackingSameTransaction) {
+TEST_F(NetTableTestChunkTracking, ChunkTrackingSameTransaction) {
   enum Barriers {
     INIT,
     SLAVE_DONE,
@@ -500,7 +506,7 @@ TEST_F(NetTableChunkTrackingTest, ChunkTrackingSameTransaction) {
   IPC::barrier(DIE, 1);
 }
 
-TEST_F(NetTableChunkTrackingTest, ChunkTrackingDifferentTransaction) {
+TEST_F(NetTableTestChunkTracking, ChunkTrackingDifferentTransaction) {
   enum Barriers {
     INIT,
     TRACKER_DONE,
@@ -532,7 +538,7 @@ TEST_F(NetTableChunkTrackingTest, ChunkTrackingDifferentTransaction) {
   IPC::barrier(DIE, 1);
 }
 
-TEST_F(NetTableChunkTrackingTest, FollowTrackedChunks) {
+TEST_F(NetTableTestChunkTracking, FollowTrackedChunks) {
   enum Barriers {
     INIT,
     TRACKER_DONE,
@@ -567,7 +573,7 @@ TEST_F(NetTableChunkTrackingTest, FollowTrackedChunks) {
   IPC::barrier(DIE, 1);
 }
 
-TEST_F(NetTableFixture, GetAllIdsNoNewChunkRaceConditionThreads) {
+TEST_F(NetTableTest, GetAllIdsNoNewChunkRaceConditionThreads) {
   constexpr size_t kNumPushers = 50;
   constexpr size_t kItemsToPush = 100;
 

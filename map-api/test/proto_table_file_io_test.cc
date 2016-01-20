@@ -13,7 +13,9 @@
 
 using namespace map_api;  // NOLINT
 
-TEST_F(NetTableFixture, SaveAndRestoreFromFile) {
+class ProtoTableFileIOTest : public NetTableFixture {};
+
+TEST_F(ProtoTableFileIOTest, SaveAndRestoreFromFile) {
   ChunkBase* chunk = table_->newChunk();
   CHECK_NOTNULL(chunk);
   common::Id chunk_id = chunk->id();
