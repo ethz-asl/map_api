@@ -312,7 +312,7 @@ that has been made for dmap is that an agent shall only keep the data it is
 explicitly interested in.
 
 To that end, dmap organizes data in so-called chunks. At this point in the
-documentation, there is a choice for you. To quote Morpheus:
+documentation, there is a choice for you. To paraphrase Morpheus:
 
 *This is your last chance. After this, there is no turning back. You don't learn
 about chunks -- the story ends, you wake up in your bed and can use dmap for
