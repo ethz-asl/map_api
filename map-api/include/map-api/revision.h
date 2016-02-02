@@ -54,8 +54,11 @@ class Revision {
   static std::shared_ptr<Revision> fromProtoString(
       const std::string& revision_proto_string);
 
+  // Defaults to blob in order to be easy to use for arbitrary protobufs.
   template <typename FieldType>
-  static proto::Type getProtobufTypeEnum();
+  static proto::Type getProtobufTypeEnum() {
+    return proto::Type::BLOB;
+  }
 
   void addField(int index, proto::Type type);
   template <typename FieldType>
@@ -184,11 +187,11 @@ class Revision {
   }
   inline void setRemoved() { underlying_revision_->set_removed(true); }
 
-  // exception to parameter ordering: The standard way would make the function
-  // call ambiguous if FieldType = int
+  // Exception to parameter ordering: The standard way would make the function
+  // call ambiguous if FieldType = int.
+  // The default implementation assumes that the type is a protobuf.
   template <typename FieldType>
   bool set(proto::TableField* field, const FieldType& value);
-
   template <typename FieldType>
   bool get(const proto::TableField& field, FieldType* value) const;
 
@@ -198,6 +201,10 @@ class Revision {
 /**
  * Convenience macros to specialize the above templates in one line.
  */
+#define MAP_API_DECLARE_TYPE_ENUM(TYPE) \
+  template <>                           \
+  proto::Type Revision::getProtobufTypeEnum<TYPE>()
+
 #define MAP_API_TYPE_ENUM(TYPE, ENUM)                 \
   template <>                                         \
   proto::Type Revision::getProtobufTypeEnum<TYPE>() { \
@@ -213,30 +220,11 @@ class Revision {
   template <>                      \
   bool Revision::get<TYPE>(const proto::TableField& field, TYPE* value) const
 
-/**
- * One Macro to define REVISION_ENUM, _SET and _GET for Protobuf objects
- */
-#define MAP_API_REVISION_PROTOBUF(TYPE)                              \
-  MAP_API_TYPE_ENUM(TYPE, ::map_api::proto::Type::BLOB);             \
-                                                                     \
-  MAP_API_REVISION_SET(TYPE) {                                       \
-    CHECK_NOTNULL(field)->set_blob_value(value.SerializeAsString()); \
-    return true;                                                     \
-  }                                                                  \
-                                                                     \
-  MAP_API_REVISION_GET(TYPE) {                                       \
-    CHECK_NOTNULL(value);                                            \
-    bool parsed = value->ParseFromString(field.blob_value());        \
-    if (!parsed) {                                                   \
-      LOG(ERROR) << "Failed to parse " << #TYPE;                     \
-      return false;                                                  \
-    }                                                                \
-    return true;                                                     \
-  }                                                                  \
-  extern void __FILE__##__LINE__(void)
-/**
- * Same for UniqueId derivates
- */
+#define MAP_API_DECLARE_TYPE_SUPPORT(TypeName) \
+  MAP_API_DECLARE_TYPE_ENUM(TypeName);         \
+  MAP_API_REVISION_SET(TypeName);              \
+  MAP_API_REVISION_GET(TypeName)
+
 #define MAP_API_REVISION_UNIQUE_ID(TypeName)                          \
   MAP_API_TYPE_ENUM(TypeName, ::map_api::proto::Type::HASH128);       \
   MAP_API_REVISION_SET(TypeName) {                                    \
