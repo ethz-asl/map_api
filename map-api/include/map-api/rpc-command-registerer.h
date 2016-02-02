@@ -5,7 +5,6 @@
 
 #include <multiagent-mapping-common/command-registerer.h>
 
-
 namespace map_api {
 
 class Message;
