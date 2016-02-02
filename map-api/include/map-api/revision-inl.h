@@ -1,6 +1,8 @@
 #ifndef MAP_API_REVISION_INL_H_
 #define MAP_API_REVISION_INL_H_
 
+#include <string>
+
 #include <glog/logging.h>
 
 namespace map_api {
@@ -34,12 +36,42 @@ bool Revision::get(int index, FieldType* value) const {
   return get(field, value);
 }
 
+template <typename FieldType>
+bool Revision::set(proto::TableField* field, const FieldType& value) {
+  return value.SerializeToString(CHECK_NOTNULL(field)->mutable_blob_value());
+}
+
+template <typename FieldType>
+bool Revision::get(const proto::TableField& field, FieldType* value) const {
+  CHECK_NOTNULL(value);
+  bool parsed = value->ParseFromString(field.blob_value());
+  if (!parsed) {
+    LOG(ERROR) << "Failed to parse protobuf.";
+    return false;
+  }
+  return true;
+}
+
 template <typename ExpectedType>
 bool Revision::verifyEqual(int index, const ExpectedType& expected) const {
   ExpectedType value;
   get(index, &value);
   return value == expected;
 }
+
+MAP_API_DECLARE_TYPE_SUPPORT(std::string);     // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(double);          // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(int32_t);         // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(uint32_t);        // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(common::Id);      // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(bool);            // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(aslam::HashId);   // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(int64_t);         // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(uint64_t);        // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(LogicalTime);     // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(Revision);        // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(testBlob);        // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(Revision::Blob);  // NOLINT
 
 }  // namespace map_api
 
