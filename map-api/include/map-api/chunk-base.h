@@ -19,8 +19,15 @@ class LogicalTime;
 class Revision;
 class TableDescriptor;
 
+namespace internal {
+class ChunkView;
+class DeltaView;
+}  // namespace internal
+
 class ChunkBase {
   friend class ChunkTransaction;
+  friend class internal::ChunkView;
+  friend class internal::DeltaView;
   friend class NetTable;
 
  public:
@@ -40,6 +47,8 @@ class ChunkBase {
   virtual void getCommitTimes(const LogicalTime& sample_time,
                               std::set<LogicalTime>* commit_times) const = 0;
 
+  void getUpdateTimes(std::unordered_map<common::Id, LogicalTime>* result);
+
   virtual bool insert(const LogicalTime& time,
                       const std::shared_ptr<Revision>& item) = 0;
 
@@ -51,7 +60,7 @@ class ChunkBase {
   // avoided otherwise.
   virtual void readLock() const = 0;
 
-  virtual bool isWriteLocked() = 0;
+  virtual bool isWriteLocked() const = 0;
 
   virtual void unlock() const = 0;
 
