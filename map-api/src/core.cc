@@ -10,8 +10,6 @@ namespace map_api {
 
 Core Core::instance_;
 
-MAP_API_REVISION_PROTOBUF(TableDescriptor);
-
 Core* Core::instance() {
   std::unique_lock<std::mutex> lock(instance_.initialized_mutex_);
   if (instance_.initialized_) {
