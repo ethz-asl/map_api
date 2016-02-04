@@ -1,11 +1,12 @@
 #ifndef INTERNAL_NETWORK_DATA_LOG_H_
 #define INTERNAL_NETWORK_DATA_LOG_H_
 
+#include <fstream>  // NOLINT
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include <multiagent-mapping-common/plain-file-logger.h>
+#include <Eigen/Dense>
 
 namespace map_api {
 namespace internal {
@@ -25,7 +26,7 @@ class NetworkDataLog {
     std::string type;
   };
 
-  common::PlainFileLogger logger_;
+  std::ofstream logger_;
 };
 
 }  // namespace internal
