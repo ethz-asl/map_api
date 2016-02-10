@@ -1,15 +1,15 @@
-#include <map-api/legacy-chunk.h>
 #include "map-api/transaction.h"
 
 #include <algorithm>
 
+#include <aslam/common/timer.h>
 #include <multiagent-mapping-common/backtrace.h>
-#include <timing/timer.h>
 
 #include "map-api/cache-base.h"
 #include "map-api/chunk-manager.h"
 #include "map-api/conflicts.h"
 #include "map-api/internal/commit-future.h"
+#include "map-api/legacy-chunk.h"
 #include "map-api/net-table.h"
 #include "map-api/net-table-manager.h"
 #include "map-api/net-table-transaction.h"
@@ -364,7 +364,7 @@ void Transaction::commitImpl(const bool finalize_after_check,
   for (const CacheMap::value_type& cache_pair : caches_) {
     cache_pair.second->discardCachedInsertions();
   }
-  timing::Timer timer("map_api::Transaction::commit - lock");
+  aslam::timing::Timer timer("map_api::Transaction::commit - lock");
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->lock();
   }
