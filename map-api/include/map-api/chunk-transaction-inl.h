@@ -7,7 +7,7 @@
 
 #include <multiagent-mapping-common/unique-id.h>
 
-namespace map_api {
+namespace dmap {
 
 template <typename ValueType>
 void ChunkTransaction::addConflictCondition(int key, const ValueType& value) {
@@ -60,6 +60,6 @@ std::shared_ptr<const Revision> ChunkTransaction::findUnique(
   return result;
 }
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_CHUNK_TRANSACTION_INL_H_

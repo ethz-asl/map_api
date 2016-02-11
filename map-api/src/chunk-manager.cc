@@ -1,12 +1,12 @@
-#include <map-api/chunk-manager.h>
+#include <dmap/chunk-manager.h>
 
 #include <utility>
 
 #include <glog/logging.h>
 
-#include "map-api/net-table.h"
+#include "dmap/net-table.h"
 
-namespace map_api {
+namespace dmap {
 void ChunkManagerBase::requestParticipationAllChunks() {
   if (active_chunks_.empty()) {
     return;
@@ -39,4 +39,4 @@ ChunkBase* ChunkManagerChunkSize::getChunkForItem(const Revision& revision) {
   return current_chunk_;
 }
 
-}  // namespace map_api
+}  // namespace dmap

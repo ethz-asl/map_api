@@ -1,4 +1,4 @@
-#include "map-api/chord-index.h"
+#include "dmap/chord-index.h"
 
 #include <algorithm>
 #include <type_traits>
@@ -14,7 +14,7 @@ DEFINE_string(join_mode, kCleanJoin,
 DEFINE_uint64(stabilize_us, 1000, "Interval of stabilization in microseconds");
 DECLARE_int32(simulated_lag_ms);
 
-namespace map_api {
+namespace dmap {
 
 ChordIndex::~ChordIndex() {}
 
@@ -720,4 +720,4 @@ void ChordIndex::handleNotifyCommon(std::shared_ptr<ChordPeer> peer) {
   }
 }
 
-} /* namespace map_api */
+} /* namespace dmap */

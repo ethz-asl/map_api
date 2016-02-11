@@ -1,7 +1,7 @@
 #ifndef MAP_API_MESSAGE_INL_H_
 #define MAP_API_MESSAGE_INL_H_
 
-namespace map_api {
+namespace dmap {
 
 inline void Message::ack() {
   impose<Message::kAck>();
@@ -23,6 +23,6 @@ bool Message::isType() const {
   return this->type() == expected_type;
 }
 
-} // namespace map_api
+}  // namespace dmap
 
 #endif /* MAP_API_MESSAGE_INL_H_ */

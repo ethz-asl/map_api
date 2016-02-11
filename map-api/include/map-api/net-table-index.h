@@ -4,14 +4,14 @@
 #include <string>
 #include <unordered_set>
 
-#include "map-api/chord-index.h"
-#include "map-api/peer-handler.h"
+#include "dmap/chord-index.h"
+#include "dmap/peer-handler.h"
 
 namespace common {
 class Id;
 }  // namespace common
 
-namespace map_api {
+namespace dmap {
 class NetTableIndex : public ChordIndex {
  public:
   virtual ~NetTableIndex();
@@ -82,6 +82,6 @@ class NetTableIndex : public ChordIndex {
   PeerHandler peers_;
 };
 
-} /* namespace map_api */
+} /* namespace dmap */
 
 #endif  // MAP_API_NET_TABLE_INDEX_H_

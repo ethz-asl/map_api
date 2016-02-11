@@ -11,9 +11,9 @@
 #include <aslam/common/reader-writer-lock.h>
 #include <gtest/gtest_prod.h>
 
-#include "map-api/peer-id.h"
+#include "dmap/peer-id.h"
 
-namespace map_api {
+namespace dmap {
 
 /**
  * This is the base class for all distributed indices. It implements distributed
@@ -238,6 +238,6 @@ class ChordIndex {
   PeerId node_lock_holder_;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 #include "./chord-index-inl.h"
 #endif  // MAP_API_CHORD_INDEX_H_

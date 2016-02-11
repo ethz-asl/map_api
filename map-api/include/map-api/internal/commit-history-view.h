@@ -3,9 +3,9 @@
 
 #include <unordered_map>
 
-#include "map-api/internal/overriding-view-base.h"
+#include "dmap/internal/overriding-view-base.h"
 
-namespace map_api {
+namespace dmap {
 class ChunkBase;
 class LogicalTime;
 
@@ -40,6 +40,6 @@ class CommitHistoryView : public OverridingViewBase {
 };
 
 }  // namespace internal
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // INTERNAL_COMMIT_HISTORY_VIEW_H_

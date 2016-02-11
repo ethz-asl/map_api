@@ -7,9 +7,9 @@
 
 #include <multiprocess-gtest/multiprocess-fixture.h>
 
-#include "map-api/file-discovery.h"
+#include "dmap/file-discovery.h"
 
-namespace map_api {
+namespace dmap {
 
 MapApiTestEntryPoint::~MapApiTestEntryPoint() {}
 
@@ -19,6 +19,6 @@ void MapApiTestEntryPoint::customInit() {
                             std::ofstream::out | std::ofstream::trunc);
   }
 }
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_TESTING_ENTRYPOINT_INL_H_

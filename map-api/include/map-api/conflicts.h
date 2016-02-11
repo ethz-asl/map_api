@@ -7,9 +7,9 @@
 #include <string>
 #include <unordered_map>
 
-#include "map-api/net-table.h"
+#include "dmap/net-table.h"
 
-namespace map_api {
+namespace dmap {
 class Revision;
 
 struct Conflict {
@@ -58,6 +58,6 @@ class ConflictMap : public std::unordered_map<NetTable*, Conflicts> {
   }
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_CONFLICTS_H_

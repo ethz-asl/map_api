@@ -10,9 +10,9 @@
 #include <glog/logging.h>
 #include <multiagent-mapping-common/unique-id.h>
 
-#include "map-api/revision.h"
+#include "dmap/revision.h"
 
-namespace map_api {
+namespace dmap {
 class NetTable;
 
 template <typename ObjectType>
@@ -24,15 +24,15 @@ NetTable* tableForType();
   }
 
 template <typename ObjectType>
-void objectFromRevision(const map_api::Revision& revision, ObjectType* result);
+void objectFromRevision(const dmap::Revision& revision, ObjectType* result);
 template <>
-void objectFromRevision<std::string>(const map_api::Revision& revision,
+void objectFromRevision<std::string>(const dmap::Revision& revision,
                                      std::string* result);
 
 template <typename ObjectType>
-void objectToRevision(const ObjectType& object, map_api::Revision* revision);
+void objectToRevision(const ObjectType& object, dmap::Revision* revision);
 template <>
-void objectToRevision(const std::string& object, map_api::Revision* revision);
+void objectToRevision(const std::string& object, dmap::Revision* revision);
 
 template <typename TrackeeType, typename TrackerType, typename TrackerIdType>
 TrackerIdType determineTracker(const TrackeeType& trackee);
@@ -150,6 +150,6 @@ std::string getComparisonString(const ObjectType& a, const ObjectType& b) {
     revision->setId(derived->id());                                \
   }
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_APP_TEMPLATES_H_

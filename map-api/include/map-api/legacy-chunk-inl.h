@@ -1,9 +1,9 @@
 #ifndef MAP_API_LEGACY_CHUNK_INL_H_
 #define MAP_API_LEGACY_CHUNK_INL_H_
 
-#include "map-api/chunk-data-container-base.h"
+#include "dmap/chunk-data-container-base.h"
 
-namespace map_api {
+namespace dmap {
 
 template <typename RequestType>
 void LegacyChunk::fillMetadata(RequestType* destination) const {
@@ -19,6 +19,6 @@ inline void LegacyChunk::syncLatestCommitTime(const Revision& item) {
   }
 }
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_LEGACY_CHUNK_INL_H_

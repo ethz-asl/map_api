@@ -1,26 +1,26 @@
-#include <map-api/ipc.h>
+#include <dmap/ipc.h>
 #include <sstream>
 #include <string>
 
 #include <glog/logging.h>
 
-#include <map-api/hub.h>
-#include <map-api/logical-time.h>
-#include "map-api/message.h"
-#include <map-api/peer-id.h>
+#include <dmap/hub.h>
+#include <dmap/logical-time.h>
+#include "dmap/message.h"
+#include <dmap/peer-id.h>
 #include <multiagent-mapping-common/unique-id.h>
 
-namespace map_api {
+namespace dmap {
 
 std::mutex IPC::barrier_mutex_, IPC::message_mutex_;
 std::condition_variable IPC::barrier_cv_;
 std::unordered_map<int, int> IPC::barrier_map_;
 std::queue<proto::IpcMessage> IPC::messages_;
 
-const char IPC::kBarrierMessage[] = "map_api_ipc_barrier";
+const char IPC::kBarrierMessage[] = "dmap_ipc_barrier";
 MAP_API_STRING_MESSAGE(IPC::kBarrierMessage);
 
-const char IPC::kMessageMessage[] = "map_api_ipc_message";
+const char IPC::kMessageMessage[] = "dmap_ipc_message";
 MAP_API_PROTO_MESSAGE(IPC::kMessageMessage, proto::IpcMessage);
 
 IPC::~IPC() {}
@@ -128,4 +128,4 @@ PeerId IPC::popFor(int receiver) {
   return PeerId(address);
 }
 
-}  // namespace map_api
+}  // namespace dmap

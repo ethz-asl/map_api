@@ -7,7 +7,7 @@
 #include <Poco/MD5Engine.h>
 #include <Poco/DigestStream.h>
 
-namespace map_api {
+namespace dmap {
 template <typename DataType>
 ChordIndex::Key ChordIndex::hash(const DataType& data) {
   static_assert(sizeof(Key) <= sizeof(size_t),
@@ -21,6 +21,6 @@ ChordIndex::Key ChordIndex::hash(const DataType& data) {
   key_union.hash_result = std::hash<DataType>()(data);
   return key_union.key;
 }
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_CHORD_INDEX_INL_H_

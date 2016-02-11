@@ -1,6 +1,6 @@
 #include <glog/logging.h>
 
-#include "map-api/table-descriptor.h"
+#include "dmap/table-descriptor.h"
 
 /**
  * A test table revealing some more internals than a typical table, such as
@@ -12,8 +12,8 @@ class TestTable {
   static CachedTableType& instance() {
     static CachedTableType table;
     if (!table.isInitialized()) {
-      std::shared_ptr<map_api::TableDescriptor> descriptor(
-          new map_api::TableDescriptor);
+      std::shared_ptr<dmap::TableDescriptor> descriptor(
+          new dmap::TableDescriptor);
       descriptor->setName("test_table");
       table.init(descriptor);
     }

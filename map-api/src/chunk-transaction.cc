@@ -1,14 +1,14 @@
-#include "map-api/chunk-transaction.h"
+#include "dmap/chunk-transaction.h"
 
 #include <unordered_set>
 
 #include <multiagent-mapping-common/accessors.h>
 
-#include "map-api/conflicts.h"
-#include "map-api/internal/commit-future.h"
-#include "map-api/net-table.h"
+#include "dmap/conflicts.h"
+#include "dmap/internal/commit-future.h"
+#include "dmap/net-table.h"
 
-namespace map_api {
+namespace dmap {
 
 ChunkTransaction::ChunkTransaction(ChunkBase* chunk, NetTable* table)
     : ChunkTransaction(LogicalTime::sample(), nullptr, chunk, table) {}
@@ -150,4 +150,4 @@ void ChunkTransaction::getTrackers(
   }
 }
 
-}  // namespace map_api
+}  // namespace dmap

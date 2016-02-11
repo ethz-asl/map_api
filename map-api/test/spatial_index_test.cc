@@ -2,16 +2,16 @@
 
 #include <eigen-checks/gtest.h>
 
-#include "map-api/core.h"
-#include "map-api/ipc.h"
-#include "map-api/net-table.h"
-#include "map-api/net-table-manager.h"
-#include "map-api/net-table-transaction.h"
-#include "map-api/test/testing-entrypoint.h"
-#include "map-api/transaction.h"
-#include "./map_api_fixture.h"
+#include "dmap/core.h"
+#include "dmap/ipc.h"
+#include "dmap/net-table.h"
+#include "dmap/net-table-manager.h"
+#include "dmap/net-table-transaction.h"
+#include "dmap/test/testing-entrypoint.h"
+#include "dmap/transaction.h"
+#include "./dmap_fixture.h"
 
-namespace map_api {
+namespace dmap {
 
 /**
  *
@@ -291,6 +291,6 @@ class SpatialIndexListenToSpaceTest : public SpatialIndexTwoPeerTest {
 
 TEST_F(SpatialIndexListenToSpaceTest, Run) { run(); }
 
-}  // namespace map_api
+}  // namespace dmap
 
 MAP_API_UNITTEST_ENTRYPOINT

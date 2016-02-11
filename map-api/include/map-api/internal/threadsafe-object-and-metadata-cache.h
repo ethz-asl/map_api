@@ -6,11 +6,11 @@
 #include <multiagent-mapping-common/breakpoints.h>
 #include <multiagent-mapping-common/threadsafe-cache.h>
 
-#include "map-api/cache-base.h"
-#include "map-api/internal/object-and-metadata.h"
-#include "map-api/net-table-transaction-interface.h"
+#include "dmap/cache-base.h"
+#include "dmap/internal/object-and-metadata.h"
+#include "dmap/net-table-transaction-interface.h"
 
-namespace map_api {
+namespace dmap {
 
 template <typename IdType, typename ObjectType>
 class ThreadsafeObjectAndMetadataCache
@@ -54,6 +54,6 @@ class ThreadsafeObjectAndMetadataCache
   }
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // INTERNAL_THREADSAFE_OBJECT_AND_METADATA_CACHE_H_

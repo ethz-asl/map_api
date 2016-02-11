@@ -1,10 +1,10 @@
-#include <map-api/peer-handler.h>
+#include <dmap/peer-handler.h>
 #include <glog/logging.h>
 
-#include "map-api/hub.h"
-#include "map-api/message.h"
+#include "dmap/hub.h"
+#include "dmap/message.h"
 
-namespace map_api {
+namespace dmap {
 
 void PeerHandler::add(const PeerId& peer) {
   {
@@ -107,4 +107,4 @@ bool PeerHandler::undisputableBroadcast(Message* request) {
   return true;
 }
 
-} /* namespace map_api */
+} /* namespace dmap */

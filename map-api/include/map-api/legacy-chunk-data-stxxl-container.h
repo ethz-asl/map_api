@@ -4,10 +4,10 @@
 #include <list>
 #include <vector>
 
-#include "map-api/legacy-chunk-data-container-base.h"
-#include "map-api/stxxl-revision-store.h"
+#include "dmap/legacy-chunk-data-container-base.h"
+#include "dmap/stxxl-revision-store.h"
 
-namespace map_api {
+namespace dmap {
 
 class LegacyChunkDataStxxlContainer : public LegacyChunkDataContainerBase {
  public:
@@ -70,8 +70,8 @@ class LegacyChunkDataStxxlContainer : public LegacyChunkDataContainerBase {
   std::unique_ptr<STXXLRevisionStore<kBlockSize>> revision_store_;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
-#include "map-api/legacy-chunk-data-container-base-inl.h"
+#include "dmap/legacy-chunk-data-container-base-inl.h"
 
 #endif  // MAP_API_LEGACY_CHUNK_DATA_STXXL_CONTAINER_H_

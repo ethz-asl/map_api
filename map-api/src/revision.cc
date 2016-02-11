@@ -1,14 +1,14 @@
-#include <map-api/revision.h>
+#include <dmap/revision.h>
 
 #include <glog/logging.h>
-#include <map-api/logical-time.h>
-#include <map-api/net-table-manager.h>
-#include <map-api/trackee-multimap.h>
+#include <dmap/logical-time.h>
+#include <dmap/net-table-manager.h>
+#include <dmap/trackee-multimap.h>
 #include <multiagent-mapping-common/backtrace.h>
 #include <multiagent-mapping-common/breakpoints.h>
 #include <multiagent-mapping-common/unique-id.h>
 
-namespace map_api {
+namespace dmap {
 
 void Revision::copyForWrite(std::shared_ptr<Revision>* result) const {
   CHECK_NOTNULL(result);
@@ -411,4 +411,4 @@ MAP_API_REVISION_GET(Revision::Blob /*value*/) {
   return true;
 }
 
-}  // namespace map_api
+}  // namespace dmap

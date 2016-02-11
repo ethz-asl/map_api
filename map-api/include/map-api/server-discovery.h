@@ -8,11 +8,11 @@
 
 #include <zeromq_cpp/zmq.hpp>
 
-#include "map-api/discovery.h"
-#include "map-api/message.h"
-#include "map-api/peer.h"
+#include "dmap/discovery.h"
+#include "dmap/message.h"
+#include "dmap/peer.h"
 
-namespace map_api {
+namespace dmap {
 class PeerId;
 
 /**
@@ -61,6 +61,6 @@ class ServerDiscovery final : public Discovery {
   Peer server_;
 };
 
-} /* namespace map_api */
+} /* namespace dmap */
 
 #endif  // MAP_API_SERVER_DISCOVERY_H_

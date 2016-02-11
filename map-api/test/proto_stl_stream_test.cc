@@ -6,12 +6,12 @@
 #include <gtest/gtest.h>
 #include <stxxl.h>
 
-#include "map-api/proto-stl-stream.h"
-#include "map-api/revision.h"
-#include "map-api/test/testing-entrypoint.h"
+#include "dmap/proto-stl-stream.h"
+#include "dmap/revision.h"
+#include "dmap/test/testing-entrypoint.h"
 #include "./core.pb.h"
 
-namespace map_api {
+namespace dmap {
 template<int Size>
 struct SizeHolder {
   enum {
@@ -354,7 +354,7 @@ TYPED_TEST_P(ProtoSTLStream, InputStreamSkipWorks) {
 }
 
 TYPED_TEST_P(ProtoSTLStream, ProtoManualSerializationWorks) {
-  std::shared_ptr<map_api::Revision> revision_out;
+  std::shared_ptr<dmap::Revision> revision_out;
   Revision::fromProto(std::unique_ptr<proto::Revision>(new proto::Revision),
                       &revision_out);
 
@@ -406,7 +406,7 @@ TYPED_TEST_P(ProtoSTLStream, ProtoManualSerializationWorks) {
 
 
 TYPED_TEST_P(ProtoSTLStream, ProtoAutoSerializationWorks) {
-  std::shared_ptr<map_api::Revision> revision_out;
+  std::shared_ptr<dmap::Revision> revision_out;
   Revision::fromProto(std::unique_ptr<proto::Revision>(new proto::Revision),
                       &revision_out);
 
@@ -469,6 +469,6 @@ typedef ::testing::Types<SizeHolder<5>, SizeHolder<10>,
 
 INSTANTIATE_TYPED_TEST_CASE_P(Test, ProtoSTLStream, Sizes);
 
-}  // namespace map_api
+}  // namespace dmap
 
 MAP_API_UNITTEST_ENTRYPOINT

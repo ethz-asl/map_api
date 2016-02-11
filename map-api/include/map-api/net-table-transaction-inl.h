@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace map_api {
+namespace dmap {
 
 template <typename IdType>
 std::shared_ptr<const Revision> NetTableTransaction::getById(const IdType& id)
@@ -95,15 +95,15 @@ void NetTableTransaction::overrideTrackerIdentificationMethod(
   CHECK_GT(table_->new_chunk_trackers().count(tracker_table), 0u)
       << "Attempted to override a tracker identification method which is "
       << "however not used for pushing new chunk ids.";
-  auto determine_map_api_tracker_id = [how_to_determine_tracker](
+  auto determine_dmap_tracker_id = [how_to_determine_tracker](
       const Revision& trackee) {
     return static_cast<common::Id>(how_to_determine_tracker(trackee));
   };
 
   push_new_chunk_ids_to_tracker_overrides_[tracker_table] =
-      determine_map_api_tracker_id;
+      determine_dmap_tracker_id;
 }
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_NET_TABLE_TRANSACTION_INL_H_

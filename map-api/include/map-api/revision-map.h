@@ -7,9 +7,9 @@
 
 #include <multiagent-mapping-common/unique-id.h>
 
-#include "map-api/revision.h"
+#include "dmap/revision.h"
 
-namespace map_api {
+namespace dmap {
 
 template <typename ConstNonConstRevision>
 class RevisionMapBase
@@ -40,8 +40,8 @@ class RevisionMapBase
 class ConstRevisionMap : public RevisionMapBase<const Revision> {};
 class MutableRevisionMap : public RevisionMapBase<Revision> {};
 
-}  // namespace map_api
+}  // namespace dmap
 
-#include "map-api/revision-map-inl.h"
+#include "dmap/revision-map-inl.h"
 
 #endif  // MAP_API_REVISION_MAP_H_

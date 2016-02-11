@@ -1,10 +1,10 @@
-#include "map-api/table-descriptor.h"
+#include "dmap/table-descriptor.h"
 
 #include <glog/logging.h>
 
-#include "map-api/revision.h"
+#include "dmap/revision.h"
 
-namespace map_api {
+namespace dmap {
 
 TableDescriptor::~TableDescriptor() {}
 
@@ -38,4 +38,4 @@ std::shared_ptr<Revision> TableDescriptor::getTemplate() const {
   return result;
 }
 
-} /* namespace map_api */
+} /* namespace dmap */

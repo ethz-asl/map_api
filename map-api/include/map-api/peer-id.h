@@ -6,7 +6,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace map_api {
+namespace dmap {
 
 class PeerId {
  public:
@@ -47,18 +47,18 @@ class PeerId {
 typedef std::vector<PeerId> PeerIdList;
 typedef std::unordered_set<PeerId> PeerIdSet;
 
-} /* namespace map_api */
+} /* namespace dmap */
 
 namespace std {
 
-inline ostream& operator<<(ostream& out, const map_api::PeerId& peer_id) {
+inline ostream& operator<<(ostream& out, const dmap::PeerId& peer_id) {
   out << "IpPort(" << peer_id.ipPort() << ")";
   return out;
 }
 
 template <>
-struct hash<map_api::PeerId> {
-  std::size_t operator()(const map_api::PeerId& peer_id) const {
+struct hash<dmap::PeerId> {
+  std::size_t operator()(const dmap::PeerId& peer_id) const {
     return std::hash<std::string>()(peer_id.ipPort());
   }
 };

@@ -12,11 +12,11 @@
 
 #include <zeromq_cpp/zmq.hpp>
 
-#include <map-api/discovery.h>
-#include <map-api/peer.h>
-#include <map-api/peer-id.h>
+#include <dmap/discovery.h>
+#include <dmap/peer.h>
+#include <dmap/peer-id.h>
 
-namespace map_api {
+namespace dmap {
 class Message;
 
 /**
@@ -153,6 +153,6 @@ class Hub final {
   static const std::string kInDataLogPrefix, kOutDataLogPrefix;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_HUB_H_

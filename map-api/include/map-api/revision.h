@@ -11,10 +11,10 @@
 #include <glog/logging.h>
 
 #include "./core.pb.h"
-#include "map-api/logical-time.h"
+#include "dmap/logical-time.h"
 #include <multiagent-mapping-common/unique-id.h>
 
-namespace map_api {
+namespace dmap {
 class TrackeeMultimap;
 
 // Friending parametrized templated test cases seems to miss from gtest_prod.h.
@@ -226,7 +226,7 @@ class Revision {
   MAP_API_REVISION_GET(TypeName)
 
 #define MAP_API_REVISION_UNIQUE_ID(TypeName)                          \
-  MAP_API_TYPE_ENUM(TypeName, ::map_api::proto::Type::HASH128);       \
+  MAP_API_TYPE_ENUM(TypeName, ::dmap::proto::Type::HASH128);          \
   MAP_API_REVISION_SET(TypeName) {                                    \
     CHECK_NOTNULL(field)->set_string_value(value.hexString());        \
     return true;                                                      \
@@ -239,7 +239,7 @@ class Revision {
 /**
  * A generic, blob-y field type for testing blob insertion
  */
-class testBlob : public map_api::proto::TableField {
+class testBlob : public dmap::proto::TableField {
  public:
   inline bool operator==(const testBlob& other) const {
     if (!this->has_type()) return !other.has_type();
@@ -247,7 +247,7 @@ class testBlob : public map_api::proto::TableField {
   }
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #include "./revision-inl.h"
 

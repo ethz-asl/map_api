@@ -1,13 +1,13 @@
-#include "map-api/peer.h"
+#include "dmap/peer.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "map-api/hub.h"
-#include "map-api/internal/network-data-log.h"
-#include "map-api/logical-time.h"
-#include "map-api/message.h"
-#include "map-api/peer-id.h"
+#include "dmap/hub.h"
+#include "dmap/internal/network-data-log.h"
+#include "dmap/logical-time.h"
+#include "dmap/message.h"
+#include "dmap/peer-id.h"
 
 DEFINE_int32(request_timeout, 10000,
              "Amount of milliseconds after which a "
@@ -20,7 +20,7 @@ DEFINE_int32(simulated_lag_ms, 0,
 DEFINE_int32(simulated_bandwidth_kbps, 0,
              "Simulated bandwidth in kB/s. 0 means infinite.");
 
-namespace map_api {
+namespace dmap {
 
 Peer::Peer(const PeerId& address, zmq::context_t& context, int socket_type)
     : address_(address), socket_(context, socket_type) {
@@ -95,4 +95,4 @@ void Peer::simulateBandwidth(size_t byte_size) {
   usleep(1000 * byte_size / FLAGS_simulated_bandwidth_kbps);
 }
 
-}  // namespace map_api
+}  // namespace dmap

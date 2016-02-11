@@ -5,7 +5,7 @@
 
 #include "./net-table.pb.h"
 
-namespace map_api {
+namespace dmap {
 class PeerId;
 
 class SpatialIndexCellData : public proto::SpatialIndexCellData {
@@ -23,6 +23,6 @@ class SpatialIndexCellData : public proto::SpatialIndexCellData {
                       common::IdList* result) const;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_SPATIAL_INDEX_CELL_DATA_H_

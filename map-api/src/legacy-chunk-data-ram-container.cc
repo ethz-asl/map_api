@@ -1,6 +1,6 @@
-#include "../include/map-api/legacy-chunk-data-ram-container.h"
+#include "../include/dmap/legacy-chunk-data-ram-container.h"
 
-namespace map_api {
+namespace dmap {
 
 LegacyChunkDataRamContainer::~LegacyChunkDataRamContainer() {}
 
@@ -187,4 +187,4 @@ inline void LegacyChunkDataRamContainer::trimToTime(const LogicalTime& time,
   }
 }
 
-} /* namespace map_api */
+} /* namespace dmap */

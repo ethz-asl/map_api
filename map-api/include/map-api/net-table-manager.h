@@ -7,10 +7,10 @@
 
 #include <aslam/common/reader-writer-lock.h>
 
-#include "map-api/net-table.h"
-#include "map-api/table-descriptor.h"
+#include "dmap/net-table.h"
+#include "dmap/table-descriptor.h"
 
-namespace map_api {
+namespace dmap {
 
 class NetTableManager {
  public:
@@ -149,7 +149,7 @@ class NetTableManager {
   NetTable* metatable_;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #include "./net-table-manager-inl.h"
 

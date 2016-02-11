@@ -1,9 +1,9 @@
-#include "map-api/internal/view-base.h"
+#include "dmap/internal/view-base.h"
 
-namespace map_api {
+namespace dmap {
 namespace internal {
 
 ViewBase::~ViewBase() {}
 
 }  // namespace internal
-}  // namespace map_api
+}  // namespace dmap

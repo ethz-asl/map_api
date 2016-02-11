@@ -7,12 +7,12 @@
 
 #include <multiagent-mapping-common/accessors.h>
 
-#include "map-api/chunk-manager.h"
-#include "map-api/conflicts.h"
-#include "map-api/net-table-transaction-interface.h"
-#include "map-api/threadsafe-cache.h"
+#include "dmap/chunk-manager.h"
+#include "dmap/conflicts.h"
+#include "dmap/net-table-transaction-interface.h"
+#include "dmap/threadsafe-cache.h"
 
-namespace map_api {
+namespace dmap {
 
 template <typename ValueType>
 void Transaction::find(int key, const ValueType& value, NetTable* table,
@@ -145,6 +145,6 @@ ThreadsafeCache<IdType, ObjectType>* Transaction::getMutableCache(
   return result;
 }
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_TRANSACTION_INL_H_

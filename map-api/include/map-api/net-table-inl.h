@@ -3,7 +3,7 @@
 
 #include <vector>
 
-namespace map_api {
+namespace dmap {
 
 /**
  * Making this deprecated because I don't really like it...
@@ -111,6 +111,6 @@ void NetTable::addHeterogenousAutoMergePolicySymetrically(
   });
 }
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_NET_TABLE_INL_H_

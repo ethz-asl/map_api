@@ -1,10 +1,10 @@
-#include "map-api/internal/combined-view.h"
+#include "dmap/internal/combined-view.h"
 
 #include <glog/logging.h>
 
-#include "map-api/revision-map.h"
+#include "dmap/revision-map.h"
 
-namespace map_api {
+namespace dmap {
 namespace internal {
 
 CombinedView::CombinedView(const std::unique_ptr<ViewBase>& complete_view,
@@ -75,4 +75,4 @@ void CombinedView::discardKnownUpdates(UpdateTimes* update_times) const {
 }
 
 }  // namespace internal
-}  // namespace map_api
+}  // namespace dmap

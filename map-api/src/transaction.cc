@@ -1,28 +1,28 @@
-#include "map-api/transaction.h"
+#include "dmap/transaction.h"
 
 #include <algorithm>
 
 #include <aslam/common/timer.h>
 #include <multiagent-mapping-common/backtrace.h>
 
-#include "map-api/cache-base.h"
-#include "map-api/chunk-manager.h"
-#include "map-api/conflicts.h"
-#include "map-api/internal/commit-future.h"
-#include "map-api/legacy-chunk.h"
-#include "map-api/net-table.h"
-#include "map-api/net-table-manager.h"
-#include "map-api/net-table-transaction.h"
-#include "map-api/revision.h"
-#include "map-api/trackee-multimap.h"
-#include "map-api/workspace.h"
+#include "dmap/cache-base.h"
+#include "dmap/chunk-manager.h"
+#include "dmap/conflicts.h"
+#include "dmap/internal/commit-future.h"
+#include "dmap/legacy-chunk.h"
+#include "dmap/net-table.h"
+#include "dmap/net-table-manager.h"
+#include "dmap/net-table-transaction.h"
+#include "dmap/revision.h"
+#include "dmap/trackee-multimap.h"
+#include "dmap/workspace.h"
 #include "./core.pb.h"
 
 DECLARE_bool(cache_blame_dirty);
 DECLARE_bool(cache_blame_insert);
 DEFINE_bool(blame_commit, false, "Print stack trace for every commit");
 
-namespace map_api {
+namespace dmap {
 
 Transaction::Transaction(const std::shared_ptr<Workspace>& workspace,
                          const LogicalTime& begin_time,
@@ -364,7 +364,7 @@ void Transaction::commitImpl(const bool finalize_after_check,
   for (const CacheMap::value_type& cache_pair : caches_) {
     cache_pair.second->discardCachedInsertions();
   }
-  aslam::timing::Timer timer("map_api::Transaction::commit - lock");
+  aslam::timing::Timer timer("dmap::Transaction::commit - lock");
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->lock();
   }
@@ -408,4 +408,4 @@ void Transaction::finalize() {
   }
 }
 
-}  // namespace map_api */
+}  // namespace dmap */

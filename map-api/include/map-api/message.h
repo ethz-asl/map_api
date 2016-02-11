@@ -8,11 +8,11 @@
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 
-#include "map-api/message.h"
-#include "map-api/peer-id.h"
+#include "dmap/message.h"
+#include "dmap/peer-id.h"
 #include "./core.pb.h"
 
-namespace map_api {
+namespace dmap {
 
 class Message : public proto::HubMessage {
  public:
@@ -134,7 +134,7 @@ class Message : public proto::HubMessage {
   MAP_API_MESSAGE_EXTRACT_COMPRESSED_PROTO_MESSAGE(type_denomination,   \
                                                    proto_type)
 
-}  // namespace map_api
+}  // namespace dmap
 
 #include "./message-inl.h"
 

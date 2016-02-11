@@ -1,10 +1,10 @@
-#include "map-api/conflicts.h"
-#include "map-api/ipc.h"
-#include "map-api/test/testing-entrypoint.h"
-#include "map-api/transaction.h"
+#include "dmap/conflicts.h"
+#include "dmap/ipc.h"
+#include "dmap/test/testing-entrypoint.h"
+#include "dmap/transaction.h"
 #include "./net_table_fixture.h"
 
-namespace map_api {
+namespace dmap {
 
 class TransactionTest : public NetTableFixture {
  protected:
@@ -112,6 +112,6 @@ TEST_F(TransactionTest, TandemCommit) {
   }
 }
 
-}  // namespace map_api
+}  // namespace dmap
 
 MAP_API_UNITTEST_ENTRYPOINT

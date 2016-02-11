@@ -10,14 +10,14 @@
 
 #include <gflags/gflags.h>
 
-#include "map-api/table-descriptor.h"
+#include "dmap/table-descriptor.h"
 #include "./core.pb.h"
 
 namespace common {
 class Id;
 }  // namespace common
 
-namespace map_api {
+namespace dmap {
 class LegacyChunk;
 class ConstRevisionMap;
 class MutableRevisionMap;
@@ -105,7 +105,7 @@ class ChunkDataContainerBase {
 std::ostream& operator<<(std::ostream& stream,
                          const ChunkDataContainerBase::ItemDebugInfo& info);
 
-}  // namespace map_api
+}  // namespace dmap
 
 #include "./chunk-data-container-base-inl.h"
 

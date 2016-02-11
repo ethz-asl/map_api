@@ -5,9 +5,9 @@
 #include <string>
 #include <unordered_set>
 
-#include "map-api/trackee-multimap.h"
+#include "dmap/trackee-multimap.h"
 
-namespace map_api {
+namespace dmap {
 class ChunkBase;
 class Revision;
 
@@ -52,6 +52,6 @@ class Workspace {
   TrackeeMultimap chunk_whitelist_;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_WORKSPACE_H_

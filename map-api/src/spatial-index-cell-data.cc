@@ -1,12 +1,12 @@
-#include "map-api/spatial-index-cell-data.h"
+#include "dmap/spatial-index-cell-data.h"
 
 #include <algorithm>
 
 #include <glog/logging.h>
 
-#include "map-api/peer-id.h"
+#include "dmap/peer-id.h"
 
-namespace map_api {
+namespace dmap {
 
 void SpatialIndexCellData::addChunkIdIfNotPresent(const common::Id& id) {
   for (int i = 0; i < chunk_ids_size(); ++i) {
@@ -60,4 +60,4 @@ bool SpatialIndexCellData::chunkIdSetDiff(const SpatialIndexCellData& other,
   return !result->empty();
 }
 
-}  // namespace map_api
+}  // namespace dmap

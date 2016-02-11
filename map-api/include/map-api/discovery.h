@@ -3,9 +3,9 @@
 
 #include <vector>
 
-#include "map-api/peer-id.h"
+#include "dmap/peer-id.h"
 
-namespace map_api {
+namespace dmap {
 
 /**
  * Class for discovery of other peers. Use lock() and unlock() for
@@ -36,6 +36,6 @@ class Discovery {
   virtual void unlock() = 0;
 };
 
-} /* namespace map_api */
+} /* namespace dmap */
 
 #endif  // MAP_API_DISCOVERY_H_

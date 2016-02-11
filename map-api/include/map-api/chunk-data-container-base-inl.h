@@ -5,9 +5,9 @@
 #include <utility>
 #include <vector>
 
-#include "map-api/revision-map.h"
+#include "dmap/revision-map.h"
 
-namespace map_api {
+namespace dmap {
 
 template <typename IdType>
 std::shared_ptr<const Revision> ChunkDataContainerBase::getById(
@@ -15,11 +15,11 @@ std::shared_ptr<const Revision> ChunkDataContainerBase::getById(
   std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
   CHECK(id.isValid()) << "Supplied invalid ID";
-  common::Id map_api_id;
+  common::Id dmap_id;
   aslam::HashId hash_id;
   id.toHashId(&hash_id);
-  map_api_id.fromHashId(hash_id);
-  return getByIdImpl(map_api_id, time);
+  dmap_id.fromHashId(hash_id);
+  return getByIdImpl(dmap_id, time);
 }
 
 template <typename ValueType>
@@ -65,10 +65,10 @@ void ChunkDataContainerBase::getAvailableIds(const LogicalTime& time,
   CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
   CHECK_NOTNULL(ids);
   ids->clear();
-  std::vector<common::Id> map_api_ids;
-  getAvailableIdsImpl(time, &map_api_ids);
-  ids->reserve(map_api_ids.size());
-  for (const common::Id& id : map_api_ids) {
+  std::vector<common::Id> dmap_ids;
+  getAvailableIdsImpl(time, &dmap_ids);
+  ids->reserve(dmap_ids.size());
+  for (const common::Id& id : dmap_ids) {
     ids->emplace_back(id.toIdType<IdType>());
   }
 }
@@ -84,6 +84,6 @@ int ChunkDataContainerBase::count(int key, const ValueType& value,
   return this->countByRevision(key, *valueHolder, time);
 }
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_CHUNK_DATA_CONTAINER_BASE_INL_H_

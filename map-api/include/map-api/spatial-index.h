@@ -11,15 +11,15 @@
 #include <google/protobuf/repeated_field.h>
 #include <gtest/gtest_prod.h>
 
-#include "map-api/chord-index.h"
-#include "map-api/peer-handler.h"
-#include "map-api/spatial-index-cell-data.h"
+#include "dmap/chord-index.h"
+#include "dmap/peer-handler.h"
+#include "dmap/spatial-index-cell-data.h"
 
 namespace common {
 class Id;
 }  // namespace common
 
-namespace map_api {
+namespace dmap {
 namespace proto {
 class SpatialIndexTrigger;
 }  // namespace proto
@@ -194,6 +194,6 @@ class SpatialIndex : public ChordIndex {
   PeerHandler peers_;
 };
 
-} /* namespace map_api */
+} /* namespace dmap */
 
 #endif  // MAP_API_SPATIAL_INDEX_H_

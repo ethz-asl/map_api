@@ -1,10 +1,10 @@
-#include "map-api/chord-index.h"
-#include "map-api/hub.h"
-#include "map-api/message.h"
-#include "map-api/peer-handler.h"
+#include "dmap/chord-index.h"
+#include "dmap/hub.h"
+#include "dmap/message.h"
+#include "dmap/peer-handler.h"
 #include "./chord-index.pb.h"
 
-namespace map_api {
+namespace dmap {
 
 class TestChordIndex final : public ChordIndex {
  public:
@@ -471,4 +471,4 @@ bool TestChordIndex::pushResponsibilitiesRpc(const PeerId& to,
   return response.isType<Message::kAck>();
 }
 
-}  // namespace map_api
+}  // namespace dmap

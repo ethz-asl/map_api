@@ -1,15 +1,15 @@
-#include "map-api/spatial-index.h"
+#include "dmap/spatial-index.h"
 
 #include <multiagent-mapping-common/conversions.h>
 #include <multiagent-mapping-common/unique-id.h>
 
-#include "map-api/hub.h"
-#include "map-api/message.h"
-#include "map-api/net-table-manager.h"
+#include "dmap/hub.h"
+#include "dmap/message.h"
+#include "dmap/net-table-manager.h"
 #include "./chord-index.pb.h"
 #include "./net-table.pb.h"
 
-namespace map_api {
+namespace dmap {
 
 SpatialIndex::BoundingBox::BoundingBox() : std::vector<Range>() {}
 
@@ -210,8 +210,7 @@ SpatialIndex::Cell SpatialIndex::end() {
   return Cell(size(), this);
 }
 
-const char SpatialIndex::kRoutedChordRequest[] =
-    "map_api_spatial_index_request";
+const char SpatialIndex::kRoutedChordRequest[] = "dmap_spatial_index_request";
 // Because the requests are routed, we don't need to be careful with the choice
 // of name!
 const char SpatialIndex::kPeerResponse[] = "peer_response";
@@ -257,7 +256,7 @@ void SpatialIndex::handleRoutedRequest(const Message& routed_request_message,
   Message request;
   CHECK(request.ParseFromString(routed_request.serialized_message()));
   // TODO(tcies) a posteriori, especially given the new routing system,
-  // map_api::Message handling in ChordIndex itself could have been a thing
+  // dmap::Message handling in ChordIndex itself could have been a thing
   // the following code is mostly copied from test/test_chord_index.cpp :(
 
   if (!request.has_sender()) {
@@ -661,7 +660,7 @@ void SpatialIndex::localUpdateCallback(const std::string& key,
 }
 
 const char SpatialIndex::kTriggerRequest[] =
-    "map_api_spatial_index_trigger_request";
+    "dmap_spatial_index_trigger_request";
 MAP_API_PROTO_MESSAGE(SpatialIndex::kTriggerRequest,
                       proto::SpatialIndexTrigger);
 void SpatialIndex::sendTriggerNotification(const PeerId& peer,
@@ -696,4 +695,4 @@ void SpatialIndex::sendTriggerNotification(const PeerId& peer,
   CHECK(response.isOk());
 }
 
-} /* namespace map_api */
+} /* namespace dmap */

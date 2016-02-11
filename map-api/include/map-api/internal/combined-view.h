@@ -1,9 +1,9 @@
 #ifndef INTERNAL_COMBINED_VIEW_H_
 #define INTERNAL_COMBINED_VIEW_H_
 
-#include "map-api/internal/overriding-view-base.h"
+#include "dmap/internal/overriding-view-base.h"
 
-namespace map_api {
+namespace dmap {
 namespace internal {
 
 class CombinedView : public ViewBase {
@@ -30,6 +30,6 @@ class CombinedView : public ViewBase {
 };
 
 }  // namespace internal
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // INTERNAL_COMBINED_VIEW_H_

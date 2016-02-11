@@ -1,6 +1,6 @@
-#include "map-api/legacy-chunk-data-container-base.h"
+#include "dmap/legacy-chunk-data-container-base.h"
 
-namespace map_api {
+namespace dmap {
 
 bool LegacyChunkDataContainerBase::insert(
     const LogicalTime& time, const std::shared_ptr<Revision>& query) {
@@ -92,4 +92,4 @@ void LegacyChunkDataContainerBase::clear() {
   clearImpl();
 }
 
-}  // namespace map_api
+}  // namespace dmap

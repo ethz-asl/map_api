@@ -1,14 +1,14 @@
-#include "map-api/cache-base.h"
+#include "dmap/cache-base.h"
 
 #include <gflags/gflags.h>
 
-DEFINE_bool(map_api_prefetch_cache, false,
+DEFINE_bool(dmap_prefetch_cache, false,
             "Will prefetch the entire cache at construction.");
-DEFINE_bool(map_api_insert_into_existing_chunk, false,
+DEFINE_bool(dmap_insert_into_existing_chunk, false,
             "Will insert into an existing chunk instead of creating one.");
 
-namespace map_api {
+namespace dmap {
 
 CacheBase::~CacheBase() {}
 
-}  // namespace map_api
+}  // namespace dmap

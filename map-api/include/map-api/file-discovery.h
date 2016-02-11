@@ -5,9 +5,9 @@
 #include <string>
 #include <vector>
 
-#include "map-api/discovery.h"
+#include "dmap/discovery.h"
 
-namespace map_api {
+namespace dmap {
 class PeerId;
 
 /**
@@ -46,6 +46,6 @@ class FileDiscovery final : public Discovery {
   bool force_unlocked_once_;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_FILE_DISCOVERY_H_

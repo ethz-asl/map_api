@@ -3,14 +3,14 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "map-api/ipc.h"
-#include "map-api/net-table-manager.h"
-#include "map-api/net-table-transaction.h"
-#include "map-api/test/testing-entrypoint.h"
-#include "map-api/transaction.h"
+#include "dmap/ipc.h"
+#include "dmap/net-table-manager.h"
+#include "dmap/net-table-transaction.h"
+#include "dmap/test/testing-entrypoint.h"
+#include "dmap/transaction.h"
 #include "./net_table_fixture.h"
 
-namespace map_api {
+namespace dmap {
 
 class NetTableTest : public NetTableFixture {};
 
@@ -352,9 +352,9 @@ class NetTableTestLeaveOnceShared : public NetTableTest {
  public:
   virtual void TearDownImpl() override {
     if (getSubprocessId() == 0) {
-      map_api::Core::instance()->kill();
+      dmap::Core::instance()->kill();
     } else {
-      map_api::Core::instance()->killOnceShared();
+      dmap::Core::instance()->killOnceShared();
     }
   }
 };
@@ -611,6 +611,6 @@ TEST_F(NetTableTest, GetAllIdsNoNewChunkRaceConditionThreads) {
   }
 }
 
-}  // namespace map_api
+}  // namespace dmap
 
 MAP_API_UNITTEST_ENTRYPOINT

@@ -1,10 +1,10 @@
 #ifndef INTERNAL_OBJECT_AND_METADATA_H_
 #define INTERNAL_OBJECT_AND_METADATA_H_
 
-#include "map-api/net-table.h"
-#include "map-api/revision.h"
+#include "dmap/net-table.h"
+#include "dmap/revision.h"
 
-namespace map_api {
+namespace dmap {
 
 // Splits a revision into object and metadata. Note that the revision stored
 // in this object contains no custom field values, as these would be redundant
@@ -35,6 +35,6 @@ struct ObjectAndMetadata {
   }
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // INTERNAL_OBJECT_AND_METADATA_H_

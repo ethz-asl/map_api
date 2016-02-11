@@ -7,10 +7,10 @@
 
 #include <stxxl.h>
 
-#include "map-api/proto-stl-stream.h"
-#include "map-api/revision.h"
+#include "dmap/proto-stl-stream.h"
+#include "dmap/revision.h"
 
-namespace map_api {
+namespace dmap {
 struct CRRevisionInformation {
   MemoryBlockInformation memory_block_;
   // Cache information which is frequently accessed.
@@ -91,5 +91,5 @@ class STXXLRevisionStore {
   mutable MemoryBlockPool<BlockSize, ContainerType> proto_revision_pool_;
   mutable std::mutex mutex_;
 };
-}  // namespace map_api
+}  // namespace dmap
 #endif  // MAP_API_STXXL_REVISION_STORE_H_

@@ -1,10 +1,10 @@
 #ifndef INTERNAL_COMMIT_FUTURE_H_
 #define INTERNAL_COMMIT_FUTURE_H_
 
-#include "map-api/internal/overriding-view-base.h"
-#include "map-api/revision-map.h"
+#include "dmap/internal/overriding-view-base.h"
+#include "dmap/revision-map.h"
 
-namespace map_api {
+namespace dmap {
 class ChunkTransaction;
 
 namespace internal {
@@ -34,6 +34,6 @@ class CommitFuture : public ViewBase {
 };
 
 }  // namespace internal
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // INTERNAL_COMMIT_FUTURE_H_

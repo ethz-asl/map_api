@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <utility>
 
-namespace map_api {
+namespace dmap {
 
 template <typename RevisionType>
 template <typename Derived>
@@ -51,6 +51,6 @@ RevisionMapBase<RevisionType>::insert(
   return insert(std::make_pair(id_key, revision));
 }
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_REVISION_MAP_INL_H_

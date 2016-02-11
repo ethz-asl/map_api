@@ -10,12 +10,12 @@
 
 #include <glog/logging.h>
 
-#include "map-api/internal/commit-future.h"
-#include "map-api/logical-time.h"
-#include "map-api/net-table-transaction.h"
-#include "map-api/workspace.h"
+#include "dmap/internal/commit-future.h"
+#include "dmap/logical-time.h"
+#include "dmap/net-table-transaction.h"
+#include "dmap/workspace.h"
 
-namespace map_api {
+namespace dmap {
 class CacheBase;
 class ChunkBase;
 class ChunkManagerBase;
@@ -240,7 +240,7 @@ class Transaction {
   bool finalized_;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #include "./transaction-inl.h"
 

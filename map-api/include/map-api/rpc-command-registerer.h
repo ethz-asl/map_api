@@ -5,7 +5,7 @@
 
 #include <multiagent-mapping-common/command-registerer.h>
 
-namespace map_api {
+namespace dmap {
 
 class Message;
 class PeerId;
@@ -21,5 +21,5 @@ class RpcCommandRegisterer : public common::CommandRegisterer {
   static const char kCommandRequest[];
   static const char kCommandResponse[];
 };
-}  // namespace map_api
+}  // namespace dmap
 #endif  // MAP_API_RPC_COMMAND_REGISTERER_H_

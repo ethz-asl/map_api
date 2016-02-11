@@ -11,9 +11,9 @@
 
 #include <multiagent-mapping-common/unique-id.h>
 
-#include "map-api/chunk-data-container-base.h"
+#include "dmap/chunk-data-container-base.h"
 
-namespace map_api {
+namespace dmap {
 class ConstRevisionMap;
 class LogicalTime;
 class Revision;
@@ -133,6 +133,6 @@ class ChunkBase {
   std::unordered_set<common::Id> trigger_insertions_, trigger_updates_;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_CHUNK_BASE_H_

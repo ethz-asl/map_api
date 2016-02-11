@@ -13,20 +13,20 @@
 #include <multiagent-mapping-common/condition.h>
 #include <multiagent-mapping-common/unique-id.h>
 
-#include "map-api/chunk-base.h"
-#include "map-api/chunk-data-container-base.h"
-#include "map-api/logical-time.h"
-#include "map-api/peer-handler.h"
+#include "dmap/chunk-base.h"
+#include "dmap/chunk-data-container-base.h"
+#include "dmap/logical-time.h"
+#include "dmap/peer-handler.h"
 #include "./chunk.pb.h"
 
-namespace map_api {
+namespace dmap {
 class ConstRevisionMap;
 class Message;
 class MutableRevisionMap;
 class Revision;
 
 /**
- * A chunk is the smallest unit of data sharing among the map_api peers. Each
+ * A chunk is the smallest unit of data sharing among the dmap peers. Each
  * item in a table belongs to some chunk, and each chunk contains data from only
  * one table. A chunk size should be chosen that allows reasonably fast data
  * exchange per chunk while at the same time keeping the amount of chunks to
@@ -254,8 +254,8 @@ class LegacyChunk : public ChunkBase {
                         const TimePoint& end) const;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
-#include "map-api/legacy-chunk-inl.h"
+#include "dmap/legacy-chunk-inl.h"
 
 #endif  // MAP_API_LEGACY_CHUNK_H_

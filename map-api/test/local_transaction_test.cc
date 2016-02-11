@@ -3,13 +3,13 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "map-api/core.h"
-#include "map-api/cru-table-ram-sqlite.h"
-#include "map-api/local-transaction.h"
-#include "map-api/test/test_table.cc"
-#include "map-api/test/testing-entrypoint.h"
+#include "dmap/core.h"
+#include "dmap/cru-table-ram-sqlite.h"
+#include "dmap/local-transaction.h"
+#include "dmap/test/test_table.cc"
+#include "dmap/test/testing-entrypoint.h"
 
-namespace map_api {
+namespace dmap {
 
 /**
  * CRU table for query tests TODO(tcies) test a CRTable
@@ -19,8 +19,8 @@ class TransactionTestTable {
   static CRUTableRamSqlite& instance() {
     static CRUTableRamSqlite table;
     if (!table.isInitialized()) {
-      std::unique_ptr<map_api::TableDescriptor> descriptor(
-          new map_api::TableDescriptor);
+      std::unique_ptr<dmap::TableDescriptor> descriptor(
+          new dmap::TableDescriptor);
       descriptor->setName("transaction_test_table");
       descriptor->addField<double>(sampleField());
       table.init(&descriptor);
@@ -29,8 +29,8 @@ class TransactionTestTable {
   }
   // TODO(tcies) un-hack once table-manager
   static void init() {
-    std::unique_ptr<map_api::TableDescriptor> descriptor(
-        new map_api::TableDescriptor);
+    std::unique_ptr<dmap::TableDescriptor> descriptor(
+        new dmap::TableDescriptor);
     descriptor->setName("transaction_test_table");
     descriptor->addField<double>(sampleField());
     instance().init(&descriptor);
@@ -45,8 +45,8 @@ class TransactionTest : public testing::Test {
  protected:
   virtual void SetUp() override {
     ::testing::FLAGS_gtest_death_test_style = "fast";
-    map_api::Core::initializeInstance();  // core init
-    ASSERT_TRUE(map_api::Core::instance() != nullptr);
+    dmap::Core::initializeInstance();  // core init
+    ASSERT_TRUE(dmap::Core::instance() != nullptr);
   }
   virtual void TearDown() final override {
     Core::instance()->kill();
@@ -168,8 +168,8 @@ class MultiTransactionTest : public testing::Test {
 class MultiTransactionSingleCRUTest : public MultiTransactionTest {
  protected:
   virtual void SetUp() {
-    map_api::Core::initializeInstance();  // core init
-    ASSERT_TRUE(map_api::Core::instance() != nullptr);
+    dmap::Core::initializeInstance();  // core init
+    ASSERT_TRUE(dmap::Core::instance() != nullptr);
     TransactionTestTable::init();
     table_ = &TransactionTestTable::instance();
     ::testing::FLAGS_gtest_death_test_style = "fast";
@@ -466,6 +466,6 @@ TEST_F(MultiTransactionSingleCRUTest, FindMultiMixed) {
   }
 }
 
-}  // namespace map_api
+}  // namespace dmap
 
 MAP_API_UNITTEST_ENTRYPOINT

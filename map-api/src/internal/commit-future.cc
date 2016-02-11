@@ -1,8 +1,8 @@
-#include "map-api/internal/commit-future.h"
+#include "dmap/internal/commit-future.h"
 
-#include "map-api/chunk-transaction.h"
+#include "dmap/chunk-transaction.h"
 
-namespace map_api {
+namespace dmap {
 namespace internal {
 
 CommitFuture::CommitFuture(
@@ -51,4 +51,4 @@ void CommitFuture::discardKnownUpdates(UpdateTimes* update_times) const {
 }
 
 }  // namespace internal
-}  // namespace map_api
+}  // namespace dmap

@@ -1,10 +1,10 @@
-#include "map-api/workspace.h"
+#include "dmap/workspace.h"
 
 #include <sstream>  // NOLINT
 
-#include "map-api/net-table.h"
+#include "dmap/net-table.h"
 
-namespace map_api {
+namespace dmap {
 
 Workspace::Workspace(const std::initializer_list<NetTable*>& table_blacklist,
                      const std::initializer_list<NetTable*>& table_whitelist)
@@ -152,4 +152,4 @@ std::string Workspace::debugString() const {
   return ss.str();
 }
 
-}  // namespace map_api
+}  // namespace dmap

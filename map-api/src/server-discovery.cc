@@ -1,4 +1,4 @@
-#include <map-api/server-discovery.h>
+#include <dmap/server-discovery.h>
 #include <fstream>  // NOLINT
 #include <sstream>  // NOLINT
 #include <string>
@@ -8,26 +8,26 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "map-api/hub.h"
+#include "dmap/hub.h"
 #include "./core.pb.h"
 
-namespace map_api {
+namespace dmap {
 
 const char ServerDiscovery::kAnnounceRequest[] =
-    "map_api_server_discovery_announce_request";
+    "dmap_server_discovery_announce_request";
 const char ServerDiscovery::kGetPeersRequest[] =
-    "map_api_server_discovery_get_peers_request";
+    "dmap_server_discovery_get_peers_request";
 const char ServerDiscovery::kGetPeersResponse[] =
-    "map_api_server_discovery_get_peers_response";
+    "dmap_server_discovery_get_peers_response";
 MAP_API_PROTO_MESSAGE(ServerDiscovery::kGetPeersResponse,
                       proto::ServerDiscoveryGetPeersResponse);
 const char ServerDiscovery::kLockRequest[] =
-    "map_api_server_discovery_lock_request";
+    "dmap_server_discovery_lock_request";
 const char ServerDiscovery::kRemoveRequest[] =
-    "map_api_server_discovery_remove_request";
+    "dmap_server_discovery_remove_request";
 MAP_API_STRING_MESSAGE(ServerDiscovery::kRemoveRequest);
 const char ServerDiscovery::kUnlockRequest[] =
-    "map_api_server_discovery_unlock_request";
+    "dmap_server_discovery_unlock_request";
 
 ServerDiscovery::~ServerDiscovery() {}
 
@@ -68,4 +68,4 @@ void ServerDiscovery::unlock() {
 ServerDiscovery::ServerDiscovery(const PeerId& address, zmq::context_t& context)
     : server_(address, context, ZMQ_REQ) {}
 
-} /* namespace map_api */
+} /* namespace dmap */

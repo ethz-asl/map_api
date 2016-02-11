@@ -3,7 +3,7 @@
 
 #include <mutex>
 
-namespace map_api {
+namespace dmap {
 class Hub;
 class NetTableManager;
 
@@ -61,6 +61,6 @@ class Core final {
   bool initialized_ = false;
   std::mutex initialized_mutex_;
 };
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_CORE_H_

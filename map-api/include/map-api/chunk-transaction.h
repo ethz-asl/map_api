@@ -8,16 +8,16 @@
 
 #include <gtest/gtest_prod.h>
 
-#include "map-api/internal/chunk-view.h"
-#include "map-api/internal/combined-view.h"
-#include "map-api/internal/commit-history-view.h"
-#include "map-api/internal/delta-view.h"
-#include "map-api/logical-time.h"
-#include "map-api/net-table.h"
-#include "map-api/revision.h"
-#include "map-api/revision-map.h"
+#include "dmap/internal/chunk-view.h"
+#include "dmap/internal/combined-view.h"
+#include "dmap/internal/commit-history-view.h"
+#include "dmap/internal/delta-view.h"
+#include "dmap/logical-time.h"
+#include "dmap/net-table.h"
+#include "dmap/revision.h"
+#include "dmap/revision-map.h"
 
-namespace map_api {
+namespace dmap {
 class ChunkBase;
 class Conflicts;
 
@@ -122,7 +122,7 @@ class ChunkTransaction {
   bool finalized_;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #include "./chunk-transaction-inl.h"
 

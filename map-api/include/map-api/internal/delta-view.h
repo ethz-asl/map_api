@@ -1,10 +1,10 @@
 #ifndef INTERNAL_DELTA_VIEW_H_
 #define INTERNAL_DELTA_VIEW_H_
 
-#include "map-api/internal/overriding-view-base.h"
-#include "map-api/revision-map.h"
+#include "dmap/internal/overriding-view-base.h"
+#include "dmap/revision-map.h"
 
-namespace map_api {
+namespace dmap {
 class ChunkBase;
 class ChunkTransaction;
 class Conflicts;
@@ -90,13 +90,13 @@ class DeltaView : public OverridingViewBase {
   InsertMap insertions_;
   UpdateMap updates_;
   RemoveMap removes_;
-  friend class ::map_api::ChunkTransaction;  // TODO(tcies) full split.
+  friend class ::dmap::ChunkTransaction;  // TODO(tcies) full split.
 
   // For debug printing and merge policies.
   const NetTable& table_;
 };
 
 }  // namespace internal
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // INTERNAL_DELTA_VIEW_H_

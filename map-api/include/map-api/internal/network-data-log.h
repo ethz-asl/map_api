@@ -8,7 +8,7 @@
 
 #include <Eigen/Dense>
 
-namespace map_api {
+namespace dmap {
 namespace internal {
 
 class NetworkDataLog {
@@ -30,6 +30,6 @@ class NetworkDataLog {
 };
 
 }  // namespace internal
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // INTERNAL_NETWORK_DATA_LOG_H_

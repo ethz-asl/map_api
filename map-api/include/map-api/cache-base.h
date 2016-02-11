@@ -2,7 +2,7 @@
 #define MAP_API_CACHE_BASE_H_
 #include <string>
 
-namespace map_api {
+namespace dmap {
 
 /**
  * Allows transactions to register caches without needing to know the
@@ -25,6 +25,6 @@ class CacheBase {
   virtual size_t size() const = 0;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_CACHE_BASE_H_

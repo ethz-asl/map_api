@@ -5,7 +5,7 @@
 #include <iostream>  // NOLINT
 #include <mutex>
 
-namespace map_api {
+namespace dmap {
 class LogicalTime {
  public:
   /**
@@ -45,17 +45,17 @@ class LogicalTime {
   static std::mutex current_mutex_;
 };
 
-}  //  namespace map_api
+}  //  namespace dmap
 
 namespace std {
-inline ostream& operator<<(ostream& out, const map_api::LogicalTime& time) {
+inline ostream& operator<<(ostream& out, const dmap::LogicalTime& time) {
   out << "Logical time(" << time.serialize() << ")";
   return out;
 }
 
 template <>
-struct hash<map_api::LogicalTime> {
-  inline size_t operator()(const map_api::LogicalTime& time) const {
+struct hash<dmap::LogicalTime> {
+  inline size_t operator()(const dmap::LogicalTime& time) const {
     return std::hash<uint64_t>()(time.serialize());
   }
 };

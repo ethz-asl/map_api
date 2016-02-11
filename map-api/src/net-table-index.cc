@@ -1,11 +1,11 @@
-#include "map-api/net-table-index.h"
+#include "dmap/net-table-index.h"
 
-#include "map-api/message.h"
+#include "dmap/message.h"
 #include <multiagent-mapping-common/unique-id.h>
 #include "./chord-index.pb.h"
 #include "./net-table.pb.h"
 
-namespace map_api {
+namespace dmap {
 
 NetTableIndex::NetTableIndex(const std::string& table_name)
 : table_name_(table_name) {}
@@ -71,7 +71,7 @@ void NetTableIndex::renouncePosession(const common::Id& chunk_id) {
 }
 
 const char NetTableIndex::kRoutedChordRequest[] =
-    "map_api_net_table_index_request";
+    "dmap_net_table_index_request";
 // Because the requests are routed, we don't need to be careful with the choice
 // of name!
 const char NetTableIndex::kPeerResponse[] = "peer_response";
@@ -117,7 +117,7 @@ void NetTableIndex::handleRoutedRequest(
   Message request;
   CHECK(request.ParseFromString(routed_request.serialized_message()));
   // TODO(tcies) a posteriori, especially given the new routing system,
-  // map_api::Message handling in ChordIndex itself could have been a thing
+  // dmap::Message handling in ChordIndex itself could have been a thing
   // the following code is mostly copied from test/test_chord_index.cpp :(
 
   if (!request.has_sender()) {
@@ -434,4 +434,4 @@ bool NetTableIndex::pushResponsibilitiesRpc(
   return true;
 }
 
-} /* namespace map_api */
+} /* namespace dmap */

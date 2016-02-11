@@ -1,13 +1,13 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "map-api/core.h"
-#include "map-api/hub.h"
-#include "map-api/ipc.h"
-#include "map-api/test/testing-entrypoint.h"
-#include "./map_api_fixture.h"
+#include "dmap/core.h"
+#include "dmap/hub.h"
+#include "dmap/ipc.h"
+#include "dmap/test/testing-entrypoint.h"
+#include "./dmap_fixture.h"
 
-namespace map_api {
+namespace dmap {
 
 class HubTest : public MapApiFixture {};
 
@@ -32,6 +32,6 @@ TEST_F(HubTest, LaunchTest) {
   }
 }
 
-}  // namespace map_api
+}  // namespace dmap
 
 MAP_API_UNITTEST_ENTRYPOINT

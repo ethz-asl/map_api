@@ -5,9 +5,9 @@
 
 #include <multiagent-mapping-common/mapped-container-base.h>
 
-#include "map-api/transaction.h"
+#include "dmap/transaction.h"
 
-namespace map_api {
+namespace dmap {
 
 template <typename IdType>
 class NetTableTransactionInterface
@@ -92,6 +92,6 @@ class NetTableTransactionInterface
   mutable std::unordered_set<IdType> available_ids_;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_NET_TABLE_TRANSACTION_INTERFACE_H_

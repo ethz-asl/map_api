@@ -1,9 +1,9 @@
-#include <map-api/logical-time.h>
+#include <dmap/logical-time.h>
 #include <glog/logging.h>
 
-#include <map-api/peer-id.h>
+#include <dmap/peer-id.h>
 
-namespace map_api {
+namespace dmap {
 
 uint64_t LogicalTime::current_ = 1u;
 std::mutex LogicalTime::current_mutex_;
@@ -37,4 +37,4 @@ void LogicalTime::synchronize(const LogicalTime& other_time) {
 
 LogicalTime LogicalTime::justBefore() const { return LogicalTime(value_ - 1); }
 
-}  // namespace map_api
+}  // namespace dmap

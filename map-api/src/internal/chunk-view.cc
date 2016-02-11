@@ -1,8 +1,8 @@
-#include "map-api/internal/chunk-view.h"
+#include "dmap/internal/chunk-view.h"
 
-#include "map-api/chunk-base.h"
+#include "dmap/chunk-base.h"
 
-namespace map_api {
+namespace dmap {
 namespace internal {
 
 ChunkView::ChunkView(const ChunkBase& chunk, const LogicalTime& view_time)
@@ -44,4 +44,4 @@ void ChunkView::discardKnownUpdates(UpdateTimes* update_times) const {
 }
 
 }  // namespace internal
-}  // namespace map_api
+}  // namespace dmap

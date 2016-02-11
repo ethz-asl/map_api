@@ -1,9 +1,9 @@
-#include "map-api/internal/commit-history-view.h"
+#include "dmap/internal/commit-history-view.h"
 
-#include "map-api/chunk-base.h"
-#include "map-api/logical-time.h"
+#include "dmap/chunk-base.h"
+#include "dmap/logical-time.h"
 
-namespace map_api {
+namespace dmap {
 namespace internal {
 
 CommitHistoryView::CommitHistoryView(const History& commit_history,
@@ -70,4 +70,4 @@ bool CommitHistoryView::suppresses(const common::Id& id) const {
 }
 
 }  // namespace internal
-}  // namespace map_api
+}  // namespace dmap

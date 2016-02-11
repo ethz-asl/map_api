@@ -3,12 +3,12 @@
 
 #include <glog/logging.h>
 #include <gflags/gflags.h>
-#include <map-api/chunk-data-container-base.h>
+#include <dmap/chunk-data-container-base.h>
 
 #include "./core.pb.h"
-#include <map-api/core.h>
+#include <dmap/core.h>
 
-namespace map_api {
+namespace dmap {
 
 ChunkDataContainerBase::ChunkDataContainerBase() : initialized_(false) {}
 
@@ -94,4 +94,4 @@ bool ChunkDataContainerBase::getLatestUpdateTime(const common::Id& id,
   return true;
 }
 
-} /* namespace map_api */
+} /* namespace dmap */

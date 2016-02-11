@@ -7,12 +7,12 @@
 
 #include <gtest/gtest_prod.h>
 
-#include "map-api/chunk-transaction.h"
-#include "map-api/logical-time.h"
-#include "map-api/net-table.h"
-#include "map-api/workspace.h"
+#include "dmap/chunk-transaction.h"
+#include "dmap/logical-time.h"
+#include "dmap/net-table.h"
+#include "dmap/workspace.h"
 
-namespace map_api {
+namespace dmap {
 class ChunkBase;
 class Conflicts;
 class ConstRevisionMap;
@@ -138,7 +138,7 @@ class NetTableTransaction {
   bool finalized_;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #include "./net-table-transaction-inl.h"
 

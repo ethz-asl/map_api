@@ -1,17 +1,17 @@
-#include "map-api/net-table-transaction.h"
+#include "dmap/net-table-transaction.h"
 
 #include <aslam/common/statistics/statistics.h>
 
-#include "map-api/conflicts.h"
-#include "map-api/internal/commit-future.h"
+#include "dmap/conflicts.h"
+#include "dmap/internal/commit-future.h"
 
-DEFINE_bool(map_api_dump_available_chunk_contents, false,
+DEFINE_bool(dmap_dump_available_chunk_contents, false,
             "Will print all available ids if enabled.");
 
-DEFINE_bool(map_api_blame_updates, false,
+DEFINE_bool(dmap_blame_updates, false,
             "Print update counts per chunk per table.");
 
-namespace map_api {
+namespace dmap {
 
 NetTableTransaction::NetTableTransaction(const LogicalTime& begin_time,
                                          const Workspace& workspace,
@@ -97,7 +97,7 @@ bool NetTableTransaction::commit() {
 }
 
 void NetTableTransaction::checkedCommit(const LogicalTime& time) {
-  if (FLAGS_map_api_blame_updates) {
+  if (FLAGS_dmap_blame_updates) {
     std::cout << "Updates in table " << table_->name() << ":" << std::endl;
   }
   for (const TransactionPair& chunk_transaction : chunk_transactions_) {
@@ -113,8 +113,8 @@ void NetTableTransaction::lock() {
     chunk_transaction.first->writeLock();
     ++i;
   }
-  aslam::statistics::StatsCollector stat(
-          "map_api::NetTableTransaction::lock - " + table_->name());
+  aslam::statistics::StatsCollector stat("dmap::NetTableTransaction::lock - " +
+                                         table_->name());
   stat.AddSample(i);
 }
 
@@ -209,18 +209,18 @@ ChunkTransaction* NetTableTransaction::transactionOf(const ChunkBase* chunk)
 void NetTableTransaction::refreshIdToChunkIdMap() {
   CHECK(!finalized_);
   item_id_to_chunk_id_map_.clear();
-  if (FLAGS_map_api_dump_available_chunk_contents) {
+  if (FLAGS_dmap_dump_available_chunk_contents) {
     std::cout << table_->name() << " chunk contents:" << std::endl;
   }
   workspace_.forEachChunk([&, this](const ChunkBase& chunk) {
     std::vector<common::Id> chunk_result;
     chunk.constData()->getAvailableIds(begin_time_, &chunk_result);
-    if (FLAGS_map_api_dump_available_chunk_contents) {
+    if (FLAGS_dmap_dump_available_chunk_contents) {
       std::cout << "\tChunk " << chunk.id().hexString() << ":" << std::endl;
     }
     for (const common::Id& item_id : chunk_result) {
       CHECK(item_id_to_chunk_id_map_.emplace(item_id, chunk.id()).second);
-      if (FLAGS_map_api_dump_available_chunk_contents) {
+      if (FLAGS_dmap_dump_available_chunk_contents) {
         std::cout << "\t\tItem " << item_id.hexString() << std::endl;
       }
     }
@@ -238,4 +238,4 @@ void NetTableTransaction::getChunkTrackers(
   }
 }
 
-} /* namespace map_api */
+} /* namespace dmap */

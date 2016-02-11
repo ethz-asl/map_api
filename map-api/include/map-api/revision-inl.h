@@ -5,7 +5,7 @@
 
 #include <glog/logging.h>
 
-namespace map_api {
+namespace dmap {
 
 template <typename FieldType>
 void Revision::addField(int index) {
@@ -73,6 +73,6 @@ MAP_API_DECLARE_TYPE_SUPPORT(Revision);        // NOLINT
 MAP_API_DECLARE_TYPE_SUPPORT(testBlob);        // NOLINT
 MAP_API_DECLARE_TYPE_SUPPORT(Revision::Blob);  // NOLINT
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_REVISION_INL_H_

@@ -1,4 +1,4 @@
-#include "map-api/internal/network-data-log.h"
+#include "dmap/internal/network-data-log.h"
 
 #include <chrono>
 #include <string>
@@ -8,7 +8,7 @@
 
 #include <multiagent-mapping-common/path-utility.h>
 
-namespace map_api {
+namespace dmap {
 namespace internal {
 
 NetworkDataLog::NetworkDataLog(const std::string& prefix)
@@ -51,4 +51,4 @@ void NetworkDataLog::getCumSums(const std::string& file_name,
 }
 
 }  // namespace internal
-}  // namespace map_api
+}  // namespace dmap

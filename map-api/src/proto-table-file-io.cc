@@ -1,18 +1,18 @@
-#include <map-api/proto-table-file-io.h>
+#include <dmap/proto-table-file-io.h>
 
 #include <glog/logging.h>
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/gzip_stream.h>
 #include <google/protobuf/io/zero_copy_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <map-api/chunk-data-container-base.h>
+#include <dmap/chunk-data-container-base.h>
 
-#include <map-api/chunk-manager.h>
-#include <map-api/transaction.h>
+#include <dmap/chunk-manager.h>
+#include <dmap/transaction.h>
 
-namespace map_api {
+namespace dmap {
 ProtoTableFileIO::ProtoTableFileIO(const std::string& filename,
-                                   map_api::NetTable* table)
+                                   dmap::NetTable* table)
     : file_name_(filename), table_(CHECK_NOTNULL(table)) {
   zip_options_.format = kOutFormat;
   zip_options_.buffer_size = kZipBufferSize;
@@ -40,8 +40,8 @@ void ProtoTableFileIO::truncFile() {
   file_.open(file_name_, kTruncateOpenMode);
 }
 
-bool ProtoTableFileIO::storeTableContents(const map_api::LogicalTime& time) {
-  map_api::Transaction transaction(time);
+bool ProtoTableFileIO::storeTableContents(const dmap::LogicalTime& time) {
+  dmap::Transaction transaction(time);
   ConstRevisionMap revisions;
   transaction.dumpActiveChunks(table_, &revisions);
   std::vector<common::Id> ids_to_store;
@@ -138,7 +138,7 @@ bool ProtoTableFileIO::restoreTableContents() {
 }
 
 bool ProtoTableFileIO::restoreTableContents(
-    map_api::Transaction* transaction,
+    dmap::Transaction* transaction,
     std::unordered_map<common::Id, ChunkBase*>* existing_chunks,
     std::mutex* existing_chunks_mutex) {
   CHECK_NOTNULL(transaction);
@@ -226,4 +226,4 @@ bool ProtoTableFileIO::restoreTableContents(
   return true;
 }
 
-}  // namespace map_api
+}  // namespace dmap

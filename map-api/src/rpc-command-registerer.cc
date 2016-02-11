@@ -1,10 +1,10 @@
-#include "map-api/rpc-command-registerer.h"
+#include "dmap/rpc-command-registerer.h"
 
-#include "map-api/hub.h"
-#include "map-api/message.h"
+#include "dmap/hub.h"
+#include "dmap/message.h"
 #include "./command-rpc.pb.h"
 
-namespace map_api {
+namespace dmap {
 const char RpcCommandRegisterer::kCommandRequest[] =
     "visual_inertial_mapping_command_request";
 const char RpcCommandRegisterer::kCommandResponse[] =
@@ -40,4 +40,4 @@ int RpcCommandRegisterer::commandRpc(const std::string& command,
   return common::kSuccess;
 }
 
-}  // namespace map_api
+}  // namespace dmap

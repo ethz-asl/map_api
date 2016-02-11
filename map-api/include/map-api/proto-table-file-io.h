@@ -11,30 +11,30 @@
 #include <google/protobuf/io/gzip_stream.h>
 #include <multiagent-mapping-common/unique-id.h>
 
-#include "map-api/logical-time.h"
+#include "dmap/logical-time.h"
 
-namespace map_api {
+namespace dmap {
 class ChunkBase;
 class ConstRevisionMap;
 class NetTable;
 class Transaction;
 
-typedef std::pair<common::Id, map_api::LogicalTime> RevisionStamp;
-}  // namespace map_api
+typedef std::pair<common::Id, dmap::LogicalTime> RevisionStamp;
+}  // namespace dmap
 
 namespace std {
 template <>
-struct hash<map_api::RevisionStamp> {
+struct hash<dmap::RevisionStamp> {
   std::hash<common::Id> id_hasher;
-  std::hash<map_api::LogicalTime> time_hasher;
-  std::size_t operator()(const map_api::RevisionStamp& stamp) const {
+  std::hash<dmap::LogicalTime> time_hasher;
+  std::size_t operator()(const dmap::RevisionStamp& stamp) const {
     return id_hasher(stamp.first) ^ time_hasher(stamp.second);
   }
 };
 }  // namespace std
 
 // Stores all revisions from a table to a file.
-namespace map_api {
+namespace dmap {
 class ProtoTableFileIO {
   static constexpr std::ios_base::openmode kDefaultOpenmode =
       std::fstream::binary | std::ios_base::in | std::ios_base::out;
@@ -45,14 +45,14 @@ class ProtoTableFileIO {
       std::fstream::trunc;
 
  public:
-  ProtoTableFileIO(const std::string& filename, map_api::NetTable* table);
+  ProtoTableFileIO(const std::string& filename, dmap::NetTable* table);
   ~ProtoTableFileIO();
-  bool storeTableContents(const map_api::LogicalTime& time);
+  bool storeTableContents(const dmap::LogicalTime& time);
   bool storeTableContents(const ConstRevisionMap& revisions,
                           const std::vector<common::Id>& ids_to_store);
   bool restoreTableContents();
   bool restoreTableContents(
-      map_api::Transaction* transaction,
+      dmap::Transaction* transaction,
       std::unordered_map<common::Id, ChunkBase*>* existing_chunks,
       std::mutex* existing_chunks_mutex);
   void truncFile();
@@ -67,10 +67,10 @@ class ProtoTableFileIO {
   google::protobuf::io::GzipOutputStream::Options zip_options_;
 
   std::string file_name_;
-  map_api::NetTable* table_;
+  dmap::NetTable* table_;
   std::fstream file_;
   std::unordered_set<RevisionStamp> already_stored_items_;
   std::ios_base::openmode open_mode_;
 };
-}  // namespace map_api
+}  // namespace dmap
 #endif  // MAP_API_PROTO_TABLE_FILE_IO_H_

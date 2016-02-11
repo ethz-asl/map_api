@@ -1,9 +1,9 @@
 #ifndef INTERNAL_OVERRIDING_VIEW_BASE_H_
 #define INTERNAL_OVERRIDING_VIEW_BASE_H_
 
-#include "map-api/internal/view-base.h"
+#include "dmap/internal/view-base.h"
 
-namespace map_api {
+namespace dmap {
 namespace internal {
 
 class OverridingViewBase : public ViewBase {
@@ -16,6 +16,6 @@ class OverridingViewBase : public ViewBase {
 };
 
 }  // namespace internal
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // INTERNAL_OVERRIDING_VIEW_BASE_H_

@@ -9,14 +9,14 @@
 #include <multiagent-mapping-common/unique-id.h>
 #include "./net-table.pb.h"
 
-namespace map_api {
+namespace dmap {
 class ChunkBase;
 class NetTable;
 class Revision;
 
 class ChunkManagerBase {
  public:
-  explicit ChunkManagerBase(map_api::NetTable* underlying_table)
+  explicit ChunkManagerBase(dmap::NetTable* underlying_table)
       : underlying_table_(CHECK_NOTNULL(underlying_table)) {}
 
   virtual ~ChunkManagerBase() {}
@@ -24,7 +24,7 @@ class ChunkManagerBase {
   // Returns the chunk in which the given item can be placed.
   virtual ChunkBase* getChunkForItem(const Revision& revision) = 0;
 
-  inline map_api::NetTable* getUnderlyingTable() {
+  inline dmap::NetTable* getUnderlyingTable() {
     return underlying_table_;
   };
 
@@ -56,7 +56,7 @@ class ChunkManagerBase {
   void requestParticipationAllChunks();
 
  protected:
-  map_api::NetTable* underlying_table_;
+  dmap::NetTable* underlying_table_;
   std::unordered_map<common::Id, ChunkBase*> active_chunks_;
 };
 
@@ -65,7 +65,7 @@ static constexpr int kDefaultChunkSizeBytes = 20 * 1024 * 1024;
 class ChunkManagerChunkSize : public ChunkManagerBase {
  public:
   ChunkManagerChunkSize(int max_chunk_size_bytes,
-                        map_api::NetTable* underlying_table)
+                        dmap::NetTable* underlying_table)
       : ChunkManagerBase(CHECK_NOTNULL(underlying_table)),
         max_chunk_size_bytes_(max_chunk_size_bytes),
         current_chunk_(nullptr),
@@ -80,5 +80,5 @@ class ChunkManagerChunkSize : public ChunkManagerBase {
   int current_chunk_size_bytes_;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 #endif  // MAP_API_CHUNK_MANAGER_H_

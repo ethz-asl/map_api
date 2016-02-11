@@ -1,4 +1,4 @@
-#include "map-api/chunk-base.h"
+#include "dmap/chunk-base.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -7,7 +7,7 @@
 DEFINE_bool(blame_trigger, false,
             "Print backtrace for trigger insertion and invocation.");
 
-namespace map_api {
+namespace dmap {
 
 ChunkBase::~ChunkBase() {}
 
@@ -114,4 +114,4 @@ void ChunkBase::triggerWrapper(
   triggers_are_active_while_has_readers_.releaseReadLock();
 }
 
-}  // namespace map_api
+}  // namespace dmap

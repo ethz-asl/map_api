@@ -1,10 +1,10 @@
-#include "map-api/ipc.h"
-#include "map-api/test/testing-entrypoint.h"
-#include "map-api/transaction.h"
-#include "map-api/workspace.h"
+#include "dmap/ipc.h"
+#include "dmap/test/testing-entrypoint.h"
+#include "dmap/transaction.h"
+#include "dmap/workspace.h"
 #include "./net_table_fixture.h"
 
-namespace map_api {
+namespace dmap {
 
 class WorkspaceTest : public NetTableFixture {
   enum kTable2Fields {
@@ -144,6 +144,6 @@ TEST_F(WorkspaceTest, BlackWhiteChunk) {
   EXPECT_EQ(1u, numAvailableIds(table_2_, &t));
 }
 
-}  // namespace map_api
+}  // namespace dmap
 
 MAP_API_UNITTEST_ENTRYPOINT

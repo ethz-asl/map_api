@@ -1,7 +1,7 @@
 #ifndef MAP_API_LEGACY_CHUNK_DATA_CONTAINER_BASE_INL_H_
 #define MAP_API_LEGACY_CHUNK_DATA_CONTAINER_BASE_INL_H_
 
-namespace map_api {
+namespace dmap {
 
 LegacyChunkDataContainerBase::History::const_iterator
 LegacyChunkDataContainerBase::History::latestAt(const LogicalTime& time) const {
@@ -21,11 +21,11 @@ template <typename IdType>
 void LegacyChunkDataContainerBase::itemHistory(const IdType& id,
                                                const LogicalTime& time,
                                                History* dest) const {
-  common::Id map_api_id;
+  common::Id dmap_id;
   aslam::HashId hash_id;
   id.toHashId(&hash_id);
-  map_api_id.fromHashId(hash_id);
-  itemHistoryImpl(map_api_id, time, dest);
+  dmap_id.fromHashId(hash_id);
+  itemHistoryImpl(dmap_id, time, dest);
 }
 
 template <typename ValueType>
@@ -47,6 +47,6 @@ void LegacyChunkDataContainerBase::remove(const LogicalTime& time,
   remove(time, latest);
 }
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_LEGACY_CHUNK_DATA_CONTAINER_BASE_INL_H_

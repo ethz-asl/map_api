@@ -3,22 +3,22 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "map-api/chunk-manager.h"
-#include "map-api/ipc.h"
-#include "map-api/test/testing-entrypoint.h"
-#include "map-api/threadsafe-cache.h"
+#include "dmap/chunk-manager.h"
+#include "dmap/ipc.h"
+#include "dmap/test/testing-entrypoint.h"
+#include "dmap/threadsafe-cache.h"
 #include "./net_table_fixture.h"
 
-namespace map_api {
+namespace dmap {
 
 UNIQUE_ID_DEFINE_ID(IntId);
 MAP_API_REVISION_UNIQUE_ID(IntId);
 
-}  //  namespace map_api
+}  //  namespace dmap
 
-UNIQUE_ID_DEFINE_ID_HASH(map_api::IntId);
+UNIQUE_ID_DEFINE_ID_HASH(dmap::IntId);
 
-namespace map_api {
+namespace dmap {
 
 template <>
 void objectFromRevision(const Revision& revision, int* result) {
@@ -188,6 +188,6 @@ TYPED_TEST(CacheAndTransactionTest, InsertUpdate) {
   ASSERT_EQ(1u, this->count());
 }
 
-}  // namespace map_api
+}  // namespace dmap
 
 MAP_API_UNITTEST_ENTRYPOINT

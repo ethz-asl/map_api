@@ -3,10 +3,10 @@
 
 #include <unordered_map>
 
-#include "map-api/internal/view-base.h"
-#include "map-api/logical-time.h"
+#include "dmap/internal/view-base.h"
+#include "dmap/logical-time.h"
 
-namespace map_api {
+namespace dmap {
 class ChunkBase;
 
 namespace internal {
@@ -33,6 +33,6 @@ class ChunkView : public ViewBase {
 };
 
 }  // namespace internal
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // INTERNAL_CHUNK_VIEW_H_

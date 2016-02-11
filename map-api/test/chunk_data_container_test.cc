@@ -6,14 +6,14 @@
 #include <gtest/gtest.h>
 #include <multiagent-mapping-common/unique-id.h>
 
-#include "map-api/core.h"
-#include "map-api/logical-time.h"
-#include "map-api/test/testing-entrypoint.h"
+#include "dmap/core.h"
+#include "dmap/logical-time.h"
+#include "dmap/test/testing-entrypoint.h"
 #include "./test_table.cc"
-#include "../include/map-api/legacy-chunk-data-ram-container.h"
-#include "../include/map-api/legacy-chunk-data-stxxl-container.h"
+#include "../include/dmap/legacy-chunk-data-ram-container.h"
+#include "../include/dmap/legacy-chunk-data-stxxl-container.h"
 
-namespace map_api {
+namespace dmap {
 
 template <typename TableType>
 class TableDataContainerTest : public ::testing::Test {
@@ -59,8 +59,8 @@ class FieldTestTable : public TestTable<typename TableDataType::TableType> {
   static typename TableDataType::TableType* forge() {
     typename TableDataType::TableType* table =
         new typename TableDataType::TableType;
-    std::shared_ptr<map_api::TableDescriptor> descriptor(
-        new map_api::TableDescriptor);
+    std::shared_ptr<dmap::TableDescriptor> descriptor(
+        new dmap::TableDescriptor);
     descriptor->setName("field_test_table");
     descriptor->template addField<typename TableDataType::DataType>(kTestField);
     table->init(descriptor);
@@ -122,7 +122,7 @@ class FieldTest<int64_t> : public ::testing::Test {
   int64_t sample_data_2() { return -9223372036854775807; }
 };
 template <>
-class FieldTest<map_api::LogicalTime> : public ::testing::Test {
+class FieldTest<dmap::LogicalTime> : public ::testing::Test {
  protected:
   LogicalTime sample_data_1() { return LogicalTime(9223372036854775807u); }
   LogicalTime sample_data_2() { return LogicalTime(9223372036854775u); }
@@ -132,13 +132,13 @@ class FieldTest<testBlob> : public ::testing::Test {
  protected:
   testBlob sample_data_1() {
     testBlob field;
-    field.set_type(map_api::proto::Type::DOUBLE);
+    field.set_type(dmap::proto::Type::DOUBLE);
     field.set_double_value(3);
     return field;
   }
   testBlob sample_data_2() {
     testBlob field;
-    field.set_type(map_api::proto::Type::INT32);
+    field.set_type(dmap::proto::Type::INT32);
     field.set_int_value(42);
     return field;
   }
@@ -244,7 +244,7 @@ class CruMapIntTestWithInit
       TableDataTypes<table_type, int32_t>, TableDataTypes<table_type, double>, \
       TableDataTypes<table_type, common::Id>,                                  \
       TableDataTypes<table_type, int64_t>,                                     \
-      TableDataTypes<table_type, map_api::LogicalTime>
+      TableDataTypes<table_type, dmap::LogicalTime>
 
 typedef ::testing::Types<ALL_DATA_TYPES(LegacyChunkDataRamContainer),
                          ALL_DATA_TYPES(LegacyChunkDataStxxlContainer)>
@@ -407,6 +407,6 @@ TYPED_TEST(CruMapIntTestWithInit, Remove) {
   EXPECT_EQ(0u, result.size());
 }
 
-}  // namespace map_api
+}  // namespace dmap
 
 MAP_API_UNITTEST_ENTRYPOINT

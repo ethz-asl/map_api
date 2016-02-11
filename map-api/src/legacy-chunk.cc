@@ -1,4 +1,4 @@
-#include <map-api/legacy-chunk.h>
+#include <dmap/legacy-chunk.h>
 #include <fstream>  // NOLINT
 #include <unordered_set>
 
@@ -8,12 +8,12 @@
 
 #include "./core.pb.h"
 #include "./chunk.pb.h"
-#include "../include/map-api/legacy-chunk-data-ram-container.h"
-#include "../include/map-api/legacy-chunk-data-stxxl-container.h"
-#include "map-api/hub.h"
-#include "map-api/message.h"
-#include "map-api/net-table-manager.h"
-#include "map-api/revision-map.h"
+#include "../include/dmap/legacy-chunk-data-ram-container.h"
+#include "../include/dmap/legacy-chunk-data-stxxl-container.h"
+#include "dmap/hub.h"
+#include "dmap/message.h"
+#include "dmap/net-table-manager.h"
+#include "dmap/revision-map.h"
 
 DEFINE_bool(use_external_memory, false, "STXXL vs. RAM data container.");
 enum UnlockStrategy {
@@ -26,20 +26,20 @@ DEFINE_uint64(unlock_strategy, 2,
               "lock ordering, 2: randomized");
 DEFINE_bool(writelock_persist, true,
             "Enables more persisting write lock strategy");
-DEFINE_bool(map_api_time_chunk, false, "Toggle chunk timing.");
+DEFINE_bool(dmap_time_chunk, false, "Toggle chunk timing.");
 
 DECLARE_bool(blame_trigger);
 
-namespace map_api {
+namespace dmap {
 
-const char LegacyChunk::kConnectRequest[] = "map_api_chunk_connect";
-const char LegacyChunk::kInitRequest[] = "map_api_chunk_init_request";
-const char LegacyChunk::kInsertRequest[] = "map_api_chunk_insert";
-const char LegacyChunk::kLeaveRequest[] = "map_api_chunk_leave_request";
-const char LegacyChunk::kLockRequest[] = "map_api_chunk_lock_request";
-const char LegacyChunk::kNewPeerRequest[] = "map_api_chunk_new_peer_request";
-const char LegacyChunk::kUnlockRequest[] = "map_api_chunk_unlock_request";
-const char LegacyChunk::kUpdateRequest[] = "map_api_chunk_update_request";
+const char LegacyChunk::kConnectRequest[] = "dmap_chunk_connect";
+const char LegacyChunk::kInitRequest[] = "dmap_chunk_init_request";
+const char LegacyChunk::kInsertRequest[] = "dmap_chunk_insert";
+const char LegacyChunk::kLeaveRequest[] = "dmap_chunk_leave_request";
+const char LegacyChunk::kLockRequest[] = "dmap_chunk_lock_request";
+const char LegacyChunk::kNewPeerRequest[] = "dmap_chunk_new_peer_request";
+const char LegacyChunk::kUnlockRequest[] = "dmap_chunk_unlock_request";
+const char LegacyChunk::kUpdateRequest[] = "dmap_chunk_update_request";
 
 MAP_API_PROTO_MESSAGE(LegacyChunk::kConnectRequest,
                       proto::ChunkRequestMetadata);
@@ -434,8 +434,8 @@ void LegacyChunk::distributedReadLock() const {
   if (log_locking_) {
     startState(READ_ATTEMPT);
   }
-  aslam::timing::Timer timer("map_api::Chunk::distributedReadLock",
-                      !FLAGS_map_api_time_chunk);
+  aslam::timing::Timer timer("dmap::Chunk::distributedReadLock",
+                             !FLAGS_dmap_time_chunk);
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   if (isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id()) {
     // special case: also succeed. This is necessary e.g. when committing
@@ -463,7 +463,7 @@ void LegacyChunk::distributedWriteLock() {
   if (log_locking_) {
     startState(WRITE_ATTEMPT);
   }
-  aslam::timing::Timer timer("map_api::Chunk::distributedWriteLock");
+  aslam::timing::Timer timer("dmap::Chunk::distributedWriteLock");
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   // case recursion TODO(tcies) abolish if possible
   if (isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id()) {
@@ -957,4 +957,4 @@ void LegacyChunk::logStateDuration(LockState state, const TimePoint& start,
   log_file << self_rank_ << " " << state << " " << d_start << " " << d_end
            << std::endl;
 }
-}  // namespace map_api
+}  // namespace dmap

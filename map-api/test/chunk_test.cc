@@ -3,12 +3,12 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "map-api/hub.h"
-#include "map-api/ipc.h"
-#include "map-api/test/testing-entrypoint.h"
+#include "dmap/hub.h"
+#include "dmap/ipc.h"
+#include "dmap/test/testing-entrypoint.h"
 #include "./net_table_fixture.h"
 
-namespace map_api {
+namespace dmap {
 
 class ChunkTest : public NetTableFixture {};
 
@@ -539,6 +539,6 @@ TEST_F(ChunkTest, GetCommitTimes) {
   EXPECT_TRUE(commit_times.find(second.getCommitTime()) != commit_times.end());
 }
 
-}  // namespace map_api
+}  // namespace dmap
 
 MAP_API_UNITTEST_ENTRYPOINT

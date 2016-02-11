@@ -1,10 +1,10 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "map-api/core.h"
-#include "map-api/test/testing-entrypoint.h"
+#include "dmap/core.h"
+#include "dmap/test/testing-entrypoint.h"
 
-namespace map_api {
+namespace dmap {
 
 TEST(CoreTest, validInit) {
   Core* instance = Core::instance();
@@ -17,6 +17,6 @@ TEST(CoreTest, validInit) {
   EXPECT_EQ(nullptr, Core::instance());
 }
 
-}  // namespace map_api
+}  // namespace dmap
 
 MAP_API_UNITTEST_ENTRYPOINT

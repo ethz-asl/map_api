@@ -5,12 +5,12 @@
 
 #include <gtest/gtest.h>
 
-#include <map-api/net-table.h>
-#include <map-api/net-table-transaction.h>
-#include <map-api/transaction.h>
-#include "./map_api_fixture.h"
+#include <dmap/net-table.h>
+#include <dmap/net-table-transaction.h>
+#include <dmap/transaction.h>
+#include "./dmap_fixture.h"
 
-namespace map_api {
+namespace dmap {
 
 class NetTableFixture : public MapApiFixture {
  public:
@@ -44,7 +44,7 @@ class NetTableFixture : public MapApiFixture {
   common::Id chunk_id_, item_id_;  // equally generic
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #include "./net_table_fixture_inl.h"
 

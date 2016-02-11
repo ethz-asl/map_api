@@ -5,12 +5,12 @@
 #include <glog/logging.h>
 
 #include "./core.pb.h"
-#include <map-api/logical-time.h>
-#include <map-api/message.h>
-#include <map-api/peer-id.h>
-#include <map-api/server-discovery.h>
+#include <dmap/logical-time.h>
+#include <dmap/message.h>
+#include <dmap/peer-id.h>
+#include <dmap/server-discovery.h>
 
-using namespace map_api;  // NOLINT
+using namespace dmap;  // NOLINT
 
 DEFINE_string(ip_port, "127.0.0.1:5050", "Address to be used");
 

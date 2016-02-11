@@ -8,7 +8,7 @@
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/message.h>
 
-namespace map_api {
+namespace dmap {
 // This class stores the information at which block and index a serialized
 // value starts.
 struct MemoryBlockInformation {
@@ -307,5 +307,5 @@ google::protobuf::io::ZeroCopyOutputStream {
   MemoryBlockPool<BlockSize, Container>* block_pool_;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 #endif  // MAP_API_PROTO_STL_STREAM_H_

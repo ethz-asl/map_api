@@ -1,4 +1,4 @@
-#include "map-api/file-discovery.h"
+#include "dmap/file-discovery.h"
 
 #include <chrono>
 #include <fstream>  // NOLINT
@@ -11,12 +11,12 @@
 #include <multiagent-mapping-common/conversions.h>
 #include <multiagent-mapping-common/delayed-notification.h>
 
-#include "map-api/hub.h"
+#include "dmap/hub.h"
 
 DEFINE_bool(clear_discovery, false, "Will clear file discovery at startup.");
 DEFINE_double(discovery_timeout_seconds, 10, "Timeout for file discovery.");
 
-namespace map_api {
+namespace dmap {
 
 FileDiscovery::FileDiscovery()
     : force_unlocked_once_(false) {
@@ -130,4 +130,4 @@ const char FileDiscovery::kFileName[] = "mapapi-discovery.txt";
 const char FileDiscovery::kLockFileName[] = "mapapi-discovery.txt.lck";
 std::mutex FileDiscovery::mutex_;
 
-} /* namespace map_api */
+} /* namespace dmap */

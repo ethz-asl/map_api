@@ -4,14 +4,14 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "map-api/ipc.h"
-#include "map-api/net-table-transaction.h"
-#include "map-api/proto-table-file-io.h"
-#include "map-api/test/testing-entrypoint.h"
-#include "map-api/transaction.h"
+#include "dmap/ipc.h"
+#include "dmap/net-table-transaction.h"
+#include "dmap/proto-table-file-io.h"
+#include "dmap/test/testing-entrypoint.h"
+#include "dmap/transaction.h"
 #include "./net_table_fixture.h"
 
-using namespace map_api;  // NOLINT
+using namespace dmap;  // NOLINT
 
 class ProtoTableFileIOTest : public NetTableFixture {};
 

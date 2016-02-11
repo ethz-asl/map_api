@@ -5,14 +5,14 @@
 
 #include <gtest/gtest.h>
 
-#include <map-api/core.h>
-#include <map-api/net-table.h>
-#include <map-api/net-table-manager.h>
-#include <map-api/net-table-transaction.h>
-#include <map-api/transaction.h>
+#include <dmap/core.h>
+#include <dmap/net-table.h>
+#include <dmap/net-table-manager.h>
+#include <dmap/net-table-transaction.h>
+#include <dmap/transaction.h>
 #include "./net_table_fixture.h"
 
-namespace map_api {
+namespace dmap {
 
 void NetTableFixture::SetUp() {
   MapApiFixture::SetUp();
@@ -120,6 +120,6 @@ void NetTableFixture::update(int new_value, const IdType& id,
 
 const std::string NetTableFixture::kTableName = "chunk_test_table";
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_NET_TABLE_FIXTURE_INL_H_

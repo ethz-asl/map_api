@@ -3,9 +3,9 @@
 
 #include <vector>
 
-#include "map-api/legacy-chunk-data-container-base.h"
+#include "dmap/legacy-chunk-data-container-base.h"
 
-namespace map_api {
+namespace dmap {
 
 class LegacyChunkDataRamContainer : public LegacyChunkDataContainerBase {
  public:
@@ -56,6 +56,6 @@ class LegacyChunkDataRamContainer : public LegacyChunkDataContainerBase {
   HistoryMap data_;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_LEGACY_CHUNK_DATA_RAM_CONTAINER_H_

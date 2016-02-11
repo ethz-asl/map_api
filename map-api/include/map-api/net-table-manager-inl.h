@@ -3,9 +3,9 @@
 
 #include <string>
 
-#include "map-api/message.h"
+#include "dmap/message.h"
 
-namespace map_api {
+namespace dmap {
 
 template <const char* RequestType>
 bool NetTableManager::getTableForMetadataRequestOrDecline(
@@ -58,6 +58,6 @@ bool NetTableManager::getTableForRequestWithStringOrDecline(
   return true;
 }
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_NET_TABLE_MANAGER_INL_H_

@@ -9,7 +9,7 @@ namespace common {
 class Id;
 }  // namespace common
 
-namespace map_api {
+namespace dmap {
 class ConstRevisionMap;
 class LogicalTime;
 class Revision;
@@ -33,6 +33,6 @@ class ViewBase {
 };
 
 }  // namespace internal
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // INTERNAL_VIEW_BASE_H_

@@ -8,12 +8,12 @@
 #include <multiagent-mapping-common/mapped-container-base.h>
 #include <multiagent-mapping-common/monitor.h>
 
-#include "map-api/cache-base.h"
-#include "map-api/internal/threadsafe-object-and-metadata-cache.h"
-#include "map-api/net-table.h"
-#include "map-api/transaction.h"
+#include "dmap/cache-base.h"
+#include "dmap/internal/threadsafe-object-and-metadata-cache.h"
+#include "dmap/net-table.h"
+#include "dmap/transaction.h"
 
-namespace map_api {
+namespace dmap {
 
 // This is a threadsafe MappedContainerBase implementation intended for use by
 // Map API applications. It can be obtained using Transaction::createCache().
@@ -132,6 +132,6 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
   common::Monitor<std::unordered_set<IdType>> insertions_;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_THREADSAFE_CACHE_H_

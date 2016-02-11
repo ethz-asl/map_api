@@ -4,10 +4,10 @@
 #include <string>
 #include <vector>
 
-#include "map-api/spatial-index.h"
+#include "dmap/spatial-index.h"
 #include "./core.pb.h"
 
-namespace map_api {
+namespace dmap {
 class Revision;
 
 class TableDescriptor : private proto::TableDescriptor {
@@ -32,7 +32,7 @@ class TableDescriptor : private proto::TableDescriptor {
   std::shared_ptr<Revision> getTemplate() const;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #include "./table-descriptor-inl.h"
 

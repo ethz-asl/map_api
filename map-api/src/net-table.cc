@@ -1,27 +1,27 @@
-#include <map-api/net-table.h>
+#include <dmap/net-table.h>
 #include <glog/logging.h>
-#include <map-api/legacy-chunk-data-ram-container.h>
-#include <map-api/legacy-chunk-data-stxxl-container.h>
+#include <dmap/legacy-chunk-data-ram-container.h>
+#include <dmap/legacy-chunk-data-stxxl-container.h>
 
 #include <aslam/common/statistics/statistics.h>
 #include <aslam/common/timer.h>
 #include <multiagent-mapping-common/backtrace.h>
 
-#include "map-api/core.h"
-#include "map-api/hub.h"
-#include "map-api/legacy-chunk.h"
-#include "map-api/net-table-manager.h"
-#include "map-api/transaction.h"
+#include "dmap/core.h"
+#include "dmap/hub.h"
+#include "dmap/legacy-chunk.h"
+#include "dmap/net-table-manager.h"
+#include "dmap/transaction.h"
 
 DEFINE_bool(use_raft, false, "Toggles use of Raft chunks.");
 
-namespace map_api {
+namespace dmap {
 
 const std::string NetTable::kChunkIdField = "chunk_id";
 
-const char NetTable::kPushNewChunksRequest[] = "map_api_net_table_push_new";
+const char NetTable::kPushNewChunksRequest[] = "dmap_net_table_push_new";
 const char NetTable::kAnnounceToListeners[] =
-    "map_api_net_table_announce_to_listeners";
+    "dmap_net_table_announce_to_listeners";
 
 MAP_API_STRING_MESSAGE(NetTable::kPushNewChunksRequest);
 MAP_API_STRING_MESSAGE(NetTable::kAnnounceToListeners);
@@ -138,7 +138,7 @@ ChunkBase* NetTable::newChunk(const common::Id& chunk_id) {
 }
 
 ChunkBase* NetTable::getChunk(const common::Id& chunk_id) {
-  aslam::timing::Timer timer("map_api::NetTable::getChunk");
+  aslam::timing::Timer timer("dmap::NetTable::getChunk");
   active_chunks_lock_.acquireReadLock();
   ChunkMap::iterator found = active_chunks_.find(chunk_id);
   if (found == active_chunks_.end()) {
@@ -251,14 +251,15 @@ void NetTable::getChunkReferencesInBoundingBox(
     const SpatialIndex::BoundingBox& bounding_box,
     std::unordered_set<common::Id>* chunk_ids) {
   CHECK_NOTNULL(chunk_ids);
-  aslam::timing::Timer seek_timer("map_api::NetTable::getChunksInBoundingBox - seek");
+  aslam::timing::Timer seek_timer(
+      "dmap::NetTable::getChunksInBoundingBox - seek");
   {
     aslam::ScopedReadLock lock(&index_lock_);
     spatial_index_->seekChunks(bounding_box, chunk_ids);
   }
   seek_timer.Stop();
   aslam::statistics::StatsCollector collector(
-      "map_api::NetTable::getChunksInBoundingBox - chunks");
+      "dmap::NetTable::getChunksInBoundingBox - chunks");
   collector.AddSample(chunk_ids->size());
 }
 
@@ -373,7 +374,7 @@ void NetTable::dumpActiveChunks(const LogicalTime& time,
   getActiveChunkIds(&active_chunk_ids);
   for (const common::Id& chunk_id : active_chunk_ids) {
     ConstRevisionMap chunk_revisions;
-    map_api::ChunkBase* chunk = getChunk(chunk_id);
+    dmap::ChunkBase* chunk = getChunk(chunk_id);
     CHECK_NOTNULL(chunk);
     chunk->dumpItems(time, &chunk_revisions);
     destination->insert(chunk_revisions.begin(), chunk_revisions.end());
@@ -382,7 +383,7 @@ void NetTable::dumpActiveChunks(const LogicalTime& time,
 
 void NetTable::dumpActiveChunksAtCurrentTime(ConstRevisionMap* destination) {
   CHECK_NOTNULL(destination);
-  return dumpActiveChunks(map_api::LogicalTime::sample(), destination);
+  return dumpActiveChunks(dmap::LogicalTime::sample(), destination);
 }
 
 ChunkBase* NetTable::connectTo(const common::Id& chunk_id, const PeerId& peer) {
@@ -773,4 +774,4 @@ void NetTable::leaveChunkHolders(const common::Id& chunk_id) {
   index_->renouncePosession(chunk_id);
 }
 
-}  // namespace map_api
+}  // namespace dmap

@@ -9,15 +9,15 @@
 #include <glog/logging.h>
 #include <gtest/gtest_prod.h>
 
-#include "map-api/core.h"
-#include "map-api/ipc.h"
-#include "map-api/test/testing-entrypoint.h"
-#include "./map_api_fixture.h"
+#include "dmap/core.h"
+#include "dmap/ipc.h"
+#include "dmap/test/testing-entrypoint.h"
+#include "./dmap_fixture.h"
 #include "./test_chord_index.cc"
 
 DECLARE_uint64(stabilize_us);
 
-namespace map_api {
+namespace dmap {
 
 const std::string kRetrieveDataTimerTag = "retrieveData";
 const std::string kRetrieveDataTimeFile = "retrieve_time.txt";
@@ -410,6 +410,6 @@ TEST_F(ChordIndexTestInitialized,
   }
 }
 
-}  // namespace map_api
+}  // namespace dmap
 
 MAP_API_UNITTEST_ENTRYPOINT

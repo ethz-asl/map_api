@@ -2,7 +2,7 @@
 #include <glog/logging.h>
 #include <multiagent-mapping-common/gnuplot-interface.h>
 
-#include "map-api/internal/network-data-log.h"
+#include "dmap/internal/network-data-log.h"
 
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
@@ -12,8 +12,8 @@ int main(int argc, char** argv) {
 
   const std::string file_name(argv[1]);
 
-  map_api::internal::NetworkDataLog::TypeCumSums type_cum_sums;
-  map_api::internal::NetworkDataLog::getCumSums(file_name, &type_cum_sums);
+  dmap::internal::NetworkDataLog::TypeCumSums type_cum_sums;
+  dmap::internal::NetworkDataLog::getCumSums(file_name, &type_cum_sums);
 
   common::GnuplotInterface plot(file_name);
   plot.setLegendPosition("left top");

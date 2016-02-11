@@ -1,13 +1,13 @@
-#include "map-api/trackee-multimap.h"
+#include "dmap/trackee-multimap.h"
 
 #include <iterator>
 
 #include <glog/logging.h>
 
-#include "map-api/net-table-manager.h"
+#include "dmap/net-table-manager.h"
 #include "./core.pb.h"
 
-namespace map_api {
+namespace dmap {
 
 void TrackeeMultimap::deserialize(const proto::Revision& proto) {
   for (int i = 0; i < proto.chunk_tracking_size(); ++i) {
@@ -100,4 +100,4 @@ bool TrackeeMultimap::isSameVerbose(const TrackeeMultimap& other) const {
   return true;
 }
 
-}  // namespace map_api
+}  // namespace dmap

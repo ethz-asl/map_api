@@ -10,14 +10,14 @@
 #include <aslam/common/reader-first-reader-writer-lock.h>
 #include <gtest/gtest_prod.h>
 
-#include "map-api/chunk-data-container-base.h"
-#include "map-api/app-templates.h"
-#include "map-api/chunk-base.h"
-#include "map-api/net-table-index.h"
-#include "map-api/spatial-index.h"
+#include "dmap/chunk-data-container-base.h"
+#include "dmap/app-templates.h"
+#include "dmap/chunk-base.h"
+#include "dmap/net-table-index.h"
+#include "dmap/spatial-index.h"
 #include "./chunk.pb.h"
 
-namespace map_api {
+namespace dmap {
 class ConstRevisionMap;
 class MutableRevisionMap;
 
@@ -310,7 +310,7 @@ class NetTable {
   std::vector<Revision::AutoMergePolicy> auto_merge_policies_;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #include "./net-table-inl.h"
 

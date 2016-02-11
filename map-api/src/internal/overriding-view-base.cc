@@ -1,9 +1,9 @@
-#include "map-api/internal/overriding-view-base.h"
+#include "dmap/internal/overriding-view-base.h"
 
-namespace map_api {
+namespace dmap {
 namespace internal {
 
 OverridingViewBase::~OverridingViewBase() {}
 
 }  // namespace internal
-}  // namespace map_api
+}  // namespace dmap

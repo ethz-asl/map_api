@@ -1,6 +1,6 @@
-#include "../include/map-api/legacy-chunk-data-stxxl-container.h"
+#include "../include/dmap/legacy-chunk-data-stxxl-container.h"
 
-namespace map_api {
+namespace dmap {
 
 LegacyChunkDataStxxlContainer::LegacyChunkDataStxxlContainer()
     : revision_store_(new STXXLRevisionStore<kBlockSize>()) {}
@@ -244,4 +244,4 @@ inline void LegacyChunkDataStxxlContainer::trimToTime(
   }
 }
 
-}  // namespace map_api
+}  // namespace dmap

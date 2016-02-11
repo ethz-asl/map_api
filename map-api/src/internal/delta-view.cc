@@ -1,14 +1,14 @@
-#include "map-api/internal/delta-view.h"
+#include "dmap/internal/delta-view.h"
 
 #include <multiagent-mapping-common/unique-id.h>
 
-#include "map-api/chunk-base.h"
-#include "map-api/conflicts.h"
-#include "map-api/net-table.h"
+#include "dmap/chunk-base.h"
+#include "dmap/conflicts.h"
+#include "dmap/net-table.h"
 
-DECLARE_bool(map_api_blame_updates);
+DECLARE_bool(dmap_blame_updates);
 
-namespace map_api {
+namespace dmap {
 namespace internal {
 
 DeltaView::DeltaView(const NetTable& table) : table_(table) {}
@@ -141,7 +141,7 @@ void DeltaView::checkedCommitLocked(
   insertions_.logCommitEvent(commit_time, commit_history);
   locked_chunk->bulkInsertLocked(insertions_, commit_time);
 
-  if (FLAGS_map_api_blame_updates) {
+  if (FLAGS_dmap_blame_updates) {
     std::cout << "Updating " << updates_.size() << " items" << std::endl;
   }
 
@@ -269,4 +269,4 @@ bool DeltaView::tryAutoMerge(const ViewBase& original_view,
 }
 
 }  // namespace internal
-}  // namespace map_api
+}  // namespace dmap

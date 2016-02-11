@@ -1,15 +1,15 @@
-#include "map-api/net-table-manager.h"
+#include "dmap/net-table-manager.h"
 
 #include <iostream>  // NOLINT
 
-#include "map-api/chunk-transaction.h"
-#include "map-api/core.h"
-#include "map-api/hub.h"
-#include "map-api/legacy-chunk.h"
-#include "map-api/revision.h"
+#include "dmap/chunk-transaction.h"
+#include "dmap/core.h"
+#include "dmap/hub.h"
+#include "dmap/legacy-chunk.h"
+#include "dmap/revision.h"
 #include "./net-table.pb.h"
 
-namespace map_api {
+namespace dmap {
 
 enum MetaTableFields {
   kMetaTableNameField,
@@ -20,7 +20,7 @@ enum MetaTableFields {
 
 constexpr char kMetaTableChunkHexString[] = "000000000000000000000003E1A1AB7E";
 
-const char NetTableManager::kMetaTableName[] = "map_api_metatable";
+const char NetTableManager::kMetaTableName[] = "dmap_metatable";
 
 NetTableManager::NetTableManager()
     : metatable_chunk_(nullptr), metatable_(nullptr) {}
@@ -564,4 +564,4 @@ bool NetTableManager::findTable(const std::string& table_name,
   return true;
 }
 
-} /* namespace map_api */
+} /* namespace dmap */

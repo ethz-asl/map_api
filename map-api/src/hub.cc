@@ -1,4 +1,4 @@
-#include "map-api/hub.h"
+#include "dmap/hub.h"
 
 #include <chrono>
 #include <ifaddrs.h>
@@ -18,12 +18,12 @@
 #include <multiagent-mapping-common/internal/unique-id.h>
 
 #include "./core.pb.h"
-#include "map-api/core.h"
-#include "map-api/file-discovery.h"
-#include "map-api/internal/network-data-log.h"
-#include "map-api/ipc.h"
-#include "map-api/logical-time.h"
-#include "map-api/server-discovery.h"
+#include "dmap/core.h"
+#include "dmap/file-discovery.h"
+#include "dmap/internal/network-data-log.h"
+#include "dmap/ipc.h"
+#include "dmap/logical-time.h"
+#include "dmap/server-discovery.h"
 
 const std::string kFileDiscovery = "file";
 const std::string kServerDiscovery = "server";
@@ -43,19 +43,19 @@ DEFINE_int32(discovery_timeout_ms, 100, "Timeout specific for first contact.");
 DECLARE_int32(simulated_lag_ms);
 
 DEFINE_string(
-    map_api_hub_filter_handle_debug_output, "",
+    dmap_hub_filter_handle_debug_output, "",
     "Filter the debug "
     "output of the handle thread to message types containing this string.");
 
-DEFINE_bool(map_api_log_network_data, false, "Will log map api network data.");
+DEFINE_bool(dmap_log_network_data, false, "Will log map api network data.");
 
-namespace map_api {
+namespace dmap {
 
-const char Hub::kDiscovery[] = "map_api_hub_discovery";
-const char Hub::kReady[] = "map_api_hub_ready";
+const char Hub::kDiscovery[] = "dmap_hub_discovery";
+const char Hub::kReady[] = "dmap_hub_ready";
 
-const std::string Hub::kInDataLogPrefix = "map_api_incoming";
-const std::string Hub::kOutDataLogPrefix = "map_api_outgoing";
+const std::string Hub::kInDataLogPrefix = "dmap_incoming";
+const std::string Hub::kOutDataLogPrefix = "dmap_outgoing";
 
 bool Hub::init(bool* is_first_peer) {
   CHECK_NOTNULL(is_first_peer);
@@ -70,7 +70,7 @@ bool Hub::init(bool* is_first_peer) {
     LOG(FATAL) << "Specified discovery mode unknown";
   }
 
-  if (FLAGS_map_api_log_network_data) {
+  if (FLAGS_dmap_log_network_data) {
     data_log_in_.reset(new internal::NetworkDataLog(kInDataLogPrefix));
     data_log_out_.reset(new internal::NetworkDataLog(kOutDataLogPrefix));
   }
@@ -400,8 +400,8 @@ void Hub::listenThread(Hub* self) {
       }
       Message response;
       if (VLOG_IS_ON(4)) {
-        if (FLAGS_map_api_hub_filter_handle_debug_output != "") {
-          if (query.type().find(FLAGS_map_api_hub_filter_handle_debug_output) !=
+        if (FLAGS_dmap_hub_filter_handle_debug_output != "") {
+          if (query.type().find(FLAGS_dmap_hub_filter_handle_debug_output) !=
               std::string::npos) {
             VLOG(4) << PeerId::self() << " received request " << query.type()
                     << " from " << query.sender();
@@ -413,8 +413,8 @@ void Hub::listenThread(Hub* self) {
       }
       handler->second(query, &response);
       if (VLOG_IS_ON(4)) {
-        if (FLAGS_map_api_hub_filter_handle_debug_output != "") {
-          if (query.type().find(FLAGS_map_api_hub_filter_handle_debug_output) !=
+        if (FLAGS_dmap_hub_filter_handle_debug_output != "") {
+          if (query.type().find(FLAGS_dmap_hub_filter_handle_debug_output) !=
               std::string::npos) {
             VLOG(4) << PeerId::self() << " handled request " << query.type();
           }
@@ -444,7 +444,7 @@ void Hub::listenThread(Hub* self) {
 }
 
 void Hub::logIncoming(const size_t size, const std::string& type) {
-  if (FLAGS_map_api_log_network_data) {
+  if (FLAGS_dmap_log_network_data) {
     std::lock_guard<std::mutex> lock(m_in_log_);
     CHECK(data_log_in_);
     data_log_in_->log(size, type);
@@ -452,11 +452,11 @@ void Hub::logIncoming(const size_t size, const std::string& type) {
 }
 
 void Hub::logOutgoing(const size_t size, const std::string& type) {
-  if (FLAGS_map_api_log_network_data) {
+  if (FLAGS_dmap_log_network_data) {
     std::lock_guard<std::mutex> lock(m_out_log_);
     CHECK(data_log_out_);
     data_log_out_->log(size, type);
   }
 }
 
-}  // namespace map_api
+}  // namespace dmap

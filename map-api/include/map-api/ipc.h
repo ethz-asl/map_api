@@ -8,12 +8,12 @@
 
 #include "./ipc.pb.h"
 
-namespace map_api {
+namespace dmap {
 class Message;
 
 /**
  * Class containing diverse inter-process communication utilities, tailored
- * to map-api
+ * to dmap
  */
 class IPC {
  public:
@@ -68,7 +68,7 @@ class IPC {
   static constexpr int kEveryone = -1;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #include "./ipc-inl.h"
 

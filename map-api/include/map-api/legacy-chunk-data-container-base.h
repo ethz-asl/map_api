@@ -4,9 +4,9 @@
 #include <list>
 #include <vector>
 
-#include "map-api/chunk-data-container-base.h"
+#include "dmap/chunk-data-container-base.h"
 
-namespace map_api {
+namespace dmap {
 
 class LegacyChunkDataContainerBase : public ChunkDataContainerBase {
   friend class LegacyChunk;
@@ -116,8 +116,8 @@ class LegacyChunkDataContainerBase : public ChunkDataContainerBase {
   virtual void clearImpl() = 0;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
-#include "map-api/legacy-chunk-data-container-base-inl.h"
+#include "dmap/legacy-chunk-data-container-base-inl.h"
 
 #endif  // MAP_API_LEGACY_CHUNK_DATA_CONTAINER_BASE_H_

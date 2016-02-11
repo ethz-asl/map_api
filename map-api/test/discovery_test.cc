@@ -1,19 +1,19 @@
-#include <map-api/discovery.h>
+#include <dmap/discovery.h>
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <signal.h>
 #include <sys/file.h>
 
-#include "map-api/file-discovery.h"
-#include "map-api/hub.h"
-#include "map-api/server-discovery.h"
-#include "map-api/test/testing-entrypoint.h"
-#include "./map_api_fixture.h"
+#include "dmap/file-discovery.h"
+#include "dmap/hub.h"
+#include "dmap/server-discovery.h"
+#include "dmap/test/testing-entrypoint.h"
+#include "./dmap_fixture.h"
 
 DECLARE_string(discovery_mode);
 
-namespace map_api {
+namespace dmap {
 
 class DiscoveryTest : public MapApiFixture,
                       public ::testing::WithParamInterface<const char*> {
@@ -99,6 +99,6 @@ TEST_P(FileDiscoveryTest, DiscoveryLockTimeout) {
 INSTANTIATE_TEST_CASE_P(FileDiscoveryInstance, FileDiscoveryTest,
                         ::testing::Values("file"));
 
-}  // namespace map_api
+}  // namespace dmap
 
 MAP_API_UNITTEST_ENTRYPOINT

@@ -7,9 +7,9 @@
 
 #include <zeromq_cpp/zmq.hpp>
 
-#include "map-api/peer-id.h"
+#include "dmap/peer-id.h"
 
-namespace map_api {
+namespace dmap {
 class Message;
 
 namespace internal {
@@ -48,6 +48,6 @@ class Peer {
   static std::unique_ptr<internal::NetworkDataLog> outgoing_log_;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_PEER_H_

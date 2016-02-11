@@ -1,12 +1,12 @@
-#include "map-api/core.h"
+#include "dmap/core.h"
 
 #include <glog/logging.h>
 
-#include "map-api/hub.h"
-#include "map-api/ipc.h"
-#include "map-api/net-table-manager.h"
+#include "dmap/hub.h"
+#include "dmap/ipc.h"
+#include "dmap/net-table-manager.h"
 
-namespace map_api {
+namespace dmap {
 
 Core Core::instance_;
 
@@ -94,4 +94,4 @@ Core::~Core() {
   }
 }
 
-}  // namespace map_api
+}  // namespace dmap

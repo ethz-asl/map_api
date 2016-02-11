@@ -7,9 +7,9 @@
 #include <set>
 #include <string>
 
-#include "map-api/peer-id.h"
+#include "dmap/peer-id.h"
 
-namespace map_api {
+namespace dmap {
 class Message;
 
 /**
@@ -62,6 +62,6 @@ class PeerHandler {
   mutable std::condition_variable cv_;
 };
 
-} /* namespace map_api */
+} /* namespace dmap */
 
 #endif  // MAP_API_PEER_HANDLER_H_

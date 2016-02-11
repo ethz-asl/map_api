@@ -5,7 +5,7 @@
 
 #include <multiagent-mapping-common/unique-id.h>
 
-namespace map_api {
+namespace dmap {
 class NetTable;
 class Revision;
 
@@ -29,6 +29,6 @@ class TrackeeMultimap
   bool isSameVerbose(const TrackeeMultimap& other) const;
 };
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_TRACKEE_MULTIMAP_H_

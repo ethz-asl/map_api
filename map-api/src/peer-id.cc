@@ -1,12 +1,12 @@
-#include <map-api/peer-id.h>
+#include <dmap/peer-id.h>
 #include <string>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include <map-api/hub.h>
+#include <dmap/hub.h>
 
-namespace map_api {
+namespace dmap {
 PeerId::PeerId() : ip_port_(kInvalidAdress) {}
 
 PeerId::PeerId(const std::string& ip_port) : ip_port_(ip_port) {
@@ -83,4 +83,4 @@ bool PeerId::isValid() const {
 
 const std::string PeerId::kInvalidAdress = "";
 
-} /* namespace map_api */
+} /* namespace dmap */

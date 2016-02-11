@@ -8,7 +8,7 @@ namespace common {
 class Id;
 }  // namespace common
 
-namespace map_api {
+namespace dmap {
 class LogicalTime;
 class PeerId;
 
@@ -55,6 +55,6 @@ Type IPC::popFor(int receiver) {
   return return_value;
 }
 
-}  // namespace map_api
+}  // namespace dmap
 
 #endif  // MAP_API_IPC_INL_H_
