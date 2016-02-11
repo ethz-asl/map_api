@@ -4,10 +4,10 @@
 #include <utility>
 #include <vector>
 
+#include <aslam/common/timer.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest_prod.h>
-#include <timing/timer.h>
 
 #include "map-api/core.h"
 #include "map-api/ipc.h"
@@ -185,16 +185,16 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddRetrieve) {
     for (size_t i = 0; i < kNData; ++i) {
       std::string key, value, result;
       addNonLocalData(&key, &value, i);
-      timing::Timer timer(kRetrieveDataTimerTag);
+      aslam::timing::Timer timer(kRetrieveDataTimerTag);
       EXPECT_TRUE(TestChordIndex::instance().retrieveData(key, &result));
       timer.Stop();
       EXPECT_EQ(value, result);
     }
     std::ofstream file(kRetrieveDataTimeFile, std::ios::out);
-    file << timing::Timing::GetMeanSeconds(kRetrieveDataTimerTag) << " "
-         << timing::Timing::GetMinSeconds(kRetrieveDataTimerTag) << " "
-         << timing::Timing::GetMaxSeconds(kRetrieveDataTimerTag) << std::endl;
-    LOG(INFO) << timing::Timing::Print();
+    file << aslam::timing::Timing::GetMeanSeconds(kRetrieveDataTimerTag) << " "
+         << aslam::timing::Timing::GetMinSeconds(kRetrieveDataTimerTag) << " "
+         << aslam::timing::Timing::GetMaxSeconds(kRetrieveDataTimerTag) << std::endl;
+    LOG(INFO) << aslam::timing::Timing::Print();
     IPC::barrier(ADDED_RETRIEVED, kNProcesses - 1);
   } else {
     IPC::barrier(INIT, kNProcesses - 1);
