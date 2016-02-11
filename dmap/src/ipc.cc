@@ -18,10 +18,10 @@ std::unordered_map<int, int> IPC::barrier_map_;
 std::queue<proto::IpcMessage> IPC::messages_;
 
 const char IPC::kBarrierMessage[] = "dmap_ipc_barrier";
-MAP_API_STRING_MESSAGE(IPC::kBarrierMessage);
+DMAP_STRING_MESSAGE(IPC::kBarrierMessage);
 
 const char IPC::kMessageMessage[] = "dmap_ipc_message";
-MAP_API_PROTO_MESSAGE(IPC::kMessageMessage, proto::IpcMessage);
+DMAP_PROTO_MESSAGE(IPC::kMessageMessage, proto::IpcMessage);
 
 IPC::~IPC() {}
 

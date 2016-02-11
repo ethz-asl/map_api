@@ -19,13 +19,13 @@ const char ServerDiscovery::kGetPeersRequest[] =
     "dmap_server_discovery_get_peers_request";
 const char ServerDiscovery::kGetPeersResponse[] =
     "dmap_server_discovery_get_peers_response";
-MAP_API_PROTO_MESSAGE(ServerDiscovery::kGetPeersResponse,
-                      proto::ServerDiscoveryGetPeersResponse);
+DMAP_PROTO_MESSAGE(ServerDiscovery::kGetPeersResponse,
+                   proto::ServerDiscoveryGetPeersResponse);
 const char ServerDiscovery::kLockRequest[] =
     "dmap_server_discovery_lock_request";
 const char ServerDiscovery::kRemoveRequest[] =
     "dmap_server_discovery_remove_request";
-MAP_API_STRING_MESSAGE(ServerDiscovery::kRemoveRequest);
+DMAP_STRING_MESSAGE(ServerDiscovery::kRemoveRequest);
 const char ServerDiscovery::kUnlockRequest[] =
     "dmap_server_discovery_unlock_request";
 

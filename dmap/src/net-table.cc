@@ -23,8 +23,8 @@ const char NetTable::kPushNewChunksRequest[] = "dmap_net_table_push_new";
 const char NetTable::kAnnounceToListeners[] =
     "dmap_net_table_announce_to_listeners";
 
-MAP_API_STRING_MESSAGE(NetTable::kPushNewChunksRequest);
-MAP_API_STRING_MESSAGE(NetTable::kAnnounceToListeners);
+DMAP_STRING_MESSAGE(NetTable::kPushNewChunksRequest);
+DMAP_STRING_MESSAGE(NetTable::kAnnounceToListeners);
 
 NetTable::NetTable() {}
 

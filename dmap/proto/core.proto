@@ -1,4 +1,4 @@
-package map_api.proto;
+package dmap.proto;
 import "id.proto";
 
 enum Type { INT32 = 1; INT64 = 2; UINT64 = 3; DOUBLE = 4; STRING = 5; 

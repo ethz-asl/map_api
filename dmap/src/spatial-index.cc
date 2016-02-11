@@ -232,20 +232,20 @@ const char SpatialIndex::kFetchResponsibilitiesResponse[] =
 const char SpatialIndex::kPushResponsibilitiesRequest[] =
     "push_responsibilities_response";
 
-MAP_API_PROTO_MESSAGE(SpatialIndex::kRoutedChordRequest,
-                      proto::RoutedChordRequest);
+DMAP_PROTO_MESSAGE(SpatialIndex::kRoutedChordRequest,
+                   proto::RoutedChordRequest);
 
-MAP_API_STRING_MESSAGE(SpatialIndex::kPeerResponse);
-MAP_API_STRING_MESSAGE(SpatialIndex::kGetClosestPrecedingFingerRequest);
-MAP_API_STRING_MESSAGE(SpatialIndex::kNotifyRequest);
-MAP_API_PROTO_MESSAGE(SpatialIndex::kReplaceRequest, proto::ReplaceRequest);
-MAP_API_PROTO_MESSAGE(SpatialIndex::kAddDataRequest, proto::AddDataRequest);
-MAP_API_STRING_MESSAGE(SpatialIndex::kRetrieveDataRequest);
-MAP_API_STRING_MESSAGE(SpatialIndex::kRetrieveDataResponse);
-MAP_API_PROTO_MESSAGE(SpatialIndex::kFetchResponsibilitiesResponse,
-                      proto::FetchResponsibilitiesResponse);
-MAP_API_PROTO_MESSAGE(SpatialIndex::kPushResponsibilitiesRequest,
-                      proto::FetchResponsibilitiesResponse);
+DMAP_STRING_MESSAGE(SpatialIndex::kPeerResponse);
+DMAP_STRING_MESSAGE(SpatialIndex::kGetClosestPrecedingFingerRequest);
+DMAP_STRING_MESSAGE(SpatialIndex::kNotifyRequest);
+DMAP_PROTO_MESSAGE(SpatialIndex::kReplaceRequest, proto::ReplaceRequest);
+DMAP_PROTO_MESSAGE(SpatialIndex::kAddDataRequest, proto::AddDataRequest);
+DMAP_STRING_MESSAGE(SpatialIndex::kRetrieveDataRequest);
+DMAP_STRING_MESSAGE(SpatialIndex::kRetrieveDataResponse);
+DMAP_PROTO_MESSAGE(SpatialIndex::kFetchResponsibilitiesResponse,
+                   proto::FetchResponsibilitiesResponse);
+DMAP_PROTO_MESSAGE(SpatialIndex::kPushResponsibilitiesRequest,
+                   proto::FetchResponsibilitiesResponse);
 
 void SpatialIndex::handleRoutedRequest(const Message& routed_request_message,
                                        Message* response) {
@@ -661,8 +661,7 @@ void SpatialIndex::localUpdateCallback(const std::string& key,
 
 const char SpatialIndex::kTriggerRequest[] =
     "dmap_spatial_index_trigger_request";
-MAP_API_PROTO_MESSAGE(SpatialIndex::kTriggerRequest,
-                      proto::SpatialIndexTrigger);
+DMAP_PROTO_MESSAGE(SpatialIndex::kTriggerRequest, proto::SpatialIndexTrigger);
 void SpatialIndex::sendTriggerNotification(const PeerId& peer,
                                            const size_t position,
                                            const common::IdList& new_chunks) {

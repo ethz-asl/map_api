@@ -146,4 +146,4 @@ TEST_F(WorkspaceTest, BlackWhiteChunk) {
 
 }  // namespace dmap
 
-MAP_API_UNITTEST_ENTRYPOINT
+DMAP_UNITTEST_ENTRYPOINT

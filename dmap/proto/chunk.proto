@@ -1,4 +1,4 @@
-package map_api.proto;
+package dmap.proto;
 import "id.proto";
 
 message ChunkRequestMetadata {

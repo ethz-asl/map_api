@@ -12,7 +12,7 @@
 namespace dmap {
 
 UNIQUE_ID_DEFINE_ID(IntId);
-MAP_API_REVISION_UNIQUE_ID(IntId);
+DMAP_REVISION_UNIQUE_ID(IntId);
 
 }  //  namespace dmap
 
@@ -190,4 +190,4 @@ TYPED_TEST(CacheAndTransactionTest, InsertUpdate) {
 
 }  // namespace dmap
 
-MAP_API_UNITTEST_ENTRYPOINT
+DMAP_UNITTEST_ENTRYPOINT

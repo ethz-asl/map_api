@@ -10,9 +10,9 @@ const char RpcCommandRegisterer::kCommandRequest[] =
 const char RpcCommandRegisterer::kCommandResponse[] =
     "visual_inertial_mapping_command_response";
 
-MAP_API_STRING_MESSAGE(RpcCommandRegisterer::kCommandRequest);
-MAP_API_PROTO_MESSAGE(RpcCommandRegisterer::kCommandResponse,
-                      proto::CommandRpcResponse);
+DMAP_STRING_MESSAGE(RpcCommandRegisterer::kCommandRequest);
+DMAP_PROTO_MESSAGE(RpcCommandRegisterer::kCommandResponse,
+                   proto::CommandRpcResponse);
 
 RpcCommandRegisterer::RpcCommandRegisterer() : common::CommandRegisterer() {
   Hub::instance().registerHandler(

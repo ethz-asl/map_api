@@ -114,4 +114,4 @@ TEST_F(TransactionTest, TandemCommit) {
 
 }  // namespace dmap
 
-MAP_API_UNITTEST_ENTRYPOINT
+DMAP_UNITTEST_ENTRYPOINT

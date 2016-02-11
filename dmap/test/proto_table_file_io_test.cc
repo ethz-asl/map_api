@@ -98,4 +98,4 @@ TEST_F(ProtoTableFileIOTest, SaveAndRestoreFromFile) {
   }
 }
 
-MAP_API_UNITTEST_ENTRYPOINT
+DMAP_UNITTEST_ENTRYPOINT
