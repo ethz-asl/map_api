@@ -70,7 +70,7 @@ holder.
 
 All locks are timed to ensure robustness in case that the lock holder leaves
 the network while holding the lock. A synchronized clock is used among the
-Map API clients.
+dmap clients.
 
 \subsubsection{Joining a chunk}
 
@@ -139,8 +139,8 @@ serve the purpose of looking up data that is not in a held chunk (which leads
 to participation in the chunk of that data) and of sending participation
 requests. 
 
-Similarly, each client holds a peer list for the entire Map API, and the
-operation for joining tables in the Map API are equivalent to the operations for
+Similarly, each client holds a peer list for the entire dmap, and the
+operation for joining tables in the dmap are equivalent to the operations for
 joining chunks in a table.
 
 \subsubsection{Naive index lookup}

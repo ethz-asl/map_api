@@ -47,7 +47,7 @@ DEFINE_string(
     "Filter the debug "
     "output of the handle thread to message types containing this string.");
 
-DEFINE_bool(dmap_log_network_data, false, "Will log map api network data.");
+DEFINE_bool(dmap_log_network_data, false, "Will log dmap network data.");
 
 namespace dmap {
 

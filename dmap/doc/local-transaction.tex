@@ -3,7 +3,7 @@
 \usepackage{todonotes}
 \usepackage{a4wide}
 
-\title{Map API design document}
+\title{dmap design document}
 \author{Titus Cieslewski}
 \date{Spring 2014}
 
@@ -16,9 +16,9 @@
 
 \section{Overview}
 
-The Map API should provide a mean for robots to collaborate on maps on a large
+The dmap should provide a mean for robots to collaborate on maps on a large
 scale. It is designed with collaboration on a pose graph in mind, but pose
-graph and the backend are separated, allowing using the Map API for other
+graph and the backend are separated, allowing using the dmap for other
 map-related tasks.
 
 The envisioned long-term goal is to develop a Peer-to-peer database system
@@ -26,7 +26,7 @@ The envisioned long-term goal is to develop a Peer-to-peer database system
 
 \section{Application-to-database mapping, table types}
 
-Applications acces the Map API by extending a table interface class. What
+Applications acces the dmap by extending a table interface class. What
 fields the application would want to use is to be defined in the virutal
 method {\tt define()}, using calls to {\tt addField()}. The mechanisms used to
 ensure synchronized definition of tables are specified in section 
@@ -78,7 +78,7 @@ with {\tt \_history}.
 
 \section{Transactions}\label{transactions}
 
-Queries to the Map API are handled by transactions, as previously specified in
+Queries to the dmap are handled by transactions, as previously specified in
 the Map Manager API by Stéphane.
 
 \subsection{Transaction walkthrough}

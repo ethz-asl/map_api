@@ -3,7 +3,7 @@
 If you use dmap in your academic work, please cite:
 ```tex
 @inproceedings{cieslewski2015mapapi,
-  title={Map API - Scalable Decentralized Map Building for Robots},
+  title={dmap - Scalable Decentralized Map Building for Robots},
   author={Cieslewski, Titus and Lynen, Simon and Dymczyk, Marcin and Magnenat, St\'{e}phane and Siegwart, Roland},
   booktitle={Robotics and Automation (ICRA), 2015 IEEE International Conference on},
   year={2015}
@@ -117,7 +117,7 @@ repository.
 
 We provide the following UML diagram for reference throughout this documentation:
 
-![uml](https://raw.githubusercontent.com/ethz-asl/multiagent_mapping/feature/dmap-simplification/map-api/doc/dmap_uml.png?token=AD9KVE7sy34ge5ggJd-x0sl0q_pf0_vrks5WoL2KwA%3D%3D)
+![uml](https://raw.githubusercontent.com/ethz-asl/multiagent_mapping/feature/dmap-simplification/dmap/doc/dmap_uml.png?token=AD9KVE7sy34ge5ggJd-x0sl0q_pf0_vrks5WoL2KwA%3D%3D)
 
 In order to make use of dmap, your application should express its data, let's
 call it AppData, in terms of **singleton** associative containers with ids as

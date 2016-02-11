@@ -20,12 +20,12 @@ namespace dmap {
 class Message;
 
 /**
- * Map Api Hub: Manages connections to other participating nodes
+ * dmap Hub: Manages connections to other participating nodes
  */
 class Hub final {
  public:
   /**
-   * Get singleton instance of Map Api Hub
+   * Get singleton instance of dmap Hub
    */
   static Hub& instance();
   /**

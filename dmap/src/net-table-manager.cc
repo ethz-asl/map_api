@@ -207,7 +207,7 @@ NetTable* NetTableManager::addTable(
 }
 
 NetTable& NetTableManager::getTable(const std::string& name) {
-  CHECK(Core::instance() != nullptr) << "Map API not initialized!";
+  CHECK(Core::instance() != nullptr) << "dmap not initialized!";
   aslam::ScopedReadLock lock(&tables_lock_);
   TableMap::iterator found = tables_.find(name);
   // TODO(tcies) load table schema from metatable if not active
@@ -216,7 +216,7 @@ NetTable& NetTableManager::getTable(const std::string& name) {
 }
 
 const NetTable& NetTableManager::getTable(const std::string& name) const {
-  CHECK(Core::instance() != nullptr) << "Map API not initialized!";
+  CHECK(Core::instance() != nullptr) << "dmap not initialized!";
   tables_lock_.acquireReadLock();
   TableMap::const_iterator found = tables_.find(name);
   // TODO(tcies) load table schema from metatable if not active
@@ -226,7 +226,7 @@ const NetTable& NetTableManager::getTable(const std::string& name) const {
 }
 
 bool NetTableManager::hasTable(const std::string& name) const {
-  CHECK(Core::instance() != nullptr) << "Map API not initialized!";
+  CHECK(Core::instance() != nullptr) << "dmap not initialized!";
 
   tables_lock_.acquireReadLock();
   bool has_table = tables_.count(name) > 0u;

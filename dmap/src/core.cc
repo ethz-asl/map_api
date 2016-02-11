@@ -53,25 +53,25 @@ void Core::init() {
   NetTableManager::registerHandlers();
   bool is_first_peer;
   if (!hub_.init(&is_first_peer)) {
-    LOG(FATAL) << "Map Api core init failed";
+    LOG(FATAL) << "dmap core init failed";
   }
   // ready metatable
   table_manager_.init(is_first_peer);
   initialized_ = true;
-  VLOG(1) << "Map API instance running at address " << PeerId::self();
+  VLOG(1) << "dmap instance running at address " << PeerId::self();
 }
 
 bool Core::isInitialized() const { return initialized_; }
 
 void Core::kill() {
-  VLOG(1) << "Killing Map API instance at address " << PeerId::self();
+  VLOG(1) << "Killing dmap instance at address " << PeerId::self();
   table_manager_.kill();
   hub_.kill();
   initialized_ = false;  // TODO(tcies) re-order?
 }
 
 void Core::killOnceShared() {
-  VLOG(1) << "Killing (once shared) Map API instance at " << PeerId::self();
+  VLOG(1) << "Killing (once shared) dmap instance at " << PeerId::self();
   table_manager_.killOnceShared();
   hub_.kill();
   initialized_ = false;

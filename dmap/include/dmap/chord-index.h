@@ -18,7 +18,7 @@ namespace dmap {
 /**
  * This is the base class for all distributed indices. It implements distributed
  * key lookup via the Chord protocol, with m fixed to 16 TODO(tcies) flex?.
- * Because multiple indices will be used throughout map api, each index will
+ * Because multiple indices will be used throughout dmap, each index will
  * need to send chord RPC's in a way that the recipients will know what index
  * an RPC belongs to. Consequently, the implementation of RPCs is left to
  * derived classes. Similarly, the holder of derived classes must also ensure

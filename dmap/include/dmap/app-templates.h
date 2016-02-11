@@ -1,4 +1,4 @@
-// A header for all the templates that can or must be specialized by Map API
+// A header for all the templates that can or must be specialized by dmap
 // applications.
 
 #ifndef DMAP_APP_TEMPLATES_H_

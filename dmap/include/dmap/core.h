@@ -8,8 +8,8 @@ class Hub;
 class NetTableManager;
 
 /**
- * The map api core class is the first interface between robot application and
- * the map api system. It is a singleton in order to:
+ * The dmap core class is the first interface between robot application and
+ * the dmap system. It is a singleton in order to:
  * - Ensure that only one instance of the database is created and used
  * - Ensure that only one thread is present to communicate with other nodes
  */

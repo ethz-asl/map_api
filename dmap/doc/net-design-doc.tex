@@ -5,7 +5,7 @@
 \usepackage{graphicx}
 \usepackage{todonotes}
 
-\title{Map API: Network design doc for review by Christian Decker}
+\title{dmap: Network design doc for review by Christian Decker}
 \author{Titus Cieslewski}
 \date{\today}
 
@@ -30,7 +30,7 @@
 
 \section{Overview}
 
-The Map API is to provide a mean for robots to collaborate on maps on a large
+The dmap is to provide a mean for robots to collaborate on maps on a large
 scale, in a distributed (peer to peer) manner. While the framework should be
 agnostic to the underlying algorithm, an algorithm based on visual and inertial
 sensor data will be implemented as a reference.
@@ -57,7 +57,7 @@ robot can subscribe to, calling it when said data changes.
 
 \subsection{Implementation}
 
-The Map API is implemented as a C++ library, relying on Google Protocol buffers
+The dmap is implemented as a C++ library, relying on Google Protocol buffers
 for serializable structures and ZeroMQ for networking purposes.
 
 \section{Data structure}
@@ -117,7 +117,7 @@ we want to adapt its solution. We see the following differences to Bitcoin:
     occuring conflict is blockchain forks, and maybe the Bitcoin solution for 
     those could be useful to us (need equivalent to longest chain)
   \item In Bitcoin, each agent knows about the full state of the transaction
-    history. This is not required for the Map API
+    history. This is not required for the dmap
 \end{itemize}
 
 \section{Suggested solution}
@@ -175,7 +175,7 @@ lock.
 \end{figure}
 
 All locks are timed to ensure robustness to peer loss. A synchronized clock is
-used among the Map API clients.
+used among the dmap clients.
 
 \subsubsection{Joining a chunk}
 See figure \ref{fig:join}.
@@ -243,8 +243,8 @@ Each client holds a peer list for each table that it participates in. Unlike
 chunk swarms, table swarms don't need to be fully connected, but, like in
 Bitcoin, each client should hold a minimum of connections.
 
-Similarly, each client holds a peer list for the entire Map API, and the
-operation for joining tables in the Map API are equivalent to the operations for
+Similarly, each client holds a peer list for the entire dmap, and the
+operation for joining tables in the dmap are equivalent to the operations for
 joining chunks in a table.
 
 \subsubsection{Naive index lookup}

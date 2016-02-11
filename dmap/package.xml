@@ -2,7 +2,7 @@
 <package>
   <name>dmap</name>
   <version>0.0.0</version>
-  <description>The aslam map api package</description>
+  <description>The aslam dmap package</description>
 
   <maintainer email="simon.lynen@gmail.com">simonlynen</maintainer>
   <maintainer email="dev@titus-c.ch">tcies</maintainer>

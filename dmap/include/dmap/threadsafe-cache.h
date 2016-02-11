@@ -16,7 +16,7 @@
 namespace dmap {
 
 // This is a threadsafe MappedContainerBase implementation intended for use by
-// Map API applications. It can be obtained using Transaction::createCache().
+// dmap applications. It can be obtained using Transaction::createCache().
 template <typename IdType, typename ObjectType>
 class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
                         public CacheBase {
