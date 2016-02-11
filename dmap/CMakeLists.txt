@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
-project(map_api)
+project(dmap)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
 find_package(catkin_simple REQUIRED)
