@@ -11,9 +11,6 @@
 
 namespace map_api {
 
-MAP_API_REVISION_PROTOBUF(proto::TableDescriptor);
-MAP_API_REVISION_PROTOBUF(proto::PeerList);
-
 enum MetaTableFields {
   kMetaTableNameField,
   kMetaTableStructureField,

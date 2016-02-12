@@ -16,7 +16,6 @@
 #include <glog/logging.h>
 
 #include <multiagent-mapping-common/internal/unique-id.h>
-#include <multiagent-mapping-common/plain-file-logger.h>
 
 #include "./core.pb.h"
 #include "map-api/core.h"
