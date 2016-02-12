@@ -8,8 +8,8 @@
 
 #include "./core.pb.h"
 #include "./chunk.pb.h"
-#include "../include/dmap/legacy-chunk-data-ram-container.h"
-#include "../include/dmap/legacy-chunk-data-stxxl-container.h"
+#include "dmap/legacy-chunk-data-ram-container.h"
+#include "dmap/legacy-chunk-data-stxxl-container.h"
 #include "dmap/hub.h"
 #include "dmap/message.h"
 #include "dmap/net-table-manager.h"

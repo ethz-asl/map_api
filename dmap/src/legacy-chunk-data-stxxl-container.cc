@@ -1,4 +1,4 @@
-#include "../include/dmap/legacy-chunk-data-stxxl-container.h"
+#include "dmap/legacy-chunk-data-stxxl-container.h"
 
 namespace dmap {
 

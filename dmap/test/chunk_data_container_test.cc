@@ -7,11 +7,11 @@
 #include <multiagent-mapping-common/unique-id.h>
 
 #include "dmap/core.h"
+#include "dmap/legacy-chunk-data-ram-container.h"
+#include "dmap/legacy-chunk-data-stxxl-container.h"
 #include "dmap/logical-time.h"
 #include "dmap/test/testing-entrypoint.h"
 #include "./test_table.cc"
-#include "../include/dmap/legacy-chunk-data-ram-container.h"
-#include "../include/dmap/legacy-chunk-data-stxxl-container.h"
 
 namespace dmap {
 
