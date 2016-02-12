@@ -65,6 +65,7 @@ void Transaction::fetchAllChunksTrackedBy(const IdType& id,
 
 template <typename IdType>
 void Transaction::remove(const IdType& id, NetTable* table) {
+  CHECK(!finalized_);
   return transactionOf(CHECK_NOTNULL(table))->remove(id);
 }
 
@@ -81,6 +82,7 @@ template <typename IdType, typename ObjectType>
 std::shared_ptr<ThreadsafeCache<IdType, ObjectType>> Transaction::createCache(
     NetTable* table) {
   CHECK_NOTNULL(table);
+  CHECK(!finalized_);
   std::shared_ptr<ThreadsafeCache<IdType, ObjectType>> result(
       new ThreadsafeCache<IdType, ObjectType>(this, table));
   CHECK(caches_.emplace(table, result).second);
@@ -99,6 +101,7 @@ void Transaction::setCacheUpdateFilter(
                              const ObjectType& innovation)>& update_filter,
     NetTable* table) {
   CHECK_NOTNULL(table);
+  CHECK(!finalized_);
   ThreadsafeCache<IdType, ObjectType>* cache =
       getMutableCache<IdType, ObjectType>(table);
   cache->setUpdateFilter(update_filter);
@@ -112,6 +115,7 @@ void Transaction::overrideTrackerIdentificationMethod(
   CHECK_NOTNULL(trackee_table);
   CHECK_NOTNULL(tracker_table);
   CHECK(how_to_determine_tracker);
+  CHECK(!finalized_);
   enableDirectAccess();
   transactionOf(trackee_table)->overrideTrackerIdentificationMethod(
       tracker_table, how_to_determine_tracker);
@@ -121,6 +125,7 @@ void Transaction::overrideTrackerIdentificationMethod(
 template <typename IdType>
 std::shared_ptr<const Revision>* Transaction::getMutableUpdateEntry(
     const IdType& id, NetTable* table) {
+  CHECK(!finalized_);
   return transactionOf(CHECK_NOTNULL(table))->getMutableUpdateEntry(id);
 }
 
@@ -128,6 +133,7 @@ template <typename IdType, typename ObjectType>
 ThreadsafeCache<IdType, ObjectType>* Transaction::getMutableCache(
     NetTable* table) {
   CHECK_NOTNULL(table);
+  CHECK(!finalized_);
   // This ABSOLUTELY MUST REMAIN A DYNAMIC_CAST!!! Previously, it was static,
   // and resulted in a 3-day bug hunt.
   ThreadsafeCache<IdType, ObjectType>* result =

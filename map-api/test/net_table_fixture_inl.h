@@ -35,6 +35,7 @@ void NetTableFixture::increment(const common::Id& id, ChunkBase* chunk,
   ConstRevisionMap chunk_dump;
   transaction->dumpChunk(chunk, &chunk_dump);
   ConstRevisionMap::iterator found = chunk_dump.find(id);
+  CHECK(found != chunk_dump.end());
   std::shared_ptr<Revision> to_update;
   found->second->copyForWrite(&to_update);
   int transient_value;

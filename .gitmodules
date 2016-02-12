@@ -13,3 +13,6 @@
 [submodule "vi-algorithms/structural_descriptors"]
 	path = vi-algorithms/structural_descriptors
 	url = git@github.com:ethz-asl/structural_descriptors.git
+[submodule "aslam_cv2_basic"]
+	path = aslam_cv2_basic
+	url = git@github.com:ethz-asl/aslam_cv2_basic.git

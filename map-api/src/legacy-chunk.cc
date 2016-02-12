@@ -2,9 +2,9 @@
 #include <fstream>  // NOLINT
 #include <unordered_set>
 
+#include <aslam/common/timer.h>
 #include <multiagent-mapping-common/backtrace.h>
 #include <multiagent-mapping-common/conversions.h>
-#include <timing/timer.h>
 
 #include "./core.pb.h"
 #include "./chunk.pb.h"
@@ -236,7 +236,7 @@ void LegacyChunk::writeLock() { distributedWriteLock(); }
 
 void LegacyChunk::readLock() const { distributedReadLock(); }
 
-bool LegacyChunk::isWriteLocked() {
+bool LegacyChunk::isWriteLocked() const {
   std::lock_guard<std::mutex> metalock(lock_.mutex);
   return isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id();
 }
@@ -374,7 +374,7 @@ bool LegacyChunk::addPeer(const PeerId& peer) {
     return false;
   }
   prepareInitRequest(&request);
-  timing::Timer timer("init_request");
+  aslam::timing::Timer timer("init_request");
   if (!Hub::instance().ackRequest(peer, &request)) {
     LOG(WARNING) << peer << " did not accept init request!";
     return false;
@@ -434,7 +434,7 @@ void LegacyChunk::distributedReadLock() const {
   if (log_locking_) {
     startState(READ_ATTEMPT);
   }
-  timing::Timer timer("map_api::Chunk::distributedReadLock",
+  aslam::timing::Timer timer("map_api::Chunk::distributedReadLock",
                       !FLAGS_map_api_time_chunk);
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   if (isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id()) {
@@ -463,7 +463,7 @@ void LegacyChunk::distributedWriteLock() {
   if (log_locking_) {
     startState(WRITE_ATTEMPT);
   }
-  timing::Timer timer("map_api::Chunk::distributedWriteLock");
+  aslam::timing::Timer timer("map_api::Chunk::distributedWriteLock");
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   // case recursion TODO(tcies) abolish if possible
   if (isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id()) {
