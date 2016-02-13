@@ -52,7 +52,8 @@ TEST_F(NetTableTest, NetTableTransactions) {
     IPC::barrier(SYNC, 2);
     IPC::barrier(DIE, 2);
     Workspace workspace;
-    NetTableTransaction reader(LogicalTime::sample(), table_, workspace);
+    NetTableTransaction reader(LogicalTime::sample(), workspace, nullptr,
+                               table_);
     std::shared_ptr<const Revision> ab_item = reader.getById(ab_id);
     std::shared_ptr<const Revision> b_item = reader.getById(b_id);
     EXPECT_TRUE(ab_item->verifyEqual(kFieldName, 2 * kCycles));
@@ -69,7 +70,8 @@ TEST_F(NetTableTest, NetTableTransactions) {
     for (int i = 0; i < kCycles; ++i) {
       while (true) {
         Workspace workspace;
-        NetTableTransaction attempt(LogicalTime::sample(), table_, workspace);
+        NetTableTransaction attempt(LogicalTime::sample(), workspace, nullptr,
+                                    table_);
         increment(ab_id, ab_chunk, &attempt);
         std::shared_ptr<Revision> to_insert = table_->getTemplate();
         common::Id insert_id;
@@ -96,7 +98,8 @@ TEST_F(NetTableTest, NetTableTransactions) {
     for (int i = 0; i < kCycles; ++i) {
       while (true) {
         Workspace workspace;
-        NetTableTransaction attempt(LogicalTime::sample(), table_, workspace);
+        NetTableTransaction attempt(LogicalTime::sample(), workspace, nullptr,
+                                    table_);
         increment(ab_id, ab_chunk, &attempt);
         increment(b_id, b_chunk, &attempt);
         if (attempt.commit()) {

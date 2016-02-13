@@ -3,9 +3,9 @@
 #include <map-api/legacy-chunk-data-ram-container.h>
 #include <map-api/legacy-chunk-data-stxxl-container.h>
 
+#include <aslam/common/statistics/statistics.h>
+#include <aslam/common/timer.h>
 #include <multiagent-mapping-common/backtrace.h>
-#include <statistics/statistics.h>
-#include <timing/timer.h>
 
 #include "map-api/core.h"
 #include "map-api/hub.h"
@@ -138,7 +138,7 @@ ChunkBase* NetTable::newChunk(const common::Id& chunk_id) {
 }
 
 ChunkBase* NetTable::getChunk(const common::Id& chunk_id) {
-  timing::Timer timer("map_api::NetTable::getChunk");
+  aslam::timing::Timer timer("map_api::NetTable::getChunk");
   active_chunks_lock_.acquireReadLock();
   ChunkMap::iterator found = active_chunks_.find(chunk_id);
   if (found == active_chunks_.end()) {
@@ -251,13 +251,13 @@ void NetTable::getChunkReferencesInBoundingBox(
     const SpatialIndex::BoundingBox& bounding_box,
     std::unordered_set<common::Id>* chunk_ids) {
   CHECK_NOTNULL(chunk_ids);
-  timing::Timer seek_timer("map_api::NetTable::getChunksInBoundingBox - seek");
+  aslam::timing::Timer seek_timer("map_api::NetTable::getChunksInBoundingBox - seek");
   {
     aslam::ScopedReadLock lock(&index_lock_);
     spatial_index_->seekChunks(bounding_box, chunk_ids);
   }
   seek_timer.Stop();
-  statistics::StatsCollector collector(
+  aslam::statistics::StatsCollector collector(
       "map_api::NetTable::getChunksInBoundingBox - chunks");
   collector.AddSample(chunk_ids->size());
 }
