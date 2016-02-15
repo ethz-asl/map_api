@@ -1,10 +1,10 @@
 #include <string>
 #include <type_traits>
 
+#include <aslam/common/timer.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <multiagent-mapping-common/unique-id.h>
-#include <timing/timer.h>
 
 #include "map-api/core.h"
 #include "map-api/logical-time.h"
@@ -335,14 +335,14 @@ TYPED_TEST(UpdateFieldTestWithInit, UpdateRead) {
 TYPED_TEST(IntTestWithInit, CreateReadThousand) {
   for (int i = 0; i < 1000; ++i) {
     common::Id inserted = this->fillRevision(i);
-    timing::Timer insert_timer("insert - " +
+    aslam::timing::Timer insert_timer("insert - " +
                                std::string(::testing::UnitTest::GetInstance()
                                                ->current_test_info()
                                                ->test_case_name()));
     EXPECT_TRUE(this->insertRevision());
     insert_timer.Stop();
 
-    timing::Timer read_timer("read - " +
+    aslam::timing::Timer read_timer("read - " +
                              std::string(::testing::UnitTest::GetInstance()
                                              ->current_test_info()
                                              ->test_case_name()));
@@ -356,7 +356,7 @@ TYPED_TEST(IntTestWithInit, CreateReadThousand) {
         &dataFromTable);
     EXPECT_EQ(i, dataFromTable);
   }
-  LOG(INFO) << timing::Timing::Print();
+  LOG(INFO) << aslam::timing::Timing::Print();
 }
 
 TYPED_TEST(CruMapIntTestWithInit, HistoryAtTime) {

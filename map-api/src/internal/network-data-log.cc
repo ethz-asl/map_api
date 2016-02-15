@@ -20,7 +20,6 @@ void NetworkDataLog::log(const size_t bytes, const std::string& type) {
   logger_ << std::chrono::duration_cast<std::chrono::milliseconds>(
                  Clock::now().time_since_epoch()).count() /
                  1000. << " " << bytes << " " << type << std::endl;
-  logger_.Flush();
 }
 
 void NetworkDataLog::getCumSums(const std::string& file_name,
