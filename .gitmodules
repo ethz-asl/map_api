@@ -16,3 +16,6 @@
 [submodule "aslam_cv2_basic"]
 	path = aslam_cv2_basic
 	url = git@github.com:ethz-asl/aslam_cv2_basic.git
+[submodule "gnss_raw_data_driver"]
+	path = gnss_raw_data_driver
+	url = git@github.com:ethz-asl/gnss_raw_data_driver.git
