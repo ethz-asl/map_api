@@ -1,6 +1,6 @@
 #include "map-api/net-table-transaction.h"
 
-#include <statistics/statistics.h>
+#include <aslam/common/statistics/statistics.h>
 
 #include "map-api/conflicts.h"
 #include "map-api/internal/commit-future.h"
@@ -113,8 +113,8 @@ void NetTableTransaction::lock() {
     chunk_transaction.first->writeLock();
     ++i;
   }
-  statistics::StatsCollector stat("map_api::NetTableTransaction::lock - " +
-                                  table_->name());
+  aslam::statistics::StatsCollector stat(
+          "map_api::NetTableTransaction::lock - " + table_->name());
   stat.AddSample(i);
 }
 
