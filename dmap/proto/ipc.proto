@@ -1,0 +1,6 @@
+package dmap.proto;
+
+message IpcMessage {
+	optional string message = 1;
+	optional int32 receiver = 2;
+}
