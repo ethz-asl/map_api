@@ -2,7 +2,7 @@
 <package format="2">
   <name>multiprocess_gtest</name>
   <version>0.0.0</version>
-  <description>The aslam map api test package</description>
+  <description>The aslam dmap test package</description>
   <maintainer email="simon.lynen@gmail.com">simonlynen</maintainer>
   <maintainer email="dev@titus-c.ch">tcies</maintainer>
   <license>closed</license>
