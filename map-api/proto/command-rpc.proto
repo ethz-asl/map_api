@@ -1,6 +1,0 @@
-package map_api.proto;
-
-message CommandRpcResponse {
-  optional int32 status = 1;
-  optional string command = 2;
-};
