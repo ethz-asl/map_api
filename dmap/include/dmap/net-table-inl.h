@@ -85,7 +85,7 @@ void NetTable::followTrackedChunksOfItem(const IdType& item_id,
 template <typename ObjectType>
 void NetTable::addAutoMergePolicy(
     const typename AutoMergePolicy<ObjectType>::Type& auto_merge_policy) {
-  addAutoMergePolicy([auto_merge_policy](const Revision& conflicting_revision,
+  addAutoMergePolicy([&auto_merge_policy](const Revision& conflicting_revision,
                                          const Revision& original_revision,
                                          Revision* revision_at_hand) {
     CHECK_NOTNULL(revision_at_hand);
