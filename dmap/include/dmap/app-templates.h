@@ -73,6 +73,28 @@ std::string getComparisonString(const ObjectType& a, const ObjectType& b) {
     revision->set(kUniqueFieldIndex, proto);                        \
   }
 
+#define DMAP_SIMPLE_TYPE_WITH_ID_REVISION_CONVERSION(Type, ProtoType,   \
+                                                       IdType)          \
+  template <>                                                           \
+  void objectFromRevision(const Revision& revision, Type* result) {     \
+    CHECK_NOTNULL(result);                                              \
+    ProtoType proto;                                                    \
+    CHECK_EQ(revision.customFieldCount(), 1);                           \
+    constexpr int kUniqueFieldIndex = 0;                                \
+    revision.get(kUniqueFieldIndex, &proto);                            \
+    result->deserialize(revision.getId<IdType>(), proto);               \
+  }                                                                     \
+  template <>                                                           \
+  void objectToRevision(const Type& object, Revision* revision) {       \
+    CHECK_NOTNULL(revision);                                            \
+    ProtoType proto;                                                    \
+    object.serialize(&proto);                                           \
+    CHECK_EQ(revision->customFieldCount(), 1);                          \
+    constexpr int kUniqueFieldIndex = 0;                                \
+    revision->set(kUniqueFieldIndex, proto);                            \
+    revision->setId(object.id());                                       \
+  }
+
 #define DMAP_SIMPLE_SHARED_REVISION_CONVERSION(Type, ProtoType) \
   template <>                                                   \
   void objectFromRevision(const Revision& revision,             \

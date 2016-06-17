@@ -115,6 +115,16 @@ class NetTable {
   void addAutoMergePolicy(const Revision::AutoMergePolicy& auto_merge_policy);
   // Wraps the provided function in revision to object conversion. If the merge
   // succeeded, the supplied function must return true.
+  template <typename ObjectType>
+  struct AutoMergePolicy {
+    typedef std::function<bool(
+        const ObjectType& const_conflict_object,  // NOLINT
+        const ObjectType& original_object, ObjectType* mutable_conflict_object)>
+    Type;
+  };
+  template <typename ObjectType>
+  void addAutoMergePolicy(
+      const typename AutoMergePolicy<ObjectType>::Type& auto_merge_policy);
   // Use this if your merge policy is applied to a heterogeneous conflict
   // (e.g. A only changed property 1, B only changed property 2) symmetrically
   // (B changed property 1, A changed property 2). Note that per default,
@@ -122,13 +132,6 @@ class NetTable {
   // be predicted until they happen.
   // Also, until the use case changes, it is assumed that object to revision
   // conversions are implemented for shared pointers of ObjectType.
-  template <typename ObjectType>
-  struct AutoMergePolicy {
-    typedef std::function<bool(
-        const ObjectType const_conflict_object,  // NOLINT
-        const ObjectType original_object, ObjectType* mutable_conflict_object)>
-        Type;
-  };
   template <typename ObjectType>
   void addHeterogenousAutoMergePolicySymetrically(
       const typename AutoMergePolicy<ObjectType>::Type& auto_merge_policy);
