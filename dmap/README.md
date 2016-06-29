@@ -117,7 +117,7 @@ repository.
 
 We provide the following UML diagram for reference throughout this documentation:
 
-![uml](https://raw.githubusercontent.com/ethz-asl/multiagent_mapping/feature/dmap-simplification/dmap/doc/dmap_uml.png?token=AD9KVE7sy34ge5ggJd-x0sl0q_pf0_vrks5WoL2KwA%3D%3D)
+![uml](doc/uml.png)
 
 In order to make use of dmap, your application should express its data, let's
 call it AppData, in terms of **singleton** associative containers with ids as
