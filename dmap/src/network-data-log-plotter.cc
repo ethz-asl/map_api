@@ -21,7 +21,8 @@ int main(int argc, char** argv) {
   // Set start time to lowest event time.
   double start_time = std::numeric_limits<double>::max();
   for (const Log::TypeCumSums::value_type& cum_sum : type_cum_sums) {
-    start_time = std::min(start_time, cum_sum.second(0, 0));
+    const double time_of_first_event = cum_sum.second(0, 0);
+    start_time = std::min(start_time, time_of_first_event);
   }
   for (Log::TypeCumSums::value_type& cum_sum : type_cum_sums) {
     cum_sum.second.row(0) -= Eigen::RowVectorXd::Constant(
