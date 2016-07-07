@@ -17,7 +17,7 @@ NetworkDataLog::NetworkDataLog(const std::string& prefix)
 
 void NetworkDataLog::log(const size_t bytes, const std::string& type) {
   typedef std::chrono::system_clock Clock;
-  logger_ << std::chrono::duration_cast<std::chrono::milliseconds>(
+  logger_ << std::fixed << std::chrono::duration_cast<std::chrono::milliseconds>(
                  Clock::now().time_since_epoch()).count() /
                  1000. << " " << bytes << " " << type << std::endl;
 }
