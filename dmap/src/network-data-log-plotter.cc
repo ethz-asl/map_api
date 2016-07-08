@@ -1,3 +1,5 @@
+#include <limits>
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <multiagent-mapping-common/gnuplot-interface.h>
@@ -12,12 +14,24 @@ int main(int argc, char** argv) {
 
   const std::string file_name(argv[1]);
 
-  dmap::internal::NetworkDataLog::TypeCumSums type_cum_sums;
-  dmap::internal::NetworkDataLog::getCumSums(file_name, &type_cum_sums);
+  typedef dmap::internal::NetworkDataLog Log;
+  Log::TypeCumSums type_cum_sums;
+  Log::getCumSums(file_name, &type_cum_sums);
+
+  // Set start time to lowest event time.
+  double start_time = std::numeric_limits<double>::max();
+  for (const Log::TypeCumSums::value_type& cum_sum : type_cum_sums) {
+    const double time_of_first_event = cum_sum.second(0, 0);
+    start_time = std::min(start_time, time_of_first_event);
+  }
+  for (Log::TypeCumSums::value_type& cum_sum : type_cum_sums) {
+    cum_sum.second.row(0) -= Eigen::RowVectorXd::Constant(
+        1, cum_sum.second.cols(), start_time);
+  }
 
   common::GnuplotInterface plot(file_name);
   plot.setLegendPosition("left top");
-  plot.setXLabel("time since epoch [s]");
+  plot.setXLabel("time [s]");
   plot.setYLabel("cumulutive transmitted data [bytes]");
   plot.plotSteps(type_cum_sums);
 
