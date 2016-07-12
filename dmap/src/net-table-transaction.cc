@@ -219,7 +219,8 @@ void NetTableTransaction::refreshIdToChunkIdMap() {
       std::cout << "\tChunk " << chunk.id().hexString() << ":" << std::endl;
     }
     for (const common::Id& item_id : chunk_result) {
-      CHECK(item_id_to_chunk_id_map_.emplace(item_id, chunk.id()).second);
+      CHECK(item_id_to_chunk_id_map_.emplace(item_id, chunk.id()).second)
+          << table_->name() << " has redundant item id " << item_id;
       if (FLAGS_dmap_dump_available_chunk_contents) {
         std::cout << "\t\tItem " << item_id.hexString() << std::endl;
       }

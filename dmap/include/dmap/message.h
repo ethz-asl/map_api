@@ -99,6 +99,13 @@ class Message : public proto::HubMessage {
 #define DMAP_PROTO_MESSAGE(type_denomination, proto_type)           \
   DMAP_MESSAGE_IMPOSE_PROTO_MESSAGE(type_denomination, proto_type); \
   DMAP_MESSAGE_EXTRACT_PROTO_MESSAGE(type_denomination, proto_type)
+#define DMAP_UNIQUE_PROTO_MESSAGE(type_denomination_string, proto_type)   \
+  template <> \
+  const char Hub::UniqueMessageType<proto_type>::message_name[] = \
+      type_denomination_string; \
+  DMAP_MESSAGE_IMPOSE_PROTO_MESSAGE(Hub::UniqueMessageType<proto_type>::message_name, proto_type); \
+  DMAP_MESSAGE_EXTRACT_PROTO_MESSAGE(Hub::UniqueMessageType<proto_type>::message_name, proto_type)
+
 
 #define DMAP_MESSAGE_IMPOSE_COMPRESSED_PROTO_MESSAGE(type_denomination,     \
                                                      proto_type)            \
