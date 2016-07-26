@@ -65,6 +65,14 @@ class Hub final {
   bool registerHandler(const char* type,
                        const std::function<void(const Message& request,
                                                 Message* response)>& handler);
+  // Register handler for request and response types defined with
+  // DMAP_UNIQUE_PROTO_MESSAGE from message.h.
+  // Using C-style function pointers since this makes the typical use case more
+  // user friendly; this allows passing static functions without the need to
+  // wrap in std::function.
+  template <typename RequestType, typename ResponseType>
+  bool registerHandler(
+      void (*handler)(const RequestType& request, ResponseType* response));
   /**
    * Sends out the specified message to all connected peers
    */
@@ -87,6 +95,21 @@ class Hub final {
    * yet, adds permanent connection to the peer.
    */
   void request(const PeerId& peer, Message* request, Message* response);
+
+  // Overload for request and response type have a unique message type name
+  // and where a specific type of response is expected. Requires specification
+  // of UniqueMessageType below. This specialization is included in the
+  // DMAP_UNIQUE_PROTO_MESSAGE macro in message.h.
+  template <typename RequestType, typename ResponseType>
+  void request(
+      const PeerId& peer, const RequestType& request, ResponseType* response);
+
+  // Struct to deduce message name from message type at compile time.
+  template <typename Type>
+  struct UniqueMessageType {
+    static const char message_name[];
+  };
+
   /**
    * Returns false if timeout
    */
@@ -154,5 +177,7 @@ class Hub final {
 };
 
 }  // namespace dmap
+
+#include "./hub-inl.h"
 
 #endif  // DMAP_HUB_H_
