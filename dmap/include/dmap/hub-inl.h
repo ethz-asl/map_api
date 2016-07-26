@@ -1,5 +1,5 @@
-#ifndef INCLUDE_DMAP_HUB_INL_H_
-#define INCLUDE_DMAP_HUB_INL_H_
+#ifndef DMAP_HUB_INL_H_
+#define DMAP_HUB_INL_H_
 
 #include "dmap/message.h"
 
@@ -7,8 +7,7 @@ namespace dmap {
 
 template <typename RequestType, typename ResponseType>
 bool Hub::registerHandler(
-    void (*handler)(const RequestType& request, ResponseType* response))
-{
+    void (*handler)(const RequestType& request, ResponseType* response)) {
   // Need to copy handler to avoid reference to temporary.
   return registerHandler(
       UniqueMessageType<RequestType>::message_name, [handler](
@@ -37,4 +36,4 @@ void Hub::request(
 
 }  // namespace dmap
 
-#endif /* INCLUDE_DMAP_HUB_INL_H_ */
+#endif  // DMAP_HUB_INL_H_
