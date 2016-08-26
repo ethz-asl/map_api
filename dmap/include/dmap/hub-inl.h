@@ -6,8 +6,7 @@
 namespace dmap {
 
 template <typename RequestType>
-bool Hub::ackRequest(const PeerId& peer, const RequestType& request)
-{
+bool Hub::ackRequest(const PeerId& peer, const RequestType& request) {
   Message request_message, response_message;
   request_message.impose<UniqueMessageType<RequestType>::message_name>(request);
   this->request(peer, &request_message, &response_message);
@@ -36,7 +35,7 @@ bool Hub::registerHandler(bool (*handler)(const RequestType& request)) {
   // Need to copy handler to avoid reference to temporary.
   return registerHandler(
       UniqueMessageType<RequestType>::message_name, [handler](
-          const Message& request_message, Message* response_message){
+          const Message& request_message, Message* response_message) {
     CHECK_NOTNULL(response_message);
     RequestType request;
     request_message.extract<UniqueMessageType<RequestType>::message_name>(
