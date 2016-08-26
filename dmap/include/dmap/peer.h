@@ -7,10 +7,10 @@
 
 #include <zeromq_cpp/zmq.hpp>
 
+#include "dmap/message.h"
 #include "dmap/peer-id.h"
 
 namespace dmap {
-class Message;
 
 namespace internal {
 class NetworkDataLog;
@@ -18,9 +18,24 @@ class NetworkDataLog;
 
 class Peer {
  public:
+  explicit Peer(const PeerId& address, zmq::context_t& context,
+                int socket_type);
+
   const PeerId& address() const;
 
   void request(Message* request, Message* response);
+  // Requires specification of Message::UniqueType. This specialization is
+  // included in the DMAP_UNIQUE_PROTO_MESSAGE macro in message.h.
+  template <typename RequestType, typename ResponseType>
+  void request(const RequestType& request, ResponseType* response) {
+    CHECK_NOTNULL(response);
+    Message request_message, response_message;
+    request_message.impose<Message::UniqueType<RequestType>::message_name>(
+        request);
+    this->request(&request_message, &response_message);
+    response_message.extract<Message::UniqueType<ResponseType>::message_name>(
+        response);
+  }
 
   /**
    * Unlike request, doesn't terminate if the request times out.
@@ -31,15 +46,6 @@ class Peer {
   static void simulateBandwidth(size_t byte_size);
 
  private:
-  /**
-   * Life cycle management of Peer objects reserved for MapApiHub, with the
-   * exception of server discovery.
-   */
-  friend class Hub;
-  friend class ServerDiscovery;
-  explicit Peer(const PeerId& address, zmq::context_t& context,
-                int socket_type);
-
   // ZMQ sockets are not inherently thread-safe
   PeerId address_;
   zmq::socket_t socket_;

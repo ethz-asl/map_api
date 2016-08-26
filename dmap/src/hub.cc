@@ -217,6 +217,8 @@ bool Hub::registerHandler(
 void Hub::request(const PeerId& peer, Message* request, Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
+
+  VLOG(4) << "Sending " << request->type() << " to " << peer;
   std::lock_guard<std::mutex> lock(peer_mutex_);
   std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
       peers_.find(peer);
@@ -227,6 +229,7 @@ void Hub::request(const PeerId& peer, Message* request, Message* response) {
     found = emplacement.first;
   }
   found->second->request(request, response);
+  VLOG(4) << "Got response to " << request->type() << " from " << peer;
 }
 
 bool Hub::try_request(const PeerId& peer, Message* request, Message* response) {
