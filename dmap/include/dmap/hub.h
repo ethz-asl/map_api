@@ -41,6 +41,13 @@ class Hub final {
    * if something else is received
    */
   bool ackRequest(const PeerId& peer, Message* request);
+
+  // Overload for ackRequest where request has a unique message type name.
+  // Requires specification of UniqueMessageType below. This specialization is
+  // included in the DMAP_UNIQUE_PROTO_MESSAGE macro in message.h.
+  template <typename RequestType>
+  bool ackRequest(const PeerId& peer, const RequestType& request);
+
   /**
    * Lists the addresses of connected peers, ordered set for user convenience
    */
@@ -73,6 +80,10 @@ class Hub final {
   template <typename RequestType, typename ResponseType>
   bool registerHandler(
       void (*handler)(const RequestType& request, ResponseType* response));
+  // Same for handlers that return a bool that corresponds to ack/decline.
+  template <typename RequestType>
+  bool registerHandler(bool (*handler)(const RequestType& request));
+
   /**
    * Sends out the specified message to all connected peers
    */
