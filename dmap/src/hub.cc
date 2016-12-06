@@ -218,7 +218,7 @@ void Hub::request(const PeerId& peer, Message* request, Message* response) {
   CHECK_NOTNULL(request);
   CHECK_NOTNULL(response);
 
-  VLOG(200) << "Sending " << request->type() << " to " << peer;
+  VLOG(200) << "\x1b[31mSending\x1b[0m " << request->type() << " to " << peer;
   std::lock_guard<std::mutex> lock(peer_mutex_);
   std::unordered_map<PeerId, std::unique_ptr<Peer> >::iterator found =
       peers_.find(peer);
@@ -229,7 +229,7 @@ void Hub::request(const PeerId& peer, Message* request, Message* response) {
     found = emplacement.first;
   }
   found->second->request(request, response);
-  VLOG(4) << "Got response to " << request->type() << " from " << peer;
+  VLOG(4) << "\x1b[36mGot response\x1b[0m to " << request->type() << " from " << peer;
 }
 
 bool Hub::try_request(const PeerId& peer, Message* request, Message* response) {
@@ -406,11 +406,11 @@ void Hub::listenThread(Hub* self) {
         if (FLAGS_dmap_hub_filter_handle_debug_output != "") {
           if (query.type().find(FLAGS_dmap_hub_filter_handle_debug_output) !=
               std::string::npos) {
-            VLOG(4) << PeerId::self() << " received request " << query.type()
+            VLOG(4) << PeerId::self() << " \x1b[33mreceived\x1b[0m request " << query.type()
                     << " from " << query.sender();
           }
         } else {
-          VLOG(4) << PeerId::self() << " received request " << query.type()
+          VLOG(4) << PeerId::self() << " \x1b[33mreceived\x1b[0m request " << query.type()
                   << " from " << query.sender();
         }
       }
@@ -419,10 +419,10 @@ void Hub::listenThread(Hub* self) {
         if (FLAGS_dmap_hub_filter_handle_debug_output != "") {
           if (query.type().find(FLAGS_dmap_hub_filter_handle_debug_output) !=
               std::string::npos) {
-            VLOG(4) << PeerId::self() << " handled request " << query.type();
+            VLOG(4) << PeerId::self() << " \x1b[32mhandled\x1b[0m request " << query.type();
           }
         } else {
-          VLOG(4) << PeerId::self() << " handled request " << query.type();
+          VLOG(4) << PeerId::self() << " \x1b[32mhandled\x1b[0m request " << query.type();
         }
       }
 

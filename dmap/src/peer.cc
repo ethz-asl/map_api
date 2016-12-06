@@ -22,6 +22,13 @@ DEFINE_int32(simulated_bandwidth_kbps, 0,
 
 namespace dmap {
 
+namespace peer_internal {
+void customFree (void *data, void *hint)
+{
+    free (data);
+}
+}  // namespace peer_internal
+
 Peer::Peer(const PeerId& address, zmq::context_t& context, int socket_type)
     : address_(address), socket_(context, socket_type) {
   std::lock_guard<std::mutex> lock(socket_mutex_);
@@ -59,7 +66,7 @@ bool Peer::try_request_for(int timeout_ms, Message* request,
   void* buffer = malloc(size);
   CHECK(request->SerializeToArray(buffer, size));
   try {
-    zmq::message_t message(buffer, size, NULL, NULL);
+    zmq::message_t message(buffer, size, peer_internal::customFree, NULL);
     {
       std::lock_guard<std::mutex> lock(socket_mutex_);
 
