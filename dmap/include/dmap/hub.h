@@ -43,7 +43,7 @@ class Hub final {
   bool ackRequest(const PeerId& peer, Message* request);
 
   // Overload for ackRequest where request has a unique message type name.
-  // Requires specification of UniqueMessageType below. This specialization is
+  // Requires specification of Message::UniqueType. This specialization is
   // included in the DMAP_UNIQUE_PROTO_MESSAGE macro in message.h.
   template <typename RequestType>
   bool ackRequest(const PeerId& peer, const RequestType& request);
@@ -109,17 +109,11 @@ class Hub final {
 
   // Overload for request and response type have a unique message type name
   // and where a specific type of response is expected. Requires specification
-  // of UniqueMessageType below. This specialization is included in the
+  // of Message::UniqueType. This specialization is included in the
   // DMAP_UNIQUE_PROTO_MESSAGE macro in message.h.
   template <typename RequestType, typename ResponseType>
   void request(
       const PeerId& peer, const RequestType& request, ResponseType* response);
-
-  // Struct to deduce message name from message type at compile time.
-  template <typename Type>
-  struct UniqueMessageType {
-    static const char message_name[];
-  };
 
   /**
    * Returns false if timeout
