@@ -66,6 +66,7 @@ SET(CORE_SOURCE  src/app-templates.cc
                  src/spatial-index-cell-data.cc
                  src/table-descriptor.cc
                  src/transaction.cc
+                 src/view.cc
                  src/workspace.cc)
                  
 cs_add_library(${PROJECT_NAME} ${CORE_SOURCE} ${PROTO_SRCS} ${PROTO_HDRS})
