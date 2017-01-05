@@ -272,6 +272,10 @@ void NetTableManager::listenToPeersJoiningTable(const std::string& table_name) {
     }
   }
 }
+void NetTableManager::listenToPeersJoiningTable(const NetTable& table)
+{
+  listenToPeersJoiningTable(table.name());
+}
 
 void NetTableManager::kill() {
   tables_lock_.acquireReadLock();
