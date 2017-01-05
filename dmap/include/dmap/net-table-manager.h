@@ -47,6 +47,7 @@ class NetTableManager {
   void printStatistics() const;
 
   void listenToPeersJoiningTable(const std::string& table_name);
+  void listenToPeersJoiningTable(const NetTable& table);
 
   void kill();
 

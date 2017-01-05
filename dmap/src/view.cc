@@ -7,6 +7,16 @@ namespace dmap
 
 View::View() : transaction_(new Transaction)
 {
+}
+
+bool View::commit()
+{
+  overrideTrackerIdentificationMethods();
+  return transaction_->commit();
+}
+
+void View::overrideTrackerIdentificationMethods()
+{
 
 }
 
