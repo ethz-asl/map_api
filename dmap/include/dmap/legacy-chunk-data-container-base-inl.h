@@ -22,7 +22,7 @@ void LegacyChunkDataContainerBase::itemHistory(const IdType& id,
                                                const LogicalTime& time,
                                                History* dest) const {
   dmap_common::Id dmap_id;
-  aslam::HashId hash_id;
+  dmap_common::HashId hash_id;
   id.toHashId(&hash_id);
   dmap_id.fromHashId(hash_id);
   itemHistoryImpl(dmap_id, time, dest);

@@ -82,7 +82,7 @@ std::ostream& operator<<(std::ostream& stream,
 
 bool ChunkDataContainerBase::getLatestUpdateTime(const dmap_common::Id& id,
                                                  LogicalTime* time) {
-  CHECK_NE(common::Id(), id);
+  CHECK_NE(dmap_common::Id(), id);
   CHECK_NOTNULL(time);
   std::shared_ptr<const Revision> row = getById(id, LogicalTime::sample());
   ItemDebugInfo itemInfo(name(), id);

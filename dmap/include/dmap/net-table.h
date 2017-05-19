@@ -87,7 +87,7 @@ class NetTable {
   // ==============
   void pushNewChunkIdsToTracker(
       NetTable* table_of_tracking_item,
-      const std::function<common::Id(const Revision&)>&
+      const std::function<dmap_common::Id(const Revision&)>&
           how_to_determine_tracking_item);
   // In order to use this, an application should specialize determineTracker()
   // and tableForType() found in app-templates.h .
@@ -234,7 +234,7 @@ class NetTable {
                         const PeerId& entry_point);
   void announceToListeners(const PeerIdList& listeners);
 
-  typedef std::unordered_map<common::Id, std::unique_ptr<ChunkBase>> ChunkMap;
+  typedef std::unordered_map<dmap_common::Id, std::unique_ptr<ChunkBase>> ChunkMap;
   ChunkBase* addInitializedChunk(std::unique_ptr<ChunkBase>&& chunk);
 
   bool insert(const LogicalTime& time, ChunkBase* chunk,
@@ -267,13 +267,13 @@ class NetTable {
                      ChunkMap::iterator* found);
 
   typedef std::unordered_map<
-      NetTable*, std::function<common::Id(const Revision&)>> NewChunkTrackerMap;
+      NetTable*, std::function<dmap_common::Id(const Revision&)>> NewChunkTrackerMap;
   inline const NewChunkTrackerMap& new_chunk_trackers() {
     return new_chunk_trackers_;
   }
 
   template <typename TrackeeType, typename TrackerType, typename TrackerIdType>
-  std::function<common::Id(const Revision&)> trackerDeterminerFactory();
+  std::function<dmap_common::Id(const Revision&)> trackerDeterminerFactory();
 
   void attachTriggers(ChunkBase* chunk);
 
@@ -287,12 +287,12 @@ class NetTable {
   std::shared_ptr<TableDescriptor> descriptor_;
   ChunkMap active_chunks_;
   // See issue #2391 for why we need a reader-first RW mutex here.
-  mutable aslam::ReaderFirstReaderWriterMutex active_chunks_lock_;
+  mutable dmap_common::ReaderFirstReaderWriterMutex active_chunks_lock_;
 
   // DO NOT USE FROM HANDLER THREAD (else TODO(tcies) mutex)
   std::unique_ptr<NetTableIndex> index_;
   std::unique_ptr<SpatialIndex> spatial_index_;
-  aslam::ReaderWriterMutex index_lock_;
+  dmap_common::ReaderWriterMutex index_lock_;
 
   std::vector<TriggerCallbackWithChunkPointer>
       triggers_to_attach_to_future_chunks_;

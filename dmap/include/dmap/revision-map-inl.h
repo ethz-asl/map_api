@@ -12,7 +12,7 @@ template <typename Derived>
 typename RevisionMapBase<RevisionType>::iterator
 RevisionMapBase<RevisionType>::find(const dmap_common::UniqueId<Derived>& key) {
   dmap_common::Id id_key;
-  aslam::HashId hash_id;
+  dmap_common::HashId hash_id;
   key.toHashId(&hash_id);
   id_key.fromHashId(hash_id);
   return find(id_key);
@@ -23,7 +23,7 @@ template <typename Derived>
 typename RevisionMapBase<RevisionType>::const_iterator RevisionMapBase<
     RevisionType>::find(const dmap_common::UniqueId<Derived>& key) const {
   dmap_common::Id id_key;
-  aslam::HashId hash_id;
+  dmap_common::HashId hash_id;
   key.toHashId(&hash_id);
   id_key.fromHashId(hash_id);  // TODO(tcies) avoid conversion? how?
   return find(id_key);
@@ -45,7 +45,7 @@ RevisionMapBase<RevisionType>::insert(
     const dmap_common::UniqueId<Derived>& key,
     const std::shared_ptr<RevisionType>& revision) {
   dmap_common::Id id_key;
-  aslam::HashId hash_id;
+  dmap_common::HashId hash_id;
   key.toHashId(&hash_id);
   id_key.fromHashId(hash_id);  // TODO(tcies) avoid conversion? how?
   return insert(std::make_pair(id_key, revision));

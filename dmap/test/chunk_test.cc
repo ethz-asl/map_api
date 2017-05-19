@@ -287,7 +287,7 @@ TEST_F(ChunkTest, ChunkTransactions) {
     IPC::barrier(DIE, kProcesses - 1);
     table_->dumpActiveChunksAtCurrentTime(&results);
     EXPECT_EQ(kProcesses, results.size());
-    std::unordered_map<common::Id, std::shared_ptr<const Revision> >::iterator
+    std::unordered_map<dmap_common::Id, std::shared_ptr<const Revision> >::iterator
         found = results.find(insert_id);
     if (found != results.end()) {
       int final_value;

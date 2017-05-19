@@ -93,7 +93,7 @@ void LegacyChunkDataStxxlContainer::getAvailableIdsImpl(
     const LogicalTime& time, std::vector<dmap_common::Id>* ids) const {
   CHECK_NOTNULL(ids);
   ids->clear();
-  std::vector<std::pair<common::Id, CRURevisionInformation> > ids_and_info;
+  std::vector<std::pair<dmap_common::Id, CRURevisionInformation> > ids_and_info;
   ids_and_info.reserve(data_.size());
   for (const STXXLHistoryMap::value_type& pair : data_) {
     STXXLHistory::const_iterator latest = pair.second.latestAt(time);
@@ -104,12 +104,12 @@ void LegacyChunkDataStxxlContainer::getAvailableIdsImpl(
     }
   }
   std::sort(ids_and_info.begin(), ids_and_info.end(),
-            [](const std::pair<common::Id, CRURevisionInformation>& lhs,
-               const std::pair<common::Id, CRURevisionInformation>& rhs) {
+            [](const std::pair<dmap_common::Id, CRURevisionInformation>& lhs,
+               const std::pair<dmap_common::Id, CRURevisionInformation>& rhs) {
     return lhs.second.memory_block_ < rhs.second.memory_block_;
   });
   ids->reserve(ids_and_info.size());
-  for (const std::pair<common::Id, CRURevisionInformation>& pair :
+  for (const std::pair<dmap_common::Id, CRURevisionInformation>& pair :
        ids_and_info) {
     ids->emplace_back(pair.first);
   }

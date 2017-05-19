@@ -102,7 +102,7 @@ class NetTableTransaction {
   // transaction.
   void refreshIdToChunkIdMap();
 
-  typedef std::unordered_map<common::Id, ChunkTransaction::TableToIdMultiMap>
+  typedef std::unordered_map<dmap_common::Id, ChunkTransaction::TableToIdMultiMap>
       TrackedChunkToTrackersMap;
   void getChunkTrackers(TrackedChunkToTrackersMap* chunk_trackers) const;
 
@@ -130,7 +130,7 @@ class NetTableTransaction {
   NetTable* table_;
   Workspace::TableInterface workspace_;
 
-  typedef std::unordered_map<common::Id, dmap_common::Id> ItemIdToChunkIdMap;
+  typedef std::unordered_map<dmap_common::Id, dmap_common::Id> ItemIdToChunkIdMap;
   ItemIdToChunkIdMap item_id_to_chunk_id_map_;
 
   NetTable::NewChunkTrackerMap push_new_chunk_ids_to_tracker_overrides_;

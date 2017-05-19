@@ -2,7 +2,7 @@
 <package>
   <name>dmap</name>
   <version>0.0.0</version>
-  <description>The aslam dmap package</description>
+  <description>The dmap_common dmap package</description>
 
   <maintainer email="dev@titus-c.ch">tcies</maintainer>
   <maintainer email="anwar.quraishi@epfl.ch">aqurai</maintainer>

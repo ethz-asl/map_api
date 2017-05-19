@@ -335,14 +335,14 @@ TYPED_TEST(UpdateFieldTestWithInit, UpdateRead) {
 TYPED_TEST(IntTestWithInit, CreateReadThousand) {
   for (int i = 0; i < 1000; ++i) {
     dmap_common::Id inserted = this->fillRevision(i);
-    aslam::timing::Timer insert_timer(
+    dmap_common::timing::Timer insert_timer(
         "insert - " + std::string(::testing::UnitTest::GetInstance()
                                       ->current_test_info()
                                       ->test_case_name()));
     EXPECT_TRUE(this->insertRevision());
     insert_timer.Stop();
 
-    aslam::timing::Timer read_timer(
+    dmap_common::timing::Timer read_timer(
         "read - " + std::string(::testing::UnitTest::GetInstance()
                                     ->current_test_info()
                                     ->test_case_name()));
@@ -356,7 +356,7 @@ TYPED_TEST(IntTestWithInit, CreateReadThousand) {
         &dataFromTable);
     EXPECT_EQ(i, dataFromTable);
   }
-  LOG(INFO) << aslam::timing::Timing::Print();
+  LOG(INFO) << dmap_common::timing::Timing::Print();
 }
 
 TYPED_TEST(CruMapIntTestWithInit, HistoryAtTime) {

@@ -35,7 +35,7 @@ void IPC::pushFor(const PeerId& peer_id, int receiver);
 template <>
 std::string IPC::popFor(int receiver);
 template <>
-common::Id IPC::popFor(int receiver);
+dmap_common::Id IPC::popFor(int receiver);
 template <>
 LogicalTime IPC::popFor(int receiver);
 template <>

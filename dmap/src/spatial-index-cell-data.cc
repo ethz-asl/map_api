@@ -26,17 +26,17 @@ void SpatialIndexCellData::addListenerIfNotPresent(const PeerId& peer) {
   add_listeners(peer.ipPort());
 }
 
-void SpatialIndexCellData::addChunkIds(common::IdSet* result) const {
+void SpatialIndexCellData::addChunkIds(dmap_common::IdSet* result) const {
   CHECK_NOTNULL(result);
   for (int i = 0; i < chunk_ids_size(); ++i) {
     result->emplace(chunk_ids(i));
   }
 }
 
-void SpatialIndexCellData::getChunkIds(common::IdList* result) const {
+void SpatialIndexCellData::getChunkIds(dmap_common::IdList* result) const {
   CHECK_NOTNULL(result)->clear();
   for (int i = 0; i < chunk_ids_size(); ++i) {
-    result->push_back(common::Id(chunk_ids(i)));
+    result->push_back(dmap_common::Id(chunk_ids(i)));
   }
 }
 

@@ -124,7 +124,7 @@ bool DeltaView::getMutableUpdateEntry(
 }
 
 bool DeltaView::hasConflictsAfterTryingToMerge(
-    const std::unordered_map<common::Id, LogicalTime>& potential_conflicts,
+    const std::unordered_map<dmap_common::Id, LogicalTime>& potential_conflicts,
     const ViewBase& original_view, const ViewBase& conflict_view) {
   return traverseConflicts(ConflictTraversalMode::kTryMergeOrBail,
                            potential_conflicts, original_view, conflict_view,
@@ -133,7 +133,7 @@ bool DeltaView::hasConflictsAfterTryingToMerge(
 
 void DeltaView::checkedCommitLocked(
     const LogicalTime& commit_time, ChunkBase* locked_chunk,
-    std::unordered_map<common::Id, LogicalTime>* commit_history) {
+    std::unordered_map<dmap_common::Id, LogicalTime>* commit_history) {
   CHECK(CHECK_NOTNULL(locked_chunk)->isWriteLocked());
   // Don't clear, this may already contain history from previous commits!
   CHECK_NOTNULL(commit_history);
@@ -163,7 +163,7 @@ void DeltaView::checkedCommitLocked(
 }
 
 void DeltaView::prepareManualMerge(
-    const std::unordered_map<common::Id, LogicalTime>& potential_conflicts,
+    const std::unordered_map<dmap_common::Id, LogicalTime>& potential_conflicts,
     const ViewBase& original_view, const ViewBase& conflict_view,
     DeltaView* conflict_free_part, Conflicts* conflicts) {
   CHECK_NOTNULL(conflict_free_part);
@@ -180,7 +180,7 @@ size_t DeltaView::numChanges() const {
 
 void DeltaView::RevisionEventMap::logCommitEvent(
     const LogicalTime& commit_time,
-    std::unordered_map<common::Id, LogicalTime>* commit_history) const {
+    std::unordered_map<dmap_common::Id, LogicalTime>* commit_history) const {
   CHECK_NOTNULL(commit_history);  // Don't clear!
   for (const value_type& item : *this) {
     (*commit_history)[item.first] = commit_time;
@@ -189,7 +189,7 @@ void DeltaView::RevisionEventMap::logCommitEvent(
 
 bool DeltaView::traverseConflicts(
     const ConflictTraversalMode mode,
-    const std::unordered_map<common::Id, LogicalTime>& potential_conflicts,
+    const std::unordered_map<dmap_common::Id, LogicalTime>& potential_conflicts,
     const ViewBase& original_view, const ViewBase& conflict_view,
     DeltaView* conflict_free_part, Conflicts* conflicts) {
   if (mode == ConflictTraversalMode::kPrepareManualMerge) {

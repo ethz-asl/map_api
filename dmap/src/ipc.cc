@@ -106,7 +106,7 @@ std::string IPC::popFor(int receiver) {
   return ipc_message.message();
 }
 template <>
-common::Id IPC::popFor(int receiver) {
+dmap_common::Id IPC::popFor(int receiver) {
   dmap_common::Id return_value;
   std::string serialized = popFor<std::string>(receiver);
   CHECK(return_value.fromHexString(serialized));

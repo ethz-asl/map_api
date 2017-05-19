@@ -2,7 +2,6 @@
 
 #include <algorithm>
 
-#include <dmap-common/timer.h>
 #include <dmap-common/backtrace.h>
 
 #include "dmap/cache-base.h"
@@ -301,7 +300,7 @@ void Transaction::pushNewChunkIdsToTrackers() {
         &net_table_chunk_trackers[table_transaction.first]);
   }
   // tracking item -> tracked table -> tracked chunks
-  typedef std::unordered_map<common::Id, TrackeeMultimap> ItemToTrackeeMap;
+  typedef std::unordered_map<dmap_common::Id, TrackeeMultimap> ItemToTrackeeMap;
   // tracking table -> tracking item -> tracked table -> tracked chunks
   typedef std::unordered_map<NetTable*, ItemToTrackeeMap> TrackerToTrackeeMap;
   TrackerToTrackeeMap table_item_chunks_to_push;
@@ -365,11 +364,9 @@ void Transaction::commitImpl(const bool finalize_after_check,
   for (const CacheMap::value_type& cache_pair : caches_) {
     cache_pair.second->discardCachedInsertions();
   }
-  aslam::timing::Timer timer("dmap::Transaction::commit - lock");
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     net_table_transaction.second->lock();
   }
-  timer.Stop();
   for (const TransactionPair& net_table_transaction : net_table_transactions_) {
     if (!net_table_transaction.second->hasNoConflicts()) {
       will_commit_succeed->set_value(false);

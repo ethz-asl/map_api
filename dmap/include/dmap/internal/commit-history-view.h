@@ -13,7 +13,7 @@ namespace internal {
 
 class CommitHistoryView : public OverridingViewBase {
  public:
-  typedef std::unordered_map<common::Id, LogicalTime> History;
+  typedef std::unordered_map<dmap_common::Id, LogicalTime> History;
 
   CommitHistoryView(const History& commit_history, const ChunkBase& chunk);
   ~CommitHistoryView();
@@ -35,7 +35,7 @@ class CommitHistoryView : public OverridingViewBase {
   virtual bool suppresses(const dmap_common::Id& id) const override;
 
  private:
-  const std::unordered_map<common::Id, LogicalTime>& commit_history_;
+  const std::unordered_map<dmap_common::Id, LogicalTime>& commit_history_;
   const ChunkBase& chunk_;
 };
 

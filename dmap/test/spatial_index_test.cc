@@ -218,7 +218,7 @@ class SpatialIndexTwoPeerTest : public SpatialIndexTest {
 class SpatialIndexRegisterSeekTest : public SpatialIndexTwoPeerTest {
  private:
   virtual void beforeSlaveLaunch() {
-    EXPECT_TRUE(checkExpectedActive(common::IdSet()));
+    EXPECT_TRUE(checkExpectedActive(dmap_common::IdSet()));
   }
 
   virtual void slaveTask() {

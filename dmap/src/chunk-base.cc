@@ -19,10 +19,10 @@ void ChunkBase::initializeNew(
   CHECK(data_container_) << "Implementation didn't instantiate data container.";
 }
 
-common::Id ChunkBase::id() const { return id_; }
+dmap_common::Id ChunkBase::id() const { return id_; }
 
 void ChunkBase::getUpdateTimes(
-    std::unordered_map<common::Id, LogicalTime>* result) {
+    std::unordered_map<dmap_common::Id, LogicalTime>* result) {
   CHECK_NOTNULL(result)->clear();
   ConstRevisionMap items;
   constData()->dump(LogicalTime::sample(), &items);
@@ -59,7 +59,7 @@ size_t ChunkBase::attachTrigger(const TriggerCallback& callback) {
 }
 
 void ChunkBase::waitForTriggerCompletion() {
-  aslam::ScopedWriteLock lock(&triggers_are_active_while_has_readers_);
+  dmap_common::ScopedWriteLock lock(&triggers_are_active_while_has_readers_);
 }
 
 void ChunkBase::handleCommitInsert(const dmap_common::Id& inserted_id) {

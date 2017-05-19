@@ -228,7 +228,7 @@ class LegacyChunk : public ChunkBase {
   PeerHandler peers_;
   mutable DistributedRWLock lock_;
   mutable std::mutex add_peer_mutex_;
-  aslam::ReaderWriterMutex leave_lock_;
+  dmap_common::ReaderWriterMutex leave_lock_;
   dmap_common::Condition initialized_;
   volatile bool relinquished_ = false;
   bool log_locking_ = false;

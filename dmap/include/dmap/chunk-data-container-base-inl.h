@@ -16,7 +16,7 @@ std::shared_ptr<const Revision> ChunkDataContainerBase::getById(
   CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
   CHECK(id.isValid()) << "Supplied invalid ID";
   dmap_common::Id dmap_id;
-  aslam::HashId hash_id;
+  dmap_common::HashId hash_id;
   id.toHashId(&hash_id);
   dmap_id.fromHashId(hash_id);
   return getByIdImpl(dmap_id, time);

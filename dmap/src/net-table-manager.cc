@@ -208,7 +208,7 @@ NetTable* NetTableManager::addTable(
 
 NetTable& NetTableManager::getTable(const std::string& name) {
   CHECK(Core::instance() != nullptr) << "dmap not initialized!";
-  aslam::ScopedReadLock lock(&tables_lock_);
+  dmap_common::ScopedReadLock lock(&tables_lock_);
   TableMap::iterator found = tables_.find(name);
   // TODO(tcies) load table schema from metatable if not active
   CHECK(found != tables_.end()) << "Table not found: " << name;
@@ -237,7 +237,7 @@ bool NetTableManager::hasTable(const std::string& name) const {
 void NetTableManager::tableList(std::vector<std::string>* tables) const {
   CHECK_NOTNULL(tables);
   tables->clear();
-  aslam::ScopedReadLock lock(&tables_lock_);
+  dmap_common::ScopedReadLock lock(&tables_lock_);
   for (const std::pair<const std::string, std::unique_ptr<NetTable> >& pair :
        tables_) {
     tables->push_back(pair.first);
@@ -245,7 +245,7 @@ void NetTableManager::tableList(std::vector<std::string>* tables) const {
 }
 
 void NetTableManager::printStatistics() const {
-  aslam::ScopedReadLock lock(&tables_lock_);
+  dmap_common::ScopedReadLock lock(&tables_lock_);
   for (const std::pair<const std::string, std::unique_ptr<NetTable> >& pair :
        tables_) {
     std::cout << pair.second->getStatistics() << std::endl;
@@ -334,7 +334,7 @@ void NetTableManager::handleConnectRequest(const Message& request,
   const std::string& table = metadata.table();
   dmap_common::Id chunk_id(metadata.chunk_id());
   CHECK_NOTNULL(Core::instance());
-  aslam::ScopedReadLock lock(&instance().tables_lock_);
+  dmap_common::ScopedReadLock lock(&instance().tables_lock_);
   std::unordered_map<std::string, std::unique_ptr<NetTable> >::iterator found =
       instance().tables_.find(table);
   if (found == instance().tables_.end()) {
@@ -559,7 +559,7 @@ bool NetTableManager::syncTableDefinition(const TableDescriptor& descriptor,
 bool NetTableManager::findTable(const std::string& table_name,
                                 TableMap::iterator* found) {
   CHECK_NOTNULL(found);
-  aslam::ScopedReadLock lock(&instance().tables_lock_);
+  dmap_common::ScopedReadLock lock(&instance().tables_lock_);
   *found = instance().tables_.find(table_name);
   if (*found == instance().tables_.end()) {
     return false;

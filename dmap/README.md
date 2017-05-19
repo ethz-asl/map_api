@@ -145,8 +145,8 @@ UNIQUE_ID_DEFINE_ID(IdType2);
 
 class AppData {
   // ...
-  std::unique_ptr<common::MappedContainerBase<IdType1, DataType1>> container_1_;
-  std::unique_ptr<common::MappedContainerBase<IdType2, DataType2>> container_2_;
+  std::unique_ptr<dmap_common::MappedContainerBase<IdType1, DataType1>> container_1_;
+  std::unique_ptr<dmap_common::MappedContainerBase<IdType2, DataType2>> container_2_;
   // ...
 };
 

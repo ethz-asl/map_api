@@ -1,7 +1,5 @@
 #include "dmap/net-table-transaction.h"
 
-#include <dmap-common/statistics/statistics.h>
-
 #include "dmap/conflicts.h"
 #include "dmap/internal/commit-future.h"
 
@@ -113,9 +111,6 @@ void NetTableTransaction::lock() {
     chunk_transaction.first->writeLock();
     ++i;
   }
-  aslam::statistics::StatsCollector stat("dmap::NetTableTransaction::lock - " +
-                                         table_->name());
-  stat.AddSample(i);
 }
 
 void NetTableTransaction::unlock() {

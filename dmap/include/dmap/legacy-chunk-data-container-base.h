@@ -51,7 +51,7 @@ class LegacyChunkDataContainerBase : public ChunkDataContainerBase {
   template <typename IdType>
   void itemHistory(const IdType& id, const LogicalTime& time,
                    History* dest) const;
-  typedef std::unordered_map<common::Id, History> HistoryMap;
+  typedef std::unordered_map<dmap_common::Id, History> HistoryMap;
   template <typename ValueType>
   void findHistory(int key, const ValueType& value, const LogicalTime& time,
                    HistoryMap* dest) const;

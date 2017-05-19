@@ -140,7 +140,7 @@ size_t LegacyChunk::itemsSizeBytes(const LogicalTime& time) const {
   data_container_->dump(time, &items);
   distributedUnlock();
   size_t num_bytes = 0;
-  for (const std::pair<common::Id, std::shared_ptr<const Revision> >& item :
+  for (const std::pair<dmap_common::Id, std::shared_ptr<const Revision> >& item :
        items) {
     CHECK(item.second != nullptr);
     const Revision& revision = *item.second;
@@ -216,7 +216,7 @@ void LegacyChunk::leaveImpl() {
   // this must happen after acquring the write lock to avoid deadlocks, should
   // two peers try to leave at the same time.
   {
-    aslam::ScopedWriteLock lock(&leave_lock_);
+    dmap_common::ScopedWriteLock lock(&leave_lock_);
     CHECK(peers_.undisputableBroadcast(&request));
     relinquished_ = true;
   }
@@ -430,15 +430,12 @@ void LegacyChunk::distributedReadLock() const {
   if (log_locking_) {
     startState(READ_ATTEMPT);
   }
-  aslam::timing::Timer timer("dmap::Chunk::distributedReadLock",
-                             !FLAGS_dmap_time_chunk);
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   if (isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id()) {
     // special case: also succeed. This is necessary e.g. when committing
     // transactions
     ++lock_.write_recursion_depth;
     metalock.unlock();
-    timer.Discard();
     return;
   }
   while (lock_.state != DistributedRWLock::State::UNLOCKED &&
@@ -449,7 +446,6 @@ void LegacyChunk::distributedReadLock() const {
   lock_.state = DistributedRWLock::State::READ_LOCKED;
   ++lock_.n_readers;
   metalock.unlock();
-  timer.Stop();
   if (log_locking_) {
     startState(READ_SUCCESS);
   }
@@ -459,13 +455,11 @@ void LegacyChunk::distributedWriteLock() {
   if (log_locking_) {
     startState(WRITE_ATTEMPT);
   }
-  aslam::timing::Timer timer("dmap::Chunk::distributedWriteLock");
   std::unique_lock<std::mutex> metalock(lock_.mutex);
   // case recursion TODO(tcies) abolish if possible
   if (isWriter(PeerId::self()) && lock_.thread == std::this_thread::get_id()) {
     ++lock_.write_recursion_depth;
     metalock.unlock();
-    timer.Discard();
     return;
   }
   // case self, but other thread
@@ -544,7 +538,6 @@ void LegacyChunk::distributedWriteLock() {
   lock_.holder = PeerId::self();
   lock_.thread = std::this_thread::get_id();
   ++lock_.write_recursion_depth;
-  timer.Stop();
   if (log_locking_) {
     startState(WRITE_SUCCESS);
   }

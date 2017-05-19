@@ -19,7 +19,7 @@ class ConstRevisionMap;
 class NetTable;
 class Transaction;
 
-typedef std::pair<common::Id, dmap::LogicalTime> RevisionStamp;
+typedef std::pair<dmap_common::Id, dmap::LogicalTime> RevisionStamp;
 }  // namespace dmap
 
 namespace std {
@@ -53,7 +53,7 @@ class ProtoTableFileIO {
   bool restoreTableContents();
   bool restoreTableContents(
       dmap::Transaction* transaction,
-      std::unordered_map<common::Id, ChunkBase*>* existing_chunks,
+      std::unordered_map<dmap_common::Id, ChunkBase*>* existing_chunks,
       std::mutex* existing_chunks_mutex);
   void truncFile();
 

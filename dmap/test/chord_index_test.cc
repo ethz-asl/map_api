@@ -185,17 +185,17 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddRetrieve) {
     for (size_t i = 0; i < kNData; ++i) {
       std::string key, value, result;
       addNonLocalData(&key, &value, i);
-      aslam::timing::Timer timer(kRetrieveDataTimerTag);
+      dmap_common::timing::Timer timer(kRetrieveDataTimerTag);
       EXPECT_TRUE(TestChordIndex::instance().retrieveData(key, &result));
       timer.Stop();
       EXPECT_EQ(value, result);
     }
     std::ofstream file(kRetrieveDataTimeFile, std::ios::out);
-    file << aslam::timing::Timing::GetMeanSeconds(kRetrieveDataTimerTag) << " "
-         << aslam::timing::Timing::GetMinSeconds(kRetrieveDataTimerTag) << " "
-         << aslam::timing::Timing::GetMaxSeconds(kRetrieveDataTimerTag)
+    file << dmap_common::timing::Timing::GetMeanSeconds(kRetrieveDataTimerTag) << " "
+         << dmap_common::timing::Timing::GetMinSeconds(kRetrieveDataTimerTag) << " "
+         << dmap_common::timing::Timing::GetMaxSeconds(kRetrieveDataTimerTag)
          << std::endl;
-    LOG(INFO) << aslam::timing::Timing::Print();
+    LOG(INFO) << dmap_common::timing::Timing::Print();
     IPC::barrier(ADDED_RETRIEVED, kNProcesses - 1);
   } else {
     IPC::barrier(INIT, kNProcesses - 1);

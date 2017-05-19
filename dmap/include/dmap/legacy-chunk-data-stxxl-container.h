@@ -63,7 +63,7 @@ class LegacyChunkDataStxxlContainer : public LegacyChunkDataContainerBase {
       return cend();
     }
   };
-  typedef std::unordered_map<common::Id, STXXLHistory> STXXLHistoryMap;
+  typedef std::unordered_map<dmap_common::Id, STXXLHistory> STXXLHistoryMap;
   STXXLHistoryMap data_;
 
   static constexpr int kBlockSize = kSTXXLDefaultBlockSize;

@@ -16,9 +16,11 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 ###########
 add_definitions(-std=c++11)
 cs_add_library(${PROJECT_NAME} src/condition.cc
+                               src/gnuplot-interface.cc
                                src/hash-id.cc
                                src/reader-first-reader-writer-lock.cc
                                src/reader-writer-lock.cc
+                               src/threadsafe-cache.cc
                                src/unique-id.cc
                                ${PROTO_SRCS} 
                                ${PROTO_HDRS})

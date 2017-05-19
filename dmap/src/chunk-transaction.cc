@@ -74,7 +74,7 @@ bool ChunkTransaction::commit() {
 bool ChunkTransaction::hasNoConflicts() {
   CHECK(!finalized_);  // Because checking can try to auto-merge.
   CHECK(chunk_->isWriteLocked());
-  std::unordered_map<common::Id, LogicalTime> update_times;
+  std::unordered_map<dmap_common::Id, LogicalTime> update_times;
   chunk_->getUpdateTimes(&update_times);
   view_before_delta_->discardKnownUpdates(&update_times);
 
@@ -110,7 +110,7 @@ void ChunkTransaction::merge(
                                          "conditions";
 
   chunk_->readLock();
-  std::unordered_map<common::Id, LogicalTime> update_times;
+  std::unordered_map<dmap_common::Id, LogicalTime> update_times;
   chunk_->getUpdateTimes(&update_times);
   view_before_delta_->discardKnownUpdates(&update_times);
 
@@ -138,7 +138,7 @@ void ChunkTransaction::getTrackers(
            table_tracker_getter : table_->new_chunk_trackers()) {
     NetTable::NewChunkTrackerMap::const_iterator override_it =
         overrides.find(table_tracker_getter.first);
-    const std::function<common::Id(const Revision&)>& tracker_id_extractor =
+    const std::function<dmap_common::Id(const Revision&)>& tracker_id_extractor =
         ((override_it != overrides.end()) ? (override_it->second)
                                           : (table_tracker_getter.second));
     // TODO(tcies) Add function to delta.

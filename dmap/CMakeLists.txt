@@ -60,7 +60,6 @@ SET(CORE_SOURCE  src/app-templates.cc
                  src/peer-handler.cc
                  src/proto-table-file-io.cc
                  src/revision.cc
-                 src/rpc-command-registerer.cc
                  src/server-discovery.cc
                  src/spatial-index.cc
                  src/spatial-index-cell-data.cc

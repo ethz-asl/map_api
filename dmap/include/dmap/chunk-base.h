@@ -47,7 +47,7 @@ class ChunkBase {
   virtual void getCommitTimes(const LogicalTime& sample_time,
                               std::set<LogicalTime>* commit_times) const = 0;
 
-  void getUpdateTimes(std::unordered_map<common::Id, LogicalTime>* result);
+  void getUpdateTimes(std::unordered_map<dmap_common::Id, LogicalTime>* result);
 
   virtual bool insert(const LogicalTime& time,
                       const std::shared_ptr<Revision>& item) = 0;
@@ -129,7 +129,7 @@ class ChunkBase {
 
   std::vector<TriggerCallback> triggers_;
   mutable std::mutex trigger_mutex_;
-  mutable aslam::ReaderWriterMutex triggers_are_active_while_has_readers_;
+  mutable dmap_common::ReaderWriterMutex triggers_are_active_while_has_readers_;
   std::unordered_set<dmap_common::Id> trigger_insertions_, trigger_updates_;
 };
 

@@ -28,7 +28,7 @@ class ViewBase {
 
   // From the supplied update times, discard the ones whose updates are
   // incorporated by the view.
-  typedef std::unordered_map<common::Id, LogicalTime> UpdateTimes;
+  typedef std::unordered_map<dmap_common::Id, LogicalTime> UpdateTimes;
   virtual void discardKnownUpdates(UpdateTimes* update_times) const = 0;
 };
 

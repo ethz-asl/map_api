@@ -5,7 +5,6 @@
 #include <dmap/net-table-manager.h>
 #include <dmap/trackee-multimap.h>
 #include <dmap-common/backtrace.h>
-#include <dmap-common/breakpoints.h>
 #include <dmap-common/unique-id.h>
 
 namespace dmap {
@@ -273,8 +272,8 @@ DMAP_TYPE_ENUM(double, proto::Type::DOUBLE);
 DMAP_TYPE_ENUM(int32_t, proto::Type::INT32);
 DMAP_TYPE_ENUM(uint32_t, proto::Type::UINT32);
 DMAP_TYPE_ENUM(bool, proto::Type::INT32);
-DMAP_TYPE_ENUM(common::Id, proto::Type::HASH128);
-DMAP_TYPE_ENUM(aslam::HashId, proto::Type::HASH128);
+DMAP_TYPE_ENUM(dmap_common::Id, proto::Type::HASH128);
+DMAP_TYPE_ENUM(dmap_common::HashId, proto::Type::HASH128);
 DMAP_TYPE_ENUM(int64_t, proto::Type::INT64);
 DMAP_TYPE_ENUM(uint64_t, proto::Type::UINT64);
 DMAP_TYPE_ENUM(LogicalTime, proto::Type::UINT64);
@@ -305,11 +304,11 @@ DMAP_REVISION_SET(bool /*value*/) {
   field->set_int_value(value ? 1 : 0);
   return true;
 }
-DMAP_REVISION_SET(common::Id /*value*/) {
+DMAP_REVISION_SET(dmap_common::Id /*value*/) {
   field->set_string_value(value.hexString());
   return true;
 }
-DMAP_REVISION_SET(aslam::HashId /*value*/) {
+DMAP_REVISION_SET(dmap_common::HashId /*value*/) {
   field->set_string_value(value.hexString());
   return true;
 }
@@ -357,7 +356,7 @@ DMAP_REVISION_GET(uint32_t /*value*/) {
   *value = field.unsigned_int_value();
   return true;
 }
-DMAP_REVISION_GET(common::Id /*value*/) {
+DMAP_REVISION_GET(dmap_common::Id /*value*/) {
   if (!value->fromHexString(field.string_value())) {
     LOG(FATAL) << "Failed to parse Hash id from string \""
                << field.string_value() << "\"";
@@ -368,7 +367,7 @@ DMAP_REVISION_GET(bool /*value*/) {
   *value = field.int_value() != 0;
   return true;
 }
-DMAP_REVISION_GET(aslam::HashId /*value*/) {
+DMAP_REVISION_GET(dmap_common::HashId /*value*/) {
   if (!value->fromHexString(field.string_value())) {
     LOG(FATAL) << "Failed to parse Hash id from string \""
                << field.string_value() << "\"";

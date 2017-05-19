@@ -128,7 +128,7 @@ bool ProtoTableFileIO::storeTableContents(
 
 bool ProtoTableFileIO::restoreTableContents() {
   Transaction transaction(LogicalTime::sample());
-  std::unordered_map<common::Id, ChunkBase*> existing_chunks;
+  std::unordered_map<dmap_common::Id, ChunkBase*> existing_chunks;
   std::mutex existing_chunks_mutex;
   restoreTableContents(&transaction, &existing_chunks, &existing_chunks_mutex);
   bool ok = transaction.commit();
@@ -138,7 +138,7 @@ bool ProtoTableFileIO::restoreTableContents() {
 
 bool ProtoTableFileIO::restoreTableContents(
     dmap::Transaction* transaction,
-    std::unordered_map<common::Id, ChunkBase*>* existing_chunks,
+    std::unordered_map<dmap_common::Id, ChunkBase*>* existing_chunks,
     std::mutex* existing_chunks_mutex) {
   CHECK_NOTNULL(transaction);
   CHECK_NOTNULL(existing_chunks);
@@ -208,7 +208,7 @@ bool ProtoTableFileIO::restoreTableContents(
     ChunkBase* chunk = nullptr;
     {
       std::unique_lock<std::mutex> lock(*existing_chunks_mutex);
-      std::unordered_map<common::Id, ChunkBase*>::iterator it =
+      std::unordered_map<dmap_common::Id, ChunkBase*>::iterator it =
           existing_chunks->find(chunk_id);
       if (it == existing_chunks->end()) {
         chunk = table_->newChunk(chunk_id);

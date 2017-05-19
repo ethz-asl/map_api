@@ -37,7 +37,7 @@ class ChunkManagerBase {
       chunk_ids->emplace(pair.first);
     }
   }
-  inline void getChunkIds(common::IdSet* chunk_ids) const {
+  inline void getChunkIds(dmap_common::IdSet* chunk_ids) const {
     CHECK_NOTNULL(chunk_ids);
     chunk_ids->clear();
     chunk_ids->rehash(active_chunks_.size());
@@ -57,7 +57,7 @@ class ChunkManagerBase {
 
  protected:
   dmap::NetTable* underlying_table_;
-  std::unordered_map<common::Id, ChunkBase*> active_chunks_;
+  std::unordered_map<dmap_common::Id, ChunkBase*> active_chunks_;
 };
 
 static constexpr int kDefaultChunkSizeBytes = 20 * 1024 * 1024;

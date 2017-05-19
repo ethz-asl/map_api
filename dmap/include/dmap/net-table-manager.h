@@ -145,7 +145,7 @@ class NetTableManager {
   ChunkBase* metatable_chunk_;
 
   TableMap tables_;
-  mutable aslam::ReaderWriterMutex tables_lock_;
+  mutable dmap_common::ReaderWriterMutex tables_lock_;
 
   NetTable* metatable_;
 };

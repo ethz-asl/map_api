@@ -42,16 +42,16 @@ class DeltaView : public OverridingViewBase {
                              std::shared_ptr<const Revision>** result);
 
   bool hasConflictsAfterTryingToMerge(
-      const std::unordered_map<common::Id, LogicalTime>& potential_conflicts,
+      const std::unordered_map<dmap_common::Id, LogicalTime>& potential_conflicts,
       const ViewBase& original_view, const ViewBase& conflict_view);
 
   // Asserts that the chunk is locked.
   void checkedCommitLocked(
       const LogicalTime& commit_time, ChunkBase* locked_chunk,
-      std::unordered_map<common::Id, LogicalTime>* commit_log);
+      std::unordered_map<dmap_common::Id, LogicalTime>* commit_log);
 
   void prepareManualMerge(
-      const std::unordered_map<common::Id, LogicalTime>& potential_conflicts,
+      const std::unordered_map<dmap_common::Id, LogicalTime>& potential_conflicts,
       const ViewBase& original_view, const ViewBase& conflict_view,
       DeltaView* conflict_free_part, Conflicts* conflicts);
 
@@ -63,7 +63,7 @@ class DeltaView : public OverridingViewBase {
    public:
     void logCommitEvent(
         const LogicalTime& commit_time,
-        std::unordered_map<common::Id, LogicalTime>* commit_history) const;
+        std::unordered_map<dmap_common::Id, LogicalTime>* commit_history) const;
   };
 
   class InsertMap : public RevisionEventMap {};
@@ -77,7 +77,7 @@ class DeltaView : public OverridingViewBase {
 
   bool traverseConflicts(
       const ConflictTraversalMode mode,
-      const std::unordered_map<common::Id, LogicalTime>& potential_conflicts,
+      const std::unordered_map<dmap_common::Id, LogicalTime>& potential_conflicts,
       const ViewBase& original_view, const ViewBase& conflict_view,
       DeltaView* conflict_free_part, Conflicts* conflicts);
 
