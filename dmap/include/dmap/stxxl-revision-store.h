@@ -19,7 +19,7 @@ struct CRRevisionInformation {
     chunk_id_ = revision.getChunkId();
   }
   LogicalTime insert_time_;
-  common::Id chunk_id_;
+  dmap_common::Id chunk_id_;
 };
 struct CRURevisionInformation : public CRRevisionInformation {
   // Cache information which is frequently accessed.

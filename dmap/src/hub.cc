@@ -15,7 +15,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include <multiagent-mapping-common/internal/unique-id.h>
+#include <dmap-common/internal/unique-id.h>
 
 #include "./core.pb.h"
 #include "dmap/core.h"
@@ -359,7 +359,7 @@ void Hub::listenThread(Hub* self) {
             ownAddressBeforePort() + ":" + std::to_string(port);
 
         // Use the current address as a hash-seed for unique-ids.
-        using common::internal::UniqueIdHashSeed;
+        using dmap_common::internal::UniqueIdHashSeed;
         UniqueIdHashSeed::instance().saltSeed(
             UniqueIdHashSeed::Key(),
             std::hash<std::string>()(self->own_address_));

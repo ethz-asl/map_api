@@ -10,8 +10,8 @@ namespace dmap {
 template <typename RevisionType>
 template <typename Derived>
 typename RevisionMapBase<RevisionType>::iterator
-RevisionMapBase<RevisionType>::find(const common::UniqueId<Derived>& key) {
-  common::Id id_key;
+RevisionMapBase<RevisionType>::find(const dmap_common::UniqueId<Derived>& key) {
+  dmap_common::Id id_key;
   aslam::HashId hash_id;
   key.toHashId(&hash_id);
   id_key.fromHashId(hash_id);
@@ -21,8 +21,8 @@ RevisionMapBase<RevisionType>::find(const common::UniqueId<Derived>& key) {
 template <typename RevisionType>
 template <typename Derived>
 typename RevisionMapBase<RevisionType>::const_iterator RevisionMapBase<
-    RevisionType>::find(const common::UniqueId<Derived>& key) const {
-  common::Id id_key;
+    RevisionType>::find(const dmap_common::UniqueId<Derived>& key) const {
+  dmap_common::Id id_key;
   aslam::HashId hash_id;
   key.toHashId(&hash_id);
   id_key.fromHashId(hash_id);  // TODO(tcies) avoid conversion? how?
@@ -35,16 +35,16 @@ RevisionMapBase<RevisionType>::insert(
     const std::shared_ptr<RevisionType>& revision) {
   CHECK_NOTNULL(revision.get());
   return insert(
-      std::make_pair(revision->template getId<common::Id>(), revision));
+      std::make_pair(revision->template getId<dmap_common::Id>(), revision));
 }
 
 template <typename RevisionType>
 template <typename Derived>
 std::pair<typename RevisionMapBase<RevisionType>::iterator, bool>
 RevisionMapBase<RevisionType>::insert(
-    const common::UniqueId<Derived>& key,
+    const dmap_common::UniqueId<Derived>& key,
     const std::shared_ptr<RevisionType>& revision) {
-  common::Id id_key;
+  dmap_common::Id id_key;
   aslam::HashId hash_id;
   key.toHashId(&hash_id);
   id_key.fromHashId(hash_id);  // TODO(tcies) avoid conversion? how?

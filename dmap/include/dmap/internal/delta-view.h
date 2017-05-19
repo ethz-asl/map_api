@@ -19,18 +19,18 @@ class DeltaView : public OverridingViewBase {
   // ==================
   // VIEWBASE INTERFACE
   // ==================
-  virtual bool has(const common::Id& id) const override;
-  virtual std::shared_ptr<const Revision> get(const common::Id& id) const
+  virtual bool has(const dmap_common::Id& id) const override;
+  virtual std::shared_ptr<const Revision> get(const dmap_common::Id& id) const
       override;
   virtual void dump(ConstRevisionMap* result) const override;
-  virtual void getAvailableIds(std::unordered_set<common::Id>* result) const
+  virtual void getAvailableIds(std::unordered_set<dmap_common::Id>* result) const
       override;
   virtual void discardKnownUpdates(UpdateTimes* update_times) const override;
 
   // ============================
   // OVERRIDINGVIEWBASE INTERFACE
   // ============================
-  virtual bool suppresses(const common::Id& id) const override;
+  virtual bool suppresses(const dmap_common::Id& id) const override;
 
   void insert(std::shared_ptr<Revision> revision);
   void update(std::shared_ptr<Revision> revision);
@@ -38,7 +38,7 @@ class DeltaView : public OverridingViewBase {
 
   // Returns false if no update entry is available; asserts that the id hasn't
   // been removed.
-  bool getMutableUpdateEntry(const common::Id& id,
+  bool getMutableUpdateEntry(const dmap_common::Id& id,
                              std::shared_ptr<const Revision>** result);
 
   bool hasConflictsAfterTryingToMerge(

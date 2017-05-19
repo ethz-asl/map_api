@@ -84,13 +84,13 @@ class LegacyChunkDataContainerBase : public ChunkDataContainerBase {
   // =====================================
   virtual bool initImpl() = 0;
   virtual std::shared_ptr<const Revision> getByIdImpl(
-      const common::Id& id, const LogicalTime& time) const = 0;
+      const dmap_common::Id& id, const LogicalTime& time) const = 0;
   // If key is -1, this should return all the data in the table.
   virtual void findByRevisionImpl(int key, const Revision& valueHolder,
                                   const LogicalTime& time,
                                   ConstRevisionMap* dest) const = 0;
   virtual void getAvailableIdsImpl(const LogicalTime& time,
-                                   std::vector<common::Id>* ids) const = 0;
+                                   std::vector<dmap_common::Id>* ids) const = 0;
   // If key is -1, this should return all the data in the table.
   virtual int countByRevisionImpl(int key, const Revision& valueHolder,
                                   const LogicalTime& time) const = 0;
@@ -108,9 +108,9 @@ class LegacyChunkDataContainerBase : public ChunkDataContainerBase {
   virtual void findHistoryByRevisionImpl(int key, const Revision& valueHolder,
                                          const LogicalTime& time,
                                          HistoryMap* dest) const = 0;
-  virtual void chunkHistory(const common::Id& chunk_id, const LogicalTime& time,
+  virtual void chunkHistory(const dmap_common::Id& chunk_id, const LogicalTime& time,
                             HistoryMap* dest) const = 0;
-  virtual void itemHistoryImpl(const common::Id& id, const LogicalTime& time,
+  virtual void itemHistoryImpl(const dmap_common::Id& id, const LogicalTime& time,
                                History* dest) const = 0;
   virtual bool insertUpdatedImpl(const std::shared_ptr<Revision>& query) = 0;
   virtual void clearImpl() = 0;

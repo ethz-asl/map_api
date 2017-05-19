@@ -8,8 +8,7 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <multiagent-mapping-common/conversions.h>
-#include <multiagent-mapping-common/delayed-notification.h>
+#include <dmap-common/conversions.h>
 
 #include "dmap/hub.h"
 

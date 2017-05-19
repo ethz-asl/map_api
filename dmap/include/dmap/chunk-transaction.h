@@ -88,7 +88,7 @@ class ChunkTransaction {
   void detachFuture();
 
   // INTERNAL
-  typedef std::unordered_multimap<NetTable*, common::Id> TableToIdMultiMap;
+  typedef std::unordered_multimap<NetTable*, dmap_common::Id> TableToIdMultiMap;
   void getTrackers(const NetTable::NewChunkTrackerMap& overrides,
                    TableToIdMultiMap* trackers) const;
 

@@ -4,7 +4,7 @@
 #include <sstream>  // NOLINT
 #include <string>
 
-namespace common {
+namespace dmap_common {
 class Id;
 }  // namespace common
 
@@ -27,7 +27,7 @@ Type IPC::pop() {
 template <>
 void IPC::pushFor(const std::string& message, int receiver);
 template <>
-void IPC::pushFor(const common::Id& message, int receiver);
+void IPC::pushFor(const dmap_common::Id& message, int receiver);
 template <>
 void IPC::pushFor(const LogicalTime& message, int receiver);
 template <>

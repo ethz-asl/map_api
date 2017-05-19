@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include <aslam/common/reader-writer-lock.h>
+#include <dmap-common/reader-writer-lock.h>
 
 #include "dmap/net-table.h"
 #include "dmap/table-descriptor.h"
@@ -119,7 +119,7 @@ class NetTableManager {
   static bool getTableForMetadataRequestOrDecline(const Message& request,
                                                   Message* response,
                                                   TableMap::iterator* found,
-                                                  common::Id* chunk_id,
+                                                  dmap_common::Id* chunk_id,
                                                   PeerId* peer);
   template <const char* RequestType>
   static bool getTableForStringRequestOrDecline(const Message& request,

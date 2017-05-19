@@ -28,7 +28,7 @@ size_t NetTableFixture::count() {
   return results.size();
 }
 
-void NetTableFixture::increment(const common::Id& id, ChunkBase* chunk,
+void NetTableFixture::increment(const dmap_common::Id& id, ChunkBase* chunk,
                                 NetTableTransaction* transaction) {
   CHECK_NOTNULL(chunk);
   CHECK_NOTNULL(transaction);
@@ -45,7 +45,7 @@ void NetTableFixture::increment(const common::Id& id, ChunkBase* chunk,
   transaction->update(to_update);
 }
 
-void NetTableFixture::increment(NetTable* table, const common::Id& id,
+void NetTableFixture::increment(NetTable* table, const dmap_common::Id& id,
                                 ChunkBase* chunk, Transaction* transaction) {
   CHECK_NOTNULL(table);
   CHECK_NOTNULL(chunk);
@@ -63,7 +63,7 @@ void NetTableFixture::increment(NetTable* table, const common::Id& id,
 }
 
 common::Id NetTableFixture::insert(int value, ChunkBase* chunk) {
-  common::Id insert_id;
+  dmap_common::Id insert_id;
   generateId(&insert_id);
   std::shared_ptr<Revision> to_insert = table_->getTemplate();
   to_insert->setId(insert_id);
@@ -73,7 +73,7 @@ common::Id NetTableFixture::insert(int value, ChunkBase* chunk) {
 }
 
 common::Id NetTableFixture::insert(int value, ChunkTransaction* transaction) {
-  common::Id insert_id;
+  dmap_common::Id insert_id;
   generateId(&insert_id);
   std::shared_ptr<Revision> to_insert = table_->getTemplate();
   to_insert->setId(insert_id);
@@ -82,9 +82,9 @@ common::Id NetTableFixture::insert(int value, ChunkTransaction* transaction) {
   return insert_id;
 }
 
-void NetTableFixture::insert(int value, common::Id* id,
+void NetTableFixture::insert(int value, dmap_common::Id* id,
                              Transaction* transaction) {
-  common::Id id_obj;
+  dmap_common::Id id_obj;
   if (!id) {
     id = &id_obj;
   }
@@ -96,7 +96,7 @@ void NetTableFixture::insert(int value, common::Id* id,
   transaction->insert(table_, chunk_, to_insert);
 }
 
-void NetTableFixture::insert(int value, const common::Id& id,
+void NetTableFixture::insert(int value, const dmap_common::Id& id,
                              Transaction* transaction) {
   CHECK_NOTNULL(transaction);
   std::shared_ptr<Revision> to_insert = table_->getTemplate();

@@ -15,7 +15,7 @@ void TrackeeMultimap::deserialize(const proto::Revision& proto) {
     NetTable* table =
         &NetTableManager::instance().getTable(table_trackees.table_name());
     for (int j = 0; j < table_trackees.chunk_ids_size(); ++j) {
-      common::Id chunk_id;
+      dmap_common::Id chunk_id;
       chunk_id.deserialize(table_trackees.chunk_ids(j));
       operator[](table).emplace(chunk_id);
     }
@@ -33,7 +33,7 @@ void TrackeeMultimap::serialize(proto::Revision* proto) const {
     proto::TableChunkTracking* proto_table_trackee =
         proto->add_chunk_tracking();
     proto_table_trackee->set_table_name(table_trackees.first->name());
-    for (const common::Id& trackee : table_trackees.second) {
+    for (const dmap_common::Id& trackee : table_trackees.second) {
       trackee.serialize(proto_table_trackee->add_chunk_ids());
     }
   }
@@ -52,7 +52,7 @@ bool TrackeeMultimap::merge(const TrackeeMultimap& other) {
       emplace(table_trackees);
       has_change = true;
     } else {
-      for (const common::Id& trackee : table_trackees.second) {
+      for (const dmap_common::Id& trackee : table_trackees.second) {
         if (found->second.emplace(trackee).second) {
           has_change = true;
         }
@@ -68,7 +68,7 @@ bool TrackeeMultimap::hasOverlap(const TrackeeMultimap& other) const {
     if (found == other.end()) {
       continue;
     }
-    for (const common::Id& trackee : table_trackees.second) {
+    for (const dmap_common::Id& trackee : table_trackees.second) {
       if (found->second.find(trackee) == found->second.end()) {
         return true;
       }

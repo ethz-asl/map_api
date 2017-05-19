@@ -3,14 +3,14 @@
 
 #include <string>
 
-#include <multiagent-mapping-common/command-registerer.h>
+#include <dmap-common/command-registerer.h>
 
 namespace dmap {
 
 class Message;
 class PeerId;
 
-class RpcCommandRegisterer : public common::CommandRegisterer {
+class RpcCommandRegisterer : public dmap_common::CommandRegisterer {
  public:
   RpcCommandRegisterer();
 

@@ -12,7 +12,7 @@
 
 #include "./core.pb.h"
 #include "dmap/logical-time.h"
-#include <multiagent-mapping-common/unique-id.h>
+#include <dmap-common/unique-id.h>
 
 namespace dmap {
 class TrackeeMultimap;
@@ -95,11 +95,11 @@ class Revision {
     return (underlying_revision_->has_update_time()) ? getUpdateTime()
                                                      : getInsertTime();
   }
-  inline common::Id getChunkId() const {
+  inline dmap_common::Id getChunkId() const {
     if (underlying_revision_->has_chunk_id()) {
-      return common::Id(underlying_revision_->chunk_id());
+      return dmap_common::Id(underlying_revision_->chunk_id());
     } else {
-      return common::Id();
+      return dmap_common::Id();
     }
   }
   template <typename IdType>
@@ -182,7 +182,7 @@ class Revision {
   inline void setUpdateTime(const LogicalTime& time) {
     underlying_revision_->set_update_time(time.serialize());
   }
-  inline void setChunkId(const common::Id& id) {
+  inline void setChunkId(const dmap_common::Id& id) {
     id.serialize(underlying_revision_->mutable_chunk_id());
   }
   inline void setRemoved() { underlying_revision_->set_removed(true); }

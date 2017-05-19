@@ -49,7 +49,7 @@ class ConflictMap : public std::unordered_map<NetTable*, Conflicts> {
       objectFromRevision(*conflict.ours, &our_object);
       objectFromRevision(*conflict.theirs, &their_object);
       result += "For object " +
-                conflict.ours->getId<common::Id>().printString() +
+                conflict.ours->getId<dmap_common::Id>().printString() +
                 " of table " + table->name() +
                 " the attempted commit compares to the conflict as follows:\n" +
                 getComparisonString(our_object, their_object) + "\n";

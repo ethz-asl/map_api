@@ -6,7 +6,7 @@
 #include <unordered_set>
 #include <utility>
 
-#include <multiagent-mapping-common/unique-id.h>
+#include <dmap-common/unique-id.h>
 #include "./net-table.pb.h"
 
 namespace dmap {
@@ -30,10 +30,10 @@ class ChunkManagerBase {
 
   inline size_t numChunks() const { return active_chunks_.size(); }
 
-  inline void getChunkIds(std::set<common::Id>* chunk_ids) const {
+  inline void getChunkIds(std::set<dmap_common::Id>* chunk_ids) const {
     CHECK_NOTNULL(chunk_ids);
     chunk_ids->clear();
-    for (const std::pair<const common::Id, ChunkBase*>& pair : active_chunks_) {
+    for (const std::pair<const dmap_common::Id, ChunkBase*>& pair : active_chunks_) {
       chunk_ids->emplace(pair.first);
     }
   }
@@ -41,14 +41,14 @@ class ChunkManagerBase {
     CHECK_NOTNULL(chunk_ids);
     chunk_ids->clear();
     chunk_ids->rehash(active_chunks_.size());
-    for (const std::pair<const common::Id, ChunkBase*>& pair : active_chunks_) {
+    for (const std::pair<const dmap_common::Id, ChunkBase*>& pair : active_chunks_) {
       chunk_ids->emplace(pair.first);
     }
   }
   inline void getChunkIds(proto::ChunkIdList* chunk_id_list) const {
     CHECK_NOTNULL(chunk_id_list);
     chunk_id_list->clear_chunk_ids();
-    for (const std::pair<const common::Id, ChunkBase*>& pair : active_chunks_) {
+    for (const std::pair<const dmap_common::Id, ChunkBase*>& pair : active_chunks_) {
       pair.first.serialize(chunk_id_list->add_chunk_ids());
     }
   }

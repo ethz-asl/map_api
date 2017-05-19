@@ -15,9 +15,9 @@
 #include "dmap/peer-handler.h"
 #include "dmap/spatial-index-cell-data.h"
 
-namespace common {
+namespace dmap_common {
 class Id;
-}  // namespace common
+}  // namespace dmap_common
 
 namespace dmap {
 namespace proto {
@@ -59,12 +59,12 @@ class SpatialIndex : public ChordIndex {
    * guaranteed is that if at least one peer holds a chunk, at least one peer
    * will be registered in the index.
    */
-  void announceChunk(const common::Id& chunk_id,
+  void announceChunk(const dmap_common::Id& chunk_id,
                      const BoundingBox& bounding_box);
-  void seekChunks(const BoundingBox& bounding_box, common::IdSet* chunk_ids);
+  void seekChunks(const BoundingBox& bounding_box, dmap_common::IdSet* chunk_ids);
   void listenToSpace(const BoundingBox& bounding_box);
 
-  typedef std::function<void(const common::Id& id)> TriggerCallback;
+  typedef std::function<void(const dmap_common::Id& id)> TriggerCallback;
 
   // Also used as iterator for range-based for loops.
   class Cell {
@@ -186,7 +186,7 @@ class SpatialIndex : public ChordIndex {
                                    const std::string& new_value);
 
   void sendTriggerNotification(const PeerId& peer, const size_t position,
-                               const common::IdList& new_chunks);
+                               const dmap_common::IdList& new_chunks);
 
   std::string table_name_;
   BoundingBox bounds_;

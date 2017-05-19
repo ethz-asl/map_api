@@ -22,7 +22,7 @@ class Workspace {
   Workspace();
 
   // "table" is an input argument.
-  bool contains(NetTable* table, const common::Id& chunk_id) const;
+  bool contains(NetTable* table, const dmap_common::Id& chunk_id) const;
   bool contains(NetTable* table) const;
 
   // The chunk of the revision itself is also merged.
@@ -34,7 +34,7 @@ class Workspace {
   class TableInterface {
    public:
     TableInterface(const Workspace& workspace, NetTable* table);
-    bool contains(const common::Id& chunk_id) const;
+    bool contains(const dmap_common::Id& chunk_id) const;
     void forEachChunk(const std::function<void(const ChunkBase& chunk)>& action)
         const;
 

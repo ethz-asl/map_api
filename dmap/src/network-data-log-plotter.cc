@@ -2,7 +2,7 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <multiagent-mapping-common/gnuplot-interface.h>
+#include <dmap-common/gnuplot-interface.h>
 
 #include "dmap/internal/network-data-log.h"
 
@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
         1, cum_sum.second.cols(), start_time);
   }
 
-  common::GnuplotInterface plot(file_name);
+  dmap_common::GnuplotInterface plot(file_name);
   plot.setLegendPosition("left top");
   plot.setXLabel("time [s]");
   plot.setYLabel("cumulutive transmitted data [bytes]");

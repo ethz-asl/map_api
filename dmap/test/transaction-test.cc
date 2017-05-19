@@ -27,7 +27,7 @@ TEST_F(TransactionTest, TransactionMerge) {
     CHECKOUT,
     A_COMMITTED
   };
-  common::Id a_id, b_id;
+  dmap_common::Id a_id, b_id;
   if (getSubprocessId() == ROOT) {
     a_id = insert(42, chunk_);
     b_id = insert(21, chunk_);
@@ -55,7 +55,7 @@ TEST_F(TransactionTest, TransactionMerge) {
     chunk_ = table_->getChunk(chunk_id_);
     Transaction transaction;
     IPC::barrier(CHECKOUT, 1);
-    a_id = IPC::pop<common::Id>();
+    a_id = IPC::pop<dmap_common::Id>();
     increment(table_, a_id, chunk_, &transaction);
     ASSERT_TRUE(transaction.commit());
     IPC::barrier(A_COMMITTED, 1);
@@ -64,7 +64,7 @@ TEST_F(TransactionTest, TransactionMerge) {
 
 TEST_F(TransactionTest, MultiCommit) {
   Transaction transaction;
-  common::Id inserted_id_1, inserted_id_2;
+  dmap_common::Id inserted_id_1, inserted_id_2;
 
   insert(1, &inserted_id_1, &transaction);
   EXPECT_TRUE(transaction.commit());
@@ -91,7 +91,7 @@ TEST_F(TransactionTest, TandemCommit) {
   constexpr size_t kEnoughForARaceCondition = 100u;
   for (size_t i = 0u; i < kEnoughForARaceCondition; ++i) {
     Transaction dependee;
-    common::Id inserted_id_1, inserted_id_2;
+    dmap_common::Id inserted_id_1, inserted_id_2;
 
     insert(1, &inserted_id_1, &dependee);
     Transaction::CommitFutureTree commit_futures;

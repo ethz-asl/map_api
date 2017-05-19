@@ -8,7 +8,7 @@
 #include <string>
 
 #include <glog/logging.h>
-#include <multiagent-mapping-common/unique-id.h>
+#include <dmap-common/unique-id.h>
 
 #include "dmap/revision.h"
 

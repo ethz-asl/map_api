@@ -2,7 +2,7 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <multiagent-mapping-common/backtrace.h>
+#include <dmap-common/backtrace.h>
 
 DEFINE_bool(blame_trigger, false,
             "Print backtrace for trigger insertion and invocation.");
@@ -12,7 +12,7 @@ namespace dmap {
 ChunkBase::~ChunkBase() {}
 
 void ChunkBase::initializeNew(
-    const common::Id& id, const std::shared_ptr<TableDescriptor>& descriptor) {
+    const dmap_common::Id& id, const std::shared_ptr<TableDescriptor>& descriptor) {
   CHECK(descriptor);
   id_ = id;
   initializeNewImpl(id, descriptor);
@@ -52,7 +52,7 @@ size_t ChunkBase::attachTrigger(const TriggerCallback& callback) {
                  << abi::__cxa_demangle(callback.target_type().name(), NULL,
                                         NULL, &status) << " for chunk " << id()
                  << " attached from:";
-    LOG(INFO) << common::backtrace();
+    LOG(INFO) << dmap_common::backtrace();
   }
   triggers_.push_back(callback);
   return triggers_.size() - 1u;
@@ -62,11 +62,11 @@ void ChunkBase::waitForTriggerCompletion() {
   aslam::ScopedWriteLock lock(&triggers_are_active_while_has_readers_);
 }
 
-void ChunkBase::handleCommitInsert(const common::Id& inserted_id) {
+void ChunkBase::handleCommitInsert(const dmap_common::Id& inserted_id) {
   CHECK(trigger_insertions_.emplace(inserted_id).second);
 }
 
-void ChunkBase::handleCommitUpdate(const common::Id& updated_id) {
+void ChunkBase::handleCommitUpdate(const dmap_common::Id& updated_id) {
   CHECK(trigger_updates_.emplace(updated_id).second);
 }
 
@@ -79,8 +79,8 @@ void ChunkBase::handleCommitEnd() {
     triggers_are_active_while_has_readers_.acquireReadLock();
     std::thread trigger_thread(
         &ChunkBase::triggerWrapper, this,
-        std::move(std::unordered_set<common::Id>(trigger_insertions_)),
-        std::move(std::unordered_set<common::Id>(trigger_updates_)));
+        std::move(std::unordered_set<dmap_common::Id>(trigger_insertions_)),
+        std::move(std::unordered_set<dmap_common::Id>(trigger_updates_)));
     trigger_thread.detach();
   }
   trigger_insertions_.clear();
@@ -102,8 +102,8 @@ void ChunkBase::leaveOnceShared() {
 }
 
 void ChunkBase::triggerWrapper(
-    const std::unordered_set<common::Id>&& insertions,
-    const std::unordered_set<common::Id>&& updates) {
+    const std::unordered_set<dmap_common::Id>&& insertions,
+    const std::unordered_set<dmap_common::Id>&& updates) {
   std::lock_guard<std::mutex> trigger_lock(trigger_mutex_);
   VLOG(3) << triggers_.size() << " triggers called in chunk " << id();
   for (const TriggerCallback& trigger : triggers_) {

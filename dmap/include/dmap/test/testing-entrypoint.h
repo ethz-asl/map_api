@@ -1,13 +1,13 @@
 #ifndef DMAP_TESTING_ENTRYPOINT_H_
 #define DMAP_TESTING_ENTRYPOINT_H_
 
-#include <multiagent-mapping-common/test/testing-entrypoint.h>
+#include <dmap-common/test/testing-entrypoint.h>
 // Undefining the multiagent mapping entry point for safety.
 #undef MULTIAGENT_MAPPING_UNITTEST_ENTRYPOINT
 
 namespace dmap {
 
-class MapApiTestEntryPoint : public common::UnitTestEntryPointBase {
+class MapApiTestEntryPoint : public dmap_common::UnitTestEntryPointBase {
  public:
   ~MapApiTestEntryPoint();
 

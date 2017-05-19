@@ -80,7 +80,7 @@ std::ostream& operator<<(std::ostream& stream,
   return stream << "For table " << info.table << ", item " << info.id << ": ";
 }
 
-bool ChunkDataContainerBase::getLatestUpdateTime(const common::Id& id,
+bool ChunkDataContainerBase::getLatestUpdateTime(const dmap_common::Id& id,
                                                  LogicalTime* time) {
   CHECK_NE(common::Id(), id);
   CHECK_NOTNULL(time);

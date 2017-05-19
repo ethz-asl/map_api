@@ -1,6 +1,6 @@
 #include "dmap/net-table-transaction.h"
 
-#include <aslam/common/statistics/statistics.h>
+#include <dmap-common/statistics/statistics.h>
 
 #include "dmap/conflicts.h"
 #include "dmap/internal/commit-future.h"
@@ -61,13 +61,13 @@ void NetTableTransaction::insert(ChunkBase* chunk,
   CHECK_NOTNULL(chunk);
   CHECK(!finalized_);
   transactionOf(chunk)->insert(revision);
-  CHECK(item_id_to_chunk_id_map_.emplace(revision->getId<common::Id>(),
+  CHECK(item_id_to_chunk_id_map_.emplace(revision->getId<dmap_common::Id>(),
                                          chunk->id()).second);
 }
 
 void NetTableTransaction::update(std::shared_ptr<Revision> revision) {
   CHECK(!finalized_);
-  common::Id id = revision->getId<common::Id>();
+  dmap_common::Id id = revision->getId<dmap_common::Id>();
   CHECK(id.isValid());
   ChunkBase* chunk = chunkOf(id);
   CHECK_NOTNULL(chunk);
@@ -79,7 +79,7 @@ void NetTableTransaction::update(std::shared_ptr<Revision> revision) {
 
 void NetTableTransaction::remove(std::shared_ptr<Revision> revision) {
   CHECK(!finalized_);
-  ChunkBase* chunk = chunkOf(revision->getId<common::Id>());
+  ChunkBase* chunk = chunkOf(revision->getId<dmap_common::Id>());
   CHECK_NOTNULL(chunk);
   CHECK_EQ(chunk->id(), revision->getChunkId());
   transactionOf(chunk)->remove(revision);
@@ -213,12 +213,12 @@ void NetTableTransaction::refreshIdToChunkIdMap() {
     std::cout << table_->name() << " chunk contents:" << std::endl;
   }
   workspace_.forEachChunk([&, this](const ChunkBase& chunk) {
-    std::vector<common::Id> chunk_result;
+    std::vector<dmap_common::Id> chunk_result;
     chunk.constData()->getAvailableIds(begin_time_, &chunk_result);
     if (FLAGS_dmap_dump_available_chunk_contents) {
       std::cout << "\tChunk " << chunk.id().hexString() << ":" << std::endl;
     }
-    for (const common::Id& item_id : chunk_result) {
+    for (const dmap_common::Id& item_id : chunk_result) {
       CHECK(item_id_to_chunk_id_map_.emplace(item_id, chunk.id()).second)
           << table_->name() << " has redundant item id " << item_id;
       if (FLAGS_dmap_dump_available_chunk_contents) {

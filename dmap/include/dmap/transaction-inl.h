@@ -5,7 +5,7 @@
 #include <utility>
 #include <vector>
 
-#include <multiagent-mapping-common/accessors.h>
+#include <dmap-common/accessors.h>
 
 #include "dmap/chunk-manager.h"
 #include "dmap/conflicts.h"
@@ -137,7 +137,7 @@ ThreadsafeCache<IdType, ObjectType>* Transaction::getMutableCache(
   // and resulted in a 3-day bug hunt.
   ThreadsafeCache<IdType, ObjectType>* result =
       dynamic_cast<ThreadsafeCache<IdType, ObjectType>*>(  // NOLINT
-          common::getChecked(caches_, table).get());
+          dmap_common::getChecked(caches_, table).get());
   CHECK(result != nullptr) << "Requested cache type does not correspond to "
                            << "cache type previously created for table "
                            << table->name() << "!";

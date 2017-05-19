@@ -9,9 +9,9 @@
 #include <unordered_set>
 #include <vector>
 
-#include <aslam/common/reader-writer-lock.h>
-#include <multiagent-mapping-common/condition.h>
-#include <multiagent-mapping-common/unique-id.h>
+#include <dmap-common/reader-writer-lock.h>
+#include <dmap-common/condition.h>
+#include <dmap-common/unique-id.h>
 
 #include "dmap/chunk-base.h"
 #include "dmap/chunk-data-container-base.h"
@@ -59,12 +59,12 @@ class LegacyChunk : public ChunkBase {
  public:
   virtual ~LegacyChunk();
 
-  bool init(const common::Id& id, std::shared_ptr<TableDescriptor> descriptor,
+  bool init(const dmap_common::Id& id, std::shared_ptr<TableDescriptor> descriptor,
             bool initialize);
   virtual void initializeNewImpl(
-      const common::Id& id,
+      const dmap_common::Id& id,
       const std::shared_ptr<TableDescriptor>& descriptor) override;
-  bool init(const common::Id& id, const proto::InitRequest& request,
+  bool init(const dmap_common::Id& id, const proto::InitRequest& request,
             const PeerId& sender, std::shared_ptr<TableDescriptor> descriptor);
 
   virtual void dumpItems(const LogicalTime& time, ConstRevisionMap* items) const
@@ -229,7 +229,7 @@ class LegacyChunk : public ChunkBase {
   mutable DistributedRWLock lock_;
   mutable std::mutex add_peer_mutex_;
   aslam::ReaderWriterMutex leave_lock_;
-  common::Condition initialized_;
+  dmap_common::Condition initialized_;
   volatile bool relinquished_ = false;
   bool log_locking_ = false;
   size_t self_rank_;

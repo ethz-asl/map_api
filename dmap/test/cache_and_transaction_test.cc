@@ -45,7 +45,7 @@ struct IdType<IntCache> {
 
 template <>
 struct IdType<Transaction> {
-  typedef common::Id type;
+  typedef dmap_common::Id type;
 };
 
 template <typename CacheOrTransaction>
@@ -88,7 +88,7 @@ void CacheAndTransactionTest<IntCache>::typeSetUp() {
 
 template <>
 void CacheAndTransactionTest<Transaction>::insert(const int to_insert,
-                                                  common::Id* id) {
+                                                  dmap_common::Id* id) {
   CHECK(transaction_);
   NetTableFixture::insert(to_insert, id, transaction_.get());
 }
@@ -101,7 +101,7 @@ void CacheAndTransactionTest<IntCache>::insert(const int to_insert, IntId* id) {
 }
 
 template <>
-void CacheAndTransactionTest<Transaction>::insert(const typename common::Id& id,
+void CacheAndTransactionTest<Transaction>::insert(const typename dmap_common::Id& id,
                                                   const int to_insert) {
   CHECK(transaction_);
   NetTableFixture::insert(to_insert, id, transaction_.get());
@@ -116,7 +116,7 @@ void CacheAndTransactionTest<IntCache>::insert(const IntId& id,
 
 template <>
 void CacheAndTransactionTest<Transaction>::update(const int new_value,
-                                                  const common::Id& id) {
+                                                  const dmap_common::Id& id) {
   CHECK(transaction_);
   NetTableFixture::update(new_value, id, transaction_.get());
 }
@@ -129,7 +129,7 @@ void CacheAndTransactionTest<IntCache>::update(const int new_value,
 }
 
 template <>
-void CacheAndTransactionTest<Transaction>::remove(const common::Id& id) {
+void CacheAndTransactionTest<Transaction>::remove(const dmap_common::Id& id) {
   CHECK(transaction_);
   transaction_->remove(id, table_);
 }

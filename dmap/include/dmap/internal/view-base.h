@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-namespace common {
+namespace dmap_common {
 class Id;
 }  // namespace common
 
@@ -20,10 +20,10 @@ class ViewBase {
  public:
   virtual ~ViewBase();
 
-  virtual bool has(const common::Id& id) const = 0;
-  virtual std::shared_ptr<const Revision> get(const common::Id& id) const = 0;
+  virtual bool has(const dmap_common::Id& id) const = 0;
+  virtual std::shared_ptr<const Revision> get(const dmap_common::Id& id) const = 0;
   virtual void dump(ConstRevisionMap* result) const = 0;
-  virtual void getAvailableIds(std::unordered_set<common::Id>* result)
+  virtual void getAvailableIds(std::unordered_set<dmap_common::Id>* result)
       const = 0;
 
   // From the supplied update times, discard the ones whose updates are

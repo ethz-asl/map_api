@@ -12,7 +12,7 @@ class OverridingViewBase : public ViewBase {
 
   // Return true if the given id should be marked as inexistent even if the
   // overridden view contains it.
-  virtual bool suppresses(const common::Id& id) const = 0;
+  virtual bool suppresses(const dmap_common::Id& id) const = 0;
 };
 
 }  // namespace internal

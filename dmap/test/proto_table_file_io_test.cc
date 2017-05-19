@@ -18,10 +18,10 @@ class ProtoTableFileIOTest : public NetTableFixture {};
 TEST_F(ProtoTableFileIOTest, SaveAndRestoreFromFile) {
   ChunkBase* chunk = table_->newChunk();
   CHECK_NOTNULL(chunk);
-  common::Id chunk_id = chunk->id();
-  common::Id item_1_id;
+  dmap_common::Id chunk_id = chunk->id();
+  dmap_common::Id item_1_id;
   generateId(&item_1_id);
-  common::Id item_2_id;
+  dmap_common::Id item_2_id;
   generateId(&item_2_id);
   {
     Transaction transaction;

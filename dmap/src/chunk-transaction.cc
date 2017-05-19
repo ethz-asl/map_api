@@ -2,7 +2,7 @@
 
 #include <unordered_set>
 
-#include <multiagent-mapping-common/accessors.h>
+#include <dmap-common/accessors.h>
 
 #include "dmap/conflicts.h"
 #include "dmap/internal/commit-future.h"
@@ -144,7 +144,7 @@ void ChunkTransaction::getTrackers(
     // TODO(tcies) Add function to delta.
     for (const internal::DeltaView::InsertMap::value_type& insertion :
          delta_.insertions_) {
-      common::Id id = tracker_id_extractor(*insertion.second);
+      dmap_common::Id id = tracker_id_extractor(*insertion.second);
       trackers->emplace(table_tracker_getter.first, id);
     }
   }

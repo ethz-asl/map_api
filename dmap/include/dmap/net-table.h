@@ -7,7 +7,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include <aslam/common/reader-first-reader-writer-lock.h>
+#include <dmap-common/reader-first-reader-writer-lock.h>
 #include <gtest/gtest_prod.h>
 
 #include "dmap/chunk-data-container-base.h"
@@ -62,12 +62,12 @@ class NetTable {
   // BASIC CHUNK MANAGEMENT
   // ======================
   ChunkBase* newChunk();
-  ChunkBase* newChunk(const common::Id& chunk_id);
-  void getActiveChunkIds(std::set<common::Id>* chunk_ids) const;
-  ChunkBase* getChunk(const common::Id& chunk_id);
+  ChunkBase* newChunk(const dmap_common::Id& chunk_id);
+  void getActiveChunkIds(std::set<dmap_common::Id>* chunk_ids) const;
+  ChunkBase* getChunk(const dmap_common::Id& chunk_id);
   void getActiveChunks(std::set<ChunkBase*>* chunks) const;
-  bool ensureHasChunks(const common::IdSet& chunks_to_ensure);
-  ChunkBase* connectTo(const common::Id& chunk_id, const PeerId& peer);
+  bool ensureHasChunks(const dmap_common::IdSet& chunks_to_ensure);
+  ChunkBase* connectTo(const dmap_common::Id& chunk_id, const PeerId& peer);
   void shareAllChunks();
   void shareAllChunks(const PeerId& peer);
   void leaveAllChunks();
@@ -139,14 +139,14 @@ class NetTable {
   // ========================
   // SPATIAL INDEX MANAGEMENT
   // ========================
-  void registerChunkInSpace(const common::Id& chunk_id,
+  void registerChunkInSpace(const dmap_common::Id& chunk_id,
                             const SpatialIndex::BoundingBox& bounding_box);
   template <typename IdType>
   void registerItemInSpace(const IdType& id,
                            const SpatialIndex::BoundingBox& bounding_box);
   void getChunkReferencesInBoundingBox(
       const SpatialIndex::BoundingBox& bounding_box,
-      std::unordered_set<common::Id>* chunk_ids);
+      std::unordered_set<dmap_common::Id>* chunk_ids);
   void getChunksInBoundingBox(const SpatialIndex::BoundingBox& bounding_box);
   void getChunksInBoundingBox(const SpatialIndex::BoundingBox& bounding_box,
                               std::unordered_set<ChunkBase*>* chunks);
@@ -157,8 +157,8 @@ class NetTable {
   // ========
   // TRIGGERS
   // ========
-  typedef std::function<void(const std::unordered_set<common::Id>& insertions,
-                             const std::unordered_set<common::Id>& updates,
+  typedef std::function<void(const std::unordered_set<dmap_common::Id>& insertions,
+                             const std::unordered_set<dmap_common::Id>& updates,
                              ChunkBase* chunk)> TriggerCallbackWithChunkPointer;
   typedef std::function<void(ChunkBase* chunk)> ChunkAcquisitionCallback;
   // Will bind to Chunk* the pointer of the current chunk.
@@ -188,22 +188,22 @@ class NetTable {
   // REQUEST HANDLERS
   // ================
   // TODO(tcies) somehow unify all routing to chunks? (yes, like chord)
-  void handleConnectRequest(const common::Id& chunk_id, const PeerId& peer,
+  void handleConnectRequest(const dmap_common::Id& chunk_id, const PeerId& peer,
                             Message* response);
   void handleInitRequest(const proto::InitRequest& request,
                          const PeerId& sender, Message* response);
-  void handleInsertRequest(const common::Id& chunk_id,
+  void handleInsertRequest(const dmap_common::Id& chunk_id,
                            const std::shared_ptr<Revision>& item,
                            Message* response);
-  void handleLeaveRequest(const common::Id& chunk_id, const PeerId& leaver,
+  void handleLeaveRequest(const dmap_common::Id& chunk_id, const PeerId& leaver,
                           Message* response);
-  void handleLockRequest(const common::Id& chunk_id, const PeerId& locker,
+  void handleLockRequest(const dmap_common::Id& chunk_id, const PeerId& locker,
                          Message* response);
-  void handleNewPeerRequest(const common::Id& chunk_id, const PeerId& peer,
+  void handleNewPeerRequest(const dmap_common::Id& chunk_id, const PeerId& peer,
                             const PeerId& sender, Message* response);
-  void handleUnlockRequest(const common::Id& chunk_id, const PeerId& locker,
+  void handleUnlockRequest(const dmap_common::Id& chunk_id, const PeerId& locker,
                            Message* response);
-  void handleUpdateRequest(const common::Id& chunk_id,
+  void handleUpdateRequest(const dmap_common::Id& chunk_id,
                            const std::shared_ptr<Revision>& item,
                            const PeerId& sender, Message* response);
 
@@ -263,7 +263,7 @@ class NetTable {
   void forEachActiveChunkUntil(const std::function<
       bool(const ChunkBase& chunk)>& action) const;  // NOLINT
 
-  bool routingBasics(const common::Id& chunk_id, Message* response,
+  bool routingBasics(const dmap_common::Id& chunk_id, Message* response,
                      ChunkMap::iterator* found);
 
   typedef std::unordered_map<
@@ -279,10 +279,10 @@ class NetTable {
 
   void leaveIndices();
 
-  void getChunkHolders(const common::Id& chunk_id,
+  void getChunkHolders(const dmap_common::Id& chunk_id,
                        std::unordered_set<PeerId>* peers);
-  void joinChunkHolders(const common::Id& chunk_id);
-  void leaveChunkHolders(const common::Id& chunk_id);
+  void joinChunkHolders(const dmap_common::Id& chunk_id);
+  void leaveChunkHolders(const dmap_common::Id& chunk_id);
 
   std::shared_ptr<TableDescriptor> descriptor_;
   ChunkMap active_chunks_;

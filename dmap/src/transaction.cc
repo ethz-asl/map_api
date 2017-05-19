@@ -2,8 +2,8 @@
 
 #include <algorithm>
 
-#include <aslam/common/timer.h>
-#include <multiagent-mapping-common/backtrace.h>
+#include <dmap-common/timer.h>
+#include <dmap-common/backtrace.h>
 
 #include "dmap/cache-base.h"
 #include "dmap/chunk-manager.h"
@@ -84,12 +84,12 @@ void Transaction::dumpActiveChunks(NetTable* table, ConstRevisionMap* result) {
 
 bool Transaction::fetchAllChunksTrackedByItemsInTable(NetTable* const table) {
   CHECK_NOTNULL(table);
-  std::vector<common::Id> item_ids;
+  std::vector<dmap_common::Id> item_ids;
   enableDirectAccess();
   getAvailableIds(table, &item_ids);
 
   bool success = true;
-  for (const common::Id& item_id : item_ids) {
+  for (const dmap_common::Id& item_id : item_ids) {
     if (!getById(item_id, table)->fetchTrackedChunks()) {
       success = false;
     }
@@ -347,7 +347,7 @@ void Transaction::commitImpl(const bool finalize_after_check,
   CHECK_NOTNULL(will_commit_succeed);
   if (FLAGS_blame_commit) {
     LOG(INFO) << "Transaction committed from:" << std::endl
-              << common::backtrace();
+              << dmap_common::backtrace();
   }
   for (const CacheMap::value_type& cache_pair : caches_) {
     if (FLAGS_cache_blame_dirty || FLAGS_cache_blame_insert) {

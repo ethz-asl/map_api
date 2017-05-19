@@ -8,7 +8,7 @@
 
 namespace dmap {
 
-void SpatialIndexCellData::addChunkIdIfNotPresent(const common::Id& id) {
+void SpatialIndexCellData::addChunkIdIfNotPresent(const dmap_common::Id& id) {
   for (int i = 0; i < chunk_ids_size(); ++i) {
     if (id.correspondsTo(chunk_ids(i))) {
       return;
@@ -49,8 +49,8 @@ void SpatialIndexCellData::getListeners(std::unordered_set<PeerId>* result)
 }
 
 bool SpatialIndexCellData::chunkIdSetDiff(const SpatialIndexCellData& other,
-                                          common::IdList* result) const {
-  common::IdList minuend, subtrahend;
+                                          dmap_common::IdList* result) const {
+  dmap_common::IdList minuend, subtrahend;
   getChunkIds(&minuend);
   other.getChunkIds(&subtrahend);
   std::sort(minuend.begin(), minuend.end());

@@ -58,7 +58,7 @@ NetTable::trackerDeterminerFactory() {
     objectFromRevision(trackee_revision, &trackee);
     TrackerIdType typed_tracker_id =
         determineTracker<TrackeeType, TrackerType, TrackerIdType>(*trackee);
-    return static_cast<common::Id>(typed_tracker_id);
+    return static_cast<dmap_common::Id>(typed_tracker_id);
   };
 }
 
@@ -71,13 +71,13 @@ void NetTable::pushNewChunkIdsToTracker() {
 }
 
 template <>
-void NetTable::followTrackedChunksOfItem(const common::Id& item_id,
+void NetTable::followTrackedChunksOfItem(const dmap_common::Id& item_id,
                                          ChunkBase* tracker_chunk);
 
 template <typename IdType>
 void NetTable::followTrackedChunksOfItem(const IdType& item_id,
                                          ChunkBase* tracker_chunk) {
-  common::Id common_id;
+  dmap_common::Id common_id;
   common_id.fromHashId(item_id.toHashId());
   followTrackedChunksOfItem(item_id, tracker_chunk);
 }

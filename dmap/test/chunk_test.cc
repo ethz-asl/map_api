@@ -126,7 +126,7 @@ TEST_F(ChunkTest, RemoteInsert) {
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 1);
     IPC::barrier(A_JOINED, 1);
-    common::Id chunk_id = IPC::pop<common::Id>();
+    dmap_common::Id chunk_id = IPC::pop<dmap_common::Id>();
     insert(42, table_->getChunk(chunk_id));
 
     IPC::barrier(A_ADDED, 1);
@@ -144,7 +144,7 @@ TEST_F(ChunkTest, Leave) {
     CHUNK_SHARED,
     A_LEFT
   };
-  common::generateIdFromInt(1, &chunk_id_);
+  dmap_common::generateIdFromInt(1, &chunk_id_);
   if (getSubprocessId() == ROOT) {
     launchSubprocess(A);
     chunk_ = table_->newChunk(chunk_id_);
@@ -245,7 +245,7 @@ TEST_F(ChunkTest, Grind) {
   } else {
     IPC::barrier(INIT, kProcesses - 1);
     IPC::barrier(ID_SHARED, kProcesses - 1);
-    common::Id chunk_id = IPC::pop<common::Id>();
+    dmap_common::Id chunk_id = IPC::pop<dmap_common::Id>();
     ChunkBase* chunk = table_->getChunk(chunk_id);
     for (int i = 0; i < kInsertUpdateCycles; ++i) {
       // insert
@@ -276,7 +276,7 @@ TEST_F(ChunkTest, ChunkTransactions) {
     }
     ChunkBase* chunk = table_->newChunk();
     ASSERT_TRUE(chunk);
-    common::Id insert_id = insert(1, chunk);
+    dmap_common::Id insert_id = insert(1, chunk);
     IPC::barrier(INIT, kProcesses - 1);
 
     chunk->requestParticipation();
@@ -300,8 +300,8 @@ TEST_F(ChunkTest, ChunkTransactions) {
   } else {
     IPC::barrier(INIT, kProcesses - 1);
     IPC::barrier(IDS_SHARED, kProcesses - 1);
-    common::Id chunk_id = IPC::pop<common::Id>();
-    common::Id item_id = IPC::pop<common::Id>();
+    dmap_common::Id chunk_id = IPC::pop<dmap_common::Id>();
+    dmap_common::Id item_id = IPC::pop<dmap_common::Id>();
     ChunkBase* chunk = table_->getChunk(chunk_id);
     ASSERT_TRUE(chunk);
     while (true) {
@@ -364,7 +364,7 @@ TEST_F(ChunkTest, ChunkTransactionsConflictConditions) {
   } else {
     IPC::barrier(INIT, kProcesses - 1);
     IPC::barrier(ID_SHARED, kProcesses - 1);
-    common::Id chunk_id = IPC::pop<common::Id>();
+    dmap_common::Id chunk_id = IPC::pop<dmap_common::Id>();
     ChunkBase* chunk = table_->getChunk(chunk_id);
     ASSERT_TRUE(chunk);
     for (int i = 0; i < kUniqueItems; ++i) {
@@ -402,13 +402,13 @@ TEST_F(ChunkTest, Triggers) {
   if (getSubprocessId() == A) {
     IPC::barrier(INIT, 1);
     IPC::barrier(ID_SHARED, 1);
-    chunk_id_ = IPC::pop<common::Id>();
+    chunk_id_ = IPC::pop<dmap_common::Id>();
     chunk_ = table_->getChunk(chunk_id_);
   }
   EXPECT_EQ(0u, chunk_->attachTrigger([this, &highest_value](
-                    const std::unordered_set<common::Id>& insertions,
-                    const std::unordered_set<common::Id>& updates) {
-                  common::Id id;
+                    const std::unordered_set<dmap_common::Id>& insertions,
+                    const std::unordered_set<dmap_common::Id>& updates) {
+                  dmap_common::Id id;
                   if (insertions.empty()) {
                     if (updates.empty()) {
                       return;
@@ -433,8 +433,8 @@ TEST_F(ChunkTest, Triggers) {
                   }
                 }));
   EXPECT_EQ(1u, chunk_->attachTrigger([this, &trigger_counter](
-                    const std::unordered_set<common::Id>& insertions,
-                    const std::unordered_set<common::Id>& updates) {
+                    const std::unordered_set<dmap_common::Id>& insertions,
+                    const std::unordered_set<dmap_common::Id>& updates) {
                   // Ignore chunk management related unlocks.
                   if (insertions.size() + updates.size() > 0u) {
                     ++trigger_counter;
@@ -444,7 +444,7 @@ TEST_F(ChunkTest, Triggers) {
   if (getSubprocessId() == ROOT) {
     Transaction transaction;
     std::shared_ptr<Revision> item = table_->getTemplate();
-    common::Id insert_id;
+    dmap_common::Id insert_id;
     generateId(&insert_id);
     item->setId(insert_id);
     item->set(kFieldName, 0);
@@ -483,9 +483,9 @@ TEST_F(ChunkTest, SendHistory) {
     launchSubprocess(A);
     IPC::barrier(INIT, 1);
     IPC::barrier(A_DONE, 1);
-    chunk_id_ = IPC::pop<common::Id>();
+    chunk_id_ = IPC::pop<dmap_common::Id>();
     before_mod = IPC::pop<LogicalTime>();
-    item_id_ = IPC::pop<common::Id>();
+    item_id_ = IPC::pop<dmap_common::Id>();
     chunk_ = table_->getChunk(chunk_id_);
     IPC::barrier(DIE, 1);
 
@@ -525,7 +525,7 @@ TEST_F(ChunkTest, SendHistory) {
 TEST_F(ChunkTest, GetCommitTimes) {
   chunk_ = table_->newChunk();
   Transaction first;
-  common::Id id;
+  dmap_common::Id id;
   insert(42, &id, &first);
   ASSERT_TRUE(first.commit());
   Transaction second;

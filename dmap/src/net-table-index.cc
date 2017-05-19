@@ -1,7 +1,7 @@
 #include "dmap/net-table-index.h"
 
 #include "dmap/message.h"
-#include <multiagent-mapping-common/unique-id.h>
+#include <dmap-common/unique-id.h>
 #include "./chord-index.pb.h"
 #include "./net-table.pb.h"
 
@@ -12,7 +12,7 @@ NetTableIndex::NetTableIndex(const std::string& table_name)
 
 NetTableIndex::~NetTableIndex() {}
 
-void NetTableIndex::seekPeers(const common::Id& chunk_id,
+void NetTableIndex::seekPeers(const dmap_common::Id& chunk_id,
                               std::unordered_set<PeerId>* peers) {
   CHECK_NOTNULL(peers);
   std::string peers_string;
@@ -32,7 +32,7 @@ void NetTableIndex::seekPeers(const common::Id& chunk_id,
   }
 }
 
-void NetTableIndex::announcePosession(const common::Id& chunk_id) {
+void NetTableIndex::announcePosession(const dmap_common::Id& chunk_id) {
   std::string peers_string;
   proto::PeerList peers;
   if (!retrieveData(chunk_id.hexString(), &peers_string)) {
@@ -44,7 +44,7 @@ void NetTableIndex::announcePosession(const common::Id& chunk_id) {
   CHECK(addData(chunk_id.hexString(), peers.SerializeAsString()));
 }
 
-void NetTableIndex::renouncePosession(const common::Id& chunk_id) {
+void NetTableIndex::renouncePosession(const dmap_common::Id& chunk_id) {
   std::string peers_string;
   proto::PeerList peers;
   constexpr size_t max_attempts = 1e4;

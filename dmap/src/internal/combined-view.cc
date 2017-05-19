@@ -13,12 +13,12 @@ CombinedView::CombinedView(const std::unique_ptr<ViewBase>& complete_view,
 
 CombinedView::~CombinedView() {}
 
-bool CombinedView::has(const common::Id& id) const {
+bool CombinedView::has(const dmap_common::Id& id) const {
   return override_view_.has(id) ||
          (complete_view_->has(id) && !override_view_.suppresses(id));
 }
 
-std::shared_ptr<const Revision> CombinedView::get(const common::Id& id) const {
+std::shared_ptr<const Revision> CombinedView::get(const dmap_common::Id& id) const {
   if (override_view_.has(id)) {
     return override_view_.get(id);
   } else {
@@ -50,14 +50,14 @@ void CombinedView::dump(ConstRevisionMap* result) const {
   result->insert(override_dump.begin(), override_dump.end());
 }
 
-void CombinedView::getAvailableIds(std::unordered_set<common::Id>* result)
+void CombinedView::getAvailableIds(std::unordered_set<dmap_common::Id>* result)
     const {
   CHECK_NOTNULL(result)->clear();
   override_view_.getAvailableIds(result);
 
-  std::unordered_set<common::Id> all_unsupressed_ids;
+  std::unordered_set<dmap_common::Id> all_unsupressed_ids;
   complete_view_->getAvailableIds(&all_unsupressed_ids);
-  for (std::unordered_set<common::Id>::iterator it =
+  for (std::unordered_set<dmap_common::Id>::iterator it =
            all_unsupressed_ids.begin();
        it != all_unsupressed_ids.end();) {
     if (override_view_.suppresses(*it)) {

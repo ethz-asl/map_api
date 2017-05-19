@@ -10,7 +10,7 @@ bool LegacyChunkDataContainerBase::insert(
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(query->structureMatch(*reference))
       << "Bad structure of insert revision";
-  CHECK(query->getId<common::Id>().isValid())
+  CHECK(query->getId<dmap_common::Id>().isValid())
       << "Attempted to insert element with invalid ID";
   query->setInsertTime(time);
   query->setUpdateTime(time);
@@ -22,12 +22,12 @@ bool LegacyChunkDataContainerBase::bulkInsert(const LogicalTime& time,
   std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
-  common::Id id;
+  dmap_common::Id id;
   for (const typename MutableRevisionMap::value_type& id_revision : query) {
     CHECK_NOTNULL(id_revision.second.get());
     CHECK(id_revision.second->structureMatch(*reference))
         << "Bad structure of insert revision";
-    id = id_revision.second->getId<common::Id>();
+    id = id_revision.second->getId<dmap_common::Id>();
     CHECK(id.isValid()) << "Attempted to insert element with invalid ID";
     CHECK(id == id_revision.first) << "ID in RevisionMap doesn't match";
     id_revision.second->setInsertTime(time);
@@ -43,7 +43,7 @@ bool LegacyChunkDataContainerBase::patch(
   CHECK(isInitialized()) << "Attempted to insert into non-initialized table";
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(query->structureMatch(*reference)) << "Bad structure of patch revision";
-  CHECK(query->getId<common::Id>().isValid())
+  CHECK(query->getId<dmap_common::Id>().isValid())
       << "Attempted to insert element with invalid ID";
   return patchImpl(query);
 }
@@ -67,7 +67,7 @@ void LegacyChunkDataContainerBase::update(
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(query->structureMatch(*reference))
       << "Bad structure of update revision";
-  CHECK(query->getId<common::Id>().isValid())
+  CHECK(query->getId<dmap_common::Id>().isValid())
       << "Attempted to update element with invalid ID";
   LogicalTime update_time = time;
   query->setUpdateTime(update_time);
@@ -80,7 +80,7 @@ void LegacyChunkDataContainerBase::remove(
   CHECK(isInitialized());
   std::shared_ptr<Revision> reference = getTemplate();
   CHECK(query->structureMatch(*reference));
-  CHECK_NE(query->getId<common::Id>(), common::Id());
+  CHECK_NE(query->getId<dmap_common::Id>(), dmap_common::Id());
   LogicalTime update_time = time;
   query->setUpdateTime(update_time);
   query->setRemoved();

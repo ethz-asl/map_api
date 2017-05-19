@@ -12,7 +12,7 @@ Workspace::Workspace(const std::initializer_list<NetTable*>& table_blacklist,
 Workspace::Workspace() : Workspace({}, {}) {}
 
 // "table" is an input argument.
-bool Workspace::contains(NetTable* table, const common::Id& id) const {
+bool Workspace::contains(NetTable* table, const dmap_common::Id& id) const {
   CHECK_NOTNULL(table);
   // Fast default case
   if (table_blacklist_.empty() && table_whitelist_.empty() &&
@@ -81,7 +81,7 @@ Workspace::TableInterface::TableInterface(const Workspace& workspace,
                                           NetTable* table)
     : workspace_(workspace), table_(table) {}
 
-bool Workspace::TableInterface::contains(const common::Id& chunk_id) const {
+bool Workspace::TableInterface::contains(const dmap_common::Id& chunk_id) const {
   return workspace_.contains(table_, chunk_id);
 }
 
@@ -117,7 +117,7 @@ void Workspace::TableInterface::forEachChunk(
   if (!white_found || white_submap->second.empty()) {
     table_->forEachActiveChunk(chunk_functional);
   } else {
-    for (const common::Id& chunk_id : white_submap->second) {
+    for (const dmap_common::Id& chunk_id : white_submap->second) {
       chunk_functional(*table_->getChunk(chunk_id));
     }
   }

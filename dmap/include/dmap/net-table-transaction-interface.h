@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include <multiagent-mapping-common/mapped-container-base.h>
+#include <dmap-common/mapped-container-base.h>
 
 #include "dmap/transaction.h"
 
@@ -11,10 +11,10 @@ namespace dmap {
 
 template <typename IdType>
 class NetTableTransactionInterface
-    : public common::MappedContainerBase<IdType,
+    : public dmap_common::MappedContainerBase<IdType,
                                          std::shared_ptr<const Revision>> {
  public:
-  typedef common::MappedContainerBase<IdType, std::shared_ptr<const Revision>>
+  typedef dmap_common::MappedContainerBase<IdType, std::shared_ptr<const Revision>>
       Base;
 
   NetTableTransactionInterface(Transaction* const transaction,

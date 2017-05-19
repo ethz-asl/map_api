@@ -3,7 +3,7 @@
 
 #include <multiprocess-gtest/multiprocess-fixture.h>
 
-class MapApiFixture : public common::MultiprocessFixture {
+class MapApiFixture : public dmap_common::MultiprocessFixture {
  protected:
   virtual void SetUpImpl();
   virtual void TearDownImpl();

@@ -7,7 +7,7 @@
 #include "dmap/chord-index.h"
 #include "dmap/peer-handler.h"
 
-namespace common {
+namespace dmap_common {
 class Id;
 }  // namespace common
 
@@ -22,9 +22,9 @@ class NetTableIndex : public ChordIndex {
    * guaranteed is that if at least one peer holds a chunk, at least one peer
    * will be registered in the index.
    */
-  void seekPeers(const common::Id& chunk_id, std::unordered_set<PeerId>* peers);
-  void announcePosession(const common::Id& chunk_id);
-  void renouncePosession(const common::Id& chunk_id);
+  void seekPeers(const dmap_common::Id& chunk_id, std::unordered_set<PeerId>* peers);
+  void announcePosession(const dmap_common::Id& chunk_id);
+  void renouncePosession(const dmap_common::Id& chunk_id);
 
   static const char kRoutedChordRequest[];
   static const char kPeerResponse[];

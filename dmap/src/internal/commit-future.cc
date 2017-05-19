@@ -21,11 +21,11 @@ CommitFuture::CommitFuture(const CommitFuture& other)
 
 CommitFuture::~CommitFuture() {}
 
-bool CommitFuture::has(const common::Id& id) const {
+bool CommitFuture::has(const dmap_common::Id& id) const {
   return static_cast<bool>(get(id));
 }
 
-std::shared_ptr<const Revision> CommitFuture::get(const common::Id& id) const {
+std::shared_ptr<const Revision> CommitFuture::get(const dmap_common::Id& id) const {
   ConstRevisionMap::const_iterator found = chunk_state_.find(id);
   if (found != chunk_state_.end()) {
     return found->second;
@@ -38,7 +38,7 @@ void CommitFuture::dump(ConstRevisionMap* result) const {
   CHECK_NOTNULL(result)->insert(chunk_state_.begin(), chunk_state_.end());
 }
 
-void CommitFuture::getAvailableIds(std::unordered_set<common::Id>* result)
+void CommitFuture::getAvailableIds(std::unordered_set<dmap_common::Id>* result)
     const {
   CHECK_NOTNULL(result)->clear();
   for (const ConstRevisionMap::value_type& id_revision : chunk_state_) {

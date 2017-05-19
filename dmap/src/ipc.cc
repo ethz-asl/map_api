@@ -8,7 +8,7 @@
 #include <dmap/logical-time.h>
 #include "dmap/message.h"
 #include <dmap/peer-id.h>
-#include <multiagent-mapping-common/unique-id.h>
+#include <dmap-common/unique-id.h>
 
 namespace dmap {
 
@@ -73,7 +73,7 @@ void IPC::pushFor(const std::string& message, int receiver) {
   CHECK(Hub::instance().undisputableBroadcast(&request));
 }
 template <>
-void IPC::pushFor(const common::Id& message, int receiver) {
+void IPC::pushFor(const dmap_common::Id& message, int receiver) {
   pushFor(message.hexString(), receiver);
 }
 template <>
@@ -107,7 +107,7 @@ std::string IPC::popFor(int receiver) {
 }
 template <>
 common::Id IPC::popFor(int receiver) {
-  common::Id return_value;
+  dmap_common::Id return_value;
   std::string serialized = popFor<std::string>(receiver);
   CHECK(return_value.fromHexString(serialized));
   return return_value;

@@ -10,11 +10,11 @@ ChunkView::ChunkView(const ChunkBase& chunk, const LogicalTime& view_time)
 
 ChunkView::~ChunkView() {}
 
-bool ChunkView::has(const common::Id& id) const {
+bool ChunkView::has(const dmap_common::Id& id) const {
   return static_cast<bool>(chunk_.constData()->getById(id, view_time_));
 }
 
-std::shared_ptr<const Revision> ChunkView::get(const common::Id& id) const {
+std::shared_ptr<const Revision> ChunkView::get(const dmap_common::Id& id) const {
   return chunk_.constData()->getById(id, view_time_);
 }
 
@@ -22,11 +22,11 @@ void ChunkView::dump(ConstRevisionMap* result) const {
   chunk_.constData()->dump(view_time_, result);
 }
 
-void ChunkView::getAvailableIds(std::unordered_set<common::Id>* result) const {
+void ChunkView::getAvailableIds(std::unordered_set<dmap_common::Id>* result) const {
   CHECK_NOTNULL(result)->clear();
-  std::vector<common::Id> id_vector;
+  std::vector<dmap_common::Id> id_vector;
   chunk_.constData()->getAvailableIds(view_time_, &id_vector);
-  for (const common::Id& id : id_vector) {
+  for (const dmap_common::Id& id : id_vector) {
     result->emplace(id);
   }
 }

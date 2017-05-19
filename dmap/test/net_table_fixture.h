@@ -25,15 +25,15 @@ class NetTableFixture : public MapApiFixture {
 
   size_t count();
 
-  void increment(const common::Id& id, ChunkBase* chunk,
+  void increment(const dmap_common::Id& id, ChunkBase* chunk,
                  NetTableTransaction* transaction);
-  void increment(NetTable* table, const common::Id& id, ChunkBase* chunk,
+  void increment(NetTable* table, const dmap_common::Id& id, ChunkBase* chunk,
                  Transaction* transaction);
 
-  common::Id insert(int n, ChunkBase* chunk);
-  common::Id insert(int n, ChunkTransaction* transaction);
-  void insert(int n, common::Id* id, Transaction* transaction);
-  void insert(int n, const common::Id& id, Transaction* transaction);
+  dmap_common::Id insert(int n, ChunkBase* chunk);
+  dmap_common::Id insert(int n, ChunkTransaction* transaction);
+  void insert(int n, dmap_common::Id* id, Transaction* transaction);
+  void insert(int n, const dmap_common::Id& id, Transaction* transaction);
 
   template <typename IdType>
   void update(int n, const IdType& id, Transaction* transaction);
@@ -41,7 +41,7 @@ class NetTableFixture : public MapApiFixture {
   static const std::string kTableName;
   NetTable* table_;
   ChunkBase* chunk_;               // generic chunk pointer for custom use
-  common::Id chunk_id_, item_id_;  // equally generic
+  dmap_common::Id chunk_id_, item_id_;  // equally generic
 };
 
 }  // namespace dmap

@@ -13,7 +13,7 @@
 #include "dmap/table-descriptor.h"
 #include "./core.pb.h"
 
-namespace common {
+namespace dmap_common {
 class Id;
 }  // namespace common
 
@@ -67,11 +67,11 @@ class ChunkDataContainerBase {
   int count(int key, const ValueType& value, const LogicalTime& time) const;
   virtual int countByRevision(int key, const Revision& valueHolder,
                               const LogicalTime& time) const final;
-  bool getLatestUpdateTime(const common::Id& id, LogicalTime* time);
+  bool getLatestUpdateTime(const dmap_common::Id& id, LogicalTime* time);
   struct ItemDebugInfo {
     std::string table;
     std::string id;
-    ItemDebugInfo(const std::string& _table, const common::Id& _id)
+    ItemDebugInfo(const std::string& _table, const dmap_common::Id& _id)
         : table(_table), id(_id.hexString()) {}
   };
 
@@ -88,13 +88,13 @@ class ChunkDataContainerBase {
   // Do here whatever is specific to initializing the derived type
   virtual bool initImpl() = 0;
   virtual std::shared_ptr<const Revision> getByIdImpl(
-      const common::Id& id, const LogicalTime& time) const = 0;
+      const dmap_common::Id& id, const LogicalTime& time) const = 0;
   // If key is -1, this should return all the data in the table.
   virtual void findByRevisionImpl(int key, const Revision& valueHolder,
                                   const LogicalTime& time,
                                   ConstRevisionMap* dest) const = 0;
   virtual void getAvailableIdsImpl(const LogicalTime& time,
-                                   std::vector<common::Id>* ids) const = 0;
+                                   std::vector<dmap_common::Id>* ids) const = 0;
   // If key is -1, this should return all the data in the table.
   virtual int countByRevisionImpl(int key, const Revision& valueHolder,
                                   const LogicalTime& time) const = 0;

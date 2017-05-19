@@ -5,7 +5,7 @@
 #include <utility>
 #include <vector>
 
-#include <multiagent-mapping-common/unique-id.h>
+#include <dmap-common/unique-id.h>
 
 namespace dmap {
 
@@ -21,15 +21,15 @@ void ChunkTransaction::addConflictCondition(int key, const ValueType& value) {
 template <typename IdType>
 std::shared_ptr<const Revision> ChunkTransaction::getById(const IdType& id)
     const {
-  return combined_view_.get(id.template toIdType<common::Id>());
+  return combined_view_.get(id.template toIdType<dmap_common::Id>());
 }
 
 template <typename IdType>
 void ChunkTransaction::getAvailableIds(std::unordered_set<IdType>* ids) const {
   CHECK_NOTNULL(ids)->clear();
-  std::unordered_set<common::Id> common_ids;
+  std::unordered_set<dmap_common::Id> common_ids;
   combined_view_.getAvailableIds(&common_ids);
-  for (const common::Id& id : common_ids) {
+  for (const dmap_common::Id& id : common_ids) {
     ids->emplace(id.template toIdType<IdType>());
   }
 }
@@ -39,7 +39,7 @@ void ChunkTransaction::getMutableUpdateEntry(
     const IdType& id, std::shared_ptr<const Revision>** result) {
   CHECK(!finalized_);
   CHECK_NOTNULL(result);
-  common::Id common_id = id.template toIdType<common::Id>();
+  dmap_common::Id common_id = id.template toIdType<dmap_common::Id>();
   if (!delta_.getMutableUpdateEntry(common_id, result)) {
     std::shared_ptr<const Revision> original = getById(id);
     CHECK(original);

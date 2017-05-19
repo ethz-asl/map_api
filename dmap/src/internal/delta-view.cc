@@ -1,6 +1,6 @@
 #include "dmap/internal/delta-view.h"
 
-#include <multiagent-mapping-common/unique-id.h>
+#include <dmap-common/unique-id.h>
 
 #include "dmap/chunk-base.h"
 #include "dmap/conflicts.h"
@@ -15,12 +15,12 @@ DeltaView::DeltaView(const NetTable& table) : table_(table) {}
 
 DeltaView::~DeltaView() {}
 
-bool DeltaView::has(const common::Id& id) const {
+bool DeltaView::has(const dmap_common::Id& id) const {
   return (updates_.count(id) != 0u || insertions_.count(id) != 0u) &&
          removes_.count(id) == 0u;
 }
 
-std::shared_ptr<const Revision> DeltaView::get(const common::Id& id) const {
+std::shared_ptr<const Revision> DeltaView::get(const dmap_common::Id& id) const {
   CHECK_EQ(removes_.count(id), 0u);
   UpdateMap::const_iterator found = updates_.find(id);
   if (found != updates_.end()) {
@@ -42,7 +42,7 @@ void DeltaView::dump(ConstRevisionMap* result) const {
   }
 }
 
-void DeltaView::getAvailableIds(std::unordered_set<common::Id>* result) const {
+void DeltaView::getAvailableIds(std::unordered_set<dmap_common::Id>* result) const {
   CHECK_NOTNULL(result)->clear();
   for (const InsertMap::value_type& item : insertions_) {
     result->emplace(item.first);
@@ -56,12 +56,12 @@ void DeltaView::discardKnownUpdates(UpdateTimes* update_times) const {
   LOG(FATAL) << "This function should never be called on a delta view!";
 }
 
-bool DeltaView::suppresses(const common::Id& id) const {
+bool DeltaView::suppresses(const dmap_common::Id& id) const {
   return removes_.count(id) != 0u;
 }
 
 void DeltaView::insert(std::shared_ptr<Revision> revision) {
-  common::Id id = revision->getId<common::Id>();
+  dmap_common::Id id = revision->getId<dmap_common::Id>();
   CHECK(id.isValid());
   CHECK_EQ(updates_.count(id), 0u);
   CHECK_EQ(removes_.count(id), 0u);
@@ -70,7 +70,7 @@ void DeltaView::insert(std::shared_ptr<Revision> revision) {
 }
 
 void DeltaView::update(std::shared_ptr<Revision> revision) {
-  common::Id id = revision->getId<common::Id>();
+  dmap_common::Id id = revision->getId<dmap_common::Id>();
   CHECK(id.isValid());
   InsertMap::iterator corresponding_insertion = insertions_.find(id);
   if (corresponding_insertion != insertions_.end()) {
@@ -86,7 +86,7 @@ void DeltaView::update(std::shared_ptr<Revision> revision) {
 }
 
 void DeltaView::remove(std::shared_ptr<Revision> revision) {
-  const common::Id id = revision->getId<common::Id>();
+  const dmap_common::Id id = revision->getId<dmap_common::Id>();
   CHECK(id.isValid());
 
   UpdateMap::iterator corresponding_update = updates_.find(id);
@@ -103,7 +103,7 @@ void DeltaView::remove(std::shared_ptr<Revision> revision) {
 }
 
 bool DeltaView::getMutableUpdateEntry(
-    const common::Id& id, std::shared_ptr<const Revision>** result) {
+    const dmap_common::Id& id, std::shared_ptr<const Revision>** result) {
   CHECK_NOTNULL(result);
   // Is there already a corresponding entry in the update map?
   UpdateMap::iterator existing_entry = updates_.find(id);
@@ -145,12 +145,12 @@ void DeltaView::checkedCommitLocked(
     std::cout << "Updating " << updates_.size() << " items" << std::endl;
   }
 
-  for (const std::pair<const common::Id, std::shared_ptr<Revision> >& item :
+  for (const std::pair<const dmap_common::Id, std::shared_ptr<Revision> >& item :
        updates_) {
     locked_chunk->updateLocked(commit_time, item.second);
   }
 
-  for (const std::pair<const common::Id, std::shared_ptr<Revision> >& item :
+  for (const std::pair<const dmap_common::Id, std::shared_ptr<Revision> >& item :
        removes_) {
     locked_chunk->removeLocked(commit_time, item.second);
   }

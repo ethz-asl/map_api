@@ -9,7 +9,7 @@
 #include <vector>
 
 #include <google/protobuf/io/gzip_stream.h>
-#include <multiagent-mapping-common/unique-id.h>
+#include <dmap-common/unique-id.h>
 
 #include "dmap/logical-time.h"
 
@@ -25,7 +25,7 @@ typedef std::pair<common::Id, dmap::LogicalTime> RevisionStamp;
 namespace std {
 template <>
 struct hash<dmap::RevisionStamp> {
-  std::hash<common::Id> id_hasher;
+  std::hash<dmap_common::Id> id_hasher;
   std::hash<dmap::LogicalTime> time_hasher;
   std::size_t operator()(const dmap::RevisionStamp& stamp) const {
     return id_hasher(stamp.first) ^ time_hasher(stamp.second);
@@ -49,7 +49,7 @@ class ProtoTableFileIO {
   ~ProtoTableFileIO();
   bool storeTableContents(const dmap::LogicalTime& time);
   bool storeTableContents(const ConstRevisionMap& revisions,
-                          const std::vector<common::Id>& ids_to_store);
+                          const std::vector<dmap_common::Id>& ids_to_store);
   bool restoreTableContents();
   bool restoreTableContents(
       dmap::Transaction* transaction,

@@ -14,7 +14,7 @@ DMAP_STRING_MESSAGE(RpcCommandRegisterer::kCommandRequest);
 DMAP_PROTO_MESSAGE(RpcCommandRegisterer::kCommandResponse,
                    proto::CommandRpcResponse);
 
-RpcCommandRegisterer::RpcCommandRegisterer() : common::CommandRegisterer() {
+RpcCommandRegisterer::RpcCommandRegisterer() : dmap_common::CommandRegisterer() {
   Hub::instance().registerHandler(
       kCommandResponse,
       std::bind(&RpcCommandRegisterer::handleStatusRpc, this,
@@ -37,7 +37,7 @@ int RpcCommandRegisterer::commandRpc(const std::string& command,
   request.impose<kCommandRequest>(command);
   Hub::instance().request(peer, &request, &response);
   CHECK(response.isType<Message::kAck>());
-  return common::kSuccess;
+  return dmap_common::kSuccess;
 }
 
 }  // namespace dmap

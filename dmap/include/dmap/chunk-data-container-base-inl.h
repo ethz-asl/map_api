@@ -15,7 +15,7 @@ std::shared_ptr<const Revision> ChunkDataContainerBase::getById(
   std::lock_guard<std::mutex> lock(access_mutex_);
   CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
   CHECK(id.isValid()) << "Supplied invalid ID";
-  common::Id dmap_id;
+  dmap_common::Id dmap_id;
   aslam::HashId hash_id;
   id.toHashId(&hash_id);
   dmap_id.fromHashId(hash_id);
@@ -65,10 +65,10 @@ void ChunkDataContainerBase::getAvailableIds(const LogicalTime& time,
   CHECK(isInitialized()) << "Attempted to getById from non-initialized table";
   CHECK_NOTNULL(ids);
   ids->clear();
-  std::vector<common::Id> dmap_ids;
+  std::vector<dmap_common::Id> dmap_ids;
   getAvailableIdsImpl(time, &dmap_ids);
   ids->reserve(dmap_ids.size());
-  for (const common::Id& id : dmap_ids) {
+  for (const dmap_common::Id& id : dmap_ids) {
     ids->emplace_back(id.toIdType<IdType>());
   }
 }

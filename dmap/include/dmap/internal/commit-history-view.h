@@ -21,18 +21,18 @@ class CommitHistoryView : public OverridingViewBase {
   // ==================
   // VIEWBASE INTERFACE
   // ==================
-  virtual bool has(const common::Id& id) const override;
-  virtual std::shared_ptr<const Revision> get(const common::Id& id) const
+  virtual bool has(const dmap_common::Id& id) const override;
+  virtual std::shared_ptr<const Revision> get(const dmap_common::Id& id) const
       override;
   virtual void dump(ConstRevisionMap* result) const override;
-  virtual void getAvailableIds(std::unordered_set<common::Id>* result) const
+  virtual void getAvailableIds(std::unordered_set<dmap_common::Id>* result) const
       override;
   virtual void discardKnownUpdates(UpdateTimes* update_times) const override;
 
   // ============================
   // OVERRIDINGVIEWBASE INTERFACE
   // ============================
-  virtual bool suppresses(const common::Id& id) const override;
+  virtual bool suppresses(const dmap_common::Id& id) const override;
 
  private:
   const std::unordered_map<common::Id, LogicalTime>& commit_history_;

@@ -18,10 +18,10 @@ class WorkspaceTest : public NetTableFixture {
     // Add a trackee table.
     std::shared_ptr<TableDescriptor> descriptor(new TableDescriptor);
     descriptor->setName(kTableName2);
-    descriptor->addField<common::Id>(kParent);
+    descriptor->addField<dmap_common::Id>(kParent);
     table_2_ = NetTableManager::instance().addTable(descriptor);
     table_2_->pushNewChunkIdsToTracker(table_, [](const Revision& revision) {
-      common::Id result;
+      dmap_common::Id result;
       revision.get(kParent, &result);
       return result;
     });
@@ -33,8 +33,8 @@ class WorkspaceTest : public NetTableFixture {
       insert(42, &tracker_id_[i], &transaction);
       std::shared_ptr<Revision> revision = table_2_->getTemplate();
       revision->set(kParent, tracker_id_[i]);
-      common::Id trackee_id;
-      common::generateId(&trackee_id);
+      dmap_common::Id trackee_id;
+      dmap_common::generateId(&trackee_id);
       revision->setId(trackee_id);
       transaction.insert(table_2_, table_2_->newChunk(), revision);
     }
@@ -44,13 +44,13 @@ class WorkspaceTest : public NetTableFixture {
   size_t numAvailableIds(NetTable* table, Transaction* transaction) const {
     CHECK_NOTNULL(table);
     CHECK_NOTNULL(transaction);
-    std::vector<common::Id> ids;
+    std::vector<dmap_common::Id> ids;
     transaction->getAvailableIds(table, &ids);
     return ids.size();
   }
 
   NetTable* table_2_;
-  common::Id tracker_id_[2];
+  dmap_common::Id tracker_id_[2];
 
  private:
   const std::string kTableName2 = "workspace_test_table";

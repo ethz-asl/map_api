@@ -4,9 +4,9 @@
 #include <dmap/logical-time.h>
 #include <dmap/net-table-manager.h>
 #include <dmap/trackee-multimap.h>
-#include <multiagent-mapping-common/backtrace.h>
-#include <multiagent-mapping-common/breakpoints.h>
-#include <multiagent-mapping-common/unique-id.h>
+#include <dmap-common/backtrace.h>
+#include <dmap-common/breakpoints.h>
+#include <dmap-common/unique-id.h>
 
 namespace dmap {
 
@@ -73,7 +73,7 @@ bool Revision::operator==(const Revision& other) const {
   if (!structureMatch(other)) {
     return false;
   }
-  if (other.getId<common::Id>() != getId<common::Id>()) {
+  if (other.getId<dmap_common::Id>() != getId<dmap_common::Id>()) {
     return false;
   }
   if (other.getInsertTime() != getInsertTime()) {
@@ -150,7 +150,7 @@ bool Revision::areAllCustomFieldsEqual(const Revision& other) const {
 std::string Revision::dumpToString() const {
   std::ostringstream dump_ss;
   dump_ss << "{" << std::endl;
-  dump_ss << "\tid:" << getId<common::Id>() << std::endl;
+  dump_ss << "\tid:" << getId<dmap_common::Id>() << std::endl;
   dump_ss << "\tinsert_time:" << getInsertTime() << std::endl;
   if (underlying_revision_->has_chunk_id()) {
     dump_ss << "\tchunk_id:" << getChunkId() << std::endl;
@@ -223,7 +223,7 @@ bool Revision::defaultAutoMergePolicy(const Revision& conflicting_revision,
     }
   }
 
-  common::Id id, conflicting_id;
+  dmap_common::Id id, conflicting_id;
   id.deserialize(revision_at_hand->underlying_revision_->id());
   conflicting_id.deserialize(conflicting_revision.underlying_revision_->id());
   CHECK_EQ(id, conflicting_id);

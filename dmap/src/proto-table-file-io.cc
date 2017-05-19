@@ -44,7 +44,7 @@ bool ProtoTableFileIO::storeTableContents(const dmap::LogicalTime& time) {
   dmap::Transaction transaction(time);
   ConstRevisionMap revisions;
   transaction.dumpActiveChunks(table_, &revisions);
-  std::vector<common::Id> ids_to_store;
+  std::vector<dmap_common::Id> ids_to_store;
   ids_to_store.reserve(revisions.size());
   for (const ConstRevisionMap::value_type& value : revisions) {
     ids_to_store.push_back(value.first);
@@ -53,11 +53,11 @@ bool ProtoTableFileIO::storeTableContents(const dmap::LogicalTime& time) {
 }
 bool ProtoTableFileIO::storeTableContents(
     const ConstRevisionMap& revisions,
-    const std::vector<common::Id>& ids_to_store) {
+    const std::vector<dmap_common::Id>& ids_to_store) {
   CHECK(file_.is_open());
   CHECK(open_mode_ & std::ios_base::out);
 
-  for (const common::Id& revision_id : ids_to_store) {
+  for (const dmap_common::Id& revision_id : ids_to_store) {
     ConstRevisionMap::const_iterator it = revisions.find(revision_id);
     CHECK(it != revisions.end());
     CHECK(it->second != nullptr);
@@ -65,7 +65,7 @@ bool ProtoTableFileIO::storeTableContents(
     const Revision& revision = *it->second;
 
     RevisionStamp current_item_stamp;
-    current_item_stamp.first = revision.getId<common::Id>();
+    current_item_stamp.first = revision.getId<dmap_common::Id>();
     CHECK_EQ(current_item_stamp.first, revision_id);
 
     current_item_stamp.second = revision.getModificationTime();
@@ -204,7 +204,7 @@ bool ProtoTableFileIO::restoreTableContents(
     std::shared_ptr<Revision> revision =
         Revision::fromProtoString(input_string);
 
-    common::Id chunk_id = revision->getChunkId();
+    dmap_common::Id chunk_id = revision->getChunkId();
     ChunkBase* chunk = nullptr;
     {
       std::unique_lock<std::mutex> lock(*existing_chunks_mutex);

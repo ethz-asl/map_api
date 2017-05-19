@@ -1,7 +1,7 @@
 #include "dmap/spatial-index.h"
 
-#include <multiagent-mapping-common/conversions.h>
-#include <multiagent-mapping-common/unique-id.h>
+#include <dmap-common/conversions.h>
+#include <dmap-common/unique-id.h>
 
 #include "dmap/hub.h"
 #include "dmap/message.h"
@@ -74,7 +74,7 @@ void SpatialIndex::create() {
   }
 }
 
-void SpatialIndex::announceChunk(const common::Id& chunk_id,
+void SpatialIndex::announceChunk(const dmap_common::Id& chunk_id,
                                  const BoundingBox& bounding_box) {
   std::vector<Cell> affected_cells;
   getCellsInBoundingBox(bounding_box, &affected_cells);
@@ -91,7 +91,7 @@ void SpatialIndex::announceChunk(const common::Id& chunk_id,
 }
 
 void SpatialIndex::seekChunks(const BoundingBox& bounding_box,
-                              common::IdSet* chunk_ids) {
+                              dmap_common::IdSet* chunk_ids) {
   CHECK_NOTNULL(chunk_ids);
   std::vector<Cell> affected_cells;
   getCellsInBoundingBox(bounding_box, &affected_cells);
@@ -649,7 +649,7 @@ void SpatialIndex::localUpdateCallback(const std::string& key,
   SpatialIndexCellData old_data, new_data;
   old_data.ParseFromString(old_value);
   new_data.ParseFromString(new_value);
-  common::IdList new_chunks;
+  dmap_common::IdList new_chunks;
   if (new_data.chunkIdSetDiff(old_data, &new_chunks)) {
     for (int i = 0; i < new_data.listeners_size(); ++i) {
       // TODO(tcies) Prune non-responding listeners.
@@ -664,11 +664,11 @@ const char SpatialIndex::kTriggerRequest[] =
 DMAP_PROTO_MESSAGE(SpatialIndex::kTriggerRequest, proto::SpatialIndexTrigger);
 void SpatialIndex::sendTriggerNotification(const PeerId& peer,
                                            const size_t position,
-                                           const common::IdList& new_chunks) {
+                                           const dmap_common::IdList& new_chunks) {
   proto::SpatialIndexTrigger trigger_data;
   trigger_data.set_table_name(table_name_);
   trigger_data.set_position(position);
-  for (const common::Id& id : new_chunks) {
+  for (const dmap_common::Id& id : new_chunks) {
     id.serialize(trigger_data.add_new_chunks());
   }
 

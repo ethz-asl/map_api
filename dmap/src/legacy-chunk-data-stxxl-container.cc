@@ -12,7 +12,7 @@ bool LegacyChunkDataStxxlContainer::initImpl() { return true; }
 bool LegacyChunkDataStxxlContainer::insertImpl(
     const Revision::ConstPtr& query) {
   CHECK(query != nullptr);
-  common::Id id = query->getId<common::Id>();
+  dmap_common::Id id = query->getId<dmap_common::Id>();
   STXXLHistoryMap::iterator found = data_.find(id);
   if (found != data_.end()) {
     return false;
@@ -40,7 +40,7 @@ bool LegacyChunkDataStxxlContainer::bulkInsertImpl(
 
 bool LegacyChunkDataStxxlContainer::patchImpl(const Revision::ConstPtr& query) {
   CHECK(query != nullptr);
-  common::Id id = query->getId<common::Id>();
+  dmap_common::Id id = query->getId<dmap_common::Id>();
   LogicalTime time = query->getUpdateTime();
   STXXLHistoryMap::iterator found = data_.find(id);
   if (found == data_.end()) {
@@ -62,7 +62,7 @@ bool LegacyChunkDataStxxlContainer::patchImpl(const Revision::ConstPtr& query) {
 }
 
 Revision::ConstPtr LegacyChunkDataStxxlContainer::getByIdImpl(
-    const common::Id& id, const LogicalTime& time) const {
+    const dmap_common::Id& id, const LogicalTime& time) const {
   STXXLHistoryMap::const_iterator found = data_.find(id);
   if (found == data_.end()) {
     return std::shared_ptr<Revision>();
@@ -83,14 +83,14 @@ void LegacyChunkDataStxxlContainer::findByRevisionImpl(
   dest->clear();
   forEachItemFoundAtTime(
       key, value_holder, time,
-      [&dest](const common::Id& id, const Revision::ConstPtr& item) {
+      [&dest](const dmap_common::Id& id, const Revision::ConstPtr& item) {
         CHECK(dest->find(id) == dest->end());
         CHECK(dest->emplace(id, item).second);
       });
 }
 
 void LegacyChunkDataStxxlContainer::getAvailableIdsImpl(
-    const LogicalTime& time, std::vector<common::Id>* ids) const {
+    const LogicalTime& time, std::vector<dmap_common::Id>* ids) const {
   CHECK_NOTNULL(ids);
   ids->clear();
   std::vector<std::pair<common::Id, CRURevisionInformation> > ids_and_info;
@@ -120,7 +120,7 @@ int LegacyChunkDataStxxlContainer::countByRevisionImpl(
   int count = 0;
   forEachItemFoundAtTime(
       key, value_holder, time,
-      [&count](const common::Id& /*id*/,
+      [&count](const dmap_common::Id& /*id*/,
                const Revision::ConstPtr& /*item*/) { ++count; });
   return count;
 }
@@ -153,7 +153,7 @@ void LegacyChunkDataStxxlContainer::findHistoryByRevisionImpl(
   trimToTime(time, dest);
 }
 
-void LegacyChunkDataStxxlContainer::chunkHistory(const common::Id& chunk_id,
+void LegacyChunkDataStxxlContainer::chunkHistory(const dmap_common::Id& chunk_id,
                                                  const LogicalTime& time,
                                                  HistoryMap* dest) const {
   CHECK_NOTNULL(dest)->clear();
@@ -172,7 +172,7 @@ void LegacyChunkDataStxxlContainer::chunkHistory(const common::Id& chunk_id,
   trimToTime(time, dest);
 }
 
-void LegacyChunkDataStxxlContainer::itemHistoryImpl(const common::Id& id,
+void LegacyChunkDataStxxlContainer::itemHistoryImpl(const dmap_common::Id& id,
                                                     const LogicalTime& time,
                                                     History* dest) const {
   CHECK_NOTNULL(dest)->clear();
@@ -197,7 +197,7 @@ void LegacyChunkDataStxxlContainer::clearImpl() {
 
 inline void LegacyChunkDataStxxlContainer::forEachItemFoundAtTime(
     int key, const Revision& value_holder, const LogicalTime& time,
-    const std::function<void(const common::Id& id,
+    const std::function<void(const dmap_common::Id& id,
                              const Revision::ConstPtr& item)>& action) const {
   for (const STXXLHistoryMap::value_type& pair : data_) {
     STXXLHistory::const_iterator latest = pair.second.latestAt(time);
@@ -214,8 +214,8 @@ inline void LegacyChunkDataStxxlContainer::forEachItemFoundAtTime(
 }
 
 inline void LegacyChunkDataStxxlContainer::forChunkItemsAtTime(
-    const common::Id& chunk_id, const LogicalTime& time,
-    const std::function<void(const common::Id& id,
+    const dmap_common::Id& chunk_id, const LogicalTime& time,
+    const std::function<void(const dmap_common::Id& id,
                              const Revision::ConstPtr& item)>& action) const {
   for (const STXXLHistoryMap::value_type& pair : data_) {
     if (pair.second.begin()->chunk_id_ == chunk_id) {

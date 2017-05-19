@@ -8,7 +8,7 @@
 #include <thread>
 #include <unordered_map>
 
-#include <aslam/common/reader-writer-lock.h>
+#include <dmap-common/reader-writer-lock.h>
 #include <gtest/gtest_prod.h>
 
 #include "dmap/peer-id.h"
@@ -203,7 +203,7 @@ class ChordIndex {
   SuccessorListItem successor_;
   std::shared_ptr<ChordPeer> predecessor_;
 
-  aslam::ReaderWriterMutex peer_lock_;
+  dmap_common::ReaderWriterMutex peer_lock_;
 
   FRIEND_TEST(ChordIndexTestInitialized, onePeerJoin);
   friend class ChordIndexTestInitialized;
@@ -226,7 +226,7 @@ class ChordIndex {
 
   // TODO(tcies) data stats: Has it already been requested?
   DataMap data_;
-  aslam::ReaderWriterMutex data_lock_;
+  dmap_common::ReaderWriterMutex data_lock_;
 
   std::mutex node_lock_;
   bool node_locked_ = false;

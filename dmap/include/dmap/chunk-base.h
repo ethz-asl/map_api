@@ -9,7 +9,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include <multiagent-mapping-common/unique-id.h>
+#include <dmap-common/unique-id.h>
 
 #include "dmap/chunk-data-container-base.h"
 
@@ -32,12 +32,12 @@ class ChunkBase {
 
  public:
   virtual ~ChunkBase();
-  void initializeNew(const common::Id& id,
+  void initializeNew(const dmap_common::Id& id,
                      const std::shared_ptr<TableDescriptor>& descriptor);
   virtual void initializeNewImpl(
-      const common::Id& id,
+      const dmap_common::Id& id,
       const std::shared_ptr<TableDescriptor>& descriptor) = 0;
-  common::Id id() const;
+  dmap_common::Id id() const;
 
   virtual void dumpItems(const LogicalTime& time,
                          ConstRevisionMap* items) const = 0;
@@ -85,8 +85,8 @@ class ChunkBase {
   // Update: First locks chunk, then sends update to all peers for patching.
   virtual void update(const std::shared_ptr<Revision>& item) = 0;
 
-  typedef std::function<void(const common::IdSet insertions,
-                             const common::IdSet updates)> TriggerCallback;
+  typedef std::function<void(const dmap_common::IdSet insertions,
+                             const dmap_common::IdSet updates)> TriggerCallback;
   // Starts tracking insertions / updates after a lock request. The callback is
   // then called at an unlock request. The tracked insertions and updates are
   // passed. Note: If the sets are empty, the lock has probably been acquired
@@ -101,13 +101,13 @@ class ChunkBase {
   // The following three MUST be called in the right places in order for
   // triggers to work:
   // After remote insert.
-  void handleCommitInsert(const common::Id& inserted_id);
+  void handleCommitInsert(const dmap_common::Id& inserted_id);
   // After remote update.
-  void handleCommitUpdate(const common::Id& updated_id);
+  void handleCommitUpdate(const dmap_common::Id& updated_id);
   // After the end of a remote commit.
   void handleCommitEnd();
 
-  common::Id id_;
+  dmap_common::Id id_;
   std::unique_ptr<ChunkDataContainerBase> data_container_;
 
  private:
@@ -124,13 +124,13 @@ class ChunkBase {
   void leaveOnceShared();
   virtual void awaitShared() = 0;
 
-  void triggerWrapper(const std::unordered_set<common::Id>&& insertions,
-                      const std::unordered_set<common::Id>&& updates);
+  void triggerWrapper(const std::unordered_set<dmap_common::Id>&& insertions,
+                      const std::unordered_set<dmap_common::Id>&& updates);
 
   std::vector<TriggerCallback> triggers_;
   mutable std::mutex trigger_mutex_;
   mutable aslam::ReaderWriterMutex triggers_are_active_while_has_readers_;
-  std::unordered_set<common::Id> trigger_insertions_, trigger_updates_;
+  std::unordered_set<dmap_common::Id> trigger_insertions_, trigger_updates_;
 };
 
 }  // namespace dmap

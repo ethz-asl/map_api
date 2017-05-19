@@ -73,7 +73,7 @@ void NetTableTransaction::remove(const IdType& id) {
 
 template <typename IdType>
 ChunkBase* NetTableTransaction::chunkOf(const IdType& id) const {
-  common::Id common_id;
+  dmap_common::Id common_id;
   id.toHashId(&common_id);
   ItemIdToChunkIdMap::const_iterator found =
       item_id_to_chunk_id_map_.find(common_id);
@@ -97,7 +97,7 @@ void NetTableTransaction::overrideTrackerIdentificationMethod(
       << "however not used for pushing new chunk ids.";
   auto determine_dmap_tracker_id = [how_to_determine_tracker](
       const Revision& trackee) {
-    return static_cast<common::Id>(how_to_determine_tracker(trackee));
+    return static_cast<dmap_common::Id>(how_to_determine_tracker(trackee));
   };
 
   push_new_chunk_ids_to_tracker_overrides_[tracker_table] =

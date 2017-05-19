@@ -5,8 +5,8 @@
 #include <vector>
 
 #include <gtest/gtest_prod.h>
-#include <multiagent-mapping-common/mapped-container-base.h>
-#include <multiagent-mapping-common/monitor.h>
+#include <dmap-common/mapped-container-base.h>
+#include <dmap-common/monitor.h>
 
 #include "dmap/cache-base.h"
 #include "dmap/internal/threadsafe-object-and-metadata-cache.h"
@@ -18,10 +18,10 @@ namespace dmap {
 // This is a threadsafe MappedContainerBase implementation intended for use by
 // dmap applications. It can be obtained using Transaction::createCache().
 template <typename IdType, typename ObjectType>
-class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
+class ThreadsafeCache : public dmap_common::MappedContainerBase<IdType, ObjectType>,
                         public CacheBase {
  public:
-  typedef common::MappedContainerBase<IdType, ObjectType> Base;
+  typedef dmap_common::MappedContainerBase<IdType, ObjectType> Base;
   // ==========================
   // MAPPED CONTAINER INTERFACE
   // ==========================
@@ -53,7 +53,7 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
 
   virtual void erase(const IdType& id) {
     cache_.erase(id);
-    typename common::Monitor<std::unordered_set<IdType>>::ThreadSafeAccess&&
+    typename dmap_common::Monitor<std::unordered_set<IdType>>::ThreadSafeAccess&&
         insertions = insertions_.get();
     typename std::unordered_set<IdType>::iterator found = insertions->find(id);
     if (found != insertions->end()) {
@@ -72,7 +72,7 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
   }
 
   virtual void discardCachedInsertions() {
-    typename common::Monitor<std::unordered_set<IdType>>::ThreadSafeAccess&&
+    typename dmap_common::Monitor<std::unordered_set<IdType>>::ThreadSafeAccess&&
         insertions = insertions_.get();
     for (const IdType& id : *insertions) {
       cache_.discardCached(id);
@@ -128,7 +128,7 @@ class ThreadsafeCache : public common::MappedContainerBase<IdType, ObjectType>,
   ChunkManagerChunkSize chunk_manager_;
   NetTableTransactionInterface<IdType> transaction_interface_;
   ThreadsafeObjectAndMetadataCache<IdType, ObjectType> cache_;
-  common::Monitor<std::unordered_set<IdType>> insertions_;
+  dmap_common::Monitor<std::unordered_set<IdType>> insertions_;
 };
 
 }  // namespace dmap

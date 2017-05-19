@@ -2,9 +2,8 @@
 #include <fstream>  // NOLINT
 #include <unordered_set>
 
-#include <aslam/common/timer.h>
-#include <multiagent-mapping-common/backtrace.h>
-#include <multiagent-mapping-common/conversions.h>
+#include <dmap-common/backtrace.h>
+#include <dmap-common/conversions.h>
 
 #include "./core.pb.h"
 #include "./chunk.pb.h"
@@ -61,7 +60,7 @@ void LegacyChunk::fillMetadata<proto::ChunkRequestMetadata>(
 
 LegacyChunk::~LegacyChunk() {}
 
-bool LegacyChunk::init(const common::Id& id,
+bool LegacyChunk::init(const dmap_common::Id& id,
                        std::shared_ptr<TableDescriptor> descriptor,
                        bool initialize) {
   CHECK(descriptor);
@@ -79,11 +78,11 @@ bool LegacyChunk::init(const common::Id& id,
 }
 
 void LegacyChunk::initializeNewImpl(
-    const common::Id& id, const std::shared_ptr<TableDescriptor>& descriptor) {
+    const dmap_common::Id& id, const std::shared_ptr<TableDescriptor>& descriptor) {
   CHECK(init(id, descriptor, true));
 }
 
-bool LegacyChunk::init(const common::Id& id,
+bool LegacyChunk::init(const dmap_common::Id& id,
                        const proto::InitRequest& init_request,
                        const PeerId& sender,
                        std::shared_ptr<TableDescriptor> descriptor) {
@@ -330,7 +329,7 @@ void LegacyChunk::updateLocked(const LogicalTime& time,
   CHECK(item != nullptr);
   CHECK_EQ(id(), item->getChunkId())
       << "Corrupted item metadata for item with id "
-      << item->getId<common::Id>();
+      << item->getId<dmap_common::Id>();
   proto::PatchRequest update_request;
   fillMetadata(&update_request);
   Message request;
@@ -373,12 +372,10 @@ bool LegacyChunk::addPeer(const PeerId& peer) {
     return false;
   }
   prepareInitRequest(&request);
-  aslam::timing::Timer timer("init_request");
   if (!Hub::instance().ackRequest(peer, &request)) {
     LOG(WARNING) << peer << " did not accept init request!";
     return false;
   }
-  timer.Stop();
   // new peer is not ready to handle requests as the rest of the swarm. Still,
   // one last message is sent to the old swarm, notifying it of the new peer
   // and thus the new configuration:
@@ -595,7 +592,7 @@ void LegacyChunk::distributedUnlock() const {
       } else {
         if (FLAGS_blame_trigger) {
           LOG(WARNING) << "Unlock from here may cause triggers for " << id();
-          LOG(INFO) << common::backtrace();
+          LOG(INFO) << dmap_common::backtrace();
         }
         bool self_unlocked = false;
         // NB peers can only change if someone else has locked the chunk
@@ -773,7 +770,7 @@ void LegacyChunk::handleInsertRequest(const std::shared_ptr<Revision>& item,
   leave_lock_.releaseReadLock();
 
   // TODO(tcies) what if leave during trigger?
-  common::Id id = item->getId<common::Id>();
+  dmap_common::Id id = item->getId<dmap_common::Id>();
   handleCommitInsert(id);
 }
 
@@ -895,7 +892,7 @@ void LegacyChunk::handleUpdateRequest(const std::shared_ptr<Revision>& item,
   response->ack();
 
   // TODO(tcies) what if leave during trigger?
-  common::Id id = item->getId<common::Id>();
+  dmap_common::Id id = item->getId<dmap_common::Id>();
   handleCommitUpdate(id);
 }
 

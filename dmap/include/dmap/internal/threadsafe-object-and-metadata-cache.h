@@ -3,8 +3,8 @@
 
 #include <string>
 
-#include <multiagent-mapping-common/breakpoints.h>
-#include <multiagent-mapping-common/threadsafe-cache.h>
+#include <dmap-common/breakpoints.h>
+#include <dmap-common/threadsafe-cache.h>
 
 #include "dmap/cache-base.h"
 #include "dmap/internal/object-and-metadata.h"
@@ -14,10 +14,10 @@ namespace dmap {
 
 template <typename IdType, typename ObjectType>
 class ThreadsafeObjectAndMetadataCache
-    : public common::ThreadsafeCache<IdType, std::shared_ptr<const Revision>,
+    : public dmap_common::ThreadsafeCache<IdType, std::shared_ptr<const Revision>,
                                      ObjectAndMetadata<ObjectType>> {
  public:
-  typedef common::ThreadsafeCache<IdType, std::shared_ptr<const Revision>,
+  typedef dmap_common::ThreadsafeCache<IdType, std::shared_ptr<const Revision>,
                                   ObjectAndMetadata<ObjectType>> BaseType;
 
   virtual ~ThreadsafeObjectAndMetadataCache() {}

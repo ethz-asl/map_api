@@ -6,13 +6,13 @@
 #include <unistd.h>
 #include <vector>
 
-#include <multiagent-mapping-common/path-utility.h>
+#include <dmap-common/path-utility.h>
 
 namespace dmap {
 namespace internal {
 
 NetworkDataLog::NetworkDataLog(const std::string& prefix)
-    : logger_(prefix + "_" + common::GenerateDateStringFromCurrentTime() + "_" +
+    : logger_(prefix + "_" + dmap_common::GenerateDateStringFromCurrentTime() + "_" +
               std::to_string(getpid())) {}
 
 void NetworkDataLog::log(const size_t bytes, const std::string& type) {
