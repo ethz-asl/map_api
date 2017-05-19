@@ -3,7 +3,7 @@ import "id.proto";
 
 message ChunkRequestMetadata {
   optional string table = 1;
-  optional common.proto.Id chunk_id = 2;
+  optional dmap_common.proto.Id chunk_id = 2;
 }
 
 message PatchRequest {

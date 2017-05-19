@@ -26,7 +26,7 @@ DEFINE_uint64(subprocess_id, 0,
 
 DEFINE_bool(multiprocess_verbose, false, "Print stdout of subprocesses.");
 
-namespace common {
+namespace dmap_common {
 // adapted from
 // http://stackoverflow.com/questions/5525668/how-to-implement-readlink-to-find-the-path
 std::string MultiprocessFixture::getSelfpath() {
@@ -166,6 +166,6 @@ void MultiprocessFixture::TearDown() {
     harvest();
   }
 }
-}  // namespace common
+}  // namespace dmap_common
 
 #endif  // MULTIPROCESS_GTEST_MULTIPROCESS_FIXTURE_INL_H_

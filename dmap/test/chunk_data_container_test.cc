@@ -1,10 +1,9 @@
 #include <string>
 #include <type_traits>
 
-#include <dmap-common/timer.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
-#include <multiagent-mapping-common/unique-id.h>
+#include <dmap-common/unique-id.h>
 
 #include "dmap/core.h"
 #include "dmap/legacy-chunk-data-ram-container.h"
@@ -335,20 +334,10 @@ TYPED_TEST(UpdateFieldTestWithInit, UpdateRead) {
 TYPED_TEST(IntTestWithInit, CreateReadThousand) {
   for (int i = 0; i < 1000; ++i) {
     dmap_common::Id inserted = this->fillRevision(i);
-    dmap_common::timing::Timer insert_timer(
-        "insert - " + std::string(::testing::UnitTest::GetInstance()
-                                      ->current_test_info()
-                                      ->test_case_name()));
     EXPECT_TRUE(this->insertRevision());
-    insert_timer.Stop();
 
-    dmap_common::timing::Timer read_timer(
-        "read - " + std::string(::testing::UnitTest::GetInstance()
-                                    ->current_test_info()
-                                    ->test_case_name()));
     std::shared_ptr<const Revision> rowFromTable =
         this->table_->getById(inserted, LogicalTime::sample());
-    read_timer.Stop();
     ASSERT_TRUE(static_cast<bool>(rowFromTable));
     int64_t dataFromTable;
     rowFromTable->get(
@@ -356,7 +345,6 @@ TYPED_TEST(IntTestWithInit, CreateReadThousand) {
         &dataFromTable);
     EXPECT_EQ(i, dataFromTable);
   }
-  LOG(INFO) << dmap_common::timing::Timing::Print();
 }
 
 TYPED_TEST(CruMapIntTestWithInit, HistoryAtTime) {

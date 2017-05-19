@@ -23,22 +23,22 @@ class UniqueId;
 }  // namespace dmap_common
 
 #define UNIQUE_ID_DEFINE_ID(TypeName)                           \
-  class TypeName : public common::UniqueId<TypeName> {          \
+  class TypeName : public dmap_common::UniqueId<TypeName> {          \
    public:                                                      \
     TypeName() = default;                                       \
-    explicit inline TypeName(const common::proto::Id& id_field) \
-        : common::UniqueId<TypeName>(id_field) {}               \
+    explicit inline TypeName(const dmap_common::proto::Id& id_field) \
+        : dmap_common::UniqueId<TypeName>(id_field) {}               \
   };                                                            \
   typedef std::vector<TypeName> TypeName##List;                 \
   typedef std::unordered_set<TypeName> TypeName##Set;           \
   extern void defineId##__FILE__##__LINE__(void)
 
 #define UNIQUE_ID_DEFINE_IMMUTABLE_ID(TypeName, BaseTypeName)         \
-  class TypeName : public common::UniqueId<TypeName> {                \
+  class TypeName : public dmap_common::UniqueId<TypeName> {                \
    public:                                                            \
     TypeName() = default;                                             \
-    explicit inline TypeName(const common::proto::Id& id_field)       \
-        : common::UniqueId<TypeName>(id_field) {}                     \
+    explicit inline TypeName(const dmap_common::proto::Id& id_field)       \
+        : dmap_common::UniqueId<TypeName>(id_field) {}                     \
     inline void from##BaseTypeName(const BaseTypeName& landmark_id) { \
       HashId hash_id;                                          \
       landmark_id.toHashId(&hash_id);                                 \
@@ -91,14 +91,14 @@ void generateIdFromInt(unsigned int idx, IdType* id) {
 class Id : public HashId {
  public:
   Id() = default;
-  explicit inline Id(const common::proto::Id& id_field) {
+  explicit inline Id(const dmap_common::proto::Id& id_field) {
     deserialize(id_field);
   }
-  inline void deserialize(const common::proto::Id& id_field) {
+  inline void deserialize(const dmap_common::proto::Id& id_field) {
     CHECK_EQ(id_field.uint_size(), 2);
     fromUint64(id_field.uint().data());
   }
-  inline void serialize(common::proto::Id* id_field) const {
+  inline void serialize(dmap_common::proto::Id* id_field) const {
     CHECK_NOTNULL(id_field)->clear_uint();
     id_field->mutable_uint()->Add();
     id_field->mutable_uint()->Add();
@@ -129,7 +129,7 @@ class Id : public HashId {
   template <typename GenerateIdType>
   friend void generateId(GenerateIdType* id);
 
-  bool correspondsTo(const common::proto::Id& proto_id) const {
+  bool correspondsTo(const dmap_common::proto::Id& proto_id) const {
     Id corresponding(proto_id);
     return operator==(corresponding);
   }
@@ -147,7 +147,7 @@ template <typename IdType>
 class UniqueId : private Id {
  public:
   UniqueId() = default;
-  explicit inline UniqueId(const common::proto::Id& id_field) : Id(id_field) {}
+  explicit inline UniqueId(const dmap_common::proto::Id& id_field) : Id(id_field) {}
 
   using HashId::hexString;
   using HashId::fromHexString;

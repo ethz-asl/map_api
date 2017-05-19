@@ -1,4 +1,4 @@
-package common.proto;
+package dmap_common.proto;
 
 message Id {
   repeated uint64 uint = 1;

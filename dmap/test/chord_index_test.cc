@@ -4,7 +4,6 @@
 #include <utility>
 #include <vector>
 
-#include <dmap-common/timer.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest_prod.h>
@@ -18,9 +17,6 @@
 DECLARE_uint64(stabilize_us);
 
 namespace dmap {
-
-const std::string kRetrieveDataTimerTag = "retrieveData";
-const std::string kRetrieveDataTimeFile = "retrieve_time.txt";
 
 class ChordIndexTest : public MapApiFixture {
  protected:
@@ -185,17 +181,9 @@ TEST_F(ChordIndexTestInitialized, joinStabilizeAddRetrieve) {
     for (size_t i = 0; i < kNData; ++i) {
       std::string key, value, result;
       addNonLocalData(&key, &value, i);
-      dmap_common::timing::Timer timer(kRetrieveDataTimerTag);
       EXPECT_TRUE(TestChordIndex::instance().retrieveData(key, &result));
-      timer.Stop();
       EXPECT_EQ(value, result);
     }
-    std::ofstream file(kRetrieveDataTimeFile, std::ios::out);
-    file << dmap_common::timing::Timing::GetMeanSeconds(kRetrieveDataTimerTag) << " "
-         << dmap_common::timing::Timing::GetMinSeconds(kRetrieveDataTimerTag) << " "
-         << dmap_common::timing::Timing::GetMaxSeconds(kRetrieveDataTimerTag)
-         << std::endl;
-    LOG(INFO) << dmap_common::timing::Timing::Print();
     IPC::barrier(ADDED_RETRIEVED, kNProcesses - 1);
   } else {
     IPC::barrier(INIT, kNProcesses - 1);

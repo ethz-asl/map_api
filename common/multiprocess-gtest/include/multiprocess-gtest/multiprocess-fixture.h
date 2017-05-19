@@ -13,7 +13,7 @@
 DECLARE_uint64(subprocess_id);
 DECLARE_bool(multiprocess_verbose);
 
-namespace common {
+namespace dmap_common {
 
 class MultiprocessFixture : public ::testing::Test {
  protected:
@@ -59,7 +59,7 @@ class MultiprocessFixture : public ::testing::Test {
   typedef std::map<uint64_t, FILE*> SubprocessMap;
   SubprocessMap subprocesses_;  // map to maintain ordering
 };
-}  // namespace common
+}  // namespace dmap_common
 
 #include "./multiprocess-fixture-inl.h"
 

@@ -62,7 +62,7 @@ void NetTableFixture::increment(NetTable* table, const dmap_common::Id& id,
   transaction->update(table, to_update);
 }
 
-common::Id NetTableFixture::insert(int value, ChunkBase* chunk) {
+dmap_common::Id NetTableFixture::insert(int value, ChunkBase* chunk) {
   dmap_common::Id insert_id;
   generateId(&insert_id);
   std::shared_ptr<Revision> to_insert = table_->getTemplate();
@@ -72,7 +72,8 @@ common::Id NetTableFixture::insert(int value, ChunkBase* chunk) {
   return insert_id;
 }
 
-common::Id NetTableFixture::insert(int value, ChunkTransaction* transaction) {
+dmap_common::Id NetTableFixture::insert(
+    int value, ChunkTransaction* transaction) {
   dmap_common::Id insert_id;
   generateId(&insert_id);
   std::shared_ptr<Revision> to_insert = table_->getTemplate();

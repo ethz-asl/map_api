@@ -3,6 +3,8 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <dmap-common/unique-id.h>
+
 #include "dmap/chunk-manager.h"
 #include "dmap/ipc.h"
 #include "dmap/test/testing-entrypoint.h"
