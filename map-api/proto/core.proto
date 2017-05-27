@@ -1,0 +1,53 @@
+package map_api.proto;
+import "id.proto";
+
+enum Type { INT32 = 1; INT64 = 2; UINT64 = 3; DOUBLE = 4; STRING = 5; 
+    BLOB = 6; HASH128 = 7; UINT32 = 8;}
+
+message TableDescriptor {
+	optional string name = 1;
+	repeated Type fields = 2;
+	repeated double spatial_extent = 3;
+	repeated uint32 spatial_subdivision = 4;
+}
+
+message TableField {
+	optional Type type = 1;
+	optional bytes blob_value = 2;
+	optional double double_value = 3;
+	optional int32 int_value = 4;
+	optional int64 long_value = 5;
+	optional uint64 unsigned_long_value = 6;
+	optional string string_value = 7;
+	optional uint32 unsigned_int_value = 8;
+}
+
+message TableChunkTracking {
+  optional string table_name = 1;
+  repeated map_api_common.proto.Id chunk_ids = 2;
+}
+
+message Revision {
+  optional map_api_common.proto.Id id = 1;
+  optional uint64 insert_time = 2;
+  optional uint64 update_time = 3;
+  optional bool removed = 4;
+  optional map_api_common.proto.Id chunk_id = 5;
+  repeated TableField custom_field_values = 6;
+  repeated TableChunkTracking chunk_tracking = 7;
+}
+
+message History {
+  repeated Revision revisions = 1;
+}
+
+message HubMessage {
+  optional string type = 1;
+  optional bytes serialized = 2;
+  optional string sender = 3;
+  optional uint64 logical_time = 4;
+}
+
+message ServerDiscoveryGetPeersResponse {
+  repeated string peers = 1;
+}
