@@ -10,6 +10,36 @@ If you use Map API in your academic work, please cite:
 }
 ```
 
+## Installation
+
+Requires ROS for building. Additionally, install [catkin tools](http://catkin-tools.readthedocs.org/en/latest/installing.html) and [vcstool](https://github.com/dirk-thomas/vcstool) if you didn't do so before:
+
+    sudo apt-get install python-catkin-tools python-vcstool
+
+[Get nonfree opencv](http://stackoverflow.com/questions/27481849/include-nonfree-opencv-2-4-10-on-ubuntu).
+    
+Create a new catkin workspace if needed. Note that the dependencies unfortunately require `--merge-devel` (replace `indigo` with your ROS distribution):
+
+    mkdir -p my_ws/src
+    cd my_ws
+    catkin config --init --mkdirs --extend /opt/ros/indigo \
+      --merge-devel --cmake-args -DCMAKE_BUILD_TYPE=Release
+    
+Clone Map API:
+
+    cd src
+    git clone git@github.com:ethz-asl/map_api.git
+    
+Clone dependencies:
+
+    vcs-import < map_api/dependencies.yaml
+
+Build:
+
+    catkin build
+
+## Overview
+
 This manual is aimed at the reader who is interested in 
 *implementing or extending* a library that uses Map API as a framework for sharing
 data between agents.
