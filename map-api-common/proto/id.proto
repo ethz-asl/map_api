@@ -1,0 +1,5 @@
+package map_api_common.proto;
+
+message Id {
+  repeated uint64 uint = 1;
+}
