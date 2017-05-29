@@ -61,6 +61,6 @@ class ServerDiscovery final : public Discovery {
   Peer server_;
 };
 
-} /* namespace map_api */
+} // namespace map_api
 
 #endif  // DMAP_SERVER_DISCOVERY_H_

@@ -47,7 +47,7 @@ class PeerId {
 typedef std::vector<PeerId> PeerIdList;
 typedef std::unordered_set<PeerId> PeerIdSet;
 
-} /* namespace map_api */
+} // namespace map_api
 
 namespace std {
 
@@ -63,6 +63,6 @@ struct hash<map_api::PeerId> {
   }
 };
 
-} /* namespace std */
+} // namespace std
 
 #endif  // DMAP_PEER_ID_H_

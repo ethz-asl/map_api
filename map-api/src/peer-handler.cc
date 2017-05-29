@@ -106,4 +106,4 @@ bool PeerHandler::undisputableBroadcast(Message* request) {
   return true;
 }
 
-} /* namespace map_api */
+} // namespace map_api

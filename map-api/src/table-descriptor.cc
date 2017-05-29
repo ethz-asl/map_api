@@ -36,4 +36,4 @@ std::shared_ptr<Revision> TableDescriptor::getTemplate() const {
   return result;
 }
 
-} /* namespace map_api */
+} // namespace map_api

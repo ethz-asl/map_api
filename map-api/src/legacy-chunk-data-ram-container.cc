@@ -183,4 +183,4 @@ inline void LegacyChunkDataRamContainer::trimToTime(const LogicalTime& time,
   }
 }
 
-} /* namespace map_api */
+} // namespace map_api

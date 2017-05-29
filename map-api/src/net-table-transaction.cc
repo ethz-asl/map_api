@@ -234,4 +234,4 @@ void NetTableTransaction::getChunkTrackers(
   }
 }
 
-} /* namespace map_api */
+} // namespace map_api

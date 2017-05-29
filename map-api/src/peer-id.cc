@@ -79,4 +79,4 @@ bool PeerId::isValid() const { return ip_port_ != kInvalidAdress; }
 
 const std::string PeerId::kInvalidAdress = "";
 
-} /* namespace map_api */
+} // namespace map_api

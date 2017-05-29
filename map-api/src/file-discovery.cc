@@ -131,4 +131,4 @@ const char FileDiscovery::kFileName[] = "mapapi-discovery.txt";
 const char FileDiscovery::kLockFileName[] = "mapapi-discovery.txt.lck";
 std::mutex FileDiscovery::mutex_;
 
-} /* namespace map_api */
+} // namespace map_api

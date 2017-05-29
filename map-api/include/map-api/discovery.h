@@ -34,6 +34,6 @@ class Discovery {
   virtual void unlock() = 0;
 };
 
-} /* namespace map_api */
+} // namespace map_api
 
 #endif  // DMAP_DISCOVERY_H_

@@ -79,6 +79,6 @@ class NetTableIndex : public ChordIndex {
   PeerHandler peers_;
 };
 
-} /* namespace map_api */
+} // namespace map_api
 
 #endif  // DMAP_NET_TABLE_INDEX_H_

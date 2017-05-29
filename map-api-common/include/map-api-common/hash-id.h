@@ -225,7 +225,7 @@ struct hash<map_api_common::HashId>{
         return hash_id.hashToSizeT();                                     \
       }                                                                   \
     };                                                                    \
-}  /* namespace std */                                                \
+}  // namespace std                                                \
     extern void DefineIDHash ## __FILE__ ## __LINE__(void)
 
 #endif // DMAP_COMMON_HASH_ID_H_

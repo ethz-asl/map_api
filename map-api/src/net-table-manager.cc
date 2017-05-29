@@ -567,4 +567,4 @@ bool NetTableManager::findTable(const std::string& table_name,
   return true;
 }
 
-} /* namespace map_api */
+} // namespace map_api

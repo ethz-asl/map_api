@@ -433,4 +433,4 @@ bool NetTableIndex::pushResponsibilitiesRpc(const PeerId& to,
   return true;
 }
 
-} /* namespace map_api */
+} // namespace map_api

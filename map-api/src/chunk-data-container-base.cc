@@ -94,4 +94,4 @@ bool ChunkDataContainerBase::getLatestUpdateTime(const map_api_common::Id& id,
   return true;
 }
 
-} /* namespace map_api */
+} // namespace map_api

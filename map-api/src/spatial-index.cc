@@ -694,4 +694,4 @@ void SpatialIndex::sendTriggerNotification(const PeerId& peer,
   CHECK(response.isOk());
 }
 
-} /* namespace map_api */
+} // namespace map_api

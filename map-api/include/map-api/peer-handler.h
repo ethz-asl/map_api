@@ -61,6 +61,6 @@ class PeerHandler {
   mutable std::condition_variable cv_;
 };
 
-} /* namespace map_api */
+} // namespace map_api
 
 #endif  // DMAP_PEER_HANDLER_H_

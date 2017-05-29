@@ -719,4 +719,4 @@ void ChordIndex::handleNotifyCommon(std::shared_ptr<ChordPeer> peer) {
   }
 }
 
-} /* namespace map_api */
+} // namespace map_api
