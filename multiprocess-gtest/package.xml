@@ -3,8 +3,7 @@
   <name>multiprocess_gtest</name>
   <version>0.0.0</version>
   <description>Enables testing a multi-process system with gtest</description>
-  <maintainer email="dev@titus-c.ch">tcies</maintainer>
-  <maintainer email="simon.lynen@gmail.com">simonlynen</maintainer>
+  <maintainer email="titus@ifi.uzh.ch">Titus Cieslewski</maintainer>
   <license>closed</license>
 
   <buildtool_depend>catkin</buildtool_depend>
