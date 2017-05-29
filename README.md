@@ -12,12 +12,10 @@ If you use Map API in your academic work, please cite:
 
 ## Installation
 
-Requires ROS for building. Additionally, install [catkin tools](http://catkin-tools.readthedocs.org/en/latest/installing.html) and [vcstool](https://github.com/dirk-thomas/vcstool) if you didn't do so before:
+Requires ROS for building. Additionally, install [catkin tools](http://catkin-tools.readthedocs.org/en/latest/installing.html) and rosinstall if you didn't do so before:
 
-    sudo apt-get install python-catkin-tools python-vcstool
+    sudo apt-get install python-catkin-tools python-rosinstall
 
-[Get nonfree opencv](http://stackoverflow.com/questions/27481849/include-nonfree-opencv-2-4-10-on-ubuntu).
-    
 Create a new catkin workspace if needed. Note that the dependencies unfortunately require `--merge-devel` (replace `indigo` with your ROS distribution):
 
     mkdir -p my_ws/src
@@ -32,7 +30,8 @@ Clone Map API:
     
 Clone dependencies:
 
-    vcs-import < map_api/dependencies.yaml
+    wstool init .
+    wstool merge map_api/dependencies.rosinstall
 
 Build:
 
