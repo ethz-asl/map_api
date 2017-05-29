@@ -3,9 +3,7 @@
   <name>map_api</name>
   <version>0.0.0</version>
   <description>Map API</description>
-
-  <maintainer email="dev@titus-c.ch">tcies</maintainer>
-  <maintainer email="anwar.quraishi@epfl.ch">aqurai</maintainer>
+  <maintainer email="titus@ifi.uzh.ch">Titus Cieslewski</maintainer>
   <license>closed</license>
 
   <buildtool_depend>catkin</buildtool_depend>
