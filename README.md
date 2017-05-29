@@ -30,8 +30,9 @@ Clone Map API:
     
 Clone dependencies:
 
-    wstool init .
+    wstool init
     wstool merge map_api/dependencies.rosinstall
+    wstool update
 
 Build:
 
