@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_COMMON_UNIQUE_ID_H_
-#define DMAP_COMMON_UNIQUE_ID_H_
+#ifndef MAP_API_COMMON_UNIQUE_ID_H_
+#define MAP_API_COMMON_UNIQUE_ID_H_
 
 #include <string>
 #include <unordered_set>
@@ -257,4 +257,4 @@ struct hash<map_api_common::Id> {
 };
 }  // namespace std
 
-#endif  // DMAP_COMMON_UNIQUE_ID_H_
+#endif  // MAP_API_COMMON_UNIQUE_ID_H_

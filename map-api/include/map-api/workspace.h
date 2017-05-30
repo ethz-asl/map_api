@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_WORKSPACE_H_
-#define DMAP_WORKSPACE_H_
+#ifndef MAP_API_WORKSPACE_H_
+#define MAP_API_WORKSPACE_H_
 
 #include <initializer_list>
 #include <string>
@@ -75,4 +75,4 @@ class Workspace {
 
 }  // namespace map_api
 
-#endif  // DMAP_WORKSPACE_H_
+#endif  // MAP_API_WORKSPACE_H_

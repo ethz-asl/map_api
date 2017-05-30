@@ -138,16 +138,16 @@ const char TestChordIndex::kFetchResponsibilitiesResponse[] =
 const char TestChordIndex::kPushResponsibilitiesRequest[] =
     "test_chord_index_push_responsibilities_response";
 
-DMAP_STRING_MESSAGE(TestChordIndex::kPeerResponse);
-DMAP_STRING_MESSAGE(TestChordIndex::kGetClosestPrecedingFingerRequest);
-DMAP_STRING_MESSAGE(TestChordIndex::kNotifyRequest);
-DMAP_PROTO_MESSAGE(TestChordIndex::kReplaceRequest, proto::ReplaceRequest);
-DMAP_PROTO_MESSAGE(TestChordIndex::kAddDataRequest, proto::AddDataRequest);
-DMAP_STRING_MESSAGE(TestChordIndex::kRetrieveDataRequest);
-DMAP_STRING_MESSAGE(TestChordIndex::kRetrieveDataResponse);
-DMAP_PROTO_MESSAGE(TestChordIndex::kFetchResponsibilitiesResponse,
+MAP_API_STRING_MESSAGE(TestChordIndex::kPeerResponse);
+MAP_API_STRING_MESSAGE(TestChordIndex::kGetClosestPrecedingFingerRequest);
+MAP_API_STRING_MESSAGE(TestChordIndex::kNotifyRequest);
+MAP_API_PROTO_MESSAGE(TestChordIndex::kReplaceRequest, proto::ReplaceRequest);
+MAP_API_PROTO_MESSAGE(TestChordIndex::kAddDataRequest, proto::AddDataRequest);
+MAP_API_STRING_MESSAGE(TestChordIndex::kRetrieveDataRequest);
+MAP_API_STRING_MESSAGE(TestChordIndex::kRetrieveDataResponse);
+MAP_API_PROTO_MESSAGE(TestChordIndex::kFetchResponsibilitiesResponse,
                    proto::FetchResponsibilitiesResponse);
-DMAP_PROTO_MESSAGE(TestChordIndex::kPushResponsibilitiesRequest,
+MAP_API_PROTO_MESSAGE(TestChordIndex::kPushResponsibilitiesRequest,
                    proto::FetchResponsibilitiesResponse);
 
 void TestChordIndex::staticInit() {

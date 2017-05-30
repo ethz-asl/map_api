@@ -33,7 +33,7 @@
 namespace map_api {
 
 UNIQUE_ID_DEFINE_ID(IntId);
-DMAP_REVISION_UNIQUE_ID(IntId);
+MAP_API_REVISION_UNIQUE_ID(IntId);
 
 template <>
 void objectFromRevision(const Revision& revision, int* result) {
@@ -140,4 +140,4 @@ TEST_F(CacheTest, GeneralTest) {
 
 }  // namespace map_api
 
-DMAP_UNITTEST_ENTRYPOINT
+MAP_API_UNITTEST_ENTRYPOINT

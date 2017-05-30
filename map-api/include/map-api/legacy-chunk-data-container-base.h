@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_LEGACY_CHUNK_DATA_CONTAINER_BASE_H_
-#define DMAP_LEGACY_CHUNK_DATA_CONTAINER_BASE_H_
+#ifndef MAP_API_LEGACY_CHUNK_DATA_CONTAINER_BASE_H_
+#define MAP_API_LEGACY_CHUNK_DATA_CONTAINER_BASE_H_
 
 #include <list>
 #include <vector>
@@ -141,4 +141,4 @@ class LegacyChunkDataContainerBase : public ChunkDataContainerBase {
 
 #include "map-api/legacy-chunk-data-container-base-inl.h"
 
-#endif  // DMAP_LEGACY_CHUNK_DATA_CONTAINER_BASE_H_
+#endif  // MAP_API_LEGACY_CHUNK_DATA_CONTAINER_BASE_H_

@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_SPATIAL_INDEX_CELL_DATA_H_
-#define DMAP_SPATIAL_INDEX_CELL_DATA_H_
+#ifndef MAP_API_SPATIAL_INDEX_CELL_DATA_H_
+#define MAP_API_SPATIAL_INDEX_CELL_DATA_H_
 
 #include <map-api-common/unique-id.h>
 
@@ -46,4 +46,4 @@ class SpatialIndexCellData : public proto::SpatialIndexCellData {
 
 }  // namespace map_api
 
-#endif  // DMAP_SPATIAL_INDEX_CELL_DATA_H_
+#endif  // MAP_API_SPATIAL_INDEX_CELL_DATA_H_

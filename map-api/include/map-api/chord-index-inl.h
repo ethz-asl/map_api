@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_CHORD_INDEX_INL_H_
-#define DMAP_CHORD_INDEX_INL_H_
+#ifndef MAP_API_CHORD_INDEX_INL_H_
+#define MAP_API_CHORD_INDEX_INL_H_
 
 #include <cstring>
 #include <vector>
@@ -44,4 +44,4 @@ ChordIndex::Key ChordIndex::hash(const DataType& data) {
 }
 }  // namespace map_api
 
-#endif  // DMAP_CHORD_INDEX_INL_H_
+#endif  // MAP_API_CHORD_INDEX_INL_H_

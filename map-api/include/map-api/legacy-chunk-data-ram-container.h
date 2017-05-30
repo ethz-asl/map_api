@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_LEGACY_CHUNK_DATA_RAM_CONTAINER_H_
-#define DMAP_LEGACY_CHUNK_DATA_RAM_CONTAINER_H_
+#ifndef MAP_API_LEGACY_CHUNK_DATA_RAM_CONTAINER_H_
+#define MAP_API_LEGACY_CHUNK_DATA_RAM_CONTAINER_H_
 
 #include <vector>
 
@@ -78,4 +78,4 @@ class LegacyChunkDataRamContainer : public LegacyChunkDataContainerBase {
 
 }  // namespace map_api
 
-#endif  // DMAP_LEGACY_CHUNK_DATA_RAM_CONTAINER_H_
+#endif  // MAP_API_LEGACY_CHUNK_DATA_RAM_CONTAINER_H_

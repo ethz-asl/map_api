@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_COMMON_HASH_ID_H_
-#define DMAP_COMMON_HASH_ID_H_
+#ifndef MAP_API_COMMON_HASH_ID_H_
+#define MAP_API_COMMON_HASH_ID_H_
 
 #include <chrono>
 #include <cstring>
@@ -236,7 +236,7 @@ struct hash<map_api_common::HashId>{
 
 
 /// \brief Define the hash function for types derived from HashId
-#define DMAP_COMMON_DEFINE_HASHID_HASH(FullyQualifiedIdTypeName)              \
+#define MAP_API_COMMON_DEFINE_HASHID_HASH(FullyQualifiedIdTypeName)              \
   namespace std {                                                       \
   template<>                                                            \
   struct hash<FullyQualifiedIdTypeName>{                                \
@@ -249,4 +249,4 @@ struct hash<map_api_common::HashId>{
 }  // namespace std                                                \
     extern void DefineIDHash ## __FILE__ ## __LINE__(void)
 
-#endif // DMAP_COMMON_HASH_ID_H_
+#endif // MAP_API_COMMON_HASH_ID_H_

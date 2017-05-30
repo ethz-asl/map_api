@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_COMMON_EIGEN_HASH_H_
-#define DMAP_COMMON_EIGEN_HASH_H_
+#ifndef MAP_API_COMMON_EIGEN_HASH_H_
+#define MAP_API_COMMON_EIGEN_HASH_H_
 
 #include <functional>
 
@@ -44,4 +44,4 @@ struct hash<Eigen::Matrix<Scalar, Rows, Cols>> {
 
 }  // namespace std
 
-#endif  // DMAP_COMMON_EIGEN_HASH_H_
+#endif  // MAP_API_COMMON_EIGEN_HASH_H_

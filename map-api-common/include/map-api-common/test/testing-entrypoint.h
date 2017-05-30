@@ -39,8 +39,8 @@
 * The abstraction of the entry point into class and base class has been done by Titus Cieslewski,
 * ASL, ETH Zurich, Switzerland in 2015.
 */
-#ifndef DMAP_COMMON_TESTING_ENTRYPOINT_H_
-#define DMAP_COMMON_TESTING_ENTRYPOINT_H_
+#ifndef MAP_API_COMMON_TESTING_ENTRYPOINT_H_
+#define MAP_API_COMMON_TESTING_ENTRYPOINT_H_
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -111,10 +111,10 @@ class UnitTestEntryPoint : public UnitTestEntryPointBase {
 
 }  // namespace map_api_common
 
-#define DMAP_COMMON_UNITTEST_ENTRYPOINT \
+#define MAP_API_COMMON_UNITTEST_ENTRYPOINT \
   int main(int argc, char** argv) {            \
     map_api_common::UnitTestEntryPoint entry_point;    \
     return entry_point.run(argc, argv);        \
   }
 
-#endif  // DMAP_COMMON_TESTING_ENTRYPOINT_H_
+#endif  // MAP_API_COMMON_TESTING_ENTRYPOINT_H_

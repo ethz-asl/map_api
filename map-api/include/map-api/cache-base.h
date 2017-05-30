@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_CACHE_BASE_H_
-#define DMAP_CACHE_BASE_H_
+#ifndef MAP_API_CACHE_BASE_H_
+#define MAP_API_CACHE_BASE_H_
 #include <string>
 
 namespace map_api {
@@ -48,4 +48,4 @@ class CacheBase {
 
 }  // namespace map_api
 
-#endif  // DMAP_CACHE_BASE_H_
+#endif  // MAP_API_CACHE_BASE_H_

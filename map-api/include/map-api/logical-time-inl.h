@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_LOGICAL_TIME_INL_H_
-#define DMAP_LOGICAL_TIME_INL_H_
+#ifndef MAP_API_LOGICAL_TIME_INL_H_
+#define MAP_API_LOGICAL_TIME_INL_H_
 
 namespace map_api {
 
@@ -50,4 +50,4 @@ inline bool LogicalTime::operator!=(const LogicalTime& other) const {
 
 }  // namespace map_api
 
-#endif /* DMAP_LOGICAL_TIME_INL_H_ */
+#endif /* MAP_API_LOGICAL_TIME_INL_H_ */

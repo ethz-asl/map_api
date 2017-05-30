@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_NET_TABLE_TRANSACTION_H_
-#define DMAP_NET_TABLE_TRANSACTION_H_
+#ifndef MAP_API_NET_TABLE_TRANSACTION_H_
+#define MAP_API_NET_TABLE_TRANSACTION_H_
 
 #include <map>
 #include <memory>
@@ -163,4 +163,4 @@ class NetTableTransaction {
 
 #include "./net-table-transaction-inl.h"
 
-#endif  // DMAP_NET_TABLE_TRANSACTION_H_
+#endif  // MAP_API_NET_TABLE_TRANSACTION_H_

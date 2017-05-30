@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_MESSAGE_H_
-#define DMAP_MESSAGE_H_
+#ifndef MAP_API_MESSAGE_H_
+#define MAP_API_MESSAGE_H_
 
 #include <string>
 
@@ -86,7 +86,7 @@ class Message : public proto::HubMessage {
 /**
  * Anticipated common payload types: String and ProtoBuf
  */
-#define DMAP_MESSAGE_IMPOSE_STRING_MESSAGE(type_denomination) \
+#define MAP_API_MESSAGE_IMPOSE_STRING_MESSAGE(type_denomination) \
   template <>                                                 \
   void Message::impose<type_denomination, std::string>(       \
       const std::string& payload) {                           \
@@ -94,7 +94,7 @@ class Message : public proto::HubMessage {
     this->set_serialized(payload);                            \
   }                                                           \
   extern void __FILE__##__LINE__(void)  // swallows the semicolon
-#define DMAP_MESSAGE_EXTRACT_STRING_MESSAGE(type_denomination) \
+#define MAP_API_MESSAGE_EXTRACT_STRING_MESSAGE(type_denomination) \
   template <>                                                  \
   void Message::extract<type_denomination, std::string>(       \
       std::string* payload) const {                            \
@@ -103,10 +103,10 @@ class Message : public proto::HubMessage {
     *payload = serialized();                                   \
   }                                                            \
   extern void __FILE__##__LINE__##2(void)  // swallows the semicolon
-#define DMAP_STRING_MESSAGE(type_denomination)           \
-  DMAP_MESSAGE_IMPOSE_STRING_MESSAGE(type_denomination); \
-  DMAP_MESSAGE_EXTRACT_STRING_MESSAGE(type_denomination)
-#define DMAP_MESSAGE_IMPOSE_PROTO_MESSAGE(type_denomination, proto_type) \
+#define MAP_API_STRING_MESSAGE(type_denomination)           \
+  MAP_API_MESSAGE_IMPOSE_STRING_MESSAGE(type_denomination); \
+  MAP_API_MESSAGE_EXTRACT_STRING_MESSAGE(type_denomination)
+#define MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(type_denomination, proto_type) \
   template <>                                                            \
   void Message::impose<type_denomination, proto_type>(                   \
       const proto_type& payload) {                                       \
@@ -114,7 +114,7 @@ class Message : public proto::HubMessage {
     this->set_serialized(payload.SerializeAsString());                   \
   }                                                                      \
   extern void __FILE__##__LINE__(void)  // swallows the semicolon
-#define DMAP_MESSAGE_EXTRACT_PROTO_MESSAGE(type_denomination, proto_type) \
+#define MAP_API_MESSAGE_EXTRACT_PROTO_MESSAGE(type_denomination, proto_type) \
   template <>                                                             \
   void Message::extract<type_denomination, proto_type>(                   \
       proto_type* payload) const {                                        \
@@ -123,18 +123,18 @@ class Message : public proto::HubMessage {
     CHECK(payload->ParseFromString(this->serialized()));                  \
   }                                                                       \
   extern void __FILE__##__LINE__##2(void)  // swallows the semicolon
-#define DMAP_PROTO_MESSAGE(type_denomination, proto_type)           \
-  DMAP_MESSAGE_IMPOSE_PROTO_MESSAGE(type_denomination, proto_type); \
-  DMAP_MESSAGE_EXTRACT_PROTO_MESSAGE(type_denomination, proto_type)
-#define DMAP_UNIQUE_PROTO_MESSAGE(type_denomination_string, proto_type)   \
+#define MAP_API_PROTO_MESSAGE(type_denomination, proto_type)           \
+  MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(type_denomination, proto_type); \
+  MAP_API_MESSAGE_EXTRACT_PROTO_MESSAGE(type_denomination, proto_type)
+#define MAP_API_UNIQUE_PROTO_MESSAGE(type_denomination_string, proto_type)   \
   template <> \
   const char Message::UniqueType<proto_type>::message_name[] = \
       type_denomination_string; \
-  DMAP_MESSAGE_IMPOSE_PROTO_MESSAGE(Message::UniqueType<proto_type>::message_name, proto_type); \
-  DMAP_MESSAGE_EXTRACT_PROTO_MESSAGE(Message::UniqueType<proto_type>::message_name, proto_type)
+  MAP_API_MESSAGE_IMPOSE_PROTO_MESSAGE(Message::UniqueType<proto_type>::message_name, proto_type); \
+  MAP_API_MESSAGE_EXTRACT_PROTO_MESSAGE(Message::UniqueType<proto_type>::message_name, proto_type)
 
 
-#define DMAP_MESSAGE_IMPOSE_COMPRESSED_PROTO_MESSAGE(type_denomination,     \
+#define MAP_API_MESSAGE_IMPOSE_COMPRESSED_PROTO_MESSAGE(type_denomination,     \
                                                      proto_type)            \
   template <>                                                               \
   void Message::impose<type_denomination, proto_type>(                      \
@@ -148,7 +148,7 @@ class Message : public proto::HubMessage {
   }                                                                         \
   extern void __FILE__##__LINE__(void)
 
-#define DMAP_MESSAGE_EXTRACT_COMPRESSED_PROTO_MESSAGE(type_denomination,   \
+#define MAP_API_MESSAGE_EXTRACT_COMPRESSED_PROTO_MESSAGE(type_denomination,   \
                                                       proto_type)          \
   template <>                                                              \
   void Message::extract<type_denomination, proto_type>(                    \
@@ -162,12 +162,12 @@ class Message : public proto::HubMessage {
   }                                                                        \
   extern void __FILE__##__LINE__##2(void)
 
-#define DMAP_COMPRESSED_PROTO_MESSAGE(type_denomination, proto_type)           \
-  DMAP_MESSAGE_IMPOSE_COMPRESSED_PROTO_MESSAGE(type_denomination, proto_type); \
-  DMAP_MESSAGE_EXTRACT_COMPRESSED_PROTO_MESSAGE(type_denomination, proto_type)
+#define MAP_API_COMPRESSED_PROTO_MESSAGE(type_denomination, proto_type)           \
+  MAP_API_MESSAGE_IMPOSE_COMPRESSED_PROTO_MESSAGE(type_denomination, proto_type); \
+  MAP_API_MESSAGE_EXTRACT_COMPRESSED_PROTO_MESSAGE(type_denomination, proto_type)
 
 }  // namespace map_api
 
 #include "./message-inl.h"
 
-#endif  // DMAP_MESSAGE_H_
+#endif  // MAP_API_MESSAGE_H_

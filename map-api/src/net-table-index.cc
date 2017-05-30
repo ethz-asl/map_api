@@ -114,19 +114,19 @@ const char NetTableIndex::kFetchResponsibilitiesResponse[] =
 const char NetTableIndex::kPushResponsibilitiesRequest[] =
     "push_responsibilities_response";
 
-DMAP_PROTO_MESSAGE(NetTableIndex::kRoutedChordRequest,
+MAP_API_PROTO_MESSAGE(NetTableIndex::kRoutedChordRequest,
                    proto::RoutedChordRequest);
 
-DMAP_STRING_MESSAGE(NetTableIndex::kPeerResponse);
-DMAP_STRING_MESSAGE(NetTableIndex::kGetClosestPrecedingFingerRequest);
-DMAP_STRING_MESSAGE(NetTableIndex::kNotifyRequest);
-DMAP_PROTO_MESSAGE(NetTableIndex::kReplaceRequest, proto::ReplaceRequest);
-DMAP_PROTO_MESSAGE(NetTableIndex::kAddDataRequest, proto::AddDataRequest);
-DMAP_STRING_MESSAGE(NetTableIndex::kRetrieveDataRequest);
-DMAP_STRING_MESSAGE(NetTableIndex::kRetrieveDataResponse);
-DMAP_PROTO_MESSAGE(NetTableIndex::kFetchResponsibilitiesResponse,
+MAP_API_STRING_MESSAGE(NetTableIndex::kPeerResponse);
+MAP_API_STRING_MESSAGE(NetTableIndex::kGetClosestPrecedingFingerRequest);
+MAP_API_STRING_MESSAGE(NetTableIndex::kNotifyRequest);
+MAP_API_PROTO_MESSAGE(NetTableIndex::kReplaceRequest, proto::ReplaceRequest);
+MAP_API_PROTO_MESSAGE(NetTableIndex::kAddDataRequest, proto::AddDataRequest);
+MAP_API_STRING_MESSAGE(NetTableIndex::kRetrieveDataRequest);
+MAP_API_STRING_MESSAGE(NetTableIndex::kRetrieveDataResponse);
+MAP_API_PROTO_MESSAGE(NetTableIndex::kFetchResponsibilitiesResponse,
                    proto::FetchResponsibilitiesResponse);
-DMAP_PROTO_MESSAGE(NetTableIndex::kPushResponsibilitiesRequest,
+MAP_API_PROTO_MESSAGE(NetTableIndex::kPushResponsibilitiesRequest,
                    proto::FetchResponsibilitiesResponse);
 
 void NetTableIndex::handleRoutedRequest(const Message& routed_request_message,

@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_MESSAGE_INL_H_
-#define DMAP_MESSAGE_INL_H_
+#ifndef MAP_API_MESSAGE_INL_H_
+#define MAP_API_MESSAGE_INL_H_
 
 namespace map_api {
 
@@ -42,4 +42,4 @@ bool Message::isType() const {
 
 }  // namespace map_api
 
-#endif /* DMAP_MESSAGE_INL_H_ */
+#endif /* MAP_API_MESSAGE_INL_H_ */

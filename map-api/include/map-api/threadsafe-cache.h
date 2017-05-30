@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_THREADSAFE_CACHE_H_
-#define DMAP_THREADSAFE_CACHE_H_
+#ifndef MAP_API_THREADSAFE_CACHE_H_
+#define MAP_API_THREADSAFE_CACHE_H_
 
 #include <string>
 #include <vector>
@@ -154,4 +154,4 @@ class ThreadsafeCache : public map_api_common::MappedContainerBase<IdType, Objec
 
 }  // namespace map_api
 
-#endif  // DMAP_THREADSAFE_CACHE_H_
+#endif  // MAP_API_THREADSAFE_CACHE_H_

@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_REVISION_H_
-#define DMAP_REVISION_H_
+#ifndef MAP_API_REVISION_H_
+#define MAP_API_REVISION_H_
 
 #include <memory>
 #include <set>
@@ -222,37 +222,37 @@ class Revision {
 /**
  * Convenience macros to specialize the above templates in one line.
  */
-#define DMAP_DECLARE_TYPE_ENUM(TYPE) \
+#define MAP_API_DECLARE_TYPE_ENUM(TYPE) \
   template <>                        \
   proto::Type Revision::getProtobufTypeEnum<TYPE>()
 
-#define DMAP_TYPE_ENUM(TYPE, ENUM)                    \
+#define MAP_API_TYPE_ENUM(TYPE, ENUM)                    \
   template <>                                         \
   proto::Type Revision::getProtobufTypeEnum<TYPE>() { \
     return ENUM;                                      \
   }                                                   \
   extern void revEnum##__FILE__##__LINE__(void)
 
-#define DMAP_REVISION_SET(TYPE) \
+#define MAP_API_REVISION_SET(TYPE) \
   template <>                   \
   bool Revision::set<TYPE>(proto::TableField* field, const TYPE& value)
 
-#define DMAP_REVISION_GET(TYPE) \
+#define MAP_API_REVISION_GET(TYPE) \
   template <>                   \
   bool Revision::get<TYPE>(const proto::TableField& field, TYPE* value) const
 
-#define DMAP_DECLARE_TYPE_SUPPORT(TypeName) \
-  DMAP_DECLARE_TYPE_ENUM(TypeName);         \
-  DMAP_REVISION_SET(TypeName);              \
-  DMAP_REVISION_GET(TypeName)
+#define MAP_API_DECLARE_TYPE_SUPPORT(TypeName) \
+  MAP_API_DECLARE_TYPE_ENUM(TypeName);         \
+  MAP_API_REVISION_SET(TypeName);              \
+  MAP_API_REVISION_GET(TypeName)
 
-#define DMAP_REVISION_UNIQUE_ID(TypeName)                             \
-  DMAP_TYPE_ENUM(TypeName, ::map_api::proto::Type::HASH128);             \
-  DMAP_REVISION_SET(TypeName) {                                       \
+#define MAP_API_REVISION_UNIQUE_ID(TypeName)                             \
+  MAP_API_TYPE_ENUM(TypeName, ::map_api::proto::Type::HASH128);             \
+  MAP_API_REVISION_SET(TypeName) {                                       \
     CHECK_NOTNULL(field)->set_string_value(value.hexString());        \
     return true;                                                      \
   }                                                                   \
-  DMAP_REVISION_GET(TypeName) {                                       \
+  MAP_API_REVISION_GET(TypeName) {                                       \
     return CHECK_NOTNULL(value)->fromHexString(field.string_value()); \
   }                                                                   \
   extern void __FILE__##__LINE__(void)
@@ -272,4 +272,4 @@ class testBlob : public map_api::proto::TableField {
 
 #include "./revision-inl.h"
 
-#endif  // DMAP_REVISION_H_
+#endif  // MAP_API_REVISION_H_

@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_COMMON_ALIGNED_ALLOCATION_H_
-#define DMAP_COMMON_ALIGNED_ALLOCATION_H_
+#ifndef MAP_API_COMMON_ALIGNED_ALLOCATION_H_
+#define MAP_API_COMMON_ALIGNED_ALLOCATION_H_
 
 #include <functional>
 #include <map>
@@ -107,4 +107,4 @@ inline typename AlignedUniquePtr<Type>::type aligned_unique(
   return std::move(typename AlignedUniquePtr<Type>::type(obj));
 }
 
-#endif  // DMAP_COMMON_ALIGNED_ALLOCATION_H_
+#endif  // MAP_API_COMMON_ALIGNED_ALLOCATION_H_

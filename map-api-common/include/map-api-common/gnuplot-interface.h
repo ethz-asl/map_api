@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_COMMON_GNUPLOT_INTERFACE_H_
-#define DMAP_COMMON_GNUPLOT_INTERFACE_H_
+#ifndef MAP_API_COMMON_GNUPLOT_INTERFACE_H_
+#define MAP_API_COMMON_GNUPLOT_INTERFACE_H_
 
 #include <initializer_list>
 #include <string>
@@ -111,4 +111,4 @@ class GnuplotInterface {
 
 }  // namespace map_api_common
 
-#endif  // DMAP_COMMON_GNUPLOT_INTERFACE_H_
+#endif  // MAP_API_COMMON_GNUPLOT_INTERFACE_H_

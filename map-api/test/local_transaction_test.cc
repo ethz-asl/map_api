@@ -489,4 +489,4 @@ TEST_F(MultiTransactionSingleCRUTest, FindMultiMixed) {
 
 }  // namespace map_api
 
-DMAP_UNITTEST_ENTRYPOINT
+MAP_API_UNITTEST_ENTRYPOINT

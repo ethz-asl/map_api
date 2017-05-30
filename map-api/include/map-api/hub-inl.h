@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_HUB_INL_H_
-#define DMAP_HUB_INL_H_
+#ifndef MAP_API_HUB_INL_H_
+#define MAP_API_HUB_INL_H_
 
 #include "map-api/message.h"
 
@@ -84,4 +84,4 @@ void Hub::request(
 
 }  // namespace map_api
 
-#endif  // DMAP_HUB_INL_H_
+#endif  // MAP_API_HUB_INL_H_

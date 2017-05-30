@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_PROTO_TABLE_FILE_IO_H_
-#define DMAP_PROTO_TABLE_FILE_IO_H_
+#ifndef MAP_API_PROTO_TABLE_FILE_IO_H_
+#define MAP_API_PROTO_TABLE_FILE_IO_H_
 
 #include <fstream>  // NOLINT
 #include <string>
@@ -94,4 +94,4 @@ class ProtoTableFileIO {
   std::ios_base::openmode open_mode_;
 };
 }  // namespace map_api
-#endif  // DMAP_PROTO_TABLE_FILE_IO_H_
+#endif  // MAP_API_PROTO_TABLE_FILE_IO_H_

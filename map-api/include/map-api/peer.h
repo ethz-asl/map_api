@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_PEER_H_
-#define DMAP_PEER_H_
+#ifndef MAP_API_PEER_H_
+#define MAP_API_PEER_H_
 
 #include <memory>
 #include <mutex>
@@ -46,7 +46,7 @@ class Peer {
 
   void request(Message* request, Message* response);
   // Requires specification of Message::UniqueType. This specialization is
-  // included in the DMAP_UNIQUE_PROTO_MESSAGE macro in message.h.
+  // included in the MAP_API_UNIQUE_PROTO_MESSAGE macro in message.h.
   template <typename RequestType, typename ResponseType>
   void request(const RequestType& request, ResponseType* response) {
     CHECK_NOTNULL(response);
@@ -77,4 +77,4 @@ class Peer {
 
 }  // namespace map_api
 
-#endif  // DMAP_PEER_H_
+#endif  // MAP_API_PEER_H_

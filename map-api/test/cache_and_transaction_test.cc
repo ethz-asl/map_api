@@ -35,7 +35,7 @@
 namespace map_api {
 
 UNIQUE_ID_DEFINE_ID(IntId);
-DMAP_REVISION_UNIQUE_ID(IntId);
+MAP_API_REVISION_UNIQUE_ID(IntId);
 
 }  //  namespace map_api
 
@@ -213,4 +213,4 @@ TYPED_TEST(CacheAndTransactionTest, InsertUpdate) {
 
 }  // namespace map_api
 
-DMAP_UNITTEST_ENTRYPOINT
+MAP_API_UNITTEST_ENTRYPOINT

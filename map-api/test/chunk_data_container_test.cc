@@ -418,4 +418,4 @@ TYPED_TEST(CruMapIntTestWithInit, Remove) {
 
 }  // namespace map_api
 
-DMAP_UNITTEST_ENTRYPOINT
+MAP_API_UNITTEST_ENTRYPOINT

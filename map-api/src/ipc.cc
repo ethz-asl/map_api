@@ -39,10 +39,10 @@ std::unordered_map<int, int> IPC::barrier_map_;
 std::queue<proto::IpcMessage> IPC::messages_;
 
 const char IPC::kBarrierMessage[] = "map_api_ipc_barrier";
-DMAP_STRING_MESSAGE(IPC::kBarrierMessage);
+MAP_API_STRING_MESSAGE(IPC::kBarrierMessage);
 
 const char IPC::kMessageMessage[] = "map_api_ipc_message";
-DMAP_PROTO_MESSAGE(IPC::kMessageMessage, proto::IpcMessage);
+MAP_API_PROTO_MESSAGE(IPC::kMessageMessage, proto::IpcMessage);
 
 IPC::~IPC() {}
 

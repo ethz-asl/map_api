@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_PROTO_STL_STREAM_H_
-#define DMAP_PROTO_STL_STREAM_H_
+#ifndef MAP_API_PROTO_STL_STREAM_H_
+#define MAP_API_PROTO_STL_STREAM_H_
 
 #include <memory>
 
@@ -311,4 +311,4 @@ class STLContainerOutputStream
 };
 
 }  // namespace map_api
-#endif  // DMAP_PROTO_STL_STREAM_H_
+#endif  // MAP_API_PROTO_STL_STREAM_H_

@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_TESTING_ENTRYPOINT_INL_H_
-#define DMAP_TESTING_ENTRYPOINT_INL_H_
+#ifndef MAP_API_TESTING_ENTRYPOINT_INL_H_
+#define MAP_API_TESTING_ENTRYPOINT_INL_H_
 
 #include <fstream>  // NOLINT
 
@@ -42,4 +42,4 @@ void MapApiTestEntryPoint::customInit() {
 }
 }  // namespace map_api
 
-#endif  // DMAP_TESTING_ENTRYPOINT_INL_H_
+#endif  // MAP_API_TESTING_ENTRYPOINT_INL_H_

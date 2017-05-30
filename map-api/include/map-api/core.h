@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_CORE_H_
-#define DMAP_CORE_H_
+#ifndef MAP_API_CORE_H_
+#define MAP_API_CORE_H_
 
 #include <mutex>
 
@@ -84,4 +84,4 @@ class Core final {
 };
 }  // namespace map_api
 
-#endif  // DMAP_CORE_H_
+#endif  // MAP_API_CORE_H_

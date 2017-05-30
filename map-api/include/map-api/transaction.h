@@ -19,8 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Map API.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_TRANSACTION_H_
-#define DMAP_TRANSACTION_H_
+#ifndef MAP_API_TRANSACTION_H_
+#define MAP_API_TRANSACTION_H_
 
 #include <future>
 #include <map>
@@ -265,4 +265,4 @@ class Transaction {
 
 #include "./transaction-inl.h"
 
-#endif  // DMAP_TRANSACTION_H_
+#endif  // MAP_API_TRANSACTION_H_
