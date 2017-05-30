@@ -145,7 +145,7 @@ repository.
 
 ### Data structure
 
-We provide the following UML diagram for reference throughout this documentation:
+We provide the following UML diagram for reference throughout this documentation (dmap is a legacy name of Map API):
 
 ![uml](map-api/doc/uml.png)
 
@@ -163,12 +163,12 @@ class AppData {
 ```
 
 However, instead of using unordered maps, you will need to use 
-`common::MappedContainerBase`s and instead of using arbitrary id types, you will
-need to use id types derived from `common::Id`:
+`map_api_common::MappedContainerBase`s and instead of using arbitrary id types, you will
+need to use id types derived from `map_api_common::Id`:
 
 ```c++
-#include <multiagent-mapping-common/mapped-container-base.h>
-#include <multiagent-mapping-common/unique-id.h>
+#include <map-api-common/mapped-container-base.h>
+#include <map-api-common/unique-id.h>
 
 UNIQUE_ID_DEFINE_ID(IdType1);
 UNIQUE_ID_DEFINE_ID(IdType2);
@@ -185,14 +185,14 @@ UNIQUE_ID_DEFINE_ID_HASH(IdType1);
 UNIQUE_ID_DEFINE_ID_HASH(IdType2);
 ```
 
-While you can techincally just use the `multiagent-mapping-common` base Id 
-class, `common::Id`, we strongly recommend using
+While you can techincally just use the `map-api-common` base Id 
+class, `map_api_common::Id`, we strongly recommend using
 strongly typed ids as provided by the above macros, as this will make it harder
 to make silly errors like passing the wrong id type to functions.
 
 At this point, you can continue to have a Map API-free version of your basic app,
-by instantiating the `common::MappedContainerBase`s with 
-`common::HashMapContainer`s, which are defined in the same header. The latter
+by instantiating the `map_api_common::MappedContainerBase`s with 
+`map_api_common::HashMapContainer`s, which are defined in the same header. The latter
 are essentially equivalent to `std::unordered_map`. This allows you to easily 
 switch between using and not using Map API, the latter of course being faster in a
 single-agent setting.
@@ -333,7 +333,7 @@ class AppDataView {
 };
 ```
 
-By instantiating the `AppData` `common::MappedContainerBase`s with 
+By instantiating the `AppData` `map_api_common::MappedContainerBase`s with 
 `map_api::ThreadsafeCache`s, the `data_` member will now represent the state of
 the shared data as it is at construction time of the `transaction_` member.
 
