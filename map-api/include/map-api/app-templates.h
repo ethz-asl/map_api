@@ -1,8 +1,29 @@
+// Copyright (C) 2014-2017 Titus Cieslewski, ASL, ETH Zurich, Switzerland
+// You can contact the author at <titus at ifi dot uzh dot ch>
+// Copyright (C) 2014-2015 Simon Lynen, ASL, ETH Zurich, Switzerland
+// Copyright (c) 2014-2015, Marcin Dymczyk, ASL, ETH Zurich, Switzerland
+// Copyright (c) 2014, Stéphane Magnenat, ASL, ETH Zurich, Switzerland
+//
+// This file is part of Map API.
+//
+// Map API is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Map API is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
+
 // A header for all the templates that can or must be specialized by Map API
 // applications.
 
-#ifndef DMAP_APP_TEMPLATES_H_
-#define DMAP_APP_TEMPLATES_H_
+#ifndef MAP_API_APP_TEMPLATES_H_
+#define MAP_API_APP_TEMPLATES_H_
 
 #include <memory>
 #include <string>
@@ -17,7 +38,7 @@ class NetTable;
 
 template <typename ObjectType>
 NetTable* tableForType();
-#define DMAP_TABLE_FOR_TYPE(Type, TableCPtr) \
+#define MAP_API_TABLE_FOR_TYPE(Type, TableCPtr) \
   template <>                                \
   NetTable* tableForType<Type>() {           \
     return TableCPtr;                        \
@@ -53,7 +74,7 @@ std::string getComparisonString(const ObjectType& a, const ObjectType& b) {
   return a.getComparisonString(b);
 }
 
-#define DMAP_SIMPLE_TYPE_REVISION_CONVERSION(Type, ProtoType)       \
+#define MAP_API_SIMPLE_TYPE_REVISION_CONVERSION(Type, ProtoType)       \
   template <>                                                       \
   void objectFromRevision(const Revision& revision, Type* result) { \
     CHECK_NOTNULL(result);                                          \
@@ -73,7 +94,7 @@ std::string getComparisonString(const ObjectType& a, const ObjectType& b) {
     revision->set(kUniqueFieldIndex, proto);                        \
   }
 
-#define DMAP_SIMPLE_TYPE_WITH_ID_REVISION_CONVERSION(Type, ProtoType,   \
+#define MAP_API_SIMPLE_TYPE_WITH_ID_REVISION_CONVERSION(Type, ProtoType,   \
                                                        IdType)          \
   template <>                                                           \
   void objectFromRevision(const Revision& revision, Type* result) {     \
@@ -95,7 +116,7 @@ std::string getComparisonString(const ObjectType& a, const ObjectType& b) {
     revision->setId(object.id());                                       \
   }
 
-#define DMAP_SIMPLE_SHARED_REVISION_CONVERSION(Type, ProtoType) \
+#define MAP_API_SIMPLE_SHARED_REVISION_CONVERSION(Type, ProtoType) \
   template <>                                                   \
   void objectFromRevision(const Revision& revision,             \
                           std::shared_ptr<Type>* result) {      \
@@ -118,7 +139,7 @@ std::string getComparisonString(const ObjectType& a, const ObjectType& b) {
     revision->set(kUniqueFieldIndex, proto);                    \
   }
 
-#define DMAP_SIMPLE_SHARED_WITH_ID_REVISION_CONVERSION(Type, ProtoType, \
+#define MAP_API_SIMPLE_SHARED_WITH_ID_REVISION_CONVERSION(Type, ProtoType, \
                                                        IdType)          \
   template <>                                                           \
   void objectFromRevision(const Revision& revision,                     \
@@ -143,7 +164,7 @@ std::string getComparisonString(const ObjectType& a, const ObjectType& b) {
     revision->setId(object->id());                                      \
   }
 
-#define DMAP_SIMPLE_SHARED_DERIVED_WITH_ID_REVISION_CONVERSION(  \
+#define MAP_API_SIMPLE_SHARED_DERIVED_WITH_ID_REVISION_CONVERSION(  \
     BaseType, DerivedType, ProtoType, IdType)                    \
   template <>                                                    \
   void objectFromRevision(const Revision& revision,              \
@@ -174,4 +195,4 @@ std::string getComparisonString(const ObjectType& a, const ObjectType& b) {
 
 }  // namespace map_api
 
-#endif  // DMAP_APP_TEMPLATES_H_
+#endif  // MAP_API_APP_TEMPLATES_H_

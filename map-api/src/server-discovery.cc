@@ -1,3 +1,24 @@
+// Copyright (C) 2014-2017 Titus Cieslewski, ASL, ETH Zurich, Switzerland
+// You can contact the author at <titus at ifi dot uzh dot ch>
+// Copyright (C) 2014-2015 Simon Lynen, ASL, ETH Zurich, Switzerland
+// Copyright (c) 2014-2015, Marcin Dymczyk, ASL, ETH Zurich, Switzerland
+// Copyright (c) 2014, Stéphane Magnenat, ASL, ETH Zurich, Switzerland
+//
+// This file is part of Map API.
+//
+// Map API is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Map API is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
+
 #include <map-api/server-discovery.h>
 #include <fstream>  // NOLINT
 #include <sstream>  // NOLINT
@@ -19,13 +40,13 @@ const char ServerDiscovery::kGetPeersRequest[] =
     "map_api_server_discovery_get_peers_request";
 const char ServerDiscovery::kGetPeersResponse[] =
     "map_api_server_discovery_get_peers_response";
-DMAP_PROTO_MESSAGE(ServerDiscovery::kGetPeersResponse,
+MAP_API_PROTO_MESSAGE(ServerDiscovery::kGetPeersResponse,
                    proto::ServerDiscoveryGetPeersResponse);
 const char ServerDiscovery::kLockRequest[] =
     "map_api_server_discovery_lock_request";
 const char ServerDiscovery::kRemoveRequest[] =
     "map_api_server_discovery_remove_request";
-DMAP_STRING_MESSAGE(ServerDiscovery::kRemoveRequest);
+MAP_API_STRING_MESSAGE(ServerDiscovery::kRemoveRequest);
 const char ServerDiscovery::kUnlockRequest[] =
     "map_api_server_discovery_unlock_request";
 

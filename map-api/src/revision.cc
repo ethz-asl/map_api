@@ -1,3 +1,24 @@
+// Copyright (C) 2014-2017 Titus Cieslewski, ASL, ETH Zurich, Switzerland
+// You can contact the author at <titus at ifi dot uzh dot ch>
+// Copyright (C) 2014-2015 Simon Lynen, ASL, ETH Zurich, Switzerland
+// Copyright (c) 2014-2015, Marcin Dymczyk, ASL, ETH Zurich, Switzerland
+// Copyright (c) 2014, Stéphane Magnenat, ASL, ETH Zurich, Switzerland
+//
+// This file is part of Map API.
+//
+// Map API is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Map API is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
+
 #include <map-api/revision.h>
 
 #include <glog/logging.h>
@@ -267,72 +288,72 @@ bool Revision::tryAutoMerge(
  * PROTOBUFENUM
  */
 
-DMAP_TYPE_ENUM(std::string, proto::Type::STRING);
-DMAP_TYPE_ENUM(double, proto::Type::DOUBLE);
-DMAP_TYPE_ENUM(int32_t, proto::Type::INT32);
-DMAP_TYPE_ENUM(uint32_t, proto::Type::UINT32);
-DMAP_TYPE_ENUM(bool, proto::Type::INT32);
-DMAP_TYPE_ENUM(map_api_common::Id, proto::Type::HASH128);
-DMAP_TYPE_ENUM(map_api_common::HashId, proto::Type::HASH128);
-DMAP_TYPE_ENUM(int64_t, proto::Type::INT64);
-DMAP_TYPE_ENUM(uint64_t, proto::Type::UINT64);
-DMAP_TYPE_ENUM(LogicalTime, proto::Type::UINT64);
-DMAP_TYPE_ENUM(Revision, proto::Type::BLOB);
-DMAP_TYPE_ENUM(testBlob, proto::Type::BLOB);
-DMAP_TYPE_ENUM(Revision::Blob, proto::Type::BLOB);
+MAP_API_TYPE_ENUM(std::string, proto::Type::STRING);
+MAP_API_TYPE_ENUM(double, proto::Type::DOUBLE);
+MAP_API_TYPE_ENUM(int32_t, proto::Type::INT32);
+MAP_API_TYPE_ENUM(uint32_t, proto::Type::UINT32);
+MAP_API_TYPE_ENUM(bool, proto::Type::INT32);
+MAP_API_TYPE_ENUM(map_api_common::Id, proto::Type::HASH128);
+MAP_API_TYPE_ENUM(map_api_common::HashId, proto::Type::HASH128);
+MAP_API_TYPE_ENUM(int64_t, proto::Type::INT64);
+MAP_API_TYPE_ENUM(uint64_t, proto::Type::UINT64);
+MAP_API_TYPE_ENUM(LogicalTime, proto::Type::UINT64);
+MAP_API_TYPE_ENUM(Revision, proto::Type::BLOB);
+MAP_API_TYPE_ENUM(testBlob, proto::Type::BLOB);
+MAP_API_TYPE_ENUM(Revision::Blob, proto::Type::BLOB);
 
 /**
  * SET
  */
-DMAP_REVISION_SET(std::string /*value*/) {
+MAP_API_REVISION_SET(std::string /*value*/) {
   field->set_string_value(value);
   return true;
 }
-DMAP_REVISION_SET(double /*value*/) {
+MAP_API_REVISION_SET(double /*value*/) {
   field->set_double_value(value);
   return true;
 }
-DMAP_REVISION_SET(int32_t /*value*/) {
+MAP_API_REVISION_SET(int32_t /*value*/) {
   field->set_int_value(value);
   return true;
 }
-DMAP_REVISION_SET(uint32_t /*value*/) {
+MAP_API_REVISION_SET(uint32_t /*value*/) {
   field->set_unsigned_int_value(value);
   return true;
 }
-DMAP_REVISION_SET(bool /*value*/) {
+MAP_API_REVISION_SET(bool /*value*/) {
   field->set_int_value(value ? 1 : 0);
   return true;
 }
-DMAP_REVISION_SET(map_api_common::Id /*value*/) {
+MAP_API_REVISION_SET(map_api_common::Id /*value*/) {
   field->set_string_value(value.hexString());
   return true;
 }
-DMAP_REVISION_SET(map_api_common::HashId /*value*/) {
+MAP_API_REVISION_SET(map_api_common::HashId /*value*/) {
   field->set_string_value(value.hexString());
   return true;
 }
-DMAP_REVISION_SET(int64_t /*value*/) {
+MAP_API_REVISION_SET(int64_t /*value*/) {
   field->set_long_value(value);
   return true;
 }
-DMAP_REVISION_SET(uint64_t /*value*/) {
+MAP_API_REVISION_SET(uint64_t /*value*/) {
   field->set_unsigned_long_value(value);
   return true;
 }
-DMAP_REVISION_SET(LogicalTime /*value*/) {
+MAP_API_REVISION_SET(LogicalTime /*value*/) {
   field->set_unsigned_long_value(value.serialize());
   return true;
 }
-DMAP_REVISION_SET(Revision /*value*/) {
+MAP_API_REVISION_SET(Revision /*value*/) {
   field->set_blob_value(value.serializeUnderlying());
   return true;
 }
-DMAP_REVISION_SET(testBlob /*value*/) {
+MAP_API_REVISION_SET(testBlob /*value*/) {
   field->set_blob_value(value.SerializeAsString());
   return true;
 }
-DMAP_REVISION_SET(Revision::Blob /*value*/) {
+MAP_API_REVISION_SET(Revision::Blob /*value*/) {
   field->set_blob_value(value.data(), value.size());
   return true;
 }
@@ -340,53 +361,53 @@ DMAP_REVISION_SET(Revision::Blob /*value*/) {
 /**
  * GET
  */
-DMAP_REVISION_GET(std::string /*value*/) {
+MAP_API_REVISION_GET(std::string /*value*/) {
   *value = field.string_value();
   return true;
 }
-DMAP_REVISION_GET(double /*value*/) {
+MAP_API_REVISION_GET(double /*value*/) {
   *value = field.double_value();
   return true;
 }
-DMAP_REVISION_GET(int32_t /*value*/) {
+MAP_API_REVISION_GET(int32_t /*value*/) {
   *value = field.int_value();
   return true;
 }
-DMAP_REVISION_GET(uint32_t /*value*/) {
+MAP_API_REVISION_GET(uint32_t /*value*/) {
   *value = field.unsigned_int_value();
   return true;
 }
-DMAP_REVISION_GET(map_api_common::Id /*value*/) {
+MAP_API_REVISION_GET(map_api_common::Id /*value*/) {
   if (!value->fromHexString(field.string_value())) {
     LOG(FATAL) << "Failed to parse Hash id from string \""
                << field.string_value() << "\"";
   }
   return true;
 }
-DMAP_REVISION_GET(bool /*value*/) {
+MAP_API_REVISION_GET(bool /*value*/) {
   *value = field.int_value() != 0;
   return true;
 }
-DMAP_REVISION_GET(map_api_common::HashId /*value*/) {
+MAP_API_REVISION_GET(map_api_common::HashId /*value*/) {
   if (!value->fromHexString(field.string_value())) {
     LOG(FATAL) << "Failed to parse Hash id from string \""
                << field.string_value() << "\"";
   }
   return true;
 }
-DMAP_REVISION_GET(int64_t /*value*/) {
+MAP_API_REVISION_GET(int64_t /*value*/) {
   *value = field.long_value();
   return true;
 }
-DMAP_REVISION_GET(uint64_t /*value*/) {
+MAP_API_REVISION_GET(uint64_t /*value*/) {
   *value = field.unsigned_long_value();
   return true;
 }
-DMAP_REVISION_GET(LogicalTime /*value*/) {
+MAP_API_REVISION_GET(LogicalTime /*value*/) {
   *value = LogicalTime(field.unsigned_long_value());
   return true;
 }
-DMAP_REVISION_GET(Revision /*value*/) {
+MAP_API_REVISION_GET(Revision /*value*/) {
   bool parsed =
       value->underlying_revision_->ParseFromString(field.blob_value());
   if (!parsed) {
@@ -395,7 +416,7 @@ DMAP_REVISION_GET(Revision /*value*/) {
   }
   return true;
 }
-DMAP_REVISION_GET(testBlob /*value*/) {
+MAP_API_REVISION_GET(testBlob /*value*/) {
   bool parsed = value->ParseFromString(field.blob_value());
   if (!parsed) {
     LOG(FATAL) << "Failed to parse test blob";
@@ -403,7 +424,7 @@ DMAP_REVISION_GET(testBlob /*value*/) {
   }
   return true;
 }
-DMAP_REVISION_GET(Revision::Blob /*value*/) {
+MAP_API_REVISION_GET(Revision::Blob /*value*/) {
   value->resize(field.blob_value().length());
   memcpy(value->data(), field.blob_value().c_str(),
          field.blob_value().length());

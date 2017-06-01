@@ -1,3 +1,24 @@
+// Copyright (C) 2014-2017 Titus Cieslewski, ASL, ETH Zurich, Switzerland
+// You can contact the author at <titus at ifi dot uzh dot ch>
+// Copyright (C) 2014-2015 Simon Lynen, ASL, ETH Zurich, Switzerland
+// Copyright (c) 2014-2015, Marcin Dymczyk, ASL, ETH Zurich, Switzerland
+// Copyright (c) 2014, Stéphane Magnenat, ASL, ETH Zurich, Switzerland
+//
+// This file is part of Map API.
+//
+// Map API is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Map API is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
+
 #include <map-api/legacy-chunk.h>
 #include <fstream>  // NOLINT
 #include <unordered_set>
@@ -40,14 +61,14 @@ const char LegacyChunk::kNewPeerRequest[] = "map_api_chunk_new_peer_request";
 const char LegacyChunk::kUnlockRequest[] = "map_api_chunk_unlock_request";
 const char LegacyChunk::kUpdateRequest[] = "map_api_chunk_update_request";
 
-DMAP_PROTO_MESSAGE(LegacyChunk::kConnectRequest, proto::ChunkRequestMetadata);
-DMAP_PROTO_MESSAGE(LegacyChunk::kInitRequest, proto::InitRequest);
-DMAP_PROTO_MESSAGE(LegacyChunk::kInsertRequest, proto::PatchRequest);
-DMAP_PROTO_MESSAGE(LegacyChunk::kLeaveRequest, proto::ChunkRequestMetadata);
-DMAP_PROTO_MESSAGE(LegacyChunk::kLockRequest, proto::ChunkRequestMetadata);
-DMAP_PROTO_MESSAGE(LegacyChunk::kNewPeerRequest, proto::NewPeerRequest);
-DMAP_PROTO_MESSAGE(LegacyChunk::kUnlockRequest, proto::ChunkRequestMetadata);
-DMAP_PROTO_MESSAGE(LegacyChunk::kUpdateRequest, proto::PatchRequest);
+MAP_API_PROTO_MESSAGE(LegacyChunk::kConnectRequest, proto::ChunkRequestMetadata);
+MAP_API_PROTO_MESSAGE(LegacyChunk::kInitRequest, proto::InitRequest);
+MAP_API_PROTO_MESSAGE(LegacyChunk::kInsertRequest, proto::PatchRequest);
+MAP_API_PROTO_MESSAGE(LegacyChunk::kLeaveRequest, proto::ChunkRequestMetadata);
+MAP_API_PROTO_MESSAGE(LegacyChunk::kLockRequest, proto::ChunkRequestMetadata);
+MAP_API_PROTO_MESSAGE(LegacyChunk::kNewPeerRequest, proto::NewPeerRequest);
+MAP_API_PROTO_MESSAGE(LegacyChunk::kUnlockRequest, proto::ChunkRequestMetadata);
+MAP_API_PROTO_MESSAGE(LegacyChunk::kUpdateRequest, proto::PatchRequest);
 
 const char LegacyChunk::kLockSequenceFile[] = "meas_lock_sequence.txt";
 

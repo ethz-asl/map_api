@@ -1,3 +1,24 @@
+// Copyright (C) 2014-2017 Titus Cieslewski, ASL, ETH Zurich, Switzerland
+// You can contact the author at <titus at ifi dot uzh dot ch>
+// Copyright (C) 2014-2015 Simon Lynen, ASL, ETH Zurich, Switzerland
+// Copyright (c) 2014-2015, Marcin Dymczyk, ASL, ETH Zurich, Switzerland
+// Copyright (c) 2014, Stéphane Magnenat, ASL, ETH Zurich, Switzerland
+//
+// This file is part of Map API.
+//
+// Map API is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Map API is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
+
 #include "map-api/spatial-index.h"
 
 #include <map-api-common/conversions.h>
@@ -232,19 +253,19 @@ const char SpatialIndex::kFetchResponsibilitiesResponse[] =
 const char SpatialIndex::kPushResponsibilitiesRequest[] =
     "push_responsibilities_response";
 
-DMAP_PROTO_MESSAGE(SpatialIndex::kRoutedChordRequest,
+MAP_API_PROTO_MESSAGE(SpatialIndex::kRoutedChordRequest,
                    proto::RoutedChordRequest);
 
-DMAP_STRING_MESSAGE(SpatialIndex::kPeerResponse);
-DMAP_STRING_MESSAGE(SpatialIndex::kGetClosestPrecedingFingerRequest);
-DMAP_STRING_MESSAGE(SpatialIndex::kNotifyRequest);
-DMAP_PROTO_MESSAGE(SpatialIndex::kReplaceRequest, proto::ReplaceRequest);
-DMAP_PROTO_MESSAGE(SpatialIndex::kAddDataRequest, proto::AddDataRequest);
-DMAP_STRING_MESSAGE(SpatialIndex::kRetrieveDataRequest);
-DMAP_STRING_MESSAGE(SpatialIndex::kRetrieveDataResponse);
-DMAP_PROTO_MESSAGE(SpatialIndex::kFetchResponsibilitiesResponse,
+MAP_API_STRING_MESSAGE(SpatialIndex::kPeerResponse);
+MAP_API_STRING_MESSAGE(SpatialIndex::kGetClosestPrecedingFingerRequest);
+MAP_API_STRING_MESSAGE(SpatialIndex::kNotifyRequest);
+MAP_API_PROTO_MESSAGE(SpatialIndex::kReplaceRequest, proto::ReplaceRequest);
+MAP_API_PROTO_MESSAGE(SpatialIndex::kAddDataRequest, proto::AddDataRequest);
+MAP_API_STRING_MESSAGE(SpatialIndex::kRetrieveDataRequest);
+MAP_API_STRING_MESSAGE(SpatialIndex::kRetrieveDataResponse);
+MAP_API_PROTO_MESSAGE(SpatialIndex::kFetchResponsibilitiesResponse,
                    proto::FetchResponsibilitiesResponse);
-DMAP_PROTO_MESSAGE(SpatialIndex::kPushResponsibilitiesRequest,
+MAP_API_PROTO_MESSAGE(SpatialIndex::kPushResponsibilitiesRequest,
                    proto::FetchResponsibilitiesResponse);
 
 void SpatialIndex::handleRoutedRequest(const Message& routed_request_message,
@@ -661,7 +682,7 @@ void SpatialIndex::localUpdateCallback(const std::string& key,
 
 const char SpatialIndex::kTriggerRequest[] =
     "map_api_spatial_index_trigger_request";
-DMAP_PROTO_MESSAGE(SpatialIndex::kTriggerRequest, proto::SpatialIndexTrigger);
+MAP_API_PROTO_MESSAGE(SpatialIndex::kTriggerRequest, proto::SpatialIndexTrigger);
 void SpatialIndex::sendTriggerNotification(const PeerId& peer,
                                            const size_t position,
                                            const map_api_common::IdList& new_chunks) {
