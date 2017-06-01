@@ -17,7 +17,7 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
 #ifndef MAP_API_LEGACY_CHUNK_DATA_STXXL_CONTAINER_H_
 #define MAP_API_LEGACY_CHUNK_DATA_STXXL_CONTAINER_H_
