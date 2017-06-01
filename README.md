@@ -185,8 +185,8 @@ UNIQUE_ID_DEFINE_ID_HASH(IdType1);
 UNIQUE_ID_DEFINE_ID_HASH(IdType2);
 ```
 
-While you can techincally just use the `map-api-common` base Id 
-class, `map_api_common::Id`, we strongly recommend using
+While you can techincally just use `map_api_common::Id` from the `map-api-common` 
+package, we strongly recommend using
 strongly typed ids as provided by the above macros, as this will make it harder
 to make silly errors like passing the wrong id type to functions.
 
