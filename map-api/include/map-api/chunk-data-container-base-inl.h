@@ -17,10 +17,10 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_CHUNK_DATA_CONTAINER_BASE_INL_H_
-#define DMAP_CHUNK_DATA_CONTAINER_BASE_INL_H_
+#ifndef MAP_API_CHUNK_DATA_CONTAINER_BASE_INL_H_
+#define MAP_API_CHUNK_DATA_CONTAINER_BASE_INL_H_
 
 #include <sstream>  // NOLINT
 #include <utility>
@@ -107,4 +107,4 @@ int ChunkDataContainerBase::count(int key, const ValueType& value,
 
 }  // namespace map_api
 
-#endif  // DMAP_CHUNK_DATA_CONTAINER_BASE_INL_H_
+#endif  // MAP_API_CHUNK_DATA_CONTAINER_BASE_INL_H_

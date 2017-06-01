@@ -17,10 +17,10 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_NET_TABLE_INDEX_H_
-#define DMAP_NET_TABLE_INDEX_H_
+#ifndef MAP_API_NET_TABLE_INDEX_H_
+#define MAP_API_NET_TABLE_INDEX_H_
 
 #include <string>
 #include <unordered_set>
@@ -102,4 +102,4 @@ class NetTableIndex : public ChordIndex {
 
 } // namespace map_api
 
-#endif  // DMAP_NET_TABLE_INDEX_H_
+#endif  // MAP_API_NET_TABLE_INDEX_H_

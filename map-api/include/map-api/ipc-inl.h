@@ -17,10 +17,10 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_IPC_INL_H_
-#define DMAP_IPC_INL_H_
+#ifndef MAP_API_IPC_INL_H_
+#define MAP_API_IPC_INL_H_
 
 #include <sstream>  // NOLINT
 #include <string>
@@ -78,4 +78,4 @@ Type IPC::popFor(int receiver) {
 
 }  // namespace map_api
 
-#endif  // DMAP_IPC_INL_H_
+#endif  // MAP_API_IPC_INL_H_

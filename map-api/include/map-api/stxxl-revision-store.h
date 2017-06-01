@@ -17,10 +17,10 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_STXXL_REVISION_STORE_H_
-#define DMAP_STXXL_REVISION_STORE_H_
+#ifndef MAP_API_STXXL_REVISION_STORE_H_
+#define MAP_API_STXXL_REVISION_STORE_H_
 
 #include <memory>
 #include <mutex>
@@ -113,4 +113,4 @@ class STXXLRevisionStore {
   mutable std::mutex mutex_;
 };
 }  // namespace map_api
-#endif  // DMAP_STXXL_REVISION_STORE_H_
+#endif  // MAP_API_STXXL_REVISION_STORE_H_

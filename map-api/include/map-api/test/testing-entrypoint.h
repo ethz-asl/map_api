@@ -17,10 +17,10 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_TESTING_ENTRYPOINT_H_
-#define DMAP_TESTING_ENTRYPOINT_H_
+#ifndef MAP_API_TESTING_ENTRYPOINT_H_
+#define MAP_API_TESTING_ENTRYPOINT_H_
 
 #include <map-api-common/test/testing-entrypoint.h>
 // Undefining the multiagent mapping entry point for safety.
@@ -38,7 +38,7 @@ class MapApiTestEntryPoint : public map_api_common::UnitTestEntryPointBase {
 
 }  // namespace map_api
 
-#define DMAP_UNITTEST_ENTRYPOINT            \
+#define MAP_API_UNITTEST_ENTRYPOINT            \
   int main(int argc, char** argv) {         \
     map_api::MapApiTestEntryPoint entry_point; \
     return entry_point.run(argc, argv);     \
@@ -46,4 +46,4 @@ class MapApiTestEntryPoint : public map_api_common::UnitTestEntryPointBase {
 
 #include "./testing-entrypoint-inl.h"
 
-#endif  // DMAP_TESTING_ENTRYPOINT_H_
+#endif  // MAP_API_TESTING_ENTRYPOINT_H_

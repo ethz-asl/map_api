@@ -17,10 +17,10 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_CONFLICTS_H_
-#define DMAP_CONFLICTS_H_
+#ifndef MAP_API_CONFLICTS_H_
+#define MAP_API_CONFLICTS_H_
 
 #include <list>
 #include <memory>
@@ -81,4 +81,4 @@ class ConflictMap : public std::unordered_map<NetTable*, Conflicts> {
 
 }  // namespace map_api
 
-#endif  // DMAP_CONFLICTS_H_
+#endif  // MAP_API_CONFLICTS_H_

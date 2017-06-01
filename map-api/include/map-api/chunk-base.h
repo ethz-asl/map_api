@@ -17,10 +17,10 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_CHUNK_BASE_H_
-#define DMAP_CHUNK_BASE_H_
+#ifndef MAP_API_CHUNK_BASE_H_
+#define MAP_API_CHUNK_BASE_H_
 
 #include <functional>
 #include <memory>
@@ -156,4 +156,4 @@ class ChunkBase {
 
 }  // namespace map_api
 
-#endif  // DMAP_CHUNK_BASE_H_
+#endif  // MAP_API_CHUNK_BASE_H_

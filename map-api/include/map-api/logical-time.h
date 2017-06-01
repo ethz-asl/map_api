@@ -17,10 +17,10 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_LOGICAL_TIME_H_
-#define DMAP_LOGICAL_TIME_H_
+#ifndef MAP_API_LOGICAL_TIME_H_
+#define MAP_API_LOGICAL_TIME_H_
 
 #include <cstdint>
 #include <iostream>  // NOLINT
@@ -84,4 +84,4 @@ struct hash<map_api::LogicalTime> {
 
 #include "./logical-time-inl.h"
 
-#endif  // DMAP_LOGICAL_TIME_H_
+#endif  // MAP_API_LOGICAL_TIME_H_

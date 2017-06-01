@@ -17,7 +17,7 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
 #include <map-api/legacy-chunk.h>
 #include <fstream>  // NOLINT
@@ -61,14 +61,14 @@ const char LegacyChunk::kNewPeerRequest[] = "map_api_chunk_new_peer_request";
 const char LegacyChunk::kUnlockRequest[] = "map_api_chunk_unlock_request";
 const char LegacyChunk::kUpdateRequest[] = "map_api_chunk_update_request";
 
-DMAP_PROTO_MESSAGE(LegacyChunk::kConnectRequest, proto::ChunkRequestMetadata);
-DMAP_PROTO_MESSAGE(LegacyChunk::kInitRequest, proto::InitRequest);
-DMAP_PROTO_MESSAGE(LegacyChunk::kInsertRequest, proto::PatchRequest);
-DMAP_PROTO_MESSAGE(LegacyChunk::kLeaveRequest, proto::ChunkRequestMetadata);
-DMAP_PROTO_MESSAGE(LegacyChunk::kLockRequest, proto::ChunkRequestMetadata);
-DMAP_PROTO_MESSAGE(LegacyChunk::kNewPeerRequest, proto::NewPeerRequest);
-DMAP_PROTO_MESSAGE(LegacyChunk::kUnlockRequest, proto::ChunkRequestMetadata);
-DMAP_PROTO_MESSAGE(LegacyChunk::kUpdateRequest, proto::PatchRequest);
+MAP_API_PROTO_MESSAGE(LegacyChunk::kConnectRequest, proto::ChunkRequestMetadata);
+MAP_API_PROTO_MESSAGE(LegacyChunk::kInitRequest, proto::InitRequest);
+MAP_API_PROTO_MESSAGE(LegacyChunk::kInsertRequest, proto::PatchRequest);
+MAP_API_PROTO_MESSAGE(LegacyChunk::kLeaveRequest, proto::ChunkRequestMetadata);
+MAP_API_PROTO_MESSAGE(LegacyChunk::kLockRequest, proto::ChunkRequestMetadata);
+MAP_API_PROTO_MESSAGE(LegacyChunk::kNewPeerRequest, proto::NewPeerRequest);
+MAP_API_PROTO_MESSAGE(LegacyChunk::kUnlockRequest, proto::ChunkRequestMetadata);
+MAP_API_PROTO_MESSAGE(LegacyChunk::kUpdateRequest, proto::PatchRequest);
 
 const char LegacyChunk::kLockSequenceFile[] = "meas_lock_sequence.txt";
 

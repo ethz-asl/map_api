@@ -17,10 +17,10 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_REVISION_MAP_H_
-#define DMAP_REVISION_MAP_H_
+#ifndef MAP_API_REVISION_MAP_H_
+#define MAP_API_REVISION_MAP_H_
 
 #include <memory>
 #include <unordered_map>
@@ -66,4 +66,4 @@ class MutableRevisionMap : public RevisionMapBase<Revision> {};
 
 #include "map-api/revision-map-inl.h"
 
-#endif  // DMAP_REVISION_MAP_H_
+#endif  // MAP_API_REVISION_MAP_H_

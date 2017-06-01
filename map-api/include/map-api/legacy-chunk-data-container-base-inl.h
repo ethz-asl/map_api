@@ -17,10 +17,10 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_LEGACY_CHUNK_DATA_CONTAINER_BASE_INL_H_
-#define DMAP_LEGACY_CHUNK_DATA_CONTAINER_BASE_INL_H_
+#ifndef MAP_API_LEGACY_CHUNK_DATA_CONTAINER_BASE_INL_H_
+#define MAP_API_LEGACY_CHUNK_DATA_CONTAINER_BASE_INL_H_
 
 namespace map_api {
 
@@ -70,4 +70,4 @@ void LegacyChunkDataContainerBase::remove(const LogicalTime& time,
 
 }  // namespace map_api
 
-#endif  // DMAP_LEGACY_CHUNK_DATA_CONTAINER_BASE_INL_H_
+#endif  // MAP_API_LEGACY_CHUNK_DATA_CONTAINER_BASE_INL_H_

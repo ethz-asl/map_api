@@ -17,10 +17,10 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_DMAP_FIXTURE_H_
-#define DMAP_DMAP_FIXTURE_H_
+#ifndef MAP_API_MAP_API_FIXTURE_H_
+#define MAP_API_MAP_API_FIXTURE_H_
 
 #include <multiprocess-gtest/multiprocess-fixture.h>
 
@@ -32,4 +32,4 @@ class MapApiFixture : public map_api_common::MultiprocessFixture {
 
 #include "./map_api_fixture_inl.h"
 
-#endif  // DMAP_DMAP_FIXTURE_H_
+#endif  // MAP_API_MAP_API_FIXTURE_H_

@@ -17,10 +17,10 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_SPATIAL_INDEX_H_
-#define DMAP_SPATIAL_INDEX_H_
+#ifndef MAP_API_SPATIAL_INDEX_H_
+#define MAP_API_SPATIAL_INDEX_H_
 
 #include <sstream>  // NOLINT
 #include <string>
@@ -217,4 +217,4 @@ class SpatialIndex : public ChordIndex {
 
 } // namespace map_api
 
-#endif  // DMAP_SPATIAL_INDEX_H_
+#endif  // MAP_API_SPATIAL_INDEX_H_

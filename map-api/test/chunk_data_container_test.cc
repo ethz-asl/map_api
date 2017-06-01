@@ -17,7 +17,7 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
 #include <string>
 #include <type_traits>
@@ -418,4 +418,4 @@ TYPED_TEST(CruMapIntTestWithInit, Remove) {
 
 }  // namespace map_api
 
-DMAP_UNITTEST_ENTRYPOINT
+MAP_API_UNITTEST_ENTRYPOINT

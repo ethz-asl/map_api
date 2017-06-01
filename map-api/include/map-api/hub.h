@@ -17,10 +17,10 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_HUB_H_
-#define DMAP_HUB_H_
+#ifndef MAP_API_HUB_H_
+#define MAP_API_HUB_H_
 
 #include <functional>
 #include <string>
@@ -65,7 +65,7 @@ class Hub final {
 
   // Overload for ackRequest where request has a unique message type name.
   // Requires specification of Message::UniqueType. This specialization is
-  // included in the DMAP_UNIQUE_PROTO_MESSAGE macro in message.h.
+  // included in the MAP_API_UNIQUE_PROTO_MESSAGE macro in message.h.
   template <typename RequestType>
   bool ackRequest(const PeerId& peer, const RequestType& request);
 
@@ -94,7 +94,7 @@ class Hub final {
                        const std::function<void(const Message& request,
                                                 Message* response)>& handler);
   // Register handler for request and response types defined with
-  // DMAP_UNIQUE_PROTO_MESSAGE from message.h.
+  // MAP_API_UNIQUE_PROTO_MESSAGE from message.h.
   // Using C-style function pointers since this makes the typical use case more
   // user friendly; this allows passing static functions without the need to
   // wrap in std::function.
@@ -131,7 +131,7 @@ class Hub final {
   // Overload for request and response type have a unique message type name
   // and where a specific type of response is expected. Requires specification
   // of Message::UniqueType. This specialization is included in the
-  // DMAP_UNIQUE_PROTO_MESSAGE macro in message.h.
+  // MAP_API_UNIQUE_PROTO_MESSAGE macro in message.h.
   template <typename RequestType, typename ResponseType>
   void request(
       const PeerId& peer, const RequestType& request, ResponseType* response);
@@ -206,4 +206,4 @@ class Hub final {
 
 #include "./hub-inl.h"
 
-#endif  // DMAP_HUB_H_
+#endif  // MAP_API_HUB_H_

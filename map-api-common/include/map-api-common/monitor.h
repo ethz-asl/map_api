@@ -17,10 +17,10 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_COMMON_MONITOR_H_
-#define DMAP_COMMON_MONITOR_H_
+#ifndef MAP_API_COMMON_MONITOR_H_
+#define MAP_API_COMMON_MONITOR_H_
 
 #include <mutex>
 
@@ -66,4 +66,4 @@ class Monitor {
 
 }  // namespace map_api_common
 
-#endif  // DMAP_COMMON_MONITOR_H_
+#endif  // MAP_API_COMMON_MONITOR_H_

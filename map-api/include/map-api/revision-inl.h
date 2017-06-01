@@ -17,10 +17,10 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_REVISION_INL_H_
-#define DMAP_REVISION_INL_H_
+#ifndef MAP_API_REVISION_INL_H_
+#define MAP_API_REVISION_INL_H_
 
 #include <string>
 
@@ -80,20 +80,20 @@ bool Revision::verifyEqual(int index, const ExpectedType& expected) const {
   return value == expected;
 }
 
-DMAP_DECLARE_TYPE_SUPPORT(std::string);     // NOLINT
-DMAP_DECLARE_TYPE_SUPPORT(double);          // NOLINT
-DMAP_DECLARE_TYPE_SUPPORT(int32_t);         // NOLINT
-DMAP_DECLARE_TYPE_SUPPORT(uint32_t);        // NOLINT
-DMAP_DECLARE_TYPE_SUPPORT(map_api_common::Id); // NOLINT
-DMAP_DECLARE_TYPE_SUPPORT(bool);            // NOLINT
-DMAP_DECLARE_TYPE_SUPPORT(map_api_common::HashId); // NOLINT
-DMAP_DECLARE_TYPE_SUPPORT(int64_t);         // NOLINT
-DMAP_DECLARE_TYPE_SUPPORT(uint64_t);        // NOLINT
-DMAP_DECLARE_TYPE_SUPPORT(LogicalTime);     // NOLINT
-DMAP_DECLARE_TYPE_SUPPORT(Revision);        // NOLINT
-DMAP_DECLARE_TYPE_SUPPORT(testBlob);        // NOLINT
-DMAP_DECLARE_TYPE_SUPPORT(Revision::Blob);  // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(std::string);     // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(double);          // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(int32_t);         // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(uint32_t);        // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(map_api_common::Id); // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(bool);            // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(map_api_common::HashId); // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(int64_t);         // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(uint64_t);        // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(LogicalTime);     // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(Revision);        // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(testBlob);        // NOLINT
+MAP_API_DECLARE_TYPE_SUPPORT(Revision::Blob);  // NOLINT
 
 }  // namespace map_api
 
-#endif  // DMAP_REVISION_INL_H_
+#endif  // MAP_API_REVISION_INL_H_

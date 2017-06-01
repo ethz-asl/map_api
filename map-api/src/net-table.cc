@@ -17,7 +17,7 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
 #include <map-api/net-table.h>
 #include <glog/logging.h>
@@ -42,8 +42,8 @@ const char NetTable::kPushNewChunksRequest[] = "map_api_net_table_push_new";
 const char NetTable::kAnnounceToListeners[] =
     "map_api_net_table_announce_to_listeners";
 
-DMAP_STRING_MESSAGE(NetTable::kPushNewChunksRequest);
-DMAP_STRING_MESSAGE(NetTable::kAnnounceToListeners);
+MAP_API_STRING_MESSAGE(NetTable::kPushNewChunksRequest);
+MAP_API_STRING_MESSAGE(NetTable::kAnnounceToListeners);
 
 NetTable::NetTable() {}
 

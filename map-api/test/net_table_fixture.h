@@ -17,10 +17,10 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_NET_TABLE_FIXTURE_H_
-#define DMAP_NET_TABLE_FIXTURE_H_
+#ifndef MAP_API_NET_TABLE_FIXTURE_H_
+#define MAP_API_NET_TABLE_FIXTURE_H_
 
 #include <string>
 
@@ -69,4 +69,4 @@ class NetTableFixture : public MapApiFixture {
 
 #include "./net_table_fixture_inl.h"
 
-#endif  // DMAP_NET_TABLE_FIXTURE_H_
+#endif  // MAP_API_NET_TABLE_FIXTURE_H_

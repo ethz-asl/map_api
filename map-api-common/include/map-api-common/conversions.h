@@ -17,10 +17,10 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_COMMON_CONVERSIONS_H_
-#define DMAP_COMMON_CONVERSIONS_H_
+#ifndef MAP_API_COMMON_CONVERSIONS_H_
+#define MAP_API_COMMON_CONVERSIONS_H_
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -49,4 +49,4 @@ constexpr size_t kMilliSecondsToNanoSeconds = 1e6;
 }  // namespace conversions
 }  // namespace common
 
-#endif  // DMAP_COMMON_CONVERSIONS_H_
+#endif  // MAP_API_COMMON_CONVERSIONS_H_

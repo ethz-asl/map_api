@@ -17,10 +17,10 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_LEGACY_CHUNK_H_
-#define DMAP_LEGACY_CHUNK_H_
+#ifndef MAP_API_LEGACY_CHUNK_H_
+#define MAP_API_LEGACY_CHUNK_H_
 
 #include <condition_variable>
 #include <memory>
@@ -279,4 +279,4 @@ class LegacyChunk : public ChunkBase {
 
 #include "map-api/legacy-chunk-inl.h"
 
-#endif  // DMAP_LEGACY_CHUNK_H_
+#endif  // MAP_API_LEGACY_CHUNK_H_

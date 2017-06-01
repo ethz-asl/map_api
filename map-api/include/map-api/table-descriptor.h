@@ -17,10 +17,10 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Map API.  If not, see <http://www.gnu.org/licenses/>.
+// along with Map API. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef DMAP_TABLE_DESCRIPTOR_H_
-#define DMAP_TABLE_DESCRIPTOR_H_
+#ifndef MAP_API_TABLE_DESCRIPTOR_H_
+#define MAP_API_TABLE_DESCRIPTOR_H_
 
 #include <string>
 #include <vector>
@@ -57,4 +57,4 @@ class TableDescriptor : private proto::TableDescriptor {
 
 #include "./table-descriptor-inl.h"
 
-#endif  // DMAP_TABLE_DESCRIPTOR_H_
+#endif  // MAP_API_TABLE_DESCRIPTOR_H_
